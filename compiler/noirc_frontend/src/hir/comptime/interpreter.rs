@@ -1,17 +1,26 @@
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
+use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::graph::CrateId;
+use crate::hir_def::expr::ImplKind;
+use crate::macros_api::UnaryOp;
+use crate::monomorphization::{
+    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
+    undo_instantiation_bindings,
+};
+use crate::token::Tokens;
 use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
+            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
             HirPrefixExpression,
         },
@@ -20,49 +29,52 @@ use crate::{
             HirPattern,
         },
     },
-    macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
+    macros_api::{HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::Value;
+use super::value::{unwrap_rc, Value};
+
+mod builtin;
+mod unquote;
 
 #[allow(unused)]
 pub struct Interpreter<'interner> {
     /// To expand macros the Interpreter may mutate hir nodes within the NodeInterner
-    pub(super) interner: &'interner mut NodeInterner,
+    pub interner: &'interner mut NodeInterner,
 
     /// Each value currently in scope in the interpreter.
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions.
-    scopes: Vec<HashMap<DefinitionId, Value>>,
+    scopes: &'interner mut Vec<HashMap<DefinitionId, Value>>,
 
-    /// True if we've expanded any macros into any functions and will need
-    /// to redo name resolution & type checking for that function.
-    changed_functions: HashSet<FuncId>,
+    crate_id: CrateId,
 
-    /// True if we've expanded any macros into global scope and will need
-    /// to redo name resolution & type checking for everything.
-    changed_globally: bool,
+    /// The scope of --debug-comptime, or None if unset
+    pub(super) debug_comptime_in_file: Option<FileId>,
+    pub(super) debug_comptime_evaluations: &'interner mut Vec<InterpreterError>,
 
     in_loop: bool,
-
-    /// True if we're currently in a compile-time context.
-    /// If this is false code is skipped over instead of executed.
-    in_comptime_context: bool,
 }
 
 #[allow(unused)]
 impl<'a> Interpreter<'a> {
-    pub(crate) fn new(interner: &'a mut NodeInterner) -> Self {
+    pub(crate) fn new(
+        interner: &'a mut NodeInterner,
+        scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
+        crate_id: CrateId,
+        debug_comptime_in_file: Option<FileId>,
+        debug_comptime_evaluations: &'a mut Vec<InterpreterError>,
+    ) -> Self {
         Self {
             interner,
-            scopes: vec![HashMap::default()],
-            changed_functions: HashSet::default(),
-            changed_globally: false,
+            scopes,
+            crate_id,
+            debug_comptime_in_file,
+            debug_comptime_evaluations,
             in_loop: false,
-            in_comptime_context: false,
         }
     }
 
@@ -70,16 +82,26 @@ impl<'a> Interpreter<'a> {
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
+        instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
-        let previous_state = self.enter_function();
+        let trait_method = self.interner.get_trait_method_id(function);
 
+        perform_instantiation_bindings(&instantiation_bindings);
+        let impl_bindings = perform_impl_bindings(self.interner, trait_method, function, location)?;
+        let result = self.call_function_inner(function, arguments, location);
+        undo_instantiation_bindings(impl_bindings);
+        undo_instantiation_bindings(instantiation_bindings);
+        result
+    }
+
+    fn call_function_inner(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        location: Location,
+    ) -> IResult<Value> {
         let meta = self.interner.function_meta(&function);
-        if meta.kind != FunctionKind::Normal {
-            let item = "Evaluation for builtin functions";
-            return Err(InterpreterError::Unimplemented { item, location });
-        }
-
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
@@ -88,7 +110,21 @@ impl<'a> Interpreter<'a> {
             });
         }
 
+        let is_comptime = self.interner.function_modifiers(&function).is_comptime;
+        if !is_comptime && meta.source_crate == self.crate_id {
+            // Calling non-comptime functions from within the current crate is restricted
+            // as non-comptime items will have not been elaborated yet.
+            let function = self.interner.function_name(&function).to_owned();
+            return Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location });
+        }
+
+        if meta.kind != FunctionKind::Normal {
+            return self.call_builtin(function, arguments, location);
+        }
+
         let parameters = meta.parameters.0.clone();
+        let previous_state = self.enter_function();
+
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
@@ -98,6 +134,35 @@ impl<'a> Interpreter<'a> {
 
         self.exit_function(previous_state);
         Ok(result)
+    }
+
+    fn call_builtin(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        location: Location,
+    ) -> IResult<Value> {
+        let attributes = self.interner.function_attributes(&function);
+        let func_attrs = attributes.function.as_ref()
+            .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
+
+        if let Some(builtin) = func_attrs.builtin() {
+            let builtin = builtin.clone();
+            builtin::call_builtin(self.interner, &builtin, arguments, location)
+        } else if let Some(foreign) = func_attrs.foreign() {
+            let item = format!("Comptime evaluation for foreign functions like {foreign}");
+            Err(InterpreterError::Unimplemented { item, location })
+        } else if let Some(oracle) = func_attrs.oracle() {
+            if oracle == "print" {
+                self.print_oracle(arguments)
+            } else {
+                let item = format!("Comptime evaluation for oracle functions like {oracle}");
+                Err(InterpreterError::Unimplemented { item, location })
+            }
+        } else {
+            let name = self.interner.function_name(&function);
+            unreachable!("Non-builtin, lowlevel or oracle builtin fn '{name}'")
+        }
     }
 
     fn call_closure(
@@ -137,8 +202,8 @@ impl<'a> Interpreter<'a> {
         let mut scope = Vec::new();
         if self.scopes.len() > 1 {
             scope = self.scopes.drain(1..).collect();
-            self.push_scope();
         }
+        self.push_scope();
         (std::mem::take(&mut self.in_loop), scope)
     }
 
@@ -172,7 +237,8 @@ impl<'a> Interpreter<'a> {
     ) -> IResult<()> {
         match pattern {
             HirPattern::Identifier(identifier) => {
-                self.define(identifier.id, typ, argument, location)
+                self.define(identifier.id, argument);
+                Ok(())
             }
             HirPattern::Mutable(pattern, _) => {
                 self.define_pattern(pattern, typ, argument, location)
@@ -193,10 +259,9 @@ impl<'a> Interpreter<'a> {
                 }
             },
             HirPattern::Struct(struct_type, pattern_fields, _) => {
-                self.type_check(typ, &argument, location)?;
-                self.type_check(struct_type, &argument, location)?;
+                self.push_scope();
 
-                match argument {
+                let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
                         for (field_name, field_pattern) in pattern_fields {
                             let field = fields.get(&field_name.0.contents).ok_or_else(|| {
@@ -222,79 +287,55 @@ impl<'a> Interpreter<'a> {
                         value,
                         location,
                     }),
-                }
+                };
+                self.pop_scope();
+                res
             }
         }
     }
 
     /// Define a new variable in the current scope
-    fn define(
-        &mut self,
-        id: DefinitionId,
-        typ: &Type,
-        argument: Value,
-        location: Location,
-    ) -> IResult<()> {
-        self.type_check(typ, &argument, location)?;
+    fn define(&mut self, id: DefinitionId, argument: Value) {
         self.current_scope_mut().insert(id, argument);
-        Ok(())
-    }
-
-    /// Mutate an existing variable, potentially from a prior scope.
-    /// Also type checks the value being assigned
-    fn checked_mutate(
-        &mut self,
-        id: DefinitionId,
-        typ: &Type,
-        argument: Value,
-        location: Location,
-    ) -> IResult<()> {
-        self.type_check(typ, &argument, location)?;
-        self.mutate(id, argument, location)
     }
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
+        // If the id is a dummy, assume the error was already issued elsewhere
+        if id == DefinitionId::dummy_id() {
+            return Ok(());
+        }
+
         for scope in self.scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 entry.insert(argument);
                 return Ok(());
             }
         }
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        Err(InterpreterError::VariableNotInScope { location })
     }
 
     pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
         self.lookup_id(ident.id, ident.location)
     }
 
-    fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
+    pub fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
         for scope in self.scopes.iter().rev() {
             if let Some(value) = scope.get(&id) {
                 return Ok(value.clone());
             }
         }
 
-        // Justification for `NonComptimeVarReferenced`:
-        // If we have an id to lookup at all that means name resolution successfully
-        // found another variable in scope for this name. If the name is in scope
-        // but unknown by the interpreter it must be because it was not a comptime variable.
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
-    }
-
-    fn type_check(&self, typ: &Type, value: &Value, location: Location) -> IResult<()> {
-        let typ = typ.follow_bindings();
-        let value_type = value.get_type();
-
-        typ.try_unify(&value_type, &mut TypeBindings::new()).map_err(|_| {
-            InterpreterError::TypeMismatch { expected: typ, value: value.clone(), location }
-        })
+        if id == DefinitionId::dummy_id() {
+            Err(InterpreterError::VariableNotInScope { location })
+        } else {
+            let name = self.interner.definition_name(id).to_string();
+            Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        }
     }
 
     /// Evaluate an expression and return the result
-    pub(super) fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+    pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
@@ -306,13 +347,13 @@ impl<'a> Interpreter<'a> {
             HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
             HirExpression::Call(call) => self.evaluate_call(call, id),
             HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
-            HirExpression::Cast(cast) => self.evaluate_cast(cast, id),
+            HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
-            HirExpression::Quote(block) => Ok(Value::Code(Rc::new(block))),
+            HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
             HirExpression::Comptime(block) => self.evaluate_block(block),
-            HirExpression::Unquote(block) => {
+            HirExpression::Unquote(tokens) => {
                 // An Unquote expression being found is indicative of a macro being
                 // expanded within another comptime fn which we don't currently support.
                 let location = self.interner.expr_location(&id);
@@ -326,29 +367,46 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.interner.definition(ident.id);
+        let definition = self.interner.try_definition(ident.id).ok_or_else(|| {
+            let location = self.interner.expr_location(&id);
+            InterpreterError::VariableNotInScope { location }
+        })?;
+
+        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
+            let method_id = resolve_trait_method(self.interner, method, id)?;
+            let typ = self.interner.id_type(id).follow_bindings();
+            let bindings = self.interner.get_instantiation_bindings(id).clone();
+            return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
+        }
 
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
-                let typ = self.interner.id_type(id);
-                Ok(Value::Function(*function_id, typ))
+                let typ = self.interner.id_type(id).follow_bindings();
+                let bindings = Rc::new(self.interner.get_instantiation_bindings(id).clone());
+                Ok(Value::Function(*function_id, typ, bindings))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
-                // Don't need to check let_.comptime, we can evaluate non-comptime globals too.
                 // Avoid resetting the value if it is already known
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
-                    let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
-                    self.evaluate_let(let_)?;
+                    let let_ =
+                        self.interner.get_global_let_statement(*global_id).ok_or_else(|| {
+                            let location = self.interner.expr_location(&id);
+                            InterpreterError::VariableNotInScope { location }
+                        })?;
+
+                    if let_.comptime {
+                        self.evaluate_let(let_.clone())?;
+                    }
                     self.lookup(&ident)
                 }
             }
             DefinitionKind::GenericType(type_variable) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => None,
-                    TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
+                    TypeBinding::Bound(binding) => binding.evaluate_to_u32(),
                 };
 
                 if let Some(value) = value {
@@ -371,7 +429,11 @@ impl<'a> Interpreter<'a> {
                 self.evaluate_integer(value, is_negative, id)
             }
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(_, _) => todo!("Evaluate format strings"),
+            HirLiteral::FmtStr(_, _) => {
+                let item = "format strings in a comptime context".into();
+                let location = self.interner.expr_location(&id);
+                Err(InterpreterError::Unimplemented { item, location })
+            }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
             HirLiteral::Slice(array) => self.evaluate_slice(array, id),
         }
@@ -411,9 +473,11 @@ impl<'a> Interpreter<'a> {
                 }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
                     let value: u32 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
+                        value.try_to_u32().ok_or(InterpreterError::IntegerOutOfRangeForType {
+                            value,
+                            typ,
+                            location,
+                        })?;
                     let value = if is_negative { 0u32.wrapping_sub(value) } else { value };
                     Ok(Value::U32(value))
                 }
@@ -463,12 +527,20 @@ impl<'a> Interpreter<'a> {
                     Ok(Value::I64(value))
                 }
             }
+        } else if let Type::TypeVariable(variable, TypeVariableKind::IntegerOrField) = &typ {
+            Ok(Value::Field(value))
+        } else if let Type::TypeVariable(variable, TypeVariableKind::Integer) = &typ {
+            let value: u64 = value
+                .try_to_u64()
+                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
+            let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
+            Ok(Value::U64(value))
         } else {
             Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
         }
     }
 
-    pub(super) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
+    pub fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
         let last_statement = block.statements.pop();
         self.push_scope();
 
@@ -487,7 +559,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_array(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
-        let typ = self.interner.id_type(id);
+        let typ = self.interner.id_type(id).follow_bindings();
 
         match array {
             HirArrayLiteral::Standard(elements) => {
@@ -501,7 +573,7 @@ impl<'a> Interpreter<'a> {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let element = self.evaluate(repeated_element)?;
 
-                if let Some(length) = length.evaluate_to_u64() {
+                if let Some(length) = length.evaluate_to_u32() {
                     let elements = (0..length).map(|_| element.clone()).collect();
                     Ok(Value::Array(elements, typ))
                 } else {
@@ -521,8 +593,17 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
         let rhs = self.evaluate(prefix.rhs)?;
-        match prefix.operator {
-            crate::ast::UnaryOp::Minus => match rhs {
+        self.evaluate_prefix_with_value(rhs, prefix.operator, id)
+    }
+
+    fn evaluate_prefix_with_value(
+        &mut self,
+        rhs: Value,
+        operator: UnaryOp,
+        id: ExprId,
+    ) -> IResult<Value> {
+        match operator {
+            UnaryOp::Minus => match rhs {
                 Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
                 Value::I8(value) => Ok(Value::I8(-value)),
                 Value::I16(value) => Ok(Value::I16(-value)),
@@ -538,7 +619,7 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator })
                 }
             },
-            crate::ast::UnaryOp::Not => match rhs {
+            UnaryOp::Not => match rhs {
                 Value::Bool(value) => Ok(Value::Bool(!value)),
                 Value::I8(value) => Ok(Value::I8(!value)),
                 Value::I16(value) => Ok(Value::I16(!value)),
@@ -553,8 +634,8 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
                 }
             },
-            crate::ast::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
-            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => match rhs {
+            UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
+            UnaryOp::Dereference { implicitly_added: _ } => match rhs {
                 Value::Pointer(element) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.interner.expr_location(&id);
@@ -568,11 +649,9 @@ impl<'a> Interpreter<'a> {
         let lhs = self.evaluate(infix.lhs)?;
         let rhs = self.evaluate(infix.rhs)?;
 
-        // TODO: Need to account for operator overloading
-        assert!(
-            self.interner.get_selected_impl_for_expression(id).is_none(),
-            "Operator overloading is unimplemented in the interpreter"
-        );
+        if self.interner.get_selected_impl_for_expression(id).is_some() {
+            return self.evaluate_overloaded_infix(infix, lhs, rhs, id);
+        }
 
         use InterpreterError::InvalidValuesForBinary;
         match infix.operator.kind {
@@ -816,6 +895,64 @@ impl<'a> Interpreter<'a> {
         }
     }
 
+    fn evaluate_overloaded_infix(
+        &mut self,
+        infix: HirInfixExpression,
+        lhs: Value,
+        rhs: Value,
+        id: ExprId,
+    ) -> IResult<Value> {
+        let method = infix.trait_method_id;
+        let operator = infix.operator.kind;
+
+        let method_id = resolve_trait_method(self.interner, method, id)?;
+        let type_bindings = self.interner.get_instantiation_bindings(id).clone();
+
+        let lhs = (lhs, self.interner.expr_location(&infix.lhs));
+        let rhs = (rhs, self.interner.expr_location(&infix.rhs));
+
+        let location = self.interner.expr_location(&id);
+        let value = self.call_function(method_id, vec![lhs, rhs], type_bindings, location)?;
+
+        // Certain operators add additional operations after the trait call:
+        // - `!=`: Reverse the result of Eq
+        // - Comparator operators: Convert the returned `Ordering` to a boolean.
+        use BinaryOpKind::*;
+        match operator {
+            NotEqual => self.evaluate_prefix_with_value(value, UnaryOp::Not, id),
+            Less | LessEqual | Greater | GreaterEqual => self.evaluate_ordering(value, operator),
+            _ => Ok(value),
+        }
+    }
+
+    /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
+    /// - `<`:  `ordering == Ordering::Less`
+    /// - `<=`: `ordering != Ordering::Greater`
+    /// - `>`:  `ordering == Ordering::Greater`
+    /// - `<=`: `ordering != Ordering::Less`
+    fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
+        let ordering = match ordering {
+            Value::Struct(fields, _) => match fields.into_iter().next().unwrap().1 {
+                Value::Field(ordering) => ordering,
+                _ => unreachable!("`cmp` should always return an Ordering value"),
+            },
+            _ => unreachable!("`cmp` should always return an Ordering value"),
+        };
+
+        use BinaryOpKind::*;
+        let less_or_greater = if matches!(operator, Less | GreaterEqual) {
+            FieldElement::zero() // Ordering::Less
+        } else {
+            2u128.into() // Ordering::Greater
+        };
+
+        if matches!(operator, Less | Greater) {
+            Ok(Value::Bool(ordering == less_or_greater))
+        } else {
+            Ok(Value::Bool(ordering != less_or_greater))
+        }
+    }
+
     fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
         let array = self.evaluate(index.collection)?;
         let index = self.evaluate(index.index)?;
@@ -844,7 +981,10 @@ impl<'a> Interpreter<'a> {
 
         let index = match index {
             Value::Field(value) => {
-                value.try_to_u64().expect("index could not fit into u64") as usize
+                value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
+                    let typ = Type::default_int_type();
+                    InterpreterError::IntegerOutOfRangeForType { value, typ, location }
+                })?
             }
             Value::I8(value) => value as usize,
             Value::I16(value) => value as usize,
@@ -881,13 +1021,25 @@ impl<'a> Interpreter<'a> {
             })
             .collect::<Result<_, _>>()?;
 
-        let typ = self.interner.id_type(id);
+        let typ = self.interner.id_type(id).follow_bindings();
         Ok(Value::Struct(fields, typ))
     }
 
     fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
         let (fields, struct_type) = match self.evaluate(access.lhs)? {
             Value::Struct(fields, typ) => (fields, typ),
+            Value::Tuple(fields) => {
+                let (fields, field_types): (HashMap<Rc<String>, Value>, Vec<Type>) = fields
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, field)| {
+                        let field_type = field.get_type().into_owned();
+                        let key_val_pair = (Rc::new(i.to_string()), field);
+                        (key_val_pair, field_type)
+                    })
+                    .unzip();
+                (fields, Type::Tuple(field_types))
+            }
             value => {
                 let location = self.interner.expr_location(&id);
                 return Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location });
@@ -910,7 +1062,10 @@ impl<'a> Interpreter<'a> {
         let location = self.interner.expr_location(&id);
 
         match function {
-            Value::Function(function_id, _) => self.call_function(function_id, arguments, location),
+            Value::Function(function_id, _, bindings) => {
+                let bindings = unwrap_rc(bindings);
+                self.call_function(function_id, arguments, bindings, location)
+            }
             Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
             value => Err(InterpreterError::NonFunctionCalled { value, location }),
         }
@@ -939,13 +1094,24 @@ impl<'a> Interpreter<'a> {
         };
 
         if let Some(method) = method {
-            self.call_function(method, arguments, location)
+            self.call_function(method, arguments, TypeBindings::new(), location)
         } else {
             Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
         }
     }
 
-    fn evaluate_cast(&mut self, cast: HirCastExpression, id: ExprId) -> IResult<Value> {
+    fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
+        let evaluated_lhs = self.evaluate(cast.lhs)?;
+        Self::evaluate_cast_one_step(cast, id, evaluated_lhs, self.interner)
+    }
+
+    /// evaluate_cast without recursion
+    pub fn evaluate_cast_one_step(
+        cast: &HirCastExpression,
+        id: ExprId,
+        evaluated_lhs: Value,
+        interner: &NodeInterner,
+    ) -> IResult<Value> {
         macro_rules! signed_int_to_field {
             ($x:expr) => {{
                 // Need to convert the signed integer to an i128 before
@@ -959,7 +1125,7 @@ impl<'a> Interpreter<'a> {
             }};
         }
 
-        let (mut lhs, lhs_is_negative) = match self.evaluate(cast.lhs)? {
+        let (mut lhs, lhs_is_negative) = match evaluated_lhs {
             Value::Field(value) => (value, false),
             Value::U8(value) => ((value as u128).into(), false),
             Value::U16(value) => ((value as u128).into(), false),
@@ -973,7 +1139,7 @@ impl<'a> Interpreter<'a> {
                 (if value { FieldElement::one() } else { FieldElement::zero() }, false)
             }
             value => {
-                let location = self.interner.expr_location(&id);
+                let location = interner.expr_location(&id);
                 return Err(InterpreterError::NonNumericCasted { value, location });
             }
         };
@@ -998,8 +1164,8 @@ impl<'a> Interpreter<'a> {
             }
             Type::Integer(sign, bit_size) => match (sign, bit_size) {
                 (Signedness::Unsigned, IntegerBitSize::One) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type, location })
+                    let location = interner.expr_location(&id);
+                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => cast_to_int!(lhs, to_u128, u8, U8),
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
@@ -1012,8 +1178,8 @@ impl<'a> Interpreter<'a> {
                     cast_to_int!(lhs, to_u128, u64, U64)
                 }
                 (Signedness::Signed, IntegerBitSize::One) => {
-                    let location = self.interner.expr_location(&id);
-                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type, location })
+                    let location = interner.expr_location(&id);
+                    Err(InterpreterError::TypeUnsupported { typ: cast.r#type.clone(), location })
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => cast_to_int!(lhs, to_i128, i8, I8),
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
@@ -1028,7 +1194,7 @@ impl<'a> Interpreter<'a> {
             },
             Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
             typ => {
-                let location = self.interner.expr_location(&id);
+                let location = interner.expr_location(&id);
                 Err(InterpreterError::CastToNonNumericType { typ, location })
             }
         }
@@ -1073,11 +1239,17 @@ impl<'a> Interpreter<'a> {
         let environment =
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
 
-        let typ = self.interner.id_type(id);
+        let typ = self.interner.id_type(id).follow_bindings();
         Ok(Value::Closure(lambda, environment, typ))
     }
 
-    fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
+    fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
+        let location = self.interner.expr_location(&expr_id);
+        tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
+        Ok(Value::Code(Rc::new(tokens)))
+    }
+
+    pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
         match self.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
@@ -1098,7 +1270,7 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub(super) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
+    pub fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
@@ -1128,9 +1300,7 @@ impl<'a> Interpreter<'a> {
 
     fn store_lvalue(&mut self, lvalue: HirLValue, rhs: Value) -> IResult<()> {
         match lvalue {
-            HirLValue::Ident(ident, typ) => {
-                self.checked_mutate(ident.id, &typ, rhs, ident.location)
-            }
+            HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value) => {
@@ -1141,15 +1311,22 @@ impl<'a> Interpreter<'a> {
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
-                let index = field_index.expect("The field index should be set after type checking");
-                match self.evaluate_lvalue(&object)? {
+                let object_value = self.evaluate_lvalue(&object)?;
+
+                let index = field_index.ok_or_else(|| {
+                    let value = object_value.clone();
+                    let field_name = field_name.to_string();
+                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                })?;
+
+                match object_value {
                     Value::Tuple(mut fields) => {
                         fields[index] = rhs;
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
                         fields.insert(Rc::new(field_name.0.contents), rhs);
-                        self.store_lvalue(*object, Value::Struct(fields, typ))
+                        self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
                         Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location })
@@ -1186,9 +1363,16 @@ impl<'a> Interpreter<'a> {
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
-                let index = field_index.expect("The field index should be set after type checking");
+                let object_value = self.evaluate_lvalue(object)?;
 
-                match self.evaluate_lvalue(object)? {
+                let index = field_index.ok_or_else(|| {
+                    let value = object_value.clone();
+                    let field_name = field_name.to_string();
+                    let location = *location;
+                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                })?;
+
+                match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
                     Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
@@ -1239,6 +1423,7 @@ impl<'a> Interpreter<'a> {
                 Err(InterpreterError::Continue) => continue,
                 Err(other) => return Err(other),
             }
+
             self.pop_scope();
         }
 
@@ -1265,9 +1450,19 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(super) fn evaluate_comptime(&mut self, statement: StmtId) -> IResult<Value> {
-        let was_in_comptime = std::mem::replace(&mut self.in_comptime_context, true);
-        let result = self.evaluate_statement(statement);
-        self.in_comptime_context = was_in_comptime;
-        result
+        self.evaluate_statement(statement)
+    }
+
+    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
+        assert_eq!(arguments.len(), 2);
+
+        let print_newline = arguments[0].0 == Value::Bool(true);
+        if print_newline {
+            println!("{}", arguments[1].0);
+        } else {
+            print!("{}", arguments[1].0);
+        }
+
+        Ok(Value::Unit)
     }
 }

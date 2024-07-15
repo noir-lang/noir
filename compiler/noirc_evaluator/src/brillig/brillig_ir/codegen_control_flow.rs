@@ -1,12 +1,16 @@
-use acvm::acir::brillig::{HeapArray, MemoryAddress};
+use acvm::{
+    acir::brillig::{HeapArray, MemoryAddress},
+    AcirField,
+};
 
 use super::{
     artifact::BrilligParameter,
     brillig_variable::{BrilligVariable, SingleAddrVariable},
+    debug_show::DebugToString,
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 
-impl BrilligContext {
+impl<F: AcirField + DebugToString> BrilligContext<F> {
     /// Codegens a return from the current function.
     ///
     /// For Brillig, the return is implicit, since there is no explicit return instruction.
@@ -34,12 +38,14 @@ impl BrilligContext {
         self.stop_instruction();
     }
 
-    /// This codegen will issue a loop that will iterate iteration_count times
+    /// This codegen will issue a loop do for (let iterator_register = 0; i < loop_bound; i += step)
     /// The body of the loop should be issued by the caller in the on_iteration closure.
-    pub(crate) fn codegen_loop<F>(&mut self, iteration_count: MemoryAddress, on_iteration: F)
-    where
-        F: FnOnce(&mut BrilligContext, SingleAddrVariable),
-    {
+    pub(crate) fn codegen_loop_with_bound_and_step(
+        &mut self,
+        loop_bound: MemoryAddress,
+        step: MemoryAddress,
+        on_iteration: impl FnOnce(&mut BrilligContext<F>, SingleAddrVariable),
+    ) {
         let iterator_register = self.make_usize_constant_instruction(0_u128.into());
 
         let (loop_section, loop_label) = self.reserve_next_section_label();
@@ -47,13 +53,13 @@ impl BrilligContext {
 
         // Loop body
 
-        // Check if iterator < iteration_count
+        // Check if iterator < loop_bound
         let iterator_less_than_iterations =
             SingleAddrVariable { address: self.allocate_register(), bit_size: 1 };
 
         self.memory_op_instruction(
             iterator_register.address,
-            iteration_count,
+            loop_bound,
             iterator_less_than_iterations.address,
             BrilligBinaryOp::LessThan,
         );
@@ -67,8 +73,13 @@ impl BrilligContext {
         // Call the on iteration function
         on_iteration(self, iterator_register);
 
-        // Increment the iterator register
-        self.codegen_usize_op_in_place(iterator_register.address, BrilligBinaryOp::Add, 1);
+        // Add step to the iterator register
+        self.memory_op_instruction(
+            iterator_register.address,
+            step,
+            iterator_register.address,
+            BrilligBinaryOp::Add,
+        );
 
         self.jump_instruction(loop_label);
 
@@ -80,6 +91,18 @@ impl BrilligContext {
         self.deallocate_single_addr(iterator_register);
     }
 
+    /// This codegen will issue a loop that will iterate iteration_count times
+    /// The body of the loop should be issued by the caller in the on_iteration closure.
+    pub(crate) fn codegen_loop(
+        &mut self,
+        iteration_count: MemoryAddress,
+        on_iteration: impl FnOnce(&mut BrilligContext<F>, SingleAddrVariable),
+    ) {
+        let step = self.make_usize_constant_instruction(1_u128.into());
+        self.codegen_loop_with_bound_and_step(iteration_count, step.address, on_iteration);
+        self.deallocate_single_addr(step);
+    }
+
     /// This codegen will issue an if-then branch that will check if the condition is true
     /// and if so, perform the instructions given in `f(self, true)` and otherwise perform the
     /// instructions given in `f(self, false)`. A boolean is passed instead of two separate
@@ -87,7 +110,7 @@ impl BrilligContext {
     pub(crate) fn codegen_branch(
         &mut self,
         condition: MemoryAddress,
-        mut f: impl FnMut(&mut BrilligContext, bool),
+        mut f: impl FnMut(&mut BrilligContext<F>, bool),
     ) {
         // Reserve 3 sections
         let (then_section, then_label) = self.reserve_next_section_label();
@@ -112,7 +135,7 @@ impl BrilligContext {
     pub(crate) fn codegen_if(
         &mut self,
         condition: MemoryAddress,
-        f: impl FnOnce(&mut BrilligContext),
+        f: impl FnOnce(&mut BrilligContext<F>),
     ) {
         let (end_section, end_label) = self.reserve_next_section_label();
         let (then_section, then_label) = self.reserve_next_section_label();
@@ -130,7 +153,7 @@ impl BrilligContext {
     pub(crate) fn codegen_if_not(
         &mut self,
         condition: MemoryAddress,
-        f: impl FnOnce(&mut BrilligContext),
+        f: impl FnOnce(&mut BrilligContext<F>),
     ) {
         let (end_section, end_label) = self.reserve_next_section_label();
 
@@ -156,21 +179,20 @@ impl BrilligContext {
             let revert_data = HeapArray {
                 pointer: ctx.allocate_register(),
                 // + 1 due to the revert data id being the first item returned
-                size: BrilligContext::flattened_tuple_size(&revert_data_types) + 1,
+                size: Self::flattened_tuple_size(&revert_data_types) + 1,
             };
             ctx.codegen_allocate_fixed_length_array(revert_data.pointer, revert_data.size);
 
             let current_revert_data_pointer = ctx.allocate_register();
             ctx.mov_instruction(current_revert_data_pointer, revert_data.pointer);
-            let revert_data_id =
-                ctx.make_usize_constant_instruction((error_selector as u128).into());
+            let revert_data_id = ctx.make_constant_instruction((error_selector as u128).into(), 64);
             ctx.store_instruction(current_revert_data_pointer, revert_data_id.address);
 
             ctx.codegen_usize_op_in_place(current_revert_data_pointer, BrilligBinaryOp::Add, 1);
             for (revert_variable, revert_param) in
                 revert_data_items.into_iter().zip(revert_data_types.into_iter())
             {
-                let flattened_size = BrilligContext::flattened_size(&revert_param);
+                let flattened_size = Self::flattened_size(&revert_param);
                 match revert_param {
                     BrilligParameter::SingleAddr(_) => {
                         ctx.store_instruction(

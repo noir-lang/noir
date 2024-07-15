@@ -15,13 +15,16 @@ members = [
     # Crates related to tooling built on top of the Noir compiler
     "tooling/lsp",
     "tooling/debugger",
+    "tooling/fuzzer",
     "tooling/nargo",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
+    "tooling/noirc_artifacts",
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
     "tooling/acvm_cli",
+    "tooling/profiler",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",
@@ -34,12 +37,12 @@ members = [
     # Utility crates
     "utils/iter-extended",
 ]
-default-members = ["tooling/nargo_cli", "tooling/acvm_cli"]
+default-members = ["tooling/nargo_cli", "tooling/acvm_cli", "tooling/profiler"]
 resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.30.0"
+version = "0.31.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
@@ -50,13 +53,13 @@ repository = "https://github.com/noir-lang/noir/"
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "0.46.0", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "0.46.0", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "0.46.0", path = "acvm-repo/acvm" }
-brillig = { version = "0.46.0", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "0.46.0", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "0.46.0", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "0.46.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "0.47.0", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "0.47.0", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "0.47.0", path = "acvm-repo/acvm" }
+brillig = { version = "0.47.0", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "0.47.0", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "0.47.0", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "0.47.0", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -68,14 +71,24 @@ noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
 
 # Noir tooling workspace dependencies
+noir_fuzzer = { path = "tooling/fuzzer" }
 nargo = { path = "tooling/nargo" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
+noirc_artifacts = { path = "tooling/noirc_artifacts" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 acvm_cli = { path = "tooling/acvm_cli" }
+
+# Arkworks
+ark-bn254 = { version = "^0.4.0", default-features = false, features = ["curve"] }
+ark-bls12-381 = { version = "^0.4.0", default-features = false, features = ["curve"] }
+grumpkin = { version = "0.1.0", package = "noir_grumpkin", features = ["std"] }
+ark-ec = { version = "^0.4.0", default-features = false }
+ark-ff = { version = "^0.4.0", default-features = false }
+ark-std = { version = "^0.4.0", default-features = false }
 
 # Misc utils crates
 iter-extended = { path = "utils/iter-extended" }
@@ -131,6 +144,10 @@ similar-asserts = "1.5.0"
 tempfile = "3.6.0"
 jsonrpc = { version = "0.16.0", features = ["minreq_http"] }
 flate2 = "1.0.24"
+color-eyre = "0.6.2"
+rand = "0.8.5"
+proptest = "1.2.0"
+proptest-derive = "0.4.0"
 
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"

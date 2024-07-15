@@ -32,6 +32,8 @@ use super::{
     },
 };
 
+pub(crate) const SSA_WORD_SIZE: u32 = 32;
+
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
@@ -109,7 +111,7 @@ pub(crate) fn generate_ssa(
     // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
-        function_context.new_function(dest_id, function);
+        function_context.new_function(dest_id, function, force_brillig_runtime);
         function_context.codegen_function_body(&function.body)?;
     }
 
@@ -217,10 +219,10 @@ impl<'a> FunctionContext<'a> {
                     _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Integer(value, typ, location) => {
+            ast::Literal::Integer(value, negative, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ);
-                self.checked_numeric_constant(*value, typ).map(Into::into)
+                self.checked_numeric_constant(*value, *negative, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
@@ -244,7 +246,7 @@ impl<'a> FunctionContext<'a> {
         let elements = vecmap(string.as_bytes(), |byte| {
             self.builder.numeric_constant(*byte as u128, Type::unsigned(8)).into()
         });
-        let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
+        let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
     }
 
@@ -400,7 +402,8 @@ impl<'a> FunctionContext<'a> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size = Self::convert_type(element_type).size_of_type();
-        let type_size = self.builder.numeric_constant(type_size as u128, Type::unsigned(64));
+        let type_size =
+            self.builder.numeric_constant(type_size as u128, Type::unsigned(SSA_WORD_SIZE));
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 

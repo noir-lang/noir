@@ -1,178 +1,353 @@
-use iter_extended::vecmap;
-use noirc_errors::Span;
-use noirc_frontend::ast::{
-    ExpressionKind, FunctionDefinition, FunctionReturnType, ItemVisibility, Literal, NoirFunction,
-    Visibility,
-};
+use noirc_frontend::ast::{ItemVisibility, NoirFunction, NoirTraitImpl, TraitImplItem};
+use noirc_frontend::macros_api::{NodeInterner, StructId};
+use noirc_frontend::token::SecondaryAttribute;
 use noirc_frontend::{
     graph::CrateId,
-    macros_api::{
-        BlockExpression, FileId, HirContext, HirExpression, HirLiteral, HirStatement, NodeInterner,
-        NoirStruct, PathKind, StatementKind, StructId, StructType, Type, TypeImpl,
-        UnresolvedTypeData,
-    },
-    token::SecondaryAttribute,
+    macros_api::{FileId, HirContext},
+    parse_program,
+    parser::SortedModule,
 };
 
-use crate::{
-    chained_dep,
-    utils::{
-        ast_utils::{
-            call, expression, ident, ident_path, is_custom_attribute, make_statement, make_type,
-            path, variable_path,
-        },
-        constants::SIGNATURE_PLACEHOLDER,
-        errors::AztecMacroError,
-        hir_utils::{collect_crate_structs, signature_of_type},
-    },
-};
+use crate::utils::hir_utils::collect_crate_structs;
+use crate::utils::{ast_utils::is_custom_attribute, errors::AztecMacroError};
 
-/// Generates the impl for an event selector
-///
-/// Inserts the following code:
-/// ```noir
-/// impl SomeStruct {
-///    fn selector() -> FunctionSelector {
-///       aztec::protocol_types::abis::function_selector::FunctionSelector::from_signature("SIGNATURE_PLACEHOLDER")
-///    }
-/// }
-/// ```
-///
-/// This allows developers to emit events without having to write the signature of the event every time they emit it.
-/// The signature cannot be known at this point since types are not resolved yet, so we use a signature placeholder.
-/// It'll get resolved after by transforming the HIR.
-pub fn generate_selector_impl(structure: &mut NoirStruct) -> TypeImpl {
-    structure.attributes.push(SecondaryAttribute::Abi("events".to_string()));
-    let struct_type =
-        make_type(UnresolvedTypeData::Named(path(structure.name.clone()), vec![], true));
+// Automatic implementation of most of the methods in the EventInterface trait, guiding the user with meaningful error messages in case some
+// methods must be implemented manually.
+pub fn generate_event_impls(module: &mut SortedModule) -> Result<(), AztecMacroError> {
+    // Find structs annotated with #[aztec(event)]
+    // Why doesn't this work ? Events are not tagged and do not appear, it seems only going through the submodule works
+    // let annotated_event_structs = module
+    //     .types
+    //     .iter_mut()
+    //     .filter(|typ| typ.attributes.iter().any(|attr: &SecondaryAttribute| is_custom_attribute(attr, "aztec(event)")));
+    // This did not work because I needed the submodule itself to add the trait impl back in to, but it would be nice if it was tagged on the module level
+    // let mut annotated_event_structs = module.submodules.iter_mut()
+    //     .flat_map(|submodule| submodule.contents.types.iter_mut())
+    //     .filter(|typ| typ.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(event)")));
 
-    let selector_path =
-        chained_dep!("aztec", "protocol_types", "abis", "function_selector", "FunctionSelector");
-    let mut from_signature_path = selector_path.clone();
-    from_signature_path.segments.push(ident("from_signature"));
+    // To diagnose
+    // let test = module.types.iter_mut();
+    // for event_struct in test {
+    //     print!("\ngenerate_event_interface_impl COUNT: {}\n", event_struct.name.0.contents);
+    // }
 
-    let selector_fun_body = BlockExpression {
-        statements: vec![make_statement(StatementKind::Expression(call(
-            variable_path(from_signature_path),
-            vec![expression(ExpressionKind::Literal(Literal::Str(
-                SIGNATURE_PLACEHOLDER.to_string(),
-            )))],
-        )))],
-    };
+    for submodule in module.submodules.iter_mut() {
+        let annotated_event_structs = submodule.contents.types.iter_mut().filter(|typ| {
+            typ.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(event)"))
+        });
 
-    // Define `FunctionSelector` return type
-    let return_type =
-        FunctionReturnType::Ty(make_type(UnresolvedTypeData::Named(selector_path, vec![], true)));
+        for event_struct in annotated_event_structs {
+            // event_struct.attributes.push(SecondaryAttribute::Abi("events".to_string()));
+            // If one impl is pushed, this doesn't throw the "#[abi(tag)] attributes can only be used in contracts" error
+            // But if more than one impl is pushed, we get an increasing amount of "#[abi(tag)] attributes can only be used in contracts" errors
+            // We work around this by doing this addition in the HIR pass via transform_event_abi below.
 
-    let mut selector_fn_def = FunctionDefinition::normal(
-        &ident("selector"),
-        &vec![],
-        &[],
-        &selector_fun_body,
-        &[],
-        &return_type,
-    );
+            let event_type = event_struct.name.0.contents.to_string();
+            let event_len = event_struct.fields.len() as u32;
+            // event_byte_len = event fields * 32 + randomness (32) + event_type_id (32)
+            let event_byte_len = event_len * 32 + 64;
 
-    selector_fn_def.visibility = ItemVisibility::Public;
+            let mut event_fields = vec![];
 
-    // Seems to be necessary on contract modules
-    selector_fn_def.return_visibility = Visibility::Public;
+            for (field_ident, field_type) in event_struct.fields.iter() {
+                event_fields.push((
+                    field_ident.0.contents.to_string(),
+                    field_type.typ.to_string().replace("plain::", ""),
+                ));
+            }
 
-    TypeImpl {
-        object_type: struct_type,
-        type_span: structure.span,
-        generics: vec![],
-        methods: vec![(NoirFunction::normal(selector_fn_def), Span::default())],
-    }
-}
+            let mut event_interface_trait_impl =
+                generate_trait_impl_stub_event_interface(event_type.as_str(), event_byte_len)?;
+            event_interface_trait_impl.items.push(TraitImplItem::Function(
+                generate_fn_get_event_type_id(event_type.as_str(), event_len)?,
+            ));
+            event_interface_trait_impl.items.push(TraitImplItem::Function(
+                generate_fn_private_to_be_bytes(event_type.as_str(), event_byte_len)?,
+            ));
+            event_interface_trait_impl.items.push(TraitImplItem::Function(
+                generate_fn_to_be_bytes(event_type.as_str(), event_byte_len)?,
+            ));
+            event_interface_trait_impl
+                .items
+                .push(TraitImplItem::Function(generate_fn_emit(event_type.as_str())?));
+            submodule.contents.trait_impls.push(event_interface_trait_impl);
 
-/// Computes the signature for a resolved event type.
-/// It has the form 'EventName(Field,(Field),[u8;2])'
-fn event_signature(event: &StructType) -> String {
-    let fields = vecmap(event.get_fields(&[]), |(_, typ)| signature_of_type(&typ));
-    format!("{}({})", event.name.0.contents, fields.join(","))
-}
+            let serialize_trait_impl =
+                generate_trait_impl_serialize(event_type.as_str(), event_len, &event_fields)?;
+            submodule.contents.trait_impls.push(serialize_trait_impl);
 
-/// Substitutes the signature literal that was introduced in the selector method previously with the actual signature.
-fn transform_event(
-    struct_id: StructId,
-    interner: &mut NodeInterner,
-) -> Result<(), (AztecMacroError, FileId)> {
-    let struct_type = interner.get_struct(struct_id);
-    let selector_id = interner
-        .lookup_method(&Type::Struct(struct_type.clone(), vec![]), struct_id, "selector", false)
-        .ok_or_else(|| {
-            let error = AztecMacroError::EventError {
-                span: struct_type.borrow().location.span,
-                message: "Selector method not found".to_owned(),
-            };
-            (error, struct_type.borrow().location.file)
-        })?;
-    let selector_function = interner.function(&selector_id);
-
-    let compute_selector_statement = interner.statement(
-        selector_function.block(interner).statements().first().ok_or_else(|| {
-            let error = AztecMacroError::EventError {
-                span: struct_type.borrow().location.span,
-                message: "Compute selector statement not found".to_owned(),
-            };
-            (error, struct_type.borrow().location.file)
-        })?,
-    );
-
-    let compute_selector_expression = match compute_selector_statement {
-        HirStatement::Expression(expression_id) => match interner.expression(&expression_id) {
-            HirExpression::Call(hir_call_expression) => Some(hir_call_expression),
-            _ => None,
-        },
-        _ => None,
-    }
-    .ok_or_else(|| {
-        let error = AztecMacroError::EventError {
-            span: struct_type.borrow().location.span,
-            message: "Compute selector statement is not a call expression".to_owned(),
-        };
-        (error, struct_type.borrow().location.file)
-    })?;
-
-    let first_arg_id = compute_selector_expression.arguments.first().ok_or_else(|| {
-        let error = AztecMacroError::EventError {
-            span: struct_type.borrow().location.span,
-            message: "Compute selector statement is not a call expression".to_owned(),
-        };
-        (error, struct_type.borrow().location.file)
-    })?;
-
-    match interner.expression(first_arg_id) {
-        HirExpression::Literal(HirLiteral::Str(signature))
-            if signature == SIGNATURE_PLACEHOLDER =>
-        {
-            let selector_literal_id = *first_arg_id;
-
-            let structure = interner.get_struct(struct_id);
-            let signature = event_signature(&structure.borrow());
-            interner.update_expression(selector_literal_id, |expr| {
-                *expr = HirExpression::Literal(HirLiteral::Str(signature.clone()));
-            });
-
-            // Also update the type! It might have a different length now than the placeholder.
-            interner.push_expr_type(
-                selector_literal_id,
-                Type::String(Box::new(Type::Constant(signature.len() as u64))),
-            );
-            Ok(())
+            let deserialize_trait_impl =
+                generate_trait_impl_deserialize(event_type.as_str(), event_len, &event_fields)?;
+            submodule.contents.trait_impls.push(deserialize_trait_impl);
         }
-        _ => Err((
-            AztecMacroError::EventError {
-                span: struct_type.borrow().location.span,
-                message: "Signature placeholder literal does not match".to_owned(),
-            },
-            struct_type.borrow().location.file,
-        )),
     }
+
+    Ok(())
 }
 
-pub fn transform_events(
+fn generate_trait_impl_stub_event_interface(
+    event_type: &str,
+    byte_length: u32,
+) -> Result<NoirTraitImpl, AztecMacroError> {
+    let byte_length_without_randomness = byte_length - 32;
+    let trait_impl_source = format!(
+        "
+impl dep::aztec::event::event_interface::EventInterface<{byte_length}, {byte_length_without_randomness}> for {event_type} {{
+    }}
+    "
+    )
+    .to_string();
+
+    let (parsed_ast, errors) = parse_program(&trait_impl_source);
+    if !errors.is_empty() {
+        dbg!(errors);
+        return Err(AztecMacroError::CouldNotImplementEventInterface {
+            secondary_message: Some(format!("Failed to parse Noir macro code (trait impl of {event_type} for EventInterface). This is either a bug in the compiler or the Noir macro code")),
+        });
+    }
+
+    let mut sorted_ast = parsed_ast.into_sorted();
+    let event_interface_impl = sorted_ast.trait_impls.remove(0);
+
+    Ok(event_interface_impl)
+}
+
+fn generate_trait_impl_serialize(
+    event_type: &str,
+    event_len: u32,
+    event_fields: &[(String, String)],
+) -> Result<NoirTraitImpl, AztecMacroError> {
+    let field_names = event_fields
+        .iter()
+        .map(|field| {
+            let field_type = field.1.as_str();
+            match field_type {
+                "Field" => format!("self.{}", field.0),
+                "bool" | "u8" | "u32" | "u64" | "i8" | "i32" | "i64" => {
+                    format!("self.{} as Field", field.0)
+                }
+                _ => format!("self.{}.to_field()", field.0),
+            }
+        })
+        .collect::<Vec<String>>();
+    let field_input = field_names.join(",");
+
+    let trait_impl_source = format!(
+        "
+    impl dep::aztec::protocol_types::traits::Serialize<{event_len}> for {event_type} {{
+        fn serialize(self: {event_type}) -> [Field; {event_len}] {{
+            [{field_input}]
+        }}
+    }}
+    "
+    )
+    .to_string();
+
+    let (parsed_ast, errors) = parse_program(&trait_impl_source);
+    if !errors.is_empty() {
+        dbg!(errors);
+        return Err(AztecMacroError::CouldNotImplementEventInterface {
+            secondary_message: Some(format!("Failed to parse Noir macro code (trait impl of Serialize for {event_type}). This is either a bug in the compiler or the Noir macro code")),
+        });
+    }
+
+    let mut sorted_ast = parsed_ast.into_sorted();
+    let serialize_impl = sorted_ast.trait_impls.remove(0);
+
+    Ok(serialize_impl)
+}
+
+fn generate_trait_impl_deserialize(
+    event_type: &str,
+    event_len: u32,
+    event_fields: &[(String, String)],
+) -> Result<NoirTraitImpl, AztecMacroError> {
+    let field_names: Vec<String> = event_fields
+        .iter()
+        .enumerate()
+        .map(|(index, field)| {
+            let field_type = field.1.as_str();
+            match field_type {
+                "Field" => format!("{}: fields[{}]", field.0, index),
+                "bool" | "u8" | "u32" | "u64" | "i8" | "i32" | "i64" => {
+                    format!("{}: fields[{}] as {}", field.0, index, field_type)
+                }
+                _ => format!("{}: {}::from_field(fields[{}])", field.0, field.1, index),
+            }
+        })
+        .collect::<Vec<String>>();
+    let field_input = field_names.join(",");
+
+    let trait_impl_source = format!(
+        "
+    impl dep::aztec::protocol_types::traits::Deserialize<{event_len}> for {event_type} {{
+        fn deserialize(fields: [Field; {event_len}]) -> {event_type} {{
+            {event_type} {{ {field_input} }}
+        }}
+    }}
+    "
+    )
+    .to_string();
+
+    let (parsed_ast, errors) = parse_program(&trait_impl_source);
+    if !errors.is_empty() {
+        dbg!(errors);
+        return Err(AztecMacroError::CouldNotImplementEventInterface {
+            secondary_message: Some(format!("Failed to parse Noir macro code (trait impl of Deserialize for {event_type}). This is either a bug in the compiler or the Noir macro code")),
+        });
+    }
+
+    let mut sorted_ast = parsed_ast.into_sorted();
+    let deserialize_impl = sorted_ast.trait_impls.remove(0);
+
+    Ok(deserialize_impl)
+}
+
+fn generate_fn_get_event_type_id(
+    event_type: &str,
+    field_length: u32,
+) -> Result<NoirFunction, AztecMacroError> {
+    let from_signature_input =
+        std::iter::repeat("Field").take(field_length as usize).collect::<Vec<_>>().join(",");
+    let function_source = format!(
+        "
+        fn get_event_type_id() -> dep::aztec::protocol_types::abis::event_selector::EventSelector {{
+           dep::aztec::protocol_types::abis::event_selector::EventSelector::from_signature(\"{event_type}({from_signature_input})\")
+    }}
+    ",
+    )
+    .to_string();
+
+    let (function_ast, errors) = parse_program(&function_source);
+    if !errors.is_empty() {
+        dbg!(errors);
+        return Err(AztecMacroError::CouldNotImplementEventInterface {
+            secondary_message: Some(format!("Failed to parse Noir macro code (fn get_event_type_id, implemented for EventInterface of {event_type}). This is either a bug in the compiler or the Noir macro code")),
+        });
+    }
+
+    let mut function_ast = function_ast.into_sorted();
+    let mut noir_fn = function_ast.functions.remove(0);
+    noir_fn.def.visibility = ItemVisibility::Public;
+    Ok(noir_fn)
+}
+
+fn generate_fn_private_to_be_bytes(
+    event_type: &str,
+    byte_length: u32,
+) -> Result<NoirFunction, AztecMacroError> {
+    let function_source = format!(
+        "
+         fn private_to_be_bytes(self: {event_type}, randomness: Field) -> [u8; {byte_length}] {{
+             let mut buffer: [u8; {byte_length}] = [0; {byte_length}];
+
+             let randomness_bytes = randomness.to_be_bytes(32);
+             let event_type_id_bytes = {event_type}::get_event_type_id().to_field().to_be_bytes(32);
+
+             for i in 0..32 {{
+                 buffer[i] = randomness_bytes[i];
+                 buffer[32 + i] = event_type_id_bytes[i];
+            }}
+
+             let serialized_event = self.serialize();
+
+             for i in 0..serialized_event.len() {{
+                 let bytes = serialized_event[i].to_be_bytes(32);
+                 for j in 0..32 {{
+                     buffer[64 + i * 32 + j] = bytes[j];
+                }}
+            }}
+
+             buffer
+        }}
+    "
+    )
+    .to_string();
+
+    let (function_ast, errors) = parse_program(&function_source);
+    if !errors.is_empty() {
+        dbg!(errors);
+        return Err(AztecMacroError::CouldNotImplementEventInterface {
+            secondary_message: Some(format!("Failed to parse Noir macro code (fn private_to_be_bytes, implemented for EventInterface of {event_type}). This is either a bug in the compiler or the Noir macro code")),
+        });
+    }
+
+    let mut function_ast = function_ast.into_sorted();
+    let mut noir_fn = function_ast.functions.remove(0);
+    noir_fn.def.visibility = ItemVisibility::Public;
+    Ok(noir_fn)
+}
+
+fn generate_fn_to_be_bytes(
+    event_type: &str,
+    byte_length: u32,
+) -> Result<NoirFunction, AztecMacroError> {
+    let byte_length_without_randomness = byte_length - 32;
+    let function_source = format!(
+        "
+         fn to_be_bytes(self: {event_type}) -> [u8; {byte_length_without_randomness}] {{
+             let mut buffer: [u8; {byte_length_without_randomness}] = [0; {byte_length_without_randomness}];
+
+             let event_type_id_bytes = {event_type}::get_event_type_id().to_field().to_be_bytes(32);
+
+             for i in 0..32 {{
+                 buffer[i] = event_type_id_bytes[i];
+            }}
+
+             let serialized_event = self.serialize();
+
+             for i in 0..serialized_event.len() {{
+                 let bytes = serialized_event[i].to_be_bytes(32);
+                 for j in 0..32 {{
+                     buffer[32 + i * 32 + j] = bytes[j];
+                }}
+            }}
+
+             buffer
+        }}
+    ")
+    .to_string();
+
+    let (function_ast, errors) = parse_program(&function_source);
+    if !errors.is_empty() {
+        dbg!(errors);
+        return Err(AztecMacroError::CouldNotImplementEventInterface {
+            secondary_message: Some(format!("Failed to parse Noir macro code (fn to_be_bytes, implemented for EventInterface of {event_type}). This is either a bug in the compiler or the Noir macro code")),
+        });
+    }
+
+    let mut function_ast = function_ast.into_sorted();
+    let mut noir_fn = function_ast.functions.remove(0);
+    noir_fn.def.visibility = ItemVisibility::Public;
+    Ok(noir_fn)
+}
+
+fn generate_fn_emit(event_type: &str) -> Result<NoirFunction, AztecMacroError> {
+    let function_source = format!(
+        "
+        fn emit<Env>(self: {event_type}, _emit: fn[Env](Self) -> ()) {{
+            _emit(self);
+        }}
+    "
+    )
+    .to_string();
+
+    let (function_ast, errors) = parse_program(&function_source);
+    if !errors.is_empty() {
+        dbg!(errors);
+        return Err(AztecMacroError::CouldNotImplementEventInterface {
+            secondary_message: Some(format!("Failed to parse Noir macro code (fn emit, implemented for EventInterface of {event_type}). This is either a bug in the compiler or the Noir macro code")),
+        });
+    }
+
+    let mut function_ast = function_ast.into_sorted();
+    let mut noir_fn = function_ast.functions.remove(0);
+    noir_fn.def.visibility = ItemVisibility::Public;
+    Ok(noir_fn)
+}
+
+// We do this pass in the HIR to work around the "#[abi(tag)] attributes can only be used in contracts" error
+pub fn transform_event_abi(
     crate_id: &CrateId,
     context: &mut HirContext,
 ) -> Result<(), (AztecMacroError, FileId)> {
@@ -182,5 +357,16 @@ pub fn transform_events(
             transform_event(struct_id, &mut context.def_interner)?;
         }
     }
+    Ok(())
+}
+
+fn transform_event(
+    struct_id: StructId,
+    interner: &mut NodeInterner,
+) -> Result<(), (AztecMacroError, FileId)> {
+    interner.update_struct_attributes(struct_id, |struct_attributes| {
+        struct_attributes.push(SecondaryAttribute::Abi("events".to_string()));
+    });
+
     Ok(())
 }

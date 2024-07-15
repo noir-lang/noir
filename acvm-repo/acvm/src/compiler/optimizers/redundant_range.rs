@@ -1,9 +1,10 @@
 use acir::{
     circuit::{
-        opcodes::{BlackBoxFuncCall, FunctionInput},
+        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
         Circuit, Opcode,
     },
     native_types::Witness,
+    AcirField,
 };
 use std::collections::{BTreeMap, HashSet};
 
@@ -26,16 +27,16 @@ use std::collections::{BTreeMap, HashSet};
 ///
 /// This optimization pass will keep the 16-bit range constraint
 /// and remove the 32-bit range constraint opcode.
-pub(crate) struct RangeOptimizer {
+pub(crate) struct RangeOptimizer<F> {
     /// Maps witnesses to their lowest known bit sizes.
     lists: BTreeMap<Witness, u32>,
-    circuit: Circuit,
+    circuit: Circuit<F>,
 }
 
-impl RangeOptimizer {
+impl<F: AcirField> RangeOptimizer<F> {
     /// Creates a new `RangeOptimizer` by collecting all known range
     /// constraints from `Circuit`.
-    pub(crate) fn new(circuit: Circuit) -> Self {
+    pub(crate) fn new(circuit: Circuit<F>) -> Self {
         let range_list = Self::collect_ranges(&circuit);
         Self { circuit, lists: range_list }
     }
@@ -46,7 +47,7 @@ impl RangeOptimizer {
     /// both 32 bits and 16 bits. This function will
     /// only store the fact that we have constrained it to
     /// be 16 bits.
-    fn collect_ranges(circuit: &Circuit) -> BTreeMap<Witness, u32> {
+    fn collect_ranges(circuit: &Circuit<F>) -> BTreeMap<Witness, u32> {
         let mut witness_to_bit_sizes: BTreeMap<Witness, u32> = BTreeMap::new();
 
         for opcode in &circuit.opcodes {
@@ -73,7 +74,8 @@ impl RangeOptimizer {
                 }
 
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                    input: FunctionInput { witness, num_bits },
+                    input:
+                        FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits },
                 }) => Some((*witness, *num_bits)),
 
                 _ => None,
@@ -95,20 +97,24 @@ impl RangeOptimizer {
 
     /// Returns a `Circuit` where each Witness is only range constrained
     /// once to the lowest number `bit size` possible.
-    pub(crate) fn replace_redundant_ranges(self, order_list: Vec<usize>) -> (Circuit, Vec<usize>) {
+    pub(crate) fn replace_redundant_ranges(
+        self,
+        order_list: Vec<usize>,
+    ) -> (Circuit<F>, Vec<usize>) {
         let mut already_seen_witness = HashSet::new();
 
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
-            let (witness, num_bits) = match &opcode {
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
-                    (input.witness, input.num_bits)
-                }
+            let (witness, num_bits) = match opcode {
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                    input:
+                        FunctionInput { input: ConstantOrWitnessEnum::Witness(w), num_bits: bits },
+                }) => (w, bits),
                 _ => {
                     // If its not the range opcode, add it to the opcode
                     // list and continue;
-                    optimized_opcodes.push(opcode);
+                    optimized_opcodes.push(opcode.clone());
                     new_order_list.push(order_list[idx]);
                     continue;
                 }
@@ -129,7 +135,7 @@ impl RangeOptimizer {
             if is_lowest_bit_size {
                 already_seen_witness.insert(witness);
                 new_order_list.push(order_list[idx]);
-                optimized_opcodes.push(opcode);
+                optimized_opcodes.push(opcode.clone());
             }
         }
 
@@ -148,12 +154,13 @@ mod tests {
             Circuit, ExpressionWidth, Opcode, PublicInputs,
         },
         native_types::{Expression, Witness},
+        FieldElement,
     };
 
-    fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit {
-        fn test_range_constraint(witness: Witness, num_bits: u32) -> Opcode {
+    fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit<FieldElement> {
+        fn test_range_constraint(witness: Witness, num_bits: u32) -> Opcode<FieldElement> {
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { witness, num_bits },
+                input: FunctionInput::witness(witness, num_bits),
             })
         }
 
@@ -196,7 +203,7 @@ mod tests {
         assert_eq!(
             optimized_circuit.opcodes[0],
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { witness: Witness(1), num_bits: 16 }
+                input: FunctionInput::witness(Witness(1), 16)
             })
         );
     }
@@ -219,13 +226,13 @@ mod tests {
         assert_eq!(
             optimized_circuit.opcodes[0],
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { witness: Witness(1), num_bits: 16 }
+                input: FunctionInput::witness(Witness(1), 16)
             })
         );
         assert_eq!(
             optimized_circuit.opcodes[1],
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { witness: Witness(2), num_bits: 23 }
+                input: FunctionInput::witness(Witness(2), 23)
             })
         );
     }

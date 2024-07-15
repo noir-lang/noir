@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::{hint::black_box, time::Duration};
 
-use acir::FieldElement;
+use acir::{AcirField, FieldElement};
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use bn254_blackbox_solver::{poseidon2_permutation, Bn254BlackBoxSolver};
 
@@ -11,22 +11,6 @@ fn bench_poseidon2(c: &mut Criterion) {
     let inputs = [FieldElement::zero(); 4];
 
     c.bench_function("poseidon2", |b| b.iter(|| poseidon2_permutation(black_box(&inputs), 4)));
-}
-
-fn bench_pedersen_commitment(c: &mut Criterion) {
-    let inputs = [FieldElement::one(); 2];
-
-    c.bench_function("pedersen_commitment", |b| {
-        b.iter(|| Bn254BlackBoxSolver.pedersen_commitment(black_box(&inputs), 0))
-    });
-}
-
-fn bench_pedersen_hash(c: &mut Criterion) {
-    let inputs = [FieldElement::one(); 2];
-
-    c.bench_function("pedersen_hash", |b| {
-        b.iter(|| Bn254BlackBoxSolver.pedersen_hash(black_box(&inputs), 0))
-    });
 }
 
 fn bench_schnorr_verify(c: &mut Criterion) {
@@ -62,7 +46,7 @@ fn bench_schnorr_verify(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default().sample_size(40).measurement_time(Duration::from_secs(20)).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = bench_poseidon2, bench_pedersen_commitment, bench_pedersen_hash, bench_schnorr_verify
+    targets = bench_poseidon2, bench_schnorr_verify
 );
 
 criterion_main!(benches);

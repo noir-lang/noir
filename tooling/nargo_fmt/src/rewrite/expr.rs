@@ -63,7 +63,8 @@ pub(crate) fn rewrite(
                 NewlineMode::IfContainsNewLineAndWidth,
             );
 
-            format!("{callee}{args}")
+            let bang = if call_expr.is_macro_call { "!" } else { "" };
+            format!("{callee}{bang}{args}")
         }
         ExpressionKind::MethodCall(method_call_expr) => {
             let args_span = visitor.span_before(
@@ -85,7 +86,8 @@ pub(crate) fn rewrite(
                 NewlineMode::IfContainsNewLineAndWidth,
             );
 
-            format!("{object}.{method}{turbofish}{args}")
+            let bang = if method_call_expr.is_macro_call { "!" } else { "" };
+            format!("{object}.{method}{turbofish}{bang}{args}")
         }
         ExpressionKind::MemberAccess(member_access_expr) => {
             let lhs_str = rewrite_sub_expr(visitor, shape, member_access_expr.lhs);
@@ -166,11 +168,21 @@ pub(crate) fn rewrite(
             format!("{path_string}{turbofish}")
         }
         ExpressionKind::Lambda(_) => visitor.slice(span).to_string(),
-        ExpressionKind::Quote(block) => format!("quote {}", rewrite_block(visitor, block, span)),
-        ExpressionKind::Comptime(block) => {
-            format!("comptime {}", rewrite_block(visitor, block, span))
+        ExpressionKind::Quote(_) => visitor.slice(span).to_string(),
+        ExpressionKind::Comptime(block, block_span) => {
+            format!("comptime {}", rewrite_block(visitor, block, block_span))
         }
         ExpressionKind::Error => unreachable!(),
+        ExpressionKind::Resolved(_) => {
+            unreachable!("ExpressionKind::Resolved should only emitted by the comptime interpreter")
+        }
+        ExpressionKind::Unquote(expr) => {
+            if matches!(&expr.kind, ExpressionKind::Variable(..)) {
+                format!("${expr}")
+            } else {
+                format!("$({})", rewrite_sub_expr(visitor, shape, *expr))
+            }
+        }
     }
 }
 

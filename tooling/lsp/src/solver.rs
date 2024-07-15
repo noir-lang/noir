@@ -3,9 +3,9 @@ use acvm::BlackBoxFunctionSolver;
 // This is a struct that wraps a dynamically dispatched `BlackBoxFunctionSolver`
 // where we proxy the unimplemented stuff to the wrapped backend, but it
 // allows us to avoid changing function signatures to include the `Box`
-pub(super) struct WrapperSolver(pub(super) Box<dyn BlackBoxFunctionSolver>);
+pub(super) struct WrapperSolver(pub(super) Box<dyn BlackBoxFunctionSolver<acvm::FieldElement>>);
 
-impl BlackBoxFunctionSolver for WrapperSolver {
+impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
     fn schnorr_verify(
         &self,
         public_key_x: &acvm::FieldElement,
@@ -24,6 +24,14 @@ impl BlackBoxFunctionSolver for WrapperSolver {
         self.0.pedersen_commitment(inputs, domain_separator)
     }
 
+    fn pedersen_hash(
+        &self,
+        inputs: &[acvm::FieldElement],
+        domain_separator: u32,
+    ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
+        self.0.pedersen_hash(inputs, domain_separator)
+    }
+
     fn multi_scalar_mul(
         &self,
         points: &[acvm::FieldElement],
@@ -34,14 +42,6 @@ impl BlackBoxFunctionSolver for WrapperSolver {
         acvm::BlackBoxResolutionError,
     > {
         self.0.multi_scalar_mul(points, scalars_lo, scalars_hi)
-    }
-
-    fn pedersen_hash(
-        &self,
-        inputs: &[acvm::FieldElement],
-        domain_separator: u32,
-    ) -> Result<acvm::FieldElement, acvm::BlackBoxResolutionError> {
-        self.0.pedersen_hash(inputs, domain_separator)
     }
 
     fn ec_add(

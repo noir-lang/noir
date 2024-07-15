@@ -3,7 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use abi_gen::value_from_hir_expression;
+use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use fm::{FileId, FileManager};
@@ -24,7 +24,6 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::token::SecondaryAttribute;
 use std::path::Path;
-use thiserror::Error;
 use tracing::info;
 
 mod abi_gen;
@@ -100,9 +99,18 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub force_brillig: bool,
 
-    /// Enable the experimental elaborator pass
+    /// Use the deprecated name resolution & type checking passes instead of the elaborator
     #[arg(long, hide = true)]
-    pub use_elaborator: bool,
+    pub use_legacy: bool,
+
+    /// Enable printing results of comptime evaluation: provide a path suffix
+    /// for the module to debug, e.g. "package_name/src/main.nr"
+    #[arg(long)]
+    pub debug_comptime_in_file: Option<String>,
+
+    /// Outputs the paths to any modified artifacts
+    #[arg(long, hide = true)]
+    pub show_artifact_paths: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -117,13 +125,22 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum CompileError {
-    #[error(transparent)]
-    MonomorphizationError(#[from] MonomorphizationError),
+    MonomorphizationError(MonomorphizationError),
+    RuntimeError(RuntimeError),
+}
 
-    #[error(transparent)]
-    RuntimeError(#[from] RuntimeError),
+impl From<MonomorphizationError> for CompileError {
+    fn from(error: MonomorphizationError) -> Self {
+        Self::MonomorphizationError(error)
+    }
+}
+
+impl From<RuntimeError> for CompileError {
+    fn from(error: RuntimeError) -> Self {
+        Self::RuntimeError(error)
+    }
 }
 
 impl From<CompileError> for FileDiagnostic {
@@ -245,13 +262,15 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
     disable_macros: bool,
-    use_elaborator: bool,
+    use_legacy: bool,
+    debug_comptime_in_file: Option<&str>,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, use_elaborator, macros);
+    let diagnostics =
+        CrateDefMap::collect_defs(crate_id, context, use_legacy, debug_comptime_in_file, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
@@ -288,7 +307,8 @@ pub fn compile_main(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_elaborator,
+        options.use_legacy,
+        options.debug_comptime_in_file.as_deref(),
     )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
@@ -329,7 +349,8 @@ pub fn compile_contract(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_elaborator,
+        options.use_legacy,
+        options.debug_comptime_in_file.as_deref(),
     )?;
 
     // TODO: We probably want to error if contracts is empty
@@ -456,7 +477,7 @@ fn compile_contract_inner(
                         let typ = context.def_interner.get_struct(struct_id);
                         let typ = typ.borrow();
                         let fields = vecmap(typ.get_fields(&[]), |(name, typ)| {
-                            (name, AbiType::from_type(context, &typ))
+                            (name, abi_type_from_hir_type(context, &typ))
                         });
                         let path =
                             context.fully_qualified_struct_path(context.root_crate_id(), typ.id);
@@ -531,32 +552,18 @@ pub fn compile_no_check(
         info!("Program matches existing artifact, returning early");
         return Ok(cached_program.expect("cache must exist for hashes to match"));
     }
-    let visibility = program.return_visibility;
+    let return_visibility = program.return_visibility;
+    let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
+        enable_ssa_logging: options.show_ssa,
+        enable_brillig_logging: options.show_brillig,
+        force_brillig_output: options.force_brillig,
+        print_codegen_timings: options.benchmark_codegen,
+    };
 
-    let SsaProgramArtifact {
-        program,
-        debug,
-        warnings,
-        main_input_witnesses,
-        main_return_witnesses,
-        names,
-        error_types,
-    } = create_program(
-        program,
-        options.show_ssa,
-        options.show_brillig,
-        options.force_brillig,
-        options.benchmark_codegen,
-    )?;
+    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
+        create_program(program, &ssa_evaluator_options)?;
 
-    let abi = abi_gen::gen_abi(
-        context,
-        &main_function,
-        main_input_witnesses,
-        main_return_witnesses,
-        visibility,
-        error_types,
-    );
+    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {

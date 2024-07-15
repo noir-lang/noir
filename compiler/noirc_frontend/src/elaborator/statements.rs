@@ -13,24 +13,24 @@ use crate::{
         },
     },
     macros_api::{
-        ForLoopStatement, ForRange, HirStatement, LetStatement, Statement, StatementKind,
+        ForLoopStatement, ForRange, HirStatement, LetStatement, Path, Statement, StatementKind,
     },
-    node_interner::{DefinitionId, DefinitionKind, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
     Type,
 };
 
-use super::Elaborator;
+use super::{lints, Elaborator};
 
 impl<'context> Elaborator<'context> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         match statement.kind {
-            StatementKind::Let(let_stmt) => self.elaborate_let(let_stmt),
+            StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
             StatementKind::Break => self.elaborate_jump(true, statement.span),
             StatementKind::Continue => self.elaborate_jump(false, statement.span),
-            StatementKind::Comptime(statement) => self.elaborate_comptime(*statement),
+            StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
             StatementKind::Expression(expr) => {
                 let (expr, typ) = self.elaborate_expression(expr);
                 (HirStatement::Expression(expr), typ)
@@ -51,11 +51,27 @@ impl<'context> Elaborator<'context> {
         (id, typ)
     }
 
-    pub(super) fn elaborate_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
+    pub(super) fn elaborate_local_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
+        self.elaborate_let(let_stmt, None)
+    }
+
+    /// Elaborate a local or global let statement.
+    /// If this is a global let, the DefinitionId of the global is specified so that
+    /// elaborate_pattern can create a Global definition kind with the correct ID
+    /// instead of a local one with a fresh ID.
+    pub(super) fn elaborate_let(
+        &mut self,
+        let_stmt: LetStatement,
+        global_id: Option<GlobalId>,
+    ) -> (HirStatement, Type) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
-        let definition = DefinitionKind::Local(Some(expression));
         let annotated_type = self.resolve_type(let_stmt.r#type);
+
+        let definition = match global_id {
+            None => DefinitionKind::Local(Some(expression)),
+            Some(id) => DefinitionKind::Global(id),
+        };
 
         // First check if the LHS is unspecified
         // If so, then we give it the same type as the expression
@@ -69,21 +85,28 @@ impl<'context> Elaborator<'context> {
                     expr_span,
                 }
             });
-            if annotated_type.is_unsigned() {
-                self.lint_overflowing_uint(&expression, &annotated_type);
+            if annotated_type.is_integer() {
+                let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
+                for error in errors {
+                    self.push_err(error);
+                }
             }
             annotated_type
         } else {
             expr_type
         };
 
-        let let_ = HirLetStatement {
-            pattern: self.elaborate_pattern(let_stmt.pattern, r#type.clone(), definition),
-            r#type,
-            expression,
-            attributes: let_stmt.attributes,
-            comptime: let_stmt.comptime,
-        };
+        let pattern = self.elaborate_pattern_and_store_ids(
+            let_stmt.pattern,
+            r#type.clone(),
+            definition,
+            &mut Vec::new(),
+            global_id,
+        );
+
+        let attributes = let_stmt.attributes;
+        let comptime = let_stmt.comptime;
+        let let_ = HirLetStatement { pattern, r#type, expression, attributes, comptime };
         (HirStatement::Let(let_), Type::Unit)
     }
 
@@ -182,7 +205,9 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {
-        if !self.in_unconstrained_fn {
+        let in_constrained_function = self.in_constrained_function();
+
+        if in_constrained_function {
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
         }
         if self.nested_loops == 0 {
@@ -214,7 +239,9 @@ impl<'context> Elaborator<'context> {
         match lvalue {
             LValue::Ident(ident) => {
                 let mut mutable = true;
-                let (ident, scope_index) = self.find_variable_or_default(&ident);
+                let span = ident.span();
+                let path = Path::from_single(ident.0.contents, span);
+                let (ident, scope_index) = self.get_ident_from_path(path);
                 self.resolve_local_variable(ident.clone(), scope_index);
 
                 let typ = if ident.id == DefinitionId::dummy_id() {
@@ -227,6 +254,9 @@ impl<'context> Elaborator<'context> {
                     let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
                     typ.follow_bindings()
                 };
+
+                let reference_location = Location::new(span, self.file);
+                self.interner.add_local_reference(ident.id, reference_location);
 
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }
@@ -349,6 +379,9 @@ impl<'context> Elaborator<'context> {
             Type::Struct(s, args) => {
                 let s = s.borrow();
                 if let Some((field, index)) = s.get_field(field_name, args) {
+                    let reference_location = Location::new(span, self.file);
+                    self.interner.add_struct_member_reference(s.id, index, reference_location);
+
                     return Some((field, index));
                 }
             }
@@ -403,7 +436,24 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    pub(super) fn elaborate_comptime(&self, _statement: Statement) -> (HirStatement, Type) {
-        todo!("Comptime scanning")
+    fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
+        // We have to push a new FunctionContext so that we can resolve any constraints
+        // in this comptime block early before the function as a whole finishes elaborating.
+        // Otherwise the interpreter below may find expressions for which the underlying trait
+        // call is not yet solved for.
+        self.function_context.push(Default::default());
+        let span = statement.span;
+        let (hir_statement, _typ) = self.elaborate_statement(statement);
+        self.check_and_pop_function_context();
+        let mut interpreter_errors = vec![];
+        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let value = interpreter.evaluate_statement(hir_statement);
+        let (expr, typ) = self.inline_comptime_value(value, span);
+        self.include_interpreter_errors(interpreter_errors);
+
+        let location = self.interner.id_location(hir_statement);
+        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+
+        (HirStatement::Expression(expr), typ)
     }
 }

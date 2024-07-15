@@ -11,7 +11,6 @@ license.workspace = true
 [dependencies]
 acvm.workspace = true
 iter-extended.workspace = true
-noirc_frontend.workspace = true
 noirc_printable_type.workspace = true
 toml.workspace = true
 serde_json = "1.0"
@@ -23,3 +22,9 @@ num-traits = "0.2"
 [dev-dependencies]
 strum = "0.24"
 strum_macros = "0.24"
+proptest.workspace = true
+proptest-derive.workspace = true
+
+[features]
+bn254 = ["acvm/bn254"]
+bls12_381 = ["acvm/bls12_381"]

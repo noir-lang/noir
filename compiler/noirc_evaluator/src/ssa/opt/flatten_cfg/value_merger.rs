@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet};
 
 use crate::ssa::ir::{
@@ -304,7 +304,7 @@ impl<'a> ValueMerger<'a> {
         let mut current_then = then_value;
         let mut current_else = else_value;
 
-        // Arbitrarily limit this to looking at at most 10 past ArraySet operations.
+        // Arbitrarily limit this to looking at most 10 past ArraySet operations.
         // If there are more than that, we assume 2 completely separate arrays are being merged.
         let max_iters = 2;
         let mut seen_then = Vec::with_capacity(max_iters);

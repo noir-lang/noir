@@ -46,7 +46,7 @@ unconstrained fn get_sqrt(number: Field) -> Field {
 }
 ```
 
-In this example, we're wrapping our oracle function in a unconstrained method, and decorating it with `oracle(getSqrt)`. We can then call the unconstrained function as we would call any other function:
+In this example, we're wrapping our oracle function in an unconstrained method, and decorating it with `oracle(getSqrt)`. We can then call the unconstrained function as we would call any other function:
 
 ```rust
 fn main(input: Field) {
@@ -137,22 +137,15 @@ app.listen(5555);
 Now, we will add our `getSqrt` method, as expected by the `#[oracle(getSqrt)]` decorator in our Noir code. It maps through the params array and returns their square roots:
 
 ```js
-server.addMethod("getSqrt", async (params) => {
-  const values = params[0].Array.map((field) => {
+server.addMethod("resolve_function_call", async (params) => {
+  if params.function !== "getSqrt" {
+    throw Error("Unexpected foreign call")
+  };
+  const values = params.inputs[0].Array.map((field) => {
     return `${Math.sqrt(parseInt(field, 16))}`;
   });
   return { values: [{ Array: values }] };
 });
-```
-
-:::tip
-
-Brillig expects an object with an array of values. Each value is an object declaring to be `Single` or `Array` and returning a field element *as a string*. For example:
-
-```json
-{ "values": [{ "Array": ["1", "2"] }]}
-{ "values": [{ "Single": "1" }]}
-{ "values": [{ "Single": "1" }, { "Array": ["1", "2"] }]}
 ```
 
 If you're using Typescript, the following types may be helpful in understanding the expected return value and making sure they're easy to follow:
@@ -172,6 +165,10 @@ interface ForeignCallResult {
   values: ForeignCallParam[],
 }
 ```
+
+::: Multidimensional Arrays
+
+If the Oracle function is returning an array containing other arrays, such as `[['1','2],['3','4']]`, you need to provide the values in json as flattened values. In the previous example, it would be `['1', '2', '3', '4']`. In the noir program, the Oracle signature can use a nested type, the flattened values will be automatically converted to the nested type.
 
 :::
 
@@ -194,7 +191,7 @@ For example, if your Noir program expects the host machine to provide CPU pseudo
 ```js
 const foreignCallHandler = (name, inputs) => crypto.randomBytes(16) // etc
 
-await noir.generateProof(inputs, foreignCallHandler)
+await noir.execute(inputs, foreignCallHandler)
 ```
 
 As one can see, in NoirJS, the [`foreignCallHandler`](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) function simply means "a callback function that returns a value of type [`ForeignCallOutput`](../reference/NoirJS/noir_js/type-aliases/ForeignCallOutput.md). It doesn't have to be an RPC call like in the case for Nargo.
@@ -237,11 +234,11 @@ const client = new JSONRPCClient((jsonRPCRequest) => {
 // declaring a function that takes the name of the foreign call (getSqrt) and the inputs
 const foreignCallHandler = async (name, input) => {
     // notice that the "inputs" parameter contains *all* the inputs
-    // in this case we to make the RPC request with the first parameter "numbers", which would be input[0]
+    // in this case we make the RPC request with the first parameter "numbers", which would be input[0]
     const oracleReturn = await client.request(name, [
-      { Array: input[0].map((i) => i.toString("hex")) },
+      input[0].map((i) => i.toString("hex")),
     ]);
-    return [oracleReturn.values[0].Array];
+    return { values: oracleReturn };
 };
 
 // the rest of your NoirJS code

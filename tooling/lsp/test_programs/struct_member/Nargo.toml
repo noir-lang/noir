@@ -1,0 +1,6 @@
+[package]
+name = "struct_member"
+type = "bin"
+authors = [""]
+
+[dependencies]

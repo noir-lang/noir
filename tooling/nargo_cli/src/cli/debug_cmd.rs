@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use acvm::acir::native_types::{WitnessMap, WitnessStack};
+use acvm::acir::native_types::WitnessStack;
+use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use fm::FileManager;
-use nargo::artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::CompileError;
 use nargo::ops::{compile_program, compile_program_with_debug_instrumenter, report_errors};
@@ -168,10 +168,10 @@ fn run_async(
 
     runtime.block_on(async {
         println!("[{}] Starting debugger", package.name);
-        let (return_value, solved_witness) =
+        let (return_value, witness_stack) =
             debug_program_and_decode(program, package, prover_name)?;
 
-        if let Some(solved_witness) = solved_witness {
+        if let Some(solved_witness_stack) = witness_stack {
             println!("[{}] Circuit witness successfully solved", package.name);
 
             if let Some(return_value) = return_value {
@@ -179,11 +179,8 @@ fn run_async(
             }
 
             if let Some(witness_name) = witness_name {
-                let witness_path = save_witness_to_dir(
-                    WitnessStack::from(solved_witness),
-                    witness_name,
-                    target_dir,
-                )?;
+                let witness_path =
+                    save_witness_to_dir(solved_witness_stack, witness_name, target_dir)?;
 
                 println!("[{}] Witness saved to {}", package.name, witness_path.display());
             }
@@ -199,40 +196,32 @@ fn debug_program_and_decode(
     program: CompiledProgram,
     package: &Package,
     prover_name: &str,
-) -> Result<(Option<InputValue>, Option<WitnessMap>), CliError> {
+) -> Result<(Option<InputValue>, Option<WitnessStack<FieldElement>>), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let solved_witness = debug_program(&program, &inputs_map)?;
-    let public_abi = program.abi.public_abi();
+    let program_abi = program.abi.clone();
+    let witness_stack = debug_program(program, &inputs_map)?;
 
-    match solved_witness {
-        Some(witness) => {
-            let (_, return_value) = public_abi.decode(&witness)?;
-            Ok((return_value, Some(witness)))
+    match witness_stack {
+        Some(witness_stack) => {
+            let main_witness = &witness_stack
+                .peek()
+                .expect("Should have at least one witness on the stack")
+                .witness;
+            let (_, return_value) = program_abi.decode(main_witness)?;
+            Ok((return_value, Some(witness_stack)))
         }
         None => Ok((None, None)),
     }
 }
 
 pub(crate) fn debug_program(
-    compiled_program: &CompiledProgram,
+    compiled_program: CompiledProgram,
     inputs_map: &InputMap,
-) -> Result<Option<WitnessMap>, CliError> {
+) -> Result<Option<WitnessStack<FieldElement>>, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
-    let debug_artifact = DebugArtifact {
-        debug_symbols: compiled_program.debug.clone(),
-        file_map: compiled_program.file_map.clone(),
-        warnings: compiled_program.warnings.clone(),
-    };
-
-    noir_debugger::debug_circuit(
-        &Bn254BlackBoxSolver,
-        &compiled_program.program.functions[0],
-        debug_artifact,
-        initial_witness,
-        &compiled_program.program.unconstrained_functions,
-    )
-    .map_err(CliError::from)
+    noir_debugger::run_repl_session(&Bn254BlackBoxSolver, compiled_program, initial_witness)
+        .map_err(CliError::from)
 }

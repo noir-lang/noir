@@ -1,14 +1,14 @@
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
-use std::rc::Rc;
-
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
+use crate::graph::CrateId;
+use crate::macros_api::{BlockExpression, StructId};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
-use crate::{Type, TypeVariable};
+use crate::{ResolvedGeneric, Type};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -95,6 +95,10 @@ pub struct FuncMeta {
 
     pub parameters: Parameters,
 
+    /// The HirIdent of each identifier within the parameter list.
+    /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
+    pub parameter_idents: Vec<HirIdent>,
+
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
@@ -107,7 +111,13 @@ pub struct FuncMeta {
     /// This does not include generics from an outer scope, like those introduced by
     /// an `impl<T>` block. This also does not include implicit generics added by the compiler
     /// such as a trait's `Self` type variable.
-    pub direct_generics: Vec<(Rc<String>, TypeVariable)>,
+    pub direct_generics: Vec<ResolvedGeneric>,
+
+    /// All the generics used by this function, which includes any implicit generics or generics
+    /// from outer scopes, such as those introduced by an impl.
+    /// This is stored when the FuncMeta is first created to later be used to set the current
+    /// generics when the function's body is later resolved.
+    pub all_generics: Vec<ResolvedGeneric>,
 
     pub location: Location,
 
@@ -116,6 +126,9 @@ pub struct FuncMeta {
 
     pub trait_constraints: Vec<TraitConstraint>,
 
+    /// The struct this function belongs to, if any
+    pub struct_id: Option<StructId>,
+
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
 
@@ -123,19 +136,37 @@ pub struct FuncMeta {
     /// For non-contracts, this means the function is `main`.
     pub is_entry_point: bool,
 
+    /// True if this function was defined within a trait (not a trait impl!).
+    /// Trait functions are just stubs and shouldn't have their return type checked
+    /// against their body type, nor should unused variables be checked.
+    pub is_trait_function: bool,
+
     /// True if this function is marked with an attribute
     /// that indicates it should be inlined differently than the default (inline everything).
     /// For example, such as `fold` (never inlined) or `no_predicates` (inlined after flattening)
     pub has_inline_attribute: bool,
+
+    pub function_body: FunctionBody,
+
+    /// The crate this function was defined in
+    pub source_crate: CrateId,
+}
+
+#[derive(Debug, Clone)]
+pub enum FunctionBody {
+    Unresolved(FunctionKind, BlockExpression, Span),
+    Resolving,
+    Resolved,
 }
 
 impl FuncMeta {
-    /// Builtin, LowLevel and Oracle functions usually have the return type
-    /// declared, however their function bodies will be empty
-    /// So this method tells the type checker to ignore the return
-    /// of the empty function, which is unit
-    pub fn can_ignore_return_type(&self) -> bool {
-        self.kind.can_ignore_return_type()
+    /// A stub function does not have a body. This includes Builtin, LowLevel,
+    /// and Oracle functions in addition to method declarations within a trait.
+    ///
+    /// We don't check the return type of these functions since it will always have
+    /// an empty body, and we don't check for unused parameters.
+    pub fn is_stub(&self) -> bool {
+        self.kind.can_ignore_return_type() || self.is_trait_function
     }
 
     pub fn function_signature(&self) -> FunctionSignature {
@@ -155,6 +186,21 @@ impl FuncMeta {
                 _ => unreachable!(),
             },
             _ => unreachable!(),
+        }
+    }
+
+    /// Take this function body, returning an owned version while avoiding
+    /// cloning any large Expressions inside by replacing a Unresolved with a Resolving variant.
+    pub fn take_body(&mut self) -> FunctionBody {
+        match &mut self.function_body {
+            FunctionBody::Unresolved(kind, block, span) => {
+                let statements = std::mem::take(&mut block.statements);
+                let (kind, span) = (*kind, *span);
+                self.function_body = FunctionBody::Resolving;
+                FunctionBody::Unresolved(kind, BlockExpression { statements }, span)
+            }
+            FunctionBody::Resolving => FunctionBody::Resolving,
+            FunctionBody::Resolved => FunctionBody::Resolved,
         }
     }
 }

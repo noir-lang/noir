@@ -47,7 +47,7 @@ In a standard recursive app, you're also dealing with at least two circuits. For
 - `main`: a circuit of type `assert(x != y)`, where `main` is marked with a `#[recursive]` attribute. This attribute states that the backend should generate proofs that are friendly for verification within another circuit.
 - `recursive`: a circuit that verifies `main`
 
-For a full example on how recursive proofs work, please refer to the [noir-examples](https://github.com/noir-lang/noir-examples) repository. We will *not* be using it as a reference for this guide.
+For a full example of how recursive proofs work, please refer to the [noir-examples](https://github.com/noir-lang/noir-examples) repository. We will *not* be using it as a reference for this guide.
 
 ## Step 1: Setup
 
@@ -70,7 +70,7 @@ You can use the [`os.cpus()`](https://nodejs.org/api/os.html#oscpus) object in `
 After instantiating the backend, you should also instantiate `noir_js`. We will use it to execute the circuit and get the witness.
 
 ```js
-const noir = new Noir(circuit, backend)
+const noir = new Noir(circuit)
 const { witness } = noir.execute(input)
 ```
 
@@ -155,8 +155,8 @@ const backends = {
   recursive: new BarretenbergBackend(circuits.recursive)
 }
 const noir_programs = {
-  main: new Noir(circuits.main, backends.main),
-  recursive: new Noir(circuits.recursive, backends.recursive)
+  main: new Noir(circuits.main),
+  recursive: new Noir(circuits.recursive)
 }
 ```
 
@@ -173,7 +173,8 @@ const { proofAsFields, vkAsFields, vkHash } = await backends.main.generateRecurs
     proof,
     numPublicInputs,
 );
-const recursiveProof = await noir_programs.recursive.generateProof(recursiveInputs)
+const { witness: recursiveWitness } = await noir_programs.recursive.execute(recursiveInputs)
+const recursiveProof = await backends.recursive.generateProof(recursiveWitness);
 ```
 
 :::

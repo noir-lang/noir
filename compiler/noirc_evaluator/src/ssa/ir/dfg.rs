@@ -13,7 +13,7 @@ use super::{
     value::{Value, ValueId},
 };
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -22,7 +22,7 @@ use noirc_errors::Location;
 /// its blocks, instructions, and values. This struct is largely responsible for
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,
@@ -284,7 +284,7 @@ impl DataFlowGraph {
         intrinsic_value_id
     }
 
-    pub(crate) fn get_intrinsic(&mut self, intrinsic: Intrinsic) -> Option<&ValueId> {
+    pub(crate) fn get_intrinsic(&self, intrinsic: Intrinsic) -> Option<&ValueId> {
         self.intrinsics.get(&intrinsic)
     }
 
@@ -497,9 +497,22 @@ impl DataFlowGraph {
         }
     }
 
-    /// True if the given ValueId refers to a constant value
+    /// True if the given ValueId refers to a (recursively) constant value
     pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
-        !matches!(&self[self.resolve(argument)], Value::Instruction { .. } | Value::Param { .. })
+        match &self[self.resolve(argument)] {
+            Value::Instruction { .. } | Value::Param { .. } => false,
+            Value::Array { array, .. } => array.iter().all(|element| self.is_constant(*element)),
+            _ => true,
+        }
+    }
+
+    /// True that the input is a non-zero `Value::NumericConstant`
+    pub(crate) fn is_constant_true(&self, argument: ValueId) -> bool {
+        if let Some(constant) = self.get_numeric_constant(argument) {
+            !constant.is_zero()
+        } else {
+            false
+        }
     }
 }
 

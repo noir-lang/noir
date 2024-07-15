@@ -30,8 +30,6 @@ pub enum ParserErrorReason {
     TraitImplFunctionModifiers,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
-    #[error("distinct keyword is deprecated. The `distinct` behavior is now the default.")]
-    DistinctDeprecated,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
     #[error(
@@ -135,7 +133,7 @@ impl std::fmt::Display for ParserError {
         } else {
             let expected = expected.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
 
-            write!(f, "Unexpected {}, expected one of {}{}", self.found, expected, reason_str)
+            write!(f, "Unexpected {:?}, expected one of {}{}", self.found, expected, reason_str)
         }
     }
 }

@@ -105,6 +105,14 @@ type Bad2 = Bad1;
 //   ^^^^^^^^^^^ 'Bad2' recursively depends on itself: Bad2 -> Bad1 -> Bad2
 ```
 
+## Wildcard Type
+Noir can usually infer the type of the variable from the context, so specifying the type of a variable is only required when it cannot be inferred. However, specifying a complex type can be tedious, especially when it has multiple generic arguments. Often some of the generic types can be inferred from the context, and Noir only needs a hint to properly infer the other types. We can partially specify a variable's type by using `_` as a marker, indicating where we still want the compiler to infer the type.
+
+```rust
+let a: [_; 4] = foo(b);
+```
+ 
+
 ### BigInt
 
 You can achieve BigInt functionality using the [Noir BigInt](https://github.com/shuklaayush/noir-bigint) library.

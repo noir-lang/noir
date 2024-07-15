@@ -1,9 +1,6 @@
 import { expect } from 'chai';
 import {
-  createBlackBoxSolver,
   executeCircuit,
-  executeCircuitWithBlackBoxSolver,
-  WasmBlackBoxFunctionSolver,
   WitnessMap,
   ForeignCallHandler,
   executeProgram,
@@ -79,17 +76,6 @@ it('successfully processes complex brillig foreign call opcodes', async () => {
   expect(solved_witness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it('successfully executes a Pedersen opcode', async function () {
-  this.timeout(10000);
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
-
-  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-
-  expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
-});
-
 it('successfully executes a MultiScalarMul opcode', async () => {
   const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/multi_scalar_mul');
 
@@ -118,47 +104,6 @@ it('successfully executes a MemoryOp opcode', async () => {
   });
 
   expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
-});
-
-it('successfully executes two circuits with same backend', async function () {
-  this.timeout(10000);
-
-  // chose pedersen op here because it is the one with slow initialization
-  // that led to the decision to pull backend initialization into a separate
-  // function/wasmbind
-  const solver: WasmBlackBoxFunctionSolver = await createBlackBoxSolver();
-
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
-
-  const solvedWitness0 = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-
-  const solvedWitness1 = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-
-  expect(solvedWitness0).to.be.deep.eq(expectedWitnessMap);
-  expect(solvedWitness1).to.be.deep.eq(expectedWitnessMap);
-});
-
-it('successfully executes 500 circuits with same backend', async function () {
-  this.timeout(100000);
-
-  // chose pedersen op here because it is the one with slow initialization
-  // that led to the decision to pull backend initialization into a separate
-  // function/wasmbind
-  const solver: WasmBlackBoxFunctionSolver = await createBlackBoxSolver();
-
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
-
-  for (let i = 0; i < 500; i++) {
-    const solvedWitness = await executeCircuitWithBlackBoxSolver(solver, bytecode, initialWitnessMap, () => {
-      throw Error('unexpected oracle');
-    });
-
-    expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
-  }
 });
 
 /**

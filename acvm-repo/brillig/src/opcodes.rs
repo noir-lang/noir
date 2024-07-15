@@ -1,5 +1,5 @@
 use crate::black_box::BlackBoxOp;
-use acir_field::FieldElement;
+use acir_field::{AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 
 pub type Label = usize;
@@ -89,7 +89,7 @@ pub enum ValueOrArray {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BrilligOpcode {
+pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
     /// and stores the value in the `result` address.  
@@ -142,7 +142,7 @@ pub enum BrilligOpcode {
     Const {
         destination: MemoryAddress,
         bit_size: u32,
-        value: FieldElement,
+        value: F,
     },
     Return,
     /// Used to get data from an outside source.

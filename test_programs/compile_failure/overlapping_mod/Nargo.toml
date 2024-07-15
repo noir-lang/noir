@@ -1,0 +1,7 @@
+[package]
+name = "overlapping_lib_and_mod"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.30.0"
+
+[dependencies]

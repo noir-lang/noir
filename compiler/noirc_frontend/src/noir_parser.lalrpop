@@ -67,7 +67,6 @@ extern {
         "contract" => BorrowedToken::Keyword(noir_token::Keyword::Contract),
         "crate" => BorrowedToken::Keyword(noir_token::Keyword::Crate),
         "dep" => BorrowedToken::Keyword(noir_token::Keyword::Dep),
-        "distinct" => BorrowedToken::Keyword(noir_token::Keyword::Distinct),
         "else" => BorrowedToken::Keyword(noir_token::Keyword::Else),
         "Field" => BorrowedToken::Keyword(noir_token::Keyword::Field),
         "fn" => BorrowedToken::Keyword(noir_token::Keyword::Fn),
@@ -81,7 +80,6 @@ extern {
         "mod" => BorrowedToken::Keyword(noir_token::Keyword::Mod),
         "mut" => BorrowedToken::Keyword(noir_token::Keyword::Mut),
         "pub" => BorrowedToken::Keyword(noir_token::Keyword::Pub),
-        "quote" => BorrowedToken::Keyword(noir_token::Keyword::Quote),
         "return" => BorrowedToken::Keyword(noir_token::Keyword::Return),
         "return_data" => BorrowedToken::Keyword(noir_token::Keyword::ReturnData),
         "str" => BorrowedToken::Keyword(noir_token::Keyword::String),
@@ -126,7 +124,7 @@ pub(crate) Path: Path = {
     },
 
     <lo:@L> "dep" "::" <segments:PathSegments> <hi:@R> => {
-        let kind = PathKind::Dep;
+        let kind = PathKind::Plain;
         let span = Span::from(lo as u32..hi as u32);
         Path { segments, kind, span }
     },

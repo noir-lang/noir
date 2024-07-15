@@ -1,11 +1,11 @@
 use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
-use acvm::FieldElement;
+use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
+use noirc_frontend::monomorphization::ast::{self, InlineType, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 
 use crate::errors::RuntimeError;
@@ -20,6 +20,7 @@ use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
 
 use super::value::{Tree, Value, Values};
+use super::SSA_WORD_SIZE;
 use fxhash::FxHashMap as HashMap;
 
 /// The FunctionContext is the main context object for translating a
@@ -120,9 +121,14 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Note that the previous function cannot be resumed after calling this. Developers should
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
-    pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
+    pub(super) fn new_function(
+        &mut self,
+        id: IrFunctionId,
+        func: &ast::Function,
+        force_brillig_runtime: bool,
+    ) {
         self.definitions.clear();
-        if func.unconstrained {
+        if func.unconstrained || (force_brillig_runtime && func.inline_type != InlineType::Inline) {
             self.builder.new_brillig_function(func.name.clone(), id);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
@@ -265,20 +271,38 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn checked_numeric_constant(
         &mut self,
         value: impl Into<FieldElement>,
+        negative: bool,
         typ: Type,
     ) -> Result<ValueId, RuntimeError> {
         let value = value.into();
 
-        if let Type::Numeric(typ) = typ {
-            if !typ.value_is_within_limits(value) {
+        if let Type::Numeric(numeric_type) = typ {
+            if let Some(range) = numeric_type.value_is_outside_limits(value, negative) {
                 let call_stack = self.builder.get_call_stack();
-                return Err(RuntimeError::IntegerOutOfBounds { value, typ, call_stack });
+                return Err(RuntimeError::IntegerOutOfBounds {
+                    value: if negative { -value } else { value },
+                    typ: numeric_type,
+                    range,
+                    call_stack,
+                });
             }
+
+            let value = if negative {
+                match numeric_type {
+                    NumericType::NativeField => -value,
+                    NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                        let base = 1_u128 << bit_size;
+                        FieldElement::from(base) - value
+                    }
+                }
+            } else {
+                value
+            };
+
+            Ok(self.builder.numeric_constant(value, typ))
         } else {
             panic!("Expected type for numeric constant to be a numeric type, found {typ}");
         }
-
-        Ok(self.builder.numeric_constant(value, typ))
     }
 
     /// helper function which add instructions to the block computing the absolute value of the
@@ -587,9 +611,9 @@ impl<'a> FunctionContext<'a> {
         address
     }
 
-    /// Array indexes are u64s. This function casts values used as indexes to u64.
+    /// Array indexes are u32. This function casts values used as indexes to u32.
     pub(super) fn make_array_index(&mut self, index: ValueId) -> ValueId {
-        self.builder.insert_cast(index, Type::unsigned(64))
+        self.builder.insert_cast(index, Type::unsigned(SSA_WORD_SIZE))
     }
 
     /// Define a local variable to be some Values that can later be retrieved
@@ -837,12 +861,12 @@ impl<'a> FunctionContext<'a> {
     ) -> ValueId {
         let index = self.make_array_index(index);
         let element_size =
-            self.builder.numeric_constant(self.element_size(array), Type::unsigned(64));
+            self.builder.numeric_constant(self.element_size(array), Type::unsigned(SSA_WORD_SIZE));
 
         // The actual base index is the user's index * the array element type's size
         let mut index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
-        let one = self.builder.numeric_constant(FieldElement::one(), Type::unsigned(64));
+        let one = self.builder.numeric_constant(FieldElement::one(), Type::unsigned(SSA_WORD_SIZE));
 
         new_value.for_each(|value| {
             let value = value.eval(self);

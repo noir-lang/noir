@@ -7,7 +7,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Instruction, InstructionId},
+        instruction::{Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
         value::{Value, ValueId},
     },
@@ -111,6 +111,10 @@ impl Context {
         if instruction.can_eliminate_if_unused(&function.dfg) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
+        } else if let Instruction::Call { func, arguments } = instruction {
+            // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
+            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
+            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
         } else {
             // If the instruction has side effects we should never remove it.
             false
@@ -255,5 +259,48 @@ mod test {
 
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
         assert_eq!(main.dfg[b1].instructions().len(), 6);
+    }
+
+    #[test]
+    fn as_witness_die() {
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v1 = add v0, Field 1
+        //     v2 = add v0, Field 2
+        //     call as_witness(v2)
+        //     return v1
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::field());
+
+        let one = builder.field_constant(1u128);
+        let two = builder.field_constant(2u128);
+
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
+        let v2 = builder.insert_binary(v0, BinaryOp::Add, two);
+        let as_witness = builder.import_intrinsic("as_witness").unwrap();
+        builder.insert_call(as_witness, vec![v2], Vec::new());
+        builder.terminate_with_return(vec![v1]);
+
+        let ssa = builder.finish();
+        let main = ssa.main();
+
+        // The instruction count never includes the terminator instruction
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 3);
+
+        // Expected output:
+        //
+        // acir(inline) fn main f0 {
+        //    b0(v0: Field):
+        //      v3 = add v0, Field 1
+        //      return v3
+        //  }
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+
+        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
     }
 }

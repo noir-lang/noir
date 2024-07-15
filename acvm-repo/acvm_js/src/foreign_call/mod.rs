@@ -1,4 +1,4 @@
-use acvm::{brillig_vm::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
+use acvm::{brillig_vm::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, FieldElement};
 
 use js_sys::{Error, JsString};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
@@ -29,8 +29,8 @@ extern "C" {
 
 pub(super) async fn resolve_brillig(
     foreign_call_callback: &ForeignCallHandler,
-    foreign_call_wait_info: &ForeignCallWaitInfo,
-) -> Result<ForeignCallResult, Error> {
+    foreign_call_wait_info: &ForeignCallWaitInfo<FieldElement>,
+) -> Result<ForeignCallResult<FieldElement>, Error> {
     // Prepare to call
     let name = JsString::from(foreign_call_wait_info.function.clone());
     let inputs = inputs::encode_foreign_call_inputs(&foreign_call_wait_info.inputs);

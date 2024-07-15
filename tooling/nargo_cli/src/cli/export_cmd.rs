@@ -89,7 +89,8 @@ fn compile_exported_functions(
         compile_options.deny_warnings,
         compile_options.disable_macros,
         compile_options.silence_warnings,
-        compile_options.use_elaborator,
+        compile_options.use_legacy,
+        compile_options.debug_comptime_in_file.as_deref(),
     )?;
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);

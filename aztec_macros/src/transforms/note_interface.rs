@@ -11,7 +11,10 @@ use noirc_frontend::{
     Type,
 };
 
+use acvm::AcirField;
 use regex::Regex;
+// TODO(#7165): nuke the following dependency from here and Cargo.toml
+use tiny_keccak::{Hasher, Keccak};
 
 use crate::{
     chained_dep,
@@ -69,6 +72,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 type_span: note_struct.name.span(),
                 generics: vec![],
                 methods: vec![],
+                where_clause: vec![],
             };
             module.impls.push(default_impl.clone());
             module.impls.last_mut().unwrap()
@@ -76,20 +80,27 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
         // Identify the note type (struct name), its fields and its serialized length (generic param of NoteInterface trait impl)
         let note_type = note_struct.name.0.contents.to_string();
         let mut note_fields = vec![];
-        let note_serialized_len = match &trait_impl.trait_generics[0].typ {
-            UnresolvedTypeData::Named(path, _, _) => Ok(path.last_segment().0.contents.to_string()),
-            UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(val, _)) => {
-                Ok(val.to_string())
-            }
-            _ => Err(AztecMacroError::CouldNotImplementNoteInterface {
-                span: trait_impl.object_type.span,
-                secondary_message: Some(format!(
-                    "Cannot find note serialization length for: {}",
-                    note_type
-                )),
-            }),
-        }?;
-        let note_type_id = note_type_id(&note_type);
+        let note_interface_generics = trait_impl
+            .trait_generics
+            .iter()
+            .map(|gen| match gen.typ.clone() {
+                UnresolvedTypeData::Named(path, _, _) => {
+                    Ok(path.last_segment().0.contents.to_string())
+                }
+                UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(val, _)) => {
+                    Ok(val.to_string())
+                }
+                _ => Err(AztecMacroError::CouldNotImplementNoteInterface {
+                    span: trait_impl.object_type.span,
+                    secondary_message: Some(format!(
+                        "NoteInterface must be generic over NOTE_LEN and NOTE_BYTES_LEN: {}",
+                        note_type
+                    )),
+                }),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let [note_serialized_len, note_bytes_len]: [_; 2] =
+            note_interface_generics.try_into().unwrap();
 
         // Automatically inject the header field if it's not present
         let (header_field_name, _) = if let Some(existing_header) =
@@ -176,20 +187,82 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
         }
 
         if !check_trait_method_implemented(trait_impl, "get_note_type_id") {
+            let note_type_id = compute_note_type_id(&note_type);
             let get_note_type_id_fn =
-                generate_note_get_type_id(&note_type_id, note_interface_impl_span)?;
+                generate_get_note_type_id(note_type_id, note_interface_impl_span)?;
             trait_impl.items.push(TraitImplItem::Function(get_note_type_id_fn));
         }
 
         if !check_trait_method_implemented(trait_impl, "compute_note_content_hash") {
-            let get_header_fn =
+            let compute_note_content_hash_fn =
                 generate_compute_note_content_hash(&note_type, note_interface_impl_span)?;
-            trait_impl.items.push(TraitImplItem::Function(get_header_fn));
+            trait_impl.items.push(TraitImplItem::Function(compute_note_content_hash_fn));
+        }
+
+        if !check_trait_method_implemented(trait_impl, "to_be_bytes") {
+            let to_be_bytes_fn = generate_note_to_be_bytes(
+                &note_type,
+                note_bytes_len.as_str(),
+                note_serialized_len.as_str(),
+                note_interface_impl_span,
+            )?;
+            trait_impl.items.push(TraitImplItem::Function(to_be_bytes_fn));
         }
     }
 
     module.types.extend(structs_to_inject);
     Ok(())
+}
+
+fn generate_note_to_be_bytes(
+    note_type: &String,
+    byte_length: &str,
+    serialized_length: &str,
+    impl_span: Option<Span>,
+) -> Result<NoirFunction, AztecMacroError> {
+    let function_source = format!(
+        "
+        fn to_be_bytes(self: {1}, storage_slot: Field) -> [u8; {0}] {{
+            assert({0} == {2} * 32 + 64, \"Note byte length must be equal to (serialized_length * 32) + 64 bytes\");
+            let serialized_note = self.serialize_content();
+
+            let mut buffer: [u8; {0}] = [0; {0}];
+
+            let storage_slot_bytes = storage_slot.to_be_bytes(32);
+            let note_type_id_bytes = {1}::get_note_type_id().to_be_bytes(32);
+
+            for i in 0..32 {{
+                buffer[i] = storage_slot_bytes[i];
+                buffer[32 + i] = note_type_id_bytes[i];
+            }}
+
+            for i in 0..serialized_note.len() {{
+                let bytes = serialized_note[i].to_be_bytes(32);
+                for j in 0..32 {{
+                    buffer[64 + i * 32 + j] = bytes[j];
+                }}
+            }}
+            buffer
+        }}
+    ",
+        byte_length, note_type, serialized_length
+    )
+    .to_string();
+
+    let (function_ast, errors) = parse_program(&function_source);
+    if !errors.is_empty() {
+        dbg!(errors);
+        return Err(AztecMacroError::CouldNotImplementNoteInterface {
+            secondary_message: Some("Failed to parse Noir macro code (fn to_be_bytes). This is either a bug in the compiler or the Noir macro code".to_string()),
+            span: impl_span
+        });
+    }
+
+    let mut function_ast = function_ast.into_sorted();
+    let mut noir_fn = function_ast.functions.remove(0);
+    noir_fn.def.span = impl_span.unwrap();
+    noir_fn.def.visibility = ItemVisibility::Public;
+    Ok(noir_fn)
 }
 
 fn generate_note_get_header(
@@ -199,7 +272,7 @@ fn generate_note_get_header(
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
         "
-        fn get_header(note: {}) -> dep::aztec::note::note_header::NoteHeader {{
+        fn get_header(note: {}) -> aztec::note::note_header::NoteHeader {{
             note.{}
         }}
     ",
@@ -209,6 +282,7 @@ fn generate_note_get_header(
 
     let (function_ast, errors) = parse_program(&function_source);
     if !errors.is_empty() {
+        dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
             secondary_message: Some("Failed to parse Noir macro code (fn get_header). This is either a bug in the compiler or the Noir macro code".to_string()),
             span: impl_span
@@ -229,7 +303,7 @@ fn generate_note_set_header(
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
         "
-        fn set_header(self: &mut {}, header: dep::aztec::note::note_header::NoteHeader) {{
+        fn set_header(self: &mut {}, header: aztec::note::note_header::NoteHeader) {{
             self.{} = header;
         }}
     ",
@@ -254,16 +328,17 @@ fn generate_note_set_header(
 
 // Automatically generate the note type id getter method. The id itself its calculated as the concatenation
 // of the conversion of the characters in the note's struct name to unsigned integers.
-fn generate_note_get_type_id(
-    note_type_id: &str,
+fn generate_get_note_type_id(
+    note_type_id: u32,
     impl_span: Option<Span>,
 ) -> Result<NoirFunction, AztecMacroError> {
+    // TODO(#7165): replace {} with dep::aztec::protocol_types::abis::note_selector::compute_note_selector(\"{}\") in the function source below
     let function_source = format!(
         "
-        fn get_note_type_id() -> Field {{
-            {}
-        }}
-    ",
+            fn get_note_type_id() -> Field {{
+                {}
+            }}
+        ",
         note_type_id
     )
     .to_string();
@@ -317,7 +392,7 @@ fn generate_note_properties_struct(
 
 // Generate the deserialize_content method as
 //
-// fn deserialize_content(serialized_note: [Field; NOTE_SERILIZED_LEN]) -> Self {
+// fn deserialize_content(serialized_note: [Field; NOTE_SERIALIZED_LEN]) -> Self {
 //     NoteType {
 //        note_field1: serialized_note[0] as Field,
 //        note_field2: NoteFieldType2::from_field(serialized_note[1])...
@@ -418,7 +493,7 @@ fn generate_note_properties_fn(
 
 // Automatically generate the method to compute the note's content hash as:
 // fn compute_note_content_hash(self: NoteType) -> Field {
-//    dep::aztec::hash::pedersen_hash(self.serialize_content(), dep::aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
+//    aztec::hash::pedersen_hash(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
 // }
 //
 fn generate_compute_note_content_hash(
@@ -428,7 +503,7 @@ fn generate_compute_note_content_hash(
     let function_source = format!(
         "
         fn compute_note_content_hash(self: {}) -> Field {{
-            dep::aztec::hash::pedersen_hash(self.serialize_content(), dep::aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
+            aztec::hash::pedersen_hash(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
         }}
         ",
         note_type
@@ -455,10 +530,10 @@ fn generate_note_exports_global(
     let struct_source = format!(
         "
         #[abi(notes)]
-        global {0}_EXPORTS: (Field, str<{1}>) = ({2},\"{0}\");
+        global {0}_EXPORTS: (Field, str<{1}>) = (0x{2},\"{0}\");
         ",
         note_type,
-        note_type_id.len(),
+        note_type.len(),
         note_type_id
     )
     .to_string();
@@ -488,8 +563,7 @@ fn generate_note_properties_struct_source(
         .filter_map(|(field_name, _)| {
             if field_name != note_header_field_name {
                 Some(format!(
-                    "{}: dep::aztec::note::note_getter_options::PropertySelector",
-                    field_name
+                    "{field_name}: dep::aztec::note::note_getter_options::PropertySelector"
                 ))
             } else {
                 None
@@ -518,7 +592,7 @@ fn generate_note_properties_fn_source(
         .filter_map(|(index, (field_name, _))| {
             if field_name != note_header_field_name {
                 Some(format!(
-                    "{}: dep::aztec::note::note_getter_options::PropertySelector {{ index: {}, offset: 0, length: 32 }}",
+                    "{}: aztec::note::note_getter_options::PropertySelector {{ index: {}, offset: 0, length: 32 }}",
                     field_name,
                     index
                 ))
@@ -596,8 +670,7 @@ fn generate_note_deserialize_content_source(
                 }
             } else {
                 format!(
-                    "{}: dep::aztec::note::note_header::NoteHeader::empty()",
-                    note_header_field_name
+                    "{note_header_field_name}: dep::aztec::note::note_header::NoteHeader::empty()"
                 )
             }
         })
@@ -615,10 +688,18 @@ fn generate_note_deserialize_content_source(
     .to_string()
 }
 
+// TODO(#7165): nuke this function
 // Utility function to generate the note type id as a Field
-fn note_type_id(note_type: &str) -> String {
+fn compute_note_type_id(note_type: &str) -> u32 {
     // TODO(#4519) Improve automatic note id generation and assignment
-    note_type.chars().map(|c| (c as u32).to_string()).collect::<Vec<String>>().join("")
+    let mut keccak = Keccak::v256();
+    let mut result = [0u8; 32];
+    keccak.update(note_type.as_bytes());
+    keccak.finalize(&mut result);
+    // Take the first 4 bytes of the hash and convert them to an integer
+    // If you change the following value you have to change NUM_BYTES_PER_NOTE_TYPE_ID in l1_note_payload.ts as well
+    let num_bytes_per_note_type_id = 4;
+    u32::from_be_bytes(result[0..num_bytes_per_note_type_id].try_into().unwrap())
 }
 
 pub fn inject_note_exports(
@@ -647,29 +728,42 @@ pub fn inject_note_exports(
                     },
                     file_id,
                 ))?;
-            let init_function =
+            let get_note_type_id_function =
                 context.def_interner.function(&func_id).block(&context.def_interner);
-            let init_function_statement_id = init_function.statements().first().ok_or((
-                AztecMacroError::CouldNotExportStorageLayout {
-                    span: None,
-                    secondary_message: Some(format!(
-                        "Could not retrieve note id statement from function for note {}",
-                        note.borrow().name.0.contents
-                    )),
-                },
-                file_id,
-            ))?;
-            let note_id_statement = context.def_interner.statement(init_function_statement_id);
+            let get_note_type_id_statement_id =
+                get_note_type_id_function.statements().first().ok_or((
+                    AztecMacroError::CouldNotExportStorageLayout {
+                        span: None,
+                        secondary_message: Some(format!(
+                            "Could not retrieve note id statement from function for note {}",
+                            note.borrow().name.0.contents
+                        )),
+                    },
+                    file_id,
+                ))?;
+            let note_type_id_statement =
+                context.def_interner.statement(get_note_type_id_statement_id);
 
-            let note_id_value = match note_id_statement {
+            let note_type_id = match note_type_id_statement {
                 HirStatement::Expression(expression_id) => {
                     match context.def_interner.expression(&expression_id) {
                         HirExpression::Literal(HirLiteral::Integer(value, _)) => Ok(value),
+                        HirExpression::Literal(_) => Err((
+                            AztecMacroError::CouldNotExportStorageLayout {
+                                span: None,
+                                secondary_message: Some(
+                                    "note_type_id statement must be a literal integer expression"
+                                        .to_string(),
+                                ),
+                            },
+                            file_id,
+                        )),
                         _ => Err((
                             AztecMacroError::CouldNotExportStorageLayout {
                                 span: None,
                                 secondary_message: Some(
-                                    "note_id statement must be a literal expression".to_string(),
+                                    "note_type_id statement must be a literal expression"
+                                        .to_string(),
                                 ),
                             },
                             file_id,
@@ -677,9 +771,10 @@ pub fn inject_note_exports(
                     }
                 }
                 _ => Err((
-                    AztecMacroError::CouldNotAssignStorageSlots {
+                    AztecMacroError::CouldNotExportStorageLayout {
+                        span: None,
                         secondary_message: Some(
-                            "note_id statement must be an expression".to_string(),
+                            "note_type_id statement must be an expression".to_string(),
                         ),
                     },
                     file_id,
@@ -687,7 +782,7 @@ pub fn inject_note_exports(
             }?;
             let global = generate_note_exports_global(
                 &note.borrow().name.0.contents,
-                &note_id_value.to_string(),
+                &note_type_id.to_hex(),
             )
             .map_err(|err| (err, file_id))?;
 

@@ -1,8 +1,6 @@
-use noirc_errors::Spanned;
-use rustc_hash::FxHashMap as HashMap;
+use noirc_errors::{Location, Spanned};
 
 use crate::ast::ERROR_IDENT;
-use crate::hir::comptime::Value;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::resolution::resolver::SELF_TYPE_NAME;
@@ -18,7 +16,7 @@ use crate::{
         traits::Trait,
     },
     macros_api::{Path, StructId},
-    node_interner::{DefinitionId, TraitId, TypeAliasId},
+    node_interner::{DefinitionId, TraitId},
     Shared, StructType,
 };
 use crate::{Type, TypeAlias};
@@ -46,7 +44,36 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
         let resolver = StandardPathResolver::new(self.module_id());
-        let path_resolution = resolver.resolve(self.def_maps, path)?;
+        let path_resolution;
+
+        if self.interner.track_references {
+            let last_segment = path.last_segment();
+            let location = Location::new(last_segment.span(), self.file);
+            let is_self_type_name = last_segment.is_self_type_name();
+
+            let mut references: Vec<_> = Vec::new();
+            path_resolution =
+                resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
+
+            for (referenced, ident) in references.iter().zip(path.segments) {
+                let Some(referenced) = referenced else {
+                    continue;
+                };
+                self.interner.add_reference(
+                    *referenced,
+                    Location::new(ident.span(), self.file),
+                    ident.is_self_type_name(),
+                );
+            }
+
+            self.interner.add_module_def_id_reference(
+                path_resolution.module_def_id,
+                location,
+                is_self_type_name,
+            );
+        } else {
+            path_resolution = resolver.resolve(self.def_maps, path, &mut None)?;
+        }
 
         if let Some(error) = path_resolution.error {
             self.push_err(error);
@@ -117,10 +144,12 @@ impl<'context> Elaborator<'context> {
 
     pub fn push_scope(&mut self) {
         self.scopes.start_scope();
+        self.comptime_scopes.push(Default::default());
     }
 
     pub fn pop_scope(&mut self) {
         let scope = self.scopes.end_scope();
+        self.comptime_scopes.pop();
         self.check_for_unused_variables_in_scope_tree(scope.into());
     }
 

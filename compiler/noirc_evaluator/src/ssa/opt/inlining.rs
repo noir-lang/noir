@@ -4,6 +4,7 @@
 //! be a single function remaining when the pass finishes.
 use std::collections::{BTreeSet, HashSet};
 
+use acvm::acir::AcirField;
 use iter_extended::{btree_map, vecmap};
 
 use crate::ssa::{
@@ -26,7 +27,7 @@ const RECURSION_LIMIT: u32 = 1000;
 impl Ssa {
     /// Inline all functions within the IR.
     ///
-    /// In the case of recursive functions, this will attempt
+    /// In the case of recursive Acir functions, this will attempt
     /// to recursively inline until the RECURSION_LIMIT is reached.
     ///
     /// Functions are recursively inlined into main until either we finish
@@ -40,23 +41,30 @@ impl Ssa {
     /// There are some attributes that allow inlining a function at a different step of codegen.
     /// Currently this is just `InlineType::NoPredicates` for which we have a flag indicating
     /// whether treating that inline functions. The default is to treat these functions as entry points.
+    ///
+    /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(self) -> Ssa {
-        Self::inline_functions_inner(self, true)
+        Self::inline_functions_inner(self, false)
     }
 
     // Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(self) -> Ssa {
-        Self::inline_functions_inner(self, false)
+        Self::inline_functions_inner(self, true)
     }
 
-    fn inline_functions_inner(mut self, no_predicates_is_entry_point: bool) -> Ssa {
+    fn inline_functions_inner(mut self, inline_no_predicates_functions: bool) -> Ssa {
+        let recursive_functions = find_all_recursive_functions(&self);
         self.functions = btree_map(
-            get_entry_point_functions(&self, no_predicates_is_entry_point),
+            get_functions_to_inline_into(&self, inline_no_predicates_functions),
             |entry_point| {
-                let new_function =
-                    InlineContext::new(&self, entry_point, no_predicates_is_entry_point)
-                        .inline_all(&self);
+                let new_function = InlineContext::new(
+                    &self,
+                    entry_point,
+                    inline_no_predicates_functions,
+                    recursive_functions.clone(),
+                )
+                .inline_all(&self);
                 (entry_point, new_function)
             },
         );
@@ -78,7 +86,15 @@ struct InlineContext {
     // The FunctionId of the entry point function we're inlining into in the old, unmodified Ssa.
     entry_point: FunctionId,
 
-    no_predicates_is_entry_point: bool,
+    /// Whether the inlining pass should inline any functions marked with [`InlineType::NoPredicates`]
+    /// or whether these should be preserved as entrypoint functions.
+    ///
+    /// This is done as we delay inlining of functions with the attribute `#[no_predicates]` until after
+    /// the control flow graph has been flattened.
+    inline_no_predicates_functions: bool,
+
+    // We keep track of the recursive functions in the SSA to avoid inlining them in a brillig context.
+    recursive_functions: BTreeSet<FunctionId>,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -112,28 +128,100 @@ struct PerFunctionContext<'function> {
     inlining_entry: bool,
 }
 
-/// The entry point functions are each function we should inline into - and each function that
-/// should be left in the final program.
-/// This is the `main` function, any Acir functions with a [fold inline type][InlineType::Fold],
-/// and any brillig functions used.
-fn get_entry_point_functions(
-    ssa: &Ssa,
-    no_predicates_is_entry_point: bool,
-) -> BTreeSet<FunctionId> {
-    let functions = ssa.functions.iter();
-    let mut entry_points = functions
-        .filter(|(_, function)| {
-            // If we have not already finished the flattening pass, functions marked
-            // to not have predicates should be marked as entry points.
-            let no_predicates_is_entry_point =
-                no_predicates_is_entry_point && function.is_no_predicates();
-            function.runtime().is_entry_point() || no_predicates_is_entry_point
-        })
-        .map(|(id, _)| *id)
-        .collect::<BTreeSet<_>>();
+/// Utility function to find out the direct calls of a function.
+fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
+    let mut called_function_ids = BTreeSet::default();
+    for block_id in func.reachable_blocks() {
+        for instruction_id in func.dfg[block_id].instructions() {
+            let Instruction::Call { func: called_value_id, .. } = &func.dfg[*instruction_id] else {
+                continue;
+            };
 
-    entry_points.insert(ssa.main_id);
-    entry_points
+            if let Value::Function(function_id) = func.dfg[*called_value_id] {
+                called_function_ids.insert(function_id);
+            }
+        }
+    }
+
+    called_function_ids
+}
+
+// Recursively explore the SSA to find the functions that end up calling themselves
+fn find_recursive_functions(
+    ssa: &Ssa,
+    current_function: FunctionId,
+    mut explored_functions: im::HashSet<FunctionId>,
+    recursive_functions: &mut BTreeSet<FunctionId>,
+) {
+    if explored_functions.contains(&current_function) {
+        recursive_functions.insert(current_function);
+        return;
+    }
+
+    let called_functions = called_functions(&ssa.functions[&current_function]);
+
+    explored_functions.insert(current_function);
+
+    for called_function in called_functions {
+        find_recursive_functions(
+            ssa,
+            called_function,
+            explored_functions.clone(),
+            recursive_functions,
+        );
+    }
+}
+
+fn find_all_recursive_functions(ssa: &Ssa) -> BTreeSet<FunctionId> {
+    let mut recursive_functions = BTreeSet::default();
+    find_recursive_functions(ssa, ssa.main_id, im::HashSet::default(), &mut recursive_functions);
+    recursive_functions
+}
+
+/// The functions we should inline into (and that should be left in the final program) are:
+///  - main
+///  - Any Brillig function called from Acir
+///  - Any Brillig recursive function (Acir recursive functions will be inlined into the main function)
+///  - Any Acir functions with a [fold inline type][InlineType::Fold],
+fn get_functions_to_inline_into(
+    ssa: &Ssa,
+    inline_no_predicates_functions: bool,
+) -> BTreeSet<FunctionId> {
+    let mut brillig_entry_points = BTreeSet::default();
+    let mut acir_entry_points = BTreeSet::default();
+
+    for (func_id, function) in ssa.functions.iter() {
+        if function.runtime() == RuntimeType::Brillig {
+            continue;
+        }
+
+        // If we have not already finished the flattening pass, functions marked
+        // to not have predicates should be preserved.
+        let preserve_function = !inline_no_predicates_functions && function.is_no_predicates();
+        if function.runtime().is_entry_point() || preserve_function {
+            acir_entry_points.insert(*func_id);
+        }
+
+        for called_function_id in called_functions(function) {
+            if ssa.functions[&called_function_id].runtime() == RuntimeType::Brillig {
+                brillig_entry_points.insert(called_function_id);
+            }
+        }
+    }
+
+    let brillig_recursive_functions: BTreeSet<_> = find_all_recursive_functions(ssa)
+        .into_iter()
+        .filter(|recursive_function_id| {
+            let function = &ssa.functions[&recursive_function_id];
+            function.runtime() == RuntimeType::Brillig
+        })
+        .collect();
+
+    std::iter::once(ssa.main_id)
+        .chain(acir_entry_points)
+        .chain(brillig_entry_points)
+        .chain(brillig_recursive_functions)
+        .collect()
 }
 
 impl InlineContext {
@@ -145,7 +233,8 @@ impl InlineContext {
     fn new(
         ssa: &Ssa,
         entry_point: FunctionId,
-        no_predicates_is_entry_point: bool,
+        inline_no_predicates_functions: bool,
+        recursive_functions: BTreeSet<FunctionId>,
     ) -> InlineContext {
         let source = &ssa.functions[&entry_point];
         let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
@@ -155,7 +244,8 @@ impl InlineContext {
             recursion_level: 0,
             entry_point,
             call_stack: CallStack::new(),
-            no_predicates_is_entry_point,
+            inline_no_predicates_functions,
+            recursive_functions,
         }
     }
 
@@ -385,29 +475,57 @@ impl<'function> PerFunctionContext<'function> {
     /// Inline each instruction in the given block into the function being inlined into.
     /// This may recurse if it finds another function to inline if a call instruction is within this block.
     fn inline_block_instructions(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
+        let mut side_effects_enabled: Option<ValueId> = None;
+
         let block = &self.source_function.dfg[block_id];
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
-                        let function = &ssa.functions[&func_id];
-                        // If we have not already finished the flattening pass, functions marked
-                        // to not have predicates should be marked as entry points unless we are inlining into brillig.
-                        let entry_point = &ssa.functions[&self.context.entry_point];
-                        let no_predicates_is_entry_point =
-                            self.context.no_predicates_is_entry_point
-                                && function.is_no_predicates()
-                                && !matches!(entry_point.runtime(), RuntimeType::Brillig);
-                        if function.runtime().is_entry_point() || no_predicates_is_entry_point {
-                            self.push_instruction(*id);
-                        } else {
+                        if self.should_inline_call(ssa, func_id) {
                             self.inline_function(ssa, *id, func_id, arguments);
+
+                            // This is only relevant during handling functions with `InlineType::NoPredicates` as these
+                            // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
+                            // resulting in predicates not being applied properly.
+                            //
+                            // Note that this doesn't cover the case in which there exists an `Instruction::EnabledSideEffects`
+                            // within the function being inlined whilst the source function has not encountered one yet.
+                            // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
+                            // function being inlined will be to turn off predicates rather than to create one.
+                            if let Some(condition) = side_effects_enabled {
+                                self.context.builder.insert_enable_side_effects_if(condition);
+                            }
+                        } else {
+                            self.push_instruction(*id);
                         }
                     }
                     None => self.push_instruction(*id),
                 },
+                Instruction::EnableSideEffects { condition } => {
+                    side_effects_enabled = Some(self.translate_value(*condition));
+                    self.push_instruction(*id);
+                }
                 _ => self.push_instruction(*id),
             }
+        }
+    }
+
+    fn should_inline_call(&self, ssa: &Ssa, called_func_id: FunctionId) -> bool {
+        let function = &ssa.functions[&called_func_id];
+
+        if let RuntimeType::Acir(inline_type) = function.runtime() {
+            // If the called function is acir, we inline if it's not an entry point
+
+            // If we have not already finished the flattening pass, functions marked
+            // to not have predicates should be preserved.
+            let preserve_function =
+                !self.context.inline_no_predicates_functions && function.is_no_predicates();
+            !inline_type.is_entry_point() && !preserve_function
+        } else {
+            // If the called function is brillig, we inline only if it's into brillig and the function is not recursive
+            ssa.functions[&self.context.entry_point].runtime() == RuntimeType::Brillig
+                && !self.context.recursive_functions.contains(&called_func_id)
         }
     }
 
@@ -422,19 +540,13 @@ impl<'function> PerFunctionContext<'function> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
-        let mut call_stack = self.source_function.dfg.get_call_stack(call_id);
-        let has_location = !call_stack.is_empty();
-
-        // Function calls created by the defunctionalization pass will not have source locations
-        if let Some(location) = call_stack.pop_back() {
-            self.context.call_stack.push_back(location);
-        }
+        let call_stack = self.source_function.dfg.get_call_stack(call_id);
+        let call_stack_len = call_stack.len();
+        self.context.call_stack.append(call_stack);
 
         let new_results = self.context.inline_function(ssa, function, &arguments);
 
-        if has_location {
-            self.context.call_stack.pop_back();
-        }
+        self.context.call_stack.truncate(self.context.call_stack.len() - call_stack_len);
 
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
@@ -562,7 +674,7 @@ impl<'function> PerFunctionContext<'function> {
 
 #[cfg(test)]
 mod test {
-    use acvm::FieldElement;
+    use acvm::{acir::AcirField, FieldElement};
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
