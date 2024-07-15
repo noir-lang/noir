@@ -72,7 +72,7 @@ DEST="$SCRIPT_DIR/../dest"
 mkdir -p $DEST
 
 # At last, generate the flamegraph.
-$PROFILER gates-flamegraph --artifact-path "${ARTIFACT}" --backend-path "$SCRIPT_DIR/../../../barretenberg/cpp/build/bin/bb"  --output "$DEST"
+$PROFILER gates-flamegraph --artifact-path "${ARTIFACT}" --backend-path "$SCRIPT_DIR/../../../barretenberg/cpp/build/bin/bb"  --output "$DEST" -- -h
 
 # Serve the file over http if -s is set.
 if $SERVE; then
