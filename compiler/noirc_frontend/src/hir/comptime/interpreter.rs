@@ -1300,9 +1300,7 @@ impl<'a> Interpreter<'a> {
 
     fn store_lvalue(&mut self, lvalue: HirLValue, rhs: Value) -> IResult<()> {
         match lvalue {
-            HirLValue::Ident(ident, typ) => {
-                self.mutate(ident.id, rhs, ident.location)
-            }
+            HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value) => {
