@@ -23,16 +23,19 @@ fn main() {
     }
 }
 
-struct TestHasher {
+comptime struct TestHasher {
     result: Field,
 }
 
-impl Hasher for TestHasher {
-    fn finish(self) -> Field {
+comptime impl Hasher for TestHasher {
+    comptime fn finish(self) -> Field {
+        println(self.result);
         self.result
     }
     
-    fn write(&mut self, input: Field) {
+    comptime fn write(&mut self, input: Field) {
+        println(self.result);
         self.result += input;
+        println(self.result);
     }
 }

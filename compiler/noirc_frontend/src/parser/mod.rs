@@ -39,6 +39,24 @@ pub enum TopLevelStatement {
     Error,
 }
 
+impl TopLevelStatement {
+    pub fn into_item_kind(self) -> Option<ItemKind> {
+        match self {
+            TopLevelStatement::Function(f) => Some(ItemKind::Function(f)),
+            TopLevelStatement::Module(m) => Some(ItemKind::ModuleDecl(m)),
+            TopLevelStatement::Import(i) => Some(ItemKind::Import(i)),
+            TopLevelStatement::Struct(s) => Some(ItemKind::Struct(s)),
+            TopLevelStatement::Trait(t) => Some(ItemKind::Trait(t)),
+            TopLevelStatement::TraitImpl(t) => Some(ItemKind::TraitImpl(t)),
+            TopLevelStatement::Impl(i) => Some(ItemKind::Impl(i)),
+            TopLevelStatement::TypeAlias(t) => Some(ItemKind::TypeAlias(t)),
+            TopLevelStatement::SubModule(s) => Some(ItemKind::Submodules(s)),
+            TopLevelStatement::Global(c) => Some(ItemKind::Global(c)),
+            TopLevelStatement::Error => None,
+        }
+    }
+}
+
 // Helper trait that gives us simpler type signatures for return types:
 // e.g. impl Parser<T> versus impl Parser<Token, T, Error = Simple<Token>>
 pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized + Clone {}

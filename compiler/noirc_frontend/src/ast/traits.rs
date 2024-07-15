@@ -53,6 +53,7 @@ pub struct TypeImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(NoirFunction, Span)>,
+    pub is_comptime: bool,
 }
 
 /// Ast node for an implementation of a trait for a particular type
@@ -69,6 +70,8 @@ pub struct NoirTraitImpl {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
     pub items: Vec<TraitImplItem>,
+
+    pub is_comptime: bool,
 }
 
 /// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`
