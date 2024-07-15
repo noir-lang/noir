@@ -115,7 +115,7 @@ impl FmtVisitor<'_> {
         if block.is_unsafe {
             // We currently do not format unsafe blocks.
             self.push_str(self.slice(block_span));
-            return
+            return;
         }
 
         if block.is_empty() {
