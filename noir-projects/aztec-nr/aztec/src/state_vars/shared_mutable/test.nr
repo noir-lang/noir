@@ -1,5 +1,5 @@
 use crate::{
-    context::{PublicContext, PrivateContext},
+    context::{PublicContext, PrivateContext, UnconstrainedContext},
     state_vars::shared_mutable::{
     shared_mutable::SharedMutable, scheduled_value_change::ScheduledValueChange,
     scheduled_delay_change::ScheduledDelayChange
@@ -31,6 +31,10 @@ fn in_private(
     historical_block_number: u32
 ) -> SharedMutable<Field, TEST_INITIAL_DELAY, &mut PrivateContext> {
     SharedMutable::new(&mut env.private_at(historical_block_number), storage_slot)
+}
+
+fn in_unconstrained(env: TestEnvironment) -> SharedMutable<Field, TEST_INITIAL_DELAY, UnconstrainedContext> {
+    SharedMutable::new(env.unkonstrained(), storage_slot)
 }
 
 #[test]

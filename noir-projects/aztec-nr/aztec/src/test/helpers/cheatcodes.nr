@@ -10,6 +10,14 @@ unconstrained pub fn reset() {
     oracle_reset();
 }
 
+unconstrained pub fn get_chain_id() -> Field {
+    oracle_get_chain_id()
+}
+
+unconstrained pub fn get_version() -> Field {
+    oracle_get_version()
+}
+
 unconstrained pub fn get_contract_address() -> AztecAddress {
     oracle_get_contract_address()
 }
@@ -111,6 +119,12 @@ unconstrained pub fn set_fn_selector(selector: FunctionSelector) {
 
 #[oracle(reset)]
 fn oracle_reset() {}
+
+#[oracle(getChainId)]
+fn oracle_get_chain_id() -> Field {}
+
+#[oracle(getVersion)]
+fn oracle_get_version() -> Field {}
 
 #[oracle(getContractAddress)] 
 fn oracle_get_contract_address() -> AztecAddress {}

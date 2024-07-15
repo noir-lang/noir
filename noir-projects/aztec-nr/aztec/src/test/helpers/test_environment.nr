@@ -7,7 +7,7 @@ use dep::protocol_types::{
 use crate::context::inputs::{PublicContextInputs, PrivateContextInputs};
 use crate::context::{packed_returns::PackedReturns, call_interfaces::CallInterface};
 
-use crate::context::{PrivateContext, PublicContext, PrivateVoidCallInterface};
+use crate::context::{PrivateContext, PublicContext, UnconstrainedContext, PrivateVoidCallInterface};
 use crate::test::helpers::{cheatcodes, utils::{apply_side_effects_private, Deployer, TestAccount}, keys};
 use crate::keys::constants::{NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX, TAGGING_INDEX};
 use crate::hash::{hash_args, hash_args_array};
@@ -54,6 +54,11 @@ impl TestEnvironment {
 
     fn private(&mut self) -> PrivateContext {
         self.private_at(cheatcodes::get_block_number())
+    }
+
+    // unconstrained is a key word, so we mis-spell purposefully here, like we do with contrakt
+    fn unkonstrained(self) -> UnconstrainedContext {
+        UnconstrainedContext::new()
     }
 
     fn private_at(&mut self, historical_block_number: u32) -> PrivateContext {
