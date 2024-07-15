@@ -4,6 +4,7 @@ use acvm::acir::AcirField; // necessary, for `to_i128` to work
 use acvm::FieldElement;
 use noirc_printable_type::{PrintableType, PrintableValue};
 use runtime_tracing::{Line, Tracer, ValueRecord};
+use std::fmt::Write as _;
 use std::path::PathBuf;
 
 /// Registers a tracing step to the given `location` in the given `tracer`.
@@ -39,19 +40,40 @@ fn register_value(
     value: &PrintableValue<FieldElement>,
     typ: &PrintableType,
 ) -> ValueRecord {
-    if let PrintableType::Field = typ {
-        if let PrintableValue::Field(field_value) = value {
-            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Int, "Field");
-            ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
-        } else {
-            // Note(stanm): panic here, because this means the compiler frontend is broken, which
-            // is not the responsibility of this module. Should not be reachable in integration
-            // tests (but reachable in unit tests).
-            panic!("type-value mismatch: type: {:?}; value: {:?}", typ, value)
+    match typ {
+        PrintableType::Field => {
+            if let PrintableValue::Field(field_value) = value {
+                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Int, "Field");
+                ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
+            } else {
+                // Note(stanm): panic here, because this means the compiler frontend is broken, which
+                // is not the responsibility of this module. Should not be reachable in integration
+                // tests (but reachable in unit tests).
+                //
+                // The same applies for the other `panic!`s in this function.
+                panic!("type-value mismatch: value: {:?} does not match type Field", value)
+            }
         }
-    } else {
-        // TODO(stanm): cover all types and remove `todo!`.
-        todo!("not implemented yet: type that is not Field: {:?}", typ)
+        PrintableType::UnsignedInteger { width } => {
+            if let PrintableValue::Field(field_value) = value {
+                let mut noir_type_name = String::new();
+                if let Err(err) = write!(&mut noir_type_name, "u{width}") {
+                    panic!("failed to generate Noir type name: {err}");
+                }
+                let type_id =
+                    tracer.ensure_type_id(runtime_tracing::TypeKind::Int, &noir_type_name);
+                ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
+            } else {
+                panic!(
+                    "type-value mismatch: value: {:?} does not match type UnsignedInteger",
+                    value
+                )
+            }
+        }
+        _ => {
+            // TODO(stanm): cover all types and remove `todo!`.
+            todo!("not implemented yet: type that is not Field: {:?}", typ)
+        }
     }
 }
 
