@@ -484,3 +484,80 @@ fn string_part(str: String) -> InlayHintLabelPart {
 fn str_part(str: &str) -> InlayHintLabelPart {
     string_part(str.to_string())
 }
+
+#[cfg(test)]
+mod inlay_hints_tests {
+    use crate::test_utils;
+
+    use super::*;
+    use lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
+    use tokio::test;
+
+    async fn get_inlay_hints(start_line: u32, end_line: u32) -> Vec<InlayHint> {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
+
+        on_inlay_hint_request(
+            &mut state,
+            InlayHintParams {
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+                text_document: TextDocumentIdentifier { uri: noir_text_document },
+                range: lsp_types::Range {
+                    start: lsp_types::Position { line: start_line, character: 0 },
+                    end: lsp_types::Position { line: end_line, character: 0 },
+                },
+            },
+        )
+        .await
+        .expect("Could not execute on_inlay_hint_request")
+        .unwrap()
+    }
+
+    #[test]
+    async fn test_type_inlay_hints_without_location() {
+        let inlay_hints = get_inlay_hints(0, 3).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 1, character: 11 });
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].value, ": ");
+            assert_eq!(labels[0].location, None);
+            assert_eq!(labels[1].value, "Field");
+
+            // Field can't be reached (there's no source code for it)
+            assert_eq!(labels[1].location, None);
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_type_inlay_hints_with_location() {
+        let inlay_hints = get_inlay_hints(12, 15).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 13, character: 11 });
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].value, ": ");
+            assert_eq!(labels[0].location, None);
+            assert_eq!(labels[1].value, "Foo");
+
+            // Check that it points to "Foo" in `struct Foo`
+            let location = labels[1].location.clone().expect("Expected a location");
+            assert_eq!(
+                location.range,
+                Range {
+                    start: Position { line: 4, character: 7 },
+                    end: Position { line: 4, character: 10 }
+                }
+            )
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
+}
