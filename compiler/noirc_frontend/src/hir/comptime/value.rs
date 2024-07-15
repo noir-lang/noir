@@ -41,7 +41,7 @@ pub enum Value {
     Closure(HirLambda, Vec<Value>, Type),
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
-    Pointer(Shared<Value>),
+    Pointer(Shared<Value>, /* auto_deref */ bool),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
     Code(Rc<Tokens>),
@@ -79,7 +79,7 @@ impl Value {
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Code(_) => Type::Quoted(QuotedType::Quoted),
             Value::StructDefinition(_) => Type::Quoted(QuotedType::StructDefinition),
-            Value::Pointer(element) => {
+            Value::Pointer(element, _) => {
                 let element = element.borrow().get_type().into_owned();
                 Type::MutableReference(Box::new(element))
             }
@@ -199,7 +199,7 @@ impl Value {
                     }
                 };
             }
-            Value::Pointer(_)
+            Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
@@ -309,7 +309,7 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
-            Value::Pointer(_)
+            Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
@@ -400,7 +400,7 @@ impl Display for Value {
                 let fields = vecmap(fields, |(name, value)| format!("{}: {}", name, value));
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
-            Value::Pointer(value) => write!(f, "&mut {}", value.borrow()),
+            Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow()),
             Value::Array(values, _) => {
                 let values = vecmap(values, ToString::to_string);
                 write!(f, "[{}]", values.join(", "))
