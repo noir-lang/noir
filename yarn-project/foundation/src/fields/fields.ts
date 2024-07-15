@@ -190,6 +190,8 @@ export interface Fr {
 
 /**
  * Fr field class.
+ * @dev This class is used to represent elements of BN254 scalar field or elements in the base field of Grumpkin.
+ * (Grumpkin's scalar field corresponds to BN254's base field and vice versa.)
  */
 export class Fr extends BaseField {
   static ZERO = new Fr(0n);
@@ -299,6 +301,8 @@ export interface Fq {
 
 /**
  * Fq field class.
+ * @dev This class is used to represent elements of BN254 base field or elements in the scalar field of Grumpkin.
+ * (Grumpkin's scalar field corresponds to BN254's base field and vice versa.)
  */
 export class Fq extends BaseField {
   static ZERO = new Fq(0n);
