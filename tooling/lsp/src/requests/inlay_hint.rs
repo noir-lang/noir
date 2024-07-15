@@ -41,10 +41,6 @@ pub(crate) fn on_inlay_hint_request(
             let mut collector = InlayHintCollector::new(args, file_id);
             collector.collect_in_parsed_module(&parsed_moduled);
             collector.inlay_hints
-
-            // let mut inlay_hints = Vec::new();
-            // collect_in_parsed_module(&parsed_moduled, file_id, &args, &mut inlay_hints);
-            // inlay_hints
         })
     });
     future::ready(result)
@@ -129,11 +125,11 @@ impl<'a> InlayHintCollector<'a> {
 
     fn collect_in_let_statement(&mut self, let_statement: &LetStatement) {
         // Only show inlay hints for let variables that don't have an explicit type annotation
-        let UnresolvedTypeData::Unspecified = let_statement.r#type.typ else {
-            return;
+        if let UnresolvedTypeData::Unspecified = let_statement.r#type.typ {
+            self.collect_in_pattern(&let_statement.pattern);
         };
 
-        self.collect_in_pattern(&let_statement.pattern);
+        self.collect_in_expression(&let_statement.expression);
     }
 
     fn collect_in_block_expression(&mut self, block_expression: &BlockExpression) {
