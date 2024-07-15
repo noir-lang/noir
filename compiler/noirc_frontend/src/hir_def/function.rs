@@ -6,7 +6,7 @@ use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::graph::CrateId;
-use crate::macros_api::BlockExpression;
+use crate::macros_api::{BlockExpression, StructId};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::{ResolvedGeneric, Type};
 
@@ -125,6 +125,9 @@ pub struct FuncMeta {
     pub has_body: bool,
 
     pub trait_constraints: Vec<TraitConstraint>,
+
+    /// The struct this function belongs to, if any
+    pub struct_id: Option<StructId>,
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,

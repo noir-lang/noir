@@ -347,7 +347,7 @@ impl DefCollector {
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let module_id = collected_import.module_id;
             let resolved_import = if context.def_interner.track_references {
-                let mut references: Vec<ReferenceId> = Vec::new();
+                let mut references: Vec<Option<ReferenceId>> = Vec::new();
                 let resolved_import = resolve_import(
                     crate_id,
                     &collected_import,
@@ -359,6 +359,9 @@ impl DefCollector {
                 let file_id = current_def_map.file_id(module_id);
 
                 for (referenced, ident) in references.iter().zip(&collected_import.path.segments) {
+                    let Some(referenced) = referenced else {
+                        continue;
+                    };
                     context.def_interner.add_reference(
                         *referenced,
                         Location::new(ident.span(), file_id),
@@ -552,27 +555,7 @@ fn add_import_reference(
     }
 
     let location = Location::new(name.span(), file_id);
-
-    match def_id {
-        crate::macros_api::ModuleDefId::ModuleId(module_id) => {
-            interner.add_module_reference(module_id, location);
-        }
-        crate::macros_api::ModuleDefId::FunctionId(func_id) => {
-            interner.add_function_reference(func_id, location);
-        }
-        crate::macros_api::ModuleDefId::TypeId(struct_id) => {
-            interner.add_struct_reference(struct_id, location, false);
-        }
-        crate::macros_api::ModuleDefId::TraitId(trait_id) => {
-            interner.add_trait_reference(trait_id, location, false);
-        }
-        crate::macros_api::ModuleDefId::TypeAliasId(type_alias_id) => {
-            interner.add_alias_reference(type_alias_id, location);
-        }
-        crate::macros_api::ModuleDefId::GlobalId(global_id) => {
-            interner.add_global_reference(global_id, location);
-        }
-    };
+    interner.add_module_def_id_reference(def_id, location, false);
 }
 
 fn inject_prelude(
