@@ -2060,6 +2060,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Constant(_)
         | Type::Error
         | Type::Struct(_, _)
+        | Type::InfixExpr(..)
         | Type::TraitAsType(..) => None,
     }
 }

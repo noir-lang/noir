@@ -1263,6 +1263,10 @@ impl<'a> Resolver<'a> {
                 }
                 Self::find_numeric_generics_in_type(fields, found);
             }
+            Type::InfixExpr(lhs, _, rhs) => {
+                Self::find_numeric_generics_in_type(lhs, found);
+                Self::find_numeric_generics_in_type(rhs, found);
+            },
         }
     }
 

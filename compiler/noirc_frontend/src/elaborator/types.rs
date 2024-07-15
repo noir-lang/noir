@@ -384,7 +384,6 @@ impl<'context> Elaborator<'context> {
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
-                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs);
                 let rhs = self.convert_expression_type(*rhs);
 
@@ -392,12 +391,7 @@ impl<'context> Elaborator<'context> {
                     (Type::Constant(lhs), Type::Constant(rhs)) => {
                         Type::Constant(op.function()(lhs, rhs))
                     }
-                    (lhs, _) => {
-                        let span =
-                            if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                        self.push_err(ResolverError::InvalidArrayLengthExpr { span });
-                        Type::Constant(0)
-                    }
+                    (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)),
                 }
             }
         }
@@ -1598,6 +1592,10 @@ impl<'context> Elaborator<'context> {
                 }
                 Self::find_numeric_generics_in_type(fields, found);
             }
+            Type::InfixExpr(lhs, _op, rhs) => {
+                Self::find_numeric_generics_in_type(lhs, found);
+                Self::find_numeric_generics_in_type(rhs, found);
+            },
         }
     }
 

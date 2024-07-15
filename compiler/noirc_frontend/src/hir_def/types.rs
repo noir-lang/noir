@@ -107,6 +107,8 @@ pub enum Type {
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
 
+    InfixExpr(Box<Type>, BinaryTypeOperator, Box<Type>),
+
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
     /// an invalid type would otherwise issue a new error each time it is called
@@ -641,6 +643,7 @@ impl std::fmt::Display for Type {
                 write!(f, "&mut {element}")
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
+            Type::InfixExpr(lhs, op, rhs) => write!(f, "({lhs} {op} {rhs})"),
         }
     }
 }
@@ -834,6 +837,8 @@ impl Type {
                 elements.contains_numeric_typevar(target_id)
                     || named_generic_id_matches_target(length)
             }
+            Type::InfixExpr(lhs, _op, rhs) =>
+                lhs.contains_numeric_typevar(target_id) || rhs.contains_numeric_typevar(target_id),
         }
     }
 
@@ -913,6 +918,10 @@ impl Type {
                 elements.find_numeric_type_vars(found_names);
                 named_generic_is_numeric(length, found_names);
             }
+            Type::InfixExpr(lhs, _op, rhs) => {
+                lhs.find_numeric_type_vars(found_names);
+                rhs.find_numeric_type_vars(found_names);
+            }
         }
     }
 
@@ -942,6 +951,7 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_)
             | Type::Slice(_)
+            | Type::InfixExpr(_, _, _)
             | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
@@ -979,6 +989,7 @@ impl Type {
             | Type::Constant(_)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _, _)
+            | Type::InfixExpr(..)
             | Type::Error => true,
 
             Type::FmtString(_, _)
@@ -1024,6 +1035,7 @@ impl Type {
             | Type::NamedGeneric(_, _, _)
             | Type::Function(_, _, _)
             | Type::FmtString(_, _)
+            | Type::InfixExpr(..)
             | Type::Error => true,
 
             // Quoted objects only exist at compile-time where the only execution
@@ -1158,6 +1170,7 @@ impl Type {
             | Type::Constant(_)
             | Type::Quoted(_)
             | Type::Slice(_)
+            | Type::InfixExpr(..)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
     }
@@ -1894,6 +1907,11 @@ impl Type {
                 });
                 Type::TraitAsType(*s, name.clone(), args)
             }
+            Type::InfixExpr(lhs, op, rhs) => {
+                let lhs = lhs.substitute_helper(type_bindings, substitute_bound_typevars);
+                let rhs = rhs.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs))
+            },
 
             Type::FieldElement
             | Type::Integer(_, _)
@@ -1937,6 +1955,7 @@ impl Type {
                     || env.occurs(target_id)
             }
             Type::MutableReference(element) => element.occurs(target_id),
+            Type::InfixExpr(lhs, _op, rhs) => lhs.occurs(target_id) || rhs.occurs(target_id),
 
             Type::FieldElement
             | Type::Integer(_, _)
@@ -1997,6 +2016,11 @@ impl Type {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 TraitAsType(*s, name.clone(), args)
             }
+            InfixExpr(lhs, op, rhs) => {
+                let lhs = lhs.follow_bindings();
+                let rhs = rhs.follow_bindings();
+                InfixExpr(Box::new(lhs), *op, Box::new(rhs))
+            },
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
@@ -2084,6 +2108,10 @@ impl Type {
             }
             Type::MutableReference(elem) => elem.replace_named_generics_with_type_variables(),
             Type::Forall(_, typ) => typ.replace_named_generics_with_type_variables(),
+            Type::InfixExpr(lhs, _op, rhs) => {
+                lhs.replace_named_generics_with_type_variables();
+                rhs.replace_named_generics_with_type_variables();
+            },
         }
     }
 }
@@ -2215,6 +2243,7 @@ impl From<&Type> for PrintableType {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
             Type::Quoted(_) => unreachable!(),
+            Type::InfixExpr(..) => unreachable!(),
         }
     }
 }
@@ -2307,6 +2336,7 @@ impl std::fmt::Debug for Type {
                 write!(f, "&mut {element:?}")
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
+            Type::InfixExpr(lhs, op, rhs) => write!(f, "({lhs:?} {op} {rhs:?})"),
         }
     }
 }
