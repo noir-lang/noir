@@ -101,11 +101,12 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
     sum
 }
 
-#[foreign(keccak256)]
 // docs:start:keccak256
 pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
 // docs:end:keccak256
-{}
+{
+    crate::hash::keccak::keccak256(input, message_size)
+}
 
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
