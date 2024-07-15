@@ -27,19 +27,13 @@ pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
 {}
 
-#[no_predicates]
 // docs:start:pedersen_commitment
 pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint {
     // docs:end:pedersen_commitment
-    let value = pedersen_commitment_with_separator(input, 0);
-    if (value.x == 0) & (value.y == 0) {
-        EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
-    } else {
-        EmbeddedCurvePoint { x: value.x, y: value.y, is_infinite: false }
-    }
+    pedersen_commitment_with_separator(input, 0)
 }
 
-fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
         // we use the unsafe version because the multi_scalar_mul will constraint the scalars.
@@ -50,10 +44,18 @@ fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separa
     EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
 }
 
-#[no_predicates]
-pub fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
-    let values = __pedersen_commitment_with_separator(input, separator);
-    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: false }
+fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {
+    let mut scalars: Vec<EmbeddedCurveScalar> = Vec::from_slice([EmbeddedCurveScalar { lo: 0, hi: 0 }; N].as_slice()); //Vec::new();
+
+    for i in 0..N {
+        scalars.set(i, from_field_unsafe(input[i]));
+    }
+    scalars.push(EmbeddedCurveScalar { lo: N as Field, hi: 0 });
+    let domain_generators :[EmbeddedCurvePoint; N]= derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
+    let mut vec_generators = Vec::from_slice(domain_generators.as_slice());
+    let length_generator : [EmbeddedCurvePoint; 1] = derive_generators("pedersen_hash_length".as_bytes(), 0);
+    vec_generators.push(length_generator[0]);
+    multi_scalar_mul_slice(vec_generators.slice, scalars.slice)[0]
 }
 
 // docs:start:pedersen_hash
@@ -87,25 +89,6 @@ fn __derive_generators<let N: u32, let M: u32>(
     assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
     EmbeddedCurveScalar { lo: xlo, hi: xhi }
 }
-
-fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> Field {
-    let mut scalars: Vec<EmbeddedCurveScalar> = Vec::new();
-    for i in 0..N {
-        scalars.push(from_field_unsafe(input[i]));
-    }
-    scalars.push(EmbeddedCurveScalar { lo: N as Field, hi: 0 });
-    let domain_generators :[EmbeddedCurvePoint; N]= derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
-    let mut vec_generators = Vec::from_slice(domain_generators.as_slice());
-    let length_generator : [EmbeddedCurvePoint; 1] = derive_generators("pedersen_hash_length".as_bytes(), 0);
-    vec_generators.push(length_generator[0]);
-    multi_scalar_mul_slice(vec_generators.slice, scalars.slice)[0]
-}
-
-#[foreign(pedersen_hash)]
-pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {}
-
-#[foreign(pedersen_commitment)]
-fn __pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> [Field; 2] {}
 
 pub fn hash_to_field(inputs: [Field]) -> Field {
     let mut sum = 0;
@@ -279,14 +262,6 @@ impl<A, B, C, D, E> Hash for (A, B, C, D, E) where A: Hash, B: Hash, C: Hash, D:
         self.3.hash(state);
         self.4.hash(state);
     }
-}
-
-#[test]
-fn assert_pedersen_noir() {
-    // TODO: make this a fuzzer test once fuzzer supports curve-specific blackbox functions.
-    let input = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    assert_eq(pedersen_hash_with_separator(input, 4), pedersen_hash_with_separator_noir(input, 4));
-    assert_eq(pedersen_commitment_with_separator(input, 4), pedersen_commitment_with_separator_noir(input, 4));
 }
 
 // Some test vectors for Pedersen hash and Pedersen Commitment.

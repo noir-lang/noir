@@ -277,7 +277,8 @@ impl<F: Copy> BlackBoxFuncCall<F> {
             | BlackBoxFuncCall::BigIntDiv { .. }
             | BlackBoxFuncCall::BigIntToLeBytes { .. } => Vec::new(),
             BlackBoxFuncCall::MultiScalarMul { points, scalars, .. } => {
-                let mut inputs: Vec<FunctionInput<F>> = Vec::with_capacity(points.len() * 2);
+                let mut inputs: Vec<FunctionInput<F>> =
+                    Vec::with_capacity(points.len() + scalars.len());
                 inputs.extend(points.iter().copied());
                 inputs.extend(scalars.iter().copied());
                 inputs
