@@ -97,7 +97,6 @@ pub struct Elaborator<'context> {
     file: FileId,
 
     in_unsafe_block: bool,
-    in_unconstrained_fn: bool,
     nested_loops: usize,
 
     /// Contains a mapping of the current struct or functions's generics to
@@ -198,7 +197,6 @@ impl<'context> Elaborator<'context> {
             def_maps: &mut context.def_maps,
             file: FileId::dummy(),
             in_unsafe_block: false,
-            in_unconstrained_fn: false,
             nested_loops: 0,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
