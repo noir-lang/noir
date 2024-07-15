@@ -4,4 +4,22 @@ set -eu
 # Enter the repo root
 cd "$(dirname "$0")/.."
 
-ssh -o ControlMaster=auto -o ControlPath=~/.ssh_mux_%h_%p_%r -o ControlPersist=30s -o TCPKeepAlive=no -o ServerAliveCountMax=5 -o ServerAliveInterval=30 -o StrictHostKeyChecking=no -i "$SPOT_KEY" ubuntu@"$SPOT_IP" "$@"
+# Define environment variables
+ENV_VARS="
+  DOCKERHUB_PASSWORD=$DOCKERHUB_PASSWORD
+  RUN_ID=$RUN_ID
+  RUN_ATTEMPT=$RUN_ATTEMPT
+  USERNAME=$USERNAME
+  GITHUB_TOKEN=$GITHUB_TOKEN
+  GH_SELF_HOSTED_RUNNER_TOKEN=$GH_SELF_HOSTED_RUNNER_TOKEN
+  AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+  BUILD_INSTANCE_SSH_KEY=$BUILD_INSTANCE_SSH_KEY
+  GIT_COMMIT=$GIT_COMMIT
+  WAIT_FOR_RUNNERS=$WAIT_FOR_RUNNERS
+"
+
+# Format the environment variables for the SSH command
+ENV_EXPORTS=$(printf 'export %s; ' $ENV_VARS)
+
+ssh -o ControlMaster=auto -o ControlPath=~/.ssh_mux_%h_%p_%r -o ControlPersist=30s -o TCPKeepAlive=no -o ServerAliveCountMax=5 -o ServerAliveInterval=30 -o StrictHostKeyChecking=no -i "$SPOT_KEY" ubuntu@"$SPOT_IP" "$ENV_EXPORTS $@"

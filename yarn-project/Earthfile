@@ -4,7 +4,7 @@ deps:
     LOCALLY
     LET packages = $(git ls-files "**/package*.json" package*.json)
     LET tsconfigs = $(git ls-files "**/tsconfig*.json" tsconfig*.json)
-    FROM ../build-images+build
+    FROM ../build-images+from-registry
     # copy bb, bb-js and noir-packages
     COPY ../barretenberg/cpp/+preset-release/bin /usr/src/barretenberg/cpp/build/
     COPY ../barretenberg/ts/+build/build /usr/src/barretenberg/ts
@@ -200,7 +200,7 @@ end-to-end-prod:
     SAVE ARTIFACT /usr/src /usr/src
 
 anvil:
-    FROM ../build-images+build
+    FROM ../build-images+from-registry
     SAVE ARTIFACT /opt/foundry/bin/anvil
 
 end-to-end-base:

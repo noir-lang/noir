@@ -2,7 +2,7 @@ VERSION 0.8
 
 nargo-src:
 
-    FROM ../build-images/+build
+    FROM ../build-images/+from-registry
     WORKDIR /usr/src
     # Relevant source (TODO finer-grained 'tooling')
     COPY --dir \
@@ -208,7 +208,7 @@ build-acir-tests:
     # Prepare our exact dependency formula, this avoids problems with copied empty folders or build artifacts
     RUN rm -rf .earthly-staging && mkdir -p .earthly-staging
     RUN cp --parents $(git ls-files "noir-repo/test_programs/*.toml" "noir-repo/test_programs/*.nr" "noir-repo/test_programs/rebuild.sh") .earthly-staging
-    FROM ../build-images/+build
+    FROM ../build-images/+from-registry
     COPY +nargo/ /usr/src/noir-repo/target/release
     ENV PATH="/usr/src/noir-repo/target/release:${PATH}"
     WORKDIR /usr/src/noir-repo/test_programs

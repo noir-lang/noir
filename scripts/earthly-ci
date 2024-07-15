@@ -16,7 +16,6 @@ ATTEMPT_COUNT=0
 
 # earthly settings
 export EARTHLY_ALLOW_PRIVILEGED=true
-export EARTHLY_USE_INLINE_CACHE=true
 export EARTHLY_NO_BUILDKIT_UPDATE=true
 # make sure earthly gives annotations that github picks up
 export GITHUB_ACTIONS=true
@@ -33,9 +32,11 @@ function wipe_non_cache_docker_state {
   sudo service docker restart
 }
 
+EARTHLY_ARGS="--secret AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-} --secret AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-} --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${AZTEC_BOT_GITHUB_TOKEN:-}"
+
 # Handle earthly commands and retries
 while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
-  if earthly $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
+  if earthly $EARTHLY_ARGS $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
     exit 0  # Success, exit the script
   else
     # Increment attempt counter
@@ -45,12 +46,13 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
     # Check the output for specific errors
     if grep 'failed to get edge: inconsistent graph state' $OUTPUT_FILE >/dev/null || grep 'failed to get state for index' $OUTPUT_FILE >/dev/null ; then
       INCONSISTENT_GRAPH_STATE_COUNT=$((INCONSISTENT_GRAPH_STATE_COUNT + 1))
-      if [ "$INCONSISTENT_GRAPH_STATE_COUNT" -eq $MAX_ATTEMPTS ]; then
-        echo "Unable to recover from 'inconsistent graph state' or 'failed to get state for index'. Do something to change the earthly cache state, like merging master or just retrying after other things build. If all else fails, connect to runner with ci.py and run 'earthly prune' for a bit (can cancel early)."
-        exit 1
+      if [ "$INCONSISTENT_GRAPH_STATE_COUNT" -ge 3 ]; then
+        echo "Unable to recover from 'inconsistent graph state' or 'failed to get state for index'. Starting again with no cache."
+        EARTHLY_ARGS="--no-cache $EARTHLY_ARGS"
+      else
+        echo "Got 'inconsistent graph state' or 'failed to get state for index'. Retrying once."
+        sleep 20
       fi
-      echo "Got 'inconsistent graph state' or 'failed to get state for index'. Sleeping for 30 seconds and retrying."
-      sleep 30
     elif grep 'Error: pull ping error: pull ping response' $OUTPUT_FILE >/dev/null; then
       echo "Got 'Error: pull ping error: pull ping response', intermittent failure when writing out images to docker. If this persists, try 'systemctl restart docker' on the spot instance."
     elif grep '================================= System Info ==================================' $OUTPUT_FILE >/dev/null || grep 'Error response from daemon: removal of container earthly-buildkitd is already in progress: exit status 1' $OUTPUT_FILE >/dev/null ; then
@@ -65,7 +67,10 @@ while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
         wipe_non_cache_docker_state
       fi
       sleep 20
-    elif grep 'status 125: docker: Error response from daemon: layer does not exist.' $OUTPUT_FILE >/dev/null || grep 'could not determine buildkit address - is Docker or Podman running?' $OUTPUT_FILE >/dev/null || grep 'please make sure the URL is valid, and Docker 18.09 or later is installed on the remote host' $OUTPUT_FILE >/dev/null ; then
+    elif grep 'status 125: docker: Error response from daemon: layer does not exist.' $OUTPUT_FILE >/dev/null \
+         || grep 'could not determine buildkit address - is Docker or Podman running?' $OUTPUT_FILE >/dev/null \
+         || grep 'please make sure the URL is valid, and Docker 18.09 or later is installed on the remote host' $OUTPUT_FILE >/dev/null \
+         || grep 'docker: failed to register layer' $OUTPUT_FILE >/dev/null ; then
       wipe_non_cache_docker_state
       # wait for other docker restarts
       sleep 20

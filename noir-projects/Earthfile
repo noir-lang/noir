@@ -1,7 +1,7 @@
 VERSION 0.8
 
 source:
-  FROM ../build-images+build
+  FROM ../build-images+from-registry
 
   # Install nargo
   COPY ../noir/+nargo/nargo /usr/bin/nargo
@@ -24,7 +24,7 @@ build-contracts:
 
   RUN cd noir-contracts && NARGO=nargo TRANSPILER=avm-transpiler ./bootstrap.sh
   SAVE ARTIFACT noir-contracts
-  
+
 build-protocol-circuits:
   LOCALLY
   LET bb_source_hash = $(cd .. && git ls-tree -r HEAD | grep 'barretenberg/cpp' | awk '{print $3}' | git hash-object --stdin)
@@ -38,10 +38,10 @@ build:
   FROM +source
   BUILD +build-contracts
   BUILD +build-protocol-circuits
-  
+
   COPY +build-contracts/noir-contracts ./noir-contracts
   COPY +build-protocol-circuits/noir-protocol-circuits ./noir-protocol-circuits
-  
+
   SAVE ARTIFACT aztec-nr
   SAVE ARTIFACT noir-contracts
   SAVE ARTIFACT noir-protocol-circuits
@@ -55,7 +55,7 @@ test:
   COPY +build/. /usr/src/noir-projects
 
   RUN cd /usr/src/noir-projects/noir-protocol-circuits && nargo test --silence-warnings
-  
+
   RUN cd /usr/src/yarn-project/txe && yarn start & \
       # Wait for TXE to initialize
       sleep 5 && \
@@ -91,5 +91,5 @@ gates-report:
 
   ENV BB_BIN /usr/src/barretenberg/cpp/build/bin/bb
   RUN ./gates_report.sh
-   
+
   SAVE ARTIFACT ./noir-protocol-circuits/gates_report.json gates_report.json

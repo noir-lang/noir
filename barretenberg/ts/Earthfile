@@ -1,6 +1,6 @@
 VERSION 0.8
 
-FROM ../../build-images+build
+FROM ../../build-images+from-registry
 WORKDIR /usr/src/barretenberg/ts-build
 
 # minimum files to download yarn packages

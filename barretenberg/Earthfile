@@ -1,20 +1,20 @@
 VERSION 0.8
 
 acir-tests:
-    FROM ../build-images+build
+    FROM ../build-images+from-registry
     WORKDIR /usr/src/barretenberg
     COPY ./acir_tests .
     SAVE ARTIFACT ./*
 
 sol:
-  FROM ../build-images+build
+  FROM ../build-images+from-registry
   WORKDIR /usr/src/barretenberg
   COPY ./sol .
   SAVE ARTIFACT ./*
 
 
 barretenberg-acir-tests-bb:
-    FROM ../build-images/+build
+    FROM ../build-images/+from-registry
 
     COPY ./cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
     COPY +acir-tests/ /usr/src/barretenberg/acir_tests
@@ -54,7 +54,7 @@ barretenberg-acir-tests-bb:
     RUN FLOW=all_cmds ./run_acir_tests.sh 1_mul
 
 barretenberg-acir-tests-sol:
-    FROM ../build-images/+build
+    FROM ../build-images/+from-registry
 
     COPY ./cpp/+preset-sol/ /usr/src/barretenberg/cpp/build
     COPY ./cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb

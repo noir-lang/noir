@@ -1,7 +1,7 @@
 VERSION 0.8
 
 build:
-    FROM ../build-images+build
+    FROM ../build-images+from-registry
     WORKDIR /usr/src/l1-contracts
     COPY --dir lib src terraform test *.json *.toml *.sh .
     #RUN git init && git add . && yarn lint && yarn slither && yarn slither-has-diff

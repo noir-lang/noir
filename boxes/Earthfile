@@ -7,7 +7,7 @@ deps:
     # use the build image to build the project so that nargo has access to the same libc
     # later on, once everything is built and we don't need nargo, copy to a debian based image
     # that's supported by playwright
-    FROM ../build-images+build
+    FROM ../build-images+from-registry
 
     # copy the aztec yarn workspace, needed to resolve portal dependencies
     COPY ../yarn-project+build-dev/usr/src /usr/src

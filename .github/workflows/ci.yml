@@ -42,6 +42,7 @@ jobs:
     # Set job outputs to values from filter step
     outputs:
       avm-transpiler: ${{ steps.filter.outputs.avm-transpiler }}
+      build-images: ${{ steps.filter.outputs.build-images }}
       barretenberg: ${{ steps.filter.outputs.barretenberg }}
       barretenberg-cpp: ${{ steps.filter.outputs.barretenberg-cpp }}
       noir: ${{ steps.filter.outputs.noir }}
@@ -61,6 +62,8 @@ jobs:
               - 'barretenberg/**'
             barretenberg-cpp:
               - 'barretenberg/cpp/**'
+            build-images:
+              - 'build-images/**'
             noir:
               - 'noir/**'
             avm-transpiler:
@@ -82,8 +85,26 @@ jobs:
               # Always rebuild when this file changes
               - .github/workflows/ci.yml
 
-  build:
+  build-images:
     needs: [setup, changes]
+    # Note we don't but the 'if' here as that would also apply to dependent jobs, instead we just copy it into each step
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ needs.changes.outputs.build-images }}
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        if: ${{ needs.changes.outputs.build-images }}
+        with:
+          concurrency_key: build-images-x86
+      - name: "Push Build Images If Changed"
+        if: ${{ needs.changes.outputs.build-images }}
+        timeout-minutes: 40
+        run: |
+          earthly-ci --push ./build-images/+build
+
+  build:
+    needs: [build-images, changes]
     if: ${{ needs.changes.outputs.non-docs == 'true' && needs.changes.outputs.non-misc-ci == 'true' && needs.changes.outputs.non-barretenberg-cpp == 'true' }}
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     outputs:
@@ -99,10 +120,7 @@ jobs:
       - name: "Build E2E Image"
         timeout-minutes: 40
         run: |
-          earthly-ci \
-          --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-          --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-          ./yarn-project+export-e2e-test-images
+          earthly-ci ./yarn-project+export-e2e-test-images
       # We base our e2e list used in e2e-x86 off the targets in ./yarn-project/end-to-end
       # (Note ARM uses just 2 tests as a smoketest)
       - name: Create list of non-bench end-to-end jobs
@@ -165,22 +183,18 @@ jobs:
           # if they fail to copy, it will try to build them on the tester and fail
           builder_images_to_copy: aztecprotocol/aztec:${{ env.GIT_COMMIT }} aztecprotocol/end-to-end:${{ env.GIT_COMMIT }}
           # command to produce the images in case they don't exist
-          builder_command: cd yarn-project/end-to-end/ && ../../scripts/earthly-ci +${{ matrix.test }}
+          builder_command: scripts/earthly-ci ./yarn-project+export-e2e-test-images
           tester_ttl: 40
           run: |
             set -eux
             cd ./yarn-project/end-to-end/
             export FORCE_COLOR=1
             export EARTHLY_BUILD_ARGS="${{ env.EARTHLY_BUILD_ARGS }}"
-            ../../scripts/earthly-ci -P \
-              --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-              --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-              --no-output \
-              +${{ matrix.test }}
+            ../../scripts/earthly-ci -P --no-output +${{ matrix.test }}
 
   acir-bench:
     runs-on: ubuntu-20.04
-    needs: [setup, changes]
+    needs: [build-images, changes]
     # Note: not fully accurate, but to work with bench-summary needs to be the same as bench-e2e
     if: ${{ needs.changes.outputs.non-barretenberg-cpp == 'true' }}
     steps:
@@ -203,11 +217,7 @@ jobs:
             cd ./noir/
             export FORCE_COLOR=1
             export EARTHLY_BUILD_ARGS="${{ env.EARTHLY_BUILD_ARGS }}"
-            ../scripts/earthly-ci -P \
-              --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-              --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-              --no-output \
-              +bench-publish-acir-bb
+            ../scripts/earthly-ci -P --no-output +bench-publish-acir-bb
 
   bench-summary:
     needs:
@@ -226,10 +236,7 @@ jobs:
       - name: "Build and upload bench aggregate file"
         working-directory: ./yarn-project/scripts
         run: |
-          earthly-ci -P \
-            --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            +bench-aggregate
+          earthly-ci -P +bench-aggregate
       - name: "Download base benchmark and package into earthly"
         if: ${{ github.event_name == 'pull_request' }}
         run: |
@@ -247,14 +254,10 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         working-directory: ./yarn-project/scripts
         run: |
-          earthly-ci -P \
-            --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} \
-            +bench-comment
+          earthly-ci -P +bench-comment
 
   bb-gcc:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.barretenberg-cpp == 'true' }}
     steps:
@@ -274,7 +277,7 @@ jobs:
   # barretenberg (prover) native and AVM (public VM) tests
   # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.barretenberg-cpp == 'true' }}
     steps:
@@ -292,7 +295,7 @@ jobs:
         run: earthly-ci --no-output +test --hardware_concurrency=64
 
   bb-js-test:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.barretenberg == 'true' }}
     steps:
@@ -307,7 +310,7 @@ jobs:
         run: earthly-ci --no-output ./+test
 
   noir-build-acir-tests:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' }}
     steps:
@@ -366,7 +369,7 @@ jobs:
         run: earthly-ci --no-output ./+barretenberg-acir-tests-bb.js
 
   noir-format:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.noir == 'true' || needs.changes.outputs.noir-projects == 'true' }}
     steps:
@@ -383,13 +386,10 @@ jobs:
         working-directory: ./noir-projects/
         timeout-minutes: 40
         run: |
-          earthly-ci --no-output \
-          --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-          --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-          ./+format
+          earthly-ci --no-output ./+format
 
   noir-test:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.noir == 'true' }}
     steps:
@@ -402,7 +402,7 @@ jobs:
         run: earthly-ci --no-output ./noir+test
 
   noir-examples:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' }}
     steps:
@@ -415,7 +415,7 @@ jobs:
         run: earthly-ci --no-output ./noir+examples
 
   noir-packages-test:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' }}
     steps:
@@ -428,7 +428,7 @@ jobs:
         run: earthly-ci --no-output ./noir+packages-test
 
   noir-projects:
-    needs: [setup, changes, build]
+    needs: [build-images, changes, build]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' || needs.changes.outputs.noir-projects == 'true' }}
     steps:
@@ -440,13 +440,10 @@ jobs:
       - name: "Noir Projects"
         timeout-minutes: 40
         run: |
-          earthly-ci --no-output \
-          --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-          --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-          ./noir-projects/+test
+          earthly-ci --no-output ./noir-projects/+test
 
   avm-format:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.avm-transpiler == 'true' || needs.changes.outputs.noir == 'true' }}
     steps:
@@ -500,7 +497,7 @@ jobs:
         run: earthly-ci --no-output ./yarn-project/+prover-client-test
 
   l1-contracts-test:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.l1-contracts == 'true' }}
     steps:
@@ -513,7 +510,7 @@ jobs:
         run: earthly-ci --no-output ./l1-contracts+test
 
   docs-preview:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     if: ${{ needs.changes.outputs.non-barretenberg-cpp == 'true' }}
     steps:
@@ -527,8 +524,6 @@ jobs:
         timeout-minutes: 40
         run: |
           earthly-ci --no-output \
-          --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-          --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
           ./docs/+deploy-preview --ENV=staging --PR=${{ github.event.number }} \
           --AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${{ secrets.AZTEC_BOT_GITHUB_TOKEN }} \
           --NETLIFY_AUTH_TOKEN=${{ secrets.NETLIFY_AUTH_TOKEN }} \
@@ -536,7 +531,7 @@ jobs:
 
   bb-bench:
     runs-on: ubuntu-20.04
-    needs: [setup, changes]
+    needs: [build-images, changes]
     if: ${{ needs.changes.outputs.barretenberg-cpp == 'true' }}
     steps:
       - uses: actions/checkout@v4
@@ -592,7 +587,7 @@ jobs:
           concurrency_key: boxes-${{ github.event.pull_request.user.login || github.actor }}-build
       - name: Build
         working-directory: ./boxes
-        timeout-minutes: 20
+        timeout-minutes: 40
         run: earthly-ci +export-boxes
 
   boxes-test:
@@ -614,11 +609,11 @@ jobs:
           concurrency_key: boxes-${{ github.event.pull_request.user.login || github.actor }}-x86-${{ matrix.box }}-${{ matrix.browser }}
       - name: Box test
         working-directory: ./boxes
-        timeout-minutes: 10
+        timeout-minutes: 40
         run: earthly-ci -P --no-output +test --box=${{ matrix.box }} --browser=${{ matrix.browser }} --mode=cache
 
   protocol-circuits-gates-report:
-    needs: [setup, changes]
+    needs: [build-images, changes]
     if: ${{ needs.changes.outputs.non-docs == 'true' && needs.changes.outputs.non-misc-ci == 'true' }}
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     permissions:
@@ -635,8 +630,6 @@ jobs:
         timeout-minutes: 40
         run: |
           earthly-ci \
-          --secret AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-          --secret AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
           --artifact +gates-report/gates_report.json
           mv gates_report.json ../protocol_circuits_report.json
 
@@ -752,11 +745,12 @@ jobs:
             gh workflow run rerun.yml -F run_id=${{ github.run_id }}
           fi
 
+  # NOTE: we only notify failures after a rerun has occurred
   notify:
     needs:
       - merge-check
     runs-on: ubuntu-20.04
-    if: ${{ github.ref == 'refs/heads/master' && failure() }}
+    if: ${{ github.ref == 'refs/heads/master' && failure() && github.run_attempt >= 2 }}
     steps:
       - name: Send notification to aztec3-ci channel if workflow failed on master
         uses: slackapi/slack-github-action@v1.25.0

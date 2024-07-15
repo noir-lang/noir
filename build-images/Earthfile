@@ -192,7 +192,13 @@ build:
       && rm -rf wasmtime*
 
   ARG TARGETARCH
+  # NOTE: bump this version when doing non-backwards compatible changes
   SAVE IMAGE --push aztecprotocol/build:1.0-$TARGETARCH
+
+from-registry:
+  ARG TARGETARCH
+  # NOTE: match version string above
+  FROM aztecprotocol/build:1.0-$TARGETARCH
 
 ########################################################################################################################
 # We want to produce downstream images: devbox and sysbox. This image is the base image for each.

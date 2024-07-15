@@ -7,7 +7,7 @@ wasmtime:
     SAVE ARTIFACT /root/.wasmtime/bin/wasmtime
 
 source:
-    FROM ../../build-images+build
+    FROM ../../build-images+from-registry
     WORKDIR /usr/src/barretenberg
     # cpp source
     COPY --dir src/barretenberg src/CMakeLists.txt src
