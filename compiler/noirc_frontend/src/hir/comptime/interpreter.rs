@@ -1377,7 +1377,10 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_lvalue(&mut self, lvalue: &HirLValue) -> IResult<Value> {
         match lvalue {
-            HirLValue::Ident(ident, _) => self.lookup(ident),
+            HirLValue::Ident(ident, _) => match self.lookup(ident)? {
+                Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
+                other => Ok(other),
+            },
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(lvalue)? {
                     Value::Pointer(value, _) => Ok(value.borrow().clone()),
