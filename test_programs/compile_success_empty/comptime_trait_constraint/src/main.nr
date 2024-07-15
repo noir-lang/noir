@@ -30,13 +30,10 @@ comptime struct TestHasher {
 
 comptime impl Hasher for TestHasher {
     comptime fn finish(self) -> Field {
-        println(self.result);
         self.result
     }
     
     comptime fn write(&mut self, input: Field) {
-        println(self.result);
         self.result += input;
-        println(self.result);
     }
 }
