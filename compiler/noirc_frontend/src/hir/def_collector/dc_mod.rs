@@ -732,11 +732,7 @@ impl<'a> ModCollector<'a> {
 
             context.def_interner.add_module_attributes(
                 mod_id,
-                ModuleAttributes {
-                    name: mod_name.0.contents.clone(),
-                    location: mod_location,
-                    parent: self.module_id,
-                },
+                ModuleAttributes { name: mod_name.0.contents.clone(), location: mod_location },
             );
         }
 

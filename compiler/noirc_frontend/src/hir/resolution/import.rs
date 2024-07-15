@@ -41,6 +41,8 @@ pub enum PathResolutionError {
     Unresolved(Ident),
     #[error("{0} is private and not visible from the current module")]
     Private(Ident),
+    #[error("There is no super module")]
+    NoSuper(Span),
 }
 
 #[derive(Debug)]
@@ -73,6 +75,9 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 format!("{ident} is private"),
                 ident.span(),
             ),
+            PathResolutionError::NoSuper(span) => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            }
         }
     }
 }
@@ -187,6 +192,25 @@ fn resolve_path_to_ns(
             path_references,
             importing_crate,
         ),
+
+        crate::ast::PathKind::Super => {
+            if let Some(parent_module_id) =
+                def_maps[&crate_id].modules[import_directive.module_id.0].parent
+            {
+                resolve_name_in_module(
+                    crate_id,
+                    importing_crate,
+                    import_path,
+                    parent_module_id,
+                    def_maps,
+                    path_references,
+                )
+            } else {
+                let span_start = import_directive.path.span().start();
+                let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
+                Err(PathResolutionError::NoSuper(span))
+            }
+        }
     }
 }
 
