@@ -553,7 +553,7 @@ fn parse_package_expression_width_toml() {
     version = "0.1.0"
     type = "bin"
     authors = [""]
-    expression_width = 3
+    expression_width = "3"
     "#;
 
     assert!(Config::try_from(String::from(src)).is_ok());
