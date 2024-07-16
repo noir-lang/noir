@@ -1,7 +1,9 @@
 use super::fs::{inputs::read_inputs_from_file, load_hex_data};
 use super::NargoConfig;
+use crate::cli::compile_cmd::get_target_width;
 use crate::errors::BackendError;
 use crate::errors::CliError;
+use acvm::acir::circuit::ExpressionWidth;
 
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
@@ -69,8 +71,9 @@ pub(crate) fn run(args: VerifyCommand, config: NargoConfig) -> Result<(), CliErr
             args.compile_options.silence_warnings,
         )?;
 
-        let compiled_program =
-            nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
+        let target_width =
+            get_target_width(package.expression_width, args.compile_options.expression_width);
+        let compiled_program = nargo::ops::transform_program(compiled_program, target_width);
 
         verify_package(&workspace, package, compiled_program, &args.verifier_name)?;
     }

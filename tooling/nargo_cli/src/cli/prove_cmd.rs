@@ -1,3 +1,5 @@
+use crate::cli::compile_cmd::get_target_width;
+use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::ops::{compile_program, report_errors};
@@ -86,8 +88,9 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
             args.compile_options.silence_warnings,
         )?;
 
-        let compiled_program =
-            nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
+        let target_width =
+            get_target_width(package.expression_width, args.compile_options.expression_width);
+        let compiled_program = nargo::ops::transform_program(compiled_program, target_width);
 
         prove_package(
             &workspace,

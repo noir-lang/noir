@@ -22,6 +22,7 @@ use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::ParsedFiles;
 
+use super::compile_cmd::get_target_width;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::errors::CliError;
@@ -80,8 +81,10 @@ pub(crate) fn run(args: DebugCommand, config: NargoConfig) -> Result<(), CliErro
         args.compile_options.clone(),
     )?;
 
-    let compiled_program =
-        nargo::ops::transform_program(compiled_program, args.compile_options.expression_width);
+    let target_width =
+        get_target_width(package.expression_width, args.compile_options.expression_width);
+
+    let compiled_program = nargo::ops::transform_program(compiled_program, target_width);
 
     run_async(package, compiled_program, &args.prover_name, &args.witness_name, target_dir)
 }

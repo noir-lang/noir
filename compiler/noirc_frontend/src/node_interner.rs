@@ -1017,6 +1017,10 @@ impl NodeInterner {
         self.module_attributes.get(module_id)
     }
 
+    pub fn try_module_parent(&self, module_id: &ModuleId) -> Option<LocalModuleId> {
+        self.try_module_attributes(module_id).map(|attrs| attrs.parent)
+    }
+
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
         &self.global_attributes[global_id]
     }

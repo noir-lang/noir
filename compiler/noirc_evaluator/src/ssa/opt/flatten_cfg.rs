@@ -752,27 +752,24 @@ impl<'f> Context<'f> {
                         Instruction::Call { func, arguments }
                     }
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
-                        let mut array_with_predicate = im::Vector::new();
-                        let array_typ;
-                        if let Value::Array { array, typ } =
-                            &self.inserter.function.dfg[arguments[0]]
-                        {
-                            array_typ = typ.clone();
-                            for (i, value) in array.clone().iter().enumerate() {
-                                if i % 3 == 2 {
-                                    array_with_predicate.push_back(self.var_or_one(
-                                        *value,
-                                        condition,
-                                        call_stack.clone(),
-                                    ));
-                                } else {
-                                    array_with_predicate.push_back(*value);
-                                }
-                            }
+                        let points_array_idx = if matches!(
+                            self.inserter.function.dfg[arguments[0]],
+                            Value::Array { .. }
+                        ) {
+                            0
                         } else {
-                            unreachable!();
-                        }
-                        arguments[0] =
+                            // if the first argument is not an array, we assume it is a slice
+                            // which means the array is the second argument
+                            1
+                        };
+                        let (array_with_predicate, array_typ) = self
+                            .apply_predicate_to_msm_argument(
+                                arguments[points_array_idx],
+                                condition,
+                                call_stack.clone(),
+                            );
+
+                        arguments[points_array_idx] =
                             self.inserter.function.dfg.make_array(array_with_predicate, array_typ);
                         Instruction::Call { func, arguments }
                     }
@@ -783,6 +780,40 @@ impl<'f> Context<'f> {
         } else {
             instruction
         }
+    }
+
+    /// When a MSM is done under a predicate, we need to apply the predicate
+    /// to the is_infinity property of the input points in order to ensure
+    /// that the points will be on the curve no matter what.
+    fn apply_predicate_to_msm_argument(
+        &mut self,
+        argument: ValueId,
+        predicate: ValueId,
+        call_stack: CallStack,
+    ) -> (im::Vector<ValueId>, Type) {
+        let array_typ;
+        let mut array_with_predicate = im::Vector::new();
+        if let Value::Array { array, typ } = &self.inserter.function.dfg[argument] {
+            array_typ = typ.clone();
+            for (i, value) in array.clone().iter().enumerate() {
+                if i % 3 == 2 {
+                    array_with_predicate.push_back(self.var_or_one(
+                        *value,
+                        predicate,
+                        call_stack.clone(),
+                    ));
+                } else {
+                    array_with_predicate.push_back(*value);
+                }
+            }
+        } else {
+            unreachable!(
+                "Expected an array, got {}",
+                &self.inserter.function.dfg.type_of_value(argument)
+            );
+        };
+
+        (array_with_predicate, array_typ)
     }
 
     // Computes: if condition { var } else { 1 }
