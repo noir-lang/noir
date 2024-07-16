@@ -2,6 +2,7 @@ import { makeTuple } from '@aztec/foundation/array';
 import { Fr } from '@aztec/foundation/fields';
 import { type Tuple } from '@aztec/foundation/serialize';
 
+import { MAX_FIELD_VALUE } from '../constants.gen.js';
 import { type IsEmpty } from '../interfaces/index.js';
 import {
   countAccumulatedItems,
@@ -500,6 +501,15 @@ describe('utils', () => {
     it('returns empty array if all items are empty', () => {
       const arr = [TestItem.empty(), TestItem.empty(), TestItem.empty()];
       expect(getNonEmptyItems(arr)).toEqual([]);
+    });
+  });
+
+  describe('Constants', () => {
+    it('fr.max and const.max should be in sync', () => {
+      // Ideally this test would live in foundation/field, but that creates a circular dependency
+      // since constants live in circuits.js
+      expect(new Fr(MAX_FIELD_VALUE)).toEqual(Fr.MAX_FIELD_VALUE);
+      expect(new Fr(MAX_FIELD_VALUE)).toEqual(Fr.ONE.negate());
     });
   });
 });

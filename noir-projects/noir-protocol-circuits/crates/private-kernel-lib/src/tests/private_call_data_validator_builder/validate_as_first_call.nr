@@ -2,18 +2,24 @@ use crate::tests::private_call_data_validator_builder::PrivateCallDataValidatorB
 
 #[test]
 fn validate_as_first_call_regular_call_succeeds() {
-    let builder = PrivateCallDataValidatorBuilder::new();
+    let builder = PrivateCallDataValidatorBuilder::new().is_first_call();
     builder.validate_as_first_call();
 }
 
 #[test(should_fail_with="Users cannot make a static call")]
 fn validate_as_first_call_static_call_fails() {
-    let builder = PrivateCallDataValidatorBuilder::new().is_static_call();
+    let builder = PrivateCallDataValidatorBuilder::new().is_first_call().is_static_call();
     builder.validate_as_first_call();
 }
 
 #[test(should_fail_with="Users cannot make a delegatecall")]
 fn validate_as_first_call_delegate_call_fails() {
-    let builder = PrivateCallDataValidatorBuilder::new().is_delegate_call();
+    let builder = PrivateCallDataValidatorBuilder::new().is_first_call().is_delegate_call();
+    builder.validate_as_first_call();
+}
+
+#[test(should_fail_with="Users cannot set msg_sender in first call")]
+fn validate_as_first_call_msg_sender_fails() {
+    let builder = PrivateCallDataValidatorBuilder::new();
     builder.validate_as_first_call();
 }

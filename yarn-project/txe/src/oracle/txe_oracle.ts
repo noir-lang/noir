@@ -96,7 +96,8 @@ export class TXE implements TypedOracle {
   ) {
     this.contractDataOracle = new ContractDataOracle(txeDatabase);
     this.contractAddress = AztecAddress.random();
-    this.msgSender = AztecAddress.fromField(new Fr(0));
+    // Default msg_sender (for entrypoints) is now Fr.max_value rather than 0 addr (see #7190 & #7404)
+    this.msgSender = AztecAddress.fromField(Fr.MAX_FIELD_VALUE);
   }
 
   // Utils

@@ -26,7 +26,7 @@ use crate::{
     address::{AztecAddress, EthAddress, SaltedInitializationHash, PublicKeysHash},
     constants::{
     FUNCTION_TREE_HEIGHT, MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX, MAX_L2_TO_L1_MSGS_PER_TX,
-    MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    MAX_PUBLIC_DATA_READS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_FIELD_VALUE,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX, VK_TREE_HEIGHT,
@@ -200,6 +200,11 @@ impl FixtureBuilder {
 
     pub fn is_static_call(&mut self) -> Self {
         self.is_static_call = true;
+        *self
+    }
+
+    pub fn is_first_call(&mut self) -> Self {
+        self.msg_sender = AztecAddress::from_field(MAX_FIELD_VALUE);
         *self
     }
 

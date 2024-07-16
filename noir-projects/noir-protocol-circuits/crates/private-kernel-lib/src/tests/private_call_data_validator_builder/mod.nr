@@ -43,6 +43,11 @@ impl PrivateCallDataValidatorBuilder {
         *self
     }
 
+    pub fn is_first_call(&mut self) -> Self {
+        let _ = self.private_call.is_first_call();
+        *self
+    }
+
     pub fn validate(self) {
         let private_call = self.private_call.to_private_call_data();
         let mut accumulated_note_hashes = self.previous_note_hashes;

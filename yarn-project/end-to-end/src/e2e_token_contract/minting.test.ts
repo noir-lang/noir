@@ -111,6 +111,13 @@ describe('e2e_token_contract minting', () => {
         );
       });
 
+      it('mint_private as non-minter, bypassing account entrypoint', async () => {
+        const request = await asset.withWallet(wallets[1]).methods.mint_private(amount, secretHash).create();
+        await expect(wallets[1].simulateTx(request, true, accounts[0].address)).rejects.toThrow(
+          'Assertion failed: Users cannot set msg_sender in first call',
+        );
+      });
+
       it('mint >u128 tokens to overflow', async () => {
         const amount = 2n ** 128n; // U128::max() + 1;
         await expect(asset.methods.mint_private(amount, secretHash).simulate()).rejects.toThrow(BITSIZE_TOO_BIG_ERROR);

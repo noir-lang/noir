@@ -12,8 +12,9 @@ library Constants {
   // Prime field modulus
   uint256 internal constant P =
     21888242871839275222246405745257275088548364400416034343698204186575808495617;
-  uint256 internal constant MAX_FIELD_VALUE = P - 1;
 
+  uint256 internal constant MAX_FIELD_VALUE =
+    21888242871839275222246405745257275088548364400416034343698204186575808495616;
   uint256 internal constant ARGS_LENGTH = 16;
   uint256 internal constant MAX_NOTE_HASHES_PER_CALL = 16;
   uint256 internal constant MAX_NULLIFIERS_PER_CALL = 16;

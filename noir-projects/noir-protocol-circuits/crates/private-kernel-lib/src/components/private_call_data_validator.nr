@@ -15,6 +15,7 @@ use dep::types::{
     private_kernel::private_call_data::PrivateCallData, side_effect::{Ordered, RangeOrdered}
 },
     address::{AztecAddress, PartialAddress}, contract_class_id::ContractClassId,
+    constants::MAX_FIELD_VALUE,
     hash::{private_functions_root_from_siblings, stdlib_recursion_verification_key_compress_native_vk},
     traits::is_empty, transaction::tx_request::TxRequest, utils::arrays::find_index
 };
@@ -121,6 +122,9 @@ impl PrivateCallDataValidator {
         let call_context = public_inputs.call_context;
         assert(call_context.is_delegate_call == false, "Users cannot make a delegatecall");
         assert(call_context.is_static_call == false, "Users cannot make a static call");
+        assert(
+            call_context.msg_sender == AztecAddress::from_field(MAX_FIELD_VALUE), "Users cannot set msg_sender in first call"
+        );
     }
 
     // Confirm that the TxRequest (user's intent) matches the private call being executed.

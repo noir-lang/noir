@@ -67,3 +67,18 @@ unconstrained fn bytes_field_test() {
     }
     assert_eq(field2, field);
 }
+
+#[test]
+unconstrained fn max_field_test() {
+    // Tests the hardcoded value in constants.nr vs underlying modulus
+    // NB: We can't use 0-1 in constants.nr as it will be transpiled incorrectly to ts and sol constants files
+    let max_value = crate::constants::MAX_FIELD_VALUE;
+    assert_eq(max_value, 0 - 1);
+    // modulus == 0 is tested elsewhere, so below is more of a sanity check
+    let max_bytes = max_value.to_be_bytes(32);
+    let mod_bytes = std::field::modulus_be_bytes();
+    for i in 0..31 {
+        assert_eq(max_bytes[i], mod_bytes[i]);
+    }
+    assert_eq(max_bytes[31], mod_bytes[31] - 1);
+}

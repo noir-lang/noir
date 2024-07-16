@@ -511,6 +511,7 @@ export class PXEService implements PXE {
     });
   }
 
+  // TODO(#7456) Prevent msgSender being defined here for the first call
   public async simulateTx(
     txRequest: TxExecutionRequest,
     simulatePublic: boolean,

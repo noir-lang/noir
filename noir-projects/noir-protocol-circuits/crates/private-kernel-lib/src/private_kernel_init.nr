@@ -72,7 +72,7 @@ mod tests {
 
     impl PrivateKernelInitInputsBuilder {
         pub fn new() -> Self {
-            let private_call = FixtureBuilder::new();
+            let private_call = FixtureBuilder::new().is_first_call();
             let tx_request = private_call.build_tx_request();
             PrivateKernelInitInputsBuilder { tx_request, private_call }
         }

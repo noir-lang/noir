@@ -9,7 +9,8 @@ contract AppSubscription {
         AztecAddress, FunctionSelector, PrivateContext, NoteHeader, Map, PrivateMutable, PublicMutable,
         SharedImmutable
     },
-        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note
+        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
+        protocol_types::constants::MAX_FIELD_VALUE
     };
     use authwit::{auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit};
     use gas_token::GasToken;
@@ -34,7 +35,8 @@ contract AppSubscription {
 
     #[aztec(private)]
     fn entrypoint(payload: DAppPayload, user_address: AztecAddress) {
-        assert(context.msg_sender().to_field() == 0);
+        // Default msg_sender for entrypoints is now Fr.max_value rather than 0 addr (see #7190 & #7404)
+        assert(context.msg_sender().to_field() == MAX_FIELD_VALUE);
         assert_current_call_valid_authwit(&mut context, user_address);
 
         let mut note = storage.subscriptions.at(user_address).get_note().note;

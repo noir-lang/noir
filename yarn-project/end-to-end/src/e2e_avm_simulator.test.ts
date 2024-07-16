@@ -52,7 +52,7 @@ describe('e2e_avm_simulator', () => {
     describe('Gas metering', () => {
       it('Tracks L2 gas usage on simulation', async () => {
         const request = await avmContract.methods.add_args_return(20n, 30n).create();
-        const simulation = await wallet.simulateTx(request, true, wallet.getAddress());
+        const simulation = await wallet.simulateTx(request, true);
         // Subtract the teardown gas allocation from the gas used to figure out the gas used by the contract logic.
         const l2TeardownAllocation = GasSettings.simulation().getTeardownLimits().l2Gas;
         const l2GasUsed = simulation.publicOutput!.end.gasUsed.l2Gas! - l2TeardownAllocation;

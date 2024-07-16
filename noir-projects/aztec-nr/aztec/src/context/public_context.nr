@@ -1,5 +1,6 @@
 use crate::hash::{compute_secret_hash, compute_message_hash, compute_message_nullifier};
 use dep::protocol_types::address::{AztecAddress, EthAddress};
+use dep::protocol_types::constants::MAX_FIELD_VALUE;
 use dep::protocol_types::traits::{Serialize, Deserialize, Empty};
 use dep::protocol_types::abis::function_selector::FunctionSelector;
 use crate::context::inputs::public_context_inputs::PublicContextInputs;
@@ -185,10 +186,9 @@ impl PublicContext {
 fn gas_for_call(user_gas: GasOpts) -> [Field; 2] {
     // It's ok to use the max possible gas here, because the gas will be
     // capped by the gas left in the (STATIC)CALL instruction.
-    let MAX_POSSIBLE_FIELD: Field = 0 - 1;
     [
-        user_gas.l2_gas.unwrap_or(MAX_POSSIBLE_FIELD),
-        user_gas.da_gas.unwrap_or(MAX_POSSIBLE_FIELD)
+        user_gas.l2_gas.unwrap_or(MAX_FIELD_VALUE),
+        user_gas.da_gas.unwrap_or(MAX_FIELD_VALUE)
     ]
 }
 

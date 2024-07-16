@@ -32,8 +32,12 @@ export class DefaultDappEntrypoint implements EntrypointInterface {
     const entrypointPackedArgs = PackedValues.fromValues(encodeArguments(abi, [payload, this.userAddress]));
     const gasSettings = exec.fee?.gasSettings ?? GasSettings.default();
     const functionSelector = FunctionSelector.fromNameAndParameters(abi.name, abi.parameters);
-
-    const innerHash = computeInnerAuthWitHash([Fr.ZERO, functionSelector.toField(), entrypointPackedArgs.hash]);
+    // Default msg_sender for entrypoints is now Fr.max_value rather than 0 addr (see #7190 & #7404)
+    const innerHash = computeInnerAuthWitHash([
+      Fr.MAX_FIELD_VALUE,
+      functionSelector.toField(),
+      entrypointPackedArgs.hash,
+    ]);
     const outerHash = computeAuthWitMessageHash(
       { consumer: this.dappEntrypointAddress, innerHash },
       { chainId: new Fr(this.chainId), version: new Fr(this.version) },

@@ -111,7 +111,7 @@ describe('Private Execution test suite', () => {
   const runSimulator = ({
     artifact,
     args = [],
-    msgSender = AztecAddress.ZERO,
+    msgSender = AztecAddress.fromField(Fr.MAX_FIELD_VALUE),
     contractAddress = defaultContractAddress,
     txContext = {},
   }: {
@@ -275,7 +275,7 @@ describe('Private Execution test suite', () => {
   describe('no constructor', () => {
     it('emits a field array as an encrypted log', async () => {
       // NB: this test does NOT cover correct enc/dec of values, just whether
-      // the kernels correctly populate non-note encrypted logs
+      // the contexts correctly populate non-note encrypted logs
       const artifact = getFunctionArtifact(TestContractArtifact, 'emit_array_as_encrypted_log');
       // We emit the outgoing here to recipient for no reason at all
       const outgoingViewer = recipient;
