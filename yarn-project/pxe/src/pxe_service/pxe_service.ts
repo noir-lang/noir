@@ -724,8 +724,14 @@ export class PXEService implements PXE {
         );
         const noirCallStack = err.getNoirCallStack();
         if (debugInfo && isNoirCallStackUnresolved(noirCallStack)) {
-          const parsedCallStack = resolveOpcodeLocations(noirCallStack, debugInfo);
-          err.setNoirCallStack(parsedCallStack);
+          try {
+            const parsedCallStack = resolveOpcodeLocations(noirCallStack, debugInfo);
+            err.setNoirCallStack(parsedCallStack);
+          } catch (err) {
+            this.log.warn(
+              `Could not resolve noir call stack for ${originalFailingFunction.contractAddress.toString()}:${originalFailingFunction.functionSelector.toString()}: ${err}`,
+            );
+          }
         }
         await this.#enrichSimulationError(err);
       }
