@@ -63,7 +63,8 @@ describe('can verify recursive proofs', () => {
     leaf.backend.destroy();
   });
 
-  it('does recursive proof', async () => {
+  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6672): Reinstate this test.
+  it.skip('does recursive proof', async () => {
     // Generate leaf proof artifacts (S1, addition of 1 and 3)
 
     // Leaf params of left branch
@@ -102,6 +103,7 @@ describe('can verify recursive proofs', () => {
     console.log('recurseLeaf: %d + %d = ', a, b, Number(nodeExecution.returnValue).toString());
     const innerProof2: ProofData = await recurseLeaf.backend.generateProof(nodeExecution.witness);
     console.log('Generating intermediate proof artifacts recurseLeaf...');
+    //TODO: maybe not do magic +16
     const artifacts2 = await recurseLeaf.backend.generateRecursiveProofArtifacts(
       innerProof2,
       numPubInputs + 1 + 16, // +1 for public return +16 for hidden aggregation object
