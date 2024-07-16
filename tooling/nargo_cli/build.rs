@@ -394,11 +394,29 @@ fn generate_plonky2_prove_success_tests(test_file: &mut File, test_data_dir: &Pa
 fn plonky2_prove_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
-    let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("prove");
+    let plonky2_expected_output = format!("{{}}/plonky2.expected_output.txt", test_program_dir.display());
+    let plonky2_generated_output = format!("{{}}/plonky2.generated_output.txt", test_program_dir.display());
 
-    cmd.assert().success();
+    if std::path::Path::new(&plonky2_expected_output).exists() {{
+        let mut cmd = Command::cargo_bin("nargo").unwrap();
+        cmd.arg("--program-dir").arg(test_program_dir);
+        cmd.arg("prove");
+        cmd.arg("--plonky2-print-file").arg(plonky2_generated_output.clone());
+
+        cmd.assert().success();
+
+        let mut cmd_diff = Command::new("diff");
+        cmd_diff.arg("-c");
+        cmd_diff.arg(plonky2_expected_output);
+        cmd_diff.arg(plonky2_generated_output);
+        cmd_diff.assert().success();
+    }} else {{
+        let mut cmd = Command::cargo_bin("nargo").unwrap();
+        cmd.arg("--program-dir").arg(test_program_dir);
+        cmd.arg("prove");
+
+        cmd.assert().success();
+    }}
 }}
             "#,
             test_dir = test_dir.display(),
