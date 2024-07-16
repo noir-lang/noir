@@ -259,7 +259,7 @@ impl<'context> Elaborator<'context> {
                     if (method_generic_index + trait_generics_len) < trait_impl_generics_len {
                         return typ.clone();
                     }
-                    
+
                     if trait_impl_generics_len > trait_generics_len {
                         method_generic_index =
                             method_generic_index + trait_generics_len - trait_impl_generics_len;
