@@ -566,7 +566,7 @@ where
         .map(|(block, span)| ExpressionKind::Comptime(block, span))
 }
 
-fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
+fn let_statement<'a, P>(expr_parser: P) -> impl NoirParser<((Pattern, UnresolvedType), Expression)> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -574,8 +574,14 @@ where
         ignore_then_commit(keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement), pattern());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, expr_parser);
-    p.map(StatementKind::new_let)
+    then_commit(p, expr_parser)
+}
+
+fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
+where
+    P: ExprParser + 'a,
+{
+    let_statement(expr_parser).map(StatementKind::new_let)
 }
 
 fn pattern() -> impl NoirParser<Pattern> {

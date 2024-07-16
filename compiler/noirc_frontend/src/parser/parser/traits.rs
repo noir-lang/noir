@@ -2,12 +2,13 @@ use chumsky::prelude::*;
 
 use super::attributes::{attributes, validate_secondary_attributes};
 use super::function::function_return_type;
-use super::{block, expression, fresh_statement, function, function_declaration_parameters};
+use super::{block, expression, fresh_statement, function, function_declaration_parameters, let_statement};
 
 use crate::ast::{
     Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
     UnresolvedTraitConstraint, UnresolvedType,
 };
+use crate::macros_api::Pattern;
 use crate::{
     parser::{
         ignore_then_commit, parenthesized, parser::primitives::keyword, NoirParser, ParserError,
@@ -58,11 +59,7 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
         .then(parse_type())
         .then(optional_default_value())
         .then_ignore(just(Token::Semicolon))
-        .validate(|((name, typ), default_value), span, emit| {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("Associated constants"),
-                span,
-            ));
+        .map(|((name, typ), default_value)| {
             TraitItem::Constant { name, typ, default_value }
         })
 }
@@ -145,7 +142,14 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
         .then_ignore(just(Token::Semicolon))
         .map(|(name, alias)| TraitImplItem::Type { name, alias });
 
-    function.or(alias).repeated()
+    let let_statement = let_statement(expression())
+        .then_ignore(just(Token::Semicolon))
+        .try_map(|((pattern, typ), expr), span| match pattern {
+            Pattern::Identifier(ident) => Ok(TraitImplItem::Constant(ident, typ, expr)),
+            _ => Err(ParserError::with_reason(ParserErrorReason::PatternInTraitFunctionParameter, span)),
+        });
+
+    choice((function, alias, let_statement)).repeated()
 }
 
 fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
