@@ -112,7 +112,7 @@ describe('e2e_blacklist_token_contract burn', () => {
 
       it('burn from blacklisted account', async () => {
         await expect(asset.methods.burn_public(blacklisted.getAddress(), 1n, 0).prove()).rejects.toThrow(
-          "Assertion failed: Blacklisted: Sender '!from_roles.is_blacklisted'",
+          /Assertion failed: Blacklisted: Sender/,
         );
       });
     });
@@ -224,7 +224,7 @@ describe('e2e_blacklist_token_contract burn', () => {
 
       it('burn from blacklisted account', async () => {
         await expect(asset.methods.burn(blacklisted.getAddress(), 1n, 0).prove()).rejects.toThrow(
-          "Assertion failed: Blacklisted: Sender '!from_roles.is_blacklisted'",
+          /Assertion failed: Blacklisted: Sender .*/,
         );
       });
     });

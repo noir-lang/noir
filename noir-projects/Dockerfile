@@ -22,7 +22,7 @@ RUN ./bootstrap.sh
 WORKDIR /usr/src/noir-projects/noir-protocol-circuits
 RUN ./bootstrap.sh
 WORKDIR /usr/src/noir-projects/aztec-nr
-RUN nargo compile --use-legacy --silence-warnings
+RUN nargo compile --silence-warnings
 
 FROM scratch
 COPY --from=builder /usr/src/noir-projects /usr/src/noir-projects

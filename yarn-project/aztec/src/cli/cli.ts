@@ -112,8 +112,8 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
 
     test [options]: starts a dockerized TXE node via
       $ aztec start --txe
-    then runs
-      $ aztec-nargo test --silence-warnings --use-legacy --oracle-resolver=<TXE_ADDRESS> [options]
+    then runs 
+      $ aztec-nargo test --silence-warnings --oracle-resolver=<TXE_ADDRESS> [options]
     `,
   );
 

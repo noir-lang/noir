@@ -16,7 +16,7 @@ if [ "${1:-}" == "test" ]; then
   # Compose file to use
   FILE_ARG="-f $HOME/.aztec/docker-compose.test.yml"
   # Aztec contract test args for nargo
-  TEST_ARGS="$@ --silence-warnings --use-legacy --oracle-resolver http://aztec:8081"
+  TEST_ARGS="$@ --silence-warnings --oracle-resolver http://aztec:8081"
   get_compose -p aztec-test $FILE_ARG run -e NARGO_FOREIGN_CALL_TIMEOUT=300000 --workdir $CALLED_FROM --rm -it aztec-nargo $TEST_ARGS
 elif [ $# == 2 ] && [ "$1" == "start" ] && [ "$2" == "--sandbox" ]; then
   # Change working dir, so relative volume mounts are in the right place.

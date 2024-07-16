@@ -6,7 +6,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "compile": "cd src/contracts && ${AZTEC_NARGO:-aztec-nargo} compile --use-legacy --silence-warnings",
+    "compile": "cd src/contracts && ${AZTEC_NARGO:-aztec-nargo} compile --silence-warnings",
     "codegen": "${AZTEC_BUILDER:-aztec-builder} codegen src/contracts/target -o artifacts",
     "clean": "rm -rf ./dist .tsbuildinfo ./artifacts ./src/contracts/target",
     "prep": "yarn clean && yarn compile && yarn codegen",

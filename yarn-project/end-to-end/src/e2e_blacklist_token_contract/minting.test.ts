@@ -67,7 +67,7 @@ describe('e2e_blacklist_token_contract mint', () => {
       it('mint to blacklisted entity', async () => {
         await expect(
           asset.withWallet(wallets[1]).methods.mint_public(blacklisted.getAddress(), 1n).prove(),
-        ).rejects.toThrow("Assertion failed: Blacklisted: Recipient '!to_roles.is_blacklisted'");
+        ).rejects.toThrow(/Assertion failed: Blacklisted: Recipient/);
       });
     });
   });
@@ -139,7 +139,7 @@ describe('e2e_blacklist_token_contract mint', () => {
 
       it('mint and try to redeem at blacklist', async () => {
         await expect(asset.methods.redeem_shield(blacklisted.getAddress(), amount, secret).prove()).rejects.toThrow(
-          "Assertion failed: Blacklisted: Recipient '!to_roles.is_blacklisted'",
+          /Assertion failed: Blacklisted: Recipient .*/,
         );
       });
     });
