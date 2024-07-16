@@ -42,9 +42,23 @@ fn convert_debugger_stack_frame(
     debugger_stack_frame: &noirc_artifacts::debug::StackFrame<FieldElement>,
 ) -> StackFrame {
     let function_name = String::from(debugger_stack_frame.function_name);
-    // TODO(stanm): add call params
-    let variables = debugger_stack_frame.variables.iter().map(Variable::from_tuple).collect();
-    StackFrame { function_name, variables }
+    let mut variables: Vec<Variable> =
+        debugger_stack_frame.variables.iter().map(Variable::from_tuple).collect();
+    variables.sort();
+
+    let mut function_param_indexes = Vec::new();
+    for param_name in &debugger_stack_frame.function_params {
+        // Note(stanm): `mut` in params is put in the name; remove it.
+        let stripped_param_name = match param_name.strip_prefix("mut ") {
+            Some(stripped_param_name) => stripped_param_name,
+            None => param_name,
+        };
+        match variables.binary_search_by(|var| var.name.as_str().cmp(stripped_param_name)) {
+            Err(_) => panic!("param_name {param_name} not found in variables {variables:?}"),
+            Ok(index) => function_param_indexes.push(index),
+        };
+    }
+    StackFrame { function_name, function_param_indexes, variables }
 }
 
 /// Converts a debugger `Location` into a tracer `SourceLocation`.
