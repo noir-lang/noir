@@ -13,6 +13,15 @@ template <typename FF_> class EllipticRelationImpl {
         6, // x-coordinate sub-relation
         6, // y-coordinate sub-relation
     };
+    /**
+     * @brief For ZK-Flavors: The degrees of subrelations considered as polynomials only in witness polynomials,
+     * i.e. all selectors and public polynomials are treated as constants.
+     *
+     */
+    static constexpr std::array<size_t, 2> SUBRELATION_WITNESS_DEGREES{
+        3, // x-coordinate sub-relation
+        3, // y-coordinate sub-relation (because of point doubling)
+    };
 
     /**
      * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero

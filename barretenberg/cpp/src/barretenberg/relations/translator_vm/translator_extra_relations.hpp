@@ -12,7 +12,15 @@ template <typename FF_> class TranslatorOpcodeConstraintRelationImpl {
     static constexpr std::array<size_t, 1> SUBRELATION_PARTIAL_LENGTHS{
         7 // opcode constraint relation
     };
-
+    /**
+     * @brief For ZK-Flavors: Upper bound on the degrees of subrelations considered as polynomials only in witness
+polynomials,
+     * i.e. all selectors and public polynomials are treated as constants. The subrelation witness degree does not
+     * exceed the subrelation partial degree given by SUBRELATION_PARTIAL_LENGTH - 1.
+     */
+    static constexpr std::array<size_t, 1> SUBRELATION_WITNESS_DEGREES{
+        6 // opcode constraint relation
+    };
     /**
      * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
      *
@@ -57,7 +65,27 @@ template <typename FF_> class TranslatorAccumulatorTransferRelationImpl {
         3  // accumulator limb 3 is equal to given result at the end of accumulation subrelation
 
     };
+    /**
+     * @brief For ZK-Flavors: Upper bound on the degrees of subrelations considered as polynomials only in witness
+polynomials,
+     * i.e. all selectors and public polynomials are treated as constants. The subrelation witness degree does not
+     * exceed the subrelation partial degree given by SUBRELATION_PARTIAL_LENGTH - 1.
+     */
+    static constexpr std::array<size_t, 12> SUBRELATION_WITNESS_DEGREES{
+        2, // transfer accumulator limb 0 at even index subrelation
+        2, // transfer accumulator limb 1 at even index subrelation
+        2, // transfer accumulator limb 2 at even index subrelation
+        2, // transfer accumulator limb 3 at even index subrelation
+        2, // accumulator limb 0 is zero at the start of accumulation subrelation
+        2, // accumulator limb 1 is zero at the start of accumulation subrelation
+        2, // accumulator limb 2 is zero at the start of accumulation subrelation
+        2, // accumulator limb 3 is zero at the start of accumulation subrelation
+        2, // accumulator limb 0 is equal to given result at the end of accumulation subrelation
+        2, // accumulator limb 1 is equal to given result at the end of accumulation subrelation
+        2, // accumulator limb 2 is equal to given result at the end of accumulation subrelation
+        2  // accumulator limb 3 is equal to given result at the end of accumulation subrelation
 
+    };
     /**
      * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero
      *

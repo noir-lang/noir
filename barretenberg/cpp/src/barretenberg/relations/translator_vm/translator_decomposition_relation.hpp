@@ -61,6 +61,62 @@ template <typename FF_> class TranslatorDecompositionRelationImpl {
         3, // decomposition of z1 into 2 limbs subrelation
         3  // decomposition of z2 into 2 limbs subrelation
     };
+    /**
+     * @brief For ZK-Flavors: Upper bound on the degrees of subrelations considered as polynomials only in witness
+polynomials,
+     * i.e. all selectors and public polynomials are treated as constants. The subrelation witness degree does not
+     * exceed the subrelation partial degree given by SUBRELATION_PARTIAL_LENGTH - 1.
+     */
+    static constexpr std::array<size_t, 48> SUBRELATION_WITNESS_DEGREES{
+        2, // decomposition of P.x limb 0 into microlimbs subrelation
+        2, // decomposition of P.x limb 1 into microlimbs subrelation
+        2, // decomposition of P.x limb 2 into microlimbs subrelation
+        2, // decomposition of P.x limb 3 into microlimbs subrelation
+        2, // decomposition of P.y limb 0 into microlimbs subrelation
+        2, // decomposition of P.y limb 1 into microlimbs subrelation
+        2, // decomposition of P.y limb 2 into microlimbs subrelation
+        2, // decomposition of P.y limb 3 into microlimbs subrelation
+        2, // decomposition of z1 limb 0 into microlimbs subrelation
+        2, // decomposition of z2 limb 0 into microlimbs subrelation
+        2, // decomposition of z1 limb 1 into microlimbs subrelation
+        2, // decomposition of z2 limb 1 into microlimbs subrelation
+        2, // decomposition of accumulator limb 0 into microlimbs subrelation
+        2, // decomposition of accumulator limb 1 into microlimbs subrelation
+        2, // decomposition of accumulator limb 2 into microlimbs subrelation
+        2, // decomposition of accumulator limb 3 into microlimbs subrelation
+        2, // decomposition of quotient limb 0 into microlimbs subrelation
+        2, // decomposition of quotient limb 1 into microlimbs subrelation
+        2, // decomposition of quotient limb 2 into microlimbs subrelation
+        2, // decomposition of quotient limb 3 into microlimbs subrelation
+        2, // decomposition of low relation wide limb into microlimbs subrelation
+        2, // decomposition of high relation wide limb into microlimbs subrelation
+        2, // stricter constraint on highest microlimb of P.x limb 0 subrelation
+        2, // stricter constraint on highest microlimb of P.x limb 1 subrelation
+        2, // stricter constraint on highest microlimb of P.x limb 2 subrelation
+        2, // stricter constraint on highest microlimb of P.x limb 3 subrelation
+        2, // stricter constraint on highest microlimb of P.y limb 0 subrelation
+        2, // stricter constraint on highest microlimb of P.y limb 1 subrelation
+        2, // stricter constraint on highest microlimb of P.y limb 2 subrelation
+        2, // stricter constraint on highest microlimb of P.y limb 3 subrelation
+        2, // stricter constraint on highest microlimb of z1 limb 0 subrelation
+        2, // stricter constraint on highest microlimb of z2 limb 0 subrelation
+        2, // stricter constraint on highest microlimb of z1 limb 1 subrelation
+        2, // stricter constraint on highest microlimb of z2 limb 1 subrelation
+        2, // stricter constraint on highest microlimb of accumulator limb 0 subrelation
+        2, // stricter constraint on highest microlimb of accumulator limb 1 subrelation
+        2, // stricter constraint on highest microlimb of accumulator limb 2 subrelation
+        2, // stricter constraint on highest microlimb of accumulator limb 3 subrelation
+        2, // stricter constraint on highest microlimb of quotient limb 0 subrelation
+        2, // stricter constraint on highest microlimb of quotient limb 1 subrelation
+        2, // stricter constraint on highest microlimb of quotient limb 2 subrelation
+        2, // stricter constraint on highest microlimb of quotient limb 3 subrelation
+        2, // decomposition of x_lo into 2 limbs subrelation
+        2, // decomposition of x_hi into 2 limbs subrelation
+        2, // decomposition of y_lo into 2 limbs subrelation
+        2, // decomposition of y_hi into 2 limbs subrelation
+        2, // decomposition of z1 into 2 limbs subrelation
+        2  // decomposition of z2 into 2 limbs subrelation
+    };
 
     /**
      * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero

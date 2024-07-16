@@ -13,6 +13,17 @@ template <typename FF_> class DeltaRangeConstraintRelationImpl {
         6, // range constrain sub-relation 3
         6  // range constrain sub-relation 4
     };
+    /**
+     * @brief For ZK-Flavors: The degrees of subrelations considered as polynomials only in witness polynomials,
+     * i.e. all selectors and public polynomials are treated as constants.
+     *
+     */
+    static constexpr std::array<size_t, 4> SUBRELATION_WITNESS_DEGREES{
+        3, // range constrain sub-relation 1
+        3, // range constrain sub-relation 2
+        3, // range constrain sub-relation 3
+        3  // range constrain sub-relation 4
+    };
 
     /**
      * @brief Returns true if the contribution from all subrelations for the provided inputs is identically zero

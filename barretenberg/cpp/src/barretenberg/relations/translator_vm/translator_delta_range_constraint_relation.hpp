@@ -23,7 +23,25 @@ template <typename FF_> class TranslatorDeltaRangeConstraintRelationImpl {
         3  // ordered_range_constraints_4 ends with defined maximum value subrelation
 
     };
+    /**
+     * @brief For ZK-Flavors: Upper bound on the degrees of subrelations considered as polynomials only in witness
+polynomials,
+     * i.e. all selectors and public polynomials are treated as constants. The subrelation witness degree does not
+     * exceed the subrelation partial degree given by SUBRELATION_PARTIAL_LENGTH - 1.
+     */
+    static constexpr std::array<size_t, 10> SUBRELATION_WITNESS_DEGREES{
+        5, // ordered_range_constraints_0 step in {0,1,2,3} subrelation
+        5, // ordered_range_constraints_1 step in {0,1,2,3} subrelation
+        5, // ordered_range_constraints_2 step in {0,1,2,3} subrelation
+        5, // ordered_range_constraints_3 step in {0,1,2,3} subrelation
+        5, // ordered_range_constraints_4 step in {0,1,2,3} subrelation
+        2, // ordered_range_constraints_0 ends with defined maximum value subrelation
+        2, // ordered_range_constraints_1 ends with defined maximum value subrelation
+        2, // ordered_range_constraints_2 ends with defined maximum value subrelation
+        2, // ordered_range_constraints_3 ends with defined maximum value subrelation
+        2  // ordered_range_constraints_4 ends with defined maximum value subrelation
 
+    };
     /**
      * @brief Expression for the generalized permutation sort relation
      *

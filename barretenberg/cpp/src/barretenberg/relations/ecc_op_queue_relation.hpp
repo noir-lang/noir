@@ -17,6 +17,21 @@ template <typename FF_> class EccOpQueueRelationImpl {
         3, // op-queue-wire vanishes sub-relation 3
         3  // op-queue-wire vanishes sub-relation 4
     };
+    /**
+     * @brief For ZK-Flavors: The degrees of subrelations considered as polynomials only in witness polynomials,
+     * i.e. all selectors and public polynomials are treated as constants.
+     *
+     */
+    static constexpr std::array<size_t, 8> SUBRELATION_WITNESS_DEGREES{
+        1, // wire - op-queue-wire consistency sub-relation 1
+        1, // wire - op-queue-wire consistency sub-relation 2
+        1, // wire - op-queue-wire consistency sub-relation 3
+        1, // wire - op-queue-wire consistency sub-relation 4
+        1, // op-queue-wire vanishes sub-relation 1
+        1, // op-queue-wire vanishes sub-relation 2
+        1, // op-queue-wire vanishes sub-relation 3
+        1  // op-queue-wire vanishes sub-relation 4
+    };
 
     template <typename AllEntities> inline static bool skip([[maybe_unused]] const AllEntities& in)
     {

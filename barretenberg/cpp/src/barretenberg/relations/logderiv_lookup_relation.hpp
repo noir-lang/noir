@@ -22,6 +22,15 @@ template <typename FF_> class LogDerivLookupRelationImpl {
         LENGTH, // inverse construction sub-relation
         LENGTH  // log derivative lookup argument sub-relation
     };
+    /**
+     * @brief For ZK-Flavors: The degrees of subrelations considered as polynomials only in witness polynomials,
+     * i.e. all selectors and public polynomials are treated as constants.
+     *
+     */
+    static constexpr std::array<size_t, 2> SUBRELATION_WITNESS_DEGREES{
+        2, // inverse construction sub-relation
+        3, // log derivative lookup argument sub-relation
+    };
 
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/1036): Scrutinize these adjustment factors. Counting
     // degrees suggests the first subrelation should require an adjustment of 2.
@@ -128,7 +137,7 @@ template <typename FF_> class LogDerivLookupRelationImpl {
         auto derived_table_entry_2 = w_2 + negative_column_2_step_size * w_2_shift;
         auto derived_table_entry_3 = w_3 + negative_column_3_step_size * w_3_shift;
 
-        // (w_1 + q_2*w_1_shift) + η(w_2 + q_m*w_2_shift) + η₂(w_3 + q_c*w_3_shift) + η₃q_index.
+        // (w_1 + \gamma q_2*w_1_shift) + η(w_2 + q_m*w_2_shift) + η₂(w_3 + q_c*w_3_shift) + η₃q_index.
         // deg 2 or 3
         return derived_table_entry_1 + derived_table_entry_2 * eta + derived_table_entry_3 * eta_two +
                table_index * eta_three;
@@ -206,8 +215,14 @@ template <typename FF_> class LogDerivLookupRelationImpl {
                            const FF& scaling_factor)
     {
         BB_OP_COUNT_TIME_NAME("Lookup::accumulate");
-        using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+        // declare the accumulator of the maximum length, in non-ZK Flavors, they are of the same length,
+        // whereas in ZK Flavors, the accumulator corresponding log derivative lookup argument sub-relation is the
+        // longest
+        using Accumulator = typename std::tuple_element_t<1, ContainerOverSubrelations>;
         using View = typename Accumulator::View;
+        // allows to re-use the values accumulated by the accumulator of the size smaller than
+        // the size of Accumulator declared above
+        using ShortView = typename std::tuple_element_t<0, ContainerOverSubrelations>::View;
 
         const auto inverses = View(in.lookup_inverses);                         // Degree 1
         const auto read_counts = View(in.lookup_read_counts);                   // Degree 1
@@ -221,7 +236,8 @@ template <typename FF_> class LogDerivLookupRelationImpl {
         // Establish the correctness of the polynomial of inverses I. Note: inverses is computed so that the value is 0
         // if !inverse_exists.
         // Degrees:                     2 (3)       1 (2)        1              1
-        std::get<0>(accumulator) += (read_term * write_term * inverses - inverse_exists) * scaling_factor; // Deg 4 (6)
+        std::get<0>(accumulator) +=
+            ShortView((read_term * write_term * inverses - inverse_exists) * scaling_factor); // Deg 4 (6)
 
         // Establish validity of the read. Note: no scaling factor here since this constraint is 'linearly dependent,
         // i.e. enforced across the entire trace, not on a per-row basis.

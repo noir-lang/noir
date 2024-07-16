@@ -2,7 +2,26 @@
 #include "barretenberg/relations/relation_types.hpp"
 
 namespace bb {
+/**
+ * @brief Ultra Permutation Relation
+ *
+ * @details  The Ultra Permutation Relation is given by the equation
+    \f{align}{
+        \left( Z_{\text{perm}}(\vec X) + L_{0}(\vec X) \right)  \cdot
+        \left[ (w_1(\vec X) + id_1(\vec X) \cdot \beta + \gamma) \cdot (w_2(\vec X) + id_2(\vec X) \cdot \beta + \gamma)
+ \cdot (w_3(\vec X) + id_3(\vec X) \cdot \beta + \gamma) \cdot  (w_4(\vec X) + id_4(\vec X) \cdot \beta + \gamma)\right]
+ &\
+         - \\
+        \left(Z_{\text{perm, shifted}}(\vec X) + L_{2^d-1}(\vec X) \cdot \delta_{\text{pub}} \right)  \cdot
+        \left[ (w_1(\vec X) + \sigma_1(\vec X) \cdot \beta + \gamma) \cdot (w_2(\vec X) + \sigma_2(\vec X) \cdot \beta +
+ \gamma) \cdot (w_3(\vec X) + \sigma_3 (\vec X) \cdot \beta + \gamma) \cdot (w_4 (\vec X) + \sigma_4(\vec X) \cdot \beta
+ + \gamma)\right] &\ = 0 \f} and \f{align}{ L_{2^d-1}(\vec X)\cdot Z_{\text{perm, shifted}}(\vec X)   = 0 \f}
 
+    Here, \f$ \vec X = (X_0,\ldots, X_{d-1})\f$, where \f$ d \f$ is the log of the circuit size.
+
+
+ * @tparam FF_
+ */
 template <typename FF_> class UltraPermutationRelationImpl {
   public:
     using FF = FF_;
@@ -15,6 +34,16 @@ template <typename FF_> class UltraPermutationRelationImpl {
     static constexpr std::array<size_t, 2> TOTAL_LENGTH_ADJUSTMENTS{
         5, // grand product construction sub-relation
         0  // left-shiftable polynomial sub-relation
+    };
+
+    /**
+     * @brief For ZK-Flavors: The degrees of subrelations considered as polynomials only in witness polynomials,
+     * i.e. all selectors and public polynomials are treated as constants.
+     *
+     */
+    static constexpr std::array<size_t, 2> SUBRELATION_WITNESS_DEGREES{
+        5, // grand product construction sub-relation
+        1  // left-shiftable polynomial sub-relation
     };
 
     /**
@@ -49,7 +78,7 @@ template <typename FF_> class UltraPermutationRelationImpl {
         const auto& beta = ParameterView(params.beta);
         const auto& gamma = ParameterView(params.gamma);
 
-        // witness degree 4; fully degree 8
+        // witness degree 4; full degree 8
         return (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) * (w_3 + id_3 * beta + gamma) *
                (w_4 + id_4 * beta + gamma);
     }
@@ -73,7 +102,7 @@ template <typename FF_> class UltraPermutationRelationImpl {
         const auto& beta = ParameterView(params.beta);
         const auto& gamma = ParameterView(params.gamma);
 
-        // witness degree 4; fully degree 8
+        // witness degree 4; full degree 8
         return (w_1 + sigma_1 * beta + gamma) * (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma) *
                (w_4 + sigma_4 * beta + gamma);
     }
@@ -81,8 +110,13 @@ template <typename FF_> class UltraPermutationRelationImpl {
     /**
      * @brief Compute contribution of the permutation relation for a given edge (internal function)
      *
-     * @details This the relation confirms faithful calculation of the grand
-     * product polynomial Z_perm.
+     * @details This relation confirms faithful calculation of the grand
+     * product polynomial \f$ Z_{\text{perm}}\f$.
+     * In Sumcheck Prover Round, this method adds to accumulators evaluations of subrelations at the point
+     \f$(u_0,\ldots, u_{i-1}, k, \vec\ell)\f$ for \f$ k=0,\ldots, D\f$, where \f$ \vec \ell\f$ is a point  on the
+     Boolean hypercube \f$\{0,1\}^{d-1-i}\f$ and \f$ D \f$ is specified by the calling class. It does so by taking as
+     input an array of Prover Polynomials partially evaluated at the points \f$(u_0,\ldots, u_{i-1}, k, \vec\ell)\f$ and
+     computing point-wise evaluations of the sub-relations. \todo Protogalaxy Accumulation
      *
      * @param evals transformed to `evals + C(in(X)...)*scaling_factor`
      * @param in an std::array containing the fully extended Univariate edges.

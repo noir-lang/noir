@@ -39,6 +39,21 @@ template <typename FF_> class AuxiliaryRelationImpl {
         6, // RAM consistency sub-relation 2
         6  // RAM consistency sub-relation 3
     };
+    /**
+     * @brief For ZK-Flavors: The degrees of subrelations considered as polynomials only in witness polynomials,
+     * i.e. all selectors and public polynomials are treated as constants.
+     *
+     */
+    static constexpr std::array<size_t, 6> SUBRELATION_WITNESS_DEGREES{
+        2, // auxiliary sub-relation;
+        2, // ROM consistency sub-relation 1: adjacent values match if adjacent indices match and next access is a read
+           // operation
+        2, // ROM consistency sub-relation 2: index is monotonously increasing
+        3, // RAM consistency sub-relation 1: adjacent values match if adjacent indices match and next access is a read
+           // operation
+        2, // RAM consistency sub-relation 2: index is monotonously increasing
+        2  // RAM consistency sub-relation 3: next gate access type is boolean
+    };
 
     static constexpr std::array<size_t, 6> TOTAL_LENGTH_ADJUSTMENTS{
         1, // auxiliary sub-relation
@@ -96,9 +111,13 @@ template <typename FF_> class AuxiliaryRelationImpl {
                                   const FF& scaling_factor)
     {
         BB_OP_COUNT_TIME_NAME("Auxiliary::accumulate");
-        // All subrelations have the same length so we use the same length view for all calculations
-        using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+        // declare the accumulator of the maximum length, in non-ZK Flavors, they are of the same length,
+        // whereas in ZK Flavors, the accumulator corresponding to RAM consistency sub-relation 1 is the longest
+        using Accumulator = typename std::tuple_element_t<3, ContainerOverSubrelations>;
         using View = typename Accumulator::View;
+        // allows to re-use the values accumulated by accumulators of the sizes smaller or equal to
+        // the size of Accumulator declared above
+        using ShortView = typename std::tuple_element_t<0, ContainerOverSubrelations>::View;
         using ParameterView = GetParameterView<Parameters, View>;
 
         const auto& eta = ParameterView(params.eta);
@@ -260,9 +279,10 @@ template <typename FF_> class AuxiliaryRelationImpl {
         auto q_one_by_two_by_aux_by_scaling = q_one_by_two * q_aux_by_scaling;
 
         std::get<1>(accumulators) +=
-            adjacent_values_match_if_adjacent_indices_match * q_one_by_two_by_aux_by_scaling;            // deg 5
-        std::get<2>(accumulators) += index_is_monotonically_increasing * q_one_by_two_by_aux_by_scaling; // deg 5
-        auto ROM_consistency_check_identity = memory_record_check * q_one_by_two;                        // deg 3 or 4
+            ShortView(adjacent_values_match_if_adjacent_indices_match * q_one_by_two_by_aux_by_scaling); // deg 5
+        std::get<2>(accumulators) +=
+            ShortView(index_is_monotonically_increasing * q_one_by_two_by_aux_by_scaling); // deg 5
+        auto ROM_consistency_check_identity = memory_record_check * q_one_by_two;          // deg 3 or 4
 
         /**
          * RAM Consistency Check
@@ -308,10 +328,12 @@ template <typename FF_> class AuxiliaryRelationImpl {
         // Putting it all together...
         std::get<3>(accumulators) +=
             adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation *
-            q_arith_by_aux_and_scaling;                                                              // deg 5 or 6
-        std::get<4>(accumulators) += index_is_monotonically_increasing * q_arith_by_aux_and_scaling; // deg 4
-        std::get<5>(accumulators) += next_gate_access_type_is_boolean * q_arith_by_aux_and_scaling;  // deg 4 or 6
-        auto RAM_consistency_check_identity = access_check * (q_arith);                              // deg 3 or 5
+            q_arith_by_aux_and_scaling; // deg 5 or 6
+        std::get<4>(accumulators) += ShortView(index_is_monotonically_increasing * q_arith_by_aux_and_scaling); // deg 4
+        std::get<5>(accumulators) +=
+            ShortView(next_gate_access_type_is_boolean * q_arith_by_aux_and_scaling); // deg 4 or 6
+
+        auto RAM_consistency_check_identity = access_check * (q_arith); // deg 3 or 5
 
         /**
          * RAM Timestamp Consistency Check
@@ -339,7 +361,7 @@ template <typename FF_> class AuxiliaryRelationImpl {
         // (deg 3 or 5) + (deg 4) + (deg 3)
         auto auxiliary_identity = memory_identity + non_native_field_identity + limb_accumulator_identity;
         auxiliary_identity *= q_aux_by_scaling; // deg 5 or 6
-        std::get<0>(accumulators) += auxiliary_identity;
+        std::get<0>(accumulators) += ShortView(auxiliary_identity);
     };
 };
 
