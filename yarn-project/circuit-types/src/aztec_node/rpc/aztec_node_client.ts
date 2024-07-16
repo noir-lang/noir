@@ -1,5 +1,5 @@
 import { FunctionSelector, Header } from '@aztec/circuits.js';
-import { EventSelector } from '@aztec/foundation/abi';
+import { EventSelector, NoteSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -44,12 +44,13 @@ export function createAztecNodeClient(url: string, fetch = defaultFetch): AztecN
       SiblingPath,
     },
     {
+      EncryptedNoteL2BlockL2Logs,
+      NoteSelector,
+      NullifierMembershipWitness,
       PublicSimulationOutput,
       Tx,
       TxReceipt,
-      EncryptedNoteL2BlockL2Logs,
       UnencryptedL2BlockL2Logs,
-      NullifierMembershipWitness,
     },
     false,
     'node',

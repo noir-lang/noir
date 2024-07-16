@@ -15,6 +15,7 @@ import {
   UnencryptedL2BlockL2Logs,
 } from '@aztec/circuit-types';
 import { FunctionSelector, Header } from '@aztec/circuits.js';
+import { NoteSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -43,12 +44,13 @@ export function createAztecNodeRpcServer(node: AztecNode) {
       SiblingPath,
     },
     {
+      EncryptedNoteL2BlockL2Logs,
+      NoteSelector,
+      NullifierMembershipWitness,
       PublicSimulationOutput,
       Tx,
       TxReceipt,
-      EncryptedNoteL2BlockL2Logs,
       UnencryptedL2BlockL2Logs,
-      NullifierMembershipWitness,
     },
     // disable methods not part of the AztecNode interface
     ['start', 'stop'],

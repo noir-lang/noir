@@ -50,9 +50,16 @@ export function createPXERpcServer(pxeService: PXE): JsonRpcServer {
       L2Block,
       TxEffect,
       LogId,
-      NoteSelector,
     },
-    { SimulatedTx, Tx, TxReceipt, EncryptedNoteL2BlockL2Logs, UnencryptedL2BlockL2Logs, NullifierMembershipWitness },
+    {
+      EncryptedNoteL2BlockL2Logs,
+      NoteSelector,
+      NullifierMembershipWitness,
+      SimulatedTx,
+      Tx,
+      TxReceipt,
+      UnencryptedL2BlockL2Logs,
+    },
     ['start', 'stop'],
   );
 }
