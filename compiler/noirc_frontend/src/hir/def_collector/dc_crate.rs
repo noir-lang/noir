@@ -221,7 +221,7 @@ impl From<TypeCheckError> for CompilationError {
 }
 
 impl DefCollector {
-    fn new(def_map: CrateDefMap) -> DefCollector {
+    pub fn new(def_map: CrateDefMap) -> DefCollector {
         DefCollector {
             def_map,
             imports: vec![],
