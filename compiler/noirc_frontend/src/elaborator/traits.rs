@@ -116,9 +116,6 @@ impl<'context> Elaborator<'context> {
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
 
-                    // this.recover_generics(|this| {
-
-                    // });
                     this.resolve_trait_function(
                         name,
                         generics,

@@ -299,9 +299,9 @@ impl<'context> Elaborator<'context> {
         let mut generic_index = None;
         let mut index = 0;
         for generic in generics.iter() {
-            if generic.name.as_str() == "Self" {
-                continue;
-            }
+            // if generic.name.as_str() == "Self" {
+            //     continue;
+            // }
 
             if generic.name.as_str() == target_name {
                 generic_index = Some(index);

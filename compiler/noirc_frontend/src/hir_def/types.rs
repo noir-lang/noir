@@ -1753,7 +1753,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn type_variable_id(&self) -> Option<TypeVariableId> {
+    fn type_variable_id(&self) -> Option<TypeVariableId> {
         match self {
             Type::TypeVariable(variable, _) | Type::NamedGeneric(variable, _, _) => {
                 Some(variable.0)
