@@ -25,7 +25,7 @@ export interface ArchiverConfig {
   /**
    * The L1 chain's ID
    */
-  l1ChainId?: number;
+  l1ChainId: number;
 
   /**
    * The polling interval in ms for retrieving new L2 blocks and encrypted logs.

@@ -9,13 +9,13 @@ const waitOpts: WaitOpts = {
   interval: 1,
 };
 
-export async function bootstrap(rpcUrl: string, log: LogFn) {
+export async function bootstrap(rpcUrl: string, l1ChainId: number, log: LogFn) {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
   const { GasTokenContract, KeyRegistryContract } = await import('@aztec/noir-contracts.js');
 
   const pxe = createPXEClient(rpcUrl, makeFetch([], true));
-  const deployer = new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(31337, 1));
+  const deployer = new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(l1ChainId, 1));
 
   const canonicalKeyRegistry = getCanonicalKeyRegistry();
   const keyRegistryDeployParams = {

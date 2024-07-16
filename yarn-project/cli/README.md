@@ -69,7 +69,7 @@ aztec-cli deploy-l1-contracts [rpcUrl] [options]
 
 Options:
 
-- `-a, --chain-id <string>`: Chain ID for the Ethereum host.
+- `-a, --l1-chain-id <string>`: Chain ID for the Ethereum host.
 - `-p, --private-key <string>`: The private key to use for deployment.
 - `-m, --mnemonic <string>`: The mnemonic to use in deployment. Default: `test test test test test test test test test test test junk`.
 

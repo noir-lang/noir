@@ -152,6 +152,7 @@ describe('L1Publisher integration', () => {
       l1Contracts: l1ContractAddresses,
       publisherPrivateKey: sequencerPK,
       l1BlockPublishRetryIntervalMS: 100,
+      l1ChainId: 31337,
     });
 
     coinbase = config.coinbase || EthAddress.random();

@@ -11,7 +11,13 @@ export * from './constants.js';
  * @param rpcUrl - The rpc url of the chain or a chain identifier (e.g. 'testnet')
  * @param apiKey - An optional API key for the chain client.
  */
-export function createEthereumChain(rpcUrl: string, chainId?: number) {
+export function createEthereumChain(rpcUrl: string, _chainId: number | string) {
+  let chainId: number;
+  if (typeof _chainId === 'string') {
+    chainId = +_chainId;
+  } else {
+    chainId = _chainId;
+  }
   if (chainId) {
     return {
       chainInfo: {

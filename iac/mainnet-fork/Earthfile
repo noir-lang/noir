@@ -24,6 +24,6 @@ build:
 
 export-mainnet-fork:
     FROM +build
-    ARG DIST_TAG="aztec-dev"
+    ARG DIST_TAG="devnet"
     ARG ARCH
     SAVE IMAGE --push aztecprotocol/mainnet-fork:${DIST_TAG}${ARCH:+-$ARCH}

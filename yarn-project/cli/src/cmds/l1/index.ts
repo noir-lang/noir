@@ -5,7 +5,7 @@ import { type Command } from 'commander';
 import {
   ETHEREUM_HOST,
   PRIVATE_KEY,
-  chainIdOption,
+  l1ChainIdOption,
   parseAztecAddress,
   parseBigint,
   parseEthereumAddress,
@@ -27,10 +27,17 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       'The mnemonic to use in deployment',
       'test test test test test test test test test test test junk',
     )
-    .addOption(chainIdOption)
+    .addOption(l1ChainIdOption)
     .action(async options => {
       const { deployL1Contracts } = await import('./deploy_l1_contracts.js');
-      await deployL1Contracts(options.rpcUrl, options.chainId, options.privateKey, options.mnemonic, log, debugLogger);
+      await deployL1Contracts(
+        options.rpcUrl,
+        options.l1ChainId,
+        options.privateKey,
+        options.mnemonic,
+        log,
+        debugLogger,
+      );
     });
 
   program
@@ -92,7 +99,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       'test test test test test test test test test test test junk',
     )
     .addOption(pxeOption)
-    .addOption(chainIdOption)
+    .addOption(l1ChainIdOption)
     .action(async (amount, recipient, options) => {
       const { bridgeL1Gas } = await import('./bridge_l1_gas.js');
       await bridgeL1Gas(
@@ -100,7 +107,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         recipient,
         options.rpcUrl,
         options.l1RpcUrl,
-        options.chainId,
+        options.l1ChainId,
         options.mnemonic,
         log,
         debugLogger,
@@ -117,10 +124,10 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       ETHEREUM_HOST,
     )
     .addOption(pxeOption)
-    .addOption(chainIdOption)
+    .addOption(l1ChainIdOption)
     .action(async (who, options) => {
       const { getL1Balance } = await import('./get_l1_balance.js');
-      await getL1Balance(who, options.rpcUrl, options.l1RpcUrl, options.chainId, log, debugLogger);
+      await getL1Balance(who, options.rpcUrl, options.l1RpcUrl, options.l1ChainId, log, debugLogger);
     });
 
   return program;

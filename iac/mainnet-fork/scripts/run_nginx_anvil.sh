@@ -18,7 +18,7 @@ echo "stripping double quotations from the mnemonic seed phrase: ${MNEMONIC:0:10
 MNEMONIC_STRIPPED=${MNEMONIC//\"/}
 echo "result: ${MNEMONIC_STRIPPED:0:10}..."
 
-# Data directory for anvil state
+# Data directory for anvil state.
 mkdir -p /data
 
 # Run anvil silently

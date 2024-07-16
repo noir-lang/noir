@@ -64,7 +64,7 @@ jobs:
           script: |
             const { execSync } = require('child_process');
             const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
-            const fileChanged = changedFiles.includes('l1-contracts/REDEPLOY');
+            const fileChanged = changedFiles.some(file => file.startsWith('l1-contracts'));
             return fileChanged
 
       - name: Check if mainnet fork needs deployment
@@ -76,6 +76,12 @@ jobs:
             const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
             const fileChanged = changedFiles.some(file => file.startsWith('iac/mainnet-fork'));
             return fileChanged
+
+      - name: Build & push mainnet fork image
+        if: steps.check_fork_changes.outputs.result == 'true'
+        run: |
+          earthly-ci \
+          --no-output --push ./iac/mainnet-fork+export-mainnet-fork --DIST_TAG=${{ env.DEPLOY_TAG }}
 
   terraform_deploy:
     runs-on: ubuntu-latest
@@ -116,7 +122,7 @@ jobs:
           docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} deploy-l1-contracts \
             --private-key ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }} \
             --rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
-            --chain-id ${{ env.L1_CHAIN_ID }} \
+            --l1-chain-id ${{ env.L1_CHAIN_ID }} \
             | tee ${{ env.FILE_PATH }}
           ./.github/scripts/extract_l1_addresses.sh ${{ env.FILE_PATH }}
 

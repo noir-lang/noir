@@ -41,7 +41,6 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
       let services: ServerList = [];
 
       if (options.sandbox) {
-        // If no CLI arguments were provided, run aztec full node for sandbox usage.
         userLog(`${splash}\n${github}\n\n`);
         userLog(`Setting up Aztec Sandbox, please stand by...`);
         const { aztecNodeConfig, node, pxe, stop } = await createSandbox({
@@ -108,12 +107,12 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
   program.addHelpText(
     'after',
     `
-  
+
   Additional commands:
 
-    test [options]: starts a dockerized TXE node via     
+    test [options]: starts a dockerized TXE node via
       $ aztec start --txe
-    then runs 
+    then runs
       $ aztec-nargo test --silence-warnings --use-legacy --oracle-resolver=<TXE_ADDRESS> [options]
     `,
   );
