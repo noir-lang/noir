@@ -16,16 +16,21 @@ gh pr checkout $ORIGINAL_PR_NUMBER
 echo "Creating new local branch $NEW_BRANCH"
 git checkout -b $NEW_BRANCH
 
-# Step 3: Push the new branch to GitHub
+# Step 3: Squash commits
+echo "Squashing new local branch $NEW_BRANCH"
+git reset --soft master
+git add .
+git commit -m "chore: typo fixes"
+
+# Step 4: Push the new branch to GitHub
 echo "Pushing new branch $NEW_BRANCH to GitHub"
-git commit --amend --no-edit
 git push origin $NEW_BRANCH
 
-# Step 4: create a new pull request
+# Step 5: create a new pull request
 echo "Creating a new pull request for $NEW_BRANCH"
 gh pr create --base master --head $NEW_BRANCH --title "chore: redo typo PR by $AUTHOR" --body "Thanks $AUTHOR for https://github.com/$REPO/pull/$ORIGINAL_PR_NUMBER. Our policy is to redo typo changes to dissuade metric farming. This is an automated script."
 
-# Step 5: Close the original PR
+# Step 6: Close the original PR
 echo "Closing original PR #$ORIGINAL_PR_NUMBER"
 gh pr close $ORIGINAL_PR_NUMBER
 

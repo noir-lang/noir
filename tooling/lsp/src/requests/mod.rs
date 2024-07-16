@@ -14,7 +14,7 @@ use lsp_types::{
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
-use noirc_frontend::macros_api::NodeInterner;
+use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -35,6 +35,7 @@ use crate::{
 mod code_lens_request;
 mod goto_declaration;
 mod goto_definition;
+mod hover;
 mod profile_run;
 mod references;
 mod rename;
@@ -44,9 +45,10 @@ mod tests;
 pub(crate) use {
     code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
     goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    goto_definition::on_goto_type_definition_request, profile_run::on_profile_run_request,
-    references::on_references_request, rename::on_prepare_rename_request,
-    rename::on_rename_request, test_run::on_test_run_request, tests::on_tests_request,
+    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
+    profile_run::on_profile_run_request, references::on_references_request,
+    rename::on_prepare_rename_request, rename::on_rename_request, test_run::on_test_run_request,
+    tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -123,6 +125,11 @@ pub(crate) fn on_initialize(
                     },
                 })),
                 references_provider: Some(lsp_types::OneOf::Right(lsp_types::ReferencesOptions {
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                })),
+                hover_provider: Some(lsp_types::OneOf::Right(lsp_types::HoverOptions {
                     work_done_progress_options: WorkDoneProgressOptions {
                         work_done_progress: None,
                     },
@@ -264,13 +271,22 @@ pub(crate) fn on_shutdown(
     async { Ok(()) }
 }
 
+pub(crate) struct ProcessRequestCallbackArgs<'a> {
+    location: noirc_errors::Location,
+    files: &'a FileMap,
+    interner: &'a NodeInterner,
+    interners: &'a HashMap<String, NodeInterner>,
+    root_crate_name: String,
+    root_crate_dependencies: &'a Vec<Dependency>,
+}
+
 pub(crate) fn process_request<F, T>(
     state: &mut LspState,
     text_document_position_params: TextDocumentPositionParams,
     callback: F,
 ) -> Result<T, ResponseError>
 where
-    F: FnOnce(noirc_errors::Location, &NodeInterner, &FileMap, &HashMap<String, NodeInterner>) -> T,
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
     let file_path =
         text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
@@ -309,7 +325,14 @@ where
         &text_document_position_params.position,
     )?;
 
-    Ok(callback(location, interner, files, &state.cached_definitions))
+    Ok(callback(ProcessRequestCallbackArgs {
+        location,
+        files,
+        interner,
+        interners: &state.cached_definitions,
+        root_crate_name: package.name.to_string(),
+        root_crate_dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
+    }))
 }
 pub(crate) fn find_all_references_in_workspace(
     location: noirc_errors::Location,

@@ -29,15 +29,16 @@ fn on_goto_definition_inner(
     params: GotoDefinitionParams,
     return_type_location_instead: bool,
 ) -> Result<GotoDefinitionResult, ResponseError> {
-    process_request(state, params.text_document_position_params, |location, interner, files, _| {
-        interner.get_definition_location_from(location, return_type_location_instead).and_then(
-            |found_location| {
+    process_request(state, params.text_document_position_params, |args| {
+        args.interner
+            .get_definition_location_from(args.location, return_type_location_instead)
+            .and_then(|found_location| {
                 let file_id = found_location.file;
-                let definition_position = to_lsp_location(files, file_id, found_location.span)?;
+                let definition_position =
+                    to_lsp_location(args.files, file_id, found_location.span)?;
                 let response = GotoDefinitionResponse::from(definition_position).to_owned();
                 Some(response)
-            },
-        )
+            })
     })
 }
 

@@ -27,6 +27,7 @@ fn run_stdlib_tests() {
         entry_path: PathBuf::from("main.nr"),
         name: "stdlib".parse().unwrap(),
         dependencies: BTreeMap::new(),
+        expression_width: None,
     };
 
     let (mut context, dummy_crate_id) =

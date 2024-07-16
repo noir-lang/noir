@@ -149,3 +149,37 @@ Filename : `src/foo/bar/mod.nr`
 ```rust
 fn from_bar() {}
 ```
+
+### Referencing a parent module 
+
+Given a submodule, you can refer to its parent module using the `super` keyword.
+
+Filename : `src/main.nr`
+
+```rust
+mod foo;
+
+fn main() {
+    foo::from_foo();
+}
+```
+
+Filename : `src/foo.nr`
+
+```rust
+mod bar;
+
+fn from_foo() {}
+```
+
+Filename : `src/foo/bar.nr`
+
+```rust
+// Same as bar::from_foo
+use super::from_foo; 
+
+fn from_bar() {
+    from_foo();        // invokes super::from_foo(), which is bar::from_foo()
+    super::from_foo(); // also invokes bar::from_foo()
+}
+```
