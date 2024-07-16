@@ -358,7 +358,7 @@ impl Type {
                 let span = Span::default();
                 let expr = UnresolvedTypeExpression::BinaryOperation(lhs, *op, rhs, span);
                 UnresolvedTypeData::Expression(expr)
-            },
+            }
         };
 
         UnresolvedType { typ, span: None }

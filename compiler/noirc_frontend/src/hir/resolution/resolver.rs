@@ -1266,7 +1266,7 @@ impl<'a> Resolver<'a> {
             Type::InfixExpr(lhs, _, rhs) => {
                 Self::find_numeric_generics_in_type(lhs, found);
                 Self::find_numeric_generics_in_type(rhs, found);
-            },
+            }
         }
     }
 

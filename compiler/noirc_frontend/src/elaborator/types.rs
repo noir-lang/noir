@@ -1595,7 +1595,7 @@ impl<'context> Elaborator<'context> {
             Type::InfixExpr(lhs, _op, rhs) => {
                 Self::find_numeric_generics_in_type(lhs, found);
                 Self::find_numeric_generics_in_type(rhs, found);
-            },
+            }
         }
     }
 

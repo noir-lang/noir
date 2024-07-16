@@ -837,8 +837,9 @@ impl Type {
                 elements.contains_numeric_typevar(target_id)
                     || named_generic_id_matches_target(length)
             }
-            Type::InfixExpr(lhs, _op, rhs) =>
-                lhs.contains_numeric_typevar(target_id) || rhs.contains_numeric_typevar(target_id),
+            Type::InfixExpr(lhs, _op, rhs) => {
+                lhs.contains_numeric_typevar(target_id) || rhs.contains_numeric_typevar(target_id)
+            }
         }
     }
 
@@ -1539,6 +1540,26 @@ impl Type {
                 elem_a.try_unify(elem_b, bindings)
             }
 
+            (InfixExpr(lhs_a, op_a, rhs_a), InfixExpr(lhs_b, op_b, rhs_b)) => {
+                if op_a == op_b {
+                    let old_bindings = bindings.clone();
+
+                    let result_a = lhs_a.try_unify(lhs_b, bindings);
+                    let result_b = rhs_a.try_unify(rhs_b, bindings);
+
+                    if op_a.is_commutative() && (result_a.is_err() || result_b.is_err()) {
+                        *bindings = old_bindings;
+                        lhs_a.try_unify(rhs_b, bindings)?;
+                        rhs_a.try_unify(lhs_b, bindings)
+                    } else {
+                        result_a?;
+                        result_b
+                    }
+                } else {
+                    Err(UnificationError)
+                }
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1911,7 +1932,7 @@ impl Type {
                 let lhs = lhs.substitute_helper(type_bindings, substitute_bound_typevars);
                 let rhs = rhs.substitute_helper(type_bindings, substitute_bound_typevars);
                 Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs))
-            },
+            }
 
             Type::FieldElement
             | Type::Integer(_, _)
@@ -2020,7 +2041,7 @@ impl Type {
                 let lhs = lhs.follow_bindings();
                 let rhs = rhs.follow_bindings();
                 InfixExpr(Box::new(lhs), *op, Box::new(rhs))
-            },
+            }
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
@@ -2111,7 +2132,7 @@ impl Type {
             Type::InfixExpr(lhs, _op, rhs) => {
                 lhs.replace_named_generics_with_type_variables();
                 rhs.replace_named_generics_with_type_variables();
-            },
+            }
         }
     }
 }
@@ -2160,6 +2181,10 @@ impl BinaryTypeOperator {
             BinaryTypeOperator::Division => |a, b| a.wrapping_div(b),
             BinaryTypeOperator::Modulo => |a, b| a.wrapping_rem(b), // % b,
         }
+    }
+
+    fn is_commutative(&self) -> bool {
+        matches!(self, BinaryTypeOperator::Addition | BinaryTypeOperator::Multiplication)
     }
 }
 
