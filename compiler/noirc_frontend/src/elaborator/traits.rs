@@ -106,6 +106,9 @@ impl<'context> Elaborator<'context> {
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
 
+                    // this.recover_generics(|this| {
+
+                    // });
                     this.resolve_trait_function(
                         name,
                         generics,
@@ -119,9 +122,7 @@ impl<'context> Elaborator<'context> {
 
                     let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
                     let return_type = func_meta.return_type().clone();
-                    // dbg!(this.generics.clone());
-                    // dbg!(func_meta.all_generics.clone());
-                    // dbg!(func_meta.direct_generics.clone());
+
                     let generics =
                         vecmap(&this.generics.clone(), |generic| generic.type_var.clone());
 
@@ -149,8 +150,7 @@ impl<'context> Elaborator<'context> {
                         default_impl,
                         default_impl_module_id: unresolved_trait.module_id,
                         trait_constraints: func_meta.trait_constraints.clone(),
-                        // all_generics: func_meta.all_generics.clone(),
-                        all_generics: this.generics.clone(),
+                        all_generics: func_meta.all_generics.clone(),
                     });
                 });
             }
