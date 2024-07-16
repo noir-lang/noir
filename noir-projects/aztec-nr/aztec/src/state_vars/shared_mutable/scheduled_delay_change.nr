@@ -9,7 +9,7 @@ mod test;
 // is performed via `schedule_change` in order to satisfy ScheduleValueChange constraints: if e.g. we allowed for the 
 // delay to be decreased immediately then it'd be possible for the state variable to schedule a value change with a 
 // reduced delay, invalidating prior private reads.
-struct ScheduledDelayChange<INITIAL_DELAY> {
+struct ScheduledDelayChange<let INITIAL_DELAY: u32> {
     // Both pre and post are stored in public storage, so by default they are zeroed. By wrapping them in an Option, 
     // they default to Option::none(), which we detect and replace with INITIAL_DELAY. The end result is that a
     // ScheduledDelayChange that has not been initialized has a delay equal to INITIAL_DELAY, which is the desired
@@ -18,14 +18,11 @@ struct ScheduledDelayChange<INITIAL_DELAY> {
     post: Option<u32>,
     // Block at which `post` value is used instead of `pre`
     block_of_change: u32,
-    // The _dummy variable forces INITIAL_DELAY to be interpreted as a numeric value. This is a workaround to
-    // https://github.com/noir-lang/noir/issues/4633. Remove once resolved.
-    _dummy: [Field; INITIAL_DELAY],
 }
 
-impl<INITIAL_DELAY> ScheduledDelayChange<INITIAL_DELAY> {
+impl<let INITIAL_DELAY: u32> ScheduledDelayChange<INITIAL_DELAY> {
     pub fn new(pre: Option<u32>, post: Option<u32>, block_of_change: u32) -> Self {
-        Self { pre, post, block_of_change, _dummy: [0; INITIAL_DELAY] }
+        Self { pre, post, block_of_change }
     }
 
     /// Returns the current value of the delay stored in the data structure.
@@ -167,7 +164,6 @@ impl<INITIAL_DELAY> Deserialize<1> for ScheduledDelayChange<INITIAL_DELAY> {
             pre: if pre_is_some { Option::some(pre_inner) } else { Option::none() },
             post: if post_is_some { Option::some(post_inner) } else { Option::none() },
             block_of_change,
-            _dummy: [0; INITIAL_DELAY],
         }
     }
 }
