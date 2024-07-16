@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.46.7](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.46.6...barretenberg-v0.46.7) (2024-07-16)
+
+
+### Features
+
+* Point::fromXandSign(...) ([#7455](https://github.com/AztecProtocol/aztec-packages/issues/7455)) ([225c6f6](https://github.com/AztecProtocol/aztec-packages/commit/225c6f623be22a598cf8aeab900e7c72011a6e19))
+
+
+### Bug Fixes
+
+* **avm:** Update generated verifier ([#7492](https://github.com/AztecProtocol/aztec-packages/issues/7492)) ([f1216a7](https://github.com/AztecProtocol/aztec-packages/commit/f1216a7fb8221e0e7311d4e868ca7f9b3b29f2d4))
+
+
+### Miscellaneous
+
+* **avm:** More stats and codegen cleanup ([#7475](https://github.com/AztecProtocol/aztec-packages/issues/7475)) ([1a6c7f2](https://github.com/AztecProtocol/aztec-packages/commit/1a6c7f2521a5955acce290da96b1c233a5c9551a))
+* Included subrelation witness degrees in the relations relevant to zk-sumcheck ([#7479](https://github.com/AztecProtocol/aztec-packages/issues/7479)) ([457a115](https://github.com/AztecProtocol/aztec-packages/commit/457a115ef5adce885a5456359c27db5d179eff34))
+
 ## [0.46.6](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.46.5...barretenberg-v0.46.6) (2024-07-15)
 
 

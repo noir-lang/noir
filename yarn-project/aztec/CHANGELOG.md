@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.46.7](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.46.6...aztec-package-v0.46.7) (2024-07-16)
+
+
+### Features
+
+* Devnet updates ([#7421](https://github.com/AztecProtocol/aztec-packages/issues/7421)) ([103f099](https://github.com/AztecProtocol/aztec-packages/commit/103f099bff964fbc7274f1fa0376ded7047bffe6))
+
+
+### Bug Fixes
+
+* Cli l1-chain-id option ([#7490](https://github.com/AztecProtocol/aztec-packages/issues/7490)) ([307bc57](https://github.com/AztecProtocol/aztec-packages/commit/307bc578d53cd447e96c05590113b9e3953b2709))
+
+
+### Miscellaneous
+
+* Turn on elaborator ([#7451](https://github.com/AztecProtocol/aztec-packages/issues/7451)) ([0599500](https://github.com/AztecProtocol/aztec-packages/commit/059950082f5628174656acf935f5ccd10e27c786))
+
 ## [0.46.6](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.46.5...aztec-package-v0.46.6) (2024-07-15)
 
 

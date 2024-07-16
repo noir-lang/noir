@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.46.7](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.6...aztec-packages-v0.46.7) (2024-07-16)
+
+
+### Features
+
+* Add unconstrained context to txe ([#7448](https://github.com/AztecProtocol/aztec-packages/issues/7448)) ([699fb79](https://github.com/AztecProtocol/aztec-packages/commit/699fb791ad786e88f7c031168c8f1e119cbc94c0))
+* Add unconstrained getters to sharedmutable ([#7429](https://github.com/AztecProtocol/aztec-packages/issues/7429)) ([c0ff566](https://github.com/AztecProtocol/aztec-packages/commit/c0ff566f5d57f7d4422613d02e6e658b6e8151c5))
+* Devnet updates ([#7421](https://github.com/AztecProtocol/aztec-packages/issues/7421)) ([103f099](https://github.com/AztecProtocol/aztec-packages/commit/103f099bff964fbc7274f1fa0376ded7047bffe6))
+* Point::fromXandSign(...) ([#7455](https://github.com/AztecProtocol/aztec-packages/issues/7455)) ([225c6f6](https://github.com/AztecProtocol/aztec-packages/commit/225c6f623be22a598cf8aeab900e7c72011a6e19))
+
+
+### Bug Fixes
+
+* **avm:** Update generated verifier ([#7492](https://github.com/AztecProtocol/aztec-packages/issues/7492)) ([f1216a7](https://github.com/AztecProtocol/aztec-packages/commit/f1216a7fb8221e0e7311d4e868ca7f9b3b29f2d4))
+* Cli l1-chain-id option ([#7490](https://github.com/AztecProtocol/aztec-packages/issues/7490)) ([307bc57](https://github.com/AztecProtocol/aztec-packages/commit/307bc578d53cd447e96c05590113b9e3953b2709))
+* Don't pass secrets to earthly-ci 'publish docs' command ([#7481](https://github.com/AztecProtocol/aztec-packages/issues/7481)) ([a3f6feb](https://github.com/AztecProtocol/aztec-packages/commit/a3f6febfe6520b5c0b8ed43f243e218f9f687887))
+* Fix msg_sender direct call exploit ([#7404](https://github.com/AztecProtocol/aztec-packages/issues/7404)) ([1dcae45](https://github.com/AztecProtocol/aztec-packages/commit/1dcae453bb76a051ec2c499d6ae7612b88f59845))
+* Missing NoteSelector from JSON RPC proxies ([#7493](https://github.com/AztecProtocol/aztec-packages/issues/7493)) ([b209fad](https://github.com/AztecProtocol/aztec-packages/commit/b209fadb740dc98378d9b984ff31c7d32d9a87be))
+* **pxe:** Best effort noir call stack generation ([#7336](https://github.com/AztecProtocol/aztec-packages/issues/7336)) ([0c7459b](https://github.com/AztecProtocol/aztec-packages/commit/0c7459b77b772f0868ba0216ad249cbf2fe4e1ef))
+* Validate gas used ([#7459](https://github.com/AztecProtocol/aztec-packages/issues/7459)) ([6dc7598](https://github.com/AztecProtocol/aztec-packages/commit/6dc7598f95c3f577f7e985174d21c1eff47d2127))
+
+
+### Miscellaneous
+
+* **avm:** More stats and codegen cleanup ([#7475](https://github.com/AztecProtocol/aztec-packages/issues/7475)) ([1a6c7f2](https://github.com/AztecProtocol/aztec-packages/commit/1a6c7f2521a5955acce290da96b1c233a5c9551a))
+* Checking compute_encrypted_note_log  against TS impl ([#7491](https://github.com/AztecProtocol/aztec-packages/issues/7491)) ([1e8a597](https://github.com/AztecProtocol/aztec-packages/commit/1e8a597bb4697f3e6ea216b17fe88df7405bdfbb))
+* Included subrelation witness degrees in the relations relevant to zk-sumcheck ([#7479](https://github.com/AztecProtocol/aztec-packages/issues/7479)) ([457a115](https://github.com/AztecProtocol/aztec-packages/commit/457a115ef5adce885a5456359c27db5d179eff34))
+* Replace relative paths to noir-protocol-circuits ([71960d4](https://github.com/AztecProtocol/aztec-packages/commit/71960d4210545be4c0b844698e0ebb34eb8179db))
+* Turn on elaborator ([#7451](https://github.com/AztecProtocol/aztec-packages/issues/7451)) ([0599500](https://github.com/AztecProtocol/aztec-packages/commit/059950082f5628174656acf935f5ccd10e27c786))
+
 ## [0.46.6](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.5...aztec-packages-v0.46.6) (2024-07-15)
 
 
