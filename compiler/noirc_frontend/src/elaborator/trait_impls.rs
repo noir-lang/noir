@@ -256,7 +256,7 @@ impl<'context> Elaborator<'context> {
                     // We need to account for this by checking against the length of the lists for trait impl generics and trait generics.
                     // It is important to note that trait impl generics are expected to also contain the trait generics,
                     // and that is why we add the trait generics list length before subtracting the trait impl generics length.
-                    if trait_impl_generics_len > trait_generics_len {
+                    if trait_impl_generics_len > trait_generics_len && (method_generic_index + trait_generics_len) >= trait_impl_generics_len {
                         method_generic_index =
                             method_generic_index + trait_generics_len - trait_impl_generics_len;
                     }
