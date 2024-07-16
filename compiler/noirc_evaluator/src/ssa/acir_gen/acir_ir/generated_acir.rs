@@ -293,7 +293,9 @@ impl<F: AcirField> GeneratedAcir<F> {
                 input2: Box::new([inputs[3][0], inputs[4][0], inputs[5][0]]),
                 outputs: (outputs[0], outputs[1], outputs[2]),
             },
-            BlackBoxFunc::Keccak256 =>  unreachable!("unexpected BlackBox {}", func_name.to_string()),
+            BlackBoxFunc::Keccak256 => {
+                unreachable!("unexpected BlackBox {}", func_name.to_string())
+            }
             BlackBoxFunc::Keccakf1600 => BlackBoxFuncCall::Keccakf1600 {
                 inputs: inputs[0]
                     .clone()
