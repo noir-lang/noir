@@ -199,6 +199,35 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Resets the generics of a trait impl's trait constraint type.
+    /// This helps us match the trait constraint type from a trait itself and its trait impl.
+    /// If a type contains named generics, this method will reset the type variable ids
+    /// of those generics based off its position in the actual trait definition's generics.
+    ///
+    /// Example
+    ///
+    /// ```
+    /// trait MyTrait { }
+    /// trait Foo<T> {
+    ///     fn foo_good<U>() where T: MyTrait;
+    ///
+    ///     fn foo_bad<U>() where T: MyTrait;
+    /// }
+    /// impl<A> Foo<A> for () {
+    ///    // Error issued here as `foo` does not have the `MyTrait` constraint
+    ///    fn foo_good<B>() where A: MyTrait {}
+    ///
+    ///     fn foo_bad<B>() where B: MyTrait {}
+    /// ```
+    /// `A` in `A: MyTrait` will have an actual type variable id based upon the global interner current type variable id.
+    /// In the example, above we will have A -> '2. However, we want to compare again T -> '0.
+    /// We can find `A`'s position among the trait generics and reset it to be T -> '0.
+    ///  
+    /// On the flip side, `B` in `B: MyTrait` will be reset to T -> '1.
+    /// This will not match T -> '0 and we can mark that these types are unequal and our impl is stricter than the trait.
+    ///
+    /// The last two fields `trait_impl_generics_len` and `trait_generics_len` are only necessary to account
+    /// for extra impl generics when indexing into the trait definition's generics.
     fn reset_generics_on_constraint_type(
         typ: &Type,
         override_generics: &Generics,
@@ -296,21 +325,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn find_generic_index(target_name: &str, generics: &Generics) -> Option<usize> {
-        let mut generic_index = None;
-        let mut index = 0;
-        for generic in generics.iter() {
-            // if generic.name.as_str() == "Self" {
-            //     continue;
-            // }
-
-            if generic.name.as_str() == target_name {
-                generic_index = Some(index);
-                break;
-            }
-
-            index += 1;
-        }
-        generic_index
+        generics.iter().position(|generic| generic.name.as_str() == target_name)
     }
 
     fn check_trait_impl_crate_coherence(

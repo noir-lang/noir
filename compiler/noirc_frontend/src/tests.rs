@@ -2088,7 +2088,6 @@ fn impl_stricter_than_trait_different_object_generics() {
     "#;
 
     let errors = get_program_errors(src);
-    dbg!(errors.clone());
     assert_eq!(errors.len(), 3);
     if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
         constraint_typ,
@@ -2120,7 +2119,6 @@ fn impl_stricter_than_trait_different_object_generics() {
         ..
     }) = &errors[2].0
     {
-        dbg!(constraint_typ.to_string().as_str());
         assert!(matches!(constraint_typ.to_string().as_str(), "(Option<B>, Option<A>)"));
         assert!(matches!(constraint_name.as_str(), "MyTrait"));
     } else {
