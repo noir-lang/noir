@@ -283,6 +283,7 @@ pub(crate) fn resolve_workspace_for_source_path(
         name: CrateName::from_str(parent_folder)
             .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?,
         dependencies: BTreeMap::new(),
+        expression_width: None,
     };
     let workspace = Workspace {
         root_dir: PathBuf::from(parent_folder),

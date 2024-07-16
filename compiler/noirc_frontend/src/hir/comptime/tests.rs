@@ -78,6 +78,18 @@ fn mutating_mutable_references() {
 }
 
 #[test]
+fn mutation_leaks() {
+    let program = "comptime fn main() -> pub i8 {
+        let mut x = 3;
+        let y = &mut x;
+        *y = 5;
+        x
+    }";
+    let result = interpret(program, vec!["main".into()]);
+    assert_eq!(result, Value::I8(5));
+}
+
+#[test]
 fn mutating_arrays() {
     let program = "comptime fn main() -> pub u8 {
         let mut a1 = [1, 2, 3, 4];

@@ -35,6 +35,7 @@ fn main() {
     generate_noir_test_failure_tests(&mut test_file, &test_dir);
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
     generate_compile_success_contract_tests(&mut test_file, &test_dir);
+    generate_compile_success_no_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 }
 
@@ -318,7 +319,6 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_dir,
             r#"
         nargo.arg("compile").arg("--force");
-        
         nargo.assert().success();"#,
         );
 
@@ -331,6 +331,36 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
         nargo.arg("compile").arg("--force").arg("--use-legacy");
         
         nargo.assert().success();"#,
+        );
+    }
+}
+
+/// Generate tests for checking that the contract compiles and there are no "bugs" in stderr
+fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "compile_success_no_bug";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        generate_test_case(
+            test_file,
+            test_type,
+            &test_name,
+            &test_dir,
+            r#"
+        nargo.arg("compile").arg("--force");
+        nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
+        );
+
+        generate_test_case(
+            test_file,
+            test_type,
+            &format!("legacy_{test_name}"),
+            &test_dir,
+            r#"
+        nargo.arg("compile").arg("--force").arg("--use-legacy");
+        
+        nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
         );
     }
 }
