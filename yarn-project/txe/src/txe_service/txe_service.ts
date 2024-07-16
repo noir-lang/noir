@@ -578,6 +578,7 @@ export class TXEService {
     ivpkMX: ForeignCallSingle,
     ivpkMY: ForeignCallSingle,
     ivpkMIsInfinite: ForeignCallSingle,
+    recipient: ForeignCallSingle,
     preimage: ForeignCallArray,
   ) {
     const ovpkM = new Point(fromSingle(ovpkMX), fromSingle(ovpkMY), !fromSingle(ovpkMIsInfinite).isZero());
@@ -589,6 +590,7 @@ export class TXEService {
       NoteSelector.fromField(Fr.fromString(fromSingle(noteTypeId).toString())),
       ovKeys,
       ivpkM,
+      AztecAddress.fromString(fromSingle(recipient).toString()),
       fromArray(preimage),
     );
     const bytes: Fr[] = [];

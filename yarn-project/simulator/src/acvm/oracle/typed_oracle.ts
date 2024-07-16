@@ -222,6 +222,7 @@ export abstract class TypedOracle {
     _eventTypeId: Fr,
     _ovKeys: KeyValidationRequest,
     _ivpkM: PublicKey,
+    _recipient: AztecAddress,
     _preimage: Fr[],
   ): Buffer {
     throw new OracleMethodNotAvailableError('computeEncryptedEventLog');
@@ -233,6 +234,7 @@ export abstract class TypedOracle {
     _noteTypeId: NoteSelector,
     _ovKeys: KeyValidationRequest,
     _ivpkM: PublicKey,
+    _recipient: AztecAddress,
     _preimage: Fr[],
   ): Buffer {
     throw new OracleMethodNotAvailableError('computeEncryptedNoteLog');

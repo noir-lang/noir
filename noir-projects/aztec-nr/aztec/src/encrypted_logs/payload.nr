@@ -21,14 +21,12 @@ pub fn compute_encrypted_event_log<Event, NB, MB, OB>(
     ovsk_app: Field,
     ovpk: Point,
     ivpk: Point,
+    recipient: AztecAddress,
     event: Event
 ) -> [u8; OB] where Event: EventInterface<NB, MB> {
     // @todo Need to draw randomness from the full domain of Fq not only Fr
     let eph_sk: Scalar = fr_to_fq(unsafe_rand());
     let eph_pk = derive_public_key(eph_sk);
-
-    // TODO: (#7177) This value needs to be populated!
-    let recipient = AztecAddress::from_field(0);
 
     let ivpk_app = compute_ivpk_app(ivpk, contract_address);
 
@@ -78,14 +76,12 @@ pub fn compute_encrypted_note_log<Note, N, NB, M>(
     ovsk_app: Field,
     ovpk: Point,
     ivpk: Point,
+    recipient: AztecAddress,
     note: Note
 ) -> [u8; M] where Note: NoteInterface<N, NB> {
     // @todo Need to draw randomness from the full domain of Fq not only Fr
     let eph_sk: Scalar = fr_to_fq(unsafe_rand());
     let eph_pk = derive_public_key(eph_sk);
-
-    // TODO: (#7177) This value needs to be populated!
-    let recipient = AztecAddress::from_field(0);
 
     let ivpk_app = compute_ivpk_app(ivpk, contract_address);
 

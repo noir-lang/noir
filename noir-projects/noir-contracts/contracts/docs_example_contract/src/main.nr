@@ -196,7 +196,14 @@ contract DocsExample {
 
         for i in 0..amounts.len() {
             let mut note = CardNote::new(amounts[i], 1, msg_sender_npk_m_hash);
-            storage.set.insert(&mut note).emit(encode_and_encrypt_note_with_keys(&mut context, msg_sender_ovpk_m, msg_sender_ivpk_m));
+            storage.set.insert(&mut note).emit(
+                encode_and_encrypt_note_with_keys(
+                    &mut context,
+                    msg_sender_ovpk_m,
+                    msg_sender_ivpk_m,
+                    context.msg_sender()
+                )
+            );
         }
     }
 

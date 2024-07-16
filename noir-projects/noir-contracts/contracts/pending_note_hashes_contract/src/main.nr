@@ -359,7 +359,7 @@ contract PendingNoteHashes {
         let existing_note_header = good_note.get_header();
         bad_note.set_header(existing_note_header);
 
-        NoteEmission::new(bad_note).emit(encode_and_encrypt_note_with_keys(&mut context, outgoing_viewer_ovpk_m, owner_ivpk_m));
+        NoteEmission::new(bad_note).emit(encode_and_encrypt_note_with_keys(&mut context, outgoing_viewer_ovpk_m, owner_ivpk_m, owner));
     }
 
     #[contract_library_method]
@@ -377,7 +377,7 @@ contract PendingNoteHashes {
 
         for i in 0..max_notes_per_call() {
             let mut note = ValueNote::new(i as Field, owner_npk_m_hash);
-            owner_balance.insert(&mut note).emit(encode_and_encrypt_note_with_keys(context, outgoing_viewer_ovpk_m, owner_ivpk_m));
+            owner_balance.insert(&mut note).emit(encode_and_encrypt_note_with_keys(context, outgoing_viewer_ovpk_m, owner_ivpk_m, owner));
         }
     }
 

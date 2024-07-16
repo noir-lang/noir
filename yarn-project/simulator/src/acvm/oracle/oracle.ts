@@ -340,6 +340,7 @@ export class Oracle {
     [ivpkMX]: ACVMField[],
     [ivpkMY]: ACVMField[],
     [ivpkMIsInfinite]: ACVMField[],
+    [recipient]: ACVMField[],
     preimage: ACVMField[],
   ): ACVMField[] {
     const ovpkM = new Point(fromACVMField(ovpkMX), fromACVMField(ovpkMY), !fromACVMField(ovpkMIsInfinite).isZero());
@@ -351,6 +352,7 @@ export class Oracle {
       Fr.fromString(eventTypeId),
       ovKeys,
       ivpkM,
+      AztecAddress.fromString(recipient),
       preimage.map(fromACVMField),
     );
     const bytes: ACVMField[] = [];
@@ -371,6 +373,7 @@ export class Oracle {
     [ivpkMX]: ACVMField[],
     [ivpkMY]: ACVMField[],
     [ivpkMIsInfinite]: ACVMField[],
+    [recipient]: ACVMField[],
     preimage: ACVMField[],
   ): ACVMField[] {
     const ovpkM = new Point(fromACVMField(ovpkMX), fromACVMField(ovpkMY), !fromACVMField(ovpkMIsInfinite).isZero());
@@ -382,6 +385,7 @@ export class Oracle {
       NoteSelector.fromField(Fr.fromString(noteTypeId)),
       ovKeys,
       ivpkM,
+      AztecAddress.fromString(recipient),
       preimage.map(fromACVMField),
     );
     const bytes: ACVMField[] = [];

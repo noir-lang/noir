@@ -13,9 +13,18 @@ unconstrained fn compute_unconstrained<Note, N, NB, M>(
     ovsk_app: Field,
     ovpk: Point,
     ivpk: Point,
+    recipient: AztecAddress,
     note: Note
 ) -> ([u8; M], Field) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
-    compute(contract_address, storage_slot, ovsk_app, ovpk, ivpk, note)
+    compute(
+        contract_address,
+        storage_slot,
+        ovsk_app,
+        ovpk,
+        ivpk,
+        recipient,
+        note
+    )
 }
 
 fn compute<Note, N, NB, M>(
@@ -24,9 +33,18 @@ fn compute<Note, N, NB, M>(
     ovsk_app: Field,
     ovpk: Point,
     ivpk: Point,
+    recipient: AztecAddress,
     note: Note
 ) -> ([u8; M], Field) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
-    let encrypted_log: [u8; M] = compute_encrypted_note_log(contract_address, storage_slot, ovsk_app, ovpk, ivpk, note);
+    let encrypted_log: [u8; M] = compute_encrypted_note_log(
+        contract_address,
+        storage_slot,
+        ovsk_app,
+        ovpk,
+        ivpk,
+        recipient,
+        note
+    );
     let log_hash = sha256_to_field(encrypted_log);
     (encrypted_log, log_hash)
 }
@@ -36,7 +54,8 @@ fn emit_with_keys<Note, N, NB, M>(
     note: Note,
     ovpk: Point,
     ivpk: Point,
-    inner_compute: fn(AztecAddress, Field, Field, Point, Point, Note) -> ([u8; M], Field)
+    recipient: AztecAddress,
+    inner_compute: fn(AztecAddress, Field, Field, Point, Point, AztecAddress, Note) -> ([u8; M], Field)
 ) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     let note_header = note.get_header();
     let note_hash_counter = note_header.note_hash_counter;
@@ -53,7 +72,15 @@ fn emit_with_keys<Note, N, NB, M>(
     let contract_address: AztecAddress = context.this_address();
     let ovsk_app: Field  = context.request_ovsk_app(ovpk.hash());
 
-    let (encrypted_log, log_hash) = inner_compute(contract_address, storage_slot, ovsk_app, ovpk, ivpk, note);
+    let (encrypted_log, log_hash) = inner_compute(
+        contract_address,
+        storage_slot,
+        ovsk_app,
+        ovpk,
+        ivpk,
+        recipient,
+        note
+    );
 
     context.emit_raw_note_log(note_hash_counter, encrypted_log, log_hash);
 }
@@ -67,7 +94,7 @@ pub fn encode_and_encrypt_note<Note, N, NB, M>(
         let header = context.get_header();
         let ovpk = header.get_ovpk_m(context, ov);
         let ivpk = header.get_ivpk_m(context, iv);
-        emit_with_keys(context, e.note, ovpk, ivpk, compute);
+        emit_with_keys(context, e.note, ovpk, ivpk, iv, compute);
     }
 }
 
@@ -80,26 +107,28 @@ pub fn encode_and_encrypt_note_unconstrained<Note, N, NB, M>(
         let header = context.get_header();
         let ovpk = header.get_ovpk_m(context, ov);
         let ivpk = header.get_ivpk_m(context, iv);
-        emit_with_keys(context, e.note, ovpk, ivpk, compute_unconstrained);
+        emit_with_keys(context, e.note, ovpk, ivpk, iv, compute_unconstrained);
     }
 }
 
 pub fn encode_and_encrypt_note_with_keys<Note, N, NB, M>(
     context: &mut PrivateContext,
     ovpk: Point,
-    ivpk: Point
-) -> fn[(&mut PrivateContext, Point, Point)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
+    ivpk: Point,
+    recipient: AztecAddress
+) -> fn[(&mut PrivateContext, Point, Point, AztecAddress)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     | e: NoteEmission<Note> | {
-        emit_with_keys(context, e.note, ovpk, ivpk, compute);
+        emit_with_keys(context, e.note, ovpk, ivpk, recipient, compute);
     }
 }
 
 pub fn encode_and_encrypt_note_with_keys_unconstrained<Note, N, NB, M>(
     context: &mut PrivateContext,
     ovpk: Point,
-    ivpk: Point
-) -> fn[(&mut PrivateContext, Point, Point)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
+    ivpk: Point,
+    recipient: AztecAddress
+) -> fn[(&mut PrivateContext, Point, Point, AztecAddress)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     | e: NoteEmission<Note> | {
-        emit_with_keys(context, e.note, ovpk, ivpk, compute_unconstrained);
+        emit_with_keys(context, e.note, ovpk, ivpk, recipient, compute_unconstrained);
     }
 }

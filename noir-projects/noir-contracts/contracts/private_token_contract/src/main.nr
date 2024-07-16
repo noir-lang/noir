@@ -123,8 +123,8 @@ contract PrivateToken {
         let to_npk_m_hash = header.get_npk_m_hash(&mut context, to);
 
         let amount = U128::from_integer(amount);
-        storage.balances.sub(from_npk_m_hash, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, from_ivpk));
-        storage.balances.add(to_npk_m_hash, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, to_ivpk));
+        storage.balances.sub(from_npk_m_hash, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, from_ivpk, from));
+        storage.balances.add(to_npk_m_hash, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, to_ivpk, to));
     }
 
     #[aztec(private)]
@@ -138,8 +138,8 @@ contract PrivateToken {
         let to_npk_m_hash = header.get_npk_m_hash(&mut context, to);
 
         let amount = U128::from_integer(amount);
-        storage.balances.sub(from_npk_m_hash, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, from_ivpk));
-        storage.balances.add(to_npk_m_hash, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, to_ivpk));
+        storage.balances.sub(from_npk_m_hash, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, from_ivpk, from));
+        storage.balances.add(to_npk_m_hash, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, to_ivpk, to));
     }
 
     #[aztec(private)]
@@ -175,7 +175,7 @@ contract PrivateToken {
         // (called fee limit in aztec spec). The difference between fee limit and the actual tx fee will be refunded 
         // to the user in the `complete_refund(...)` function.
         // TODO(#7324), TODO(#7323): using npk_m_hash here is vulnerable in 2 ways described in the linked issues.
-        storage.balances.sub(user_npk_m_hash, U128::from_integer(funded_amount)).emit(encode_and_encrypt_note_with_keys(&mut context, user_ovpk, user_ivpk));
+        storage.balances.sub(user_npk_m_hash, U128::from_integer(funded_amount)).emit(encode_and_encrypt_note_with_keys(&mut context, user_ovpk, user_ivpk, user));
 
         // 4. We generate the refund points.
         let (fee_payer_point, user_point) = TokenNote::generate_refund_points(

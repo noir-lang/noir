@@ -277,7 +277,8 @@ contract Test {
                 // testing only - a secret random value is passed in here to salt / mask the address
                 5,
                 outgoing_viewer_ovpk_m,
-                owner_ivpk_m
+                owner_ivpk_m,
+                owner
             )
         );
 
@@ -294,7 +295,8 @@ contract Test {
                     // testing only - a randomness of 0 signals the kerels to not mask the address
                     0,
                     outgoing_viewer_ovpk_m,
-                    owner_ivpk_m
+                    owner_ivpk_m,
+                    owner
                 )
             );
         }
