@@ -42,7 +42,7 @@ pub struct TracingContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     /// The source location at the current moment of tracing.
     source_locations: Vec<SourceLocation>,
     /// The stack trace at the current moment; last call is last in the vector.
-    stack_trace: Vec<StackFrame>,
+    stack_frames: Vec<StackFrame>,
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
@@ -64,7 +64,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             unconstrained_functions,
         );
 
-        Self { debug_context, source_locations: vec![], stack_trace: vec![] }
+        Self { debug_context, source_locations: vec![], stack_frames: vec![] }
     }
 
     /// Steps the debugger until a new line is reached, or the debugger returns anything other than
@@ -105,9 +105,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
 
     /// Propagates information about the current execution state to `tracer`.
     fn update_record(&mut self, tracer: &mut Tracer, source_locations: &Vec<SourceLocation>) {
-        let stack_trace = get_stack_frames(&self.debug_context);
+        let stack_frames = get_stack_frames(&self.debug_context);
         let (first_nomatch, dropped_frames, new_frames) =
-            tail_diff_vecs(&self.stack_trace, &stack_trace);
+            tail_diff_vecs(&self.stack_frames, &stack_frames);
 
         for _ in dropped_frames {
             register_return(tracer);
@@ -117,12 +117,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             register_call(tracer, &source_locations[first_nomatch + i], new_frames[i]);
         }
 
-        self.stack_trace = stack_trace;
+        self.stack_frames = stack_frames;
 
         let (_, _, new_source_locations) = tail_diff_vecs(&self.source_locations, source_locations);
         for location in new_source_locations {
             register_step(tracer, location);
-            if let Some(last_frame) = &self.stack_trace.last() {
+            if let Some(last_frame) = &self.stack_frames.last() {
                 register_variables(tracer, last_frame);
             }
         }

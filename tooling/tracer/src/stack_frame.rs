@@ -5,6 +5,10 @@ use noirc_printable_type::{PrintableType, PrintableValue};
 #[derive(Clone, Debug)]
 pub(crate) struct StackFrame {
     pub(crate) function_name: String,
+    /// The param indexes are used to address the `variables` vector; they indicate which of the
+    /// variables in the stack frame are parameters.
+    pub(crate) function_param_indexes: Vec<usize>,
+    /// A sorted vector of the frame variables. Not enforced, so beware of bugs.
     pub(crate) variables: Vec<Variable>,
 }
 

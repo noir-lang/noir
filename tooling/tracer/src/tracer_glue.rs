@@ -3,7 +3,7 @@ use crate::{stack_frame::Variable, SourceLocation, StackFrame};
 use acvm::acir::AcirField; // necessary, for `to_i128` to work
 use acvm::FieldElement;
 use noirc_printable_type::{PrintableType, PrintableValue};
-use runtime_tracing::{Line, Tracer, ValueRecord};
+use runtime_tracing::{FullValueRecord, Line, Tracer, ValueRecord};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
@@ -19,9 +19,7 @@ pub(crate) fn register_step(tracer: &mut Tracer, location: &SourceLocation) {
 /// registered, all of its variables need to be registered too. If no variables are registered for a
 /// step, the frontend will not carry over the variables registered for the previous step.
 pub(crate) fn register_variables(tracer: &mut Tracer, frame: &StackFrame) {
-    let mut variables = frame.variables.clone();
-    variables.sort();
-    for variable in &variables {
+    for variable in &frame.variables {
         register_variable(tracer, variable);
     }
 }
@@ -85,7 +83,21 @@ pub(crate) fn register_call(tracer: &mut Tracer, location: &SourceLocation, fram
     let path = &PathBuf::from(filepath.to_string());
     let line = Line(*line_number as i64);
     let file_id = tracer.ensure_function_id(&frame.function_name, path, line);
-    tracer.register_call(file_id, vec![]);
+    let args = convert_params_to_args_vec(tracer, frame);
+    tracer.register_call(file_id, args);
+}
+
+/// Extracts the relevant information from the given `frame` to construct a vector of `ArgRecord`
+/// that the `Tracer` interface expects when registering function calls.
+fn convert_params_to_args_vec(tracer: &mut Tracer, frame: &StackFrame) -> Vec<FullValueRecord> {
+    let mut result = Vec::new();
+    for param_index in &frame.function_param_indexes {
+        let variable = &frame.variables[*param_index];
+        // TODO(stanm): maybe don't duplicate values?
+        let value_record = register_value(tracer, &variable.value, &variable.typ);
+        result.push(tracer.arg(&variable.name, value_record));
+    }
+    result
 }
 
 /// Register a return statement in the given `tracer`.
