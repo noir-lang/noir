@@ -1,17 +1,62 @@
 #![cfg(test)]
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
 
+use fm::{FileId, FileManager};
+use noirc_arena::Index;
 use noirc_errors::Location;
 
 use super::errors::InterpreterError;
 use super::interpreter::Interpreter;
 use super::value::Value;
+use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
-use crate::hir::type_check::test::type_check_src_code;
+use crate::hir::def_collector::dc_crate::DefCollector;
+use crate::hir::def_collector::dc_mod::collect_defs;
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
+use crate::hir::{Context, ParsedFiles};
+use crate::macros_api::NodeInterner;
+use crate::node_interner::FuncId;
+use crate::parser::parse_program;
 
-fn interpret_helper(src: &str, func_namespace: Vec<String>) -> Result<Value, InterpreterError> {
-    let (mut interner, main_id) = type_check_src_code(src, func_namespace);
+fn elaborate_src_code(src: &str) -> (NodeInterner, FuncId) {
+    let file = FileId::default();
+
+    // Can't use Index::test_new here for some reason, even with #[cfg(test)].
+    let module_id = LocalModuleId(Index::unsafe_zeroed());
+    let mut modules = noirc_arena::Arena::default();
+    let location = Location::new(Default::default(), file);
+    let root = LocalModuleId(modules.insert(ModuleData::new(None, location, false)));
+    assert_eq!(root, module_id);
+
+    let file_manager = FileManager::new(&PathBuf::new());
+    let parsed_files = ParsedFiles::new();
+    let mut context = Context::new(file_manager, parsed_files);
+    context.def_interner.populate_dummy_operator_traits();
+
+    let krate = context.crate_graph.add_crate_root(FileId::dummy());
+
+    let (module, errors) = parse_program(src);
+    assert_eq!(errors.len(), 0);
+    let ast = module.into_sorted();
+
+    let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
+    let mut collector = DefCollector::new(def_map);
+
+    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context, &[]);
+    context.def_maps.insert(krate, collector.def_map);
+
+    let errors = Elaborator::elaborate(&mut context, krate, collector.items, None);
+    assert_eq!(errors.len(), 0);
+
+    let main = context.get_main_function(&krate).expect("Expected 'main' function");
+
+    (context.def_interner, main)
+}
+
+fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
+    let (mut interner, main_id) = elaborate_src_code(src);
     let mut scopes = vec![HashMap::default()];
     let no_debug_evaluate_comptime = None;
     let mut interpreter_errors = vec![];
@@ -27,20 +72,20 @@ fn interpret_helper(src: &str, func_namespace: Vec<String>) -> Result<Value, Int
     interpreter.call_function(main_id, Vec::new(), HashMap::new(), no_location)
 }
 
-fn interpret(src: &str, func_namespace: Vec<String>) -> Value {
-    interpret_helper(src, func_namespace).unwrap_or_else(|error| {
+fn interpret(src: &str) -> Value {
+    interpret_helper(src).unwrap_or_else(|error| {
         panic!("Expected interpreter to exit successfully, but found {error:?}")
     })
 }
 
-fn interpret_expect_error(src: &str, func_namespace: Vec<String>) -> InterpreterError {
-    interpret_helper(src, func_namespace).expect_err("Expected interpreter to error")
+fn interpret_expect_error(src: &str) -> InterpreterError {
+    interpret_helper(src).expect_err("Expected interpreter to error")
 }
 
 #[test]
 fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::Field(3u128.into()));
 }
 
@@ -51,7 +96,7 @@ fn mutation_works() {
         x = 4;
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::I8(4));
 }
 
@@ -62,7 +107,7 @@ fn mutating_references() {
         *x = 4;
         *x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::I32(4));
 }
 
@@ -73,7 +118,7 @@ fn mutating_mutable_references() {
         *x = 4;
         *x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::I64(4));
 }
 
@@ -85,7 +130,7 @@ fn mutation_leaks() {
         *y = 5;
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::I8(5));
 }
 
@@ -96,7 +141,7 @@ fn mutating_arrays() {
         a1[1] = 22;
         a1[1]
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U8(22));
 }
 
@@ -110,7 +155,7 @@ fn mutate_in_new_scope() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U8(2));
 }
 
@@ -123,7 +168,7 @@ fn for_loop() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U8(15));
 }
 
@@ -136,7 +181,7 @@ fn for_loop_u16() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U16(15));
 }
 
@@ -152,7 +197,7 @@ fn for_loop_with_break() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U32(6));
 }
 
@@ -168,7 +213,7 @@ fn for_loop_with_continue() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U64(11));
 }
 
@@ -177,7 +222,7 @@ fn assert() {
     let program = "comptime fn main() {
         assert(1 == 1);
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::Unit);
 }
 
@@ -186,7 +231,7 @@ fn assert_fail() {
     let program = "comptime fn main() {
         assert(1 == 2);
     }";
-    let result = interpret_expect_error(program, vec!["main".into()]);
+    let result = interpret_expect_error(program);
     assert!(matches!(result, InterpreterError::FailingConstraint { .. }));
 }
 
@@ -196,7 +241,7 @@ fn lambda() {
         let f = |x: u8| x + 1;
         f(1)
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert!(matches!(result, Value::U8(2)));
 }
 
@@ -214,21 +259,21 @@ fn non_deterministic_recursion() {
             fib(x - 1) + fib(x - 2)
         }
     }";
-    let result = interpret(program, vec!["main".into(), "fib".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U64(55));
 }
 
 #[test]
 fn generic_functions() {
     let program = "
-    fn main() -> pub u8 {
+    comptime fn main() -> pub u8 {
         apply(1, |x| x + 1)
     }
 
-    fn apply<T, Env, U>(x: T, f: fn[Env](T) -> U) -> U {
+    comptime fn apply<T, Env, U>(x: T, f: fn[Env](T) -> U) -> U {
         f(x)
     }
     ";
-    let result = interpret(program, vec!["main".into(), "apply".into()]);
+    let result = interpret(program);
     assert!(matches!(result, Value::U8(2)));
 }
