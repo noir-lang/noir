@@ -1,6 +1,7 @@
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
+use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -19,7 +20,7 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
+            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
             HirPrefixExpression,
         },
@@ -28,7 +29,7 @@ use crate::{
             HirPattern,
         },
     },
-    macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
+    macros_api::{HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
@@ -51,6 +52,10 @@ pub struct Interpreter<'interner> {
 
     crate_id: CrateId,
 
+    /// The scope of --debug-comptime, or None if unset
+    pub(super) debug_comptime_in_file: Option<FileId>,
+    pub(super) debug_comptime_evaluations: &'interner mut Vec<InterpreterError>,
+
     in_loop: bool,
 }
 
@@ -60,8 +65,17 @@ impl<'a> Interpreter<'a> {
         interner: &'a mut NodeInterner,
         scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
         crate_id: CrateId,
+        debug_comptime_in_file: Option<FileId>,
+        debug_comptime_evaluations: &'a mut Vec<InterpreterError>,
     ) -> Self {
-        Self { interner, scopes, crate_id, in_loop: false }
+        Self {
+            interner,
+            scopes,
+            crate_id,
+            debug_comptime_in_file,
+            debug_comptime_evaluations,
+            in_loop: false,
+        }
     }
 
     pub(crate) fn call_function(
@@ -227,6 +241,8 @@ impl<'a> Interpreter<'a> {
                 Ok(())
             }
             HirPattern::Mutable(pattern, _) => {
+                // Create a mutable reference to store to
+                let argument = Value::Pointer(Shared::new(argument), true);
                 self.define_pattern(pattern, typ, argument, location)
             }
             HirPattern::Tuple(pattern_fields, _) => match (argument, typ) {
@@ -320,8 +336,19 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    /// Evaluate an expression and return the result
+    /// Evaluate an expression and return the result.
+    /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+        match self.evaluate_no_dereference(id)? {
+            Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
+            other => Ok(other),
+        }
+    }
+
+    /// Evaluating a mutable variable will dereference it automatically.
+    /// This function should be used when that is not desired - e.g. when
+    /// compiling a `&mut var` expression to grab the original reference.
+    fn evaluate_no_dereference(&mut self, id: ExprId) -> IResult<Value> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
@@ -578,7 +605,10 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
-        let rhs = self.evaluate(prefix.rhs)?;
+        let rhs = match prefix.operator {
+            UnaryOp::MutableReference => self.evaluate_no_dereference(prefix.rhs)?,
+            _ => self.evaluate(prefix.rhs)?,
+        };
         self.evaluate_prefix_with_value(rhs, prefix.operator, id)
     }
 
@@ -620,9 +650,17 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
                 }
             },
-            UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
+            UnaryOp::MutableReference => {
+                // If this is a mutable variable (auto_deref = true), turn this into an explicit
+                // mutable reference just by switching the value of `auto_deref`. Otherwise, wrap
+                // the value in a fresh reference.
+                match rhs {
+                    Value::Pointer(elem, true) => Ok(Value::Pointer(elem, false)),
+                    other => Ok(Value::Pointer(Shared::new(other), false)),
+                }
+            }
             UnaryOp::Dereference { implicitly_added: _ } => match rhs {
-                Value::Pointer(element) => Ok(element.borrow().clone()),
+                Value::Pointer(element, _) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.interner.expr_location(&id);
                     Err(InterpreterError::NonPointerDereferenced { value, location })
@@ -1289,7 +1327,7 @@ impl<'a> Interpreter<'a> {
             HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(&lvalue)? {
-                    Value::Pointer(value) => {
+                    Value::Pointer(value, _) => {
                         *value.borrow_mut() = rhs;
                         Ok(())
                     }
@@ -1339,10 +1377,13 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_lvalue(&mut self, lvalue: &HirLValue) -> IResult<Value> {
         match lvalue {
-            HirLValue::Ident(ident, _) => self.lookup(ident),
+            HirLValue::Ident(ident, _) => match self.lookup(ident)? {
+                Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
+                other => Ok(other),
+            },
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(lvalue)? {
-                    Value::Pointer(value) => Ok(value.borrow().clone()),
+                    Value::Pointer(value, _) => Ok(value.borrow().clone()),
                     value => {
                         Err(InterpreterError::NonPointerDereferenced { value, location: *location })
                     }

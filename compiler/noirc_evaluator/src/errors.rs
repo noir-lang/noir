@@ -19,8 +19,6 @@ use serde::{Deserialize, Serialize};
 pub enum RuntimeError {
     #[error(transparent)]
     InternalError(#[from] InternalError),
-    #[error("Index out of bounds, array has size {array_size}, but index was {index}")]
-    IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
     #[error("The value `{value:?}` cannot fit into `{typ}` which has range `{range}`")]
@@ -145,7 +143,6 @@ impl RuntimeError {
                 | InternalError::UndeclaredAcirVar { call_stack }
                 | InternalError::Unexpected { call_stack, .. },
             )
-            | RuntimeError::IndexOutOfBounds { call_stack, .. }
             | RuntimeError::InvalidRangeConstraint { call_stack, .. }
             | RuntimeError::TypeConversion { call_stack, .. }
             | RuntimeError::UnInitialized { call_stack, .. }

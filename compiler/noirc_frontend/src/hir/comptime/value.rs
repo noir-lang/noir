@@ -8,12 +8,13 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
+    hir::def_map::ModuleId,
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
         StructId,
     },
-    node_interner::{ExprId, FuncId},
+    node_interner::{ExprId, FuncId, TraitId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type, TypeBindings,
@@ -40,11 +41,14 @@ pub enum Value {
     Closure(HirLambda, Vec<Value>, Type),
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
-    Pointer(Shared<Value>),
+    Pointer(Shared<Value>, /* auto_deref */ bool),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
     Code(Rc<Tokens>),
     StructDefinition(StructId),
+    TraitDefinition(TraitId),
+    FunctionDefinition(FuncId),
+    ModuleDefinition(ModuleId),
 }
 
 impl Value {
@@ -75,10 +79,13 @@ impl Value {
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Code(_) => Type::Quoted(QuotedType::Quoted),
             Value::StructDefinition(_) => Type::Quoted(QuotedType::StructDefinition),
-            Value::Pointer(element) => {
+            Value::Pointer(element, _) => {
                 let element = element.borrow().get_type().into_owned();
                 Type::MutableReference(Box::new(element))
             }
+            Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
+            Value::FunctionDefinition(_) => Type::Quoted(QuotedType::FunctionDefinition),
+            Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
         })
     }
 
@@ -192,7 +199,11 @@ impl Value {
                     }
                 };
             }
-            Value::Pointer(_) | Value::StructDefinition(_) => {
+            Value::Pointer(..)
+            | Value::StructDefinition(_)
+            | Value::TraitDefinition(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -298,7 +309,11 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
-            Value::Pointer(_) | Value::StructDefinition(_) => {
+            Value::Pointer(..)
+            | Value::StructDefinition(_)
+            | Value::TraitDefinition(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -385,7 +400,7 @@ impl Display for Value {
                 let fields = vecmap(fields, |(name, value)| format!("{}: {}", name, value));
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
-            Value::Pointer(value) => write!(f, "&mut {}", value.borrow()),
+            Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow()),
             Value::Array(values, _) => {
                 let values = vecmap(values, ToString::to_string);
                 write!(f, "[{}]", values.join(", "))
@@ -402,6 +417,9 @@ impl Display for Value {
                 write!(f, " }}")
             }
             Value::StructDefinition(_) => write!(f, "(struct definition)"),
+            Value::TraitDefinition(_) => write!(f, "(trait definition)"),
+            Value::FunctionDefinition(_) => write!(f, "(function definition)"),
+            Value::ModuleDefinition(_) => write!(f, "(module)"),
         }
     }
 }

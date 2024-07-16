@@ -7,7 +7,7 @@ use crate::{
     ast::{
         FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
     },
-    hir::def_collector::dc_crate::UnresolvedTrait,
+    hir::def_collector::dc_crate::{CollectedItems, UnresolvedTrait},
     hir_def::traits::{TraitConstant, TraitFunction, TraitType},
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
@@ -21,7 +21,11 @@ use crate::{
 use super::Elaborator;
 
 impl<'context> Elaborator<'context> {
-    pub fn collect_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
+    pub fn collect_traits(
+        &mut self,
+        traits: BTreeMap<TraitId, UnresolvedTrait>,
+        generated_items: &mut CollectedItems,
+    ) {
         for (trait_id, unresolved_trait) in traits {
             self.recover_generics(|this| {
                 let resolved_generics = this.interner.get_trait(trait_id).generics.clone();
@@ -41,13 +45,19 @@ impl<'context> Elaborator<'context> {
                 this.interner.update_trait(trait_id, |trait_def| {
                     trait_def.set_methods(methods);
                 });
+
+                let attributes = &unresolved_trait.trait_def.attributes;
+                let item = crate::hir::comptime::Value::TraitDefinition(trait_id);
+                let span = unresolved_trait.trait_def.span;
+                this.run_comptime_attributes_on_item(attributes, item, span, generated_items);
             });
 
             // This check needs to be after the trait's methods are set since
             // the interner may set `interner.ordering_type` based on the result type
             // of the Cmp trait, if this is it.
             if self.crate_id.is_stdlib() {
-                self.interner.try_add_operator_trait(trait_id);
+                self.interner.try_add_infix_operator_trait(trait_id);
+                self.interner.try_add_prefix_operator_trait(trait_id);
             }
         }
     }

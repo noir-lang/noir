@@ -1,5 +1,6 @@
 use chumsky::prelude::*;
 
+use super::attributes::{attributes, validate_secondary_attributes};
 use super::function::function_return_type;
 use super::{block, expression, fresh_statement, function, function_declaration_parameters};
 
@@ -18,15 +19,24 @@ use crate::{
 use super::{generic_type_args, parse_type, path, primitives::ident};
 
 pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Trait)
-        .ignore_then(ident())
+    attributes()
+        .then_ignore(keyword(Keyword::Trait))
+        .then(ident())
         .then(function::generics())
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
-        .map_with_span(|(((name, generics), where_clause), items), span| {
-            TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
+        .validate(|((((attributes, name), generics), where_clause), items), span, emit| {
+            let attributes = validate_secondary_attributes(attributes, span, emit);
+            TopLevelStatement::Trait(NoirTrait {
+                name,
+                generics,
+                where_clause,
+                span,
+                items,
+                attributes,
+            })
         })
 }
 

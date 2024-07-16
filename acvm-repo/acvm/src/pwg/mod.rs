@@ -5,9 +5,10 @@ use std::collections::HashMap;
 use acir::{
     brillig::ForeignCallResult,
     circuit::{
-        brillig::BrilligBytecode, opcodes::BlockId, AssertionPayload, ErrorSelector,
-        ExpressionOrMemory, Opcode, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
-        STRING_ERROR_SELECTOR,
+        brillig::BrilligBytecode,
+        opcodes::{BlockId, ConstantOrWitnessEnum, FunctionInput},
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
+        RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
     },
     native_types::{Expression, Witness, WitnessMap},
     AcirField, BlackBoxFunc,
@@ -626,6 +627,16 @@ pub fn witness_to_value<F>(
     match initial_witness.get(&witness) {
         Some(value) => Ok(value),
         None => Err(OpcodeNotSolvable::MissingAssignment(witness.0).into()),
+    }
+}
+
+pub fn input_to_value<F: AcirField>(
+    initial_witness: &WitnessMap<F>,
+    input: FunctionInput<F>,
+) -> Result<F, OpcodeResolutionError<F>> {
+    match input.input {
+        ConstantOrWitnessEnum::Witness(witness) => Ok(*witness_to_value(initial_witness, witness)?),
+        ConstantOrWitnessEnum::Constant(value) => Ok(value),
     }
 }
 

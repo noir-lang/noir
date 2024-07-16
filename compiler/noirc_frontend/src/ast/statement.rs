@@ -299,6 +299,7 @@ pub enum PathKind {
     Crate,
     Dep,
     Plain,
+    Super,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -748,6 +749,7 @@ impl Display for PathKind {
         match self {
             PathKind::Crate => write!(f, "crate"),
             PathKind::Dep => write!(f, "dep"),
+            PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
         }
     }

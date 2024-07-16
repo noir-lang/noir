@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
+use std::marker::Copy;
 use std::ops::Deref;
 
 use fm::FileId;
@@ -18,6 +19,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::macros_api::UnaryOp;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -41,6 +43,13 @@ use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeV
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
+
+#[derive(Debug)]
+pub struct ModuleAttributes {
+    pub name: String,
+    pub location: Location,
+    pub parent: LocalModuleId,
+}
 
 type StructAttributes = Vec<SecondaryAttribute>;
 
@@ -66,7 +75,7 @@ pub struct NodeInterner {
     function_modules: HashMap<FuncId, ModuleId>,
 
     // The location of each module
-    module_locations: HashMap<ModuleId, Location>,
+    module_attributes: HashMap<ModuleId, ModuleAttributes>,
 
     /// This graph tracks dependencies between different global definitions.
     /// This is used to ensure the absence of dependency cycles for globals and types.
@@ -139,8 +148,11 @@ pub struct NodeInterner {
     /// the context to get the concrete type of the object and select the correct impl itself.
     selected_trait_implementations: HashMap<ExprId, TraitImplKind>,
 
-    /// Holds the trait ids of the traits used for operator overloading
-    operator_traits: HashMap<BinaryOpKind, TraitId>,
+    /// Holds the trait ids of the traits used for infix operator overloading
+    infix_operator_traits: HashMap<BinaryOpKind, TraitId>,
+
+    /// Holds the trait ids of the traits used for prefix operator overloading
+    prefix_operator_traits: HashMap<UnaryOp, TraitId>,
 
     /// The `Ordering` type is a semi-builtin type that is the result of the comparison traits.
     ordering_type: Option<Type>,
@@ -195,7 +207,7 @@ pub struct NodeInterner {
     /// Edges are directed from reference nodes to referenced nodes.
     /// For example:
     ///
-    /// ```
+    /// ```text
     /// let foo = 3;
     /// //  referenced
     /// //   ^
@@ -214,6 +226,10 @@ pub struct NodeInterner {
 
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
+
+    // The module where each reference is
+    // (ReferenceId::Reference and ReferenceId::Local aren't included here)
+    pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -241,16 +257,18 @@ pub enum DependencyId {
 pub enum ReferenceId {
     Module(ModuleId),
     Struct(StructId),
+    StructMember(StructId, usize),
     Trait(TraitId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
-    Variable(Location, bool /* is Self */),
+    Local(DefinitionId),
+    Reference(Location, bool /* is Self */),
 }
 
 impl ReferenceId {
     pub fn is_self_type_name(&self) -> bool {
-        matches!(self, Self::Variable(_, true))
+        matches!(self, Self::Reference(_, true))
     }
 }
 
@@ -546,7 +564,7 @@ impl Default for NodeInterner {
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
-            module_locations: HashMap::new(),
+            module_attributes: HashMap::new(),
             func_id_to_trait: HashMap::new(),
             dependency_graph: petgraph::graph::DiGraph::new(),
             dependency_graph_indices: HashMap::new(),
@@ -562,7 +580,8 @@ impl Default for NodeInterner {
             next_trait_implementation_id: 0,
             trait_implementation_map: HashMap::new(),
             selected_trait_implementations: HashMap::new(),
-            operator_traits: HashMap::new(),
+            infix_operator_traits: HashMap::new(),
+            prefix_operator_traits: HashMap::new(),
             ordering_type: None,
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
@@ -578,6 +597,7 @@ impl Default for NodeInterner {
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::new(),
+            reference_modules: HashMap::new(),
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -836,12 +856,19 @@ impl NodeInterner {
         location: Location,
     ) -> DefinitionId {
         let id = DefinitionId(self.definitions.len());
+        let is_local = matches!(definition, DefinitionKind::Local(_));
+
         if let DefinitionKind::Function(func_id) = definition {
             self.function_definition_ids.insert(func_id, id);
         }
 
         let kind = definition;
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
+
+        if is_local {
+            self.add_definition_location(ReferenceId::Local(id), None);
+        }
+
         id
     }
 
@@ -877,7 +904,7 @@ impl NodeInterner {
 
         // This needs to be done after pushing the definition since it will reference the
         // location that was stored
-        self.add_definition_location(ReferenceId::Function(id));
+        self.add_definition_location(ReferenceId::Function(id), Some(module));
         definition_id
     }
 
@@ -978,12 +1005,20 @@ impl NodeInterner {
         &self.struct_attributes[struct_id]
     }
 
-    pub fn add_module_location(&mut self, module_id: ModuleId, location: Location) {
-        self.module_locations.insert(module_id, location);
+    pub fn add_module_attributes(&mut self, module_id: ModuleId, attributes: ModuleAttributes) {
+        self.module_attributes.insert(module_id, attributes);
     }
 
-    pub fn module_location(&self, module_id: &ModuleId) -> Location {
-        self.module_locations[module_id]
+    pub fn module_attributes(&self, module_id: &ModuleId) -> &ModuleAttributes {
+        &self.module_attributes[module_id]
+    }
+
+    pub fn try_module_attributes(&self, module_id: &ModuleId) -> Option<&ModuleAttributes> {
+        self.module_attributes.get(module_id)
+    }
+
+    pub fn try_module_parent(&self, module_id: &ModuleId) -> Option<LocalModuleId> {
+        self.try_module_attributes(module_id).map(|attrs| attrs.parent)
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
@@ -1061,6 +1096,10 @@ impl NodeInterner {
 
     pub fn expr_span(&self, expr_id: &ExprId) -> Span {
         self.id_location(expr_id).span
+    }
+
+    pub fn try_expr_span(&self, expr_id: &ExprId) -> Option<Span> {
+        self.try_id_location(expr_id).map(|location| location.span)
     }
 
     pub fn expr_location(&self, expr_id: &ExprId) -> Location {
@@ -1167,8 +1206,14 @@ impl NodeInterner {
     }
 
     /// Returns the span of an item stored in the Interner
-    pub fn id_location(&self, index: impl Into<Index>) -> Location {
-        self.id_to_location.get(&index.into()).copied().unwrap()
+    pub fn id_location(&self, index: impl Into<Index> + Copy) -> Location {
+        self.try_id_location(index)
+            .unwrap_or_else(|| panic!("ID is missing a source location: {:?}", index.into()))
+    }
+
+    /// Returns the span of an item stored in the Interner, if present
+    pub fn try_id_location(&self, index: impl Into<Index>) -> Option<Location> {
+        self.id_to_location.get(&index.into()).copied()
     }
 
     /// Replaces the HirExpression at the given ExprId with a new HirExpression
@@ -1663,18 +1708,29 @@ impl NodeInterner {
     /// Retrieves the trait id for a given binary operator.
     /// All binary operators correspond to a trait - although multiple may correspond
     /// to the same trait (such as `==` and `!=`).
-    /// `self.operator_traits` is expected to be filled before name resolution,
+    /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
     pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitMethodId {
-        let trait_id = self.operator_traits[&operator];
+        let trait_id = self.infix_operator_traits[&operator];
 
         // Assume that the operator's method to be overloaded is the first method of the trait.
         TraitMethodId { trait_id, method_index: 0 }
     }
 
+    /// Retrieves the trait id for a given unary operator.
+    /// Only some unary operators correspond to a trait: `-` and `!`, but for example `*` does not.
+    /// `self.prefix_operator_traits` is expected to be filled before name resolution,
+    /// during definition collection.
+    pub fn get_prefix_operator_trait_method(&self, operator: &UnaryOp) -> Option<TraitMethodId> {
+        let trait_id = self.prefix_operator_traits.get(operator)?;
+
+        // Assume that the operator's method to be overloaded is the first method of the trait.
+        Some(TraitMethodId { trait_id: *trait_id, method_index: 0 })
+    }
+
     /// Add the given trait as an operator trait if its name matches one of the
     /// operator trait names (Add, Sub, ...).
-    pub fn try_add_operator_trait(&mut self, trait_id: TraitId) {
+    pub fn try_add_infix_operator_trait(&mut self, trait_id: TraitId) {
         let the_trait = self.get_trait(trait_id);
 
         let operator = match the_trait.name.0.contents.as_str() {
@@ -1693,17 +1749,17 @@ impl NodeInterner {
             _ => return,
         };
 
-        self.operator_traits.insert(operator, trait_id);
+        self.infix_operator_traits.insert(operator, trait_id);
 
         // Some operators also require we insert a matching entry for related operators
         match operator {
             BinaryOpKind::Equal => {
-                self.operator_traits.insert(BinaryOpKind::NotEqual, trait_id);
+                self.infix_operator_traits.insert(BinaryOpKind::NotEqual, trait_id);
             }
             BinaryOpKind::Less => {
-                self.operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
-                self.operator_traits.insert(BinaryOpKind::Greater, trait_id);
-                self.operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
+                self.infix_operator_traits.insert(BinaryOpKind::LessEqual, trait_id);
+                self.infix_operator_traits.insert(BinaryOpKind::Greater, trait_id);
+                self.infix_operator_traits.insert(BinaryOpKind::GreaterEqual, trait_id);
 
                 let the_trait = self.get_trait(trait_id);
                 self.ordering_type = match &the_trait.methods[0].typ {
@@ -1718,27 +1774,43 @@ impl NodeInterner {
         }
     }
 
+    /// Add the given trait as an operator trait if its name matches one of the
+    /// prefix operator trait names (Not or Neg).
+    pub fn try_add_prefix_operator_trait(&mut self, trait_id: TraitId) {
+        let the_trait = self.get_trait(trait_id);
+
+        let operator = match the_trait.name.0.contents.as_str() {
+            "Neg" => UnaryOp::Minus,
+            "Not" => UnaryOp::Not,
+            _ => return,
+        };
+
+        self.prefix_operator_traits.insert(operator, trait_id);
+    }
+
     /// This function is needed when creating a NodeInterner for testing so that calls
     /// to `get_operator_trait` do not panic when the stdlib isn't present.
     #[cfg(test)]
     pub fn populate_dummy_operator_traits(&mut self) {
         let dummy_trait = TraitId(ModuleId::dummy_id());
-        self.operator_traits.insert(BinaryOpKind::Add, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Subtract, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Multiply, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Divide, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Modulo, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Equal, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::NotEqual, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Less, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::LessEqual, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Greater, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::GreaterEqual, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::And, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Or, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
-        self.operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Add, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Subtract, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Multiply, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Divide, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Modulo, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Equal, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::NotEqual, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Less, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::LessEqual, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Greater, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::GreaterEqual, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::And, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Or, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
+        self.infix_operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
+        self.prefix_operator_traits.insert(UnaryOp::Minus, dummy_trait);
+        self.prefix_operator_traits.insert(UnaryOp::Not, dummy_trait);
     }
 
     pub(crate) fn ordering_type(&self) -> Type {
@@ -1871,7 +1943,7 @@ impl NodeInterner {
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.
-    pub fn get_operator_type(
+    pub fn get_infix_operator_type(
         &self,
         lhs: ExprId,
         operator: BinaryOpKind,
@@ -1889,6 +1961,15 @@ impl NodeInterner {
             self.id_type(operator_expr)
         };
 
+        let env = Box::new(Type::Unit);
+        (Type::Function(args, Box::new(ret.clone()), env), ret)
+    }
+
+    /// Returns the type of a prefix operator (which is always a function), along with its return type.
+    pub fn get_prefix_operator_type(&self, operator_expr: ExprId, rhs: ExprId) -> (Type, Type) {
+        let rhs_type = self.id_type(rhs);
+        let args = vec![rhs_type];
+        let ret = self.id_type(operator_expr);
         let env = Box::new(Type::Unit);
         (Type::Function(args, Box::new(ret.clone()), env), ret)
     }

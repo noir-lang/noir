@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::{
@@ -45,6 +46,7 @@ pub enum InterpreterError {
     NonStructInConstructor { typ: Type, location: Location },
     CannotInlineMacro { value: Value, location: Location },
     UnquoteFoundDuringEvaluation { location: Location },
+    DebugEvaluateComptime { diagnostic: CustomDiagnostic, location: Location },
     FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
     UnsupportedTopLevelItemUnquote { item: String, location: Location },
     NonComptimeFnCallInSameCrate { function: String, location: Location },
@@ -117,7 +119,8 @@ impl InterpreterError {
             | InterpreterError::NoImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::BreakNotInLoop { location, .. }
-            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            | InterpreterError::DebugEvaluateComptime { location, .. } => *location,
+            InterpreterError::ContinueNotInLoop { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
             }
@@ -128,6 +131,20 @@ impl InterpreterError {
                 panic!("Tried to get the location of Break/Continue error!")
             }
         }
+    }
+
+    pub(crate) fn debug_evaluate_comptime(expr: impl Display, location: Location) -> Self {
+        let mut formatted_result = format!("{}", expr);
+        // if multi-line, display on a separate line from the message
+        if formatted_result.contains('\n') {
+            formatted_result.insert(0, '\n');
+        }
+        let diagnostic = CustomDiagnostic::simple_info(
+            "`comptime` expression ran:".to_string(),
+            format!("After evaluation: {}", formatted_result),
+            location.span,
+        );
+        InterpreterError::DebugEvaluateComptime { diagnostic, location }
     }
 }
 
@@ -291,6 +308,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "This is a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
+            InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
             InterpreterError::FailedToParseMacro { error, tokens, rule, file: _ } => {
                 let message = format!("Failed to parse macro's token stream into {rule}");
                 let tokens = vecmap(&tokens.0, ToString::to_string).join(" ");
