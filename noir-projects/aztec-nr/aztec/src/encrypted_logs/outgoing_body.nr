@@ -9,12 +9,12 @@ use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
 struct EncryptedLogOutgoingBody {
     eph_sk: Scalar,
     recipient: AztecAddress,
-    recipient_ivpk_app: Point,
+    recipient_ivpk: Point,
 }
 
 impl EncryptedLogOutgoingBody {
-    pub fn new(eph_sk: Scalar, recipient: AztecAddress, recipient_ivpk_app: Point) -> Self {
-        Self { eph_sk, recipient, recipient_ivpk_app }
+    pub fn new(eph_sk: Scalar, recipient: AztecAddress, recipient_ivpk: Point) -> Self {
+        Self { eph_sk, recipient, recipient_ivpk }
     }
 
     pub fn compute_ciphertext(self, ovsk_app: Scalar, eph_pk: Point) -> [u8; 176] {
@@ -27,16 +27,16 @@ impl EncryptedLogOutgoingBody {
         let serialized_eph_sk_low = self.eph_sk.lo.to_be_bytes(32);
 
         let address_bytes = self.recipient.to_field().to_be_bytes(32);
-        let serialized_recipient_ivpk_app = self.recipient_ivpk_app.serialize();
-        let serialized_recipient_ivpk_app_x = serialized_recipient_ivpk_app[0].to_be_bytes(32);
-        let serialized_recipient_ivpk_app_y = serialized_recipient_ivpk_app[1].to_be_bytes(32);
+        let serialized_recipient_ivpk = self.recipient_ivpk.serialize();
+        let serialized_recipient_ivpk_x = serialized_recipient_ivpk[0].to_be_bytes(32);
+        let serialized_recipient_ivpk_y = serialized_recipient_ivpk[1].to_be_bytes(32);
 
         for i in 0..32 {
             buffer[i] = serialized_eph_sk_high[i];
             buffer[i + 32] = serialized_eph_sk_low[i];
             buffer[i + 64] = address_bytes[i];
-            buffer[i + 96] = serialized_recipient_ivpk_app_x[i];
-            buffer[i + 128] = serialized_recipient_ivpk_app_y[i];
+            buffer[i + 96] = serialized_recipient_ivpk_x[i];
+            buffer[i + 128] = serialized_recipient_ivpk_y[i];
         }
 
         // We compute the symmetric key using poseidon.
@@ -74,7 +74,7 @@ mod test {
             lo: 0x00000000000000000000000000000000d0d302ee245dfaf2807e604eec4715fe,
             hi: 0x000000000000000000000000000000000f096b423017226a18461115fa8d34bb
         };
-        let recipient_ivsk_app = Scalar {
+        let recipient_ivsk = Scalar {
             lo: 0x000000000000000000000000000000004828f8f95676ebb481df163f87fd4022,
             hi: 0x000000000000000000000000000000000f4d97c25d578f9348251a71ca17ae31
         };
@@ -84,11 +84,11 @@ mod test {
         };
 
         let eph_pk = derive_public_key(eph_sk);
-        let recipient_ivpk_app = derive_public_key(recipient_ivsk_app);
+        let recipient_ivpk = derive_public_key(recipient_ivsk);
 
         let recipient = AztecAddress::from_field(0xdeadbeef);
 
-        let body = EncryptedLogOutgoingBody::new(eph_sk, recipient, recipient_ivpk_app);
+        let body = EncryptedLogOutgoingBody::new(eph_sk, recipient, recipient_ivpk);
 
         let ciphertext = body.compute_ciphertext(sender_ovsk_app, eph_pk);
 

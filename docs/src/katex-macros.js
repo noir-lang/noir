@@ -18,14 +18,14 @@ module.exports = {
 
   "\\nskapp": "{\\color{red}{nsk_{app}}}",
   "\\tskapp": "{\\color{red}{tsk_{app}}}",
-  "\\ivskapp": "{\\color{red}{ivsk_{app}}}",
+  "\\ivsk": "{\\color{red}{ivsk}}",
   "\\ovskapp": "{\\color{red}{ovsk_{app}}}",
 
   "\\Nkapp": "{\\color{orange}{Nk_{app}}}",
 
   "\\Npkapp": "{\\color{green}{Npk_{app}}}",
 
-  "\\Ivpkapp": "{\\color{green}{Ivpk_{app}}}",
+  "\\Ivpk": "{\\color{green}{Ivpk_{app}}}",
 
   "\\happL": "{\\color{green}{h_{app}^L}}",
   "\\happn": "{\\color{green}{h_{app}^n}}",
@@ -34,13 +34,13 @@ module.exports = {
   "\\d": "{\\color{green}{d}}",
   "\\Gd": "{\\color{green}{G_d}}",
 
-  "\\Ivpkappd": "{\\color{violet}{Ivpk_{app,d}}}",
-  "\\shareableIvpkappd": "{\\color{violet}{\\widetilde{Ivpk_{app,d}}}}",
+  "\\Ivpkd": "{\\color{violet}{Ivpk_{app,d}}}",
+  "\\shareableIvpkd": "{\\color{violet}{\\widetilde{Ivpk_{app,d}}}}",
   "\\Ivpkmd": "{\\color{violet}{Ivpk_{m,d}}}",
   "\\shareableIvpkmd": "{\\color{violet}{\\widetilde{Ivpk_{m,d}}}}",
 
-  "\\ivskappstealth": "{\\color{red}{ivsk_{app,stealth}}}",
-  "\\Ivpkappdstealth": "{\\color{violet}{Ivpk_{app,d,stealth}}}",
+  "\\ivskstealth": "{\\color{red}{ivsk_{stealth}}}",
+  "\\Ivpkdstealth": "{\\color{violet}{Ivpk_{app,d,stealth}}}",
   "\\Pkappdstealth": "{\\color{violet}{Pk_{app,d,stealth}}}",
   "\\ivskmstealth": "{\\color{red}{ivsk_{m,stealth}}}",
   "\\Ivpkmdstealth": "{\\color{violet}{Ivpk_{m,d,stealth}}}",

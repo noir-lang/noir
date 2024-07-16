@@ -4,7 +4,7 @@ import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 export class EncryptedLogOutgoingBody {
-  constructor(public ephSk: GrumpkinScalar, public recipient: AztecAddress, public recipientIvpkApp: PublicKey) {}
+  constructor(public ephSk: GrumpkinScalar, public recipient: AztecAddress, public recipientIvpk: PublicKey) {}
 
   /**
    * Serializes the log body
@@ -14,7 +14,7 @@ export class EncryptedLogOutgoingBody {
   public toBuffer(): Buffer {
     // The serialization of Fq is [high, low] check `grumpkin_private_key.nr`
     const ephSkBytes = serializeToBuffer([this.ephSk.hi, this.ephSk.lo]);
-    return serializeToBuffer(ephSkBytes, this.recipient, this.recipientIvpkApp);
+    return serializeToBuffer(ephSkBytes, this.recipient, this.recipientIvpk);
   }
 
   /**
@@ -29,9 +29,9 @@ export class EncryptedLogOutgoingBody {
     const low = reader.readObject(Fr);
     const ephSk = GrumpkinScalar.fromHighLow(high, low);
     const recipient = reader.readObject(AztecAddress);
-    const recipientIvpkApp = reader.readObject(Point); // PublicKey = Point
+    const recipientIvpk = reader.readObject(Point); // PublicKey = Point
 
-    return new EncryptedLogOutgoingBody(ephSk, recipient, recipientIvpkApp);
+    return new EncryptedLogOutgoingBody(ephSk, recipient, recipientIvpk);
   }
 
   /**

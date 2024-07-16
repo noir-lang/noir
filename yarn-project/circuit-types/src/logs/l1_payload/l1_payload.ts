@@ -3,8 +3,6 @@ import {
   type GrumpkinScalar,
   type KeyValidationRequest,
   type PublicKey,
-  computeIvpkApp,
-  computeIvskApp,
   computeOvskApp,
   derivePublicKeyFromSecretKey,
 } from '@aztec/circuits.js';
@@ -64,11 +62,9 @@ export abstract class L1Payload {
     const incomingHeaderCiphertext = header.computeCiphertext(ephSk, ivpk);
     const outgoingHeaderCiphertext = header.computeCiphertext(ephSk, ovKeys.pkM);
 
-    const ivpkApp = computeIvpkApp(ivpk, contractAddress);
+    const incomingBodyCiphertext = incomingBody.computeCiphertext(ephSk, ivpk);
 
-    const incomingBodyCiphertext = incomingBody.computeCiphertext(ephSk, ivpkApp);
-
-    const outgoingBodyCiphertext = new EncryptedLogOutgoingBody(ephSk, recipient, ivpkApp).computeCiphertext(
+    const outgoingBodyCiphertext = new EncryptedLogOutgoingBody(ephSk, recipient, ivpk).computeCiphertext(
       ovKeys.skAppAsGrumpkinScalar,
       ephPk,
     );
@@ -97,7 +93,7 @@ export abstract class L1Payload {
   protected static _decryptAsIncoming<T extends EncryptedLogIncomingBody>(
     data: Buffer,
     ivsk: GrumpkinScalar,
-    fromCiphertext: (incomingBodySlice: Buffer, ivskApp: GrumpkinScalar, ephPk: Point) => T,
+    fromCiphertext: (incomingBodySlice: Buffer, ivsk: GrumpkinScalar, ephPk: Point) => T,
   ): [AztecAddress, T] {
     const reader = BufferReader.asReader(data);
 
@@ -112,8 +108,7 @@ export abstract class L1Payload {
     // The incoming can be of variable size, so we read until the end
     const incomingBodySlice = reader.readToEnd();
 
-    const ivskApp = computeIvskApp(ivsk, incomingHeader.address);
-    const incomingBody = fromCiphertext(incomingBodySlice, ivskApp, ephPk);
+    const incomingBody = fromCiphertext(incomingBodySlice, ivsk, ephPk);
 
     return [incomingHeader.address, incomingBody];
   }
@@ -134,7 +129,7 @@ export abstract class L1Payload {
   protected static _decryptAsOutgoing<T extends EncryptedLogIncomingBody>(
     data: Buffer,
     ovsk: GrumpkinScalar,
-    fromCiphertext: (incomingBodySlice: Buffer, ivskApp: GrumpkinScalar, ephPk: Point) => T,
+    fromCiphertext: (incomingBodySlice: Buffer, ivsk: GrumpkinScalar, ephPk: Point) => T,
   ): [AztecAddress, T] {
     const reader = BufferReader.asReader(data);
 
@@ -150,7 +145,7 @@ export abstract class L1Payload {
     // The incoming can be of variable size, so we read until the end
     const incomingBodySlice = reader.readToEnd();
 
-    const incomingBody = fromCiphertext(incomingBodySlice, outgoingBody.ephSk, outgoingBody.recipientIvpkApp);
+    const incomingBody = fromCiphertext(incomingBodySlice, outgoingBody.ephSk, outgoingBody.recipientIvpk);
 
     return [outgoingHeader.address, incomingBody];
   }

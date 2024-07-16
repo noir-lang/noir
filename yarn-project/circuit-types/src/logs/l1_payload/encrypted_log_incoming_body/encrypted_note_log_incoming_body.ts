@@ -43,20 +43,20 @@ export class EncryptedNoteLogIncomingBody extends EncryptedLogIncomingBody {
    * Decrypts a log body
    *
    * @param ciphertext - The ciphertext buffer
-   * @param ivskAppOrEphSk - The private key matching the public key used in encryption (the viewing key secret or)
-   * @param ephPkOrIvpkApp - The public key generated with the ephemeral secret key used in encryption
+   * @param ivskOrEphSk - The private key matching the public key used in encryption (the viewing secret key or ephemeral secret key)
+   * @param ephPkOrIvpk - The public key generated with the ephemeral secret key used in encryption
    *
-   * The "odd" input stems from ivskApp * ephPk == ivpkApp * ephSk producing the same value.
+   * The "odd" input stems from ivsk * ephPk == ivpk * ephSk producing the same value.
    * This is used to allow for the same decryption function to be used by both the sender and the recipient.
    *
    * @returns The decrypted log body
    */
   public static fromCiphertext(
     ciphertext: Buffer | bigint[],
-    ivskAppOrEphSk: GrumpkinScalar,
-    ephPkOrIvpkApp: PublicKey,
+    ivskOrEphSk: GrumpkinScalar,
+    ephPkOrIvpk: PublicKey,
   ): EncryptedNoteLogIncomingBody {
-    const buffer = super.fromCiphertextToBuffer(ciphertext, ivskAppOrEphSk, ephPkOrIvpkApp);
+    const buffer = super.fromCiphertextToBuffer(ciphertext, ivskOrEphSk, ephPkOrIvpk);
     return EncryptedNoteLogIncomingBody.fromBuffer(buffer);
   }
 }

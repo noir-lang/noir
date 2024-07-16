@@ -15,9 +15,9 @@ $\ciphertextheader$ | $enc^{\Ivpkm}_{\hmencheader}$(app\_address) | Ciphertext h
 |||||
 $\esk$ | $\stackrel{rand}{\leftarrow} \mathbb{F}$ | ephemeral secret key |
 $\Epkd$ | $\esk \cdot \Gd$ | (Diversified) Ephemeral public key |
-$\sharedsecret_{app,enc}$ | $\esk \cdot \Ivpkappdstealth$ | Shared secret, for ciphertext encryption |
+$\sharedsecret_{app,enc}$ | $\esk \cdot \Ivpkdstealth$ | Shared secret, for ciphertext encryption |
 $\happenc$ | h("?", $\sharedsecret_{app,enc}$) | Incoming data encryption key |
-$\ciphertext$ | $enc^{\Ivpkappdstealth}_{\happenc}(\plaintext)$ | Ciphertext |
+$\ciphertext$ | $enc^{\Ivpkdstealth}_{\happenc}(\plaintext)$ | Ciphertext |
 $\payload$ | [$\tagg_{m, i}^{Bob \rightarrow Alice}$, $\ciphertextheader$, $\ciphertext$, $\Epkdheader$, $\Epkd$] | Payload |
 
 <!-- TODO: This requires app-specific incoming viewing keys, which we don't have. How do we adapt this derivation? -->
@@ -33,10 +33,10 @@ $\sharedsecret_{m,header}$ | $\ivskm \cdot \Epkdheader$ | Shared secret, for enc
 $\hmencheader$ | h("?", $\sharedsecret_{m,header}$) | Incoming encryption key |
 app_address | $decrypt_{\hmencheader}^{\ivskm}(\ciphertextheader)$ | App address |
 ||||
-$\ivskappstealth$ | See derivations above. Use the decrypted app_address. | App-specific  incoming viewing secret key |
-$\sharedsecret_{app, enc}$ | $\ivskappstealth \cdot \Epkd$ | Shared secret, for ciphertext encryption |
+$\ivskstealth$ | See derivations above. Use the decrypted app_address. | Incoming viewing secret key |
+$\sharedsecret_{app, enc}$ | $\ivskstealth \cdot \Epkd$ | Shared secret, for ciphertext encryption |
 $\happenc$ | h("?", $\sharedsecret_{app, enc}$) | Ciphertext encryption key |
-$\plaintext$ | $decrypt_{\happenc}^{\ivskappstealth}(\ciphertext)$ | Plaintext |
+$\plaintext$ | $decrypt_{\happenc}^{\ivskstealth}(\ciphertext)$ | Plaintext |
 
 ## Encrypt and tag an outgoing message
 

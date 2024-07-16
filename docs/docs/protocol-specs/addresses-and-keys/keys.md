@@ -178,7 +178,7 @@ If an app developer thinks some of their users might wish to have the option to 
 
 > Note: this key can be optionally shared with a trusted 3rd party, and they would not be able to derive the user's secret keys.  
 > Note: knowledge of this key enables someone to identify when an emitted nullifier belongs to the user, and to identify which note hashes have been nullified.  
-> Note: knowledge of this key would not enable a 3rd party to view the contents of any notes; knowledge of the $\ivskapp$ / $\ovskapp$ would be needed for that.  
+> Note: knowledge of this key would not enable a 3rd party to view the contents of any notes; knowledge of the $\ivsk$ / $\ovskapp$ would be needed for that.  
 > Note: this is intentionally not named as a "public" key, since it must not be shared with the wider public.
 
 $$

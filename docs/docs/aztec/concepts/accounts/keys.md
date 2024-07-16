@@ -91,12 +91,12 @@ Typically, `Npk_m` is stored in a note and later on, the note is nullified using
 Validity of `nsk_app` is verified by our [protocol kernel circuits](../../../protocol-specs/circuits/private-kernel-tail#verifying-and-splitting-ordered-data).
 
 ## Incoming viewing keys
-The app-siloed version of public key (denoted `Ivpk_app`) is used to encrypt a note for a recipient and the corresponding secret key (`ivsk_app`) is used by recipient during decryption.
+The public key (denoted `Ivpk`) is used to encrypt a note for a recipient and the corresponding secret key (`ivsk`) is used by the recipient during decryption.
 
 ## Outgoing viewing keys
 App-siloed versions of outgoing viewing keys are denoted `ovsk_app` and `Ovpk_app`.
 These keys are used to encrypt a note for a note sender which is necessary for reconstructing transaction history from on-chain data.
-For example, during a token transfer, the token contract may dictate that the sender encrypts the note with value with the recipient's `Ivpk_app`, but also records the transfer with its own `Ovpk_app` for bookkeeping purposes.
+For example, during a token transfer, the token contract may dictate that the sender encrypts the note with value with the recipient's `Ivpk`, but also records the transfer with its own `Ovpk_app` for bookkeeping purposes.
 If these keys were not used and a new device would be synched there would be no "direct" information available about notes that a user created for other people.
 
 ## Tagging keys

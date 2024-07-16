@@ -20,8 +20,8 @@ impl<M> EncryptedLogIncomingBody<M> {
         EncryptedLogIncomingBody { plaintext }
     }
 
-    pub fn compute_ciphertext(self, eph_sk: Scalar, ivpk_app: Point) -> [u8] {
-        let full_key = point_to_symmetric_key(eph_sk, ivpk_app);
+    pub fn compute_ciphertext(self, eph_sk: Scalar, ivpk: Point) -> [u8] {
+        let full_key = point_to_symmetric_key(eph_sk, ivpk);
         let mut sym_key = [0; 16];
         let mut iv = [0; 16];
 
@@ -122,7 +122,7 @@ mod test {
             lo: 0x00000000000000000000000000000000649e7ca01d9de27b21624098b897babd,
             hi: 0x0000000000000000000000000000000023b3127c127b1f29a7adff5cccf8fb06
         };
-        let ivpk_app = Point {
+        let ivpk = Point {
             x: 0x2688431c705a5ff3e6c6f2573c9e3ba1c1026d2251d0dbbf2d810aa53fd1d186,
             y: 0x1e96887b117afca01c00468264f4f80b5bb16d94c1808a448595f115556e5c8e,
             is_infinite: false
@@ -130,7 +130,7 @@ mod test {
 
         let body = EncryptedLogIncomingBody::from_note(note, storage_slot);
 
-        let ciphertext = body.compute_ciphertext(eph_sk, ivpk_app);
+        let ciphertext = body.compute_ciphertext(eph_sk, ivpk);
 
         let expected_note_body_ciphertext = [
             228, 9, 65, 81, 62, 59, 249, 207, 90, 196, 206, 72, 39, 199, 82, 196, 63, 127, 188, 251, 150, 188, 238, 205, 3, 86, 102, 164, 175, 12, 137, 158, 163, 111, 205, 10, 229, 230, 46, 202, 110, 107, 156, 180, 67, 192, 161, 201, 48, 153, 169, 1, 25, 182, 93, 39, 39, 207, 251, 218, 234, 147, 156, 13, 110, 180, 190, 199, 41, 6, 211, 203, 176, 110, 165, 186, 110, 127, 199, 22, 201, 149, 92, 249, 219, 68, 145, 68, 179, 29, 233, 34, 98, 123, 197, 234, 169, 53, 44, 14, 81, 60, 92, 27, 250, 134, 49, 248, 57, 119, 236, 118, 158, 104, 82, 243, 98, 164, 60, 72, 74, 27, 177, 194, 221, 225, 193, 150, 67, 235, 205, 106, 150, 24, 126, 186, 220, 178, 199, 189, 113, 54, 181, 55, 46, 15, 236, 236, 9, 159, 5, 172, 237, 154, 110, 50, 241, 64, 92, 13, 37, 53, 20, 140, 42, 146, 229, 63, 97, 25, 159, 63, 235, 104, 68, 100
@@ -222,7 +222,7 @@ mod test {
             hi: 0x0000000000000000000000000000000023b3127c127b1f29a7adff5cccf8fb06
         };
 
-        let ivpk_app = Point {
+        let ivpk = Point {
             x: 0x2688431c705a5ff3e6c6f2573c9e3ba1c1026d2251d0dbbf2d810aa53fd1d186,
             y: 0x1e96887b117afca01c00468264f4f80b5bb16d94c1808a448595f115556e5c8e,
             is_infinite: false
@@ -232,7 +232,7 @@ mod test {
 
         let body = EncryptedLogIncomingBody::from_event(test_event, randomness);
 
-        let ciphertext = body.compute_ciphertext(eph_sk, ivpk_app);
+        let ciphertext = body.compute_ciphertext(eph_sk, ivpk);
 
         let expected_event_body_ciphertext = [
             228, 9, 65, 81, 62, 59, 249, 207, 90, 196, 206, 72, 39, 199, 82, 196, 63, 127, 188, 251, 150, 188, 238, 205, 3, 86, 102, 164, 175, 12, 137, 158, 163, 111, 205, 10, 229, 230, 46, 202, 110, 107, 156, 180, 67, 192, 161, 201, 66, 122, 29, 35, 42, 33, 153, 216, 199, 208, 103, 207, 126, 153, 189, 136, 19, 220, 238, 15, 169, 29, 255, 11, 123, 107, 70, 192, 53, 40, 36, 93, 187, 32, 123, 136, 104, 23, 229, 245, 152, 90, 84, 2, 136, 112, 42, 27, 82, 214, 104, 14, 250, 48, 199, 245, 88, 22, 200, 77, 38, 51, 127, 56, 138, 255, 16, 46, 179, 129, 215, 185, 185, 116, 148, 16, 133, 62, 56, 180, 10, 132, 109, 77, 206, 199, 21, 167, 7, 163, 171, 158, 244, 23, 18, 121, 108, 42, 107, 7, 48, 84, 212, 104, 39, 16, 109, 7, 108, 129, 60, 80, 112, 241, 223, 140, 186, 158, 38, 74, 230, 213, 159, 175, 142, 228, 128, 160

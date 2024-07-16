@@ -13,15 +13,15 @@ describe('encrypt log outgoing body', () => {
 
   it('encrypt and decrypt a log outgoing body', () => {
     const ephSk = GrumpkinScalar.random();
-    const recipientIvskApp = GrumpkinScalar.random();
+    const recipientIvsk = GrumpkinScalar.random();
     const senderOvskApp = GrumpkinScalar.random();
 
     const ephPk = grumpkin.mul(Grumpkin.generator, ephSk);
-    const recipientIvpkApp = grumpkin.mul(Grumpkin.generator, recipientIvskApp);
+    const recipientIvpk = grumpkin.mul(Grumpkin.generator, recipientIvsk);
 
     const recipientAddress = AztecAddress.random();
 
-    const body = new EncryptedLogOutgoingBody(ephSk, recipientAddress, recipientIvpkApp);
+    const body = new EncryptedLogOutgoingBody(ephSk, recipientAddress, recipientIvpk);
 
     const encrypted = body.computeCiphertext(senderOvskApp, ephPk);
 
@@ -32,15 +32,15 @@ describe('encrypt log outgoing body', () => {
 
   it('encrypt a log outgoing body, generate input for noir test', () => {
     const ephSk = new GrumpkinScalar(0x0f096b423017226a18461115fa8d34bbd0d302ee245dfaf2807e604eec4715fen);
-    const recipientIvskApp = new GrumpkinScalar(0x0f4d97c25d578f9348251a71ca17ae314828f8f95676ebb481df163f87fd4022n);
+    const recipientIvsk = new GrumpkinScalar(0x0f4d97c25d578f9348251a71ca17ae314828f8f95676ebb481df163f87fd4022n);
     const senderOvskApp = new GrumpkinScalar(0x089c6887cb1446d86c64e81afc78048b74d2e28c6bc5176ac02cf7c7d36a444en);
 
     const ephPk = grumpkin.mul(Grumpkin.generator, ephSk);
-    const recipientIvpkApp = grumpkin.mul(Grumpkin.generator, recipientIvskApp);
+    const recipientIvpk = grumpkin.mul(Grumpkin.generator, recipientIvsk);
 
     const recipientAddress = AztecAddress.fromBigInt(BigInt('0xdeadbeef'));
 
-    const body = new EncryptedLogOutgoingBody(ephSk, recipientAddress, recipientIvpkApp);
+    const body = new EncryptedLogOutgoingBody(ephSk, recipientAddress, recipientIvpk);
 
     const encrypted = body.computeCiphertext(senderOvskApp, ephPk);
 
