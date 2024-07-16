@@ -479,9 +479,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Yarn dependencies
-        uses: ./.github/actions/setup
-
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.2.0
 
