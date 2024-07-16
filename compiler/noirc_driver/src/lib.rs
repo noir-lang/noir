@@ -52,9 +52,9 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
-    /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
-    pub expression_width: ExpressionWidth,
+    /// Specify the backend expression width that should be targeted
+    #[arg(long, value_parser = parse_expression_width)]
+    pub expression_width: Option<ExpressionWidth>,
 
     /// Force a full recompilation.
     #[arg(long = "force")]
@@ -99,10 +99,6 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub force_brillig: bool,
 
-    /// Use the deprecated name resolution & type checking passes instead of the elaborator
-    #[arg(long, hide = true)]
-    pub use_legacy: bool,
-
     /// Enable printing results of comptime evaluation: provide a path suffix
     /// for the module to debug, e.g. "package_name/src/main.nr"
     #[arg(long)]
@@ -113,7 +109,7 @@ pub struct CompileOptions {
     pub show_artifact_paths: bool,
 }
 
-fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
+pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
     use std::io::{Error, ErrorKind};
     let width = input
         .parse::<usize>()
@@ -262,15 +258,13 @@ pub fn check_crate(
     crate_id: CrateId,
     deny_warnings: bool,
     disable_macros: bool,
-    use_legacy: bool,
     debug_comptime_in_file: Option<&str>,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics =
-        CrateDefMap::collect_defs(crate_id, context, use_legacy, debug_comptime_in_file, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, debug_comptime_in_file, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
@@ -307,7 +301,6 @@ pub fn compile_main(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_legacy,
         options.debug_comptime_in_file.as_deref(),
     )?;
 
@@ -349,7 +342,6 @@ pub fn compile_contract(
         crate_id,
         options.deny_warnings,
         options.disable_macros,
-        options.use_legacy,
         options.debug_comptime_in_file.as_deref(),
     )?;
 
