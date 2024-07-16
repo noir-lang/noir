@@ -1,6 +1,6 @@
 use acir::circuit::{directives::Directive, opcodes::BlackBoxFuncCall, Opcode};
 
-fn format_blackbox_function(call: &BlackBoxFuncCall) -> String {
+fn format_blackbox_function<F>(call: &BlackBoxFuncCall<F>) -> String {
     match call {
         BlackBoxFuncCall::AES128Encrypt { .. } => "aes128_encrypt".to_string(),
         BlackBoxFuncCall::AND { .. } => "and".to_string(),

@@ -14,7 +14,7 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::macros_api::NodeInterner;
-use crate::node_interner::ReferenceId;
+use crate::node_interner::{ModuleAttributes, ReferenceId};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -90,7 +90,7 @@ pub fn collect_defs(
 
     errors.extend(collector.collect_structs(context, ast.types, crate_id));
 
-    errors.extend(collector.collect_type_aliases(context, ast.type_aliases));
+    errors.extend(collector.collect_type_aliases(context, ast.type_aliases, crate_id));
 
     errors.extend(collector.collect_functions(context, ast.functions, crate_id));
 
@@ -268,7 +268,6 @@ impl<'a> ModCollector<'a> {
         let mut definition_errors = vec![];
         for struct_definition in types {
             let name = struct_definition.name.clone();
-            let name_location = Location::new(name.span(), self.file_id);
 
             let unresolved = UnresolvedStruct {
                 file_id: self.file_id,
@@ -319,8 +318,10 @@ impl<'a> ModCollector<'a> {
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.items.types.insert(id, unresolved);
 
-            context.def_interner.add_struct_location(id, name_location);
-            context.def_interner.add_definition_location(ReferenceId::Struct(id));
+            context.def_interner.add_definition_location(
+                ReferenceId::Struct(id),
+                Some(ModuleId { krate, local_id: self.module_id }),
+            );
         }
         definition_errors
     }
@@ -331,6 +332,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         type_aliases: Vec<NoirTypeAlias>,
+        krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for type_alias in type_aliases {
@@ -366,6 +368,11 @@ impl<'a> ModCollector<'a> {
             }
 
             self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
+
+            context.def_interner.add_definition_location(
+                ReferenceId::Alias(type_alias_id),
+                Some(ModuleId { krate, local_id: self.module_id }),
+            );
         }
         errors
     }
@@ -381,7 +388,6 @@ impl<'a> ModCollector<'a> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         for trait_definition in traits {
             let name = trait_definition.name.clone();
-            let name_location = Location::new(name.span(), self.file_id);
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -533,8 +539,10 @@ impl<'a> ModCollector<'a> {
             };
             context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
 
-            context.def_interner.add_trait_location(trait_id, name_location);
-            context.def_interner.add_definition_location(ReferenceId::Trait(trait_id));
+            context.def_interner.add_definition_location(
+                ReferenceId::Trait(trait_id),
+                Some(ModuleId { krate, local_id: self.module_id }),
+            );
 
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
@@ -651,9 +659,7 @@ impl<'a> ModCollector<'a> {
         ) {
             Ok(child_mod_id) => {
                 // Track that the "foo" in `mod foo;` points to the module "foo"
-                let referenced = ReferenceId::Module(child_mod_id);
-                let reference = ReferenceId::Variable(location, false);
-                context.def_interner.add_reference(referenced, reference);
+                context.def_interner.add_module_reference(child_mod_id, location);
 
                 errors.extend(collect_defs(
                     self.def_collector,
@@ -724,7 +730,14 @@ impl<'a> ModCollector<'a> {
                 return Err(err);
             }
 
-            context.def_interner.add_module_location(mod_id, mod_location);
+            context.def_interner.add_module_attributes(
+                mod_id,
+                ModuleAttributes {
+                    name: mod_name.0.contents.clone(),
+                    location: mod_location,
+                    parent: self.module_id,
+                },
+            );
         }
 
         Ok(mod_id)

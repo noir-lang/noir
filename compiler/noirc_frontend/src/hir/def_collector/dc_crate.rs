@@ -2,20 +2,14 @@ use super::dc_mod::collect_defs;
 use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
-use crate::hir::comptime::{Interpreter, InterpreterError};
+use crate::hir::comptime::InterpreterError;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
+use crate::hir::resolution::path_resolver;
+use crate::hir::type_check::TypeCheckError;
 use crate::{ResolvedGeneric, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
-use crate::hir::resolution::{
-    collect_impls, collect_trait_impls, path_resolver, resolve_free_functions, resolve_globals,
-    resolve_impls, resolve_structs, resolve_trait_by_path, resolve_trait_impls, resolve_traits,
-    resolve_type_aliases,
-};
-use crate::hir::type_check::{
-    check_trait_impl_method_matches_declaration, type_check_func, TypeCheckError, TypeChecker,
-};
 use crate::hir::Context;
 
 use crate::macros_api::{MacroError, MacroProcessor};
@@ -29,22 +23,15 @@ use crate::ast::{
 };
 
 use crate::parser::{ParserError, SortedModule};
+use noirc_errors::{CustomDiagnostic, Location, Span};
+
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Location, Span};
 use rustc_hash::FxHashMap as HashMap;
 use std::collections::BTreeMap;
-
+use std::fmt::Write;
+use std::path::PathBuf;
 use std::vec;
-
-#[derive(Default)]
-pub struct ResolvedModule {
-    pub globals: Vec<(FileId, GlobalId)>,
-    pub functions: Vec<(FileId, FuncId)>,
-    pub trait_impl_functions: Vec<(FileId, FuncId)>,
-
-    pub errors: Vec<(CompilationError, FileId)>,
-}
 
 /// Stores all of the unresolved functions in a particular file/mod
 #[derive(Clone)]
@@ -64,35 +51,6 @@ impl UnresolvedFunctions {
 
     pub fn function_ids(&self) -> Vec<FuncId> {
         vecmap(&self.functions, |(_, id, _)| *id)
-    }
-
-    pub fn resolve_trait_bounds_trait_ids(
-        &mut self,
-        def_maps: &BTreeMap<CrateId, CrateDefMap>,
-        crate_id: CrateId,
-    ) -> Vec<DefCollectorErrorKind> {
-        let mut errors = Vec::new();
-
-        for (local_id, _, func) in &mut self.functions {
-            let module = ModuleId { krate: crate_id, local_id: *local_id };
-
-            for bound in &mut func.def.where_clause {
-                match resolve_trait_by_path(def_maps, module, bound.trait_bound.trait_path.clone())
-                {
-                    Ok((trait_id, warning)) => {
-                        bound.trait_bound.trait_id = Some(trait_id);
-                        if let Some(warning) = warning {
-                            errors.push(DefCollectorErrorKind::PathResolutionError(warning));
-                        }
-                    }
-                    Err(err) => {
-                        errors.push(err);
-                    }
-                }
-            }
-        }
-
-        errors
     }
 }
 
@@ -195,13 +153,7 @@ pub enum CompilationError {
     ResolverError(ResolverError),
     TypeError(TypeCheckError),
     InterpreterError(InterpreterError),
-}
-
-impl CompilationError {
-    fn is_error(&self) -> bool {
-        let diagnostic = CustomDiagnostic::from(self);
-        diagnostic.is_error()
-    }
+    DebugComptimeScopeNotFound(Vec<PathBuf>),
 }
 
 impl<'a> From<&'a CompilationError> for CustomDiagnostic {
@@ -212,6 +164,16 @@ impl<'a> From<&'a CompilationError> for CustomDiagnostic {
             CompilationError::ResolverError(error) => error.into(),
             CompilationError::TypeError(error) => error.into(),
             CompilationError::InterpreterError(error) => error.into(),
+            CompilationError::DebugComptimeScopeNotFound(error) => {
+                let msg = "multiple files found matching --debug-comptime path".into();
+                let secondary = error.iter().fold(String::new(), |mut output, path| {
+                    let _ = writeln!(output, "    {}", path.display());
+                    output
+                });
+                // NOTE: this span is empty as it is not expected to be displayed
+                let dummy_span = Span::default();
+                CustomDiagnostic::simple_error(msg, secondary, dummy_span)
+            }
         }
     }
 }
@@ -270,7 +232,7 @@ impl DefCollector {
         context: &mut Context,
         ast: SortedModule,
         root_file_id: FileId,
-        use_legacy: bool,
+        debug_comptime_in_file: Option<&str>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -287,7 +249,7 @@ impl DefCollector {
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,
-                use_legacy,
+                debug_comptime_in_file,
                 macro_processors,
             ));
 
@@ -331,7 +293,7 @@ impl DefCollector {
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let module_id = collected_import.module_id;
             let resolved_import = if context.def_interner.track_references {
-                let mut references: Vec<ReferenceId> = Vec::new();
+                let mut references: Vec<Option<ReferenceId>> = Vec::new();
                 let resolved_import = resolve_import(
                     crate_id,
                     &collected_import,
@@ -343,9 +305,14 @@ impl DefCollector {
                 let file_id = current_def_map.file_id(module_id);
 
                 for (referenced, ident) in references.iter().zip(&collected_import.path.segments) {
-                    let reference =
-                        ReferenceId::Variable(Location::new(ident.span(), file_id), false);
-                    context.def_interner.add_reference(*referenced, reference);
+                    let Some(referenced) = referenced else {
+                        continue;
+                    };
+                    context.def_interner.add_reference(
+                        *referenced,
+                        Location::new(ident.span(), file_id),
+                        false,
+                    );
                 }
 
                 resolved_import
@@ -396,107 +363,27 @@ impl DefCollector {
             }
         }
 
-        if !use_legacy {
-            let mut more_errors = Elaborator::elaborate(context, crate_id, def_collector.items);
-            errors.append(&mut more_errors);
-            return errors;
-        }
+        let debug_comptime_in_file = debug_comptime_in_file.and_then(|debug_comptime_in_file| {
+            let file = context.file_manager.find_by_path_suffix(debug_comptime_in_file);
+            file.unwrap_or_else(|error| {
+                errors.push((CompilationError::DebugComptimeScopeNotFound(error), root_file_id));
+                None
+            })
+        });
 
-        let mut resolved_module = ResolvedModule { errors, ..Default::default() };
-
-        // We must first resolve and intern the globals before we can resolve any stmts inside each function.
-        // Each function uses its own resolver with a newly created ScopeForest, and must be resolved again to be within a function's scope
-        //
-        // Additionally, we must resolve integer globals before structs since structs may refer to
-        // the values of integer globals as numeric generics.
-        let (literal_globals, other_globals) = filter_literal_globals(def_collector.items.globals);
-
-        resolved_module.resolve_globals(context, literal_globals, crate_id);
-
-        resolved_module.errors.extend(resolve_type_aliases(
-            context,
-            def_collector.items.type_aliases,
-            crate_id,
-        ));
-
-        resolved_module.errors.extend(resolve_traits(
-            context,
-            def_collector.items.traits,
-            crate_id,
-        ));
-
-        // Must resolve structs before we resolve globals.
-        resolved_module.errors.extend(resolve_structs(
-            context,
-            def_collector.items.types,
-            crate_id,
-        ));
-
-        // Bind trait impls to their trait. Collect trait functions, that have a
-        // default implementation, which hasn't been overridden.
-        resolved_module.errors.extend(collect_trait_impls(
-            context,
-            crate_id,
-            &mut def_collector.items.trait_impls,
-        ));
-
-        // Before we resolve any function symbols we must go through our impls and
-        // re-collect the methods within into their proper module. This cannot be
-        // done before resolution since we need to be able to resolve the type of the
-        // impl since that determines the module we should collect into.
-        //
-        // These are resolved after trait impls so that struct methods are chosen
-        // over trait methods if there are name conflicts.
-        resolved_module.errors.extend(collect_impls(context, crate_id, &def_collector.items.impls));
-
-        // We must wait to resolve non-integer globals until after we resolve structs since struct
-        // globals will need to reference the struct type they're initialized to ensure they are valid.
-        resolved_module.resolve_globals(context, other_globals, crate_id);
-
-        // Resolve each function in the crate. This is now possible since imports have been resolved
-        resolved_module.functions = resolve_free_functions(
-            &mut context.def_interner,
-            crate_id,
-            &context.def_maps,
-            def_collector.items.functions,
-            None,
-            &mut resolved_module.errors,
-        );
-
-        resolved_module.functions.extend(resolve_impls(
-            &mut context.def_interner,
-            crate_id,
-            &context.def_maps,
-            def_collector.items.impls,
-            &mut resolved_module.errors,
-        ));
-
-        resolved_module.trait_impl_functions = resolve_trait_impls(
-            context,
-            def_collector.items.trait_impls,
-            crate_id,
-            &mut resolved_module.errors,
-        );
+        let mut more_errors =
+            Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file);
+        errors.append(&mut more_errors);
 
         for macro_processor in macro_processors {
             macro_processor.process_typed_ast(&crate_id, context).unwrap_or_else(
                 |(macro_err, file_id)| {
-                    resolved_module.errors.push((macro_err.into(), file_id));
+                    errors.push((macro_err.into(), file_id));
                 },
             );
         }
 
-        let cycle_errors = context.def_interner.check_for_dependency_cycles();
-        let cycles_present = !cycle_errors.is_empty();
-        resolved_module.errors.extend(cycle_errors);
-
-        resolved_module.type_check(context);
-
-        if !cycles_present {
-            resolved_module.evaluate_comptime(&mut context.def_interner, crate_id);
-        }
-
-        resolved_module.errors
+        errors
     }
 }
 
@@ -511,21 +398,8 @@ fn add_import_reference(
         return;
     }
 
-    match def_id {
-        crate::macros_api::ModuleDefId::FunctionId(func_id) => {
-            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
-            interner.add_reference(ReferenceId::Function(func_id), variable);
-        }
-        crate::macros_api::ModuleDefId::TypeId(struct_id) => {
-            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
-            interner.add_reference(ReferenceId::Struct(struct_id), variable);
-        }
-        crate::macros_api::ModuleDefId::TraitId(trait_id) => {
-            let variable = ReferenceId::Variable(Location::new(name.span(), file_id), false);
-            interner.add_reference(ReferenceId::Trait(trait_id), variable);
-        }
-        _ => (),
-    }
+    let location = Location::new(name.span(), file_id);
+    interner.add_module_def_id_reference(def_id, location, false);
 }
 
 fn inject_prelude(
@@ -584,77 +458,4 @@ pub fn filter_literal_globals(
         ExpressionKind::Literal(literal) => !matches!(literal, Literal::Array(_)),
         _ => false,
     })
-}
-
-impl ResolvedModule {
-    fn type_check(&mut self, context: &mut Context) {
-        self.type_check_globals(&mut context.def_interner);
-        self.type_check_functions(&mut context.def_interner);
-        self.type_check_trait_impl_function(&mut context.def_interner);
-    }
-
-    fn type_check_globals(&mut self, interner: &mut NodeInterner) {
-        for (file_id, global_id) in self.globals.iter() {
-            for error in TypeChecker::check_global(*global_id, interner) {
-                self.errors.push((error.into(), *file_id));
-            }
-        }
-    }
-
-    fn type_check_functions(&mut self, interner: &mut NodeInterner) {
-        for (file, func) in self.functions.iter() {
-            for error in type_check_func(interner, *func) {
-                self.errors.push((error.into(), *file));
-            }
-        }
-    }
-
-    fn type_check_trait_impl_function(&mut self, interner: &mut NodeInterner) {
-        for (file, func) in self.trait_impl_functions.iter() {
-            for error in check_trait_impl_method_matches_declaration(interner, *func) {
-                self.errors.push((error.into(), *file));
-            }
-            for error in type_check_func(interner, *func) {
-                self.errors.push((error.into(), *file));
-            }
-        }
-    }
-
-    /// Evaluate all `comptime` expressions in this module
-    fn evaluate_comptime(&mut self, interner: &mut NodeInterner, crate_id: CrateId) {
-        if self.count_errors() == 0 {
-            let mut scopes = vec![HashMap::default()];
-            let mut interpreter = Interpreter::new(interner, &mut scopes, crate_id);
-
-            for (_file, global) in &self.globals {
-                if let Err(error) = interpreter.scan_global(*global) {
-                    self.errors.push(error.into_compilation_error_pair());
-                }
-            }
-
-            for (_file, function) in &self.functions {
-                // The file returned by the error may be different than the file the
-                // function is in so only use the error's file id.
-                if let Err(error) = interpreter.scan_function(*function) {
-                    self.errors.push(error.into_compilation_error_pair());
-                }
-            }
-        }
-    }
-
-    fn resolve_globals(
-        &mut self,
-        context: &mut Context,
-        literal_globals: Vec<UnresolvedGlobal>,
-        crate_id: CrateId,
-    ) {
-        let globals = resolve_globals(context, literal_globals, crate_id);
-        self.globals.extend(globals.globals);
-        self.errors.extend(globals.errors);
-    }
-
-    /// Counts the number of errors (minus warnings) this program currently has
-    fn count_errors(&self) -> usize {
-        self.errors.iter().filter(|(error, _)| error.is_error()).count()
-    }
 }

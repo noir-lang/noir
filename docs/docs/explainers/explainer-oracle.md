@@ -31,7 +31,7 @@ In short, anything that can be constrained in a Noir program but needs to be fet
 
 Just like in The Matrix, Oracles are powerful. But with great power, comes great responsibility. Just because you're using them in a Noir program doesn't mean they're true. Noir has no superpowers. If you want to prove that Portugal won the Euro Cup 2016, you're still relying on potentially untrusted information.
 
-To give a concrete example, Alice wants to login to the [NounsDAO](https://nouns.wtf/) forum with her username "noir_nouner" by proving she owns a noun without revealing her ethereum address. Her Noir program could have a oracle call like this:
+To give a concrete example, Alice wants to login to the [NounsDAO](https://nouns.wtf/) forum with her username "noir_nouner" by proving she owns a noun without revealing her ethereum address. Her Noir program could have an oracle call like this:
 
 ```rust
 #[oracle(getNoun)]
@@ -52,6 +52,6 @@ If you don't constrain the return of your oracle, you could be clearly opening a
 
 On CLI, Nargo resolves oracles by making JSON RPC calls, which means it would require an RPC node to be running.
 
-In JavaScript, NoirJS accepts and resolves arbitrary call handlers (that is, not limited to JSON) as long as they matches the expected types the developer defines. Refer to [Foreign Call Handler](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) to learn more about NoirJS's call handling.
+In JavaScript, NoirJS accepts and resolves arbitrary call handlers (that is, not limited to JSON) as long as they match the expected types the developer defines. Refer to [Foreign Call Handler](../reference/NoirJS/noir_js/type-aliases/ForeignCallHandler.md) to learn more about NoirJS's call handling.
 
 If you want to build using oracles, follow through to the [oracle guide](../how_to/how-to-oracles.md) for a simple example on how to do that.

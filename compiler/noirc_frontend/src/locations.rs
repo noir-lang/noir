@@ -3,7 +3,11 @@ use noirc_errors::Location;
 use rangemap::RangeMap;
 use rustc_hash::FxHashMap;
 
-use crate::{macros_api::NodeInterner, node_interner::ReferenceId};
+use crate::{
+    hir::def_map::{ModuleDefId, ModuleId},
+    macros_api::{NodeInterner, StructId},
+    node_interner::{DefinitionId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
+};
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 #[derive(Debug, Default)]
@@ -13,7 +17,7 @@ pub(crate) struct LocationIndices {
 
 impl LocationIndices {
     pub(crate) fn add_location(&mut self, location: Location, node_index: PetGraphIndex) {
-        // Some location spans are empty: maybe they are from ficticious nodes?
+        // Some location spans are empty: maybe they are from fictitious nodes?
         if location.span.start() == location.span.end() {
             return;
         }
@@ -31,20 +35,123 @@ impl LocationIndices {
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
-            ReferenceId::Module(id) => self.module_location(&id),
+            ReferenceId::Module(id) => self.module_attributes(&id).location,
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
-            ReferenceId::Struct(id) => self.struct_location(&id),
-            ReferenceId::Trait(id) => self.trait_location(&id),
+            ReferenceId::Struct(id) => {
+                let struct_type = self.get_struct(id);
+                let struct_type = struct_type.borrow();
+                Location::new(struct_type.name.span(), struct_type.location.file)
+            }
+            ReferenceId::StructMember(id, field_index) => {
+                let struct_type = self.get_struct(id);
+                let struct_type = struct_type.borrow();
+                Location::new(struct_type.field_at(field_index).0.span(), struct_type.location.file)
+            }
+            ReferenceId::Trait(id) => {
+                let trait_type = self.get_trait(id);
+                Location::new(trait_type.name.span(), trait_type.location.file)
+            }
             ReferenceId::Global(id) => self.get_global(id).location,
-            ReferenceId::Alias(id) => self.get_type_alias(id).borrow().location,
-            ReferenceId::Variable(location, _) => location,
+            ReferenceId::Alias(id) => {
+                let alias_type = self.get_type_alias(id);
+                let alias_type = alias_type.borrow();
+                Location::new(alias_type.name.span(), alias_type.location.file)
+            }
+            ReferenceId::Local(id) => self.definition(id).location,
+            ReferenceId::Reference(location, _) => location,
         }
     }
 
-    pub(crate) fn add_reference(&mut self, referenced: ReferenceId, reference: ReferenceId) {
+    pub fn reference_module(&self, reference: ReferenceId) -> Option<&ModuleId> {
+        self.reference_modules.get(&reference)
+    }
+
+    pub(crate) fn add_module_def_id_reference(
+        &mut self,
+        def_id: ModuleDefId,
+        location: Location,
+        is_self_type: bool,
+    ) {
+        match def_id {
+            ModuleDefId::ModuleId(module_id) => {
+                self.add_module_reference(module_id, location);
+            }
+            ModuleDefId::FunctionId(func_id) => {
+                self.add_function_reference(func_id, location);
+            }
+            ModuleDefId::TypeId(struct_id) => {
+                self.add_struct_reference(struct_id, location, is_self_type);
+            }
+            ModuleDefId::TraitId(trait_id) => {
+                self.add_trait_reference(trait_id, location, is_self_type);
+            }
+            ModuleDefId::TypeAliasId(type_alias_id) => {
+                self.add_alias_reference(type_alias_id, location);
+            }
+            ModuleDefId::GlobalId(global_id) => {
+                self.add_global_reference(global_id, location);
+            }
+        };
+    }
+
+    pub(crate) fn add_module_reference(&mut self, id: ModuleId, location: Location) {
+        self.add_reference(ReferenceId::Module(id), location, false);
+    }
+
+    pub(crate) fn add_struct_reference(
+        &mut self,
+        id: StructId,
+        location: Location,
+        is_self_type: bool,
+    ) {
+        self.add_reference(ReferenceId::Struct(id), location, is_self_type);
+    }
+
+    pub(crate) fn add_struct_member_reference(
+        &mut self,
+        id: StructId,
+        member_index: usize,
+        location: Location,
+    ) {
+        self.add_reference(ReferenceId::StructMember(id, member_index), location, false);
+    }
+
+    pub(crate) fn add_trait_reference(
+        &mut self,
+        id: TraitId,
+        location: Location,
+        is_self_type: bool,
+    ) {
+        self.add_reference(ReferenceId::Trait(id), location, is_self_type);
+    }
+
+    pub(crate) fn add_alias_reference(&mut self, id: TypeAliasId, location: Location) {
+        self.add_reference(ReferenceId::Alias(id), location, false);
+    }
+
+    pub(crate) fn add_function_reference(&mut self, id: FuncId, location: Location) {
+        self.add_reference(ReferenceId::Function(id), location, false);
+    }
+
+    pub(crate) fn add_global_reference(&mut self, id: GlobalId, location: Location) {
+        self.add_reference(ReferenceId::Global(id), location, false);
+    }
+
+    pub(crate) fn add_local_reference(&mut self, id: DefinitionId, location: Location) {
+        self.add_reference(ReferenceId::Local(id), location, false);
+    }
+
+    pub(crate) fn add_reference(
+        &mut self,
+        referenced: ReferenceId,
+        location: Location,
+        is_self_type: bool,
+    ) {
         if !self.track_references {
             return;
         }
+
+        let reference = ReferenceId::Reference(location, is_self_type);
 
         let referenced_index = self.get_or_insert_reference(referenced);
         let reference_location = self.reference_location(reference);
@@ -54,7 +161,11 @@ impl NodeInterner {
         self.location_indices.add_location(reference_location, reference_index);
     }
 
-    pub(crate) fn add_definition_location(&mut self, referenced: ReferenceId) {
+    pub(crate) fn add_definition_location(
+        &mut self,
+        referenced: ReferenceId,
+        module_id: Option<ModuleId>,
+    ) {
         if !self.track_references {
             return;
         }
@@ -62,6 +173,9 @@ impl NodeInterner {
         let referenced_index = self.get_or_insert_reference(referenced);
         let referenced_location = self.reference_location(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
+        if let Some(module_id) = module_id {
+            self.reference_modules.insert(referenced, module_id);
+        }
     }
 
     #[tracing::instrument(skip(self), ret)]
@@ -93,7 +207,7 @@ impl NodeInterner {
 
     // Starting at the given location, find the node referenced by it. Then, gather
     // all locations that reference that node, and return all of them
-    // (the references and optionally the referenced node if `include_referencedd` is true).
+    // (the references and optionally the referenced node if `include_referenced` is true).
     // If `include_self_type_name` is true, references where "Self" is written are returned,
     // otherwise they are not.
     // Returns `None` if the location is not known to this interner.
@@ -103,27 +217,29 @@ impl NodeInterner {
         include_referenced: bool,
         include_self_type_name: bool,
     ) -> Option<Vec<Location>> {
+        let referenced_node = self.find_referenced(location)?;
+        let referenced_node_index = self.reference_graph_indices[&referenced_node];
+
+        let found_locations = self.find_all_references_for_index(
+            referenced_node_index,
+            include_referenced,
+            include_self_type_name,
+        );
+
+        Some(found_locations)
+    }
+
+    // Returns the `ReferenceId` that is referenced by the given location, if any.
+    pub fn find_referenced(&self, location: Location) -> Option<ReferenceId> {
         let node_index = self.location_indices.get_node_from_location(location)?;
 
         let reference_node = self.reference_graph[node_index];
-        let found_locations: Vec<Location> = match reference_node {
-            ReferenceId::Alias(_) | ReferenceId::Global(_) | ReferenceId::Module(_) => todo!(),
-            ReferenceId::Function(_) | ReferenceId::Struct(_) | ReferenceId::Trait(_) => self
-                .find_all_references_for_index(
-                    node_index,
-                    include_referenced,
-                    include_self_type_name,
-                ),
-            ReferenceId::Variable(_, _) => {
-                let referenced_node_index = self.referenced_index(node_index)?;
-                self.find_all_references_for_index(
-                    referenced_node_index,
-                    include_referenced,
-                    include_self_type_name,
-                )
-            }
-        };
-        Some(found_locations)
+        if let ReferenceId::Reference(_, _) = reference_node {
+            let node_index = self.referenced_index(node_index)?;
+            Some(self.reference_graph[node_index])
+        } else {
+            Some(reference_node)
+        }
     }
 
     // Given a referenced node index, find all references to it and return their locations, optionally together

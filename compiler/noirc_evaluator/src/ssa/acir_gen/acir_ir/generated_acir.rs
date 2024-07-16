@@ -165,7 +165,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     pub(crate) fn call_black_box(
         &mut self,
         func_name: BlackBoxFunc,
-        inputs: &[Vec<FunctionInput>],
+        inputs: &[Vec<FunctionInput<F>>],
         constant_inputs: Vec<F>,
         constant_outputs: Vec<F>,
         output_count: usize,
@@ -294,24 +294,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                 outputs: (outputs[0], outputs[1], outputs[2]),
             },
             BlackBoxFunc::Keccak256 => {
-                let var_message_size = match inputs.to_vec().pop() {
-                    Some(var_message_size) => var_message_size[0],
-                    None => {
-                        return Err(InternalError::MissingArg {
-                            name: "".to_string(),
-                            arg: "message_size".to_string(),
-                            call_stack: self.call_stack.clone(),
-                        });
-                    }
-                };
-
-                BlackBoxFuncCall::Keccak256 {
-                    inputs: inputs[0].clone(),
-                    var_message_size,
-                    outputs: outputs
-                        .try_into()
-                        .expect("Compiler should generate correct size outputs"),
-                }
+                unreachable!("unexpected BlackBox {}", func_name.to_string())
             }
             BlackBoxFunc::Keccakf1600 => BlackBoxFuncCall::Keccakf1600 {
                 inputs: inputs[0]
@@ -571,7 +554,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         };
 
         let constraint = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput { witness, num_bits },
+            input: FunctionInput::witness(witness, num_bits),
         });
         self.push_opcode(constraint);
 

@@ -7,6 +7,7 @@ mod file_map;
 
 pub use file_map::{File, FileId, FileMap, PathString};
 
+use iter_extended::vecmap;
 // Re-export for the lsp
 pub use codespan_reporting::files as codespan_files;
 
@@ -102,6 +103,26 @@ impl FileManager {
     // TODO: This should accept a &Path instead of a PathBuf
     pub fn name_to_id(&self, file_name: PathBuf) -> Option<FileId> {
         self.file_map.get_file_id(&PathString::from_path(file_name))
+    }
+
+    /// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
+    /// "some_dir/package_name/src/main.nr"`
+    pub fn find_by_path_suffix(&self, suffix: &str) -> Result<Option<FileId>, Vec<PathBuf>> {
+        let suffix_path: Vec<_> = Path::new(suffix).components().rev().collect();
+        let results: Vec<_> = self
+            .path_to_id
+            .iter()
+            .filter(|(path, _id)| {
+                path.components().rev().zip(suffix_path.iter()).all(|(x, y)| &x == y)
+            })
+            .collect();
+        if results.is_empty() {
+            Ok(None)
+        } else if results.len() == 1 {
+            Ok(Some(*results[0].1))
+        } else {
+            Err(vecmap(results, |(path, _id)| path.clone()))
+        }
     }
 }
 

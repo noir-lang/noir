@@ -15,7 +15,9 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
 
     msg32
 }
+
 // SHA-256 hash function
+#[no_predicates]
 pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 32] {
     sha256_var(msg, N as u64)
 }

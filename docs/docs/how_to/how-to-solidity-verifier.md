@@ -40,7 +40,7 @@ Generating a Solidity Verifier contract is actually a one-command process. Howev
 
 ## Step 1 - Generate a contract
 
-This is by far the most straight-forward step. Just run:
+This is by far the most straightforward step. Just run:
 
 ```sh
 nargo compile
@@ -99,7 +99,7 @@ This time we will see a warning about an unused function parameter. This is expe
 
 ## Step 3 - Deploying
 
-At this point we should have a compiled contract read to deploy. If we navigate to the deploy section in Remix, we will see many different environments we can deploy to. The steps to deploy on each environment would be out-of-scope for this guide, so we will just use the default Remix VM.
+At this point we should have a compiled contract ready to deploy. If we navigate to the deploy section in Remix, we will see many different environments we can deploy to. The steps to deploy on each environment would be out-of-scope for this guide, so we will just use the default Remix VM.
 
 Looking closely, we will notice that our "Solidity Verifier" is actually three contracts working together:
 
@@ -111,7 +111,7 @@ Remix will take care of the dependencies for us so we can simply deploy the Ultr
 
 ![Deploying UltraVerifier](@site/static/img/how-tos/solidity_verifier_5.png)
 
-A contract will show up in the "Deployed Contracts" section, where we can retrieve the Verification Key Hash. This is particularly useful for double-checking the deployer contract is the correct one.
+A contract will show up in the "Deployed Contracts" section, where we can retrieve the Verification Key Hash. This is particularly useful for double-checking that the deployer contract is the correct one.
 
 :::note
 
