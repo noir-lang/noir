@@ -109,7 +109,7 @@ export class Archiver implements ArchiveSource {
     telemetry: TelemetryClient,
     blockUntilSynced = true,
   ): Promise<Archiver> {
-    const chain = createEthereumChain(config.rpcUrl, config.apiKey);
+    const chain = createEthereumChain(config.rpcUrl);
     const publicClient = createPublicClient({
       chain: chain.chainInfo,
       transport: http(chain.rpcUrl),

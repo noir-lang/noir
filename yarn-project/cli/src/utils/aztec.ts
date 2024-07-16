@@ -33,13 +33,13 @@ export function getFunctionArtifact(artifact: ContractArtifact, fnName: string):
 /**
  * Function to execute the 'deployRollupContracts' command.
  * @param rpcUrl - The RPC URL of the ethereum node.
- * @param apiKey - The api key of the ethereum node endpoint.
+ * @param chainId - The chain ID of the L1 host.
  * @param privateKey - The private key to be used in contract deployment.
  * @param mnemonic - The mnemonic to be used in contract deployment.
  */
 export async function deployAztecContracts(
   rpcUrl: string,
-  apiKey: string,
+  chainId: number,
   privateKey: string,
   mnemonic: string,
   debugLogger: DebugLogger,
@@ -66,7 +66,7 @@ export async function deployAztecContracts(
   const account = !privateKey
     ? mnemonicToAccount(mnemonic!)
     : privateKeyToAccount(`${privateKey.startsWith('0x') ? '' : '0x'}${privateKey}` as `0x${string}`);
-  const chain = createEthereumChain(rpcUrl, apiKey);
+  const chain = createEthereumChain(rpcUrl, chainId);
   const l1Artifacts: L1ContractArtifactsForDeployment = {
     registry: {
       contractAbi: RegistryAbi,

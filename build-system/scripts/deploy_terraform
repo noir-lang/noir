@@ -29,7 +29,7 @@ export TF_VAR_DOCKERHUB_ACCOUNT=$DOCKERHUB_ACCOUNT
 export TF_VAR_FORK_MNEMONIC=$FORK_MNEMONIC
 export TF_VAR_INFURA_API_KEY=$INFURA_API_KEY
 export TF_VAR_API_KEY=$FORK_API_KEY
-export TF_VAR_CHAIN_ID=$CHAIN_ID
+export TF_VAR_L1_CHAIN_ID=$CHAIN_ID
 
 # If given a repository name, use it to construct and set/override the backend key.
 # Otherwise use the key as specified in the terraform.

@@ -6,7 +6,7 @@ export async function getNodeInfo(rpcUrl: string, debugLogger: DebugLogger, log:
   const client = await createCompatibleClient(rpcUrl, debugLogger);
   const info = await client.getNodeInfo();
   log(`Node Version: ${info.nodeVersion}`);
-  log(`Chain Id: ${info.chainId}`);
+  log(`Chain Id: ${info.l1ChainId}`);
   log(`Protocol Version: ${info.protocolVersion}`);
   log(`Rollup Address: ${info.l1ContractAddresses.rollupAddress.toString()}`);
   log(`Protocol Contract Addresses:`);

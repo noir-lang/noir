@@ -8,7 +8,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DEBUG: ${DEBUG:-aztec:*,-json-rpc:*,-aztec:circuits:artifact_hash,-aztec:randomness_singleton}
       DEBUG_COLORS: 1
-      CHAIN_ID: 31337
+      L1_CHAIN_ID: 31337
       VERSION: 1
       PXE_PROVER_ENABLED: ${PXE_PROVER_ENABLED:-1}
       PXE_DATA_DIRECTORY: /var/lib/aztec/pxe
@@ -39,7 +39,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DEBUG: ${DEBUG:-aztec:*,-json-rpc:*,-aztec:circuits:artifact_hash,-aztec:randomness_singleton,-aztec:avm_simulator:*}
       DEBUG_COLORS: 1
-      CHAIN_ID: 31337
+      L1_CHAIN_ID: 31337
       VERSION: 1
       NODE_NO_WARNINGS: 1
       PROVER_REAL_PROOFS: ${PROVER_REAL_PROOFS:-1}

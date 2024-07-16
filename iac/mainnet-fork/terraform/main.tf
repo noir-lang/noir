@@ -113,57 +113,55 @@ resource "aws_ecs_task_definition" "aztec_mainnet_fork" {
     }
   }
 
-  container_definitions = <<DEFINITION
-[
-  {
-    "name": "${var.DEPLOY_TAG}-mainnet-fork",
-    "image": "${var.DOCKERHUB_ACCOUNT}/mainnet-fork:aztec-dev",
-    "essential": true,
-    "environment": [
-      {
-        "name": "API_KEY",
-        "value": "${var.API_KEY}"
-      },
-      {
-        "name": "MNEMONIC",
-        "value": "${var.FORK_MNEMONIC}"
-      },
-      {
-        "name": "INFURA_API_KEY",
-        "value": "${var.INFURA_API_KEY}"
-      },
-      {
-        "name": "CHAIN_ID",
-        "value": "31337"
-      },
-      {
-        "name": "SNAPSHOT_FREQUENCY",
-        "value": "15"
+  container_definitions = jsonencode([
+    {
+      name      = "${var.DEPLOY_TAG}-mainnet-fork"
+      image     = "${var.DOCKERHUB_ACCOUNT}/mainnet-fork:${var.DEPLOY_TAG}"
+      essential = true
+      environment = [
+        {
+          name  = "API_KEY"
+          value = "${var.API_KEY}"
+        },
+        {
+          name  = "MNEMONIC"
+          value = "${var.FORK_MNEMONIC}"
+        },
+        {
+          name  = "INFURA_API_KEY"
+          value = "${var.INFURA_API_KEY}"
+        },
+        {
+          name  = "L1_CHAIN_ID"
+          value = "${var.L1_CHAIN_ID}"
+        },
+        {
+          name  = "SNAPSHOT_FREQUENCY"
+          value = "15"
+        }
+      ]
+      mountPoints = [
+        {
+          containerPath = "/data"
+          sourceVolume  = "efs-data-store"
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "${aws_cloudwatch_log_group.aztec_mainnet_fork_logs.name}"
+          awslogs-region        = "eu-west-2"
+          awslogs-stream-prefix = "ecs"
+        }
       }
-    ],
-    "mountPoints": [
-      {
-        "containerPath": "/data",
-        "sourceVolume": "efs-data-store"
-      }
-    ],
-    "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-group": "${aws_cloudwatch_log_group.aztec_mainnet_fork_logs.name}",
-        "awslogs-region": "eu-west-2",
-        "awslogs-stream-prefix": "ecs"
-      }
-    },
-    "portMappings": [
-      {
-        "containerPort": 80,
-        "hostPort": 80
-      }
-    ]
-  }
-]
-DEFINITION
+      portMappings = [
+        {
+          containerPort = 80
+          hostPort      = 80
+        }
+      ]
+    }
+  ])
 }
 
 

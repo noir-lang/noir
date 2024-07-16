@@ -6,8 +6,8 @@ variable "API_KEY" {
   type = string
 }
 
-variable "CHAIN_ID" {
-  type    = string
+variable "L1_CHAIN_ID" {
+  type = string
 }
 
 variable "FAUCET_PRIVATE_KEY" {

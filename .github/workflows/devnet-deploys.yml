@@ -12,15 +12,20 @@ env:
   GIT_COMMIT: ${{ github.sha }}
   DEPLOY_TAG: devnet
   FILE_PATH: ./l1-contracts/addresses.txt
+  L1_CHAIN_ID: 677692
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   # TF Vars
   TF_VAR_DOCKERHUB_ACCOUNT: aztecprotocol
-  TF_VAR_CHAIN_ID: 31337
+  TF_VAR_L1_CHAIN_ID: 677692
   TF_VAR_BOOTNODE_1_PRIVATE_KEY: ${{ secrets.BOOTNODE_1_PRIVATE_KEY }}
   TF_VAR_BOOTNODE_2_PRIVATE_KEY: ${{ secrets.BOOTNODE_2_PRIVATE_KEY }}
   TF_VAR_SEQ_1_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }}
   TF_VAR_SEQ_2_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEQ_2_PUBLISHER_PRIVATE_KEY }}
   TF_VAR_DEPLOY_TAG: devnet
   TF_VAR_API_KEY: ${{ secrets.FORK_API_KEY }}
+  TF_VAR_FORK_MNEMONIC: ${{ secrets.FORK_MNEMONIC }}
+  TF_VAR_INFURA_API_KEY: ${{ secrets.INFURA_API_KEY }}
 
 jobs:
   setup:
@@ -33,6 +38,9 @@ jobs:
   build:
     needs: setup
     runs-on: ${{ github.actor }}-x86
+    outputs:
+      l1_contracts_changed: ${{ steps.check_l1_changes.outputs.result }}
+      mainnet_fork_changed: ${{ steps.check_fork_changes.outputs.result }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,16 +54,27 @@ jobs:
         timeout-minutes: 40
         # Run the build steps for each image with version and arch, push to dockerhub
         run: |
-          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }}
+          earthly-ci \
+          --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }}
 
       - name: Check if L1 contracts need deployment
-        id: check_changes_build
+        id: check_l1_changes
         uses: actions/github-script@v7
         with:
           script: |
             const { execSync } = require('child_process');
             const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
             const fileChanged = changedFiles.includes('l1-contracts/REDEPLOY');
+            return fileChanged
+
+      - name: Check if mainnet fork needs deployment
+        id: check_fork_changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
+            const fileChanged = changedFiles.some(file => file.startsWith('iac/mainnet-fork'));
             return fileChanged
 
   terraform_deploy:
@@ -76,29 +95,33 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          aws-region: eu-west-2
 
-      - name: Check if L1 contracts need deployment
-        id: check_changes_release
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { execSync } = require('child_process');
-            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
-            const fileChanged = changedFiles.includes('l1-contracts/REDEPLOY');
-            return fileChanged
+      - name: Deploy mainnet fork
+        if: needs.build.outputs.mainnet_fork_changed == 'true'
+        working-directory: ./iac/mainnet-fork/terraform
+        run: |
+          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/mainnet-fork"
+          terraform apply -input=false -auto-approve -replace="aws_ecs_service.aztec_mainnet_fork" -replace="aws_efs_file_system.aztec_mainnet_fork_data_store"
+
+      - name: Wait for mainnet fork deployment
+        if: needs.build.outputs.mainnet_fork_changed == 'true'
+        run: |
+          ./.github/scripts/wait_for_fork.sh ${{ env.DEPLOY_TAG }} ${{ secrets.FORK_API_KEY }}
+
       - name: Deploy L1 Contracts
-        if: steps.check_changes_release.outputs.result == 'true'
+        if: needs.build.outputs.l1_contracts_changed == 'true' || needs.build.outputs.mainnet_fork_changed == 'true'
         run: |
           docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}
-          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} \
-            deploy-l1-contracts -p ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }} \
-            -u https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
+          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} deploy-l1-contracts \
+            --private-key ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }} \
+            --rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
+            --chain-id ${{ env.L1_CHAIN_ID }} \
             | tee ${{ env.FILE_PATH }}
           ./.github/scripts/extract_l1_addresses.sh ${{ env.FILE_PATH }}
 
       - name: Apply l1-contracts Terraform
-        if: steps.check_changes_release.outputs.result == 'true'
+        if: needs.build.outputs.l1_contracts_changed == 'true' || needs.build.outputs.mainnet_fork_changed == 'true'
         working-directory: ./l1-contracts/terraform
         run: |
           terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/l1-contracts"
@@ -116,10 +139,10 @@ jobs:
           terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/aztec-node"
 
       - name: Taint node filesystem if L1 contracts are redeployed
-        if: steps.check_changes_release.outputs.result == 'true'
+        if: needs.build.outputs.l1_contracts_changed == 'true'
         working-directory: ./yarn-project/aztec/terraform/node
         run: |
-          terraform state list | grep 'aws_efs_file_system.node_data_store' | xargs -n1 terraform taint
+          terraform taint aws_efs_file_system.node_data_store
 
       - name: Deploy Aztec Nodes
         working-directory: ./yarn-project/aztec/terraform/node

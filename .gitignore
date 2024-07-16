@@ -23,3 +23,6 @@ cmake-build-debug
 .arg
 .secret
 .bb_tmp
+
+# Terraform
+*.tfvars

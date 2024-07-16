@@ -23,9 +23,9 @@ export class ViemReader implements L1GlobalReader {
   private publicClient: PublicClient<HttpTransport, chains.Chain>;
 
   constructor(config: GlobalReaderConfig) {
-    const { rpcUrl, apiKey, l1Contracts } = config;
+    const { rpcUrl, l1ChainId: chainId, l1Contracts } = config;
 
-    const chain = createEthereumChain(rpcUrl, apiKey);
+    const chain = createEthereumChain(rpcUrl, chainId);
 
     this.publicClient = createPublicClient({
       chain: chain.chainInfo,

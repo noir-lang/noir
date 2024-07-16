@@ -28,7 +28,7 @@ services:
       DEBUG: ${DEBUG:-'aztec:*'}
       DEBUG_COLORS: 1
       ETHEREUM_HOST: http://fork:8545
-      CHAIN_ID: 31337
+      L1_CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL: 500
       P2P_CHECK_INTERVAL: 50
       SEQ_TX_POLLING_INTERVAL: 50

@@ -16,7 +16,7 @@ export class SignerlessWallet extends BaseWallet {
   async createTxExecutionRequest(execution: ExecutionRequestInit): Promise<TxExecutionRequest> {
     let entrypoint = this.entrypoint;
     if (!entrypoint) {
-      const { chainId, protocolVersion } = await this.pxe.getNodeInfo();
+      const { l1ChainId: chainId, protocolVersion } = await this.pxe.getNodeInfo();
       entrypoint = new DefaultEntrypoint(chainId, protocolVersion);
     }
 

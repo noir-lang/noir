@@ -6,10 +6,10 @@ services:
 
   aztec:
     image: aztecprotocol/aztec:${AZTEC_DOCKER_TAG:-latest}
-    command: 'start --sandbox'
+    command: "start --sandbox"
     environment:
       ETHEREUM_HOST: http://ethereum:8545
-      CHAIN_ID: 31337
+      L1_CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL_MS: 50
       P2P_BLOCK_CHECK_INTERVAL_MS: 50
       SEQ_TX_POLLING_INTERVAL_MS: 50
@@ -29,7 +29,7 @@ services:
       DEBUG: "aztec:*"
       DEBUG_COLORS: "true"
       ETHEREUM_HOST: http://ethereum:8545
-      CHAIN_ID: 31337
+      L1_CHAIN_ID: 31337
       PXE_URL: http://aztec:8080
       BOX: ${BOX:-vanilla}
       CI: ${CI:-}

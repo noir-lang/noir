@@ -47,8 +47,8 @@ export class ViemTxSender implements L1PublisherTxSender {
   private account: PrivateKeyAccount;
 
   constructor(config: TxSenderConfig) {
-    const { rpcUrl, apiKey, publisherPrivateKey, l1Contracts } = config;
-    const chain = createEthereumChain(rpcUrl, apiKey);
+    const { rpcUrl, l1ChainId: chainId, publisherPrivateKey, l1Contracts } = config;
+    const chain = createEthereumChain(rpcUrl, chainId);
     this.account = privateKeyToAccount(publisherPrivateKey);
     const walletClient = createWalletClient({
       account: this.account,

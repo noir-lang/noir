@@ -34,6 +34,17 @@ export const pxeOption = new Option('-u, --rpc-url <string>', 'URL of the PXE')
   .default(`http://${LOCALHOST}:8080`)
   .makeOptionMandatory(true);
 
+export const chainIdOption = new Option('-c, --l1-chain-id <number>', 'Chain ID of the ethereum host')
+  .env('L1_CHAIN_ID')
+  .default('31337')
+  .argParser(value => {
+    const parsedValue = Number(value);
+    if (isNaN(parsedValue)) {
+      throw new Error('Chain ID must be a number.');
+    }
+    return parsedValue;
+  });
+
 export const createPrivateKeyOption = (description: string, mandatory: boolean) =>
   new Option('-e, --private-key <string>', description)
     .env('PRIVATE_KEY')

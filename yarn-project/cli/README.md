@@ -38,7 +38,6 @@ These options are:
 - `PRIVATE_KEY` -> `-k, --private-key` for all commands that require a private key.
 - `PUBLIC_KEY` -> `-k, --public-key` for all commands that require a public key.
 - `PXE_URL` -> `-u, --rpc-url` for commands that require a PXE
-- `API_KEY` -> `a, --api-key` for `deploy-l1-contracts`.
 - `ETHEREUM_RPC_HOST` -> `-u, --rpc-url` for `deploy-l1-contracts`.
 
 So if for example you are running your Private eXecution Environment (PXE) remotely you can do:
@@ -70,7 +69,7 @@ aztec-cli deploy-l1-contracts [rpcUrl] [options]
 
 Options:
 
-- `-a, --api-key <string>`: API key for the Ethereum host.
+- `-a, --chain-id <string>`: Chain ID for the Ethereum host.
 - `-p, --private-key <string>`: The private key to use for deployment.
 - `-m, --mnemonic <string>`: The mnemonic to use in deployment. Default: `test test test test test test test test test test test junk`.
 

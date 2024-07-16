@@ -234,14 +234,14 @@ async function setupWithRemoteEnvironment(
   const cheatCodes = CheatCodes.create(config.rpcUrl, pxeClient!);
   const teardown = () => Promise.resolve();
 
-  const { chainId, protocolVersion } = await pxeClient.getNodeInfo();
+  const { l1ChainId: chainId, protocolVersion } = await pxeClient.getNodeInfo();
   // this contract might already have been deployed
   // the following deploying functions are idempotent
   await deployCanonicalKeyRegistry(
     new SignerlessWallet(pxeClient, new DefaultMultiCallEntrypoint(chainId, protocolVersion)),
   );
   await deployCanonicalAuthRegistry(
-    new SignerlessWallet(pxeClient, new DefaultMultiCallEntrypoint(config.chainId, config.version)),
+    new SignerlessWallet(pxeClient, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
   );
 
   if (enableGas) {
@@ -389,18 +389,18 @@ export async function setup(
 
   logger.verbose('Deploying key registry...');
   await deployCanonicalKeyRegistry(
-    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.chainId, config.version)),
+    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
   );
 
   logger.verbose('Deploying auth registry...');
   await deployCanonicalAuthRegistry(
-    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.chainId, config.version)),
+    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
   );
 
   if (enableGas) {
     logger.verbose('Deploying gas token...');
     await deployCanonicalGasToken(
-      new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.chainId, config.version)),
+      new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
     );
   }
 

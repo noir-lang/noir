@@ -25,7 +25,7 @@ describe('e2e_authwit_tests', () => {
     // docs:end:public_deploy_accounts
 
     const nodeInfo = await wallets[0].getNodeInfo();
-    chainId = new Fr(nodeInfo.chainId);
+    chainId = new Fr(nodeInfo.l1ChainId);
     version = new Fr(nodeInfo.protocolVersion);
 
     auth = await AuthWitTestContract.deploy(wallets[0]).send().deployed();

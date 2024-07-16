@@ -100,7 +100,7 @@ export class AztecNodeService implements AztecNode {
     protected readonly l1ToL2MessageSource: L1ToL2MessageSource,
     protected readonly worldStateSynchronizer: WorldStateSynchronizer,
     protected readonly sequencer: SequencerClient | undefined,
-    protected readonly chainId: number,
+    protected readonly l1ChainId: number,
     protected readonly version: number,
     protected readonly globalVariableBuilder: GlobalVariableBuilder,
     protected readonly merkleTreesDb: AztecKVStore,
@@ -111,7 +111,7 @@ export class AztecNodeService implements AztecNode {
   ) {
     this.packageVersion = getPackageInfo().version;
     const message =
-      `Started Aztec Node against chain 0x${chainId.toString(16)} with contracts - \n` +
+      `Started Aztec Node against chain 0x${l1ChainId.toString(16)} with contracts - \n` +
       `Rollup: ${config.l1Contracts.rollupAddress.toString()}\n` +
       `Registry: ${config.l1Contracts.registryAddress.toString()}\n` +
       `Inbox: ${config.l1Contracts.inboxAddress.toString()}\n` +
@@ -132,11 +132,11 @@ export class AztecNodeService implements AztecNode {
     storeLog = createDebugLogger('aztec:node:lmdb'),
   ): Promise<AztecNodeService> {
     telemetry ??= new NoopTelemetryClient();
-    const ethereumChain = createEthereumChain(config.rpcUrl, config.apiKey);
+    const ethereumChain = createEthereumChain(config.rpcUrl, config.l1ChainId);
     //validate that the actual chain id matches that specified in configuration
-    if (config.chainId !== ethereumChain.chainInfo.id) {
+    if (config.l1ChainId !== ethereumChain.chainInfo.id) {
       throw new Error(
-        `RPC URL configured for chain id ${ethereumChain.chainInfo.id} but expected id ${config.chainId}`,
+        `RPC URL configured for chain id ${ethereumChain.chainInfo.id} but expected id ${config.l1ChainId}`,
       );
     }
 
@@ -172,7 +172,7 @@ export class AztecNodeService implements AztecNode {
 
     const proofVerifier = config.realProofs ? await BBCircuitVerifier.new(config) : new TestCircuitVerifier();
     const txValidator = new AggregateTxValidator(
-      new MetadataTxValidator(config.chainId),
+      new MetadataTxValidator(config.l1ChainId),
       new TxProofValidator(proofVerifier),
     );
 
@@ -305,7 +305,7 @@ export class AztecNodeService implements AztecNode {
    * @returns The chain id.
    */
   public getChainId(): Promise<number> {
-    return Promise.resolve(this.chainId);
+    return Promise.resolve(this.l1ChainId);
   }
 
   public getContractClass(id: Fr): Promise<ContractClassPublic | undefined> {
@@ -791,7 +791,7 @@ export class AztecNodeService implements AztecNode {
       const proofVerifier = config.realProofs ? await BBCircuitVerifier.new(newConfig) : new TestCircuitVerifier();
 
       this.txValidator = new AggregateTxValidator(
-        new MetadataTxValidator(this.chainId),
+        new MetadataTxValidator(this.l1ChainId),
         new TxProofValidator(proofVerifier),
       );
     }

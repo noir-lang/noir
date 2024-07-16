@@ -4,10 +4,10 @@ import { createDebugLogger } from '@aztec/foundation/log';
 
 export class MetadataTxValidator implements TxValidator<Tx> {
   #log = createDebugLogger('aztec:sequencer:tx_validator:tx_metadata');
-  #chainId: Fr;
+  #l1ChainId: Fr;
 
-  constructor(chainId: number | Fr) {
-    this.#chainId = new Fr(chainId);
+  constructor(l1ChainId: number | Fr) {
+    this.#l1ChainId = new Fr(l1ChainId);
   }
 
   validateTxs(txs: Tx[]): Promise<[validTxs: Tx[], invalidTxs: Tx[]]> {
@@ -26,11 +26,11 @@ export class MetadataTxValidator implements TxValidator<Tx> {
   }
 
   #hasCorrectChainId(tx: Tx): boolean {
-    if (!tx.data.constants.txContext.chainId.equals(this.#chainId)) {
+    if (!tx.data.constants.txContext.chainId.equals(this.#l1ChainId)) {
       this.#log.warn(
         `Rejecting tx ${Tx.getHash(
           tx,
-        )} because of incorrect chain ${tx.data.constants.txContext.chainId.toNumber()} != ${this.#chainId.toNumber()}`,
+        )} because of incorrect chain ${tx.data.constants.txContext.chainId.toNumber()} != ${this.#l1ChainId.toNumber()}`,
       );
       return false;
     } else {

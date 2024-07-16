@@ -23,6 +23,11 @@ export interface ArchiverConfig {
   apiKey?: string;
 
   /**
+   * The L1 chain's ID
+   */
+  l1ChainId?: number;
+
+  /**
    * The polling interval in ms for retrieving new L2 blocks and encrypted logs.
    */
   archiverPollingIntervalMS?: number;
@@ -54,6 +59,7 @@ export interface ArchiverConfig {
 export function getConfigEnvVars(): ArchiverConfig {
   const {
     ETHEREUM_HOST,
+    L1_CHAIN_ID,
     ARCHIVER_POLLING_INTERVAL_MS,
     ARCHIVER_VIEM_POLLING_INTERVAL_MS,
     AVAILABILITY_ORACLE_CONTRACT_ADDRESS,
@@ -82,6 +88,7 @@ export function getConfigEnvVars(): ArchiverConfig {
   };
   return {
     rpcUrl: ETHEREUM_HOST || '',
+    l1ChainId: L1_CHAIN_ID ? +L1_CHAIN_ID : 31337, // 31337 is the default chain id for anvil
     archiverPollingIntervalMS: ARCHIVER_POLLING_INTERVAL_MS ? +ARCHIVER_POLLING_INTERVAL_MS : 1_000,
     viemPollingIntervalMS: ARCHIVER_VIEM_POLLING_INTERVAL_MS ? +ARCHIVER_VIEM_POLLING_INTERVAL_MS : 1_000,
     apiKey: API_KEY,

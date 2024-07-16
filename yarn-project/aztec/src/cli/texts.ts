@@ -49,10 +49,10 @@ export const cliTexts = {
     'Starts an Archiver with options. If started additionally to --node, the Archiver will attach to that node.' +
     'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +
     'rcpUrl:ETHEREUM_HOST - string - The host of the Ethereum node to connect to. Default: http://localhost:8545\n' +
-    'apiKey:API_KEY - string - The key for the ethereum node if necessary.\n' +
     'archiverPollingIntervalMS:ARCHIVER_POLLING_INTERVAL_MS - number - The polling interval in ms for retrieving new L2 blocks and encrypted logs. Default: 1000\n' +
     'viemPollingIntervalMS:ARCHIVER_VIEM_POLLING_INTERVAL_MS - number - The polling interval viem uses in ms. Default: 1000\n' +
     'dataDirectory:DATA_DIRECTORY - string - Optional dir to store data. If omitted will store temporarily.\n\n' +
+    'l1ChainId:L1_CHAIN_ID - number - The chain id of the ethereum host. Default: 31337\n' +
     contractAddresses,
   sequencer:
     'Starts a Sequencer with options. If started additionally to --node, the Sequencer will attach to that node.\n' +
@@ -60,8 +60,7 @@ export const cliTexts = {
     'rcpUrl:ETHEREUM_HOST - string - The host of the Ethereum node to connect to. Default: http://localhost:8545\n' +
     'minTxsPerBlock:SEQ_MIN_TXS_PER_BLOCK - number - The minimum number of transactions to include in a block. Default: 1\n' +
     'maxTxsPerBlock:SEQ_MAX_TXS_PER_BLOCK - number - The maximum number of transactions to include in a block. Default: 32\n' +
-    'apiKey:API_KEY - string - The key for the ethereum node if necessary.\n' +
-    'chainId:CHAIN_ID - number - The chain id of the ethereum host. Default: 31337\n' +
+    'l1ChainId:L1_CHAIN_ID - number - The chain id of the ethereum host. Default: 31337\n' +
     'version:VERSION - number - The version of the Aztec rollup. Default: 1\n' +
     'publisherPrivateKey:SEQ_PUBLISHER_PRIVATE_KEY - string - The private key of the publisher. If not provided, will try to infer from default foundry test accounts.\n' +
     'requiredConfirmations:SEQ_REQUIRED_CONFIRMATIONS - number - The number of confirmations required before publishing a block. Default: 1\n' +

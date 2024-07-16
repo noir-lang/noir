@@ -17,15 +17,15 @@ export class DefaultAccountInterface implements AccountInterface {
   constructor(
     private authWitnessProvider: AuthWitnessProvider,
     private address: CompleteAddress,
-    nodeInfo: Pick<NodeInfo, 'chainId' | 'protocolVersion'>,
+    nodeInfo: Pick<NodeInfo, 'l1ChainId' | 'protocolVersion'>,
   ) {
     this.entrypoint = new DefaultAccountEntrypoint(
       address.address,
       authWitnessProvider,
-      nodeInfo.chainId,
+      nodeInfo.l1ChainId,
       nodeInfo.protocolVersion,
     );
-    this.chainId = new Fr(nodeInfo.chainId);
+    this.chainId = new Fr(nodeInfo.l1ChainId);
     this.version = new Fr(nodeInfo.protocolVersion);
   }
 

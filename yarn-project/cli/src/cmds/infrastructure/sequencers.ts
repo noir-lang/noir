@@ -13,7 +13,7 @@ export async function sequencers(opts: {
   mnemonic?: string;
   rpcUrl: string;
   l1RpcUrl: string;
-  apiKey: string;
+  chainId: number;
   blockNumber?: number;
   log: LogFn;
   debugLogger: DebugLogger;
@@ -25,14 +25,14 @@ export async function sequencers(opts: {
     mnemonic,
     rpcUrl,
     l1RpcUrl,
-    apiKey,
+    chainId,
     log,
     debugLogger,
   } = opts;
   const client = await createCompatibleClient(rpcUrl, debugLogger);
   const { l1ContractAddresses } = await client.getNodeInfo();
 
-  const chain = createEthereumChain(l1RpcUrl, apiKey);
+  const chain = createEthereumChain(l1RpcUrl, chainId);
   const publicClient = createPublicClient({ chain: chain.chainInfo, transport: http(chain.rpcUrl) });
 
   const walletClient = mnemonic

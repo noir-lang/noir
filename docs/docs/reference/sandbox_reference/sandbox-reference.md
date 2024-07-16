@@ -20,7 +20,7 @@ To change them, you can open `~/.aztec/docker-compose.yml` and edit them directl
 DEBUG=aztec:* # The level of debugging logs to be displayed. using "aztec:*" will log everything.
 HOST_WORKDIR='${PWD}' # The location to store log outpus. Will use ~/.aztec where the docker-compose.yml file is stored by default.
 ETHEREUM_HOST=http://ethereum:8545 # The Ethereum JSON RPC URL. We use an anvil instance that runs in parallel to the sandbox on docker by default.
-CHAIN_ID=31337 # The Chain ID that the Ethereum host is using.
+L1_CHAIN_ID=31337 # The Chain ID that the Ethereum host is using.
 TEST_ACCOUNTS='true' # Option to deploy 3 test account when sandbox starts. (default: true)
 MODE='sandbox' # Option to start the sandbox or a standalone part of the system. (default: sandbox)
 PXE_PORT=8080 # The port that the PXE will be listening to (default: 8080)

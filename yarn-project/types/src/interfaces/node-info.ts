@@ -13,7 +13,7 @@ export interface NodeInfo {
   /**
    * L1 chain id.
    */
-  chainId: number;
+  l1ChainId: number;
   /**
    * Protocol version.
    */

@@ -11,14 +11,14 @@ export async function getL1Balance(
   who: EthAddress,
   rpcUrl: string,
   l1RpcUrl: string,
-  apiKey: string,
+  chainId: number,
   log: LogFn,
   debugLogger: DebugLogger,
 ) {
   const client = await createCompatibleClient(rpcUrl, debugLogger);
   const { l1ContractAddresses } = await client.getNodeInfo();
 
-  const chain = createEthereumChain(l1RpcUrl, apiKey);
+  const chain = createEthereumChain(l1RpcUrl, chainId);
   const publicClient = createPublicClient({ chain: chain.chainInfo, transport: http(chain.rpcUrl) });
 
   const gasL1 = getContract({

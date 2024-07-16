@@ -118,7 +118,7 @@ export class PXEService implements PXE {
     await this.synchronizer.start(1, l2BlockPollingIntervalMS);
     await this.restoreNoteProcessors();
     const info = await this.getNodeInfo();
-    this.log.info(`Started PXE connected to chain ${info.chainId} version ${info.protocolVersion}`);
+    this.log.info(`Started PXE connected to chain ${info.l1ChainId} version ${info.protocolVersion}`);
   }
 
   private async restoreNoteProcessors() {
@@ -616,7 +616,7 @@ export class PXEService implements PXE {
 
     const nodeInfo: NodeInfo = {
       nodeVersion,
-      chainId,
+      l1ChainId: chainId,
       protocolVersion,
       l1ContractAddresses: contractAddresses,
       protocolContractAddresses: protocolContractAddresses,

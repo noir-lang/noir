@@ -203,7 +203,7 @@ export class FeesTest {
         await deployCanonicalGasToken(
           new SignerlessWallet(
             context.pxe,
-            new DefaultMultiCallEntrypoint(context.aztecNodeConfig.chainId, context.aztecNodeConfig.version),
+            new DefaultMultiCallEntrypoint(context.aztecNodeConfig.l1ChainId, context.aztecNodeConfig.version),
           ),
         );
       },

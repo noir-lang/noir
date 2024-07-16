@@ -4,13 +4,13 @@ import { deployAztecContracts } from '../../utils/aztec.js';
 
 export async function deployL1Contracts(
   rpcUrl: string,
-  apiKey: string,
+  chainId: number,
   privateKey: string,
   mnemonic: string,
   log: LogFn,
   debugLogger: DebugLogger,
 ) {
-  const { l1ContractAddresses } = await deployAztecContracts(rpcUrl, apiKey, privateKey, mnemonic, debugLogger);
+  const { l1ContractAddresses } = await deployAztecContracts(rpcUrl, chainId, privateKey, mnemonic, debugLogger);
 
   log('\n');
   log(`Rollup Address: ${l1ContractAddresses.rollupAddress.toString()}`);

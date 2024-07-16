@@ -144,7 +144,7 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
     it('successfully gets node info', async () => {
       const nodeInfo = await pxe.getNodeInfo();
       expect(typeof nodeInfo.protocolVersion).toEqual('number');
-      expect(typeof nodeInfo.chainId).toEqual('number');
+      expect(typeof nodeInfo.l1ChainId).toEqual('number');
       expect(nodeInfo.l1ContractAddresses.rollupAddress.toString()).toMatch(/0x[a-fA-F0-9]+/);
     });
 

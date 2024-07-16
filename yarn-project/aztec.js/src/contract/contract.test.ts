@@ -32,7 +32,7 @@ describe('Contract Class', () => {
   };
   const mockNodeInfo: NodeInfo = {
     nodeVersion: 'vx.x.x',
-    chainId: 1,
+    l1ChainId: 1,
     protocolVersion: 2,
     l1ContractAddresses: l1Addresses,
     protocolContractAddresses: {

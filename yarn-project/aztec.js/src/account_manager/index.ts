@@ -131,7 +131,7 @@ export class AccountManager {
 
       await this.pxe.registerAccount(this.secretKey, this.getCompleteAddress().partialAddress);
 
-      const { chainId, protocolVersion } = await this.pxe.getNodeInfo();
+      const { l1ChainId: chainId, protocolVersion } = await this.pxe.getNodeInfo();
       const deployWallet = new SignerlessWallet(this.pxe, new DefaultMultiCallEntrypoint(chainId, protocolVersion));
 
       // We use a signerless wallet with the multi call entrypoint in order to make multiple calls in one go

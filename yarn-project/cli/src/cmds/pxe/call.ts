@@ -28,7 +28,7 @@ export async function call(
   }
 
   const client = await createCompatibleClient(rpcUrl, debugLogger);
-  const { chainId, protocolVersion } = await client.getNodeInfo();
+  const { l1ChainId: chainId, protocolVersion } = await client.getNodeInfo();
   const call = new ContractFunctionInteraction(
     new SignerlessWallet(client, new DefaultMultiCallEntrypoint(chainId, protocolVersion)),
     contractAddress,

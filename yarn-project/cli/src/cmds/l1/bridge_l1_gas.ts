@@ -10,13 +10,13 @@ export async function bridgeL1Gas(
   recipient: AztecAddress,
   rpcUrl: string,
   l1RpcUrl: string,
-  apiKey: string,
+  chainId: number,
   mnemonic: string,
   log: LogFn,
   debugLogger: DebugLogger,
 ) {
   // Prepare L1 client
-  const chain = createEthereumChain(l1RpcUrl, apiKey);
+  const chain = createEthereumChain(l1RpcUrl, chainId);
   const { publicClient, walletClient } = createL1Clients(chain.rpcUrl, mnemonic, chain.chainInfo);
 
   // Prepare L2 client

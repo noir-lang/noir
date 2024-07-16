@@ -16,7 +16,7 @@ import { type SequencerConfig } from './sequencer/config.js';
 /** Chain configuration. */
 type ChainConfig = {
   /** The chain id of the ethereum host. */
-  chainId: number;
+  l1ChainId: number;
   /** The version of the rollup. */
   version: number;
 };
@@ -37,9 +37,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
   const {
     SEQ_PUBLISHER_PRIVATE_KEY,
     ETHEREUM_HOST,
-    CHAIN_ID,
+    L1_CHAIN_ID,
     VERSION,
-    API_KEY,
     SEQ_REQUIRED_CONFIRMATIONS,
     SEQ_PUBLISH_RETRY_INTERVAL_MS,
     SEQ_TX_POLLING_INTERVAL_MS,
@@ -83,9 +82,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
   return {
     enforceFees: ['1', 'true'].includes(ENFORCE_FEES),
     rpcUrl: ETHEREUM_HOST ? ETHEREUM_HOST : '',
-    chainId: CHAIN_ID ? +CHAIN_ID : 31337, // 31337 is the default chain id for anvil
+    l1ChainId: L1_CHAIN_ID ? +L1_CHAIN_ID : 31337, // 31337 is the default chain id for anvil
     version: VERSION ? +VERSION : 1, // 1 is our default version
-    apiKey: API_KEY,
     requiredConfirmations: SEQ_REQUIRED_CONFIRMATIONS ? +SEQ_REQUIRED_CONFIRMATIONS : 1,
     l1BlockPublishRetryIntervalMS: SEQ_PUBLISH_RETRY_INTERVAL_MS ? +SEQ_PUBLISH_RETRY_INTERVAL_MS : 1_000,
     transactionPollingIntervalMS: SEQ_TX_POLLING_INTERVAL_MS ? +SEQ_TX_POLLING_INTERVAL_MS : 1_000,

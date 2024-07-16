@@ -54,13 +54,13 @@ const localAnvil = foundry;
  * Helper function that waits for the Ethereum RPC server to respond before deploying L1 contracts.
  */
 async function waitThenDeploy(config: AztecNodeConfig, deployFunction: () => Promise<DeployL1Contracts>) {
-  const chain = createEthereumChain(config.rpcUrl, config.apiKey);
+  const chain = createEthereumChain(config.rpcUrl, config.l1ChainId);
   // wait for ETH RPC to respond to a request.
   const publicClient = createPublicClient({
     chain: chain.chainInfo,
     transport: httpViemTransport(chain.rpcUrl),
   });
-  const chainID = await retryUntil(
+  const l1ChainID = await retryUntil(
     async () => {
       let chainId = 0;
       try {
@@ -75,7 +75,7 @@ async function waitThenDeploy(config: AztecNodeConfig, deployFunction: () => Pro
     1,
   );
 
-  if (!chainID) {
+  if (!l1ChainID) {
     throw Error(`Ethereum node unresponsive at ${chain.rpcUrl}.`);
   }
 
@@ -260,15 +260,15 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   const pxe = await createAztecPXE(node);
 
   await deployCanonicalKeyRegistry(
-    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.chainId, aztecNodeConfig.version)),
+    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.l1ChainId, aztecNodeConfig.version)),
   );
   await deployCanonicalAuthRegistry(
-    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.chainId, aztecNodeConfig.version)),
+    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.l1ChainId, aztecNodeConfig.version)),
   );
 
   if (config.enableGas) {
     await deployCanonicalL2GasToken(
-      new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.chainId, aztecNodeConfig.version)),
+      new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.l1ChainId, aztecNodeConfig.version)),
       aztecNodeConfig.l1Contracts,
     );
   }

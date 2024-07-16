@@ -36,7 +36,7 @@ describe('e2e_sandbox_example', () => {
     // docs:end:setup
 
     expect(typeof nodeInfo.protocolVersion).toBe('number');
-    expect(typeof nodeInfo.chainId).toBe('number');
+    expect(typeof nodeInfo.l1ChainId).toBe('number');
     expect(typeof nodeInfo.l1ContractAddresses.rollupAddress).toBe('object');
 
     // For the sandbox quickstart we just want to show them preloaded accounts (since it is a quickstart)
