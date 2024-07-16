@@ -8,5 +8,5 @@
 //! as all functions are required to give their full signatures. Closures are inferred but are
 //! never generalized and thus cannot be used polymorphically.
 mod errors;
-pub use errors::{NoMatchingImplFoundError, TypeCheckError};
 pub use self::errors::Source;
+pub use errors::{NoMatchingImplFoundError, TypeCheckError};

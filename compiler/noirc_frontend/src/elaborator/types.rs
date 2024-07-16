@@ -24,8 +24,8 @@ use crate::{
         traits::TraitConstraint,
     },
     macros_api::{
-        HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
-        UnaryOp, UnresolvedType, UnresolvedTypeData, NodeInterner,
+        HirExpression, HirLiteral, HirStatement, NodeInterner, Path, PathKind, SecondaryAttribute,
+        Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
         DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,

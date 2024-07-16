@@ -3,7 +3,9 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast;
 use noirc_frontend::elaborator::Elaborator;
-use noirc_frontend::hir::def_collector::dc_crate::{CollectedItems, UnresolvedFunctions, UnresolvedGlobal};
+use noirc_frontend::hir::def_collector::dc_crate::{
+    CollectedItems, UnresolvedFunctions, UnresolvedGlobal,
+};
 use noirc_frontend::macros_api::{HirExpression, HirLiteral};
 use noirc_frontend::node_interner::{NodeInterner, TraitImplKind};
 use noirc_frontend::{

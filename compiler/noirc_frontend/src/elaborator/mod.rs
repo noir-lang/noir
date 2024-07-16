@@ -21,7 +21,7 @@ use crate::{
         type_check::TypeCheckError,
     },
     hir_def::{
-        expr::{HirIdent, HirCapturedVar},
+        expr::{HirCapturedVar, HirIdent},
         function::{FunctionBody, Parameters},
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},

@@ -7,15 +7,21 @@ use crate::{
     ast::{
         FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
     },
-    hir::{def_collector::dc_crate::{CollectedItems, UnresolvedTrait}, type_check::TypeCheckError},
-    hir_def::{traits::{TraitConstant, TraitFunction, TraitType}, function::Parameters},
+    hir::{
+        def_collector::dc_crate::{CollectedItems, UnresolvedTrait},
+        type_check::TypeCheckError,
+    },
+    hir_def::{
+        function::Parameters,
+        traits::{TraitConstant, TraitFunction, TraitType},
+    },
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
-        NoirFunction, Param, Pattern, UnresolvedType, Visibility, NodeInterner,
+        NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
     },
     node_interner::{FuncId, TraitId},
     token::Attributes,
-    Kind, ResolvedGeneric, Type, TypeVariableKind, TypeBindings,
+    Kind, ResolvedGeneric, Type, TypeBindings, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -360,4 +366,3 @@ fn check_function_type_matches_expected_type(
         errors.push(TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span: span });
     }
 }
-
