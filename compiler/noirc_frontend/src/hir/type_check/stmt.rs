@@ -368,7 +368,7 @@ impl<'interner> TypeChecker<'interner> {
                     let max = 1 << bit_count;
                     if v >= max {
                         self.errors.push(TypeCheckError::OverflowingAssignment {
-                            expr: value,
+                            expr: -value,
                             ty: annotated_type.clone(),
                             range: format!("0..={}", max - 1),
                             span,

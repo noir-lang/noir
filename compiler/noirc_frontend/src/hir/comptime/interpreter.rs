@@ -1,6 +1,7 @@
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
+use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -8,13 +9,18 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::graph::CrateId;
-use crate::monomorphization::{perform_instantiation_bindings, undo_instantiation_bindings};
+use crate::hir_def::expr::ImplKind;
+use crate::macros_api::UnaryOp;
+use crate::monomorphization::{
+    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
+    undo_instantiation_bindings,
+};
 use crate::token::Tokens;
 use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirIdent, HirIfExpression, HirIndexExpression,
+            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
             HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
             HirPrefixExpression,
         },
@@ -23,7 +29,7 @@ use crate::{
             HirPattern,
         },
     },
-    macros_api::{HirExpression, HirLiteral, HirStatement, NodeInterner},
+    macros_api::{HirLiteral, HirStatement, NodeInterner},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
@@ -46,6 +52,10 @@ pub struct Interpreter<'interner> {
 
     crate_id: CrateId,
 
+    /// The scope of --debug-comptime, or None if unset
+    pub(super) debug_comptime_in_file: Option<FileId>,
+    pub(super) debug_comptime_evaluations: &'interner mut Vec<InterpreterError>,
+
     in_loop: bool,
 }
 
@@ -55,8 +65,17 @@ impl<'a> Interpreter<'a> {
         interner: &'a mut NodeInterner,
         scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
         crate_id: CrateId,
+        debug_comptime_in_file: Option<FileId>,
+        debug_comptime_evaluations: &'a mut Vec<InterpreterError>,
     ) -> Self {
-        Self { interner, scopes, crate_id, in_loop: false }
+        Self {
+            interner,
+            scopes,
+            crate_id,
+            debug_comptime_in_file,
+            debug_comptime_evaluations,
+            in_loop: false,
+        }
     }
 
     pub(crate) fn call_function(
@@ -66,8 +85,12 @@ impl<'a> Interpreter<'a> {
         instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
+        let trait_method = self.interner.get_trait_method_id(function);
+
         perform_instantiation_bindings(&instantiation_bindings);
+        let impl_bindings = perform_impl_bindings(self.interner, trait_method, function, location)?;
         let result = self.call_function_inner(function, arguments, location);
+        undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         result
     }
@@ -218,6 +241,8 @@ impl<'a> Interpreter<'a> {
                 Ok(())
             }
             HirPattern::Mutable(pattern, _) => {
+                // Create a mutable reference to store to
+                let argument = Value::Pointer(Shared::new(argument), true);
                 self.define_pattern(pattern, typ, argument, location)
             }
             HirPattern::Tuple(pattern_fields, _) => match (argument, typ) {
@@ -289,8 +314,7 @@ impl<'a> Interpreter<'a> {
                 return Ok(());
             }
         }
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        Err(InterpreterError::VariableNotInScope { location })
     }
 
     pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
@@ -304,16 +328,27 @@ impl<'a> Interpreter<'a> {
             }
         }
 
-        // Justification for `NonComptimeVarReferenced`:
-        // If we have an id to lookup at all that means name resolution successfully
-        // found another variable in scope for this name. If the name is in scope
-        // but unknown by the interpreter it must be because it was not a comptime variable.
-        let name = self.interner.definition(id).name.clone();
-        Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        if id == DefinitionId::dummy_id() {
+            Err(InterpreterError::VariableNotInScope { location })
+        } else {
+            let name = self.interner.definition_name(id).to_string();
+            Err(InterpreterError::NonComptimeVarReferenced { name, location })
+        }
     }
 
-    /// Evaluate an expression and return the result
+    /// Evaluate an expression and return the result.
+    /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
+        match self.evaluate_no_dereference(id)? {
+            Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
+            other => Ok(other),
+        }
+    }
+
+    /// Evaluating a mutable variable will dereference it automatically.
+    /// This function should be used when that is not desired - e.g. when
+    /// compiling a `&mut var` expression to grab the original reference.
+    fn evaluate_no_dereference(&mut self, id: ExprId) -> IResult<Value> {
         match self.interner.expression(&id) {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
@@ -345,7 +380,17 @@ impl<'a> Interpreter<'a> {
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.interner.definition(ident.id);
+        let definition = self.interner.try_definition(ident.id).ok_or_else(|| {
+            let location = self.interner.expr_location(&id);
+            InterpreterError::VariableNotInScope { location }
+        })?;
+
+        if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
+            let method_id = resolve_trait_method(self.interner, method, id)?;
+            let typ = self.interner.id_type(id).follow_bindings();
+            let bindings = self.interner.get_instantiation_bindings(id).clone();
+            return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
+        }
 
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
@@ -359,7 +404,12 @@ impl<'a> Interpreter<'a> {
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
-                    let let_ = self.interner.get_global_let_statement(*global_id).unwrap();
+                    let let_ =
+                        self.interner.get_global_let_statement(*global_id).ok_or_else(|| {
+                            let location = self.interner.expr_location(&id);
+                            InterpreterError::VariableNotInScope { location }
+                        })?;
+
                     if let_.comptime {
                         self.evaluate_let(let_.clone())?;
                     }
@@ -555,9 +605,21 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
-        let rhs = self.evaluate(prefix.rhs)?;
-        match prefix.operator {
-            crate::ast::UnaryOp::Minus => match rhs {
+        let rhs = match prefix.operator {
+            UnaryOp::MutableReference => self.evaluate_no_dereference(prefix.rhs)?,
+            _ => self.evaluate(prefix.rhs)?,
+        };
+        self.evaluate_prefix_with_value(rhs, prefix.operator, id)
+    }
+
+    fn evaluate_prefix_with_value(
+        &mut self,
+        rhs: Value,
+        operator: UnaryOp,
+        id: ExprId,
+    ) -> IResult<Value> {
+        match operator {
+            UnaryOp::Minus => match rhs {
                 Value::Field(value) => Ok(Value::Field(FieldElement::zero() - value)),
                 Value::I8(value) => Ok(Value::I8(-value)),
                 Value::I16(value) => Ok(Value::I16(-value)),
@@ -573,7 +635,7 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator })
                 }
             },
-            crate::ast::UnaryOp::Not => match rhs {
+            UnaryOp::Not => match rhs {
                 Value::Bool(value) => Ok(Value::Bool(!value)),
                 Value::I8(value) => Ok(Value::I8(!value)),
                 Value::I16(value) => Ok(Value::I16(!value)),
@@ -588,9 +650,17 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
                 }
             },
-            crate::ast::UnaryOp::MutableReference => Ok(Value::Pointer(Shared::new(rhs))),
-            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => match rhs {
-                Value::Pointer(element) => Ok(element.borrow().clone()),
+            UnaryOp::MutableReference => {
+                // If this is a mutable variable (auto_deref = true), turn this into an explicit
+                // mutable reference just by switching the value of `auto_deref`. Otherwise, wrap
+                // the value in a fresh reference.
+                match rhs {
+                    Value::Pointer(elem, true) => Ok(Value::Pointer(elem, false)),
+                    other => Ok(Value::Pointer(Shared::new(other), false)),
+                }
+            }
+            UnaryOp::Dereference { implicitly_added: _ } => match rhs {
+                Value::Pointer(element, _) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.interner.expr_location(&id);
                     Err(InterpreterError::NonPointerDereferenced { value, location })
@@ -603,13 +673,8 @@ impl<'a> Interpreter<'a> {
         let lhs = self.evaluate(infix.lhs)?;
         let rhs = self.evaluate(infix.rhs)?;
 
-        // TODO: Need to account for operator overloading
-        // See https://github.com/noir-lang/noir/issues/4925
         if self.interner.get_selected_impl_for_expression(id).is_some() {
-            return Err(InterpreterError::Unimplemented {
-                item: "Operator overloading in the interpreter".to_string(),
-                location: infix.operator.location,
-            });
+            return self.evaluate_overloaded_infix(infix, lhs, rhs, id);
         }
 
         use InterpreterError::InvalidValuesForBinary;
@@ -851,6 +916,64 @@ impl<'a> Interpreter<'a> {
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "%" })
                 }
             },
+        }
+    }
+
+    fn evaluate_overloaded_infix(
+        &mut self,
+        infix: HirInfixExpression,
+        lhs: Value,
+        rhs: Value,
+        id: ExprId,
+    ) -> IResult<Value> {
+        let method = infix.trait_method_id;
+        let operator = infix.operator.kind;
+
+        let method_id = resolve_trait_method(self.interner, method, id)?;
+        let type_bindings = self.interner.get_instantiation_bindings(id).clone();
+
+        let lhs = (lhs, self.interner.expr_location(&infix.lhs));
+        let rhs = (rhs, self.interner.expr_location(&infix.rhs));
+
+        let location = self.interner.expr_location(&id);
+        let value = self.call_function(method_id, vec![lhs, rhs], type_bindings, location)?;
+
+        // Certain operators add additional operations after the trait call:
+        // - `!=`: Reverse the result of Eq
+        // - Comparator operators: Convert the returned `Ordering` to a boolean.
+        use BinaryOpKind::*;
+        match operator {
+            NotEqual => self.evaluate_prefix_with_value(value, UnaryOp::Not, id),
+            Less | LessEqual | Greater | GreaterEqual => self.evaluate_ordering(value, operator),
+            _ => Ok(value),
+        }
+    }
+
+    /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.
+    /// - `<`:  `ordering == Ordering::Less`
+    /// - `<=`: `ordering != Ordering::Greater`
+    /// - `>`:  `ordering == Ordering::Greater`
+    /// - `<=`: `ordering != Ordering::Less`
+    fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
+        let ordering = match ordering {
+            Value::Struct(fields, _) => match fields.into_iter().next().unwrap().1 {
+                Value::Field(ordering) => ordering,
+                _ => unreachable!("`cmp` should always return an Ordering value"),
+            },
+            _ => unreachable!("`cmp` should always return an Ordering value"),
+        };
+
+        use BinaryOpKind::*;
+        let less_or_greater = if matches!(operator, Less | GreaterEqual) {
+            FieldElement::zero() // Ordering::Less
+        } else {
+            2u128.into() // Ordering::Greater
+        };
+
+        if matches!(operator, Less | Greater) {
+            Ok(Value::Bool(ordering == less_or_greater))
+        } else {
+            Ok(Value::Bool(ordering != less_or_greater))
         }
     }
 
@@ -1204,7 +1327,7 @@ impl<'a> Interpreter<'a> {
             HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(&lvalue)? {
-                    Value::Pointer(value) => {
+                    Value::Pointer(value, _) => {
                         *value.borrow_mut() = rhs;
                         Ok(())
                     }
@@ -1254,10 +1377,13 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_lvalue(&mut self, lvalue: &HirLValue) -> IResult<Value> {
         match lvalue {
-            HirLValue::Ident(ident, _) => self.lookup(ident),
+            HirLValue::Ident(ident, _) => match self.lookup(ident)? {
+                Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
+                other => Ok(other),
+            },
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 match self.evaluate_lvalue(lvalue)? {
-                    Value::Pointer(value) => Ok(value.borrow().clone()),
+                    Value::Pointer(value, _) => Ok(value.borrow().clone()),
                     value => {
                         Err(InterpreterError::NonPointerDereferenced { value, location: *location })
                     }

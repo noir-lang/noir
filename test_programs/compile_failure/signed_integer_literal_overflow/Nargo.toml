@@ -1,0 +1,5 @@
+[package]
+name = "signed_integer_literal_overflow"
+type = "bin"
+authors = [""]
+[dependencies]

@@ -111,7 +111,7 @@ pub(crate) fn generate_ssa(
     // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
-        function_context.new_function(dest_id, function);
+        function_context.new_function(dest_id, function, force_brillig_runtime);
         function_context.codegen_function_body(&function.body)?;
     }
 
@@ -219,10 +219,10 @@ impl<'a> FunctionContext<'a> {
                     _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Integer(value, typ, location) => {
+            ast::Literal::Integer(value, negative, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ);
-                self.checked_numeric_constant(*value, typ).map(Into::into)
+                self.checked_numeric_constant(*value, *negative, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false

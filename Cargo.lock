@@ -2594,6 +2594,7 @@ dependencies = [
  "dirs",
  "fm",
  "nargo",
+ "noirc_driver",
  "noirc_frontend",
  "semver",
  "serde",
@@ -2747,13 +2748,11 @@ version = "0.31.0"
 dependencies = [
  "acir",
  "clap",
- "codespan-reporting",
  "color-eyre",
  "const_format",
  "fm",
  "im",
  "inferno",
- "nargo",
  "noirc_abi",
  "noirc_artifacts",
  "noirc_driver",
@@ -2895,6 +2894,7 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "num-bigint",
+ "proptest",
  "serde",
  "thiserror",
  "tracing",
@@ -2919,6 +2919,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "petgraph",
+ "rangemap",
  "regex",
  "rustc-hash",
  "serde",
@@ -3565,6 +3566,12 @@ checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
 dependencies = [
  "rand_core 0.6.4",
 ]
+
+[[package]]
+name = "rangemap"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "977b1e897f9d764566891689e642653e5ed90c6895106acd005eb4c1d0203991"
 
 [[package]]
 name = "rayon"

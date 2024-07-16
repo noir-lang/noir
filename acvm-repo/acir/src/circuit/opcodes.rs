@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 mod black_box_function_call;
 mod memory_operation;
 
-pub use black_box_function_call::{BlackBoxFuncCall, FunctionInput};
+pub use black_box_function_call::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput};
 pub use memory_operation::{BlockId, MemOp};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,7 +67,7 @@ pub enum Opcode<F> {
     ///
     /// Aztec's Barretenberg uses BN254 as the main curve and Grumpkin as the
     /// embedded curve.
-    BlackBoxFuncCall(BlackBoxFuncCall),
+    BlackBoxFuncCall(BlackBoxFuncCall<F>),
 
     /// This opcode is a specialization of a Brillig opcode. Instead of having
     /// some generic assembly code like Brillig, a directive has a hardcoded

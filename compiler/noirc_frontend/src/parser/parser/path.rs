@@ -17,6 +17,7 @@ pub(super) fn path() -> impl NoirParser<Path> {
     choice((
         path_kind(Keyword::Crate, PathKind::Crate),
         path_kind(Keyword::Dep, PathKind::Dep),
+        path_kind(Keyword::Super, PathKind::Super),
         idents().map_with_span(make_path(PathKind::Plain)),
     ))
 }
@@ -64,6 +65,7 @@ mod test {
             ("std", PathKind::Plain),
             ("hash::collections", PathKind::Plain),
             ("crate::std::hash", PathKind::Crate),
+            ("super::foo", PathKind::Super),
         ];
 
         for (src, expected_path_kind) in cases {

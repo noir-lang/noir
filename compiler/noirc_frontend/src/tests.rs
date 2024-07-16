@@ -86,7 +86,8 @@ pub(crate) fn get_program(
             program.clone().into_sorted(),
             root_file_id,
             use_legacy,
-            &[], // No macro processors
+            None, // No debug_comptime_in_file
+            &[],  // No macro processors
         ));
     }
     (program, context, errors)
@@ -94,6 +95,13 @@ pub(crate) fn get_program(
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
     get_program(src, false).2
+}
+
+fn assert_no_errors(src: &str) {
+    let errors = get_program_errors(src);
+    if !errors.is_empty() {
+        panic!("Expected no errors, got: {:?}", errors);
+    }
 }
 
 #[test]
@@ -140,10 +148,7 @@ fn check_trait_implemented_for_all_t() {
     fn main(a: Foo) -> pub bool {
         a.is_default()
     }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -766,9 +771,7 @@ fn test_impl_self_within_default_def() {
             self
         }
     }";
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -793,10 +796,7 @@ fn check_trait_as_type_as_fn_parameter() {
     fn main(a: Foo) -> pub bool {
         test_eq(a)
     }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -829,10 +829,7 @@ fn check_trait_as_type_as_two_fn_parameters() {
     fn main(a: Foo, b: u64) -> pub bool {
         test_eq(a, b)
     }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 fn get_program_captures(src: &str) -> Vec<Vec<String>> {
@@ -897,7 +894,7 @@ fn resolve_empty_function() {
 
         }
     ";
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 #[test]
 fn resolve_basic_function() {
@@ -907,7 +904,7 @@ fn resolve_basic_function() {
             assert(y == x);
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 #[test]
 fn resolve_unused_var() {
@@ -980,7 +977,7 @@ fn resolve_literal_expr() {
             assert(y == x);
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1027,7 +1024,7 @@ fn resolve_prefix_expr() {
             let _y = -x;
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1039,7 +1036,7 @@ fn resolve_for_expr() {
             };
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1053,7 +1050,7 @@ fn resolve_call_expr() {
             x
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1070,7 +1067,7 @@ fn resolve_shadowing() {
             x
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1081,7 +1078,7 @@ fn resolve_basic_closure() {
             closure(x)
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1132,7 +1129,7 @@ fn resolve_complex_closures() {
             a + b + c + closure_with_transitive_captures(6)
         }
     "#;
-    assert!(get_program_errors(src).is_empty(), "there should be no errors");
+    assert_no_errors(src);
 
     let expected_captures = vec![
         vec![],
@@ -1456,6 +1453,79 @@ fn specify_method_types_with_turbofish() {
 }
 
 #[test]
+fn incorrect_turbofish_count_function_call() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        impl Default for u64 {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        fn generic_func<T, U>() -> (T, U) where T: Default, U: Default {
+            (T::default(), U::default())
+        }
+
+        fn main() {
+            let _ = generic_func::<u64, Field, Field>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
+    ));
+}
+
+#[test]
+fn incorrect_turbofish_count_method_call() {
+    let src = r#"
+        trait Default {
+            fn default() -> Self;
+        }
+
+        impl Default for Field {
+            fn default() -> Self { 0 }
+        }
+
+        // Need the above as we don't have access to the stdlib here.
+        // We also need to construct a concrete value of `U` without giving away its type
+        // as otherwise the unspecified type is ignored.
+
+        struct Foo<T> {
+            inner: T
+        }
+        
+        impl<T> Foo<T> {
+            fn generic_method<U>(_self: Self) -> U where U: Default {
+                U::default()
+            }
+        }
+        
+        fn main() {
+            let foo: Foo<Field> = Foo { inner: 1 };
+            let _ = foo.generic_method::<Field, u32>();
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
+    ));
+}
+
+#[test]
 fn struct_numeric_generic_in_function() {
     let src = r#"
     struct Foo {
@@ -1562,8 +1632,7 @@ fn numeric_generic_in_function_signature() {
     let src = r#"
     fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1675,12 +1744,14 @@ fn numeric_generic_used_in_nested_type_pass() {
         inner: [u64; N],
     }    
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
 fn numeric_generic_used_in_trait() {
+    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
+    // not trigger `expected type, found numeric generic parameter N` as the trait
+    // does in fact expect a numeric generic.
     let src = r#"
     struct MyType<T> {
         a: Field,
@@ -1699,11 +1770,7 @@ fn numeric_generic_used_in_trait() {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
     "#;
-    let errors = get_program_errors(src);
-    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
-    // not trigger `expected type, found numeric generic parameter N` as the trait
-    // does in fact expect a numeric generic.
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1734,8 +1801,7 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1753,8 +1819,7 @@ fn numeric_generic_used_in_where_clause() {
         T::deserialize(fields)
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1771,8 +1836,7 @@ fn numeric_generic_used_in_turbofish() {
         assert(double::<7 + 8>() == 30);
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1792,8 +1856,7 @@ fn constant_used_with_numeric_generic() {
         }
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1895,4 +1958,185 @@ fn quote_code_fragments() {
 
     use InterpreterError::FailingConstraint;
     assert!(matches!(&errors[0].0, CompilationError::InterpreterError(FailingConstraint { .. })));
+}
+
+// Regression for #5388
+#[test]
+fn comptime_let() {
+    let src = r#"fn main() {
+        comptime let my_var = 2;
+        assert_eq(my_var, 2);
+    }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn overflowing_u8() {
+    let src = r#"
+        fn main() {
+            let _: u8 = 256;
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(error) = &errors[0].0 {
+        assert_eq!(
+            error.to_string(),
+            "The value `2⁸` cannot fit into `u8` which has range `0..=255`"
+        );
+    } else {
+        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn underflowing_u8() {
+    let src = r#"
+        fn main() {
+            let _: u8 = -1;
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(error) = &errors[0].0 {
+        assert_eq!(
+            error.to_string(),
+            "The value `-1` cannot fit into `u8` which has range `0..=255`"
+        );
+    } else {
+        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn overflowing_i8() {
+    let src = r#"
+        fn main() {
+            let _: i8 = 128;
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(error) = &errors[0].0 {
+        assert_eq!(
+            error.to_string(),
+            "The value `2⁷` cannot fit into `i8` which has range `-128..=127`"
+        );
+    } else {
+        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn underflowing_i8() {
+    let src = r#"
+        fn main() {
+            let _: i8 = -129;
+        }"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(error) = &errors[0].0 {
+        assert_eq!(
+            error.to_string(),
+            "The value `-129` cannot fit into `i8` which has range `-128..=127`"
+        );
+    } else {
+        panic!("Expected OverflowingAssignment error, got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn turbofish_numeric_generic_nested_call() {
+    // Check for turbofish numeric generics used with function calls
+    let src = r#"
+    fn foo<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+
+    fn bar<let N: u32>() -> [u8; N] {
+        foo::<N>()
+    }
+
+    global M: u32 = 3;
+
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    assert_no_errors(src);
+
+    // Check for turbofish numeric generics used with method calls
+    let src = r#"
+    struct Foo<T> {
+        a: T
+    }
+
+    impl<T> Foo<T> {
+        fn static_method<let N: u32>() -> [u8; N] {
+            [0; N]
+        }
+
+        fn impl_method<let N: u32>(self) -> [T; N] {
+            [self.a; N]
+        }
+    }
+
+    fn bar<let N: u32>() -> [u8; N] {
+        let _ = Foo::static_method::<N>();
+        let x: Foo<u8> = Foo { a: 0 };
+        x.impl_method::<N>()
+    }
+
+    global M: u32 = 3;
+
+    fn main() {
+        let _ = bar::<M>();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_super() {
+    let src = r#"
+    fn some_func() {}
+
+    mod foo {
+        use super::some_func;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_super_in_path() {
+    let src = r#"
+    fn some_func() {}
+
+    mod foo {
+        fn func() {
+            super::some_func();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_super() {
+    let src = "use super::some_func;";
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
+        PathResolutionError::NoSuper(span),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a 'no super' error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(span.start(), 4);
+    assert_eq!(span.end(), 9);
 }
