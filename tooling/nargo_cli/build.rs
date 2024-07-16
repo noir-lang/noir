@@ -260,17 +260,6 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
         nargo.arg("compile").arg("--force");
         nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
         );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-        nargo.arg("compile").arg("--force").arg("--use-legacy");
-        
-        nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
-        );
     }
 }
 
