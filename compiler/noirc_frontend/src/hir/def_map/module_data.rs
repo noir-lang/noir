@@ -108,7 +108,7 @@ impl ModuleData {
     }
 
     pub fn find_func_with_name(&self, name: &Ident) -> Option<FuncId> {
-        dbg!(&self.scope).find_func_with_name(name)
+        self.scope.find_func_with_name(name)
     }
 
     pub fn import(
