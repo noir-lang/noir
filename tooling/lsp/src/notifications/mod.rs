@@ -58,7 +58,7 @@ pub(super) fn on_did_change_text_document(
     let file_path = params.text_document.uri.to_file_path().unwrap();
 
     let (mut context, crate_id) = prepare_source(text, state);
-    let _ = check_crate(&mut context, crate_id, false, false, false, None);
+    let _ = check_crate(&mut context, crate_id, false, false, None);
 
     let workspace = match resolve_workspace_for_source_path(
         params.text_document.uri.to_file_path().unwrap().as_path(),
@@ -147,11 +147,10 @@ pub(crate) fn process_workspace_for_noir_document(
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-            let file_diagnostics =
-                match check_crate(&mut context, crate_id, false, false, false, None) {
-                    Ok(((), warnings)) => warnings,
-                    Err(errors_and_warnings) => errors_and_warnings,
-                };
+            let file_diagnostics = match check_crate(&mut context, crate_id, false, false, None) {
+                Ok(((), warnings)) => warnings,
+                Err(errors_and_warnings) => errors_and_warnings,
+            };
 
             let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
 

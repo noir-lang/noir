@@ -752,27 +752,24 @@ impl<'f> Context<'f> {
                         Instruction::Call { func, arguments }
                     }
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
-                        let mut array_with_predicate = im::Vector::new();
-                        let array_typ;
-                        if let Value::Array { array, typ } =
-                            &self.inserter.function.dfg[arguments[0]]
-                        {
-                            array_typ = typ.clone();
-                            for (i, value) in array.clone().iter().enumerate() {
-                                if i % 3 == 2 {
-                                    array_with_predicate.push_back(self.var_or_one(
-                                        *value,
-                                        condition,
-                                        call_stack.clone(),
-                                    ));
-                                } else {
-                                    array_with_predicate.push_back(*value);
-                                }
-                            }
+                        let points_array_idx = if matches!(
+                            self.inserter.function.dfg[arguments[0]],
+                            Value::Array { .. }
+                        ) {
+                            0
                         } else {
-                            unreachable!();
-                        }
-                        arguments[0] =
+                            // if the first argument is not an array, we assume it is a slice
+                            // which means the array is the second argument
+                            1
+                        };
+                        let (array_with_predicate, array_typ) = self
+                            .apply_predicate_to_msm_argument(
+                                arguments[points_array_idx],
+                                condition,
+                                call_stack.clone(),
+                            );
+
+                        arguments[points_array_idx] =
                             self.inserter.function.dfg.make_array(array_with_predicate, array_typ);
                         Instruction::Call { func, arguments }
                     }
@@ -783,6 +780,40 @@ impl<'f> Context<'f> {
         } else {
             instruction
         }
+    }
+
+    /// When a MSM is done under a predicate, we need to apply the predicate
+    /// to the is_infinity property of the input points in order to ensure
+    /// that the points will be on the curve no matter what.
+    fn apply_predicate_to_msm_argument(
+        &mut self,
+        argument: ValueId,
+        predicate: ValueId,
+        call_stack: CallStack,
+    ) -> (im::Vector<ValueId>, Type) {
+        let array_typ;
+        let mut array_with_predicate = im::Vector::new();
+        if let Value::Array { array, typ } = &self.inserter.function.dfg[argument] {
+            array_typ = typ.clone();
+            for (i, value) in array.clone().iter().enumerate() {
+                if i % 3 == 2 {
+                    array_with_predicate.push_back(self.var_or_one(
+                        *value,
+                        predicate,
+                        call_stack.clone(),
+                    ));
+                } else {
+                    array_with_predicate.push_back(*value);
+                }
+            }
+        } else {
+            unreachable!(
+                "Expected an array, got {}",
+                &self.inserter.function.dfg.type_of_value(argument)
+            );
+        };
+
+        (array_with_predicate, array_typ)
     }
 
     // Computes: if condition { var } else { 1 }
@@ -1381,7 +1412,7 @@ mod test {
         // Tests that it does not simplify a true constraint an always-false constraint
         // acir(inline) fn main f1 {
         //     b0(v0: [u8; 2]):
-        //       v4 = call keccak256(v0, u8 2)
+        //       v4 = call sha256(v0, u8 2)
         //       v5 = array_get v4, index u8 0
         //       v6 = cast v5 as u32
         //       v8 = truncate v6 to 1 bits, max_bit_size: 32
@@ -1417,7 +1448,7 @@ mod test {
         let two = builder.numeric_constant(2_u128, Type::unsigned(8));
 
         let keccak =
-            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccak256));
+            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::SHA256));
         let v4 =
             builder.insert_call(keccak, vec![array, two], vec![Type::Array(element_type, 32)])[0];
         let v5 = builder.insert_array_get(v4, zero, Type::unsigned(8));
