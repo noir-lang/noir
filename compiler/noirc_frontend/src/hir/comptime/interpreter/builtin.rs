@@ -3,6 +3,7 @@ use std::{
     rc::Rc,
 };
 
+use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
 use noirc_errors::Location;
 
@@ -25,6 +26,11 @@ pub(super) fn call_builtin(
         "array_len" => array_len(interner, arguments, location),
         "as_slice" => as_slice(interner, arguments, location),
         "is_unconstrained" => Ok(Value::Bool(true)),
+        "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
+        "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
+        "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
+        "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
+        "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
         "slice_insert" => slice_insert(interner, arguments, location),
         "slice_pop_back" => slice_pop_back(interner, arguments, location),
         "slice_pop_front" => slice_pop_front(interner, arguments, location),
@@ -385,4 +391,68 @@ fn trait_constraint_eq(
     let constraint_a = get_trait_constraint(arguments.pop().unwrap().0, location)?;
 
     Ok(Value::Bool(constraint_a == constraint_b))
+}
+
+fn modulus_be_bits(
+    _interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(0, &arguments, location)?;
+
+    let bits = FieldElement::modulus().to_radix_be(2);
+    let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
+
+    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::One);
+    let typ = Type::Slice(Box::new(int_type));
+    Ok(Value::Slice(bits_vector, typ))
+}
+
+fn modulus_be_bytes(
+    _interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(0, &arguments, location)?;
+
+    let bytes = FieldElement::modulus().to_bytes_be();
+    let bytes_vector = bytes.into_iter().map(Value::U8).collect();
+
+    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::Eight);
+    let typ = Type::Slice(Box::new(int_type));
+    Ok(Value::Slice(bytes_vector, typ))
+}
+
+fn modulus_le_bits(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let Value::Slice(bits, typ) = modulus_be_bits(interner, arguments, location)? else {
+        unreachable!("modulus_be_bits must return slice")
+    };
+    let reversed_bits = bits.into_iter().rev().collect();
+    Ok(Value::Slice(reversed_bits, typ))
+}
+
+fn modulus_le_bytes(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let Value::Slice(bytes, typ) = modulus_be_bytes(interner, arguments, location)? else {
+        unreachable!("modulus_be_bytes must return slice")
+    };
+    let reversed_bytes = bytes.into_iter().rev().collect();
+    Ok(Value::Slice(reversed_bytes, typ))
+}
+
+fn modulus_num_bits(
+    _interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(0, &arguments, location)?;
+    let bits = FieldElement::max_num_bits().into();
+    Ok(Value::U64(bits))
 }
