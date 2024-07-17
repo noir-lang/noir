@@ -2171,3 +2171,32 @@ fn cannot_call_unconstrained_captured_function_outside_of_unsafe() {
         panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
     };
 }
+
+#[test]
+fn cannot_pass_unconstrained_function_to_regular_function() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        expect_regular(func);
+    }
+
+    unconstrained fn foo() {}
+
+    fn expect_regular(_func: fn() -> ()) {
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        ..
+    }) = &errors[0].0
+    {
+        assert_eq!(expected_typ, "fn() -> ()");
+        assert_eq!(expr_typ, "unconstrained fn() -> ()");
+    } else {
+        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+    };
+}

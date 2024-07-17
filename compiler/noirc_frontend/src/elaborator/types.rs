@@ -715,11 +715,8 @@ impl<'context> Elaborator<'context> {
         fn_params: &[Type],
         fn_ret: &Type,
         callsite_args: &[(Type, ExprId, Span)],
-        unconstrained: bool,
         span: Span,
     ) -> Type {
-        // TODO(ary): check unconstrained
-
         if fn_params.len() != callsite_args.len() {
             self.push_err(TypeCheckError::ParameterCountMismatch {
                 expected: fn_params.len(),
@@ -768,8 +765,8 @@ impl<'context> Elaborator<'context> {
             }
             // The closure env is ignored on purpose: call arguments never place
             // constraints on closure environments.
-            Type::Function(parameters, ret, _env, unconstrained) => {
-                self.bind_function_type_impl(&parameters, &ret, &args, unconstrained, span)
+            Type::Function(parameters, ret, _env, _unconstrained) => {
+                self.bind_function_type_impl(&parameters, &ret, &args, span)
             }
             Type::Error => Type::Error,
             found => {
@@ -1119,9 +1116,7 @@ impl<'context> Elaborator<'context> {
         let (method_type, mut bindings) = method.typ.clone().instantiate(self.interner);
 
         match method_type {
-            Type::Function(args, _, _, unconstrained) => {
-                // TODO(ary): check unconstrained
-
+            Type::Function(args, _, _, _) => {
                 // We can cheat a bit and match against only the object type here since no operator
                 // overload uses other generic parameters or return types aside from the object type.
                 let expected_object_type = &args[0];
