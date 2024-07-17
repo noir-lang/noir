@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use acvm::{FieldElement, AcirField};
+use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
 use noirc_errors::Location;
 
@@ -393,7 +393,6 @@ fn trait_constraint_eq(
     Ok(Value::Bool(constraint_a == constraint_b))
 }
 
-
 fn modulus_num_bits(
     _interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -412,9 +411,7 @@ fn modulus_be_bits(
     check_argument_count(0, &arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
-    let bits_vector = bits.into_iter().map(|bit| {
-        Value::U1(bit != 0)
-    }).collect();
+    let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
 
     let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::One);
     let typ = Type::Slice(Box::new(int_type));
@@ -441,11 +438,7 @@ fn modulus_be_bytes(
     check_argument_count(0, &arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
-    let bytes_vector = bytes.into_iter().map(|byte| {
-        Value::U8(
-            byte
-        )
-    }).collect();
+    let bytes_vector = bytes.into_iter().map(|byte| Value::U8(byte)).collect();
 
     let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Slice(Box::new(int_type));
