@@ -239,7 +239,6 @@ impl<'a> InlayHintCollector<'a> {
                     self.collect_in_expression(alternative);
                 }
             }
-            ExpressionKind::Variable(..) => (),
             ExpressionKind::Tuple(expressions) => {
                 for expression in expressions {
                     self.collect_in_expression(expression);
@@ -256,6 +255,7 @@ impl<'a> InlayHintCollector<'a> {
                 self.collect_in_block_expression(block_expression);
             }
             ExpressionKind::Literal(..)
+            | ExpressionKind::Variable(..)
             | ExpressionKind::Quote(..)
             | ExpressionKind::Resolved(..)
             | ExpressionKind::Error => (),
@@ -466,20 +466,12 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn intersects_span(&self, other_span: Span) -> bool {
-        if let Some(span) = self.span {
-            span.intersects(&other_span)
-        } else {
-            true
-        }
+        self.span.map_or(true, |span| span.intersects(&other_span))
     }
 }
 
-fn string_part(str: String) -> InlayHintLabelPart {
-    InlayHintLabelPart { value: str, location: None, tooltip: None, command: None }
-}
-
-fn str_part(str: &str) -> InlayHintLabelPart {
-    string_part(str.to_string())
+fn string_part(str: impl Into<String>) -> InlayHintLabelPart {
+    InlayHintLabelPart { value: str.into(), location: None, tooltip: None, command: None }
 }
 
 #[cfg(test)]
