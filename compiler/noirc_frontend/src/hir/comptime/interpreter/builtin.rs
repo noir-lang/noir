@@ -1,11 +1,16 @@
-use std::rc::Rc;
+use std::{
+    hash::{Hash, Hasher},
+    rc::Rc,
+};
 
+use chumsky::Parser;
 use noirc_errors::Location;
 
 use crate::{
-    ast::IntegerBitSize,
+    ast::{IntegerBitSize, TraitBound},
     hir::comptime::{errors::IResult, InterpreterError, Value},
     macros_api::{NodeInterner, Signedness},
+    parser,
     token::{SpannedToken, Token, Tokens},
     QuotedType, Type,
 };
@@ -29,6 +34,9 @@ pub(super) fn call_builtin(
         "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
         "struct_def_fields" => struct_def_fields(interner, arguments, location),
         "struct_def_generics" => struct_def_generics(interner, arguments, location),
+        "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
+        "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
+        "quoted_as_trait_constraint" => quoted_as_trait_constraint(interner, arguments, location),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -74,6 +82,26 @@ fn get_u32(value: Value, location: Location) -> IResult<u32> {
         Value::U32(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            Err(InterpreterError::TypeMismatch { expected, value, location })
+        }
+    }
+}
+
+fn get_trait_constraint(value: Value, location: Location) -> IResult<TraitBound> {
+    match value {
+        Value::TraitConstraint(bound) => Ok(bound),
+        value => {
+            let expected = Type::Quoted(QuotedType::TraitConstraint);
+            Err(InterpreterError::TypeMismatch { expected, value, location })
+        }
+    }
+}
+
+fn get_quoted(value: Value, location: Location) -> IResult<Rc<Tokens>> {
+    match value {
+        Value::Code(tokens) => Ok(tokens),
+        value => {
+            let expected = Type::Quoted(QuotedType::Quoted);
             Err(InterpreterError::TypeMismatch { expected, value, location })
         }
     }
@@ -231,7 +259,7 @@ fn slice_remove(
     interner: &mut NodeInterner,
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> Result<Value, InterpreterError> {
+) -> IResult<Value> {
     check_argument_count(2, &arguments, location)?;
 
     let index = get_u32(arguments.pop().unwrap().0, location)? as usize;
@@ -257,7 +285,7 @@ fn slice_push_front(
     interner: &mut NodeInterner,
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> Result<Value, InterpreterError> {
+) -> IResult<Value> {
     check_argument_count(2, &arguments, location)?;
 
     let (element, _) = arguments.pop().unwrap();
@@ -270,7 +298,7 @@ fn slice_pop_front(
     interner: &mut NodeInterner,
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> Result<Value, InterpreterError> {
+) -> IResult<Value> {
     check_argument_count(1, &arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
@@ -284,7 +312,7 @@ fn slice_pop_back(
     interner: &mut NodeInterner,
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> Result<Value, InterpreterError> {
+) -> IResult<Value> {
     check_argument_count(1, &arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
@@ -298,7 +326,7 @@ fn slice_insert(
     interner: &mut NodeInterner,
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> Result<Value, InterpreterError> {
+) -> IResult<Value> {
     check_argument_count(3, &arguments, location)?;
 
     let (element, _) = arguments.pop().unwrap();
@@ -306,4 +334,55 @@ fn slice_insert(
     let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
     values.insert(index as usize, element);
     Ok(Value::Slice(values, typ))
+}
+
+// fn as_trait_constraint(quoted: Quoted) -> TraitConstraint
+fn quoted_as_trait_constraint(
+    _interner: &mut NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let tokens = get_quoted(arguments.pop().unwrap().0, location)?;
+    let quoted = tokens.as_ref().clone();
+
+    let trait_bound = parser::trait_bound().parse(quoted).map_err(|mut errors| {
+        let error = errors.swap_remove(0);
+        let rule = "a trait constraint";
+        InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
+    })?;
+
+    Ok(Value::TraitConstraint(trait_bound))
+}
+
+// fn constraint_hash(constraint: TraitConstraint) -> Field
+fn trait_constraint_hash(
+    _interner: &mut NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let bound = get_trait_constraint(arguments.pop().unwrap().0, location)?;
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    bound.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    Ok(Value::Field((hash as u128).into()))
+}
+
+// fn constraint_eq(constraint_a: TraitConstraint, constraint_b: TraitConstraint) -> bool
+fn trait_constraint_eq(
+    _interner: &mut NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(2, &arguments, location)?;
+
+    let constraint_b = get_trait_constraint(arguments.pop().unwrap().0, location)?;
+    let constraint_a = get_trait_constraint(arguments.pop().unwrap().0, location)?;
+
+    Ok(Value::Bool(constraint_a == constraint_b))
 }

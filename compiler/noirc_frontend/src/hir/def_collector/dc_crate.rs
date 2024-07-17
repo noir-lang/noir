@@ -79,6 +79,7 @@ pub struct UnresolvedTraitImpl {
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
+    pub is_comptime: bool,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,
@@ -240,7 +241,7 @@ impl DefCollector {
     /// Collect all of the definitions in a given crate into a CrateDefMap
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
-    pub fn collect(
+    pub fn collect_crate_and_dependencies(
         mut def_map: CrateDefMap,
         context: &mut Context,
         ast: SortedModule,

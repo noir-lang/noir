@@ -7,7 +7,7 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
-    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
+    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness, TraitBound},
     hir::def_map::ModuleId,
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
@@ -46,6 +46,7 @@ pub enum Value {
     Slice(Vector<Value>, Type),
     Code(Rc<Tokens>),
     StructDefinition(StructId),
+    TraitConstraint(TraitBound),
     TraitDefinition(TraitId),
     FunctionDefinition(FuncId),
     ModuleDefinition(ModuleId),
@@ -83,6 +84,7 @@ impl Value {
                 let element = element.borrow().get_type().into_owned();
                 Type::MutableReference(Box::new(element))
             }
+            Value::TraitConstraint { .. } => Type::Quoted(QuotedType::TraitConstraint),
             Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
             Value::FunctionDefinition(_) => Type::Quoted(QuotedType::FunctionDefinition),
             Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
@@ -201,6 +203,7 @@ impl Value {
             }
             Value::Pointer(..)
             | Value::StructDefinition(_)
+            | Value::TraitConstraint(_)
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
             | Value::ModuleDefinition(_) => {
@@ -311,6 +314,7 @@ impl Value {
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
             Value::Pointer(..)
             | Value::StructDefinition(_)
+            | Value::TraitConstraint(_)
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
             | Value::ModuleDefinition(_) => {
@@ -417,6 +421,7 @@ impl Display for Value {
                 write!(f, " }}")
             }
             Value::StructDefinition(_) => write!(f, "(struct definition)"),
+            Value::TraitConstraint { .. } => write!(f, "(trait constraint)"),
             Value::TraitDefinition(_) => write!(f, "(trait definition)"),
             Value::FunctionDefinition(_) => write!(f, "(function definition)"),
             Value::ModuleDefinition(_) => write!(f, "(module)"),
