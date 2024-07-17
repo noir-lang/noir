@@ -753,13 +753,16 @@ impl<'context> Elaborator<'context> {
     ) -> Result<FuncId, ResolverError> {
         match self.interner.expression(&func) {
             HirExpression::Ident(ident, _generics) => {
-                let definition = self.interner.definition(ident.id);
-                if let DefinitionKind::Function(function) = definition.kind {
-                    let meta = self.interner.function_modifiers(&function);
-                    if meta.is_comptime {
-                        Ok(function)
+                if let Some(definition) = self.interner.try_definition(ident.id) {
+                    if let DefinitionKind::Function(function) = definition.kind {
+                        let meta = self.interner.function_modifiers(&function);
+                        if meta.is_comptime {
+                            Ok(function)
+                        } else {
+                            Err(ResolverError::MacroIsNotComptime { span: location.span })
+                        }
                     } else {
-                        Err(ResolverError::MacroIsNotComptime { span: location.span })
+                        Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span })
                     }
                 } else {
                     Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span })
