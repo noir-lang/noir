@@ -750,14 +750,14 @@ impl<'context> Elaborator<'context> {
         &mut self,
         func: ExprId,
         location: Location,
-    ) -> Result<FuncId, ResolverError> {
+    ) -> Result<Option<FuncId>, ResolverError> {
         match self.interner.expression(&func) {
             HirExpression::Ident(ident, _generics) => {
                 if let Some(definition) = self.interner.try_definition(ident.id) {
                     if let DefinitionKind::Function(function) = definition.kind {
                         let meta = self.interner.function_modifiers(&function);
                         if meta.is_comptime {
-                            Ok(function)
+                            Ok(Some(function))
                         } else {
                             Err(ResolverError::MacroIsNotComptime { span: location.span })
                         }
@@ -765,7 +765,8 @@ impl<'context> Elaborator<'context> {
                         Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span })
                     }
                 } else {
-                    Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span })
+                    // Assume a name resolution error has already been issued
+                    Ok(None)
                 }
             }
             _ => Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span }),
@@ -786,7 +787,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let function = match self.try_get_comptime_function(func, location) {
-            Ok(function) => function,
+            Ok(function) => function?,
             Err(error) => {
                 self.push_err(error);
                 return None;
