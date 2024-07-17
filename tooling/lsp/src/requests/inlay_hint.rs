@@ -10,7 +10,7 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     self,
     ast::{
-        BlockExpression, Expression, ExpressionKind, LetStatement, NoirFunction, Pattern,
+        BlockExpression, Expression, ExpressionKind, Ident, LetStatement, NoirFunction, Pattern,
         Statement, StatementKind, TraitImplItem, TraitItem, UnresolvedTypeData,
     },
     macros_api::NodeInterner,
@@ -182,6 +182,7 @@ impl<'a> InlayHintCollector<'a> {
                 self.collect_in_expression(&assign_statement.expression);
             }
             StatementKind::For(for_loop_statement) => {
+                self.collect_in_ident(&for_loop_statement.identifier);
                 self.collect_in_expression(&for_loop_statement.block);
             }
             StatementKind::Comptime(statement) => self.collect_in_statement(statement),
@@ -268,36 +269,7 @@ impl<'a> InlayHintCollector<'a> {
     fn collect_in_pattern(&mut self, pattern: &Pattern) {
         match pattern {
             Pattern::Identifier(ident) => {
-                let span = ident.span();
-                let location = Location::new(ident.span(), self.file_id);
-                if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
-                    if let Some(referenced) = self.interner.find_referenced(location) {
-                        match referenced {
-                            ReferenceId::Global(global_id) => {
-                                let global_info = self.interner.get_global(global_id);
-                                let definition_id = global_info.definition_id;
-                                let typ = self.interner.definition_type(definition_id);
-                                self.push_type_hint(lsp_location, &typ);
-                            }
-                            ReferenceId::Local(definition_id) => {
-                                let typ = self.interner.definition_type(definition_id);
-                                self.push_type_hint(lsp_location, &typ);
-                            }
-                            ReferenceId::StructMember(struct_id, field_index) => {
-                                let struct_type = self.interner.get_struct(struct_id);
-                                let struct_type = struct_type.borrow();
-                                let (_field_name, field_type) = struct_type.field_at(field_index);
-                                self.push_type_hint(lsp_location, field_type);
-                            }
-                            ReferenceId::Module(_)
-                            | ReferenceId::Struct(_)
-                            | ReferenceId::Trait(_)
-                            | ReferenceId::Function(_)
-                            | ReferenceId::Alias(_)
-                            | ReferenceId::Reference(..) => (),
-                        }
-                    }
-                }
+                self.collect_in_ident(ident);
             }
             Pattern::Mutable(pattern, _span, _is_synthesized) => {
                 self.collect_in_pattern(pattern);
@@ -310,6 +282,39 @@ impl<'a> InlayHintCollector<'a> {
             Pattern::Struct(_path, patterns, _span) => {
                 for (_ident, pattern) in patterns {
                     self.collect_in_pattern(pattern);
+                }
+            }
+        }
+    }
+
+    fn collect_in_ident(&mut self, ident: &Ident) {
+        let span = ident.span();
+        let location = Location::new(ident.span(), self.file_id);
+        if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
+            if let Some(referenced) = self.interner.find_referenced(location) {
+                match referenced {
+                    ReferenceId::Global(global_id) => {
+                        let global_info = self.interner.get_global(global_id);
+                        let definition_id = global_info.definition_id;
+                        let typ = self.interner.definition_type(definition_id);
+                        self.push_type_hint(lsp_location, &typ);
+                    }
+                    ReferenceId::Local(definition_id) => {
+                        let typ = self.interner.definition_type(definition_id);
+                        self.push_type_hint(lsp_location, &typ);
+                    }
+                    ReferenceId::StructMember(struct_id, field_index) => {
+                        let struct_type = self.interner.get_struct(struct_id);
+                        let struct_type = struct_type.borrow();
+                        let (_field_name, field_type) = struct_type.field_at(field_index);
+                        self.push_type_hint(lsp_location, field_type);
+                    }
+                    ReferenceId::Module(_)
+                    | ReferenceId::Struct(_)
+                    | ReferenceId::Trait(_)
+                    | ReferenceId::Function(_)
+                    | ReferenceId::Alias(_)
+                    | ReferenceId::Reference(..) => (),
                 }
             }
         }
@@ -551,6 +556,24 @@ mod inlay_hints_tests {
                     end: Position { line: 4, character: 10 }
                 }
             );
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_type_inlay_hints_in_for() {
+        let inlay_hints = get_inlay_hints(16, 18).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 17, character: 9 });
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].value, ": ");
+            assert_eq!(labels[0].location, None);
+            assert_eq!(labels[1].value, "u32");
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }

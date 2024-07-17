@@ -13,3 +13,8 @@ fn make_foo() -> Foo {
 fn foo() {
     let foo = make_foo();
 }
+
+fn test_for() {
+    for i in 0..10 {}
+}
+
