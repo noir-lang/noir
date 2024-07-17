@@ -4,6 +4,8 @@
 #include <sstream>
 #include <vector>
 
+#include "barretenberg/common/ref_vector.hpp"
+
 namespace bb {
 
 template <typename FF>
@@ -12,7 +14,10 @@ struct {{name}}FullRow {
     FF {{col}}{};
     {{/each}}
     
-    [[maybe_unused]] static std::vector<std::string> names();
+    RefVector<const FF> as_vector() const;
+
+    static std::vector<std::string> names();
+    static constexpr size_t SIZE = {{len all_cols}};
 };
 
 template <typename FF> std::ostream& operator<<(std::ostream& os, {{name}}FullRow<FF> const& row);

@@ -25,16 +25,25 @@ template <typename FF> std::vector<std::string> {{name}}FullRow<FF>::names()
     };
 }
 
+template <typename FF> RefVector<const FF> {{name}}FullRow<FF>::as_vector() const {
+    return RefVector<const FF>{
+        {{#each all_cols as |col|}}
+        {{col}},
+        {{/each}}
+    };
+}
+
 template <typename FF> std::ostream& operator<<(std::ostream& os, {{name}}FullRow<FF> const& row)
 {
-    return os <<
-        {{#each all_cols as |col|}}
-        {{#if @index}}<< "," << {{/if}}field_to_string(row.{{col}}) //
-        {{/each}};
+    for (const auto& ff : row.as_vector()) {
+        os << field_to_string(ff) << ", ";
+    }
+    return os;
 }
 
 // Explicit template instantiation.
 template std::ostream& operator<<(std::ostream& os, {{name}}FullRow<{{name}}FlavorSettings::FF> const& row);
 template std::vector<std::string> {{name}}FullRow<{{name}}FlavorSettings::FF>::names();
+template RefVector<const {{name}}FlavorSettings::FF> {{name}}FullRow<{{name}}FlavorSettings::FF>::as_vector() const;
 
 } // namespace bb

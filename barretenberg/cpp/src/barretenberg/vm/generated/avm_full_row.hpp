@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "barretenberg/common/ref_vector.hpp"
+
 namespace bb {
 
 template <typename FF> struct AvmFullRow {
@@ -419,7 +421,10 @@ template <typename FF> struct AvmFullRow {
     FF lookup_div_u16_6_counts{};
     FF lookup_div_u16_7_counts{};
 
-    [[maybe_unused]] static std::vector<std::string> names();
+    RefVector<const FF> as_vector() const;
+
+    static std::vector<std::string> names();
+    static constexpr size_t SIZE = 411;
 };
 
 template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF> const& row);

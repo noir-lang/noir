@@ -3786,8 +3786,8 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
           range_check_size + 1, // The manually inserted first row is part of the range check
           "\n\tconv_trace_size: ",
           conv_trace_size,
-          "\n\tlookup_table_size: ",
-          lookup_table_size,
+          "\n\tbin_trace_size: ",
+          bin_trace_size,
           "\n\tsha256_trace_size: ",
           sha256_trace_size,
           "\n\tposeidon2_trace_size: ",
