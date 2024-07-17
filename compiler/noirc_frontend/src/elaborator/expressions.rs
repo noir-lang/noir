@@ -10,7 +10,7 @@ use crate::{
     },
     hir::{
         comptime::{self, InterpreterError},
-        resolution::{errors::ResolverError, resolver::LambdaContext},
+        resolution::errors::ResolverError,
         type_check::TypeCheckError,
     },
     hir_def::{
@@ -32,7 +32,7 @@ use crate::{
     QuotedType, Shared, StructType, Type,
 };
 
-use super::Elaborator;
+use super::{Elaborator, LambdaContext};
 
 impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {

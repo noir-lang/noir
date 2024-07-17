@@ -21,6 +21,8 @@ const INFO_COMMAND: &str = "nargo.info";
 const INFO_CODELENS_TITLE: &str = "Info";
 const EXECUTE_COMMAND: &str = "nargo.execute";
 const EXECUTE_CODELENS_TITLE: &str = "Execute";
+const DEBUG_COMMAND: &str = "nargo.debug.dap";
+const DEBUG_CODELENS_TITLE: &str = "Debug";
 
 const PROFILE_COMMAND: &str = "nargo.profile";
 const PROFILE_CODELENS_TITLE: &str = "Profile";
@@ -71,7 +73,7 @@ fn on_code_lens_request_inner(
     let (mut context, crate_id) = prepare_source(source_string, state);
     // We ignore the warnings and errors produced by compilation for producing code lenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut context, crate_id, false, false, false, None);
+    let _ = check_crate(&mut context, crate_id, false, false, None);
 
     let collected_lenses =
         collect_lenses_for_package(&context, crate_id, &workspace, package, None);
@@ -158,35 +160,22 @@ pub(crate) fn collect_lenses_for_package(
 
             lenses.push(compile_lens);
 
-            let info_command = Command {
-                title: INFO_CODELENS_TITLE.to_string(),
-                command: INFO_COMMAND.into(),
-                arguments: Some(package_selection_args(workspace, package)),
-            };
+            let internal_command_lenses = [
+                (INFO_CODELENS_TITLE, INFO_COMMAND),
+                (EXECUTE_CODELENS_TITLE, EXECUTE_COMMAND),
+                (PROFILE_CODELENS_TITLE, PROFILE_COMMAND),
+                (DEBUG_CODELENS_TITLE, DEBUG_COMMAND),
+            ]
+            .map(|(title, command)| {
+                let command = Command {
+                    title: title.to_string(),
+                    command: command.into(),
+                    arguments: Some(package_selection_args(workspace, package)),
+                };
+                CodeLens { range, command: Some(command), data: None }
+            });
 
-            let info_lens = CodeLens { range, command: Some(info_command), data: None };
-
-            lenses.push(info_lens);
-
-            let execute_command = Command {
-                title: EXECUTE_CODELENS_TITLE.to_string(),
-                command: EXECUTE_COMMAND.into(),
-                arguments: Some(package_selection_args(workspace, package)),
-            };
-
-            let execute_lens = CodeLens { range, command: Some(execute_command), data: None };
-
-            lenses.push(execute_lens);
-
-            let profile_command = Command {
-                title: PROFILE_CODELENS_TITLE.to_string(),
-                command: PROFILE_COMMAND.into(),
-                arguments: Some(package_selection_args(workspace, package)),
-            };
-
-            let profile_lens = CodeLens { range, command: Some(profile_command), data: None };
-
-            lenses.push(profile_lens);
+            lenses.append(&mut Vec::from(internal_command_lenses));
         }
     }
 

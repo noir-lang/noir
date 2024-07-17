@@ -63,7 +63,6 @@ enum NargoCommand {
     Execute(execute_cmd::ExecuteCommand),
     #[command(hide = true)] // Hidden while the feature is being built out
     Export(export_cmd::ExportCommand),
-    #[command(hide = true)] // Hidden while the feature is being built out
     Debug(debug_cmd::DebugCommand),
     Test(test_cmd::TestCommand),
     Info(info_cmd::InfoCommand),
