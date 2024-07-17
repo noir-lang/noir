@@ -41,6 +41,8 @@ pub enum PathResolutionError {
     Unresolved(Ident),
     #[error("{0} is private and not visible from the current module")]
     Private(Ident),
+    #[error("There is no super module")]
+    NoSuper(Span),
 }
 
 #[derive(Debug)]
@@ -73,6 +75,9 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 format!("{ident} is private"),
                 ident.span(),
             ),
+            PathResolutionError::NoSuper(span) => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            }
         }
     }
 }
@@ -81,7 +86,7 @@ pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
     let module_scope = import_directive.module_id;
     let NamespaceResolution {
@@ -126,7 +131,7 @@ fn resolve_path_to_ns(
     crate_id: CrateId,
     importing_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
     let def_map = &def_maps[&crate_id];
@@ -187,6 +192,25 @@ fn resolve_path_to_ns(
             path_references,
             importing_crate,
         ),
+
+        crate::ast::PathKind::Super => {
+            if let Some(parent_module_id) =
+                def_maps[&crate_id].modules[import_directive.module_id.0].parent
+            {
+                resolve_name_in_module(
+                    crate_id,
+                    importing_crate,
+                    import_path,
+                    parent_module_id,
+                    def_maps,
+                    path_references,
+                )
+            } else {
+                let span_start = import_directive.path.span().start();
+                let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
+                Err(PathResolutionError::NoSuper(span))
+            }
+        }
     }
 }
 
@@ -196,7 +220,7 @@ fn resolve_path_from_crate_root(
 
     import_path: &[Ident],
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> NamespaceResolutionResult {
     resolve_name_in_module(
         crate_id,
@@ -214,7 +238,7 @@ fn resolve_name_in_module(
     import_path: &[Ident],
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> NamespaceResolutionResult {
     let def_map = &def_maps[&krate];
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
@@ -247,7 +271,7 @@ fn resolve_name_in_module(
         current_mod_id = match typ {
             ModuleDefId::ModuleId(id) => {
                 if let Some(path_references) = path_references {
-                    path_references.push(ReferenceId::Module(id));
+                    path_references.push(Some(ReferenceId::Module(id)));
                 }
                 id
             }
@@ -255,14 +279,14 @@ fn resolve_name_in_module(
             // TODO: If impls are ever implemented, types can be used in a path
             ModuleDefId::TypeId(id) => {
                 if let Some(path_references) = path_references {
-                    path_references.push(ReferenceId::Struct(id));
+                    path_references.push(Some(ReferenceId::Struct(id)));
                 }
                 id.module_id()
             }
             ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
             ModuleDefId::TraitId(id) => {
                 if let Some(path_references) = path_references {
-                    path_references.push(ReferenceId::Trait(id));
+                    path_references.push(Some(ReferenceId::Trait(id)));
                 }
                 id.0
             }
@@ -309,7 +333,7 @@ fn resolve_external_dep(
     current_def_map: &CrateDefMap,
     directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
     importing_crate: CrateId,
 ) -> NamespaceResolutionResult {
     // Use extern_prelude to get the dep
@@ -326,6 +350,11 @@ fn resolve_external_dep(
     // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
     // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
     let path_without_crate_name = &path[1..];
+
+    // Given that we skipped the first segment, record that it doesn't refer to any module or type.
+    if let Some(path_references) = path_references {
+        path_references.push(None);
+    }
 
     let path = Path {
         segments: path_without_crate_name.to_vec(),

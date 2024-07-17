@@ -35,6 +35,7 @@ fn main() {
     generate_noir_test_failure_tests(&mut test_file, &test_dir);
     generate_compile_success_empty_tests(&mut test_file, &test_dir);
     generate_compile_success_contract_tests(&mut test_file, &test_dir);
+    generate_compile_success_no_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 }
 
@@ -61,7 +62,7 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
 /// Certain features are only available in the elaborator.
 /// We skip these tests for non-elaborator code since they are not
 /// expected to work there. This can be removed once the old code is removed.
-const IGNORED_NEW_FEATURE_TESTS: [&str; 9] = [
+const IGNORED_NEW_FEATURE_TESTS: [&str; 13] = [
     "macros",
     "wildcard_type",
     "type_definition_annotation",
@@ -71,6 +72,10 @@ const IGNORED_NEW_FEATURE_TESTS: [&str; 9] = [
     "comptime_slice_methods",
     "unary_operator_overloading",
     "unquote_multiple_items_from_annotation",
+    "function_attribute",
+    "trait_attribute",
+    "regression_5428",
+    "unquote",
 ];
 
 fn read_test_cases(
@@ -314,7 +319,6 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_dir,
             r#"
         nargo.arg("compile").arg("--force");
-        
         nargo.assert().success();"#,
         );
 
@@ -327,6 +331,36 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
         nargo.arg("compile").arg("--force").arg("--use-legacy");
         
         nargo.assert().success();"#,
+        );
+    }
+}
+
+/// Generate tests for checking that the contract compiles and there are no "bugs" in stderr
+fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "compile_success_no_bug";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        generate_test_case(
+            test_file,
+            test_type,
+            &test_name,
+            &test_dir,
+            r#"
+        nargo.arg("compile").arg("--force");
+        nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
+        );
+
+        generate_test_case(
+            test_file,
+            test_type,
+            &format!("legacy_{test_name}"),
+            &test_dir,
+            r#"
+        nargo.arg("compile").arg("--force").arg("--use-legacy");
+        
+        nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
         );
     }
 }

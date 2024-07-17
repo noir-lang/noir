@@ -17,8 +17,8 @@ pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
     params: TextDocumentPositionParams,
 ) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> {
-    let result = process_request(state, params, |location, interner, _, _| {
-        let reference_id = interner.reference_at_location(location);
+    let result = process_request(state, params, |args| {
+        let reference_id = args.interner.reference_at_location(args.location);
         let rename_possible = match reference_id {
             // Rename shouldn't be possible when triggered on top of "Self"
             Some(ReferenceId::Reference(_, true /* is self type name */)) => false,
@@ -34,40 +34,36 @@ pub(crate) fn on_rename_request(
     state: &mut LspState,
     params: RenameParams,
 ) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> {
-    let result = process_request(
-        state,
-        params.text_document_position,
-        |location, interner, files, cached_interners| {
-            let rename_changes = find_all_references_in_workspace(
-                location,
-                interner,
-                cached_interners,
-                files,
-                true,
-                false,
-            )
-            .map(|locations| {
-                let rs = locations.iter().fold(
-                    HashMap::new(),
-                    |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
-                        let edit =
-                            TextEdit { range: location.range, new_text: params.new_name.clone() };
-                        acc.entry(location.uri.clone()).or_default().push(edit);
-                        acc
-                    },
-                );
-                rs
-            });
+    let result = process_request(state, params.text_document_position, |args| {
+        let rename_changes = find_all_references_in_workspace(
+            args.location,
+            args.interner,
+            args.interners,
+            args.files,
+            true,
+            false,
+        )
+        .map(|locations| {
+            let rs = locations.iter().fold(
+                HashMap::new(),
+                |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
+                    let edit =
+                        TextEdit { range: location.range, new_text: params.new_name.clone() };
+                    acc.entry(location.uri.clone()).or_default().push(edit);
+                    acc
+                },
+            );
+            rs
+        });
 
-            let response = WorkspaceEdit {
-                changes: rename_changes,
-                document_changes: None,
-                change_annotations: None,
-            };
+        let response = WorkspaceEdit {
+            changes: rename_changes,
+            document_changes: None,
+            change_annotations: None,
+        };
 
-            Some(response)
-        },
-    );
+        Some(response)
+    });
     future::ready(result)
 }
 
@@ -172,6 +168,11 @@ mod rename_tests {
     #[test]
     async fn test_rename_function_in_use_statement() {
         check_rename_succeeds("rename_function_use", "some_function").await;
+    }
+
+    #[test]
+    async fn test_rename_method() {
+        check_rename_succeeds("rename_function", "some_method").await;
     }
 
     #[test]
