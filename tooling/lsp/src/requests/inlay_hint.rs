@@ -294,9 +294,7 @@ impl<'a> InlayHintCollector<'a> {
                             | ReferenceId::Trait(_)
                             | ReferenceId::Function(_)
                             | ReferenceId::Alias(_)
-                            | ReferenceId::Reference(..) => {
-                                panic!("Unexpected reference for a pattern: {:?}", referenced)
-                            }
+                            | ReferenceId::Reference(..) => (),
                         }
                     }
                 }
