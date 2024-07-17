@@ -30,26 +30,23 @@ template <typename FF_> class gasImpl {
                            [[maybe_unused]] const RelationParameters<FF>&,
                            [[maybe_unused]] const FF& scaling_factor)
     {
-        // Contribution 0
         {
-            Avm_DECLARE_VIEWS(0);
-            auto tmp = (gas_sel_gas_cost - gas_sel_gas_cost);
+            using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+            auto tmp = (new_term.gas_sel_gas_cost - new_term.gas_sel_gas_cost);
             tmp *= scaling_factor;
-            std::get<0>(evals) += tmp;
+            std::get<0>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 1
         {
-            Avm_DECLARE_VIEWS(1);
-            auto tmp = (gas_l2_gas_fixed_table - gas_l2_gas_fixed_table);
+            using Accumulator = typename std::tuple_element_t<1, ContainerOverSubrelations>;
+            auto tmp = (new_term.gas_l2_gas_fixed_table - new_term.gas_l2_gas_fixed_table);
             tmp *= scaling_factor;
-            std::get<1>(evals) += tmp;
+            std::get<1>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 2
         {
-            Avm_DECLARE_VIEWS(2);
-            auto tmp = (gas_da_gas_fixed_table - gas_da_gas_fixed_table);
+            using Accumulator = typename std::tuple_element_t<2, ContainerOverSubrelations>;
+            auto tmp = (new_term.gas_da_gas_fixed_table - new_term.gas_da_gas_fixed_table);
             tmp *= scaling_factor;
-            std::get<2>(evals) += tmp;
+            std::get<2>(evals) += typename Accumulator::View(tmp);
         }
     }
 };

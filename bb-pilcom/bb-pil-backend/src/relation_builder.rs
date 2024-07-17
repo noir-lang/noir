@@ -64,13 +64,6 @@ pub trait RelationBuilder {
         all_cols: &[String],
         labels: &HashMap<usize, String>,
     );
-
-    /// Declare views
-    ///
-    /// Declare views is a macro that generates a reference for each of the columns
-    /// This reference will be a span into a sumcheck related object, it must be declared for EACH sub-relation
-    /// as the sumcheck object is sensitive to the degree of the relation.
-    fn create_declare_views(&self, name: &str, all_cols_and_shifts: &[String]);
 }
 
 impl RelationBuilder for BBFiles {
@@ -91,7 +84,6 @@ impl RelationBuilder for BBFiles {
         // ----------------------- Create the relation files -----------------------
         for (relation_name, analyzed_idents) in grouped_relations.iter() {
             let IdentitiesOutput {
-                subrelations: _,
                 identities,
                 collected_cols,
                 collected_shifts,
@@ -163,30 +155,6 @@ impl RelationBuilder for BBFiles {
             &relation_hpp,
         );
     }
-
-    fn create_declare_views(&self, name: &str, all_cols_and_shifts: &[String]) {
-        let mut handlebars = Handlebars::new();
-
-        let data = &json!({
-            "root_name": name,
-            "all_cols_and_shifts": all_cols_and_shifts,
-        });
-
-        handlebars
-            .register_template_string(
-                "declare_views.hpp",
-                std::str::from_utf8(include_bytes!("../templates/declare_views.hpp.hbs")).unwrap(),
-            )
-            .unwrap();
-
-        let declare_views_hpp = handlebars.render("declare_views.hpp", data).unwrap();
-
-        self.write_file(
-            &format!("{}/{}", &self.rel, snake_case(name)),
-            "declare_views.hpp",
-            &declare_views_hpp,
-        );
-    }
 }
 
 /// Group relations per file
@@ -240,22 +208,6 @@ fn create_identity<T: FieldElement>(
     }
 }
 
-// TODO: replace the preamble with a macro so the code looks nicer
-fn create_subrelation(index: usize, preamble: String, identity: &mut BBIdentity) -> String {
-    // \\\
-    let id = &identity.1;
-
-    format!(
-        "//Contribution {index}
-    {{\n{preamble}
-    
-    auto tmp = {id};
-    tmp *= scaling_factor;
-    std::get<{index}>(evals) += tmp;
-}}",
-    )
-}
-
 fn craft_expression<T: FieldElement>(
     expr: &Expression<T>,
     // TODO: maybe make state?
@@ -301,7 +253,7 @@ fn craft_expression<T: FieldElement>(
                 poly_name = format!("{}_shift", poly_name);
             }
             collected_cols.insert(poly_name.clone());
-            (1, poly_name)
+            (1, format!("new_term.{}", poly_name))
         }
         Expression::BinaryOperation(AlgebraicBinaryOperation {
             left: lhe,
@@ -366,7 +318,6 @@ fn craft_expression<T: FieldElement>(
 }
 
 pub struct IdentitiesOutput {
-    subrelations: Vec<String>,
     identities: Vec<BBIdentity>,
     collected_cols: Vec<String>,
     collected_shifts: Vec<String>,
@@ -385,7 +336,6 @@ pub(crate) fn create_identities<F: FieldElement>(
         .collect::<Vec<_>>();
 
     let mut identities = Vec::new();
-    let mut subrelations = Vec::new();
     let mut expression_labels: HashMap<usize, String> = HashMap::new(); // Each relation can be given a label, this label can be assigned here
     let mut collected_cols: HashSet<String> = HashSet::new();
     let mut collected_public_identities: HashSet<String> = HashSet::new();
@@ -400,11 +350,6 @@ pub(crate) fn create_identities<F: FieldElement>(
 
     let expressions = ids.iter().map(|id| id.left.clone()).collect::<Vec<_>>();
     for (i, expression) in expressions.iter().enumerate() {
-        let relation_boilerplate = format!(
-            "{file_name}_DECLARE_VIEWS({i});
-        ",
-        );
-
         // TODO: collected pattern is shit
         let mut identity = create_identity(
             expression,
@@ -412,11 +357,7 @@ pub(crate) fn create_identities<F: FieldElement>(
             &mut collected_public_identities,
         )
         .unwrap();
-        let subrelation = create_subrelation(i, relation_boilerplate, &mut identity);
-
         identities.push(identity);
-
-        subrelations.push(subrelation);
     }
 
     // Print a warning to the user about usage of public identities
@@ -444,7 +385,6 @@ pub(crate) fn create_identities<F: FieldElement>(
     collected_shifts.sort();
 
     IdentitiesOutput {
-        subrelations,
         identities,
         collected_cols,
         collected_shifts,

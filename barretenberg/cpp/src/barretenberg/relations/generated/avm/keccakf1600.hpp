@@ -28,12 +28,11 @@ template <typename FF_> class keccakf1600Impl {
                            [[maybe_unused]] const RelationParameters<FF>&,
                            [[maybe_unused]] const FF& scaling_factor)
     {
-        // Contribution 0
         {
-            Avm_DECLARE_VIEWS(0);
-            auto tmp = (keccakf1600_sel_keccakf1600 * (-keccakf1600_sel_keccakf1600 + FF(1)));
+            using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+            auto tmp = (new_term.keccakf1600_sel_keccakf1600 * (-new_term.keccakf1600_sel_keccakf1600 + FF(1)));
             tmp *= scaling_factor;
-            std::get<0>(evals) += tmp;
+            std::get<0>(evals) += typename Accumulator::View(tmp);
         }
     }
 };

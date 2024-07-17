@@ -79,92 +79,89 @@ template <typename FF_> class kernelImpl {
                            [[maybe_unused]] const RelationParameters<FF>&,
                            [[maybe_unused]] const FF& scaling_factor)
     {
-        // Contribution 0
         {
-            Avm_DECLARE_VIEWS(0);
+            using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.main_sel_last + FF(1)) *
+                        (new_term.kernel_note_hash_exist_write_offset_shift -
+                         (new_term.kernel_note_hash_exist_write_offset + new_term.main_sel_op_note_hash_exists)));
+            tmp *= scaling_factor;
+            std::get<0>(evals) += typename Accumulator::View(tmp);
+        }
+        {
+            using Accumulator = typename std::tuple_element_t<1, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.main_sel_last + FF(1)) *
+                        (new_term.kernel_emit_note_hash_write_offset_shift -
+                         (new_term.kernel_emit_note_hash_write_offset + new_term.main_sel_op_emit_note_hash)));
+            tmp *= scaling_factor;
+            std::get<1>(evals) += typename Accumulator::View(tmp);
+        }
+        {
+            using Accumulator = typename std::tuple_element_t<2, ContainerOverSubrelations>;
             auto tmp =
-                ((-main_sel_last + FF(1)) * (kernel_note_hash_exist_write_offset_shift -
-                                             (kernel_note_hash_exist_write_offset + main_sel_op_note_hash_exists)));
+                ((-new_term.main_sel_last + FF(1)) * (new_term.kernel_nullifier_exists_write_offset_shift -
+                                                      (new_term.kernel_nullifier_exists_write_offset +
+                                                       (new_term.main_sel_op_nullifier_exists * new_term.main_ib))));
             tmp *= scaling_factor;
-            std::get<0>(evals) += tmp;
+            std::get<2>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 1
         {
-            Avm_DECLARE_VIEWS(1);
-            auto tmp = ((-main_sel_last + FF(1)) * (kernel_emit_note_hash_write_offset_shift -
-                                                    (kernel_emit_note_hash_write_offset + main_sel_op_emit_note_hash)));
+            using Accumulator = typename std::tuple_element_t<3, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.main_sel_last + FF(1)) *
+                        (new_term.kernel_nullifier_non_exists_write_offset_shift -
+                         (new_term.kernel_nullifier_non_exists_write_offset +
+                          (new_term.main_sel_op_nullifier_exists * (-new_term.main_ib + FF(1))))));
             tmp *= scaling_factor;
-            std::get<1>(evals) += tmp;
+            std::get<3>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 2
         {
-            Avm_DECLARE_VIEWS(2);
-            auto tmp = ((-main_sel_last + FF(1)) *
-                        (kernel_nullifier_exists_write_offset_shift -
-                         (kernel_nullifier_exists_write_offset + (main_sel_op_nullifier_exists * main_ib))));
+            using Accumulator = typename std::tuple_element_t<4, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.main_sel_last + FF(1)) *
+                        (new_term.kernel_emit_nullifier_write_offset_shift -
+                         (new_term.kernel_emit_nullifier_write_offset + new_term.main_sel_op_emit_nullifier)));
             tmp *= scaling_factor;
-            std::get<2>(evals) += tmp;
+            std::get<4>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 3
         {
-            Avm_DECLARE_VIEWS(3);
+            using Accumulator = typename std::tuple_element_t<5, ContainerOverSubrelations>;
             auto tmp =
-                ((-main_sel_last + FF(1)) *
-                 (kernel_nullifier_non_exists_write_offset_shift -
-                  (kernel_nullifier_non_exists_write_offset + (main_sel_op_nullifier_exists * (-main_ib + FF(1))))));
+                ((-new_term.main_sel_last + FF(1)) *
+                 (new_term.kernel_l1_to_l2_msg_exists_write_offset_shift -
+                  (new_term.kernel_l1_to_l2_msg_exists_write_offset + new_term.main_sel_op_l1_to_l2_msg_exists)));
             tmp *= scaling_factor;
-            std::get<3>(evals) += tmp;
+            std::get<5>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 4
         {
-            Avm_DECLARE_VIEWS(4);
-            auto tmp = ((-main_sel_last + FF(1)) * (kernel_emit_nullifier_write_offset_shift -
-                                                    (kernel_emit_nullifier_write_offset + main_sel_op_emit_nullifier)));
-            tmp *= scaling_factor;
-            std::get<4>(evals) += tmp;
-        }
-        // Contribution 5
-        {
-            Avm_DECLARE_VIEWS(5);
-            auto tmp = ((-main_sel_last + FF(1)) *
-                        (kernel_l1_to_l2_msg_exists_write_offset_shift -
-                         (kernel_l1_to_l2_msg_exists_write_offset + main_sel_op_l1_to_l2_msg_exists)));
-            tmp *= scaling_factor;
-            std::get<5>(evals) += tmp;
-        }
-        // Contribution 6
-        {
-            Avm_DECLARE_VIEWS(6);
-            auto tmp = ((-main_sel_last + FF(1)) *
-                        (kernel_emit_unencrypted_log_write_offset_shift -
-                         (kernel_emit_unencrypted_log_write_offset + main_sel_op_emit_unencrypted_log)));
-            tmp *= scaling_factor;
-            std::get<6>(evals) += tmp;
-        }
-        // Contribution 7
-        {
-            Avm_DECLARE_VIEWS(7);
+            using Accumulator = typename std::tuple_element_t<6, ContainerOverSubrelations>;
             auto tmp =
-                ((-main_sel_last + FF(1)) * (kernel_emit_l2_to_l1_msg_write_offset_shift -
-                                             (kernel_emit_l2_to_l1_msg_write_offset + main_sel_op_emit_l2_to_l1_msg)));
+                ((-new_term.main_sel_last + FF(1)) *
+                 (new_term.kernel_emit_unencrypted_log_write_offset_shift -
+                  (new_term.kernel_emit_unencrypted_log_write_offset + new_term.main_sel_op_emit_unencrypted_log)));
             tmp *= scaling_factor;
-            std::get<7>(evals) += tmp;
+            std::get<6>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 8
         {
-            Avm_DECLARE_VIEWS(8);
-            auto tmp = ((-main_sel_last + FF(1)) *
-                        (kernel_sload_write_offset_shift - (kernel_sload_write_offset + main_sel_op_sload)));
+            using Accumulator = typename std::tuple_element_t<7, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.main_sel_last + FF(1)) *
+                        (new_term.kernel_emit_l2_to_l1_msg_write_offset_shift -
+                         (new_term.kernel_emit_l2_to_l1_msg_write_offset + new_term.main_sel_op_emit_l2_to_l1_msg)));
             tmp *= scaling_factor;
-            std::get<8>(evals) += tmp;
+            std::get<7>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 9
         {
-            Avm_DECLARE_VIEWS(9);
-            auto tmp = ((-main_sel_last + FF(1)) *
-                        (kernel_sstore_write_offset_shift - (kernel_sstore_write_offset + main_sel_op_sstore)));
+            using Accumulator = typename std::tuple_element_t<8, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.main_sel_last + FF(1)) *
+                        (new_term.kernel_sload_write_offset_shift -
+                         (new_term.kernel_sload_write_offset + new_term.main_sel_op_sload)));
             tmp *= scaling_factor;
-            std::get<9>(evals) += tmp;
+            std::get<8>(evals) += typename Accumulator::View(tmp);
+        }
+        {
+            using Accumulator = typename std::tuple_element_t<9, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.main_sel_last + FF(1)) *
+                        (new_term.kernel_sstore_write_offset_shift -
+                         (new_term.kernel_sstore_write_offset + new_term.main_sel_op_sstore)));
+            tmp *= scaling_factor;
+            std::get<9>(evals) += typename Accumulator::View(tmp);
         }
     }
 };

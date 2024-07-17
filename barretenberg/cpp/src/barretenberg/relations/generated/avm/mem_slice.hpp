@@ -66,85 +66,75 @@ template <typename FF_> class mem_sliceImpl {
                            [[maybe_unused]] const RelationParameters<FF>&,
                            [[maybe_unused]] const FF& scaling_factor)
     {
-        // Contribution 0
         {
-            Avm_DECLARE_VIEWS(0);
-            auto tmp = (slice_sel_mem_active - (slice_sel_cd_cpy + slice_sel_return));
+            using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+            auto tmp = (new_term.slice_sel_mem_active - (new_term.slice_sel_cd_cpy + new_term.slice_sel_return));
             tmp *= scaling_factor;
-            std::get<0>(evals) += tmp;
+            std::get<0>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 1
         {
-            Avm_DECLARE_VIEWS(1);
-            auto tmp = ((slice_cnt * (-slice_one_min_inv + FF(1))) - slice_sel_mem_active);
+            using Accumulator = typename std::tuple_element_t<1, ContainerOverSubrelations>;
+            auto tmp = ((new_term.slice_cnt * (-new_term.slice_one_min_inv + FF(1))) - new_term.slice_sel_mem_active);
             tmp *= scaling_factor;
-            std::get<1>(evals) += tmp;
+            std::get<1>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 2
         {
-            Avm_DECLARE_VIEWS(2);
-            auto tmp = ((-slice_sel_mem_active + FF(1)) * slice_one_min_inv);
+            using Accumulator = typename std::tuple_element_t<2, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.slice_sel_mem_active + FF(1)) * new_term.slice_one_min_inv);
             tmp *= scaling_factor;
-            std::get<2>(evals) += tmp;
+            std::get<2>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 3
         {
-            Avm_DECLARE_VIEWS(3);
-            auto tmp = (slice_sel_mem_active * ((slice_cnt - FF(1)) - slice_cnt_shift));
+            using Accumulator = typename std::tuple_element_t<3, ContainerOverSubrelations>;
+            auto tmp = (new_term.slice_sel_mem_active * ((new_term.slice_cnt - FF(1)) - new_term.slice_cnt_shift));
             tmp *= scaling_factor;
-            std::get<3>(evals) += tmp;
+            std::get<3>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 4
         {
-            Avm_DECLARE_VIEWS(4);
-            auto tmp = (slice_sel_mem_active * ((slice_addr + FF(1)) - slice_addr_shift));
+            using Accumulator = typename std::tuple_element_t<4, ContainerOverSubrelations>;
+            auto tmp = (new_term.slice_sel_mem_active * ((new_term.slice_addr + FF(1)) - new_term.slice_addr_shift));
             tmp *= scaling_factor;
-            std::get<4>(evals) += tmp;
+            std::get<4>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 5
         {
-            Avm_DECLARE_VIEWS(5);
-            auto tmp = (slice_sel_mem_active * ((slice_col_offset + FF(1)) - slice_col_offset_shift));
+            using Accumulator = typename std::tuple_element_t<5, ContainerOverSubrelations>;
+            auto tmp = (new_term.slice_sel_mem_active *
+                        ((new_term.slice_col_offset + FF(1)) - new_term.slice_col_offset_shift));
             tmp *= scaling_factor;
-            std::get<5>(evals) += tmp;
+            std::get<5>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 6
         {
-            Avm_DECLARE_VIEWS(6);
-            auto tmp = (slice_sel_mem_active * (slice_clk - slice_clk_shift));
+            using Accumulator = typename std::tuple_element_t<6, ContainerOverSubrelations>;
+            auto tmp = (new_term.slice_sel_mem_active * (new_term.slice_clk - new_term.slice_clk_shift));
             tmp *= scaling_factor;
-            std::get<6>(evals) += tmp;
+            std::get<6>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 7
         {
-            Avm_DECLARE_VIEWS(7);
-            auto tmp = (slice_sel_mem_active * (slice_space_id - slice_space_id_shift));
+            using Accumulator = typename std::tuple_element_t<7, ContainerOverSubrelations>;
+            auto tmp = (new_term.slice_sel_mem_active * (new_term.slice_space_id - new_term.slice_space_id_shift));
             tmp *= scaling_factor;
-            std::get<7>(evals) += tmp;
+            std::get<7>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 8
         {
-            Avm_DECLARE_VIEWS(8);
-            auto tmp =
-                ((slice_sel_mem_active * slice_sel_mem_active_shift) * (slice_sel_return - slice_sel_return_shift));
+            using Accumulator = typename std::tuple_element_t<8, ContainerOverSubrelations>;
+            auto tmp = ((new_term.slice_sel_mem_active * new_term.slice_sel_mem_active_shift) *
+                        (new_term.slice_sel_return - new_term.slice_sel_return_shift));
             tmp *= scaling_factor;
-            std::get<8>(evals) += tmp;
+            std::get<8>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 9
         {
-            Avm_DECLARE_VIEWS(9);
-            auto tmp =
-                ((slice_sel_mem_active * slice_sel_mem_active_shift) * (slice_sel_cd_cpy - slice_sel_cd_cpy_shift));
+            using Accumulator = typename std::tuple_element_t<9, ContainerOverSubrelations>;
+            auto tmp = ((new_term.slice_sel_mem_active * new_term.slice_sel_mem_active_shift) *
+                        (new_term.slice_sel_cd_cpy - new_term.slice_sel_cd_cpy_shift));
             tmp *= scaling_factor;
-            std::get<9>(evals) += tmp;
+            std::get<9>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 10
         {
-            Avm_DECLARE_VIEWS(10);
-            auto tmp =
-                (((-slice_sel_mem_active + FF(1)) * slice_sel_mem_active_shift) * (-slice_sel_start_shift + FF(1)));
+            using Accumulator = typename std::tuple_element_t<10, ContainerOverSubrelations>;
+            auto tmp = (((-new_term.slice_sel_mem_active + FF(1)) * new_term.slice_sel_mem_active_shift) *
+                        (-new_term.slice_sel_start_shift + FF(1)));
             tmp *= scaling_factor;
-            std::get<10>(evals) += tmp;
+            std::get<10>(evals) += typename Accumulator::View(tmp);
         }
     }
 };

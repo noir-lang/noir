@@ -55,77 +55,75 @@ template <typename FF_> class binaryImpl {
                            [[maybe_unused]] const RelationParameters<FF>&,
                            [[maybe_unused]] const FF& scaling_factor)
     {
-        // Contribution 0
         {
-            Avm_DECLARE_VIEWS(0);
-            auto tmp = (binary_sel_bin * (-binary_sel_bin + FF(1)));
+            using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
+            auto tmp = (new_term.binary_sel_bin * (-new_term.binary_sel_bin + FF(1)));
             tmp *= scaling_factor;
-            std::get<0>(evals) += tmp;
+            std::get<0>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 1
         {
-            Avm_DECLARE_VIEWS(1);
-            auto tmp = ((binary_op_id_shift - binary_op_id) * binary_mem_tag_ctr);
+            using Accumulator = typename std::tuple_element_t<1, ContainerOverSubrelations>;
+            auto tmp = ((new_term.binary_op_id_shift - new_term.binary_op_id) * new_term.binary_mem_tag_ctr);
             tmp *= scaling_factor;
-            std::get<1>(evals) += tmp;
+            std::get<1>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 2
         {
-            Avm_DECLARE_VIEWS(2);
-            auto tmp = (((binary_mem_tag_ctr_shift - binary_mem_tag_ctr) + FF(1)) * binary_mem_tag_ctr);
+            using Accumulator = typename std::tuple_element_t<2, ContainerOverSubrelations>;
+            auto tmp = (((new_term.binary_mem_tag_ctr_shift - new_term.binary_mem_tag_ctr) + FF(1)) *
+                        new_term.binary_mem_tag_ctr);
             tmp *= scaling_factor;
-            std::get<2>(evals) += tmp;
+            std::get<2>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 3
         {
-            Avm_DECLARE_VIEWS(3);
-            auto tmp = ((binary_mem_tag_ctr *
-                         (((-binary_sel_bin + FF(1)) * (-binary_mem_tag_ctr_inv + FF(1))) + binary_mem_tag_ctr_inv)) -
-                        binary_sel_bin);
+            using Accumulator = typename std::tuple_element_t<3, ContainerOverSubrelations>;
+            auto tmp = ((new_term.binary_mem_tag_ctr *
+                         (((-new_term.binary_sel_bin + FF(1)) * (-new_term.binary_mem_tag_ctr_inv + FF(1))) +
+                          new_term.binary_mem_tag_ctr_inv)) -
+                        new_term.binary_sel_bin);
             tmp *= scaling_factor;
-            std::get<3>(evals) += tmp;
+            std::get<3>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 4
         {
-            Avm_DECLARE_VIEWS(4);
-            auto tmp = ((-binary_sel_bin + FF(1)) * binary_acc_ia);
+            using Accumulator = typename std::tuple_element_t<4, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.binary_sel_bin + FF(1)) * new_term.binary_acc_ia);
             tmp *= scaling_factor;
-            std::get<4>(evals) += tmp;
+            std::get<4>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 5
         {
-            Avm_DECLARE_VIEWS(5);
-            auto tmp = ((-binary_sel_bin + FF(1)) * binary_acc_ib);
+            using Accumulator = typename std::tuple_element_t<5, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.binary_sel_bin + FF(1)) * new_term.binary_acc_ib);
             tmp *= scaling_factor;
-            std::get<5>(evals) += tmp;
+            std::get<5>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 6
         {
-            Avm_DECLARE_VIEWS(6);
-            auto tmp = ((-binary_sel_bin + FF(1)) * binary_acc_ic);
+            using Accumulator = typename std::tuple_element_t<6, ContainerOverSubrelations>;
+            auto tmp = ((-new_term.binary_sel_bin + FF(1)) * new_term.binary_acc_ic);
             tmp *= scaling_factor;
-            std::get<6>(evals) += tmp;
+            std::get<6>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 7
         {
-            Avm_DECLARE_VIEWS(7);
-            auto tmp = (((binary_acc_ia - binary_ia_bytes) - (binary_acc_ia_shift * FF(256))) * binary_mem_tag_ctr);
+            using Accumulator = typename std::tuple_element_t<7, ContainerOverSubrelations>;
+            auto tmp =
+                (((new_term.binary_acc_ia - new_term.binary_ia_bytes) - (new_term.binary_acc_ia_shift * FF(256))) *
+                 new_term.binary_mem_tag_ctr);
             tmp *= scaling_factor;
-            std::get<7>(evals) += tmp;
+            std::get<7>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 8
         {
-            Avm_DECLARE_VIEWS(8);
-            auto tmp = (((binary_acc_ib - binary_ib_bytes) - (binary_acc_ib_shift * FF(256))) * binary_mem_tag_ctr);
+            using Accumulator = typename std::tuple_element_t<8, ContainerOverSubrelations>;
+            auto tmp =
+                (((new_term.binary_acc_ib - new_term.binary_ib_bytes) - (new_term.binary_acc_ib_shift * FF(256))) *
+                 new_term.binary_mem_tag_ctr);
             tmp *= scaling_factor;
-            std::get<8>(evals) += tmp;
+            std::get<8>(evals) += typename Accumulator::View(tmp);
         }
-        // Contribution 9
         {
-            Avm_DECLARE_VIEWS(9);
-            auto tmp = (((binary_acc_ic - binary_ic_bytes) - (binary_acc_ic_shift * FF(256))) * binary_mem_tag_ctr);
+            using Accumulator = typename std::tuple_element_t<9, ContainerOverSubrelations>;
+            auto tmp =
+                (((new_term.binary_acc_ic - new_term.binary_ic_bytes) - (new_term.binary_acc_ic_shift * FF(256))) *
+                 new_term.binary_mem_tag_ctr);
             tmp *= scaling_factor;
-            std::get<9>(evals) += tmp;
+            std::get<9>(evals) += typename Accumulator::View(tmp);
         }
     }
 };

@@ -114,8 +114,6 @@ pub fn analyzed_to_cpp<F: FieldElement>(
         &lookups,
     );
 
-    bb_files.create_declare_views(file_name, &all_cols_with_shifts);
-
     // ----------------------- Create the full row files -----------------------
     bb_files.create_full_row_hpp(file_name, &all_cols);
     bb_files.create_full_row_cpp(file_name, &all_cols);
