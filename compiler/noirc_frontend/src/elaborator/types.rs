@@ -754,7 +754,7 @@ impl<'context> Elaborator<'context> {
                 let arg = Type::Function(params, ret, env, unconstrained_param);
                 unify(self, &arg, param);
             } else {
-                unify(self, &arg, param);
+                unify(self, arg, param);
             };
         }
 
