@@ -325,7 +325,7 @@ impl<'a> InlayHintCollector<'a> {
 
         let mut parts = Vec::new();
         parts.push(string_part(": "));
-        push_type_parts(typ, &mut parts, &self.files);
+        push_type_parts(typ, &mut parts, self.files);
 
         self.inlay_hints.push(InlayHint {
             position,
