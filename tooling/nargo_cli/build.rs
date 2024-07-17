@@ -68,25 +68,6 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
 ];
 
-/// Certain features are only available in the elaborator.
-/// We skip these tests for non-elaborator code since they are not
-/// expected to work there. This can be removed once the old code is removed.
-const IGNORED_NEW_FEATURE_TESTS: [&str; 13] = [
-    "macros",
-    "wildcard_type",
-    "type_definition_annotation",
-    "numeric_generics_explicit",
-    "derive_impl",
-    "comptime_traits",
-    "comptime_slice_methods",
-    "unary_operator_overloading",
-    "unquote_multiple_items_from_annotation",
-    "function_attribute",
-    "trait_attribute",
-    "regression_5428",
-    "unquote",
-];
-
 fn read_test_cases(
     test_data_dir: &Path,
     test_sub_dir: &str,
@@ -147,19 +128,6 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                 nargo.assert().success();"#,
         );
 
-        if !IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
-            generate_test_case(
-                test_file,
-                test_type,
-                &format!("legacy_{test_name}"),
-                &test_dir,
-                r#"
-                nargo.arg("execute").arg("--force").arg("--use-legacy");
-            
-                nargo.assert().success();"#,
-            );
-        }
-
         if !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) {
             generate_test_case(
                 test_file,
@@ -191,17 +159,6 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             
                 nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-                nargo.arg("execute").arg("--force").arg("--use-legacy");
-            
-                nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
-        );
     }
 }
 
@@ -221,17 +178,6 @@ fn generate_noir_test_success_tests(test_file: &mut File, test_data_dir: &Path) 
         
         nargo.assert().success();"#,
         );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-        nargo.arg("test").arg("--use-legacy");
-        
-        nargo.assert().success();"#,
-        );
     }
 }
 
@@ -247,17 +193,6 @@ fn generate_noir_test_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_dir,
             r#"
         nargo.arg("test");
-        
-        nargo.assert().failure();"#,
-        );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-        nargo.arg("test").arg("--use-legacy");
         
         nargo.assert().failure();"#,
         );
@@ -297,21 +232,6 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
                 {assert_zero_opcodes}"#,
             ),
         );
-
-        if !IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
-            generate_test_case(
-                test_file,
-                test_type,
-                &format!("legacy_{test_name}"),
-                &test_dir,
-                &format!(
-                    r#"
-                nargo.arg("info").arg("--json").arg("--force").arg("--use-legacy");
-                
-                {assert_zero_opcodes}"#,
-                ),
-            );
-        }
     }
 }
 
@@ -328,17 +248,6 @@ fn generate_compile_success_contract_tests(test_file: &mut File, test_data_dir: 
             &test_dir,
             r#"
         nargo.arg("compile").arg("--force");
-        nargo.assert().success();"#,
-        );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-        nargo.arg("compile").arg("--force").arg("--use-legacy");
-        
         nargo.assert().success();"#,
         );
     }
@@ -360,17 +269,6 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
         nargo.arg("compile").arg("--force");
         nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
         );
-
-        generate_test_case(
-            test_file,
-            test_type,
-            &format!("legacy_{test_name}"),
-            &test_dir,
-            r#"
-        nargo.arg("compile").arg("--force").arg("--use-legacy");
-        
-        nargo.assert().success().stderr(predicate::str::contains("bug:").not());"#,
-        );
     }
 }
 
@@ -389,19 +287,6 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
         
         nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
         );
-
-        if !IGNORED_NEW_FEATURE_TESTS.contains(&test_name.as_str()) {
-            generate_test_case(
-                test_file,
-                test_type,
-                &format!("legacy_{test_name}"),
-                &test_dir,
-                r#"
-            nargo.arg("compile").arg("--force").arg("--use-legacy");
-            
-            nargo.assert().failure().stderr(predicate::str::contains("The application panicked (crashed).").not());"#,
-            );
-        }
     }
 }
 
