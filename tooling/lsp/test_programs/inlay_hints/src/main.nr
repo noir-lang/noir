@@ -18,3 +18,5 @@ fn test_for() {
     for i in 0..10 {}
 }
 
+global var = 0;
+

@@ -578,4 +578,22 @@ mod inlay_hints_tests {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
     }
+
+    #[test]
+    async fn test_type_inlay_hints_in_global() {
+        let inlay_hints = get_inlay_hints(19, 21).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 20, character: 10 });
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].value, ": ");
+            assert_eq!(labels[0].location, None);
+            assert_eq!(labels[1].value, "Field");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
 }
