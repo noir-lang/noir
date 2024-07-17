@@ -581,6 +581,12 @@ mod inlay_hints_tests {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
     }
+
+    #[test]
+    async fn test_do_not_panic_when_given_line_is_too_big() {
+        let inlay_hints = get_inlay_hints(0, 100000).await;
+        assert!(!inlay_hints.is_empty());
+    }
 }
 
 // These functions are copied from the codespan_lsp crate, except that they never panic
