@@ -3,7 +3,8 @@ comptime global BN254_MODULUS_BE_BYTES: [u8] = &[
 ];
 
 pub fn is_bn254() -> bool {
-    comptime {
+    comptime
+    {
         // We can't use the `Eq` trait here due to limitations on calling non-comptime functions
         // defined within the same crate.
         let mut eq = true;
