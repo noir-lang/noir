@@ -124,10 +124,10 @@ export class Point {
 
     // If y is null, the x-coordinate is not on the curve
     if (y === null) {
-      throw new NotOnCurveError();
+      throw new NotOnCurveError(x);
     }
 
-    const yPositiveBigInt = y.toBigInt() > (Fr.MODULUS - 1n) / 2n ? Fr.MODULUS - y.toBigInt() : y.toBigInt();
+    const yPositiveBigInt = y.toBigInt() <= (Fr.MODULUS - 1n) / 2n ? y.toBigInt() : Fr.MODULUS - y.toBigInt();
     const yNegativeBigInt = Fr.MODULUS - yPositiveBigInt;
 
     // Choose the positive or negative root based on isPositive
@@ -280,9 +280,9 @@ export function isPoint(obj: object): obj is Point {
   return point.kind === 'point' && point.x !== undefined && point.y !== undefined;
 }
 
-class NotOnCurveError extends Error {
-  constructor() {
-    super('The given x-coordinate is not on the Grumpkin curve');
+export class NotOnCurveError extends Error {
+  constructor(x: Fr) {
+    super('The given x-coordinate is not on the Grumpkin curve: ' + x.toString());
     this.name = 'NotOnCurveError';
   }
 }

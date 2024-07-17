@@ -1,5 +1,5 @@
 import { AztecAddress, type GrumpkinScalar, type KeyValidationRequest, type PublicKey } from '@aztec/circuits.js';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, NotOnCurveError } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { type EncryptedL2Log } from '../encrypted_l2_log.js';
@@ -97,6 +97,7 @@ export class TaggedLog<Payload extends L1NotePayload | L1EventPayload> {
     } catch (e: any) {
       // Following error messages are expected to occur when decryption fails
       if (
+        !(e instanceof NotOnCurveError) &&
         !e.message.endsWith('is greater or equal to field modulus.') &&
         !e.message.startsWith('Invalid AztecAddress length') &&
         !e.message.startsWith('Selector must fit in') &&
@@ -142,6 +143,7 @@ export class TaggedLog<Payload extends L1NotePayload | L1EventPayload> {
     } catch (e: any) {
       // Following error messages are expected to occur when decryption fails
       if (
+        !(e instanceof NotOnCurveError) &&
         !e.message.endsWith('is greater or equal to field modulus.') &&
         !e.message.startsWith('Invalid AztecAddress length') &&
         !e.message.startsWith('Selector must fit in') &&

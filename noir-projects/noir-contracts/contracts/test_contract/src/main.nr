@@ -429,7 +429,7 @@ contract Test {
         recipient: AztecAddress,
         recipient_ivpk: Point,
         ovsk_app: Scalar
-    ) -> [u8; 176] {
+    ) -> [u8; 144] {
         let eph_pk = derive_public_key(eph_sk);
         EncryptedLogOutgoingBody::new(eph_sk, recipient, recipient_ivpk).compute_ciphertext(ovsk_app, eph_pk)
     }

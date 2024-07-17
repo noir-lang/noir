@@ -62,8 +62,8 @@ export class EncryptedL2NoteLog {
    */
   public static random(): EncryptedL2NoteLog {
     const randomEphPubKey = Point.random();
-    const randomLogContent = randomBytes(144 - Point.SIZE_IN_BYTES);
-    const data = Buffer.concat([Fr.random().toBuffer(), randomLogContent, randomEphPubKey.toBuffer()]);
+    const randomLogContent = randomBytes(144 - Point.COMPRESSED_SIZE_IN_BYTES);
+    const data = Buffer.concat([Fr.random().toBuffer(), randomLogContent, randomEphPubKey.toCompressedBuffer()]);
     return new EncryptedL2NoteLog(data);
   }
 

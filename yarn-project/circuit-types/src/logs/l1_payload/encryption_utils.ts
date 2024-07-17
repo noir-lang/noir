@@ -24,7 +24,7 @@ export function deriveAESSecret(secretKey: GrumpkinScalar, publicKey: PublicKey)
   }
   const curve = new Grumpkin();
   const sharedSecret = curve.mul(publicKey, secretKey);
-  const secretBuffer = Buffer.concat([sharedSecret.toBuffer(), numToUInt8(GeneratorIndex.SYMMETRIC_KEY)]);
+  const secretBuffer = Buffer.concat([sharedSecret.toCompressedBuffer(), numToUInt8(GeneratorIndex.SYMMETRIC_KEY)]);
   const hash = sha256(secretBuffer);
   return hash;
 }

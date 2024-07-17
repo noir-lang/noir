@@ -1,5 +1,5 @@
 use dep::protocol_types::{constants::GENERATOR_INDEX__SYMMETRIC_KEY, scalar::Scalar, point::Point, utils::arr_copy_slice};
-use crate::utils::point::pub_key_to_bytes;
+use crate::utils::point::point_to_bytes;
 use std::{hash::sha256, embedded_curve_ops::multi_scalar_mul};
 
 // TODO(#5726): This function is called deriveAESSecret in TS. I don't like point_to_symmetric_key name much since
@@ -7,10 +7,10 @@ use std::{hash::sha256, embedded_curve_ops::multi_scalar_mul};
 pub fn point_to_symmetric_key(secret: Scalar, point: Point) -> [u8; 32] {
     let shared_secret: Point = multi_scalar_mul([point], [secret]);
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6061): make the func return Point struct directly
-    let shared_secret = pub_key_to_bytes(shared_secret);
-    let mut shared_secret_bytes_with_separator = [0 as u8; 65];
+    let shared_secret = point_to_bytes(shared_secret);
+    let mut shared_secret_bytes_with_separator = [0 as u8; 33];
     shared_secret_bytes_with_separator = arr_copy_slice(shared_secret, shared_secret_bytes_with_separator, 0);
-    shared_secret_bytes_with_separator[64] = GENERATOR_INDEX__SYMMETRIC_KEY;
+    shared_secret_bytes_with_separator[32] = GENERATOR_INDEX__SYMMETRIC_KEY;
     sha256(shared_secret_bytes_with_separator)
 }
 
@@ -30,7 +30,7 @@ fn check_point_to_symmetric_key() {
     let key = point_to_symmetric_key(secret, point);
     // The following value gets updated when running encrypt_buffer.test.ts with AZTEC_GENERATE_TEST_DATA=1
     let expected_key = [
-        49, 167, 146, 222, 151, 129, 138, 184, 87, 210, 245, 249, 99, 100, 1, 59, 223, 180, 5, 99, 14, 7, 177, 236, 159, 203, 231, 72, 220, 180, 241, 23
+        217, 245, 196, 116, 55, 39, 202, 184, 117, 231, 19, 56, 102, 254, 94, 14, 172, 169, 123, 96, 61, 247, 209, 140, 4, 132, 119, 222, 79, 1, 154, 136
     ];
     assert_eq(key, expected_key);
 }

@@ -26,4 +26,3 @@ impl Empty for Point {
         }
     }
 }
-

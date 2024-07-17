@@ -6,7 +6,7 @@ use std::embedded_curve_ops::fixed_base_scalar_mul as derive_public_key;
 use std::field::bytes32_to_field;
 
 use crate::oracle::unsafe_rand::unsafe_rand;
-use crate::utils::point::pub_key_to_bytes;
+use crate::utils::point::point_to_bytes;
 
 use crate::event::event_interface::EventInterface;
 use crate::note::note_interface::NoteInterface;
@@ -32,38 +32,38 @@ pub fn compute_encrypted_event_log<Event, NB, MB, OB>(
     let header = EncryptedLogHeader::new(contract_address);
 
     let incoming_header_ciphertext: [u8; 48] = header.compute_ciphertext(eph_sk, ivpk);
-    let outgoing_Header_ciphertext: [u8; 48] = header.compute_ciphertext(eph_sk, ovpk);
+    let outgoing_header_ciphertext: [u8; 48] = header.compute_ciphertext(eph_sk, ovpk);
     let incoming_body_ciphertext = EncryptedLogIncomingBody::from_event(event, randomness).compute_ciphertext(eph_sk, ivpk);
-    let outgoing_body_ciphertext: [u8; 176] = EncryptedLogOutgoingBody::new(eph_sk, recipient, ivpk).compute_ciphertext(fr_to_fq(ovsk_app), eph_pk);
+    let outgoing_body_ciphertext: [u8; 144] = EncryptedLogOutgoingBody::new(eph_sk, recipient, ivpk).compute_ciphertext(fr_to_fq(ovsk_app), eph_pk);
 
     let mut encrypted_bytes: [u8; OB] = [0; OB];
     // @todo We ignore the tags for now 
 
-    let eph_pk_bytes = pub_key_to_bytes(eph_pk);
-    for i in 0..64 {
+    let eph_pk_bytes = point_to_bytes(eph_pk);
+    for i in 0..32 {
         encrypted_bytes[64 + i] = eph_pk_bytes[i];
     }
     for i in 0..48 {
-        encrypted_bytes[128 + i] = incoming_header_ciphertext[i];
-        encrypted_bytes[176 + i] = outgoing_Header_ciphertext[i];
+        encrypted_bytes[96 + i] = incoming_header_ciphertext[i];
+        encrypted_bytes[144 + i] = outgoing_header_ciphertext[i];
     }
-    for i in 0..176 {
-        encrypted_bytes[224 + i] = outgoing_body_ciphertext[i];
+    for i in 0..144 {
+        encrypted_bytes[192 + i] = outgoing_body_ciphertext[i];
     }
     // Then we fill in the rest as the incoming body ciphertext
-    let size = OB - 400;
+    let size = OB - 336;
     assert_eq(size, incoming_body_ciphertext.len(), "ciphertext length mismatch");
     for i in 0..size {
-        encrypted_bytes[400 + i] = incoming_body_ciphertext[i];
+        encrypted_bytes[336 + i] = incoming_body_ciphertext[i];
     }
 
     // Current unoptimized size of the encrypted log
     // incoming_tag (32 bytes)
     // outgoing_tag (32 bytes)
-    // eph_pk (64 bytes)
+    // eph_pk (32 bytes)
     // incoming_header (48 bytes)
     // outgoing_header (48 bytes)
-    // outgoing_body (176 bytes)
+    // outgoing_body (144 bytes)
     // incoming_body_fixed (64 bytes)
     // incoming_body_variable (N * 32 bytes + 16 bytes padding)
     encrypted_bytes
@@ -85,38 +85,38 @@ pub fn compute_encrypted_note_log<Note, N, NB, M>(
     let header = EncryptedLogHeader::new(contract_address);
 
     let incoming_header_ciphertext: [u8; 48] = header.compute_ciphertext(eph_sk, ivpk);
-    let outgoing_Header_ciphertext: [u8; 48] = header.compute_ciphertext(eph_sk, ovpk);
+    let outgoing_header_ciphertext: [u8; 48] = header.compute_ciphertext(eph_sk, ovpk);
     let incoming_body_ciphertext = EncryptedLogIncomingBody::from_note(note, storage_slot).compute_ciphertext(eph_sk, ivpk);
-    let outgoing_body_ciphertext: [u8; 176] = EncryptedLogOutgoingBody::new(eph_sk, recipient, ivpk).compute_ciphertext(fr_to_fq(ovsk_app), eph_pk);
+    let outgoing_body_ciphertext: [u8; 144] = EncryptedLogOutgoingBody::new(eph_sk, recipient, ivpk).compute_ciphertext(fr_to_fq(ovsk_app), eph_pk);
 
     let mut encrypted_bytes: [u8; M] = [0; M];
     // @todo We ignore the tags for now 
 
-    let eph_pk_bytes = pub_key_to_bytes(eph_pk);
-    for i in 0..64 {
+    let eph_pk_bytes = point_to_bytes(eph_pk);
+    for i in 0..32 {
         encrypted_bytes[64 + i] = eph_pk_bytes[i];
     }
     for i in 0..48 {
-        encrypted_bytes[128 + i] = incoming_header_ciphertext[i];
-        encrypted_bytes[176 + i] = outgoing_Header_ciphertext[i];
+        encrypted_bytes[96 + i] = incoming_header_ciphertext[i];
+        encrypted_bytes[144 + i] = outgoing_header_ciphertext[i];
     }
-    for i in 0..176 {
-        encrypted_bytes[224 + i] = outgoing_body_ciphertext[i];
+    for i in 0..144 {
+        encrypted_bytes[192 + i] = outgoing_body_ciphertext[i];
     }
     // Then we fill in the rest as the incoming body ciphertext
-    let size = M - 400;
+    let size = M - 336;
     assert_eq(size, incoming_body_ciphertext.len(), "ciphertext length mismatch");
     for i in 0..size {
-        encrypted_bytes[400 + i] = incoming_body_ciphertext[i];
+        encrypted_bytes[336 + i] = incoming_body_ciphertext[i];
     }
 
     // Current unoptimized size of the encrypted log
     // incoming_tag (32 bytes)
     // outgoing_tag (32 bytes)
-    // eph_pk (64 bytes)
+    // eph_pk (32 bytes)
     // incoming_header (48 bytes)
     // outgoing_header (48 bytes)
-    // outgoing_body (176 bytes)
+    // outgoing_body (144 bytes)
     // incoming_body_fixed (64 bytes)
     // incoming_body_variable (N * 32 bytes + 16 bytes padding)
     encrypted_bytes
@@ -142,10 +142,7 @@ fn fr_to_fq(r: Field) -> Scalar {
 }
 
 mod test {
-    use crate::{
-        encrypted_logs::payload::compute_encrypted_note_log,
-        test::mocks::mock_note::{MockNoteBuilder, MockNote}
-    };
+    use crate::{encrypted_logs::payload::compute_encrypted_note_log, test::mocks::mock_note::MockNoteBuilder};
     use dep::protocol_types::{address::AztecAddress, point::Point};
     use std::test::OracleMock;
 
@@ -173,7 +170,7 @@ mod test {
 
         let recipient = AztecAddress::from_field(0x10ee41ee4b62703b16f61e03cb0d88c4b306a9eb4a6ceeb2aff13428541689a2);
 
-        let log: [u8; 512] = compute_encrypted_note_log(
+        let log: [u8; 448] = compute_encrypted_note_log(
             contract_address,
             storage_slot,
             ovsk_app,
@@ -184,7 +181,7 @@ mod test {
         );
 
         let expected_encrypted_note_log = [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 70, 12, 14, 67, 77, 132, 110, 193, 234, 40, 110, 64, 144, 235, 86, 55, 111, 242, 123, 221, 193, 170, 202, 225, 216, 86, 84, 159, 112, 31, 167, 17, 160, 52, 217, 22, 191, 84, 175, 25, 133, 53, 220, 2, 251, 32, 105, 198, 147, 24, 131, 202, 112, 149, 136, 66, 205, 254, 3, 134, 195, 101, 73, 212, 19, 232, 42, 39, 191, 165, 183, 8, 7, 18, 118, 74, 69, 91, 146, 69, 16, 184, 101, 144, 48, 25, 190, 254, 181, 223, 24, 183, 175, 118, 159, 176, 135, 62, 255, 169, 124, 170, 3, 92, 81, 122, 107, 65, 125, 95, 97, 110, 198, 200, 74, 147, 217, 93, 23, 227, 84, 59, 15, 75, 108, 122, 49, 230, 228, 246, 207, 173, 7, 60, 16, 74, 236, 201, 102, 237, 48, 179, 223, 191, 223, 248, 78, 167, 61, 203, 25, 114, 223, 58, 60, 180, 255, 116, 170, 136, 173, 178, 40, 2, 125, 229, 20, 220, 82, 28, 191, 147, 133, 137, 1, 45, 243, 229, 140, 115, 165, 150, 154, 96, 22, 120, 223, 237, 213, 182, 252, 192, 8, 132, 43, 21, 56, 243, 116, 144, 182, 75, 16, 30, 222, 222, 60, 205, 147, 214, 53, 41, 62, 53, 16, 147, 117, 72, 169, 220, 125, 208, 210, 45, 65, 233, 40, 87, 88, 140, 237, 200, 161, 9, 86, 82, 128, 191, 51, 4, 195, 243, 100, 102, 240, 54, 129, 176, 116, 139, 73, 27, 98, 222, 1, 117, 99, 178, 51, 207, 67, 29, 83, 104, 231, 49, 137, 217, 247, 111, 172, 245, 198, 171, 123, 57, 41, 203, 219, 177, 135, 227, 2, 189, 205, 150, 238, 81, 1, 202, 202, 244, 139, 194, 123, 195, 148, 255, 169, 226, 43, 234, 31, 252, 105, 35, 2, 91, 12, 19, 26, 134, 114, 184, 210, 92, 191, 188, 7, 172, 232, 163, 189, 38, 199, 56, 251, 225, 202, 249, 17, 117, 132, 162, 113, 61, 75, 246, 144, 94, 99, 132, 235, 149, 93, 3, 115, 131, 132, 250, 238, 138, 194, 233, 144, 156, 140, 1, 42, 44, 12, 214, 94, 137, 130, 56, 105, 149, 124, 81, 178, 1, 73, 79, 156, 26, 65, 163, 18, 152, 116, 138, 128, 158, 63, 151, 205, 151, 73, 68, 173, 220, 126, 213, 72, 112, 237, 15, 235, 178, 217, 122, 146, 224, 89, 213, 217, 34, 172, 4, 164, 40, 102, 220, 174, 222, 250, 221, 149, 238, 174, 97, 65, 183, 255, 168, 139, 67, 122, 124, 41, 89, 147, 255, 109, 57, 197, 150, 174, 186, 221, 50, 19, 216, 14, 100, 176
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 141, 70, 12, 14, 67, 77, 132, 110, 193, 234, 40, 110, 64, 144, 235, 86, 55, 111, 242, 123, 221, 193, 170, 202, 225, 216, 86, 84, 159, 112, 31, 167, 159, 53, 114, 117, 237, 57, 131, 19, 111, 150, 50, 83, 173, 155, 234, 225, 71, 187, 141, 79, 245, 43, 111, 83, 219, 149, 124, 68, 12, 244, 253, 216, 0, 62, 108, 232, 118, 80, 87, 140, 215, 185, 111, 48, 128, 236, 110, 92, 46, 205, 7, 226, 131, 66, 205, 0, 103, 83, 217, 90, 60, 138, 6, 172, 246, 129, 92, 172, 69, 73, 77, 65, 147, 18, 231, 20, 35, 217, 180, 253, 72, 242, 32, 57, 45, 11, 2, 235, 24, 96, 244, 224, 33, 61, 151, 225, 136, 173, 178, 40, 2, 125, 229, 20, 220, 82, 28, 191, 147, 133, 137, 1, 45, 243, 229, 140, 115, 165, 150, 154, 96, 22, 120, 223, 237, 213, 182, 252, 192, 8, 132, 43, 21, 56, 243, 116, 144, 182, 75, 16, 30, 222, 222, 60, 205, 147, 214, 53, 41, 62, 53, 16, 147, 117, 72, 169, 220, 125, 208, 210, 45, 65, 233, 40, 87, 88, 140, 237, 200, 161, 9, 86, 82, 128, 191, 51, 4, 195, 243, 100, 102, 240, 54, 129, 176, 116, 139, 73, 27, 98, 222, 1, 243, 199, 72, 238, 213, 66, 91, 159, 183, 143, 36, 103, 94, 5, 62, 50, 13, 217, 161, 79, 30, 231, 41, 228, 109, 139, 243, 119, 166, 54, 37, 250, 193, 6, 67, 29, 148, 185, 153, 58, 64, 210, 164, 219, 165, 80, 35, 75, 109, 177, 14, 168, 136, 105, 21, 235, 62, 159, 71, 61, 245, 193, 234, 169, 100, 165, 8, 222, 157, 239, 41, 221, 223, 67, 80, 61, 252, 54, 27, 100, 1, 104, 2, 121, 62, 41, 23, 132, 15, 124, 120, 21, 198, 113, 151, 172, 42, 161, 64, 240, 166, 205, 80, 169, 58, 191, 111, 130, 55, 58, 141, 26, 97, 118, 114, 216, 69, 207, 212, 227, 250, 199, 21, 72, 144, 85, 43, 76, 213, 28, 132, 134, 16, 221, 105, 112, 82, 238, 114, 61, 36, 144, 179, 178, 68, 198, 162, 212, 85, 100, 116, 186, 131, 232, 33, 229, 101, 251, 5, 251
         ];
         for i in 0..expected_encrypted_note_log.len() {
             assert_eq(log[i], expected_encrypted_note_log[i]);
