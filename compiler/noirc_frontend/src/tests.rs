@@ -2025,7 +2025,6 @@ fn impl_stricter_than_trait_different_generics() {
     "#;
 
     let errors = get_program_errors(src);
-    dbg!(errors.clone());
     assert_eq!(errors.len(), 1);
     if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
         constraint_typ,
