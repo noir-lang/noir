@@ -26,11 +26,11 @@ pub(super) fn call_builtin(
         "array_len" => array_len(interner, arguments, location),
         "as_slice" => as_slice(interner, arguments, location),
         "is_unconstrained" => Ok(Value::Bool(true)),
-        "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
         "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
         "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
         "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
         "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
+        "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
         "slice_insert" => slice_insert(interner, arguments, location),
         "slice_pop_back" => slice_pop_back(interner, arguments, location),
         "slice_pop_front" => slice_pop_front(interner, arguments, location),
@@ -393,16 +393,6 @@ fn trait_constraint_eq(
     Ok(Value::Bool(constraint_a == constraint_b))
 }
 
-fn modulus_num_bits(
-    _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    check_argument_count(0, &arguments, location)?;
-    let bits = FieldElement::max_num_bits().into();
-    Ok(Value::U64(bits))
-}
-
 fn modulus_be_bits(
     _interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -455,4 +445,14 @@ fn modulus_le_bytes(
     };
     let reversed_bytes = bytes.into_iter().rev().collect();
     Ok(Value::Slice(reversed_bytes, typ))
+}
+
+fn modulus_num_bits(
+    _interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(0, &arguments, location)?;
+    let bits = FieldElement::max_num_bits().into();
+    Ok(Value::U64(bits))
 }
