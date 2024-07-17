@@ -56,17 +56,14 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
 }
 fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> String {
     let module_attributes = args.interner.module_attributes(&id);
-    let parent_module_id = args.def_maps[&id.krate].modules()[id.local_id.0].parent;
 
     let mut string = String::new();
-    if let Some(parent_module_id) = parent_module_id {
-        if format_parent_module_from_module_id(
-            &ModuleId { krate: id.krate, local_id: parent_module_id },
-            args,
-            &mut string,
-        ) {
-            string.push('\n');
-        }
+    if format_parent_module_from_module_id(
+        &ModuleId { krate: id.krate, local_id: module_attributes.parent },
+        args,
+        &mut string,
+    ) {
+        string.push('\n');
     }
     string.push_str("    ");
     string.push_str("mod ");
@@ -319,6 +316,7 @@ fn format_parent_module_from_module_id(
         CrateId::Stdlib(_) => Some("std".to_string()),
         CrateId::Dummy => None,
     };
+
     let wrote_crate = if let Some(crate_name) = crate_name {
         string.push_str("    ");
         string.push_str(&crate_name);
@@ -331,9 +329,6 @@ fn format_parent_module_from_module_id(
         return wrote_crate;
     };
 
-    let modules = args.def_maps[&module.krate].modules();
-    let module_data = &modules[module.local_id.0];
-
     if wrote_crate {
         string.push_str("::");
     } else {
@@ -341,17 +336,13 @@ fn format_parent_module_from_module_id(
     }
 
     let mut segments = Vec::new();
-    let mut current_parent = module_data.parent;
-    while let Some(parent) = current_parent {
-        let parent_attributes = args
-            .interner
-            .try_module_attributes(&ModuleId { krate: module.krate, local_id: parent });
-        if let Some(parent_attributes) = parent_attributes {
-            segments.push(&parent_attributes.name);
-            current_parent = modules[module.local_id.0].parent;
-        } else {
-            break;
-        }
+    let mut current_attributes = module_attributes;
+    while let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
+        krate: module.krate,
+        local_id: current_attributes.parent,
+    }) {
+        segments.push(&parent_attributes.name);
+        current_attributes = parent_attributes;
     }
 
     for segment in segments.iter().rev() {

@@ -3,7 +3,6 @@ use noirc_errors::{Location, Spanned};
 use crate::ast::ERROR_IDENT;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
-use crate::hir::resolution::resolver::SELF_TYPE_NAME;
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::macros_api::Ident;
 use crate::{
@@ -21,6 +20,7 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
+use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, ResolverMeta};
 
 type Scope = GenericScope<String, ResolverMeta>;

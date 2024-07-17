@@ -16,12 +16,12 @@ use crate::{
             dc_mod,
             errors::DuplicateType,
         },
-        resolution::{errors::ResolverError, path_resolver::PathResolver, resolver::LambdaContext},
+        resolution::{errors::ResolverError, path_resolver::PathResolver},
         scope::ScopeForest as GenericScopeForest,
-        type_check::{check_trait_impl_method_matches_declaration, TypeCheckError},
+        type_check::TypeCheckError,
     },
     hir_def::{
-        expr::HirIdent,
+        expr::{HirCapturedVar, HirIdent},
         function::{FunctionBody, Parameters},
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
@@ -67,13 +67,15 @@ mod patterns;
 mod scope;
 mod statements;
 mod traits;
-mod types;
+pub mod types;
 mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+
+use self::traits::check_trait_impl_method_matches_declaration;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -84,6 +86,13 @@ pub struct ResolverMeta {
 }
 
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
+
+pub struct LambdaContext {
+    pub captures: Vec<HirCapturedVar>,
+    /// the index in the scope tree
+    /// (sometimes being filled by ScopeTree's find method)
+    pub scope_index: usize,
+}
 
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
