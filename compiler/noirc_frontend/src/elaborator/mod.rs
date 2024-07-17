@@ -1642,19 +1642,23 @@ impl<'context> Elaborator<'context> {
         let (comptime_structs, structs) =
             items.types.into_iter().partition(|typ| typ.1.struct_def.is_comptime);
 
+        let (comptime_globals, globals) =
+            items.globals.into_iter().partition(|global| global.stmt_def.comptime);
+
         let comptime = CollectedItems {
             functions: comptime_function_sets,
             types: comptime_structs,
             type_aliases: BTreeMap::new(),
             traits: BTreeMap::new(),
             trait_impls: comptime_trait_impls,
-            globals: Vec::new(),
+            globals: comptime_globals,
             impls: rustc_hash::FxHashMap::default(),
         };
 
         items.functions = function_sets;
         items.trait_impls = trait_impls;
         items.types = structs;
+        items.globals = globals;
         (comptime, items)
     }
 
