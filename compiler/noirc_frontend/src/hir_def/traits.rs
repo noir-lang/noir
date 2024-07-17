@@ -18,6 +18,7 @@ pub struct TraitFunction {
     pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
     pub trait_constraints: Vec<TraitConstraint>,
     pub all_generics: Generics,
+    pub direct_generics: Generics,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
