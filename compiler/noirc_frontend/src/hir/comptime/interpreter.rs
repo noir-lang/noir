@@ -119,7 +119,8 @@ impl<'a> Interpreter<'a> {
         }
 
         if meta.kind != FunctionKind::Normal {
-            return self.call_builtin(function, arguments, location);
+            let return_type = meta.return_type().follow_bindings();
+            return self.call_builtin(function, arguments, return_type, location);
         }
 
         let parameters = meta.parameters.0.clone();
@@ -144,6 +145,7 @@ impl<'a> Interpreter<'a> {
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
+        return_type: Type,
         location: Location,
     ) -> IResult<Value> {
         let attributes = self.interner.function_attributes(&function);
@@ -152,7 +154,7 @@ impl<'a> Interpreter<'a> {
 
         if let Some(builtin) = func_attrs.builtin() {
             let builtin = builtin.clone();
-            builtin::call_builtin(self.interner, &builtin, arguments, location)
+            builtin::call_builtin(self.interner, &builtin, arguments, return_type, location)
         } else if let Some(foreign) = func_attrs.foreign() {
             let item = format!("Comptime evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })

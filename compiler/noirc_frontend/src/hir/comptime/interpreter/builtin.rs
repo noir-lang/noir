@@ -4,21 +4,25 @@ use std::{
 };
 
 use chumsky::Parser;
-use noirc_errors::Location;
+use iter_extended::{try_vecmap, vecmap};
+use noirc_errors::{Location, Span};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{IntegerBitSize, TraitBound},
     hir::comptime::{errors::IResult, InterpreterError, Value},
-    macros_api::{NodeInterner, Signedness},
+    macros_api::{NodeInterner, Path, Signedness, UnresolvedTypeData},
+    node_interner::{FuncId, TraitId},
     parser,
     token::{SpannedToken, Token, Tokens},
-    QuotedType, Type,
+    QuotedType, Shared, Type,
 };
 
 pub(super) fn call_builtin(
     interner: &mut NodeInterner,
     name: &str,
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     match name {
@@ -37,6 +41,7 @@ pub(super) fn call_builtin(
         "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
         "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
         "quoted_as_trait_constraint" => quoted_as_trait_constraint(interner, arguments, location),
+        "zeroed" => zeroed(interner, return_type, location),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -385,4 +390,74 @@ fn trait_constraint_eq(
     let constraint_a = get_trait_constraint(arguments.pop().unwrap().0, location)?;
 
     Ok(Value::Bool(constraint_a == constraint_b))
+}
+
+// fn zeroed<T>() -> T
+fn zeroed(_interner: &mut NodeInterner, return_type: Type, location: Location) -> IResult<Value> {
+    match return_type {
+        Type::FieldElement => Ok(Value::Field(0u128.into())),
+        Type::Array(length_type, elem) => {
+            if let Some(length) = length_type.evaluate_to_u32() {
+                let element = zeroed(_interner, elem.as_ref().clone(), location)?;
+                let array = std::iter::repeat(element).take(length as usize).collect();
+                Ok(Value::Array(array, Type::Array(length_type, elem)))
+            } else {
+                todo!()
+            }
+        }
+        Type::Slice(_) => Ok(Value::Slice(im::Vector::new(), return_type)),
+        Type::Integer(sign, bits) => match (sign, bits) {
+            (Signedness::Unsigned, IntegerBitSize::One) => Ok(Value::U8(0)),
+            (Signedness::Unsigned, IntegerBitSize::Eight) => Ok(Value::U8(0)),
+            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Ok(Value::U16(0)),
+            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Ok(Value::U32(0)),
+            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Ok(Value::U64(0)),
+            (Signedness::Signed, IntegerBitSize::One) => Ok(Value::I8(0)),
+            (Signedness::Signed, IntegerBitSize::Eight) => Ok(Value::I8(0)),
+            (Signedness::Signed, IntegerBitSize::Sixteen) => Ok(Value::I16(0)),
+            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Ok(Value::I32(0)),
+            (Signedness::Signed, IntegerBitSize::SixtyFour) => Ok(Value::I64(0)),
+        },
+        Type::Bool => Ok(Value::Bool(false)),
+        Type::String(_) => todo!(),
+        Type::FmtString(_, _) => todo!(),
+        Type::Unit => Ok(Value::Unit),
+        Type::Tuple(fields) => {
+            Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(_interner, field, location))?))
+        }
+        Type::Struct(struct_type, generics) => {
+            let fields = struct_type.borrow().get_fields(&generics);
+            let mut values = HashMap::default();
+
+            for (field_name, field_type) in fields {
+                let field_value = zeroed(_interner, field_type, location)?;
+                values.insert(Rc::new(field_name), field_value);
+            }
+
+            let typ = Type::Struct(struct_type, generics);
+            Ok(Value::Struct(values, typ))
+        }
+        Type::Alias(alias, generics) => {
+            zeroed(_interner, alias.borrow().get_type(&generics), location)
+        }
+        Type::TypeVariable(_, _) => Ok(Value::Zeroed(return_type)),
+        Type::TraitAsType(_, _, _) => todo!(),
+        Type::NamedGeneric(_, _, _) => todo!(),
+        Type::Function(_, _, _) => {
+            Ok(Value::Function(FuncId::dummy_id(), Type::Unit, Default::default()))
+        }
+        Type::MutableReference(element) => {
+            let element = zeroed(_interner, *element, location)?;
+            Ok(Value::Pointer(Shared::new(element), false))
+        }
+        Type::Forall(_, _) => todo!(),
+        Type::Constant(_) => todo!(),
+        Type::Quoted(QuotedType::TraitConstraint) => Ok(Value::TraitConstraint(TraitBound {
+            trait_path: Path::from_single(String::new(), Span::default()),
+            trait_id: None,
+            trait_generics: Vec::new(),
+        })),
+        Type::Quoted(_) => todo!(),
+        Type::Error => todo!(),
+    }
 }

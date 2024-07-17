@@ -50,6 +50,7 @@ pub enum Value {
     TraitDefinition(TraitId),
     FunctionDefinition(FuncId),
     ModuleDefinition(ModuleId),
+    Zeroed(Type),
 }
 
 impl Value {
@@ -88,6 +89,7 @@ impl Value {
             Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
             Value::FunctionDefinition(_) => Type::Quoted(QuotedType::FunctionDefinition),
             Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
+            Value::Zeroed(typ) => return Cow::Borrowed(typ),
         })
     }
 
@@ -206,6 +208,7 @@ impl Value {
             | Value::TraitConstraint(_)
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
+            | Value::Zeroed(_)
             | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
@@ -317,6 +320,7 @@ impl Value {
             | Value::TraitConstraint(_)
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
+            | Value::Zeroed(_)
             | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
@@ -425,6 +429,7 @@ impl Display for Value {
             Value::TraitDefinition(_) => write!(f, "(trait definition)"),
             Value::FunctionDefinition(_) => write!(f, "(function definition)"),
             Value::ModuleDefinition(_) => write!(f, "(module)"),
+            Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
         }
     }
 }
