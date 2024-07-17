@@ -44,6 +44,7 @@ async function testBenchmark(name: string) {
   console.log('genRecProof');
   /*const p2_n_artifacts =*/ await p2_n.backend.generateRecursiveProofArtifacts(proof, 0);
   console.log('Done generating recursive proof artifacts for ', name);
+  p2_n.backend.destroy();
 }
 
 // Calculate example sum of two leaf nodes up left branch
@@ -56,11 +57,11 @@ async function testBenchmark(name: string) {
 //    1   3 #   #
 
 describe('can verify recursive proofs', () => {
-  it('does generate circuit with 2^17 gates', async () => {
+  it('does generateProof for circuit with 2^17 gates', async () => {
     await testBenchmark('2^17');
   });
 
-  it.skip('[BUG] -- does NOT generate circuit with 2^18 gates', async () => {
+  it('[BUG] -- does NOT generateProof for circuit with 2^18 gates', async () => {
     try {
       await testBenchmark('2^18');
     } catch (error) {
