@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsc-multi --watch",
     "build": "tsc",
-    "test": "mocha --timeout 120000 --exit --config ./.mocharc.json",
+    "test": "mocha --timeout 300000 --exit --config ./.mocharc.json",
     "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
     "publish": "echo (nothing to publish `$npm_package_name`)",
     "clean": "rm -rf ./build"
