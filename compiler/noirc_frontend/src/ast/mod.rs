@@ -209,7 +209,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret, env, unconstrained) => {
                 if *unconstrained {
-                    write!(f, "unconstrained ")?
+                    write!(f, "unconstrained ")?;
                 }
 
                 let args = vecmap(args, ToString::to_string).join(", ");
