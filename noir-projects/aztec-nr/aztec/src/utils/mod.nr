@@ -1,6 +1,7 @@
 use dep::protocol_types::traits::Eq;
 
 mod test;
+mod point;
 
 // Collapses an array of Options with sparse Some values into a BoundedVec, essentially unwrapping the Options and
 // removing the None values. For example, given:

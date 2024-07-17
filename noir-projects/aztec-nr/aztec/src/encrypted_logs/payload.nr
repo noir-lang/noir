@@ -1,11 +1,12 @@
 use dep::protocol_types::{
-    address::AztecAddress, scalar::Scalar, point::{Point, pub_key_to_bytes},
+    address::AztecAddress, scalar::Scalar, point::Point,
     constants::{GENERATOR_INDEX__IVSK_M, GENERATOR_INDEX__OVSK_M}, hash::poseidon2_hash
 };
 use std::embedded_curve_ops::fixed_base_scalar_mul as derive_public_key;
 use std::field::bytes32_to_field;
 
 use crate::oracle::unsafe_rand::unsafe_rand;
+use crate::utils::point::pub_key_to_bytes;
 
 use crate::event::event_interface::EventInterface;
 use crate::note::note_interface::NoteInterface;
