@@ -613,10 +613,10 @@ impl Instruction {
                         }
                     }
                 }
-
+                let array_id = array;
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, _)), Some(index)) = (array, index) {
+                if let (Some((array, _)), Some(index)) = (array.clone(), index) {
                     let index =
                         index.try_to_u32().expect("Expected array index to fit in u32") as usize;
                     if index < array.len() {

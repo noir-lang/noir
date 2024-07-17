@@ -1,9 +1,11 @@
 use iter_extended::vecmap;
 
+use crate::ssa::ir::types::{NumericType, Type};
+
 use super::{
     basic_block::BasicBlockId,
     dfg::{CallStack, InsertInstructionResult},
-    function::Function,
+    function::{Function, RuntimeType},
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
@@ -16,7 +18,11 @@ pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
     values: HashMap<ValueId, ValueId>,
-    const_arrays: HashMap<im::Vector<ValueId>, ValueId>,
+    /// Map containing repeat array constant so that we do not initialize a new 
+    /// array unnecessarily. An extra bool is included as part of the key to
+    /// distinguish between Type::Array and Type::Slice, as both are valid 
+    /// types for a Value::Array
+    const_arrays: HashMap<(im::Vector<ValueId>, bool), ValueId>,
 }
 
 impl<'f> FunctionInserter<'f> {
@@ -37,13 +43,23 @@ impl<'f> FunctionInserter<'f> {
                     let typ = typ.clone();
                     let new_array: im::Vector<ValueId> =
                         array.iter().map(|id| self.resolve(*id)).collect();
-                    if self.const_arrays.get(&new_array) == Some(&value) {
+                    
+                    // Flag to determine the type of the array value list
+                    let is_array = matches!(typ, Type::Array { .. });
+                    
+                    if matches!(self.function.runtime(), RuntimeType::Acir(_)) {
+                        if let Some(value) = self.const_arrays.get(&(new_array.clone(), is_array)) {
+                            return *value;
+                        } 
+                    }
+                    
+                    if self.const_arrays.get(&(new_array.clone(), is_array)) == Some(&value) {
                         value
                     } else {
                         let new_array_clone = new_array.clone();
                         let new_id = self.function.dfg.make_array(new_array, typ);
                         self.values.insert(value, new_id);
-                        self.const_arrays.insert(new_array_clone, new_id);
+                        self.const_arrays.insert((new_array_clone, is_array), new_id);
                         new_id
                     }
                 }
