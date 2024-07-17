@@ -10,7 +10,11 @@ use crate::{hash::merkle_hash, merkle_tree::merkle_tree::MerkleTree};
 // TODO: I'd generally like to avoid u256 for algorithms like 
 // this because it means we never even need to consider cases where 
 // the index is greater than p.
-pub fn root_from_sibling_path<N>(leaf: Field, leaf_index: Field, sibling_path: [Field; N]) -> Field {
+pub fn root_from_sibling_path<let N: u32>(
+    leaf: Field,
+    leaf_index: Field,
+    sibling_path: [Field; N]
+) -> Field {
     let mut node = leaf;
     let indices = leaf_index.to_le_bits(N);
 
@@ -25,7 +29,7 @@ pub fn root_from_sibling_path<N>(leaf: Field, leaf_index: Field, sibling_path: [
     node
 }
 
-pub fn calculate_subtree_root<N>(leaves: [Field; N]) -> Field {
+pub fn calculate_subtree_root<let N: u32>(leaves: [Field; N]) -> Field {
     MerkleTree::new(leaves).get_root()
 }
 

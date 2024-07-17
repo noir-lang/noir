@@ -16,7 +16,7 @@ struct PrivateKernelData {
 }
 
 impl PrivateKernelData {
-    fn validate_in_vk_tree<N>(self, allowed_indices: [u32; N]) {
+    fn validate_in_vk_tree<let N: u32>(self, allowed_indices: [u32; N]) {
         let index_hint = find_index_hint(allowed_indices, self.vk_index);
         assert_eq(allowed_indices[index_hint], self.vk_index, "Invalid vk index");
 

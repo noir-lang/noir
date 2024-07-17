@@ -44,7 +44,7 @@ use crate::{
     point::Point
 };
 
-fn subarray<T, N, M>(arr: [T; N]) -> [T; M] {
+fn subarray<T, let N: u32, let M: u32>(arr: [T; N]) -> [T; M] {
     assert(N >= M, "cannot call subarray on a smaller array");
     let mut new_arr = [arr[0]; M];
     for i in 0..M {
@@ -53,7 +53,7 @@ fn subarray<T, N, M>(arr: [T; N]) -> [T; M] {
     new_arr
 }
 
-fn vec_reverse<T, N>(vec: BoundedVec<T, N>) -> BoundedVec<T, N> {
+fn vec_reverse<T, let N: u32>(vec: BoundedVec<T, N>) -> BoundedVec<T, N> {
     let mut reversed = BoundedVec::new();
     let len = vec.len();
     for i in 0..N {

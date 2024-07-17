@@ -21,7 +21,7 @@ unconstrained fn get_height(input: u32, start: u8) -> u8 {
 // Since we cannot isolate branches, it doesn't cost fewer gates than using
 // MerkleTree on the full array of elements N, but is slightly cheaper on-chain
 // and cleaner elsewhere.
-impl<N> VariableMerkleTree {
+impl<let N: u32> VariableMerkleTree {
     // Example - tx_0 with 3 msgs | tx_1 with 2 msgs creates:
     //               
     //        tx0oh           tx1oh
@@ -106,7 +106,7 @@ mod tests {
         items
     }
 
-    pub fn generate_full_sha_tree<N>(leaves: [Field; N]) -> MerkleTree<N> {
+    pub fn generate_full_sha_tree<let N: u32>(leaves: [Field; N]) -> MerkleTree<N> {
         let mut nodes = [0; N];
         let total_nodes = N - 1;
         let half_size = N / 2;

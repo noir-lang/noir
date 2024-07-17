@@ -27,7 +27,7 @@ pub fn is_empty<T>(item: T) -> bool where T: Empty + Eq {
     item.eq(T::empty())
 }
 
-pub fn is_empty_array<T, N>(array: [T; N]) -> bool where T: Empty + Eq {
+pub fn is_empty_array<T, let N: u32>(array: [T; N]) -> bool where T: Empty + Eq {
     array.all(|elem| is_empty(elem))
 }
 
@@ -55,7 +55,7 @@ impl ToField for U128 {
         self.to_integer()
     }
 }
-impl<N> ToField for str<N> {
+impl<let N: u32> ToField for str<N> {
     fn to_field(self) -> Field {
         assert(N < 32, "String doesn't fit in a field, consider using Serialize instead");
         field_from_bytes(self.as_bytes(), true)
@@ -84,17 +84,17 @@ impl FromField for U128 {
 }
 
 // docs:start:serialize
-trait Serialize<N> {
+trait Serialize<let N: u32> {
     fn serialize(self) -> [Field; N];
 }
 // docs:end:serialize
 
-impl<N> Serialize<N> for [Field; N] {
+impl<let N: u32> Serialize<N> for [Field; N] {
     fn serialize(self) -> [Field; N] {
         self
     }
 }
-impl<N> Serialize<N> for str<N> {
+impl<let N: u32> Serialize<N> for str<N> {
     fn serialize(self) -> [Field; N] {
         let mut result = [0; N];
         let bytes: [u8; N] = self.as_bytes();
@@ -106,12 +106,12 @@ impl<N> Serialize<N> for str<N> {
 }
 
 // docs:start:deserialize
-trait Deserialize<N> {
+trait Deserialize<let N: u32> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 // docs:end:deserialize
 
-impl<N> Deserialize<N> for [Field; N] {
+impl<let N: u32> Deserialize<N> for [Field; N] {
     fn deserialize(fields: [Field; N]) -> Self {
         fields
     }

@@ -18,13 +18,13 @@ impl PackedReturns {
         self.packed_returns
     }
 
-    pub fn unpack<N>(self) -> [Field; N] {
+    pub fn unpack<let N: u32>(self) -> [Field; N] {
         let unpacked: [Field; N] = unpack_returns(self.packed_returns);
         assert_eq(self.packed_returns, hash_args_array(unpacked));
         unpacked
     }
 
-    pub fn unpack_into<T, N>(self) -> T where T: Deserialize<N> {
+    pub fn unpack_into<T, let N: u32>(self) -> T where T: Deserialize<N> {
         let unpacked: [Field; N] = self.unpack();
         Deserialize::deserialize(unpacked)
     }

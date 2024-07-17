@@ -3,7 +3,7 @@ use crate::{
     merkle_tree::{membership::assert_check_membership, root::root_from_sibling_path}
 };
 
-pub fn insert_subtree_to_snapshot_tree<N>(
+pub fn insert_subtree_to_snapshot_tree<let N: u32>(
     snapshot: AppendOnlyTreeSnapshot,
     sibling_path: [Field; N],
     empty_subtree_root: Field,

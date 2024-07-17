@@ -16,14 +16,14 @@ pub fn compute_inner_note_hash_from_preimage(storage_slot: Field, note_content_h
     )
 }
 
-fn compute_inner_note_hash<Note, N, M>(note: Note) -> Field where Note: NoteInterface<N, M> {
+fn compute_inner_note_hash<Note, let N: u32, let M: u32>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
     let note_hash = note.compute_note_content_hash();
 
     compute_inner_note_hash_from_preimage(header.storage_slot, note_hash)
 }
 
-pub fn compute_siloed_nullifier<Note, N, M>(
+pub fn compute_siloed_nullifier<Note, let N: u32, let M: u32>(
     note_with_header: Note,
     context: &mut PrivateContext
 ) -> Field where Note: NoteInterface<N, M> {
@@ -46,14 +46,14 @@ fn compute_note_hash_for_read_request_from_innter_and_nonce(
     }
 }
 
-pub fn compute_note_hash_for_read_request<Note, N, M>(note: Note) -> Field where Note: NoteInterface<N, M> {
+pub fn compute_note_hash_for_read_request<Note, let N: u32, let M: u32>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let inner_note_hash = compute_inner_note_hash(note);
     let nonce = note.get_header().nonce;
 
     compute_note_hash_for_read_request_from_innter_and_nonce(inner_note_hash, nonce)
 }
 
-pub fn compute_note_hash_for_consumption<Note, N, M>(note: Note) -> Field where Note: NoteInterface<N, M> {
+pub fn compute_note_hash_for_consumption<Note, let N: u32, let M: u32>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
     // There are 3 cases for reading a note intended for consumption:
     // 1. The note was inserted in this transaction, and is transient.
@@ -83,7 +83,7 @@ pub fn compute_note_hash_for_consumption<Note, N, M>(note: Note) -> Field where 
     }
 }
 
-pub fn compute_note_hash_and_optionally_a_nullifier<T, N, M, S>(
+pub fn compute_note_hash_and_optionally_a_nullifier<T, let N: u32, let M: u32, let S: u32>(
     deserialize_content: fn([Field; N]) -> T,
     note_header: NoteHeader,
     compute_nullifier: bool,

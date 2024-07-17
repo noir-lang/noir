@@ -2,7 +2,7 @@ use crate::context::PrivateContext;
 use crate::note::note_header::NoteHeader;
 
 // docs:start:note_interface
-trait NoteInterface<N, M> {
+trait NoteInterface<let N: u32, let M: u32> {
     fn compute_note_hash_and_nullifier(self, context: &mut PrivateContext) -> (Field, Field);
 
     fn compute_note_hash_and_nullifier_without_context(self) -> (Field, Field);

@@ -29,13 +29,13 @@ pub fn apply_side_effects_private(contract_address: AztecAddress, public_inputs:
     cheatcodes::add_note_hashes(contract_address, note_hashes);
 }
 
-struct Deployer<N> {
+struct Deployer<let N: u32> {
         path: str<N>,
         public_keys_hash: Field
     }
 
-impl<N> Deployer<N> {
-    pub fn with_private_initializer<C, M, Env>(
+impl<let N: u32> Deployer<N> {
+    pub fn with_private_initializer<C, let M: u32, Env>(
         self,
         call_interface: C
     ) -> ContractInstance where C: CallInterface<M, PrivateContextInputs, PrivateCircuitPublicInputs, Env> {
@@ -64,7 +64,7 @@ impl<N> Deployer<N> {
         instance
     }
 
-    pub fn with_public_initializer<C, M, T, Env>(
+    pub fn with_public_initializer<C, let M: u32, T, Env>(
         self,
         call_interface: C
     ) -> ContractInstance where C: CallInterface<M, PublicContextInputs, T, Env> {

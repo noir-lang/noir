@@ -1,9 +1,9 @@
 struct SortedTuple<T> {
     elem: T,
-    original_index: u64,
+    original_index: u32,
 }
 
-pub fn sort_get_sorted_tuple<T, N, Env>(array: [T; N], ordering: fn[Env](T, T) -> bool) -> [SortedTuple<T>; N] {
+pub fn sort_get_sorted_tuple<T, let N: u32, Env>(array: [T; N], ordering: fn[Env](T, T) -> bool) -> [SortedTuple<T>; N] {
     let mut tuples = [SortedTuple { elem: array[0], original_index: 0 }; N];
     for i in 0..N {
         tuples[i] = SortedTuple {

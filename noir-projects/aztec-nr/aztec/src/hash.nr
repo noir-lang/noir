@@ -12,7 +12,7 @@ pub fn compute_secret_hash(secret: Field) -> Field {
     pedersen_hash([secret], GENERATOR_INDEX__SECRET_HASH)
 }
 
-pub fn compute_unencrypted_log_hash<T, N, M>(
+pub fn compute_unencrypted_log_hash<T, let N: u32, let M: u32>(
     contract_address: AztecAddress,
     log: T
 ) -> Field where T: ToBytesForUnencryptedLog<N, M> {
@@ -92,14 +92,14 @@ impl ArgsHasher {
         self.fields = self.fields.push_back(field);
     }
 
-    pub fn add_multiple<N>(&mut self, fields: [Field; N]) {
+    pub fn add_multiple<let N: u32>(&mut self, fields: [Field; N]) {
         for i in 0..N {
             self.fields = self.fields.push_back(fields[i]);
         }
     }
 }
 
-pub fn hash_args_array<N>(args: [Field; N]) -> Field {
+pub fn hash_args_array<let N: u32>(args: [Field; N]) -> Field {
     hash_args(args.as_slice())
 }
 

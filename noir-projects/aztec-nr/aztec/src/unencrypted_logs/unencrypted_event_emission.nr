@@ -4,7 +4,7 @@ use crate::{
 };
 use dep::protocol_types::{address::AztecAddress, traits::Serialize};
 
-fn emit<Event, NB, MB, OB, N, M>(
+fn emit<Event, let NB: u32, let MB: u32, let N: u32, let M: u32>(
     context: &mut PublicContext,
     event: Event
 ) where Event: EventInterface<NB, MB>, Event: Serialize<N>, [Field; N]: LensForEventSelector<N, M> {
@@ -23,7 +23,7 @@ fn emit<Event, NB, MB, OB, N, M>(
     context.emit_unencrypted_log(emitted_log);
 }
 
-pub fn encode_event<Event, NB, MB, OB, N, M>(context: &mut PublicContext) -> fn[(&mut PublicContext,)](Event) -> () where Event: EventInterface<NB, MB>, Event: Serialize<N>, [Field; N]: LensForEventSelector<N, M> {
+pub fn encode_event<Event, let NB: u32, let MB: u32, let N: u32, let M: u32>(context: &mut PublicContext) -> fn[(&mut PublicContext,)](Event) -> () where Event: EventInterface<NB, MB>, Event: Serialize<N>, [Field; N]: LensForEventSelector<N, M> {
     | e: Event | {
         emit(
           context,
@@ -32,7 +32,7 @@ pub fn encode_event<Event, NB, MB, OB, N, M>(context: &mut PublicContext) -> fn[
     }
 }
 
-trait LensForEventSelector<N, M> {
+trait LensForEventSelector<let N: u32, let M: u32> {
     // N = event preimage input in fields
     // M = event preimage input in fields + event selector as field
     fn output(self: [Field; N]) -> [Field; M];

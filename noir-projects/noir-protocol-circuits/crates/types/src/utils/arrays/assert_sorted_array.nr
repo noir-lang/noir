@@ -1,6 +1,6 @@
 use crate::{abis::side_effect::Ordered, traits::{Empty, is_empty}, utils::arrays::sort_get_order_hints::OrderHint};
 
-pub fn assert_sorted_array<T, N, Env>(
+pub fn assert_sorted_array<T, let N: u32, Env>(
     original_array: [T; N],
     sorted_array: [T; N],
     sorted_indexes: [u32; N],
@@ -25,7 +25,7 @@ pub fn assert_sorted_array<T, N, Env>(
 }
 
 // original_array must be valid, i.e. validate_array(original_array) == true
-pub fn assert_sorted_array_with_order_hints<T, N>(
+pub fn assert_sorted_array_with_order_hints<T, let N: u32>(
     original_array: [T; N],
     sorted_array: [T; N],
     hints: [OrderHint; N]
@@ -144,7 +144,7 @@ mod tests {
         }
     }
 
-    struct TestDataBuilder<T, N> {
+    struct TestDataBuilder<T, let N: u32> {
         original_array: [T; N],
         sorted_array: [T; N],
         hints: [OrderHint; N],

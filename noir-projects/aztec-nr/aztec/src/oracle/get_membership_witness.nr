@@ -10,19 +10,19 @@ global ARCHIVE_TREE_ID = 4;
 //
 // Another way to do it would be to add "type_hint: [Field; T]" as argument to `get_membership_witness` but that's
 // a bit too boilerplatey for my taste.
-struct MembershipWitness<N, M> {
+struct MembershipWitness<let N: u32, let M: u32> {
     index: Field,
     path: [Field; N],
 }
 
 #[oracle(getMembershipWitness)]
-unconstrained fn get_membership_witness_oracle<M>(
+unconstrained fn get_membership_witness_oracle<let M: u32>(
     _block_number: u32,
     _tree_id: Field,
     _leaf_value: Field
 ) -> [Field; M] {}
 
-unconstrained pub fn get_membership_witness<N, M>(
+unconstrained pub fn get_membership_witness<let N: u32, let M: u32>(
     block_number: u32,
     tree_id: Field,
     leaf_value: Field
@@ -33,7 +33,7 @@ unconstrained pub fn get_membership_witness<N, M>(
 
 // Note: get_nullifier_membership_witness function is implemented in get_nullifier_membership_witness.nr
 
-unconstrained pub fn get_note_hash_membership_witness<N, M>(
+unconstrained pub fn get_note_hash_membership_witness<let N: u32, let M: u32>(
     block_number: u32,
     leaf_value: Field
 ) -> MembershipWitness<NOTE_HASH_TREE_HEIGHT, NOTE_HASH_TREE_HEIGHT + 1> {

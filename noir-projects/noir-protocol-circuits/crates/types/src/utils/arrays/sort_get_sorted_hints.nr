@@ -3,12 +3,12 @@ use crate::{
     utils::arrays::{sort_get_sorted_tuple::{sort_get_sorted_tuple, SortedTuple}}
 };
 
-struct SortedResult<T, N> {
+struct SortedResult<T, let N: u32> {
     sorted_array: [T; N],
     sorted_index_hints: [u32; N],
 }
 
-pub fn sort_get_sorted_hints<N, T>(
+pub fn sort_get_sorted_hints<let N: u32, T>(
     values: [T; N],
     ordering: fn(T, T) -> bool
 ) -> SortedResult<T, N> where T: Eq + Empty {

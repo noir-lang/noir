@@ -11,7 +11,7 @@ use crate::context::{
 use crate::oracle::arguments::pack_arguments;
 use crate::hash::hash_args;
 
-trait CallInterface<N, T, P, Env> {
+trait CallInterface<let N: u32, T, P, Env> {
     fn get_original(self) -> fn[Env](T) -> P;
 
     fn get_args(self) -> [Field] {
@@ -35,13 +35,13 @@ trait CallInterface<N, T, P, Env> {
     }
 }
 
-impl<N, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicInputs, Env> for PrivateCallInterface<N, T, Env> {
+impl<let N: u32, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicInputs, Env> for PrivateCallInterface<N, T, Env> {
     fn get_original(self) -> fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs {
         self.original
     }
 }
 
-struct PrivateCallInterface<N, T, Env> {
+struct PrivateCallInterface<let N: u32, T, Env> {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     name: str<N>,
@@ -51,8 +51,8 @@ struct PrivateCallInterface<N, T, Env> {
     is_static: bool
 }
 
-impl<N, T, Env> PrivateCallInterface<N, T, Env> {
-    pub fn call<M>(self, context: &mut PrivateContext) -> T where T: Deserialize<M> {
+impl<let N: u32, T, Env> PrivateCallInterface<N, T, Env> {
+    pub fn call<let M: u32>(self, context: &mut PrivateContext) -> T where T: Deserialize<M> {
         assert(self.args_hash == pack_arguments(self.args));
         let returns = context.call_private_function_with_packed_args(
             self.target_contract,
@@ -65,26 +65,26 @@ impl<N, T, Env> PrivateCallInterface<N, T, Env> {
         unpacked
     }
 
-    pub fn view<M>(self, context: &mut PrivateContext) -> T where T: Deserialize<M> {
+    pub fn view<let M: u32>(self, context: &mut PrivateContext) -> T where T: Deserialize<M> {
         assert(self.args_hash == pack_arguments(self.args));
         let returns = context.call_private_function_with_packed_args(self.target_contract, self.selector, self.args_hash, true, false);
         returns.unpack_into()
     }
 
-    pub fn delegate_call<M>(self, context: &mut PrivateContext) -> T where T: Deserialize<M> {
+    pub fn delegate_call<let M: u32>(self, context: &mut PrivateContext) -> T where T: Deserialize<M> {
         assert(self.args_hash == pack_arguments(self.args));
         let returns = context.call_private_function_with_packed_args(self.target_contract, self.selector, self.args_hash, false, true);
         returns.unpack_into()
     }
 }
 
-impl<N, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicInputs, Env> for PrivateVoidCallInterface<N, Env> {
+impl<let N: u32, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicInputs, Env> for PrivateVoidCallInterface<N, Env> {
     fn get_original(self) -> fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs {
         self.original
     }
 }
 
-struct PrivateVoidCallInterface<N, Env> {
+struct PrivateVoidCallInterface<let N: u32, Env> {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     name: str<N>,
@@ -94,7 +94,7 @@ struct PrivateVoidCallInterface<N, Env> {
     is_static: bool
 }
 
-impl<N, Env> PrivateVoidCallInterface<N, Env> {
+impl<let N: u32, Env> PrivateVoidCallInterface<N, Env> {
     pub fn call(self, context: &mut PrivateContext) {
         assert(self.args_hash == pack_arguments(self.args));
         context.call_private_function_with_packed_args(
@@ -117,13 +117,13 @@ impl<N, Env> PrivateVoidCallInterface<N, Env> {
     }
 }
 
-impl<N, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicInputs, Env> for PrivateStaticCallInterface<N, T, Env> {
+impl<let N: u32, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicInputs, Env> for PrivateStaticCallInterface<N, T, Env> {
     fn get_original(self) -> fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs {
         self.original
     }
 }
 
-struct PrivateStaticCallInterface<N, T, Env> {
+struct PrivateStaticCallInterface<let N: u32, T, Env> {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     name: str<N>,
@@ -133,21 +133,21 @@ struct PrivateStaticCallInterface<N, T, Env> {
     is_static: bool
 }
 
-impl<N, T, Env> PrivateStaticCallInterface<N, T, Env> {
-    pub fn view<M>(self, context: &mut PrivateContext) -> T where T: Deserialize<M> {
+impl<let N: u32, T, Env> PrivateStaticCallInterface<N, T, Env> {
+    pub fn view<let M: u32>(self, context: &mut PrivateContext) -> T where T: Deserialize<M> {
         assert(self.args_hash == pack_arguments(self.args));
         let returns = context.call_private_function_with_packed_args(self.target_contract, self.selector, self.args_hash, true, false);
         returns.unpack_into()
     }
 }
 
-impl<N, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicInputs, Env> for PrivateStaticVoidCallInterface<N, Env> {
+impl<let N: u32, T, P, Env> CallInterface<N, PrivateContextInputs, PrivateCircuitPublicInputs, Env> for PrivateStaticVoidCallInterface<N, Env> {
     fn get_original(self) -> fn[Env](PrivateContextInputs) -> PrivateCircuitPublicInputs {
         self.original
     }
 }
 
-struct PrivateStaticVoidCallInterface<N, Env> {
+struct PrivateStaticVoidCallInterface<let N: u32, Env> {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     name: str<N>,
@@ -157,20 +157,20 @@ struct PrivateStaticVoidCallInterface<N, Env> {
     is_static: bool
 }
 
-impl<N, Env> PrivateStaticVoidCallInterface<N, Env> {
+impl<let N: u32, Env> PrivateStaticVoidCallInterface<N, Env> {
     pub fn view(self, context: &mut PrivateContext) {
         assert(self.args_hash == pack_arguments(self.args));
         context.call_private_function_with_packed_args(self.target_contract, self.selector, self.args_hash, true, false).assert_empty();
     }
 }
 
-impl<N, T, P, Env> CallInterface<N, PublicContextInputs, T, Env> for PublicCallInterface<N, T, Env> {
+impl<let N: u32, T, P, Env> CallInterface<N, PublicContextInputs, T, Env> for PublicCallInterface<N, T, Env> {
     fn get_original(self) -> fn[Env](PublicContextInputs) -> T {
         self.original
     }
 }
 
-struct PublicCallInterface<N, T, Env> {
+struct PublicCallInterface<let N: u32, T, Env> {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     name: str<N>,
@@ -180,23 +180,23 @@ struct PublicCallInterface<N, T, Env> {
     is_static: bool
 }
 
-impl<N, T, Env> PublicCallInterface<N, T, Env> {
+impl<let N: u32, T, Env> PublicCallInterface<N, T, Env> {
     pub fn with_gas(self: &mut Self, gas_opts: GasOpts) -> &mut Self {
         self.gas_opts = gas_opts;
         self
     }
 
-    pub fn call<M>(self, context: &mut PublicContext) -> T where T: Deserialize<M> {
+    pub fn call<let M: u32>(self, context: &mut PublicContext) -> T where T: Deserialize<M> {
         let returns = context.call_public_function(self.target_contract, self.selector, self.args, self.gas_opts);
         returns.deserialize_into()
     }
 
-    pub fn view<M>(self, context: &mut PublicContext) -> T where T: Deserialize<M> {
+    pub fn view<let M: u32>(self, context: &mut PublicContext) -> T where T: Deserialize<M> {
         let returns = context.static_call_public_function(self.target_contract, self.selector, self.args, self.gas_opts);
         returns.deserialize_into()
     }
 
-    pub fn delegate_call<M>(self, context: &mut PublicContext) -> T where T: Deserialize<M> {
+    pub fn delegate_call<let M: u32>(self, context: &mut PublicContext) -> T where T: Deserialize<M> {
         let returns = context.delegate_call_public_function(self.target_contract, self.selector, self.args);
         returns.deserialize_into()
     }
@@ -238,13 +238,13 @@ impl<N, T, Env> PublicCallInterface<N, T, Env> {
     }
 }
 
-impl<N, T, P, Env> CallInterface<N, PublicContextInputs, (), Env> for PublicVoidCallInterface<N, Env> {
+impl<let N: u32, T, P, Env> CallInterface<N, PublicContextInputs, (), Env> for PublicVoidCallInterface<N, Env> {
     fn get_original(self) -> fn[Env](PublicContextInputs) -> () {
         self.original
     }
 }
 
-struct PublicVoidCallInterface<N, Env> {
+struct PublicVoidCallInterface<let N: u32, Env> {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     name: str<N>,
@@ -254,7 +254,7 @@ struct PublicVoidCallInterface<N, Env> {
     gas_opts: GasOpts
 }
 
-impl<N, Env> PublicVoidCallInterface<N, Env> {
+impl<let N: u32, Env> PublicVoidCallInterface<N, Env> {
     pub fn with_gas(self: &mut Self, gas_opts: GasOpts) -> &mut Self {
         self.gas_opts = gas_opts;
         self
@@ -312,13 +312,13 @@ impl<N, Env> PublicVoidCallInterface<N, Env> {
     }
 }
 
-impl<N, T, P, Env> CallInterface<N, PublicContextInputs, T, Env> for PublicStaticCallInterface<N, T, Env> {
+impl<let N: u32, T, P, Env> CallInterface<N, PublicContextInputs, T, Env> for PublicStaticCallInterface<N, T, Env> {
     fn get_original(self) -> fn[Env](PublicContextInputs) -> T {
         self.original
     }
 }
 
-struct PublicStaticCallInterface<N, T, Env> {
+struct PublicStaticCallInterface<let N: u32, T, Env> {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     name: str<N>,
@@ -328,13 +328,13 @@ struct PublicStaticCallInterface<N, T, Env> {
     gas_opts: GasOpts
 }
 
-impl<N, T, Env> PublicStaticCallInterface<N, T, Env> {
+impl<let N: u32, T, Env> PublicStaticCallInterface<N, T, Env> {
     pub fn with_gas(self: &mut Self, gas_opts: GasOpts) -> &mut Self {
         self.gas_opts = gas_opts;
         self
     }
 
-    pub fn view<M>(self, context: &mut PublicContext) -> T where T: Deserialize<M> {
+    pub fn view<let M: u32>(self, context: &mut PublicContext) -> T where T: Deserialize<M> {
         let returns = context.static_call_public_function(self.target_contract, self.selector, self.args, self.gas_opts);
         let unpacked: T = returns.deserialize_into();
         unpacked
@@ -353,13 +353,13 @@ impl<N, T, Env> PublicStaticCallInterface<N, T, Env> {
     }
 }
 
-impl<N, T, P, Env> CallInterface<N, PublicContextInputs, (), Env> for PublicStaticVoidCallInterface<N, Env> {
+impl<let N: u32, T, P, Env> CallInterface<N, PublicContextInputs, (), Env> for PublicStaticVoidCallInterface<N, Env> {
     fn get_original(self) -> fn[Env](PublicContextInputs) -> () {
         self.original
     }
 }
 
-struct PublicStaticVoidCallInterface<N, Env> {
+struct PublicStaticVoidCallInterface<let N: u32, Env> {
     target_contract: AztecAddress,
     selector: FunctionSelector,
     name: str<N>,
@@ -369,7 +369,7 @@ struct PublicStaticVoidCallInterface<N, Env> {
     gas_opts: GasOpts
 }
 
-impl<N, Env> PublicStaticVoidCallInterface<N, Env> {
+impl<let N: u32, Env> PublicStaticVoidCallInterface<N, Env> {
     pub fn with_gas(self: &mut Self, gas_opts: GasOpts) -> &mut Self {
         self.gas_opts = gas_opts;
         self

@@ -51,7 +51,7 @@ impl EventSelector {
         Self { inner: value }
     }
 
-    pub fn from_signature<N>(signature: str<N>) -> Self {
+    pub fn from_signature<let N: u32>(signature: str<N>) -> Self {
         let bytes = signature.as_bytes();
         let hash = std::hash::keccak256(bytes, bytes.len() as u32);
 

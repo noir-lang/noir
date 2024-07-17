@@ -9,7 +9,14 @@ use crate::{
     traits::{Empty, Hash, is_empty}, utils::arrays::check_permutation
 };
 
-pub fn batch_insert<Value, Leaf, SubtreeWidth, SiblingPathLength, SubtreeHeight, TreeHeight>(
+pub fn batch_insert<
+    Value,
+    Leaf,
+    let SubtreeWidth: u32,
+    let SiblingPathLength: u32,
+    let SubtreeHeight: u32,
+    let TreeHeight: u32
+>(
     start_snapshot: AppendOnlyTreeSnapshot,
     values_to_insert: [Value; SubtreeWidth],
     sorted_values: [Value; SubtreeWidth],

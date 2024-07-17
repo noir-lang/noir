@@ -23,7 +23,7 @@ impl Eq for OrderHint {
     }
 }
 
-pub fn sort_get_order_hints<T, N>(
+pub fn sort_get_order_hints<T, let N: u32>(
     array: [T; N],
     ordering: fn(T, T) -> bool
 ) -> [OrderHint; N] where T: Ordered + Eq + Empty {
@@ -42,11 +42,11 @@ pub fn sort_get_order_hints<T, N>(
     hints
 }
 
-pub fn sort_get_order_hints_asc<T, S, N>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
+pub fn sort_get_order_hints_asc<T, S, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
     sort_get_order_hints(array, order_by_counters_empty_padded_asc)
 }
 
-pub fn sort_get_order_hints_desc<T, S, N>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
+pub fn sort_get_order_hints_desc<T, S, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
     sort_get_order_hints(array, order_by_counters_empty_padded_desc)
 }
 

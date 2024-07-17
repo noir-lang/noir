@@ -8,13 +8,13 @@ mod point;
 //   input: [some(3), none(), some(1)]
 // this returns 
 //   collapsed: [3, 1]
-pub fn collapse<T, N>(input: [Option<T>; N]) -> BoundedVec<T, N> where T: Eq {
+pub fn collapse<T, let N: u32>(input: [Option<T>; N]) -> BoundedVec<T, N> where T: Eq {
     let (collapsed, collapsed_to_input_index_mapping) = get_collapse_hints(input);
     verify_collapse_hints(input, collapsed, collapsed_to_input_index_mapping);
     collapsed
 }
 
-fn verify_collapse_hints<T, N>(
+fn verify_collapse_hints<T, let N: u32>(
     input: [Option<T>; N],
     collapsed: BoundedVec<T, N>,
     collapsed_to_input_index_mapping: BoundedVec<u32, N>
@@ -70,7 +70,7 @@ fn verify_collapse_hints<T, N>(
     // Therefore, the collapsed array is correct.
 }
 
-unconstrained fn get_collapse_hints<T, N>(input: [Option<T>; N]) -> (BoundedVec<T, N>, BoundedVec<u32, N>) {
+unconstrained fn get_collapse_hints<T, let N: u32>(input: [Option<T>; N]) -> (BoundedVec<T, N>, BoundedVec<u32, N>) {
     let mut collapsed: BoundedVec<T, N> = BoundedVec::new();
     let mut collapsed_to_input_index_mapping: BoundedVec<u32, N> = BoundedVec::new();
 

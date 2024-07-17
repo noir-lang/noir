@@ -37,11 +37,14 @@ impl UnconstrainedContext {
         self.chain_id
     }
 
-    unconstrained fn raw_storage_read<N>(self: Self, storage_slot: Field) -> [Field; N] {
+    unconstrained fn raw_storage_read<let N: u32>(self: Self, storage_slot: Field) -> [Field; N] {
         storage_read(self.this_address(), storage_slot, self.block_number())
     }
 
-    unconstrained fn storage_read<T, N>(self, storage_slot: Field) -> T where T: Deserialize<N> {
+    unconstrained fn storage_read<T, let N: u32>(
+        self,
+        storage_slot: Field
+    ) -> T where T: Deserialize<N> {
         T::deserialize(self.raw_storage_read(storage_slot))
     }
 }

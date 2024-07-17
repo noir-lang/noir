@@ -16,7 +16,7 @@ use crate::encrypted_logs::{
     outgoing_body::EncryptedLogOutgoingBody
 };
 
-pub fn compute_encrypted_event_log<Event, NB, MB, OB>(
+pub fn compute_encrypted_event_log<Event, let NB: u32, let MB: u32, let OB: u32>(
     contract_address: AztecAddress,
     randomness: Field,
     ovsk_app: Field,
@@ -69,7 +69,7 @@ pub fn compute_encrypted_event_log<Event, NB, MB, OB>(
     encrypted_bytes
 }
 
-pub fn compute_encrypted_note_log<Note, N, NB, M>(
+pub fn compute_encrypted_note_log<Note, let N: u32, let NB: u32, let M: u32>(
     contract_address: AztecAddress,
     storage_slot: Field,
     ovsk_app: Field,

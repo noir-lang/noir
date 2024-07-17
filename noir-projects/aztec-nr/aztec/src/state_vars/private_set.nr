@@ -26,7 +26,7 @@ impl<Note, Context> PrivateSet<Note, Context> {
     // docs:end:new
 }
 
-impl<Note, N, M> PrivateSet<Note, &mut PublicContext> where Note: NoteInterface<N, M> {
+impl<Note, let N: u32, let M: u32> PrivateSet<Note, &mut PublicContext> where Note: NoteInterface<N, M> {
     // docs:start:insert_from_public
     pub fn insert_from_public(self, note: &mut Note) {
         create_note_hash_from_public(self.context, self.storage_slot, note);
@@ -34,7 +34,7 @@ impl<Note, N, M> PrivateSet<Note, &mut PublicContext> where Note: NoteInterface<
     // docs:end:insert_from_public
 }
 
-impl<Note, N, M> PrivateSet<Note, &mut PrivateContext> where Note: NoteInterface<N, M> + Eq {
+impl<Note, let N: u32, let M: u32> PrivateSet<Note, &mut PrivateContext> where Note: NoteInterface<N, M> + Eq {
     // docs:start:insert
     pub fn insert(self, note: &mut Note) -> NoteEmission<Note> {
         create_note(self.context, self.storage_slot, note)
@@ -61,7 +61,7 @@ impl<Note, N, M> PrivateSet<Note, &mut PrivateContext> where Note: NoteInterface
     // docs:end:get_notes
 }
 
-impl<Note, N, M> PrivateSet<Note, UnconstrainedContext> where Note: NoteInterface<N, M> {
+impl<Note, let N: u32, let M: u32> PrivateSet<Note, UnconstrainedContext> where Note: NoteInterface<N, M> {
     // docs:start:view_notes
     unconstrained pub fn view_notes(
         self,

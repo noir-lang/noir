@@ -21,7 +21,10 @@ fn build_valid_note(value: Field) -> MockNote {
     MockNote::new(value).contract_address(cheatcodes::get_contract_address()).storage_slot(storage_slot).build()
 }
 
-fn assert_equivalent_vec_and_array<T, N>(vec: BoundedVec<T, N>, arr: [Option<T>; N]) where T: Eq {
+fn assert_equivalent_vec_and_array<T, let N: u32>(
+    vec: BoundedVec<T, N>,
+    arr: [Option<T>; N]
+) where T: Eq {
     let mut count = 0;
 
     for i in 0..N {

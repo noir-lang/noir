@@ -2,9 +2,9 @@ use dep::protocol_types::{address::AztecAddress, point::Point};
 
 // = 480 + 32 * N bytes
 #[oracle(emitEncryptedNoteLog)]
-unconstrained fn emit_encrypted_note_log_oracle<M>(_note_hash_counter: u32, _encrypted_note: [u8; M], _counter: u32) {}
+unconstrained fn emit_encrypted_note_log_oracle<let M: u32>(_note_hash_counter: u32, _encrypted_note: [u8; M], _counter: u32) {}
 
-unconstrained pub fn emit_encrypted_note_log<M>(
+unconstrained pub fn emit_encrypted_note_log<let M: u32>(
     note_hash_counter: u32,
     encrypted_note: [u8; M],
     counter: u32
@@ -13,14 +13,9 @@ unconstrained pub fn emit_encrypted_note_log<M>(
 }
 
 #[oracle(emitEncryptedEventLog)]
-unconstrained fn emit_encrypted_event_log_oracle<M>(
-    _contract_address: AztecAddress,
-    _randomness: Field,
-    _encrypted_event: [u8; M],
-    _counter: u32
-) {}
+unconstrained fn emit_encrypted_event_log_oracle<let M: u32>(_contract_address: AztecAddress, _randomness: Field, _encrypted_event: [u8; M], _counter: u32) {}
 
-unconstrained pub fn emit_encrypted_event_log<M>(
+unconstrained pub fn emit_encrypted_event_log<let M: u32>(
     contract_address: AztecAddress,
     randomness: Field,
     encrypted_event: [u8; M],
@@ -31,7 +26,7 @@ unconstrained pub fn emit_encrypted_event_log<M>(
 
 // = 480 + 32 * N bytes
 #[oracle(computeEncryptedNoteLog)]
-unconstrained fn compute_encrypted_note_log_oracle<N, M>(
+unconstrained fn compute_encrypted_note_log_oracle<let N: u32, let M: u32>(
     _contract_address: AztecAddress,
     _storage_slot: Field,
     _note_type_id: Field,
@@ -42,7 +37,7 @@ unconstrained fn compute_encrypted_note_log_oracle<N, M>(
     _preimage: [Field; N]
 ) -> [u8; M] {}
 
-unconstrained pub fn compute_encrypted_note_log<N, M>(
+unconstrained pub fn compute_encrypted_note_log<let N: u32, let M: u32>(
     contract_address: AztecAddress,
     storage_slot: Field,
     note_type_id: Field,
@@ -66,7 +61,7 @@ unconstrained pub fn compute_encrypted_note_log<N, M>(
 
 // = 480 + 32 * N bytes
 #[oracle(computeEncryptedEventLog)]
-unconstrained fn compute_encrypted_event_log_oracle<N, M>(
+unconstrained fn compute_encrypted_event_log_oracle<let N: u32, let M: u32>(
     _contract_address: AztecAddress,
     _randomness: Field,
     _event_type_id: Field,
@@ -77,7 +72,7 @@ unconstrained fn compute_encrypted_event_log_oracle<N, M>(
     _preimage: [Field; N]
 ) -> [u8; M] {}
 
-unconstrained pub fn compute_encrypted_event_log<N, M>(
+unconstrained pub fn compute_encrypted_event_log<let N: u32, let M: u32>(
     contract_address: AztecAddress,
     randomness: Field,
     event_type_id: Field,
@@ -111,8 +106,12 @@ unconstrained pub fn emit_unencrypted_log_private_internal<T>(
 }
 
 #[oracle(emitContractClassUnencryptedLog)]
-unconstrained fn emit_contract_class_unencrypted_log_private<N>(contract_address: AztecAddress, message: [Field; N], counter: u32) -> Field {}
+unconstrained fn emit_contract_class_unencrypted_log_private<let N: u32>(
+    contract_address: AztecAddress,
+    message: [Field; N],
+    counter: u32
+) -> Field {}
 
-unconstrained pub fn emit_contract_class_unencrypted_log_private_internal<N>(contract_address: AztecAddress, message: [Field; N], counter: u32) -> Field {
+unconstrained pub fn emit_contract_class_unencrypted_log_private_internal<let N: u32>(contract_address: AztecAddress, message: [Field; N], counter: u32) -> Field {
     emit_contract_class_unencrypted_log_private(contract_address, message, counter)
 }

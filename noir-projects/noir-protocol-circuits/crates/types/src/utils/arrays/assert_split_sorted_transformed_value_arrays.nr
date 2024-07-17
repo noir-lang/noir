@@ -5,7 +5,7 @@ use crate::{
 
 // original_array must be valid, i.e. validate_array(original_array) == true
 // transformed_value_array must be verified against original_array before calling this function.
-fn assert_split_sorted_transformed_value_arrays<T, S, N>(
+fn assert_split_sorted_transformed_value_arrays<T, S, let N: u32>(
     original_array: [T; N],
     transformed_value_array: [S; N],
     split_counter: u32,
@@ -66,7 +66,7 @@ fn assert_split_sorted_transformed_value_arrays<T, S, N>(
     assert_eq(num_non_empty_values_gte, num_gte, "mismatch number of values gte");
 }
 
-pub fn assert_split_sorted_transformed_value_arrays_asc<T, S, N>(
+pub fn assert_split_sorted_transformed_value_arrays_asc<T, S, let N: u32>(
     original_array: [T; N],
     transformed_value_array: [S; N],
     split_counter: u32,
@@ -87,7 +87,7 @@ pub fn assert_split_sorted_transformed_value_arrays_asc<T, S, N>(
     );
 }
 
-pub fn assert_split_sorted_transformed_value_arrays_desc<T, S, N>(
+pub fn assert_split_sorted_transformed_value_arrays_desc<T, S, let N: u32>(
     original_array: [T; N],
     transformed_value_array: [S; N],
     split_counter: u32,
@@ -174,7 +174,7 @@ mod tests {
         TestItem::empty()
     ];
 
-    struct TestDataBuilder<T, S, N> {
+    struct TestDataBuilder<T, S, let N: u32> {
         original_array: [T; N],
         transformed_value_array: [S; N],
         sorted_transformed_value_array_lt: [S; N],

@@ -19,7 +19,7 @@ use sort_get_split_order_hints::{sort_get_split_order_hints_asc, sort_get_split_
 use crate::traits::{Empty, is_empty};
 use crate::abis::side_effect::{Positioned, Ordered};
 
-pub fn array_to_bounded_vec<T, N>(array: [T; N]) -> BoundedVec<T, N> where T: Empty + Eq {
+pub fn array_to_bounded_vec<T, let N: u32>(array: [T; N]) -> BoundedVec<T, N> where T: Empty + Eq {
     let mut len = 0;
     for elem in array {
         if !is_empty(elem) {
@@ -30,7 +30,10 @@ pub fn array_to_bounded_vec<T, N>(array: [T; N]) -> BoundedVec<T, N> where T: Em
     BoundedVec { storage: array, len }
 }
 
-unconstrained fn filter_array_to_bounded_vec_unsafe<T, N>(arr: [T; N], should_propagate: [bool; N]) -> BoundedVec<T, N> {
+unconstrained fn filter_array_to_bounded_vec_unsafe<T, let N: u32>(
+    arr: [T; N],
+    should_propagate: [bool; N]
+) -> BoundedVec<T, N> {
     let mut vec = BoundedVec::new();
     for i in 0..N {
         if should_propagate[i] {
@@ -40,7 +43,7 @@ unconstrained fn filter_array_to_bounded_vec_unsafe<T, N>(arr: [T; N], should_pr
     vec
 }
 
-pub fn filter_array_to_bounded_vec<T, N>(arr: [T; N], should_propagate: [bool; N]) -> BoundedVec<T, N> where T: Eq {
+pub fn filter_array_to_bounded_vec<T, let N: u32>(arr: [T; N], should_propagate: [bool; N]) -> BoundedVec<T, N> where T: Eq {
     let vec_hint = filter_array_to_bounded_vec_unsafe(arr, should_propagate);
     let mut verifying_index = 0;
 
@@ -55,7 +58,7 @@ pub fn filter_array_to_bounded_vec<T, N>(arr: [T; N], should_propagate: [bool; N
     vec_hint
 }
 
-unconstrained pub fn find_index_hint<T, N>(array: [T; N], find: T) -> u32 where T: Eq {
+unconstrained pub fn find_index_hint<T, let N: u32>(array: [T; N], find: T) -> u32 where T: Eq {
     let mut index = 0;
     for i in 0..array.len() {
         if array[i] == find {
@@ -68,7 +71,7 @@ unconstrained pub fn find_index_hint<T, N>(array: [T; N], find: T) -> u32 where 
 // Routine which validates that all zero values of an array form a contiguous region at the end, i.e.,
 // of the form: [*,*,*...,0,0,0,0] where any * is non-zero. Note that a full array of non-zero values is
 // valid.
-pub fn validate_array<T, N>(array: [T; N]) -> u32 where T: Empty + Eq {
+pub fn validate_array<T, let N: u32>(array: [T; N]) -> u32 where T: Empty + Eq {
     let mut seen_empty = false;
     let mut length = 0;
     for i in 0..N {
@@ -82,7 +85,7 @@ pub fn validate_array<T, N>(array: [T; N]) -> u32 where T: Empty + Eq {
     length
 }
 
-unconstrained fn count_non_empty_elements<T, N>(array: [T; N]) -> u32 where T: Empty + Eq {
+unconstrained fn count_non_empty_elements<T, let N: u32>(array: [T; N]) -> u32 where T: Empty + Eq {
     let mut length = 0;
     let mut seen_empty = false;
     for elem in array {
@@ -97,7 +100,7 @@ unconstrained fn count_non_empty_elements<T, N>(array: [T; N]) -> u32 where T: E
 
 // Helper function to count the number of non-empty elements in a validated array.
 // Important: Only use it for validated arrays: validate_array(array) should be true.
-pub fn array_length<T, N>(array: [T; N]) -> u32 where T: Empty + Eq {
+pub fn array_length<T, let N: u32>(array: [T; N]) -> u32 where T: Empty + Eq {
     let length = count_non_empty_elements(array);
     if length != 0 {
         assert(!is_empty(array[length - 1]));
@@ -109,7 +112,7 @@ pub fn array_length<T, N>(array: [T; N]) -> u32 where T: Empty + Eq {
 }
 
 // Deprecated. Use tests/utils/assert_array_eq instead.
-pub fn array_eq<T, N, S>(array: [T; N], expected: [T; S]) -> bool where T: Empty + Eq {
+pub fn array_eq<T, let N: u32, let S: u32>(array: [T; N], expected: [T; S]) -> bool where T: Empty + Eq {
     let mut eq = array_length(array) == S;
 
     for i in 0..S {
@@ -119,7 +122,7 @@ pub fn array_eq<T, N, S>(array: [T; N], expected: [T; S]) -> bool where T: Empty
     eq
 }
 
-pub fn find_index<T, N, Env>(array: [T; N], find: fn[Env](T) -> bool) -> u32 {
+pub fn find_index<T, let N: u32, Env>(array: [T; N], find: fn[Env](T) -> bool) -> u32 {
     let mut index = N;
     for i in 0..N {
         if (index == N) & find(array[i]) {
@@ -129,7 +132,7 @@ pub fn find_index<T, N, Env>(array: [T; N], find: fn[Env](T) -> bool) -> u32 {
     index
 }
 
-pub fn array_cp<T, N, S>(array: [T; N]) -> [T; S] where T: Empty {
+pub fn array_cp<T, let N: u32, let S: u32>(array: [T; N]) -> [T; S] where T: Empty {
     let mut result: [T; S] = [T::empty(); S];
     for i in 0..S {
         result[i] = array[i];
@@ -137,7 +140,7 @@ pub fn array_cp<T, N, S>(array: [T; N]) -> [T; S] where T: Empty {
     result
 }
 
-pub fn array_concat<T, N, M, S>(array1: [T; N], array2: [T; M]) -> [T; S] {
+pub fn array_concat<T, let N: u32, let M: u32, let S: u32>(array1: [T; N], array2: [T; M]) -> [T; S] {
     assert_eq(N + M, S, "combined array length does not match return array length");
     let mut result = [array1[0]; S];
     for i in 1..N {
@@ -149,7 +152,7 @@ pub fn array_concat<T, N, M, S>(array1: [T; N], array2: [T; M]) -> [T; S] {
     result
 }
 
-pub fn array_merge<T, N>(array1: [T; N], array2: [T; N]) -> [T; N] where T: Empty + Eq {
+pub fn array_merge<T, let N: u32>(array1: [T; N], array2: [T; N]) -> [T; N] where T: Empty + Eq {
     let mut result: [T; N] = [T::empty(); N];
     let mut i = 0;
     for elem in array1 {
@@ -167,7 +170,7 @@ pub fn array_merge<T, N>(array1: [T; N], array2: [T; N]) -> [T; N] where T: Empt
     result
 }
 
-pub fn check_permutation<T, N>(
+pub fn check_permutation<T, let N: u32>(
     original_array: [T; N],
     permuted_array: [T; N],
     original_indexes: [u32; N]
@@ -182,7 +185,7 @@ pub fn check_permutation<T, N>(
     }
 }
 
-pub fn assert_deduped_array<T, N, Env>(
+pub fn assert_deduped_array<T, let N: u32, Env>(
     original_array: [T; N],
     deduped_array: [T; N],
     run_lengths: [u32; N]

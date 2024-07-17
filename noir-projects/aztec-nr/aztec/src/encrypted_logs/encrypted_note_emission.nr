@@ -7,7 +7,7 @@ use dep::protocol_types::{
     constants::MAX_NOTE_HASHES_PER_CALL, utils::arrays::find_index
 };
 
-unconstrained fn compute_unconstrained<Note, N, NB, M>(
+unconstrained fn compute_unconstrained<Note, let N: u32, let NB: u32, let M: u32>(
     contract_address: AztecAddress,
     storage_slot: Field,
     ovsk_app: Field,
@@ -27,7 +27,7 @@ unconstrained fn compute_unconstrained<Note, N, NB, M>(
     )
 }
 
-fn compute<Note, N, NB, M>(
+fn compute<Note, let N: u32, let NB: u32, let M: u32>(
     contract_address: AztecAddress,
     storage_slot: Field,
     ovsk_app: Field,
@@ -49,7 +49,7 @@ fn compute<Note, N, NB, M>(
     (encrypted_log, log_hash)
 }
 
-fn emit_with_keys<Note, N, NB, M>(
+fn emit_with_keys<Note, let N: u32, let NB: u32, let M: u32>(
     context: &mut PrivateContext,
     note: Note,
     ovpk: Point,
@@ -85,7 +85,7 @@ fn emit_with_keys<Note, N, NB, M>(
     context.emit_raw_note_log(note_hash_counter, encrypted_log, log_hash);
 }
 
-pub fn encode_and_encrypt_note<Note, N, NB, M>(
+pub fn encode_and_encrypt_note<Note, let N: u32, let NB: u32, let M: u32>(
     context: &mut PrivateContext,
     ov: AztecAddress,
     iv: AztecAddress
@@ -98,7 +98,7 @@ pub fn encode_and_encrypt_note<Note, N, NB, M>(
     }
 }
 
-pub fn encode_and_encrypt_note_unconstrained<Note, N, NB, M>(
+pub fn encode_and_encrypt_note_unconstrained<Note, let N: u32, let NB: u32, let M: u32>(
     context: &mut PrivateContext,
     ov: AztecAddress,
     iv: AztecAddress
@@ -111,7 +111,7 @@ pub fn encode_and_encrypt_note_unconstrained<Note, N, NB, M>(
     }
 }
 
-pub fn encode_and_encrypt_note_with_keys<Note, N, NB, M>(
+pub fn encode_and_encrypt_note_with_keys<Note, let N: u32, let NB: u32, let M: u32>(
     context: &mut PrivateContext,
     ovpk: Point,
     ivpk: Point,
@@ -122,7 +122,7 @@ pub fn encode_and_encrypt_note_with_keys<Note, N, NB, M>(
     }
 }
 
-pub fn encode_and_encrypt_note_with_keys_unconstrained<Note, N, NB, M>(
+pub fn encode_and_encrypt_note_with_keys_unconstrained<Note, let N: u32, let NB: u32, let M: u32>(
     context: &mut PrivateContext,
     ovpk: Point,
     ivpk: Point,

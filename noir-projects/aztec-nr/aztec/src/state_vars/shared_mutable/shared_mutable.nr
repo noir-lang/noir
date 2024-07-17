@@ -25,10 +25,10 @@ struct SharedMutable<T, let INITIAL_DELAY: u32, Context> {
 //
 // TODO https://github.com/AztecProtocol/aztec-packages/issues/5736: change the storage allocation scheme so that we
 // can actually use it here
-impl<T, INITIAL_DELAY, Context> Storage<T> for SharedMutable<T, INITIAL_DELAY, Context> {}
+impl<T, let INITIAL_DELAY: u32, Context> Storage<T> for SharedMutable<T, INITIAL_DELAY, Context> {}
 
 // TODO: extract into a utils module once  we can do arithmetic on generics, i.e. https://github.com/noir-lang/noir/issues/4784
-fn concat_arrays<N, M, O>(arr_n: [Field; N], arr_m: [Field; M]) -> [Field; O] {
+fn concat_arrays<let N: u32, let M: u32, let O: u32>(arr_n: [Field; N], arr_m: [Field; M]) -> [Field; O] {
     assert_eq(N + M, O);
     let mut out: [Field; O] = [0; O];
     for i in 0..N {
@@ -51,7 +51,7 @@ fn concat_arrays<N, M, O>(arr_n: [Field; N], arr_m: [Field; M]) -> [Field; O] {
 // future, so that they can guarantee the value will not have possibly changed by then (because of the delay).
 // The delay for changing a value is initially equal to INITIAL_DELAY, but can be changed by calling
 // `schedule_delay_change`.
-impl<T, INITIAL_DELAY, Context> SharedMutable<T, INITIAL_DELAY, Context> where T: ToField + FromField + Eq {
+impl<T, let INITIAL_DELAY: u32, Context> SharedMutable<T, INITIAL_DELAY, Context> where T: ToField + FromField + Eq {
     pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
         Self { context, storage_slot }
@@ -127,7 +127,7 @@ impl<T, INITIAL_DELAY, Context> SharedMutable<T, INITIAL_DELAY, Context> where T
     }
 }
 
-impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PublicContext> where T: ToField + FromField + Eq {
+impl<T, let INITIAL_DELAY: u32> SharedMutable<T, INITIAL_DELAY, &mut PublicContext> where T: ToField + FromField + Eq {
     pub fn schedule_value_change(self, new_value: T) {
         let mut value_change = self.read_value_change();
         let delay_change = self.read_delay_change();
@@ -199,7 +199,7 @@ impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PublicContext> where
     }
 }
 
-impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PrivateContext> where T: ToField + FromField + Eq {
+impl<T, let INITIAL_DELAY: u32> SharedMutable<T, INITIAL_DELAY, &mut PrivateContext> where T: ToField + FromField + Eq {
     pub fn get_current_value_in_private(self) -> T {
         // When reading the current value in private we construct a historical state proof for the public value.
         // However, since this value might change, we must constrain the maximum transaction block number as this proof
@@ -225,7 +225,7 @@ impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, &mut PrivateContext> wher
     }
 }
 
-impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, UnconstrainedContext> where T: ToField + FromField + Eq {
+impl<T, let INITIAL_DELAY: u32> SharedMutable<T, INITIAL_DELAY, UnconstrainedContext> where T: ToField + FromField + Eq {
     unconstrained pub fn get_current_value_in_unconstrained(self) -> T {
         let block_number = self.context.block_number() as u32;
         self.read_value_change().get_current_at(block_number)
@@ -236,7 +236,7 @@ impl<T, INITIAL_DELAY> SharedMutable<T, INITIAL_DELAY, UnconstrainedContext> whe
     }
 }
 
-unconstrained fn get_public_storage_hints<T, INITIAL_DELAY>(
+unconstrained fn get_public_storage_hints<T, let INITIAL_DELAY: u32>(
     address: AztecAddress,
     storage_slot: Field,
     block_number: u32

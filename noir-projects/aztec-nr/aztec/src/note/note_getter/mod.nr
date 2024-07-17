@@ -10,7 +10,7 @@ use crate::oracle;
 
 mod test;
 
-fn extract_property_value_from_selector<N>(
+fn extract_property_value_from_selector<let N: u32>(
     serialized_note: [Field; N],
     selector: PropertySelector
 ) -> Field {
@@ -31,7 +31,7 @@ fn extract_property_value_from_selector<N>(
     value_field
 }
 
-fn check_note_header<Note, N, M>(
+fn check_note_header<Note, let N: u32, let M: u32>(
     context: PrivateContext,
     storage_slot: Field,
     note: Note
@@ -42,7 +42,10 @@ fn check_note_header<Note, N, M>(
     assert(header.storage_slot == storage_slot, "Mismatch note header storage slot.");
 }
 
-fn check_note_fields<N>(serialized_note: [Field; N], selects: BoundedVec<Option<Select>, N>) {
+fn check_note_fields<let N: u32>(
+    serialized_note: [Field; N],
+    selects: BoundedVec<Option<Select>, N>
+) {
     for i in 0..selects.len {
         let select = selects.get_unchecked(i).unwrap_unchecked();
         let value_field = extract_property_value_from_selector(serialized_note, select.property_selector);
@@ -67,7 +70,7 @@ fn check_note_fields<N>(serialized_note: [Field; N], selects: BoundedVec<Option<
     }
 }
 
-fn check_notes_order<N>(
+fn check_notes_order<let N: u32>(
     fields_0: [Field; N],
     fields_1: [Field; N],
     sorts: BoundedVec<Option<Sort>, N>
@@ -86,7 +89,7 @@ fn check_notes_order<N>(
     }
 }
 
-pub fn get_note<Note, N, M>(
+pub fn get_note<Note, let N: u32, let M: u32>(
     context: &mut PrivateContext,
     storage_slot: Field
 ) -> Note where Note: NoteInterface<N, M> {
@@ -100,7 +103,7 @@ pub fn get_note<Note, N, M>(
     note
 }
 
-pub fn get_notes<Note, N, M, FILTER_ARGS>(
+pub fn get_notes<Note, let N: u32, let M: u32, FILTER_ARGS>(
     context: &mut PrivateContext,
     storage_slot: Field,
     options: NoteGetterOptions<Note, N, M, FILTER_ARGS>
@@ -110,7 +113,7 @@ pub fn get_notes<Note, N, M, FILTER_ARGS>(
     constrain_get_notes_internal(context, storage_slot, opt_notes, options)
 }
 
-fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
+fn constrain_get_notes_internal<Note, let N: u32, let M: u32, FILTER_ARGS>(
     context: &mut PrivateContext,
     storage_slot: Field,
     opt_notes: [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
@@ -154,7 +157,7 @@ fn constrain_get_notes_internal<Note, N, M, FILTER_ARGS>(
     notes
 }
 
-unconstrained fn get_note_internal<Note, N, M>(storage_slot: Field) -> Note where Note: NoteInterface<N, M> {
+unconstrained fn get_note_internal<Note, let N: u32, let M: u32>(storage_slot: Field) -> Note where Note: NoteInterface<N, M> {
     let placeholder_note = [Option::none()];
     let placeholder_fields = [0; GET_NOTE_ORACLE_RETURN_LENGTH];
     let placeholder_note_length = [0; N];
@@ -179,7 +182,7 @@ unconstrained fn get_note_internal<Note, N, M>(storage_slot: Field) -> Note wher
     )[0].unwrap() // Notice: we don't allow dummies to be returned from get_note (singular).
 }
 
-unconstrained fn get_notes_internal<Note, N, M, FILTER_ARGS>(
+unconstrained fn get_notes_internal<Note, let N: u32, let M: u32, FILTER_ARGS>(
     storage_slot: Field,
     options: NoteGetterOptions<Note, N, M, FILTER_ARGS>
 ) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where Note: NoteInterface<N, M> {
@@ -211,7 +214,7 @@ unconstrained fn get_notes_internal<Note, N, M, FILTER_ARGS>(
     )
 }
 
-unconstrained pub fn view_notes<Note, N, M>(
+unconstrained pub fn view_notes<Note, let N: u32, let M: u32>(
     storage_slot: Field,
     options: NoteViewerOptions<Note, N, M>
 ) -> BoundedVec<Note, MAX_NOTES_PER_PAGE> where Note: NoteInterface<N, M> {
@@ -250,7 +253,7 @@ unconstrained pub fn view_notes<Note, N, M>(
     notes
 }
 
-unconstrained fn flatten_options<Note, N>(
+unconstrained fn flatten_options<Note, let N: u32>(
     selects: BoundedVec<Option<Select>, N>,
     sorts: BoundedVec<Option<Sort>, N>
 ) -> (u8, [u8; N], [u8; N], [u8; N], [Field; N], [u8; N], [u8; N], [u8; N], [u8; N], [u8; N]) {

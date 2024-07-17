@@ -262,7 +262,12 @@ impl PrivateContext {
 
     // NB: A randomness value of 0 signals that the kernels should not mask the contract address
     // used in siloing later on e.g. 'handshaking' contract w/ known address.
-    pub fn emit_raw_event_log_with_masked_address<M>(&mut self, randomness: Field, log: [u8; M], log_hash: Field) {
+    pub fn emit_raw_event_log_with_masked_address<let M: u32>(
+        &mut self,
+        randomness: Field,
+        log: [u8; M],
+        log_hash: Field
+    ) {
         let counter = self.next_counter();
         let contract_address = self.this_address();
         let len = log.len() as Field + 4;
@@ -272,7 +277,7 @@ impl PrivateContext {
         emit_encrypted_event_log(contract_address, randomness, log, counter);
     }
 
-    pub fn emit_raw_note_log<M>(&mut self, note_hash_counter: u32, log: [u8; M], log_hash: Field) {
+    pub fn emit_raw_note_log<let M: u32>(&mut self, note_hash_counter: u32, log: [u8; M], log_hash: Field) {
         let counter = self.next_counter();
         let len = log.len() as Field + 4;
         let side_effect = NoteLogHash { value: log_hash, counter, length: len, note_hash_counter };
@@ -281,7 +286,7 @@ impl PrivateContext {
         emit_encrypted_note_log(note_hash_counter, log, counter);
     }
 
-    pub fn call_private_function<ARGS_COUNT>(
+    pub fn call_private_function<let ARGS_COUNT: u32>(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
@@ -292,7 +297,7 @@ impl PrivateContext {
         self.call_private_function_with_packed_args(contract_address, function_selector, args_hash, false, false)
     }
 
-    pub fn static_call_private_function<ARGS_COUNT>(
+    pub fn static_call_private_function<let ARGS_COUNT: u32>(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
@@ -303,7 +308,7 @@ impl PrivateContext {
         self.call_private_function_with_packed_args(contract_address, function_selector, args_hash, true, false)
     }
 
-    pub fn delegate_call_private_function<ARGS_COUNT>(
+    pub fn delegate_call_private_function<let ARGS_COUNT: u32>(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
@@ -330,7 +335,7 @@ impl PrivateContext {
         self.call_private_function_with_packed_args(contract_address, function_selector, 0, true, false)
     }
 
-    pub fn delegate_call_private_function_no_args<ARGS_COUNT>(
+    pub fn delegate_call_private_function_no_args<let ARGS_COUNT: u32>(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector
@@ -419,7 +424,7 @@ impl PrivateContext {
         PackedReturns::new(item.public_inputs.returns_hash)
     }
 
-    pub fn call_public_function<ARGS_COUNT>(
+    pub fn call_public_function<let ARGS_COUNT: u32>(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
@@ -430,7 +435,7 @@ impl PrivateContext {
         self.call_public_function_with_packed_args(contract_address, function_selector, args_hash, false, false)
     }
 
-    pub fn static_call_public_function<ARGS_COUNT>(
+    pub fn static_call_public_function<let ARGS_COUNT: u32>(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
@@ -441,7 +446,7 @@ impl PrivateContext {
         self.call_public_function_with_packed_args(contract_address, function_selector, args_hash, true, false)
     }
 
-    pub fn delegate_call_public_function<ARGS_COUNT>(
+    pub fn delegate_call_public_function<let ARGS_COUNT: u32>(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
@@ -508,7 +513,7 @@ impl PrivateContext {
         self.public_call_stack_hashes.push(item.get_compressed().hash());
     }
 
-    pub fn set_public_teardown_function<ARGS_COUNT>(
+    pub fn set_public_teardown_function<let ARGS_COUNT: u32>(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,
@@ -519,7 +524,7 @@ impl PrivateContext {
         self.set_public_teardown_function_with_packed_args(contract_address, function_selector, args_hash, false, false)
     }
 
-    pub fn set_public_teardown_function_with_packed_args<ARGS_COUNT>(
+    pub fn set_public_teardown_function_with_packed_args<let ARGS_COUNT: u32>(
         &mut self,
         contract_address: AztecAddress,
         function_selector: FunctionSelector,

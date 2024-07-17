@@ -3,7 +3,7 @@ use crate::note::{note_header::NoteHeader, note_interface::NoteInterface};
 use dep::protocol_types::{address::AztecAddress, utils::arr_copy_slice};
 
 #[oracle(notifyCreatedNote)]
-unconstrained fn notify_created_note_oracle<N>(
+unconstrained fn notify_created_note_oracle<let N: u32>(
     _storage_slot: Field,
     _note_type_id: Field,
     _serialized_note: [Field; N],
@@ -11,7 +11,7 @@ unconstrained fn notify_created_note_oracle<N>(
     _counter: u32
 ) -> Field {}
 
-unconstrained pub fn notify_created_note<N>(
+unconstrained pub fn notify_created_note<let N: u32>(
     storage_slot: Field,
     note_type_id: Field,
     serialized_note: [Field; N],
@@ -28,9 +28,9 @@ unconstrained pub fn notify_created_note<N>(
 }
 
 #[oracle(notifyNullifiedNote)]
-unconstrained fn notify_nullified_note_oracle<N>(_nullifier: Field, _inner_note_hash: Field, _counter: u32) -> Field {}
+unconstrained fn notify_nullified_note_oracle<let N: u32>(_nullifier: Field, _inner_note_hash: Field, _counter: u32) -> Field {}
 
-unconstrained pub fn notify_nullified_note<N>(
+unconstrained pub fn notify_nullified_note<let N: u32>(
     nullifier: Field,
     inner_note_hash: Field,
     counter: u32
@@ -39,7 +39,7 @@ unconstrained pub fn notify_nullified_note<N>(
 }
 
 #[oracle(getNotes)]
-unconstrained fn get_notes_oracle<N, S>(
+unconstrained fn get_notes_oracle<let N: u32, let S: u32>(
     _storage_slot: Field,
     _num_selects: u8,
     _select_by_indexes: [u8; N],
@@ -58,7 +58,7 @@ unconstrained fn get_notes_oracle<N, S>(
     _placeholder_fields: [Field; S]
 ) -> [Field; S] {}
 
-unconstrained fn get_notes_oracle_wrapper<N, S>(
+unconstrained fn get_notes_oracle_wrapper<let N: u32, let S: u32>(
     storage_slot: Field,
     num_selects: u8,
     select_by_indexes: [u8; N],
@@ -96,7 +96,7 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     )
 }
 
-unconstrained pub fn get_notes<Note, N, NB, M, S, NS>(
+unconstrained pub fn get_notes<Note, let N: u32, let NB: u32, let M: u32, let S: u32, let NS: u32>(
     storage_slot: Field,
     num_selects: u8,
     select_by_indexes: [u8; M],

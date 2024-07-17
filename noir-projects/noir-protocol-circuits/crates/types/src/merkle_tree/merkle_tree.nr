@@ -1,12 +1,12 @@
 use crate::traits::Empty;
 use crate::merkle_tree::membership::assert_check_membership;
 
-struct MerkleTree<N> {
+struct MerkleTree<let N: u32> {
     leaves: [Field; N],
     nodes: [Field; N],
 }
 
-impl<N> Empty for MerkleTree<N> {
+impl<let N: u32> Empty for MerkleTree<N> {
     fn empty() -> Self {
         MerkleTree {
             leaves: [0; N],
@@ -15,7 +15,7 @@ impl<N> Empty for MerkleTree<N> {
     }
 }
 
-impl<N> MerkleTree<N> {
+impl<let N: u32> MerkleTree<N> {
     pub fn new(leaves: [Field; N]) -> Self {
         let mut nodes = [0; N];
 
@@ -44,7 +44,7 @@ impl<N> MerkleTree<N> {
         if index % 2 == 0 { index + 1 } else { index - 1 }
     }
 
-    fn get_sibling_path<K>(self, leaf_index: u32) -> [Field; K] {
+    fn get_sibling_path<let K: u32>(self, leaf_index: u32) -> [Field; K] {
         assert_eq(2.pow_32(K as Field), N as Field, "Invalid path length");
 
         let mut path = [0; K];

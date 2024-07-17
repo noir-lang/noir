@@ -5,17 +5,20 @@ use dep::protocol_types::{scalar::Scalar, point::Point};
 use std::aes128::aes128_encrypt;
 use crate::keys::point_to_symmetric_key::point_to_symmetric_key;
 
-struct EncryptedLogIncomingBody<M> {
+struct EncryptedLogIncomingBody<let M: u32> {
     plaintext: [u8; M]
 }
 
-impl<M> EncryptedLogIncomingBody<M> {
-    pub fn from_note<T, N>(note: T, storage_slot: Field) -> Self where T: NoteInterface<N, M> {
+impl<let M: u32> EncryptedLogIncomingBody<M> {
+    pub fn from_note<T, let N: u32>(note: T, storage_slot: Field) -> Self where T: NoteInterface<N, M> {
         let mut plaintext = note.to_be_bytes(storage_slot);
         EncryptedLogIncomingBody { plaintext }
     }
 
-    pub fn from_event<T, MR>(event: T, randomness: Field) -> Self where T: EventInterface<M, MR> {
+    pub fn from_event<T, let MR: u32>(
+        event: T,
+        randomness: Field
+    ) -> Self where T: EventInterface<M, MR> {
         let mut plaintext = event.private_to_be_bytes(randomness);
         EncryptedLogIncomingBody { plaintext }
     }

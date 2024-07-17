@@ -6,12 +6,12 @@ use crate::{
     traits::Empty
 };
 
-struct MembershipWitness<N> {
+struct MembershipWitness<let N: u32> {
     leaf_index: Field,
     sibling_path: [Field; N]
 }
 
-impl<N> Empty for MembershipWitness<N> {
+impl<let N: u32> Empty for MembershipWitness<N> {
     fn empty() -> Self {
         MembershipWitness {
             leaf_index: 0,
@@ -20,16 +20,16 @@ impl<N> Empty for MembershipWitness<N> {
     }
 }
 
-pub fn check_membership<N>(leaf: Field, index: Field, sibling_path: [Field; N], root: Field) -> bool {
+pub fn check_membership<let N: u32>(leaf: Field, index: Field, sibling_path: [Field; N], root: Field) -> bool {
     let calculated_root = root_from_sibling_path(leaf, index, sibling_path);
     calculated_root == root
 }
 
-pub fn assert_check_membership<TREE_HEIGHT>(leaf: Field, index: Field, sibling_path: [Field; TREE_HEIGHT], root: Field) {
+pub fn assert_check_membership<let TREE_HEIGHT: u32>(leaf: Field, index: Field, sibling_path: [Field; TREE_HEIGHT], root: Field) {
     assert(check_membership(leaf, index, sibling_path, root), "membership check failed");
 }
 
-pub fn assert_check_non_membership<TREE_HEIGHT, LEAF_PREIMAGE>(
+pub fn assert_check_non_membership<let TREE_HEIGHT: u32, LEAF_PREIMAGE>(
     key: Field,
     low_leaf_preimage: LEAF_PREIMAGE,
     low_leaf_membership_witness: MembershipWitness<TREE_HEIGHT>,
@@ -49,7 +49,7 @@ pub fn assert_check_non_membership<TREE_HEIGHT, LEAF_PREIMAGE>(
 
 // Prove either membership or non-membership depending on the value of `exists`.
 // If `exists` == false, `key` is not in the tree, `leaf_preimage` and `membership_witness` are for the low leaf.
-pub fn conditionally_assert_check_membership<TREE_HEIGHT, LEAF_PREIMAGE>(
+pub fn conditionally_assert_check_membership<let TREE_HEIGHT: u32, LEAF_PREIMAGE>(
     key: Field,
     exists: bool,
     leaf_preimage: LEAF_PREIMAGE,
@@ -120,7 +120,7 @@ mod tests {
         TestLeafPreimage { value: 30, next_value: 40 },
     ];
 
-    fn build_tree<N>() -> NonEmptyMerkleTree<4, 3, 1, 2> {
+    fn build_tree<let N: u32>() -> NonEmptyMerkleTree<4, 3, 1, 2> {
         NonEmptyMerkleTree::new(
             leaf_preimages.map(|leaf_preimage: TestLeafPreimage| leaf_preimage.as_leaf()),
             [0; 3],

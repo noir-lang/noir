@@ -6,19 +6,19 @@ use crate::{
 }
 };
 
-struct SplitOrderHints<N> {
+struct SplitOrderHints<let N: u32> {
     sorted_counters_lt: [u32; N],
     sorted_counters_gte: [u32; N],
     sorted_indexes: [u32; N],
 }
 
-impl<N> SplitOrderHints<N> {
+impl<let N: u32> SplitOrderHints<N> {
     pub fn empty() -> SplitOrderHints<N> {
         SplitOrderHints { sorted_counters_lt: [0; N], sorted_counters_gte: [0; N], sorted_indexes: [0; N] }
     }
 }
 
-impl<N> Eq for SplitOrderHints<N> {
+impl<let N: u32> Eq for SplitOrderHints<N> {
     fn eq(self, other: Self) -> bool {
         (self.sorted_counters_lt == other.sorted_counters_lt)
             & (self.sorted_counters_gte == other.sorted_counters_gte)
@@ -26,7 +26,7 @@ impl<N> Eq for SplitOrderHints<N> {
     }
 }
 
-fn sort_get_split_order_hints<T, N>(
+fn sort_get_split_order_hints<T, let N: u32>(
     array: [T; N],
     split_counter: u32,
     ascending: bool
@@ -67,14 +67,14 @@ fn sort_get_split_order_hints<T, N>(
     SplitOrderHints { sorted_counters_lt, sorted_counters_gte, sorted_indexes }
 }
 
-pub fn sort_get_split_order_hints_asc<T, S, N>(
+pub fn sort_get_split_order_hints_asc<T, S, let N: u32>(
     array: [T; N],
     split_counter: u32
 ) -> SplitOrderHints<N> where T: Ordered + Eq + Empty {
     sort_get_split_order_hints(array, split_counter, true)
 }
 
-pub fn sort_get_split_order_hints_desc<T, S, N>(
+pub fn sort_get_split_order_hints_desc<T, S, let N: u32>(
     array: [T; N],
     split_counter: u32
 ) -> SplitOrderHints<N> where T: Ordered + Eq + Empty {

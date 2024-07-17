@@ -70,7 +70,7 @@ global NoteStatus = NoteStatusEnum {
     // TODO 4217: add 'NULLIFIED'
 };
 
-fn return_all_notes<Note, N>(
+fn return_all_notes<Note, let N: u32>(
     notes: [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     _p: Field
 ) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] {
@@ -78,7 +78,7 @@ fn return_all_notes<Note, N>(
 }
 
 // docs:start:NoteGetterOptions
-struct NoteGetterOptions<Note, N, M, FILTER_ARGS> {
+struct NoteGetterOptions<Note, let N: u32, let M: u32, FILTER_ARGS> {
     selects: BoundedVec<Option<Select>, N>,
     sorts: BoundedVec<Option<Sort>, N>,
     limit: u32,
@@ -93,7 +93,7 @@ struct NoteGetterOptions<Note, N, M, FILTER_ARGS> {
 // The database-level configurations are applied first:
 // `selects` to specify fields, `sorts` to establish sorting criteria, `offset` to skip items, and `limit` to cap the result size.
 // And finally, a custom filter to refine the outcome further.
-impl<Note, N, M, FILTER_ARGS> NoteGetterOptions<Note, N, M, FILTER_ARGS> {
+impl<Note, let N: u32, let M: u32, FILTER_ARGS> NoteGetterOptions<Note, N, M, FILTER_ARGS> {
     // This function initializes a NoteGetterOptions that simply returns the maximum number of notes allowed in a call.
     pub fn new() -> NoteGetterOptions<Note, N, M, Field> where Note: NoteInterface<N, M> {
         NoteGetterOptions {

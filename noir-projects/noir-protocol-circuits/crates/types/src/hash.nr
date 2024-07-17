@@ -16,7 +16,7 @@ use crate::{
 };
 use std::hash::{pedersen_hash_with_separator, sha256};
 
-pub fn sha256_to_field<N>(bytes_to_hash: [u8; N]) -> Field {
+pub fn sha256_to_field<let N: u32>(bytes_to_hash: [u8; N]) -> Field {
     let sha256_hashed = sha256(bytes_to_hash);
     let hash_in_a_field = field_from_bytes_32_trunc(sha256_hashed);
 
@@ -248,11 +248,11 @@ pub fn compute_tx_note_logs_hash(logs: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX]
     hash
 }
 
-pub fn pedersen_hash<N>(inputs: [Field; N], hash_index: u32) -> Field {
+pub fn pedersen_hash<let N: u32>(inputs: [Field; N], hash_index: u32) -> Field {
     std::hash::pedersen_hash_with_separator(inputs, hash_index)
 }
 
-pub fn poseidon2_hash<N>(inputs: [Field; N]) -> Field {
+pub fn poseidon2_hash<let N: u32>(inputs: [Field; N]) -> Field {
     std::hash::poseidon2::Poseidon2::hash(inputs, N)
 }
 
