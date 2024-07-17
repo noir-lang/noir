@@ -56,7 +56,7 @@ class incl_main_tag_err_lookup_settings {
 template <typename FF_>
 class incl_main_tag_err_relation : public GenericLookupRelation<incl_main_tag_err_lookup_settings, FF_> {
   public:
-    static constexpr const char* NAME = "incl_main_tag_err";
+    static constexpr const char* NAME = "INCL_MAIN_TAG_ERR";
 };
 template <typename FF_> using incl_main_tag_err = GenericLookup<incl_main_tag_err_lookup_settings, FF_>;
 

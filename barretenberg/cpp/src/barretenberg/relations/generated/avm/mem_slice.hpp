@@ -27,33 +27,6 @@ template <typename FF> struct MemSliceRow {
     FF slice_space_id_shift{};
 };
 
-inline std::string get_relation_label_mem_slice(int index)
-{
-    switch (index) {
-    case 1:
-        return "SLICE_CNT_ZERO_TEST1";
-    case 2:
-        return "SLICE_CNT_ZERO_TEST2";
-    case 3:
-        return "SLICE_CNT_DECREMENT";
-    case 4:
-        return "ADDR_INCREMENT";
-    case 5:
-        return "COL_OFFSET_INCREMENT";
-    case 6:
-        return "SAME_CLK";
-    case 7:
-        return "SAME_SPACE_ID";
-    case 8:
-        return "SAME_SEL_RETURN";
-    case 9:
-        return "SAME_SEL_CD_CPY";
-    case 10:
-        return "SEL_MEM_INACTIVE";
-    }
-    return std::to_string(index);
-}
-
 template <typename FF_> class mem_sliceImpl {
   public:
     using FF = FF_;
@@ -139,6 +112,36 @@ template <typename FF_> class mem_sliceImpl {
     }
 };
 
-template <typename FF> using mem_slice = Relation<mem_sliceImpl<FF>>;
+template <typename FF> class mem_slice : public Relation<mem_sliceImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "mem_slice";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {
+        case 1:
+            return "SLICE_CNT_ZERO_TEST1";
+        case 2:
+            return "SLICE_CNT_ZERO_TEST2";
+        case 3:
+            return "SLICE_CNT_DECREMENT";
+        case 4:
+            return "ADDR_INCREMENT";
+        case 5:
+            return "COL_OFFSET_INCREMENT";
+        case 6:
+            return "SAME_CLK";
+        case 7:
+            return "SAME_SPACE_ID";
+        case 8:
+            return "SAME_SEL_RETURN";
+        case 9:
+            return "SAME_SEL_CD_CPY";
+        case 10:
+            return "SEL_MEM_INACTIVE";
+        }
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

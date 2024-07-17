@@ -10,12 +10,6 @@ template <typename FF> struct ConversionRow {
     FF conversion_sel_to_radix_le{};
 };
 
-inline std::string get_relation_label_conversion(int index)
-{
-    switch (index) {}
-    return std::to_string(index);
-}
-
 template <typename FF_> class conversionImpl {
   public:
     using FF = FF_;
@@ -37,6 +31,15 @@ template <typename FF_> class conversionImpl {
     }
 };
 
-template <typename FF> using conversion = Relation<conversionImpl<FF>>;
+template <typename FF> class conversion : public Relation<conversionImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "conversion";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {}
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

@@ -55,7 +55,7 @@ class lookup_u16_7_lookup_settings {
 
 template <typename FF_> class lookup_u16_7_relation : public GenericLookupRelation<lookup_u16_7_lookup_settings, FF_> {
   public:
-    static constexpr const char* NAME = "lookup_u16_7";
+    static constexpr const char* NAME = "LOOKUP_U16_7";
 };
 template <typename FF_> using lookup_u16_7 = GenericLookup<lookup_u16_7_lookup_settings, FF_>;
 

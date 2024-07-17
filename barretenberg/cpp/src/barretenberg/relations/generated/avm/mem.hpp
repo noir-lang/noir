@@ -48,47 +48,6 @@ template <typename FF> struct MemRow {
     FF mem_w_in_tag{};
 };
 
-inline std::string get_relation_label_mem(int index)
-{
-    switch (index) {
-    case 15:
-        return "MEM_CONTIGUOUS";
-    case 16:
-        return "MEM_FIRST_EMPTY";
-    case 17:
-        return "MEM_LAST";
-    case 19:
-        return "TIMESTAMP";
-    case 20:
-        return "GLOBAL_ADDR";
-    case 21:
-        return "LAST_ACCESS_FIRST_ROW";
-    case 22:
-        return "MEM_LAST_ACCESS_DELIMITER";
-    case 23:
-        return "DIFF_RNG_CHK_DEC";
-    case 24:
-        return "MEM_READ_WRITE_VAL_CONSISTENCY";
-    case 25:
-        return "MEM_READ_WRITE_TAG_CONSISTENCY";
-    case 26:
-        return "MEM_ZERO_INIT";
-    case 27:
-        return "SKIP_CHECK_TAG";
-    case 28:
-        return "MEM_IN_TAG_CONSISTENCY_1";
-    case 29:
-        return "MEM_IN_TAG_CONSISTENCY_2";
-    case 30:
-        return "NO_TAG_ERR_WRITE_OR_SKIP";
-    case 32:
-        return "NO_TAG_ERR_WRITE";
-    case 43:
-        return "MOV_SAME_TAG";
-    }
-    return std::to_string(index);
-}
-
 template <typename FF_> class memImpl {
   public:
     using FF = FF_;
@@ -403,6 +362,50 @@ template <typename FF_> class memImpl {
     }
 };
 
-template <typename FF> using mem = Relation<memImpl<FF>>;
+template <typename FF> class mem : public Relation<memImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "mem";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {
+        case 15:
+            return "MEM_CONTIGUOUS";
+        case 16:
+            return "MEM_FIRST_EMPTY";
+        case 17:
+            return "MEM_LAST";
+        case 19:
+            return "TIMESTAMP";
+        case 20:
+            return "GLOBAL_ADDR";
+        case 21:
+            return "LAST_ACCESS_FIRST_ROW";
+        case 22:
+            return "MEM_LAST_ACCESS_DELIMITER";
+        case 23:
+            return "DIFF_RNG_CHK_DEC";
+        case 24:
+            return "MEM_READ_WRITE_VAL_CONSISTENCY";
+        case 25:
+            return "MEM_READ_WRITE_TAG_CONSISTENCY";
+        case 26:
+            return "MEM_ZERO_INIT";
+        case 27:
+            return "SKIP_CHECK_TAG";
+        case 28:
+            return "MEM_IN_TAG_CONSISTENCY_1";
+        case 29:
+            return "MEM_IN_TAG_CONSISTENCY_2";
+        case 30:
+            return "NO_TAG_ERR_WRITE_OR_SKIP";
+        case 32:
+            return "NO_TAG_ERR_WRITE";
+        case 43:
+            return "MOV_SAME_TAG";
+        }
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

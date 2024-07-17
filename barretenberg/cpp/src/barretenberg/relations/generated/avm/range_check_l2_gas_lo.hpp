@@ -56,7 +56,7 @@ class range_check_l2_gas_lo_lookup_settings {
 template <typename FF_>
 class range_check_l2_gas_lo_relation : public GenericLookupRelation<range_check_l2_gas_lo_lookup_settings, FF_> {
   public:
-    static constexpr const char* NAME = "range_check_l2_gas_lo";
+    static constexpr const char* NAME = "RANGE_CHECK_L2_GAS_LO";
 };
 template <typename FF_> using range_check_l2_gas_lo = GenericLookup<range_check_l2_gas_lo_lookup_settings, FF_>;
 

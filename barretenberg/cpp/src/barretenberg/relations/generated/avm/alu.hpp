@@ -129,105 +129,6 @@ template <typename FF> struct AluRow {
     FF alu_u8_tag{};
 };
 
-inline std::string get_relation_label_alu(int index)
-{
-    switch (index) {
-    case 12:
-        return "ALU_ADD_SUB_1";
-    case 13:
-        return "ALU_ADD_SUB_2";
-    case 14:
-        return "ALU_MULTIPLICATION_FF";
-    case 15:
-        return "ALU_MUL_COMMON_1";
-    case 16:
-        return "ALU_MUL_COMMON_2";
-    case 19:
-        return "ALU_MULTIPLICATION_OUT_U128";
-    case 20:
-        return "ALU_FF_NOT_XOR";
-    case 21:
-        return "ALU_OP_NOT";
-    case 22:
-        return "ALU_RES_IS_BOOL";
-    case 23:
-        return "ALU_OP_EQ";
-    case 24:
-        return "INPUT_DECOMP_1";
-    case 25:
-        return "INPUT_DECOMP_2";
-    case 27:
-        return "SUB_LO_1";
-    case 28:
-        return "SUB_HI_1";
-    case 30:
-        return "SUB_LO_2";
-    case 31:
-        return "SUB_HI_2";
-    case 32:
-        return "RES_LO";
-    case 33:
-        return "RES_HI";
-    case 34:
-        return "CMP_CTR_REL_1";
-    case 35:
-        return "CMP_CTR_REL_2";
-    case 38:
-        return "CTR_NON_ZERO_REL";
-    case 39:
-        return "RNG_CHK_LOOKUP_SELECTOR";
-    case 40:
-        return "LOWER_CMP_RNG_CHK";
-    case 41:
-        return "UPPER_CMP_RNG_CHK";
-    case 42:
-        return "SHIFT_RELS_0";
-    case 44:
-        return "SHIFT_RELS_1";
-    case 46:
-        return "SHIFT_RELS_2";
-    case 48:
-        return "SHIFT_RELS_3";
-    case 50:
-        return "OP_CAST_PREV_LINE";
-    case 51:
-        return "ALU_OP_CAST";
-    case 52:
-        return "OP_CAST_RNG_CHECK_P_SUB_A_LOW";
-    case 53:
-        return "OP_CAST_RNG_CHECK_P_SUB_A_HIGH";
-    case 54:
-        return "TWO_LINE_OP_NO_OVERLAP";
-    case 55:
-        return "SHR_RANGE_0";
-    case 56:
-        return "SHR_RANGE_1";
-    case 57:
-        return "SHL_RANGE_0";
-    case 58:
-        return "SHL_RANGE_1";
-    case 60:
-        return "SHIFT_LT_BIT_LEN";
-    case 61:
-        return "SHR_INPUT_DECOMPOSITION";
-    case 62:
-        return "SHR_OUTPUT";
-    case 63:
-        return "SHL_INPUT_DECOMPOSITION";
-    case 64:
-        return "SHL_OUTPUT";
-    case 74:
-        return "ALU_PROD_DIV";
-    case 75:
-        return "REMAINDER_RANGE_CHK";
-    case 76:
-        return "CMP_CTR_REL_3";
-    case 78:
-        return "DIVISION_RELATION";
-    }
-    return std::to_string(index);
-}
-
 template <typename FF_> class aluImpl {
   public:
     using FF = FF_;
@@ -1040,6 +941,108 @@ template <typename FF_> class aluImpl {
     }
 };
 
-template <typename FF> using alu = Relation<aluImpl<FF>>;
+template <typename FF> class alu : public Relation<aluImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "alu";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {
+        case 12:
+            return "ALU_ADD_SUB_1";
+        case 13:
+            return "ALU_ADD_SUB_2";
+        case 14:
+            return "ALU_MULTIPLICATION_FF";
+        case 15:
+            return "ALU_MUL_COMMON_1";
+        case 16:
+            return "ALU_MUL_COMMON_2";
+        case 19:
+            return "ALU_MULTIPLICATION_OUT_U128";
+        case 20:
+            return "ALU_FF_NOT_XOR";
+        case 21:
+            return "ALU_OP_NOT";
+        case 22:
+            return "ALU_RES_IS_BOOL";
+        case 23:
+            return "ALU_OP_EQ";
+        case 24:
+            return "INPUT_DECOMP_1";
+        case 25:
+            return "INPUT_DECOMP_2";
+        case 27:
+            return "SUB_LO_1";
+        case 28:
+            return "SUB_HI_1";
+        case 30:
+            return "SUB_LO_2";
+        case 31:
+            return "SUB_HI_2";
+        case 32:
+            return "RES_LO";
+        case 33:
+            return "RES_HI";
+        case 34:
+            return "CMP_CTR_REL_1";
+        case 35:
+            return "CMP_CTR_REL_2";
+        case 38:
+            return "CTR_NON_ZERO_REL";
+        case 39:
+            return "RNG_CHK_LOOKUP_SELECTOR";
+        case 40:
+            return "LOWER_CMP_RNG_CHK";
+        case 41:
+            return "UPPER_CMP_RNG_CHK";
+        case 42:
+            return "SHIFT_RELS_0";
+        case 44:
+            return "SHIFT_RELS_1";
+        case 46:
+            return "SHIFT_RELS_2";
+        case 48:
+            return "SHIFT_RELS_3";
+        case 50:
+            return "OP_CAST_PREV_LINE";
+        case 51:
+            return "ALU_OP_CAST";
+        case 52:
+            return "OP_CAST_RNG_CHECK_P_SUB_A_LOW";
+        case 53:
+            return "OP_CAST_RNG_CHECK_P_SUB_A_HIGH";
+        case 54:
+            return "TWO_LINE_OP_NO_OVERLAP";
+        case 55:
+            return "SHR_RANGE_0";
+        case 56:
+            return "SHR_RANGE_1";
+        case 57:
+            return "SHL_RANGE_0";
+        case 58:
+            return "SHL_RANGE_1";
+        case 60:
+            return "SHIFT_LT_BIT_LEN";
+        case 61:
+            return "SHR_INPUT_DECOMPOSITION";
+        case 62:
+            return "SHR_OUTPUT";
+        case 63:
+            return "SHL_INPUT_DECOMPOSITION";
+        case 64:
+            return "SHL_OUTPUT";
+        case 74:
+            return "ALU_PROD_DIV";
+        case 75:
+            return "REMAINDER_RANGE_CHK";
+        case 76:
+            return "CMP_CTR_REL_3";
+        case 78:
+            return "DIVISION_RELATION";
+        }
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

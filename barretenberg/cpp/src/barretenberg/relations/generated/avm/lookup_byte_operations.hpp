@@ -68,7 +68,7 @@ class lookup_byte_operations_lookup_settings {
 template <typename FF_>
 class lookup_byte_operations_relation : public GenericLookupRelation<lookup_byte_operations_lookup_settings, FF_> {
   public:
-    static constexpr const char* NAME = "lookup_byte_operations";
+    static constexpr const char* NAME = "LOOKUP_BYTE_OPERATIONS";
 };
 template <typename FF_> using lookup_byte_operations = GenericLookup<lookup_byte_operations_lookup_settings, FF_>;
 

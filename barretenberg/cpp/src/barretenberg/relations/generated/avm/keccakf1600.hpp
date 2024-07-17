@@ -10,12 +10,6 @@ template <typename FF> struct Keccakf1600Row {
     FF keccakf1600_sel_keccakf1600{};
 };
 
-inline std::string get_relation_label_keccakf1600(int index)
-{
-    switch (index) {}
-    return std::to_string(index);
-}
-
 template <typename FF_> class keccakf1600Impl {
   public:
     using FF = FF_;
@@ -37,6 +31,15 @@ template <typename FF_> class keccakf1600Impl {
     }
 };
 
-template <typename FF> using keccakf1600 = Relation<keccakf1600Impl<FF>>;
+template <typename FF> class keccakf1600 : public Relation<keccakf1600Impl<FF>> {
+  public:
+    static constexpr const char* NAME = "keccakf1600";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {}
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

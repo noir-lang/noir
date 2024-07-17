@@ -131,115 +131,6 @@ template <typename FF> struct MainRow {
     FF main_w_in_tag{};
 };
 
-inline std::string get_relation_label_main(int index)
-{
-    switch (index) {
-    case 2:
-        return "L2_GAS_REMAINING_DECREMENT";
-    case 3:
-        return "DA_GAS_REMAINING_DECREMENT";
-    case 4:
-        return "L2_GAS_INACTIVE";
-    case 5:
-        return "DA_GAS_INACTIVE";
-    case 77:
-        return "OUTPUT_U8";
-    case 78:
-        return "SUBOP_FDIV";
-    case 79:
-        return "SUBOP_FDIV_ZERO_ERR1";
-    case 80:
-        return "SUBOP_FDIV_ZERO_ERR2";
-    case 81:
-        return "SUBOP_FDIV_R_IN_TAG_FF";
-    case 82:
-        return "SUBOP_FDIV_W_IN_TAG_FF";
-    case 83:
-        return "SUBOP_ERROR_RELEVANT_OP";
-    case 84:
-        return "KERNEL_INPUT_ACTIVE_CHECK";
-    case 85:
-        return "KERNEL_OUTPUT_ACTIVE_CHECK";
-    case 86:
-        return "PC_JUMP";
-    case 87:
-        return "PC_JUMPI";
-    case 88:
-        return "RETURN_POINTER_INCREMENT";
-    case 94:
-        return "RETURN_POINTER_DECREMENT";
-    case 100:
-        return "PC_INCREMENT";
-    case 101:
-        return "INTERNAL_RETURN_POINTER_CONSISTENCY";
-    case 102:
-        return "SPACE_ID_INTERNAL";
-    case 103:
-        return "SPACE_ID_STANDARD_OPCODES";
-    case 104:
-        return "CMOV_CONDITION_RES_1";
-    case 105:
-        return "CMOV_CONDITION_RES_2";
-    case 108:
-        return "MOV_SAME_VALUE_A";
-    case 109:
-        return "MOV_SAME_VALUE_B";
-    case 110:
-        return "MOV_MAIN_SAME_TAG";
-    case 114:
-        return "L2GASLEFT";
-    case 115:
-        return "DAGASLEFT";
-    case 116:
-        return "ADDRESS_KERNEL";
-    case 117:
-        return "STORAGE_ADDRESS_KERNEL";
-    case 118:
-        return "SENDER_KERNEL";
-    case 119:
-        return "FUNCTION_SELECTOR_KERNEL";
-    case 120:
-        return "FEE_TRANSACTION_FEE_KERNEL";
-    case 121:
-        return "CHAIN_ID_KERNEL";
-    case 122:
-        return "VERSION_KERNEL";
-    case 123:
-        return "BLOCK_NUMBER_KERNEL";
-    case 124:
-        return "TIMESTAMP_KERNEL";
-    case 125:
-        return "COINBASE_KERNEL";
-    case 126:
-        return "FEE_DA_GAS_KERNEL";
-    case 127:
-        return "FEE_L2_GAS_KERNEL";
-    case 128:
-        return "NOTE_HASH_KERNEL_OUTPUT";
-    case 130:
-        return "EMIT_NOTE_HASH_KERNEL_OUTPUT";
-    case 132:
-        return "NULLIFIER_EXISTS_KERNEL_OUTPUT";
-    case 135:
-        return "EMIT_NULLIFIER_KERNEL_OUTPUT";
-    case 137:
-        return "L1_TO_L2_MSG_EXISTS_KERNEL_OUTPUT";
-    case 139:
-        return "EMIT_UNENCRYPTED_LOG_KERNEL_OUTPUT";
-    case 141:
-        return "EMIT_L2_TO_L1_MSGS_KERNEL_OUTPUT";
-    case 143:
-        return "SLOAD_KERNEL_OUTPUT";
-    case 145:
-        return "SSTORE_KERNEL_OUTPUT";
-    case 149:
-        return "BIN_SEL_1";
-    case 150:
-        return "BIN_SEL_2";
-    }
-    return std::to_string(index);
-}
-
 template <typename FF_> class mainImpl {
   public:
     using FF = FF_;
@@ -1373,6 +1264,118 @@ template <typename FF_> class mainImpl {
     }
 };
 
-template <typename FF> using main = Relation<mainImpl<FF>>;
+template <typename FF> class main : public Relation<mainImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "main";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {
+        case 2:
+            return "L2_GAS_REMAINING_DECREMENT";
+        case 3:
+            return "DA_GAS_REMAINING_DECREMENT";
+        case 4:
+            return "L2_GAS_INACTIVE";
+        case 5:
+            return "DA_GAS_INACTIVE";
+        case 77:
+            return "OUTPUT_U8";
+        case 78:
+            return "SUBOP_FDIV";
+        case 79:
+            return "SUBOP_FDIV_ZERO_ERR1";
+        case 80:
+            return "SUBOP_FDIV_ZERO_ERR2";
+        case 81:
+            return "SUBOP_FDIV_R_IN_TAG_FF";
+        case 82:
+            return "SUBOP_FDIV_W_IN_TAG_FF";
+        case 83:
+            return "SUBOP_ERROR_RELEVANT_OP";
+        case 84:
+            return "KERNEL_INPUT_ACTIVE_CHECK";
+        case 85:
+            return "KERNEL_OUTPUT_ACTIVE_CHECK";
+        case 86:
+            return "PC_JUMP";
+        case 87:
+            return "PC_JUMPI";
+        case 88:
+            return "RETURN_POINTER_INCREMENT";
+        case 94:
+            return "RETURN_POINTER_DECREMENT";
+        case 100:
+            return "PC_INCREMENT";
+        case 101:
+            return "INTERNAL_RETURN_POINTER_CONSISTENCY";
+        case 102:
+            return "SPACE_ID_INTERNAL";
+        case 103:
+            return "SPACE_ID_STANDARD_OPCODES";
+        case 104:
+            return "CMOV_CONDITION_RES_1";
+        case 105:
+            return "CMOV_CONDITION_RES_2";
+        case 108:
+            return "MOV_SAME_VALUE_A";
+        case 109:
+            return "MOV_SAME_VALUE_B";
+        case 110:
+            return "MOV_MAIN_SAME_TAG";
+        case 114:
+            return "L2GASLEFT";
+        case 115:
+            return "DAGASLEFT";
+        case 116:
+            return "ADDRESS_KERNEL";
+        case 117:
+            return "STORAGE_ADDRESS_KERNEL";
+        case 118:
+            return "SENDER_KERNEL";
+        case 119:
+            return "FUNCTION_SELECTOR_KERNEL";
+        case 120:
+            return "FEE_TRANSACTION_FEE_KERNEL";
+        case 121:
+            return "CHAIN_ID_KERNEL";
+        case 122:
+            return "VERSION_KERNEL";
+        case 123:
+            return "BLOCK_NUMBER_KERNEL";
+        case 124:
+            return "TIMESTAMP_KERNEL";
+        case 125:
+            return "COINBASE_KERNEL";
+        case 126:
+            return "FEE_DA_GAS_KERNEL";
+        case 127:
+            return "FEE_L2_GAS_KERNEL";
+        case 128:
+            return "NOTE_HASH_KERNEL_OUTPUT";
+        case 130:
+            return "EMIT_NOTE_HASH_KERNEL_OUTPUT";
+        case 132:
+            return "NULLIFIER_EXISTS_KERNEL_OUTPUT";
+        case 135:
+            return "EMIT_NULLIFIER_KERNEL_OUTPUT";
+        case 137:
+            return "L1_TO_L2_MSG_EXISTS_KERNEL_OUTPUT";
+        case 139:
+            return "EMIT_UNENCRYPTED_LOG_KERNEL_OUTPUT";
+        case 141:
+            return "EMIT_L2_TO_L1_MSGS_KERNEL_OUTPUT";
+        case 143:
+            return "SLOAD_KERNEL_OUTPUT";
+        case 145:
+            return "SSTORE_KERNEL_OUTPUT";
+        case 149:
+            return "BIN_SEL_1";
+        case 150:
+            return "BIN_SEL_2";
+        }
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

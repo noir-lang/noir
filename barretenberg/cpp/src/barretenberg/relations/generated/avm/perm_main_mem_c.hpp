@@ -65,7 +65,7 @@ class perm_main_mem_c_permutation_settings {
 template <typename FF_>
 class perm_main_mem_c_relation : public GenericPermutationRelation<perm_main_mem_c_permutation_settings, FF_> {
   public:
-    static constexpr const char* NAME = "perm_main_mem_c";
+    static constexpr const char* NAME = "PERM_MAIN_MEM_C";
 };
 template <typename FF_> using perm_main_mem_c = GenericPermutation<perm_main_mem_c_permutation_settings, FF_>;
 

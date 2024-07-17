@@ -10,12 +10,6 @@ template <typename FF> struct PowersRow {
     FF powers_power_of_2{};
 };
 
-inline std::string get_relation_label_powers(int index)
-{
-    switch (index) {}
-    return std::to_string(index);
-}
-
 template <typename FF_> class powersImpl {
   public:
     using FF = FF_;
@@ -37,6 +31,15 @@ template <typename FF_> class powersImpl {
     }
 };
 
-template <typename FF> using powers = Relation<powersImpl<FF>>;
+template <typename FF> class powers : public Relation<powersImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "powers";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {}
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

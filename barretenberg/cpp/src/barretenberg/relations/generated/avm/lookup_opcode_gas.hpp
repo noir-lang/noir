@@ -64,7 +64,7 @@ class lookup_opcode_gas_lookup_settings {
 template <typename FF_>
 class lookup_opcode_gas_relation : public GenericLookupRelation<lookup_opcode_gas_lookup_settings, FF_> {
   public:
-    static constexpr const char* NAME = "lookup_opcode_gas";
+    static constexpr const char* NAME = "LOOKUP_OPCODE_GAS";
 };
 template <typename FF_> using lookup_opcode_gas = GenericLookup<lookup_opcode_gas_lookup_settings, FF_>;
 

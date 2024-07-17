@@ -12,16 +12,6 @@ template <typename FF> struct {{upperCamelCase name}}Row {
     {{/each}}
 };
 
-inline std::string get_relation_label_{{name}}(int index) {
-    switch (index) {
-        {{#each labels as |label|}}
-        case {{label.0}}:
-            return "{{label.1}}";
-        {{/each}}
-    }
-    return std::to_string(index);
-}
-
 template <typename FF_> class {{name}}Impl {
     public:
         using FF = FF_;
@@ -48,6 +38,19 @@ template <typename FF_> class {{name}}Impl {
         }
 };
 
-template <typename FF> using {{name}} = Relation<{{name}}Impl<FF>>;
+template <typename FF> class {{name}} : public Relation<{{name}}Impl<FF>> {
+    public:
+        static constexpr const char* NAME = "{{name}}";
+
+        static std::string get_subrelation_label(size_t index) {
+            switch (index) {
+                {{#each labels as |label|}}
+                case {{label.0}}:
+                    return "{{label.1}}";
+                {{/each}}
+            }
+            return std::to_string(index);
+        }
+};
 
 } // namespace bb::{{root_name}}_vm

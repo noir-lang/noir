@@ -6,13 +6,15 @@
 #include <array>
 
 #define EXPECT_THROW_WITH_MESSAGE(code, expectedMessage)                                                               \
-    try {                                                                                                              \
-        code;                                                                                                          \
-        FAIL() << "An exception was expected";                                                                         \
-    } catch (const std::exception& e) {                                                                                \
-        std::string message = e.what();                                                                                \
-        EXPECT_THAT(message, ::testing::HasSubstr(expectedMessage));                                                   \
-    }
+    EXPECT_DEATH(                                                                                                      \
+        try {                                                                                                          \
+            code;                                                                                                      \
+            FAIL() << "An exception was expected";                                                                     \
+        } catch (const std::exception& e) {                                                                            \
+            std::cerr << e.what();                                                                                     \
+            std::abort();                                                                                              \
+        },                                                                                                             \
+        expectedMessage);
 
 #define MAIN_ROW_FIELD_EQ(field_name, expression) Field(#field_name, &Row::main_##field_name, expression)
 #define MEM_ROW_FIELD_EQ(field_name, expression) Field(#field_name, &Row::mem_##field_name, expression)

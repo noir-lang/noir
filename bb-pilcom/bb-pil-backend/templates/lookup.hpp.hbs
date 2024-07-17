@@ -53,7 +53,7 @@ class {{lookup_name}}_lookup_settings {
 
 template <typename FF_> class {{lookup_name}}_relation : public GenericLookupRelation<{{lookup_name}}_lookup_settings, FF_> {
     public:
-        static constexpr const char* NAME = "{{lookup_name}}";
+        static constexpr const char* NAME = "{{shoutySnakeCase lookup_name}}";
 };
 template <typename FF_> using {{lookup_name}} = GenericLookup<{{lookup_name}}_lookup_settings, FF_>;
 

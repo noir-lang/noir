@@ -40,33 +40,6 @@ template <typename FF> struct KernelRow {
     FF main_sel_op_sstore{};
 };
 
-inline std::string get_relation_label_kernel(int index)
-{
-    switch (index) {
-    case 0:
-        return "NOTE_HASH_EXISTS_INC_CONSISTENCY_CHECK";
-    case 1:
-        return "EMIT_NOTE_HASH_INC_CONSISTENCY_CHECK";
-    case 2:
-        return "NULLIFIER_EXISTS_INC_CONSISTENCY_CHECK";
-    case 3:
-        return "NULLIFIER_NON_EXISTS_INC_CONSISTENCY_CHECK";
-    case 4:
-        return "EMIT_NULLIFIER_INC_CONSISTENCY_CHECK";
-    case 5:
-        return "L1_TO_L2_MSG_EXISTS_INC_CONSISTENCY_CHECK";
-    case 6:
-        return "EMIT_UNENCRYPTED_LOG_INC_CONSISTENCY_CHECK";
-    case 7:
-        return "EMIT_L2_TO_L1_MSG_INC_CONSISTENCY_CHECK";
-    case 8:
-        return "SLOAD_INC_CONSISTENCY_CHECK";
-    case 9:
-        return "SSTORE_INC_CONSISTENCY_CHECK";
-    }
-    return std::to_string(index);
-}
-
 template <typename FF_> class kernelImpl {
   public:
     using FF = FF_;
@@ -166,6 +139,36 @@ template <typename FF_> class kernelImpl {
     }
 };
 
-template <typename FF> using kernel = Relation<kernelImpl<FF>>;
+template <typename FF> class kernel : public Relation<kernelImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "kernel";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {
+        case 0:
+            return "NOTE_HASH_EXISTS_INC_CONSISTENCY_CHECK";
+        case 1:
+            return "EMIT_NOTE_HASH_INC_CONSISTENCY_CHECK";
+        case 2:
+            return "NULLIFIER_EXISTS_INC_CONSISTENCY_CHECK";
+        case 3:
+            return "NULLIFIER_NON_EXISTS_INC_CONSISTENCY_CHECK";
+        case 4:
+            return "EMIT_NULLIFIER_INC_CONSISTENCY_CHECK";
+        case 5:
+            return "L1_TO_L2_MSG_EXISTS_INC_CONSISTENCY_CHECK";
+        case 6:
+            return "EMIT_UNENCRYPTED_LOG_INC_CONSISTENCY_CHECK";
+        case 7:
+            return "EMIT_L2_TO_L1_MSG_INC_CONSISTENCY_CHECK";
+        case 8:
+            return "SLOAD_INC_CONSISTENCY_CHECK";
+        case 9:
+            return "SSTORE_INC_CONSISTENCY_CHECK";
+        }
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

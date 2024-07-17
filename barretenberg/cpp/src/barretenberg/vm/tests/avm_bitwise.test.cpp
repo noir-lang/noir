@@ -666,7 +666,7 @@ TEST_P(AvmBitwiseNegativeTestsXor, AllNegativeTests)
     auto trace = trace_builder.finalize();
     std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_xor == FF(1); };
     trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
-    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string)
+    EXPECT_THROW_WITH_MESSAGE(validate_trace_check_circuit(std::move(trace)), failure_string);
 }
 INSTANTIATE_TEST_SUITE_P(AvmBitwiseNegativeTests,
                          AvmBitwiseNegativeTestsXor,

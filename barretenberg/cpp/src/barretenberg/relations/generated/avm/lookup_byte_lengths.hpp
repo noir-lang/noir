@@ -60,7 +60,7 @@ class lookup_byte_lengths_lookup_settings {
 template <typename FF_>
 class lookup_byte_lengths_relation : public GenericLookupRelation<lookup_byte_lengths_lookup_settings, FF_> {
   public:
-    static constexpr const char* NAME = "lookup_byte_lengths";
+    static constexpr const char* NAME = "LOOKUP_BYTE_LENGTHS";
 };
 template <typename FF_> using lookup_byte_lengths = GenericLookup<lookup_byte_lengths_lookup_settings, FF_>;
 

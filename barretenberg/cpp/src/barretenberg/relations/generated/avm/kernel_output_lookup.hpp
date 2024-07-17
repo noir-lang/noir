@@ -68,7 +68,7 @@ class kernel_output_lookup_lookup_settings {
 template <typename FF_>
 class kernel_output_lookup_relation : public GenericLookupRelation<kernel_output_lookup_lookup_settings, FF_> {
   public:
-    static constexpr const char* NAME = "kernel_output_lookup";
+    static constexpr const char* NAME = "KERNEL_OUTPUT_LOOKUP";
 };
 template <typename FF_> using kernel_output_lookup = GenericLookup<kernel_output_lookup_lookup_settings, FF_>;
 

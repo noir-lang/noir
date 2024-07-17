@@ -24,25 +24,6 @@ template <typename FF> struct BinaryRow {
     FF binary_sel_bin{};
 };
 
-inline std::string get_relation_label_binary(int index)
-{
-    switch (index) {
-    case 1:
-        return "OP_ID_REL";
-    case 2:
-        return "MEM_TAG_REL";
-    case 3:
-        return "SEL_BIN_CTR_REL";
-    case 7:
-        return "ACC_REL_A";
-    case 8:
-        return "ACC_REL_B";
-    case 9:
-        return "ACC_REL_C";
-    }
-    return std::to_string(index);
-}
-
 template <typename FF_> class binaryImpl {
   public:
     using FF = FF_;
@@ -128,6 +109,28 @@ template <typename FF_> class binaryImpl {
     }
 };
 
-template <typename FF> using binary = Relation<binaryImpl<FF>>;
+template <typename FF> class binary : public Relation<binaryImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "binary";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {
+        case 1:
+            return "OP_ID_REL";
+        case 2:
+            return "MEM_TAG_REL";
+        case 3:
+            return "SEL_BIN_CTR_REL";
+        case 7:
+            return "ACC_REL_A";
+        case 8:
+            return "ACC_REL_B";
+        case 9:
+            return "ACC_REL_C";
+        }
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

@@ -19,6 +19,13 @@ inline size_t get_num_cpus_pow2()
     return static_cast<size_t>(1ULL << numeric::get_msb(get_num_cpus()));
 }
 
+/**
+ * Creates a thread pool and runs the function in parallel.
+ * @param num_iterations Number of iterations
+ * @param func Function to run in parallel
+ * Observe that num_iterations is NOT the thread pool size.
+ * The size will be chosen based on the hardware concurrency (i.e., env or cpus)..
+ */
 void parallel_for(size_t num_iterations, const std::function<void(size_t)>& func);
 void run_loop_in_parallel(size_t num_points,
                           const std::function<void(size_t, size_t)>& func,
@@ -30,7 +37,7 @@ template <typename FunctionType>
 void run_loop_in_parallel_if_effective_internal(
     size_t, const FunctionType&, size_t, size_t, size_t, size_t, size_t, size_t, size_t);
 /**
- * @brief Runs loop in parallel if parallelization if useful (costs less than the algorith)
+ * @brief Runs loop in parallel if parallelization if useful (costs less than the algorithm)
  *
  * @details Please see run_loop_in_parallel_if_effective_internal for detailed description
  *

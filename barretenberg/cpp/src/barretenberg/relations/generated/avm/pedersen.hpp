@@ -10,12 +10,6 @@ template <typename FF> struct PedersenRow {
     FF pedersen_sel_pedersen{};
 };
 
-inline std::string get_relation_label_pedersen(int index)
-{
-    switch (index) {}
-    return std::to_string(index);
-}
-
 template <typename FF_> class pedersenImpl {
   public:
     using FF = FF_;
@@ -37,6 +31,15 @@ template <typename FF_> class pedersenImpl {
     }
 };
 
-template <typename FF> using pedersen = Relation<pedersenImpl<FF>>;
+template <typename FF> class pedersen : public Relation<pedersenImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "pedersen";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {}
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

@@ -10,12 +10,6 @@ template <typename FF> struct Sha256Row {
     FF sha256_sel_sha256_compression{};
 };
 
-inline std::string get_relation_label_sha256(int index)
-{
-    switch (index) {}
-    return std::to_string(index);
-}
-
 template <typename FF_> class sha256Impl {
   public:
     using FF = FF_;
@@ -37,6 +31,15 @@ template <typename FF_> class sha256Impl {
     }
 };
 
-template <typename FF> using sha256 = Relation<sha256Impl<FF>>;
+template <typename FF> class sha256 : public Relation<sha256Impl<FF>> {
+  public:
+    static constexpr const char* NAME = "sha256";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {}
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

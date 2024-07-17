@@ -3,6 +3,7 @@
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
 #include "barretenberg/common/constexpr_utils.hpp"
+#include "barretenberg/common/thread.hpp"
 #include "barretenberg/honk/proof_system/logderivative_library.hpp"
 #include "barretenberg/honk/proof_system/permutation_library.hpp"
 #include "barretenberg/plonk_honk_shared/library/grand_product_library.hpp"
@@ -73,12 +74,18 @@ void AvmProver::execute_log_derivative_inverse_round()
     relation_parameters.gamma = gamm;
 
     auto prover_polynomials = ProverPolynomials(*key);
+    std::vector<std::function<void()>> tasks;
+
     bb::constexpr_for<0, std::tuple_size_v<Flavor::LookupRelations>, 1>([&]<size_t relation_idx>() {
         using Relation = std::tuple_element_t<relation_idx, Flavor::LookupRelations>;
-        AVM_TRACK_TIME(Relation::NAME + std::string("_ms"),
-                       (compute_logderivative_inverse<Flavor, Relation>(
-                           prover_polynomials, relation_parameters, key->circuit_size)));
+        tasks.push_back([&]() {
+            AVM_TRACK_TIME(Relation::NAME + std::string("_ms"),
+                           (compute_logderivative_inverse<Flavor, Relation>(
+                               prover_polynomials, relation_parameters, key->circuit_size)));
+        });
     });
+
+    bb::parallel_for(tasks.size(), [&](size_t i) { tasks[i](); });
 }
 
 void AvmProver::execute_log_derivative_inverse_commitments_round()

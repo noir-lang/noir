@@ -56,7 +56,7 @@ class lookup_mem_rng_chk_hi_lookup_settings {
 template <typename FF_>
 class lookup_mem_rng_chk_hi_relation : public GenericLookupRelation<lookup_mem_rng_chk_hi_lookup_settings, FF_> {
   public:
-    static constexpr const char* NAME = "lookup_mem_rng_chk_hi";
+    static constexpr const char* NAME = "LOOKUP_MEM_RNG_CHK_HI";
 };
 template <typename FF_> using lookup_mem_rng_chk_hi = GenericLookup<lookup_mem_rng_chk_hi_lookup_settings, FF_>;
 

@@ -12,12 +12,6 @@ template <typename FF> struct GasRow {
     FF gas_sel_gas_cost{};
 };
 
-inline std::string get_relation_label_gas(int index)
-{
-    switch (index) {}
-    return std::to_string(index);
-}
-
 template <typename FF_> class gasImpl {
   public:
     using FF = FF_;
@@ -51,6 +45,15 @@ template <typename FF_> class gasImpl {
     }
 };
 
-template <typename FF> using gas = Relation<gasImpl<FF>>;
+template <typename FF> class gas : public Relation<gasImpl<FF>> {
+  public:
+    static constexpr const char* NAME = "gas";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {}
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

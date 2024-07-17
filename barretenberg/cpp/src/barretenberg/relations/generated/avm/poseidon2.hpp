@@ -10,12 +10,6 @@ template <typename FF> struct Poseidon2Row {
     FF poseidon2_sel_poseidon_perm{};
 };
 
-inline std::string get_relation_label_poseidon2(int index)
-{
-    switch (index) {}
-    return std::to_string(index);
-}
-
 template <typename FF_> class poseidon2Impl {
   public:
     using FF = FF_;
@@ -37,6 +31,15 @@ template <typename FF_> class poseidon2Impl {
     }
 };
 
-template <typename FF> using poseidon2 = Relation<poseidon2Impl<FF>>;
+template <typename FF> class poseidon2 : public Relation<poseidon2Impl<FF>> {
+  public:
+    static constexpr const char* NAME = "poseidon2";
+
+    static std::string get_subrelation_label(size_t index)
+    {
+        switch (index) {}
+        return std::to_string(index);
+    }
+};
 
 } // namespace bb::Avm_vm

@@ -60,7 +60,7 @@ class lookup_into_kernel_lookup_settings {
 template <typename FF_>
 class lookup_into_kernel_relation : public GenericLookupRelation<lookup_into_kernel_lookup_settings, FF_> {
   public:
-    static constexpr const char* NAME = "lookup_into_kernel";
+    static constexpr const char* NAME = "LOOKUP_INTO_KERNEL";
 };
 template <typename FF_> using lookup_into_kernel = GenericLookup<lookup_into_kernel_lookup_settings, FF_>;
 

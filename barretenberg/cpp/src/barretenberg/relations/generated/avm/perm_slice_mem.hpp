@@ -57,7 +57,7 @@ class perm_slice_mem_permutation_settings {
 template <typename FF_>
 class perm_slice_mem_relation : public GenericPermutationRelation<perm_slice_mem_permutation_settings, FF_> {
   public:
-    static constexpr const char* NAME = "perm_slice_mem";
+    static constexpr const char* NAME = "PERM_SLICE_MEM";
 };
 template <typename FF_> using perm_slice_mem = GenericPermutation<perm_slice_mem_permutation_settings, FF_>;
 
