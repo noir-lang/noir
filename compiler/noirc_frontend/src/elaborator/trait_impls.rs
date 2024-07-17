@@ -164,15 +164,13 @@ impl<'context> Elaborator<'context> {
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 
-        // dbg!(bindings.clone());
-        // dbg!(method.trait_constraints.clone());
         let mut substituted_method_ids = HashSet::default();
         for method_constraint in method.trait_constraints.iter() {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
             substituted_method_ids
                 .insert((substituted_constraint_type, method_constraint.trait_id));
         }
-        // dbg!(substituted_method_ids.clone());
+
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
