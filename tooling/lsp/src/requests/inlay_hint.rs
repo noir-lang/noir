@@ -1,7 +1,7 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, PathString};
+use fm::{FileId, FileMap, PathString};
 use lsp_types::{
     InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position,
     TextDocumentPositionParams,
@@ -13,6 +13,7 @@ use noirc_frontend::{
         BlockExpression, Expression, ExpressionKind, LetStatement, NoirFunction, Pattern,
         Statement, StatementKind, TraitImplItem, TraitItem, UnresolvedTypeData,
     },
+    macros_api::NodeInterner,
     node_interner::ReferenceId,
     parser::{Item, ItemKind},
     ParsedModule, Type, TypeBinding, TypeVariable, TypeVariableKind,
@@ -20,7 +21,7 @@ use noirc_frontend::{
 
 use crate::LspState;
 
-use super::{process_request, to_lsp_location, ProcessRequestCallbackArgs};
+use super::{process_request, to_lsp_location};
 
 pub(crate) fn on_inlay_hint_request(
     state: &mut LspState,
@@ -57,7 +58,7 @@ pub(crate) fn on_inlay_hint_request(
                 .ok()
                 .map(|range| Span::from(range.start as u32..range.end as u32));
 
-            let mut collector = InlayHintCollector::new(args, file_id, span);
+            let mut collector = InlayHintCollector::new(args.files, file_id, args.interner, span);
             collector.collect_in_parsed_module(&parsed_moduled);
             collector.inlay_hints
         })
@@ -66,19 +67,21 @@ pub(crate) fn on_inlay_hint_request(
 }
 
 pub(crate) struct InlayHintCollector<'a> {
-    args: ProcessRequestCallbackArgs<'a>,
+    files: &'a FileMap,
     file_id: FileId,
+    interner: &'a NodeInterner,
     span: Option<Span>,
     inlay_hints: Vec<InlayHint>,
 }
 
 impl<'a> InlayHintCollector<'a> {
     fn new(
-        args: ProcessRequestCallbackArgs<'a>,
+        files: &'a FileMap,
         file_id: FileId,
+        interner: &'a NodeInterner,
         span: Option<Span>,
     ) -> InlayHintCollector<'a> {
-        InlayHintCollector { args, file_id, span, inlay_hints: Vec::new() }
+        InlayHintCollector { files, file_id, interner, span, inlay_hints: Vec::new() }
     }
     fn collect_in_parsed_module(&mut self, parsed_module: &ParsedModule) {
         for item in &parsed_module.items {
@@ -267,21 +270,21 @@ impl<'a> InlayHintCollector<'a> {
             Pattern::Identifier(ident) => {
                 let span = ident.span();
                 let location = Location::new(ident.span(), self.file_id);
-                if let Some(lsp_location) = to_lsp_location(self.args.files, self.file_id, span) {
-                    if let Some(referenced) = self.args.interner.find_referenced(location) {
+                if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
+                    if let Some(referenced) = self.interner.find_referenced(location) {
                         match referenced {
                             ReferenceId::Global(global_id) => {
-                                let global_info = self.args.interner.get_global(global_id);
+                                let global_info = self.interner.get_global(global_id);
                                 let definition_id = global_info.definition_id;
-                                let typ = self.args.interner.definition_type(definition_id);
+                                let typ = self.interner.definition_type(definition_id);
                                 self.push_type_hint(lsp_location, &typ);
                             }
                             ReferenceId::Local(definition_id) => {
-                                let typ = self.args.interner.definition_type(definition_id);
+                                let typ = self.interner.definition_type(definition_id);
                                 self.push_type_hint(lsp_location, &typ);
                             }
                             ReferenceId::StructMember(struct_id, field_index) => {
-                                let struct_type = self.args.interner.get_struct(struct_id);
+                                let struct_type = self.interner.get_struct(struct_id);
                                 let struct_type = struct_type.borrow();
                                 let (_field_name, field_type) = struct_type.field_at(field_index);
                                 self.push_type_hint(lsp_location, field_type);
@@ -318,7 +321,7 @@ impl<'a> InlayHintCollector<'a> {
         let position = location.range.end;
 
         let mut parts = Vec::new();
-        parts.push(str_part(": "));
+        parts.push(string_part(": "));
         self.push_type_parts(typ, &mut parts);
 
         self.inlay_hints.push(InlayHint {
@@ -336,40 +339,40 @@ impl<'a> InlayHintCollector<'a> {
     fn push_type_parts(&self, typ: &Type, parts: &mut Vec<InlayHintLabelPart>) {
         match typ {
             Type::Array(size, typ) => {
-                parts.push(str_part("["));
+                parts.push(string_part("["));
                 self.push_type_parts(typ, parts);
-                parts.push(str_part("; "));
+                parts.push(string_part("; "));
                 self.push_type_parts(size, parts);
-                parts.push(str_part("]"));
+                parts.push(string_part("]"));
             }
             Type::Slice(typ) => {
-                parts.push(str_part("["));
+                parts.push(string_part("["));
                 self.push_type_parts(typ, parts);
-                parts.push(str_part("]"));
+                parts.push(string_part("]"));
             }
             Type::Tuple(types) => {
-                parts.push(str_part("("));
+                parts.push(string_part("("));
                 for (index, typ) in types.iter().enumerate() {
                     self.push_type_parts(typ, parts);
                     if index != types.len() - 1 {
-                        parts.push(str_part(", "));
+                        parts.push(string_part(", "));
                     }
                 }
-                parts.push(str_part(")"));
+                parts.push(string_part(")"));
             }
             Type::Struct(struct_type, generics) => {
                 let struct_type = struct_type.borrow();
                 let location = Location::new(struct_type.name.span(), struct_type.location.file);
                 parts.push(self.text_part_with_location(struct_type.name.to_string(), location));
                 if !generics.is_empty() {
-                    parts.push(str_part("<"));
+                    parts.push(string_part("<"));
                     for (index, generic) in generics.iter().enumerate() {
                         self.push_type_parts(generic, parts);
                         if index != generics.len() - 1 {
-                            parts.push(str_part(", "));
+                            parts.push(string_part(", "));
                         }
                     }
-                    parts.push(str_part(">"));
+                    parts.push(string_part(">"));
                 }
             }
             Type::Alias(type_alias, generics) => {
@@ -377,29 +380,29 @@ impl<'a> InlayHintCollector<'a> {
                 let location = Location::new(type_alias.name.span(), type_alias.location.file);
                 parts.push(self.text_part_with_location(type_alias.name.to_string(), location));
                 if !generics.is_empty() {
-                    parts.push(str_part("<"));
+                    parts.push(string_part("<"));
                     for (index, generic) in generics.iter().enumerate() {
                         self.push_type_parts(generic, parts);
                         if index != generics.len() - 1 {
-                            parts.push(str_part(", "));
+                            parts.push(string_part(", "));
                         }
                     }
-                    parts.push(str_part(">"));
+                    parts.push(string_part(">"));
                 }
             }
             Type::Function(args, return_type, _env) => {
-                parts.push(str_part("fn("));
+                parts.push(string_part("fn("));
                 for (index, arg) in args.iter().enumerate() {
                     self.push_type_parts(arg, parts);
                     if index != args.len() - 1 {
-                        parts.push(str_part(", "));
+                        parts.push(string_part(", "));
                     }
                 }
-                parts.push(str_part(") -> "));
+                parts.push(string_part(") -> "));
                 self.push_type_parts(return_type, parts);
             }
             Type::MutableReference(typ) => {
-                parts.push(str_part("&mut "));
+                parts.push(string_part("&mut "));
                 self.push_type_parts(typ, parts);
             }
             Type::TypeVariable(var, TypeVariableKind::Normal) => {
@@ -414,7 +417,7 @@ impl<'a> InlayHintCollector<'a> {
             }
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    parts.push(str_part("Field"));
+                    parts.push(string_part("Field"));
                 } else {
                     self.push_type_variable_parts(binding, parts);
                 }
@@ -459,7 +462,7 @@ impl<'a> InlayHintCollector<'a> {
     fn text_part_with_location(&self, str: String, location: Location) -> InlayHintLabelPart {
         InlayHintLabelPart {
             value: str,
-            location: to_lsp_location(self.args.files, location.file, location.span),
+            location: to_lsp_location(self.files, location.file, location.span),
             tooltip: None,
             command: None,
         }
