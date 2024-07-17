@@ -171,20 +171,8 @@ fn module() -> impl NoirParser<ParsedModule> {
             .to(ParsedModule::default())
             .then(spanned(top_level_statement(module_parser)).repeated())
             .foldl(|mut program, (statement, span)| {
-                let mut push_item = |kind| program.items.push(Item { kind, span });
-
-                match statement {
-                    TopLevelStatement::Function(f) => push_item(ItemKind::Function(f)),
-                    TopLevelStatement::Module(m) => push_item(ItemKind::ModuleDecl(m)),
-                    TopLevelStatement::Import(i) => push_item(ItemKind::Import(i)),
-                    TopLevelStatement::Struct(s) => push_item(ItemKind::Struct(s)),
-                    TopLevelStatement::Trait(t) => push_item(ItemKind::Trait(t)),
-                    TopLevelStatement::TraitImpl(t) => push_item(ItemKind::TraitImpl(t)),
-                    TopLevelStatement::Impl(i) => push_item(ItemKind::Impl(i)),
-                    TopLevelStatement::TypeAlias(t) => push_item(ItemKind::TypeAlias(t)),
-                    TopLevelStatement::SubModule(s) => push_item(ItemKind::Submodules(s)),
-                    TopLevelStatement::Global(c) => push_item(ItemKind::Global(c)),
-                    TopLevelStatement::Error => (),
+                if let Some(kind) = statement.into_item_kind() {
+                    program.items.push(Item { kind, span });
                 }
                 program
             })
@@ -204,9 +192,9 @@ pub fn top_level_items() -> impl NoirParser<Vec<TopLevelStatement>> {
 ///                    | module_declaration
 ///                    | use_statement
 ///                    | global_declaration
-fn top_level_statement(
-    module_parser: impl NoirParser<ParsedModule>,
-) -> impl NoirParser<TopLevelStatement> {
+fn top_level_statement<'a>(
+    module_parser: impl NoirParser<ParsedModule> + 'a,
+) -> impl NoirParser<TopLevelStatement> + 'a {
     choice((
         function::function_definition(false).map(TopLevelStatement::Function),
         structs::struct_definition(),
@@ -227,8 +215,9 @@ fn top_level_statement(
 ///
 /// implementation: 'impl' generics type '{' function_definition ... '}'
 fn implementation() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Impl)
-        .ignore_then(function::generics())
+    maybe_comp_time()
+        .then_ignore(keyword(Keyword::Impl))
+        .then(function::generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
@@ -236,13 +225,14 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::RightBrace))
         .map(|args| {
             let ((other_args, where_clause), methods) = args;
-            let (generics, (object_type, type_span)) = other_args;
+            let ((is_comptime, generics), (object_type, type_span)) = other_args;
             TopLevelStatement::Impl(TypeImpl {
                 generics,
                 object_type,
                 type_span,
                 where_clause,
                 methods,
+                is_comptime,
             })
         })
 }
@@ -408,7 +398,7 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
     trait_bound().separated_by(just(Token::Plus)).at_least(1).allow_trailing()
 }
 
-fn trait_bound() -> impl NoirParser<TraitBound> {
+pub fn trait_bound() -> impl NoirParser<TraitBound> {
     path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
         trait_path,
         trait_generics,

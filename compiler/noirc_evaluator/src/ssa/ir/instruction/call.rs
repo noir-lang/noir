@@ -461,27 +461,36 @@ fn simplify_black_box_func(
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
         BlackBoxFunc::Blake3 => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3),
-        BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash
-        | BlackBoxFunc::Keccakf1600 => SimplifyResult::None, //TODO(Guillaume)
-        BlackBoxFunc::Keccak256 => {
-            match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
-                (Some((input, _)), Some(num_bytes)) if array_is_constant(dfg, &input) => {
-                    let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
+        BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => SimplifyResult::None,
+        BlackBoxFunc::Keccakf1600 => {
+            if let Some((array_input, _)) = dfg.get_array_constant(arguments[0]) {
+                if array_is_constant(dfg, &array_input) {
+                    let const_input: Vec<u64> = array_input
+                        .iter()
+                        .map(|id| {
+                            let field = dfg
+                                .get_numeric_constant(*id)
+                                .expect("value id from array should point at constant");
+                            field.to_u128() as u64
+                        })
+                        .collect();
 
-                    let num_bytes = num_bytes.to_u128() as usize;
-                    let truncated_input_bytes = &input_bytes[0..num_bytes];
-                    let hash = acvm::blackbox_solver::keccak256(truncated_input_bytes)
-                        .expect("Rust solvable black box function should not fail");
-
-                    let hash_values =
-                        vecmap(hash, |byte| FieldElement::from_be_bytes_reduce(&[byte]));
-
-                    let result_array = make_constant_array(dfg, hash_values, Type::unsigned(8));
+                    let state = acvm::blackbox_solver::keccakf1600(
+                        const_input.try_into().expect("Keccakf1600 input should have length of 25"),
+                    )
+                    .expect("Rust solvable black box function should not fail");
+                    let state_values = vecmap(state, |x| FieldElement::from(x as u128));
+                    let result_array = make_constant_array(dfg, state_values, Type::unsigned(64));
                     SimplifyResult::SimplifiedTo(result_array)
+                } else {
+                    SimplifyResult::None
                 }
-                _ => SimplifyResult::None,
+            } else {
+                SimplifyResult::None
             }
+        }
+        BlackBoxFunc::Keccak256 => {
+            unreachable!("Keccak256 should have been replaced by calls to Keccakf1600")
         }
         BlackBoxFunc::Poseidon2Permutation => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::EcdsaSecp256k1 => {

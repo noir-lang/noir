@@ -50,10 +50,7 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
     });
 }
 
-pub(crate) fn get_program(
-    src: &str,
-    use_legacy: bool,
-) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -80,12 +77,11 @@ pub(crate) fn get_program(
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect(
+        errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            use_legacy,
             None, // No debug_comptime_in_file
             &[],  // No macro processors
         ));
@@ -94,7 +90,7 @@ pub(crate) fn get_program(
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-    get_program(src, false).2
+    get_program(src).2
 }
 
 fn assert_no_errors(src: &str) {
@@ -833,7 +829,7 @@ fn check_trait_as_type_as_two_fn_parameters() {
 }
 
 fn get_program_captures(src: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src, false);
+    let (program, context, _errors) = get_program(src);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
@@ -1195,7 +1191,7 @@ fn resolve_fmt_strings() {
 }
 
 fn check_rewrite(src: &str, expected: &str) {
-    let (_program, mut context, _errors) = get_program(src, false);
+    let (_program, mut context, _errors) = get_program(src);
     let main_func_id = context.def_interner.find_function("main").unwrap();
     let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
     assert!(format!("{}", program) == expected);
