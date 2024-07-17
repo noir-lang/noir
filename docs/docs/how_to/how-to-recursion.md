@@ -47,7 +47,7 @@ In a standard recursive app, you're also dealing with at least two circuits. For
 - `main`: a circuit of type `assert(x != y)`, where `main` is marked with a `#[recursive]` attribute. This attribute states that the backend should generate proofs that are friendly for verification within another circuit.
 - `recursive`: a circuit that verifies `main`
 
-For a full example on how recursive proofs work, please refer to the [noir-examples](https://github.com/noir-lang/noir-examples) repository. We will *not* be using it as a reference for this guide.
+For a full example of how recursive proofs work, please refer to the [noir-examples](https://github.com/noir-lang/noir-examples) repository. We will *not* be using it as a reference for this guide.
 
 ## Step 1: Setup
 

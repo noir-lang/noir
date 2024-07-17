@@ -1,6 +1,7 @@
 mod poseidon;
 mod mimc;
 mod poseidon2;
+mod keccak;
 
 use crate::default::Default;
 use crate::uint128::U128;
@@ -43,8 +44,7 @@ fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separa
         points[i] = EmbeddedCurveScalar::from_field(input[i]);
     }
     let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
-    let values = multi_scalar_mul(generators, points);
-    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
+    multi_scalar_mul(generators, points)
 }
 
 #[no_predicates]
@@ -61,10 +61,7 @@ pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 }
 
 #[field(bn254)]
-fn derive_generators<let N: u32, let M: u32>(
-    domain_separator_bytes: [u8; M],
-    starting_index: u32
-) -> [EmbeddedCurvePoint; N] {
+fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
     crate::assert_constant(starting_index);
     __derive_generators(domain_separator_bytes, starting_index)
@@ -72,7 +69,10 @@ fn derive_generators<let N: u32, let M: u32>(
 
 #[builtin(derive_pedersen_generators)]
 #[field(bn254)]
-fn __derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {}
+fn __derive_generators<let N: u32, let M: u32>(
+    domain_separator_bytes: [u8; M],
+    starting_index: u32
+) -> [EmbeddedCurvePoint; N] {}
 
 fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> Field {
     let v1 = pedersen_commitment_with_separator(input, separator);
@@ -80,7 +80,7 @@ fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u
     multi_scalar_mul(
         [length_generator[0], v1],
         [EmbeddedCurveScalar { lo: N as Field, hi: 0 }, EmbeddedCurveScalar { lo: 1, hi: 0 }]
-    )[0]
+    ).x
 }
 
 #[foreign(pedersen_hash)]

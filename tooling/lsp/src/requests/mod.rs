@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{collections::HashMap, future::Future};
 
 use crate::{
     parse_diff, resolve_workspace_for_source_path,
@@ -270,15 +270,18 @@ pub(crate) fn process_request<F, T>(
     callback: F,
 ) -> Result<T, ResponseError>
 where
-    F: FnOnce(noirc_errors::Location, &NodeInterner, &FileMap) -> T,
+    F: FnOnce(noirc_errors::Location, &NodeInterner, &FileMap, &HashMap<String, NodeInterner>) -> T,
 {
     let file_path =
         text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-    let package = workspace.members.first().unwrap();
+    let workspace =
+        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path).unwrap();
+    let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
+    })?;
 
     let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
 
@@ -306,7 +309,81 @@ where
         &text_document_position_params.position,
     )?;
 
-    Ok(callback(location, interner, files))
+    Ok(callback(location, interner, files, &state.cached_definitions))
+}
+pub(crate) fn find_all_references_in_workspace(
+    location: noirc_errors::Location,
+    interner: &NodeInterner,
+    cached_interners: &HashMap<String, NodeInterner>,
+    files: &FileMap,
+    include_declaration: bool,
+    include_self_type_name: bool,
+) -> Option<Vec<Location>> {
+    // First find the node that's referenced by the given location, if any
+    let referenced = interner.find_referenced(location);
+
+    if let Some(referenced) = referenced {
+        // If we found the referenced node, find its location
+        let referenced_location = interner.reference_location(referenced);
+
+        // Now we find all references that point to this location, in all interners
+        // (there's one interner per package, and all interners in a workspace rely on the
+        // same FileManager so a Location/FileId in one package is the same as in another package)
+        let mut locations = find_all_references(
+            referenced_location,
+            interner,
+            files,
+            include_declaration,
+            include_self_type_name,
+        );
+        for interner in cached_interners.values() {
+            locations.extend(find_all_references(
+                referenced_location,
+                interner,
+                files,
+                include_declaration,
+                include_self_type_name,
+            ));
+        }
+
+        // The LSP client usually removes duplicate loctions, but we do it here just in case they don't
+        locations.sort_by_key(|location| {
+            (
+                location.uri.to_string(),
+                location.range.start.line,
+                location.range.start.character,
+                location.range.end.line,
+                location.range.end.character,
+            )
+        });
+        locations.dedup();
+
+        if locations.is_empty() {
+            None
+        } else {
+            Some(locations)
+        }
+    } else {
+        None
+    }
+}
+
+pub(crate) fn find_all_references(
+    referenced_location: noirc_errors::Location,
+    interner: &NodeInterner,
+    files: &FileMap,
+    include_declaration: bool,
+    include_self_type_name: bool,
+) -> Vec<Location> {
+    interner
+        .find_all_references(referenced_location, include_declaration, include_self_type_name)
+        .map(|locations| {
+            locations
+                .iter()
+                .filter_map(|location| to_lsp_location(files, location.file, location.span))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
