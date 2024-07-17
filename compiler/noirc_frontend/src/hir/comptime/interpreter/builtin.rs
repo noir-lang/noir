@@ -26,6 +26,11 @@ pub(super) fn call_builtin(
         "array_len" => array_len(interner, arguments, location),
         "as_slice" => as_slice(interner, arguments, location),
         "is_unconstrained" => Ok(Value::Bool(true)),
+        "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
+        "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
+        "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
+        "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
+        "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
         "slice_insert" => slice_insert(interner, arguments, location),
         "slice_pop_back" => slice_pop_back(interner, arguments, location),
         "slice_pop_front" => slice_pop_front(interner, arguments, location),
@@ -38,11 +43,6 @@ pub(super) fn call_builtin(
         "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
         "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
         "quoted_as_trait_constraint" => quoted_as_trait_constraint(interner, arguments, location),
-        "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
-        "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
-        "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
-        "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
-        "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -418,18 +418,6 @@ fn modulus_be_bits(
     Ok(Value::Slice(bits_vector, typ))
 }
 
-fn modulus_le_bits(
-    interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let Value::Slice(bits, typ) = modulus_be_bits(interner, arguments, location)? else {
-        unreachable!("modulus_be_bits must return slice")
-    };
-    let reversed_bits = bits.into_iter().rev().collect();
-    Ok(Value::Slice(reversed_bits, typ))
-}
-
 fn modulus_be_bytes(
     _interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -443,6 +431,18 @@ fn modulus_be_bytes(
     let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Slice(Box::new(int_type));
     Ok(Value::Slice(bytes_vector, typ))
+}
+
+fn modulus_le_bits(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let Value::Slice(bits, typ) = modulus_be_bits(interner, arguments, location)? else {
+        unreachable!("modulus_be_bits must return slice")
+    };
+    let reversed_bits = bits.into_iter().rev().collect();
+    Ok(Value::Slice(reversed_bits, typ))
 }
 
 fn modulus_le_bytes(
