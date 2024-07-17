@@ -82,7 +82,7 @@ pub fn decompose(x: Field) -> (Field, Field) {
     if is_unconstrained() {
         compute_decomposition(x)
     } else {
-       unsafe {
+        unsafe {
             // Take hints of the decomposition
             let (xlo, xhi) = decompose_hint(x);
         
@@ -122,7 +122,7 @@ pub fn gt(a: Field, b: Field) -> bool {
         compute_lt(b, a, 32)
     } else if a == b {
         false
-    } else  {
+    } else {
         // Take a hint of the comparison and verify it
         unsafe {
             if lt_32_hint(a, b) {
