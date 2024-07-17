@@ -438,7 +438,7 @@ fn modulus_be_bytes(
     check_argument_count(0, &arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
-    let bytes_vector = bytes.into_iter().map(|byte| Value::U8(byte)).collect();
+    let bytes_vector = bytes.into_iter().map(Value::U8).collect();
 
     let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Slice(Box::new(int_type));
