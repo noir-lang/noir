@@ -13,6 +13,7 @@ license.workspace = true
 acvm.workspace = true
 codespan-lsp.workspace = true
 lsp-types.workspace = true
+lsp_types_0_88_0 = { package = "lsp-types", version = "0.88.0" }
 nargo.workspace = true
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
