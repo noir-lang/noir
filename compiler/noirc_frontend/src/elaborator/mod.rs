@@ -1311,9 +1311,10 @@ impl<'context> Elaborator<'context> {
         let (function_name, mut arguments) = Self::parse_attribute(attribute, location)
             .unwrap_or_else(|| (attribute.to_string(), Vec::new()));
 
-        let id = self
-            .lookup_global(Path::from_single(function_name, span))
-            .map_err(|_| (ResolverError::UnknownAnnotation { span }.into(), self.file))?;
+        let Ok(id) = self.lookup_global(Path::from_single(function_name, span)) else {
+            // Do not issue an error if the attribute is unknown
+            return Ok(());
+        };
 
         let definition = self.interner.definition(id);
         let DefinitionKind::Function(function) = definition.kind else {
