@@ -46,6 +46,7 @@ fn main() {
     generate_plonky2_verify_success_tests(&mut test_file, &test_dir);
     generate_plonky2_verify_failure_tests(&mut test_file, &test_dir);
     generate_plonky2_trace_tests(&mut test_file, &test_dir);
+    generate_plonky2_show_plonky2_regression_tests(&mut test_file, &test_dir);
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -394,29 +395,11 @@ fn generate_plonky2_prove_success_tests(test_file: &mut File, test_data_dir: &Pa
 fn plonky2_prove_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
-    let plonky2_expected_output = format!("{{}}/plonky2.expected_output.txt", test_program_dir.display());
-    let plonky2_generated_output = format!("{{}}/plonky2.generated_output.txt", test_program_dir.display());
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("prove");
 
-    if std::path::Path::new(&plonky2_expected_output).exists() {{
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("prove");
-        cmd.arg("--plonky2-print-file").arg(plonky2_generated_output.clone());
-
-        cmd.assert().success();
-
-        let mut cmd_diff = Command::new("diff");
-        cmd_diff.arg("-c");
-        cmd_diff.arg(plonky2_expected_output);
-        cmd_diff.arg(plonky2_generated_output);
-        cmd_diff.assert().success();
-    }} else {{
-        let mut cmd = Command::cargo_bin("nargo").unwrap();
-        cmd.arg("--program-dir").arg(test_program_dir);
-        cmd.arg("prove");
-
-        cmd.assert().success();
-    }}
+    cmd.assert().success();
 }}
             "#,
             test_dir = test_dir.display(),
@@ -743,6 +726,54 @@ fn plonky2_trace_{test_name}() {{
     assert_eq!(expected_json, actual_json);
 }}
 "#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+/// Tests that compare the produced PLONKY2 backend output, against a given expected output.
+fn generate_plonky2_show_plonky2_regression_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "plonky2_show_plonky2_regression";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn plonky2_show_plonky2_regression_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let plonky2_expected_output = format!("{{}}/plonky2.expected_output.txt", test_program_dir.display());
+    let plonky2_generated_output = format!("{{}}/plonky2.generated_output.txt", test_program_dir.display());
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("prove");
+    cmd.arg("--plonky2-print-file").arg(plonky2_generated_output.clone());
+
+    cmd.assert().success();
+
+    let mut cmd_diff = Command::new("diff");
+    cmd_diff.arg("-c");
+    cmd_diff.arg(plonky2_expected_output);
+    cmd_diff.arg(plonky2_generated_output);
+    cmd_diff.assert().success();
+}}
+            "#,
             test_dir = test_dir.display(),
         )
         .expect("Could not write templated test file.");
