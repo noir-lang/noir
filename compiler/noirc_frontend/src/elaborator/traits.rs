@@ -325,11 +325,13 @@ fn check_function_type_matches_expected_type(
     let mut bindings = TypeBindings::new();
     // Shouldn't need to unify envs, they should always be equal since they're both free functions
     if let (
-        Type::Function(params_a, ret_a, _env_a, unconstrained_a),
-        Type::Function(params_b, ret_b, _env_b, unconstrained_b),
+        Type::Function(params_a, ret_a, _env_a, _unconstrained_a),
+        Type::Function(params_b, ret_b, _env_b, _unconstrained_b),
     ) = (expected, actual)
     {
-        // TODO(ary): check unconstrained
+        // TODO: we don't yet allow marking an trait function or a trait impl function as unconstrained,
+        // so both values will always be false here. Once we support that, we should check that both
+        // match (adding a test for it).
 
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
