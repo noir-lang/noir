@@ -2225,3 +2225,40 @@ fn cannot_assign_unconstrained_and_regular_fn_to_variable() {
         panic!("Expected a type mismatch error, got {:?}", errors[0].0);
     };
 }
+
+#[test]
+fn can_pass_regular_function_to_unconstrained_function() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        expect_unconstrained(func);
+    }
+
+    fn foo() {}
+
+    fn expect_unconstrained(_func: unconstrained fn() -> ()) {
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn cannot_pass_unconstrained_function_to_constrained_function() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        expect_regular(func);
+    }
+
+    unconstrained fn foo() {}
+
+    fn expect_regular(_func: fn() -> ()) {
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+}
