@@ -269,9 +269,6 @@ where
             t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
         });
 
-    // TODO(ary): allow "unconstrained" keyword here
-    let unconstrained = false;
-
     keyword(Keyword::Fn)
         .ignore_then(env)
         .then(args)

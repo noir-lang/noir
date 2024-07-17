@@ -37,9 +37,7 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
                 format!("({types})")
             }
         }
-        UnresolvedTypeData::Function(args, return_type, env, unconstrained) => {
-            // TODO(ary): format unconstrained here
-
+        UnresolvedTypeData::Function(args, return_type, env, _unconstrained) => {
             let env = if span_is_empty(env.span.unwrap()) {
                 "".into()
             } else {

@@ -754,9 +754,8 @@ impl<'context> Elaborator<'context> {
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
                 let env_type = self.interner.next_type_variable();
-                let unconstrained = false; // TODO(ary): check unconstrained
                 let expected =
-                    Type::Function(args, Box::new(ret.clone()), Box::new(env_type), unconstrained);
+                    Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
 
                 if let Err(error) = binding.try_bind(expected, span) {
                     self.push_err(error);
