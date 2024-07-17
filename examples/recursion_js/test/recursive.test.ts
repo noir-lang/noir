@@ -34,6 +34,18 @@ type FullNoir = {
   noir: Noir;
 };
 
+async function testBenchmark(name: string) {
+  console.log('Testing ', name);
+  const p2_n = await fullNoirFromCircuit(name);
+  console.log('Execute');
+  const { witness } = await p2_n.noir.execute({ x: 1 });
+  console.log('genProof from witness');
+  const proof = await p2_n.backend.generateProof(witness);
+  console.log('genRecProof');
+  /*const p2_n_artifacts =*/ await p2_n.backend.generateRecursiveProofArtifacts(proof, 0);
+  console.log('Done generating recursive proof artifacts for ', name);
+}
+
 // Calculate example sum of two leaf nodes up left branch
 // S3
 //  S2     9
@@ -44,27 +56,22 @@ type FullNoir = {
 //    1   3 #   #
 
 describe('can verify recursive proofs', () => {
-  // Declare Noir objects for each circuit
-  let leaf: FullNoir;
-  let recurseLeaf: FullNoir;
-  let recurseNode: FullNoir;
-
-  before(async () => {
-    // Create Noir objects for each circuit
-    leaf = await fullNoirFromCircuit('sum'); // a + b = c
-    recurseLeaf = await fullNoirFromCircuit('recurseLeaf'); // verify l1 + l2 = n1, then sum n1 + n2
-    recurseNode = await fullNoirFromCircuit('recurseNode'); // verify n1 + n2 = root1
+  it('does generate circuit with 2^17 gates', async () => {
+    await testBenchmark('2^17');
   });
 
-  after(async () => {
-    // Cleanup
-    recurseNode.backend.destroy();
-    recurseLeaf.backend.destroy();
-    leaf.backend.destroy();
+  it.skip('[BUG] -- does NOT generate circuit with 2^18 gates', async () => {
+    try {
+      await testBenchmark('2^18');
+    } catch (error) {
+      expect(error).to.be.an('Error');
+    }
   });
 
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6672): Reinstate this test.
   it.skip('does recursive proof', async () => {
+    const leaf = await fullNoirFromCircuit('sum'); // a + b = c
+
     // Generate leaf proof artifacts (S1, addition of 1 and 3)
 
     // Leaf params of left branch
@@ -80,6 +87,7 @@ describe('can verify recursive proofs', () => {
       innerProof1,
       numPubInputs + 1, // +1 for public return
     );
+    leaf.backend.destroy();
 
     const pub_inputs: string[] = [
       ...Object.values(leafParams).map((n) => Number(n).toString()),
@@ -99,6 +107,7 @@ describe('can verify recursive proofs', () => {
     };
     numPubInputs = pub_inputs.length;
 
+    const recurseLeaf = await fullNoirFromCircuit('recurseLeaf'); // verify l1 + l2 = n1, then sum n1 + n2
     const nodeExecution = await recurseLeaf.noir.execute(nodeParams);
     console.log('recurseLeaf: %d + %d = ', a, b, Number(nodeExecution.returnValue).toString());
     const innerProof2: ProofData = await recurseLeaf.backend.generateProof(nodeExecution.witness);
@@ -110,6 +119,7 @@ describe('can verify recursive proofs', () => {
     );
     console.log('innerProof2.publicInputs length = ', innerProof2.publicInputs.length);
     console.log('artifacts2.proof length = ', artifacts2.proofAsFields.length);
+    recurseLeaf.backend.destroy();
 
     // Generate outer proof artifacts (S3: verify 4+5=9)
     const outerParams = {
@@ -118,6 +128,8 @@ describe('can verify recursive proofs', () => {
       key_hash: artifacts2.vkHash,
       proof: artifacts2.proofAsFields, // 93 = 109 - 16 aggregation bytes in public inputs
     };
+
+    const recurseNode = await fullNoirFromCircuit('recurseNode'); // verify n1 + n2 = root1
     console.log('Executing...');
     const rootExecution = await recurseNode.noir.execute(outerParams);
     console.log('Generating outer proof...');
@@ -126,5 +138,7 @@ describe('can verify recursive proofs', () => {
     const resNode: boolean = await recurseNode.backend.verifyProof(outerProof);
     console.log('Verification', resNode ? 'PASSED' : 'failed');
     expect(resNode).to.be.true;
+
+    recurseNode.backend.destroy();
   });
 });

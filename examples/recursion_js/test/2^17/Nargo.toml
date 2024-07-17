@@ -1,0 +1,7 @@
+[package]
+name = "2^17"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.19.4"
+
+[dependencies]
