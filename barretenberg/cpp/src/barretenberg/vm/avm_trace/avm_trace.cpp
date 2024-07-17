@@ -3766,7 +3766,9 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     // If the bin_trace_size has entries, we need the main_trace to be as big as our byte lookup table (3 *
     // 2**16 long)
     size_t const lookup_table_size = (bin_trace_size > 0 && range_check_required) ? 3 * (1 << 16) : 0;
-    size_t const range_check_size = range_check_required ? UINT16_MAX + 1 : 0;
+    // Range check size is 1 less than it needs to be since we insert a "first row" at the top of the trace at the end,
+    // with clk 0 (this doubles as our range check)
+    size_t const range_check_size = range_check_required ? UINT16_MAX : 0;
     std::vector<size_t> trace_sizes = { mem_trace_size,     main_trace_size,        alu_trace_size,
                                         range_check_size,   conv_trace_size,        lookup_table_size,
                                         sha256_trace_size,  poseidon2_trace_size,   pedersen_trace_size,
@@ -3781,7 +3783,7 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
           "\n\talu_trace_size: ",
           alu_trace_size,
           "\n\trange_check_size: ",
-          range_check_size,
+          range_check_size + 1, // The manually inserted first row is part of the range check
           "\n\tconv_trace_size: ",
           conv_trace_size,
           "\n\tlookup_table_size: ",
