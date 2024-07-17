@@ -1,3 +1,4 @@
+import { toBigIntBE } from '../bigint-buffer/index.js';
 import { poseidon2Hash, randomBoolean } from '../crypto/index.js';
 import { BufferReader, FieldReader, serializeToBuffer } from '../serialize/index.js';
 import { Fr } from './fields.js';
@@ -10,7 +11,7 @@ import { Fr } from './fields.js';
 export class Point {
   static ZERO = new Point(Fr.ZERO, Fr.ZERO, false);
   static SIZE_IN_BYTES = Fr.SIZE_IN_BYTES * 2;
-  static COMPRESSED_SIZE_IN_BYTES = Fr.SIZE_IN_BYTES + 1;
+  static COMPRESSED_SIZE_IN_BYTES = Fr.SIZE_IN_BYTES;
 
   /** Used to differentiate this class from AztecAddress */
   public readonly kind = 'point';
@@ -72,7 +73,12 @@ export class Point {
    */
   static fromCompressedBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return this.fromXAndSign(Fr.fromBuffer(reader), reader.readBoolean());
+    const value = toBigIntBE(reader.readBytes(Point.COMPRESSED_SIZE_IN_BYTES));
+
+    const x = new Fr(value & ((1n << 255n) - 1n));
+    const sign = (value & (1n << 255n)) !== 0n;
+
+    return this.fromXAndSign(x, sign);
   }
 
   /**
@@ -178,7 +184,16 @@ export class Point {
    * @returns A Buffer representation of the Point instance
    */
   toCompressedBuffer() {
-    return serializeToBuffer(this.toXAndSign());
+    const [x, sign] = this.toXAndSign();
+    // Here we leverage that Fr fits into 254 bits (log2(Fr.MODULUS) < 254) and given that we serialize Fr to 32 bytes
+    // and we use big-endian the 2 most significant bits are never populated. Hence we can use one of the bits as
+    // a sign bit.
+    const compressedValue = x.toBigInt() + (sign ? 2n ** 255n : 0n);
+    const buf = serializeToBuffer(compressedValue);
+    if (buf.length !== Point.COMPRESSED_SIZE_IN_BYTES) {
+      throw new Error(`Invalid buffer length for compressed Point: ${buf.length}`);
+    }
+    return buf;
   }
 
   /**
