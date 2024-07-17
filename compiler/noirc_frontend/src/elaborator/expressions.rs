@@ -701,7 +701,7 @@ impl<'context> Elaborator<'context> {
 
         let captures = lambda_context.captures;
         let expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });
-        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type)))
+        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), false))
     }
 
     fn elaborate_quote(&mut self, mut tokens: Tokens) -> (HirExpression, Type) {

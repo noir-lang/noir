@@ -719,7 +719,12 @@ impl<'context> Elaborator<'context> {
 
         let return_type = Box::new(self.resolve_type(func.return_type()));
 
-        let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
+        let mut typ = Type::Function(
+            parameter_types,
+            return_type,
+            Box::new(Type::Unit),
+            func.def.is_unconstrained,
+        );
 
         if !generics.is_empty() {
             typ = Type::Forall(generics, Box::new(typ));

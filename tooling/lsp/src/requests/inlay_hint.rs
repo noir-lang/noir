@@ -411,7 +411,11 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 parts.push(string_part(">"));
             }
         }
-        Type::Function(args, return_type, _env) => {
+        Type::Function(args, return_type, _env, unconstrained) => {
+            if *unconstrained {
+                parts.push(string_part("unconstrained "));
+            }
+
             parts.push(string_part("fn("));
             for (index, arg) in args.iter().enumerate() {
                 push_type_parts(arg, parts, files);

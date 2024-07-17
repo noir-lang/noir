@@ -115,6 +115,7 @@ pub enum UnresolvedTypeData {
         /*args:*/ Vec<UnresolvedType>,
         /*ret:*/ Box<UnresolvedType>,
         /*env:*/ Box<UnresolvedType>,
+        /*unconstrained:*/ bool,
     ),
 
     // The type of quoted code for metaprogramming
@@ -206,7 +207,11 @@ impl std::fmt::Display for UnresolvedTypeData {
             Bool => write!(f, "bool"),
             String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
-            Function(args, ret, env) => {
+            Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    write!(f, "unconstrained ")?
+                }
+
                 let args = vecmap(args, ToString::to_string).join(", ");
 
                 match &env.as_ref().typ {

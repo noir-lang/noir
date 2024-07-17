@@ -248,7 +248,7 @@ impl<'a> FunctionContext<'a> {
             }
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
-            ast::Type::Function(_, _, _) => Type::Function,
+            ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
             ast::Type::MutableReference(element) => {
                 // Recursive call to panic if element is a tuple
