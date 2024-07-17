@@ -86,7 +86,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         B: BuildHasher<H> {
         // docs:end:with_hasher
         let mut _table = &[];
-        for _ in 0 .. capacity {
+        for _ in 0..capacity {
             _table = _table.push_back(Slot::default());
         }
         let _len = 0;
@@ -345,8 +345,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
     }
 
     fn try_resize(&mut self)
-        where B: BuildHasher<H>
-    {
+        where B: BuildHasher<H> {
         if self.len() + 1 >= self.capacity() / 2 {
             let capacity = self.capacity() * 2;
             let mut new_map = CtHashMap::with_hasher_and_capacity(self._build_hasher, capacity);
