@@ -746,7 +746,7 @@ mod inlay_hints_tests {
     }
 
     #[test]
-    async fn test_dont_collect_type_hints_if_disabled() {
+    async fn test_do_not_collect_type_hints_if_disabled() {
         let inlay_hints = get_inlay_hints(0, 3, no_hints()).await;
         assert!(inlay_hints.is_empty());
     }
@@ -843,7 +843,7 @@ mod inlay_hints_tests {
     }
 
     #[test]
-    async fn test_dont_collect_parameter_inlay_hints_if_disabled() {
+    async fn test_do_not_collect_parameter_inlay_hints_if_disabled() {
         let inlay_hints = get_inlay_hints(24, 26, no_hints()).await;
         assert!(inlay_hints.is_empty());
     }
@@ -885,44 +885,44 @@ mod inlay_hints_tests {
     }
 
     #[test]
-    async fn test_dont_show_parameter_inlay_hints_if_name_matches_var_name() {
+    async fn test_do_not_show_parameter_inlay_hints_if_name_matches_var_name() {
         let inlay_hints = get_inlay_hints(41, 45, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
-    async fn test_dont_show_parameter_inlay_hints_if_name_matches_member_name() {
+    async fn test_do_not_show_parameter_inlay_hints_if_name_matches_member_name() {
         let inlay_hints = get_inlay_hints(48, 52, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
-    async fn test_dont_show_parameter_inlay_hints_if_name_matches_call_name() {
+    async fn test_do_not_show_parameter_inlay_hints_if_name_matches_call_name() {
         let inlay_hints = get_inlay_hints(57, 60, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
-    async fn test_dont_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name()
-    {
+    async fn test_do_not_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name(
+    ) {
         let inlay_hints = get_inlay_hints(64, 67, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
-    async fn test_dont_show_parameter_inlay_hints_if_param_name_starts_with_underscore() {
+    async fn test_do_not_show_parameter_inlay_hints_if_param_name_starts_with_underscore() {
         let inlay_hints = get_inlay_hints(71, 73, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
-    async fn test_dont_show_parameter_inlay_hints_if_single_argument_with_single_letter() {
+    async fn test_do_not_show_parameter_inlay_hints_if_single_argument_with_single_letter() {
         let inlay_hints = get_inlay_hints(77, 79, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 
     #[test]
-    async fn test_dont_show_parameter_inlay_hints_if_param_name_is_suffix_of_arg_name() {
+    async fn test_do_not_show_parameter_inlay_hints_if_param_name_is_suffix_of_arg_name() {
         let inlay_hints = get_inlay_hints(89, 92, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
