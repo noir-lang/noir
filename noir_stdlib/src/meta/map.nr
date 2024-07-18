@@ -122,7 +122,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         self._len == 0
     }
 
-    // Returns a BoundedVec of all valid entries in this CtHashMap.
+    // Returns a slice of all valid entries in this CtHashMap.
     // The length of the returned vector will always match the length of this CtHashMap.
     // docs:start:entries
     pub fn entries(self) -> [(K, V)] {
