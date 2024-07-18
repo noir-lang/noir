@@ -2155,7 +2155,7 @@ fn cannot_call_unconstrained_function_outside_of_unsafe() {
 }
 
 #[test]
-fn cannot_call_unconstrained_captured_function_outside_of_unsafe() {
+fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
     let src = r#"
     fn main() {
         let func = foo;

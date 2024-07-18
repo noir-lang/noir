@@ -329,7 +329,7 @@ fn check_function_type_matches_expected_type(
         Type::Function(params_b, ret_b, _env_b, _unconstrained_b),
     ) = (expected, actual)
     {
-        // TODO: we don't yet allow marking an trait function or a trait impl function as unconstrained,
+        // TODO: we don't yet allow marking a trait function or a trait impl function as unconstrained,
         // so both values will always be false here. Once we support that, we should check that both
         // match (adding a test for it).
 

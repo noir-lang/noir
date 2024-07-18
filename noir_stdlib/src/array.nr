@@ -12,10 +12,9 @@ impl<T, let N: u32> [T; N] {
 
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
         let sorted_index = unsafe {
-            // Safety: This is safe we we enforce proper ordering using these indices
+            // Safety: These indices are asserted to be the sorted element indices via `find_index`
             let sorted_index: [u32; N] = self.get_sorting_index(ordering);
 
-            // Ensure the indexes are correct
             for i in 0..N {
                 let pos = find_index(sorted_index, i);
                 assert(sorted_index[pos] == i);

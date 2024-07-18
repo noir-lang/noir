@@ -136,7 +136,7 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
-    #[error("Call to unconstrained function is unsafe and requires unconstrained function or unsafe block")]
+    #[error("Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block")]
     Unsafe { span: Span },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },

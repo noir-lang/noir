@@ -1027,7 +1027,6 @@ impl Keyword {
             "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,
             "unsafe" => Keyword::Unsafe,
-
             "use" => Keyword::Use,
             "where" => Keyword::Where,
             "while" => Keyword::While,
