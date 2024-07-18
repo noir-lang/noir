@@ -465,7 +465,7 @@ mod tests {
             let (c,d) = b.unconstrained_div(a);
             assert_eq((c, d), (U128::zero(), b));
         }
-        
+
         // Dividing by zero returns 0,0
         let a = U128::from_u64s_le(0x1, 0x0);
         let b = U128::zero();
