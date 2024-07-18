@@ -12,10 +12,7 @@ use crate::{
     hir::{
         comptime::{Interpreter, Value},
         def_map::ModuleDefId,
-        resolution::{
-            errors::ResolverError,
-            resolver::{verify_mutable_reference, SELF_TYPE_NAME, WILDCARD_TYPE},
-        },
+        resolution::errors::ResolverError,
         type_check::{NoMatchingImplFoundError, Source, TypeCheckError},
     },
     hir_def::{
@@ -27,17 +24,19 @@ use crate::{
         traits::TraitConstraint,
     },
     macros_api::{
-        HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
-        UnaryOp, UnresolvedType, UnresolvedTypeData,
+        HirExpression, HirLiteral, HirStatement, NodeInterner, Path, PathKind, SecondaryAttribute,
+        Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, GlobalId, ReferenceId, TraitId, TraitImplKind,
-        TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
     },
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use super::{lints, Elaborator};
+
+pub const SELF_TYPE_NAME: &str = "Self";
+pub const WILDCARD_TYPE: &str = "_";
 
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
@@ -58,12 +57,16 @@ impl<'context> Elaborator<'context> {
         use crate::ast::UnresolvedTypeData::*;
 
         let span = typ.span;
-        let (is_self_type_name, is_synthetic) = if let Named(ref named_path, _, synthetic) = typ.typ
-        {
-            (named_path.last_segment().is_self_type_name(), synthetic)
-        } else {
-            (false, false)
-        };
+        let (named_path_span, is_self_type_name, is_synthetic) =
+            if let Named(ref named_path, _, synthetic) = typ.typ {
+                (
+                    Some(named_path.last_segment().span()),
+                    named_path.last_segment().is_self_type_name(),
+                    synthetic,
+                )
+            } else {
+                (None, false, false)
+            };
 
         let resolved_type = match typ.typ {
             FieldElement => Type::FieldElement,
@@ -154,30 +157,23 @@ impl<'context> Elaborator<'context> {
         };
 
         if let Some(unresolved_span) = typ.span {
+            let location = Location::new(named_path_span.unwrap_or(unresolved_span), self.file);
+
             match resolved_type {
                 Type::Struct(ref struct_type, _) => {
                     // Record the location of the type reference
-                    self.interner.push_type_ref_location(
-                        resolved_type.clone(),
-                        Location::new(unresolved_span, self.file),
-                    );
+                    self.interner.push_type_ref_location(resolved_type.clone(), location);
 
                     if !is_synthetic {
-                        let referenced = ReferenceId::Struct(struct_type.borrow().id);
-                        let reference = ReferenceId::Reference(
-                            Location::new(unresolved_span, self.file),
+                        self.interner.add_struct_reference(
+                            struct_type.borrow().id,
+                            location,
                             is_self_type_name,
                         );
-                        self.interner.add_reference(referenced, reference);
                     }
                 }
                 Type::Alias(ref alias_type, _) => {
-                    let referenced = ReferenceId::Alias(alias_type.borrow().id);
-                    let reference = ReferenceId::Reference(
-                        Location::new(unresolved_span, self.file),
-                        is_self_type_name,
-                    );
-                    self.interner.add_reference(referenced, reference);
+                    self.interner.add_alias_reference(alias_type.borrow().id, location);
                 }
                 _ => (),
             }
@@ -369,10 +365,8 @@ impl<'context> Elaborator<'context> {
                     self.interner.add_global_dependency(current_item, id);
                 }
 
-                let referenced = ReferenceId::Global(id);
-                let reference =
-                    ReferenceId::Reference(Location::new(path.span(), self.file), false);
-                self.interner.add_reference(referenced, reference);
+                let reference_location = Location::new(path.span(), self.file);
+                self.interner.add_global_reference(id, reference_location);
 
                 Some(Type::Constant(self.eval_global_as_array_length(id, path)))
             }
@@ -433,6 +427,7 @@ impl<'context> Elaborator<'context> {
                         generic.type_var.clone()
                     })),
                     trait_id,
+                    span: path.span(),
                 };
 
                 return Some((method, constraint, false));
@@ -467,6 +462,7 @@ impl<'context> Elaborator<'context> {
                     generic.type_var.clone()
                 })),
                 trait_id,
+                span: path.span(),
             };
             return Some((method, constraint, false));
         }
@@ -1621,5 +1617,31 @@ impl<'context> Elaborator<'context> {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
         context.trait_constraints.push((constraint, expr_id));
+    }
+}
+
+/// Gives an error if a user tries to create a mutable reference
+/// to an immutable variable.
+fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<(), ResolverError> {
+    match interner.expression(&rhs) {
+        HirExpression::MemberAccess(member_access) => {
+            verify_mutable_reference(interner, member_access.lhs)
+        }
+        HirExpression::Index(_) => {
+            let span = interner.expr_span(&rhs);
+            Err(ResolverError::MutableReferenceToArrayElement { span })
+        }
+        HirExpression::Ident(ident, _) => {
+            if let Some(definition) = interner.try_definition(ident.id) {
+                if !definition.mutable {
+                    return Err(ResolverError::MutableReferenceToImmutableVariable {
+                        span: interner.expr_span(&rhs),
+                        variable: definition.name.clone(),
+                    });
+                }
+            }
+            Ok(())
+        }
+        _ => Ok(()),
     }
 }

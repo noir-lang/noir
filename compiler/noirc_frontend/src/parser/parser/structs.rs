@@ -1,6 +1,7 @@
 use chumsky::prelude::*;
 
 use crate::ast::{Ident, NoirStruct, UnresolvedType};
+use crate::parser::parser::types::maybe_comp_time;
 use crate::{
     parser::{
         parser::{
@@ -28,13 +29,21 @@ pub(super) fn struct_definition() -> impl NoirParser<TopLevelStatement> {
         .or(just(Semicolon).to(Vec::new()));
 
     attributes()
+        .then(maybe_comp_time())
         .then_ignore(keyword(Struct))
         .then(ident())
         .then(function::generics())
         .then(fields)
-        .validate(|(((raw_attributes, name), generics), fields), span, emit| {
-            let attributes = validate_secondary_attributes(raw_attributes, span, emit);
-            TopLevelStatement::Struct(NoirStruct { name, attributes, generics, fields, span })
+        .validate(|((((attributes, is_comptime), name), generics), fields), span, emit| {
+            let attributes = validate_secondary_attributes(attributes, span, emit);
+            TopLevelStatement::Struct(NoirStruct {
+                name,
+                attributes,
+                generics,
+                fields,
+                span,
+                is_comptime,
+            })
         })
 }
 

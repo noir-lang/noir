@@ -6,30 +6,34 @@ use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::graph::CrateId;
-use crate::macros_api::BlockExpression;
+use crate::macros_api::{BlockExpression, StructId};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::{ResolvedGeneric, Type};
 
-/// A Hir function is a block expression
-/// with a list of statements
+/// A Hir function is a block expression with a list of statements.
+/// If the function has yet to be resolved, the body starts off empty (None).
 #[derive(Debug, Clone)]
-pub struct HirFunction(ExprId);
+pub struct HirFunction(Option<ExprId>);
 
 impl HirFunction {
     pub fn empty() -> HirFunction {
-        HirFunction(ExprId::empty_block_id())
+        HirFunction(None)
     }
 
     pub const fn unchecked_from_expr(expr_id: ExprId) -> HirFunction {
-        HirFunction(expr_id)
+        HirFunction(Some(expr_id))
     }
 
-    pub const fn as_expr(&self) -> ExprId {
+    pub fn as_expr(&self) -> ExprId {
+        self.0.expect("Function has yet to be elaborated, cannot get an ExprId of its body!")
+    }
+
+    pub fn try_as_expr(&self) -> Option<ExprId> {
         self.0
     }
 
     pub fn block(&self, interner: &NodeInterner) -> HirBlockExpression {
-        match interner.expression(&self.0) {
+        match interner.expression(&self.as_expr()) {
             HirExpression::Block(block_expr) => block_expr,
             _ => unreachable!("ice: functions can only be block expressions"),
         }
@@ -125,6 +129,9 @@ pub struct FuncMeta {
     pub has_body: bool,
 
     pub trait_constraints: Vec<TraitConstraint>,
+
+    /// The struct this function belongs to, if any
+    pub struct_id: Option<StructId>,
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
