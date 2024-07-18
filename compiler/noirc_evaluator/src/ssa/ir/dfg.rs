@@ -257,16 +257,7 @@ impl DataFlowGraph {
     /// Create a new constant array value from the given elements
     pub(crate) fn make_array(&mut self, array: im::Vector<ValueId>, typ: Type) -> ValueId {
         assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
-
-        // if let Some(id) = self.constant_arrays.get(&array) {
-        //     return *id;
-        // }
-
-        let id = self.make_value(Value::Array { array: array.clone(), typ });
-        // if array.iter().all(|value| self.is_constant(*value)) {
-        //     self.constant_arrays.insert(array, id);
-        // }
-        id
+        self.make_value(Value::Array { array: array.clone(), typ })
     }
 
     /// Gets or creates a ValueId for the given FunctionId.

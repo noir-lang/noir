@@ -1,6 +1,6 @@
 use iter_extended::vecmap;
 
-use crate::ssa::ir::types::{NumericType, Type};
+use crate::ssa::ir::types::Type;
 
 use super::{
     basic_block::BasicBlockId,
@@ -18,9 +18,9 @@ pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
     values: HashMap<ValueId, ValueId>,
-    /// Map containing repeat array constant so that we do not initialize a new 
+    /// Map containing repeat array constant so that we do not initialize a new
     /// array unnecessarily. An extra bool is included as part of the key to
-    /// distinguish between Type::Array and Type::Slice, as both are valid 
+    /// distinguish between Type::Array and Type::Slice, as both are valid
     /// types for a Value::Array
     const_arrays: HashMap<(im::Vector<ValueId>, bool), ValueId>,
 }
@@ -43,25 +43,27 @@ impl<'f> FunctionInserter<'f> {
                     let typ = typ.clone();
                     let new_array: im::Vector<ValueId> =
                         array.iter().map(|id| self.resolve(*id)).collect();
-                    
-                    // Flag to determine the type of the array value list
+
+                    // Flag to determine the type of the value's array list
                     let is_array = matches!(typ, Type::Array { .. });
-                    
-                    if matches!(self.function.runtime(), RuntimeType::Acir(_)) {
-                        if let Some(value) = self.const_arrays.get(&(new_array.clone(), is_array)) {
-                            return *value;
-                        } 
-                    }
-                    
-                    if self.const_arrays.get(&(new_array.clone(), is_array)) == Some(&value) {
-                        value
-                    } else {
-                        let new_array_clone = new_array.clone();
-                        let new_id = self.function.dfg.make_array(new_array, typ);
-                        self.values.insert(value, new_id);
-                        self.const_arrays.insert((new_array_clone, is_array), new_id);
-                        new_id
-                    }
+                    if let Some(fetched_value) =
+                        self.const_arrays.get(&(new_array.clone(), is_array))
+                    {
+                        // Arrays in ACIR are immutable, but in Brillig arrays are copy-on-write
+                        // so for function's with a Brillig runtime we make sure to check that value
+                        // in our constants array map matches the resolved array value id.
+                        if matches!(self.function.runtime(), RuntimeType::Acir(_)) {
+                            return *fetched_value;
+                        } else if *fetched_value == value {
+                            return value;
+                        }
+                    };
+
+                    let new_array_clone = new_array.clone();
+                    let new_id = self.function.dfg.make_array(new_array, typ);
+                    self.values.insert(value, new_id);
+                    self.const_arrays.insert((new_array_clone, is_array), new_id);
+                    new_id
                 }
                 _ => value,
             },
