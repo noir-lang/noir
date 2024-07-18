@@ -14,7 +14,6 @@ use crate::{
                 UnresolvedStruct, UnresolvedTypeAlias,
             },
             dc_mod,
-            errors::DuplicateType,
         },
         resolution::{errors::ResolverError, path_resolver::PathResolver},
         scope::ScopeForest as GenericScopeForest,
@@ -66,6 +65,7 @@ mod lints;
 mod patterns;
 mod scope;
 mod statements;
+mod trait_impls;
 mod traits;
 pub mod types;
 mod unquote;
@@ -73,7 +73,7 @@ mod unquote;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::FxHashMap as HashMap;
 
 use self::traits::check_trait_impl_method_matches_declaration;
 
@@ -622,7 +622,7 @@ impl<'context> Elaborator<'context> {
             });
         }
 
-        Some(TraitConstraint { typ, trait_id, trait_generics })
+        Some(TraitConstraint { typ, trait_id, trait_generics, span })
     }
 
     /// Extract metadata from a NoirFunction
@@ -929,7 +929,14 @@ impl<'context> Elaborator<'context> {
 
         if let Some(trait_id) = trait_impl.trait_id {
             self.generics = trait_impl.resolved_generics.clone();
-            self.collect_trait_impl_methods(trait_id, trait_impl);
+
+            let where_clause = trait_impl
+                .where_clause
+                .iter()
+                .flat_map(|item| self.resolve_trait_constraint(item))
+                .collect::<Vec<_>>();
+
+            self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let span = trait_impl.object_type.span.expect("All trait self types should have spans");
             self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
@@ -938,12 +945,6 @@ impl<'context> Elaborator<'context> {
             for func_id in &methods {
                 self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
             }
-
-            let where_clause = trait_impl
-                .where_clause
-                .iter()
-                .flat_map(|item| self.resolve_trait_constraint(item))
-                .collect();
 
             let trait_generics = trait_impl.resolved_trait_generics.clone();
 
@@ -1075,121 +1076,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn collect_trait_impl_methods(
-        &mut self,
-        trait_id: TraitId,
-        trait_impl: &mut UnresolvedTraitImpl,
-    ) {
-        self.local_module = trait_impl.module_id;
-        self.file = trait_impl.file_id;
-
-        // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
-        // for a particular method, the default implementation will be added at that slot.
-        let mut ordered_methods = Vec::new();
-
-        // check whether the trait implementation is in the same crate as either the trait or the type
-        self.check_trait_impl_crate_coherence(trait_id, trait_impl);
-
-        // set of function ids that have a corresponding method in the trait
-        let mut func_ids_in_trait = HashSet::default();
-
-        // Temporarily take ownership of the trait's methods so we can iterate over them
-        // while also mutating the interner
-        let the_trait = self.interner.get_trait_mut(trait_id);
-        let methods = std::mem::take(&mut the_trait.methods);
-
-        for method in &methods {
-            let overrides: Vec<_> = trait_impl
-                .methods
-                .functions
-                .iter()
-                .filter(|(_, _, f)| f.name() == method.name.0.contents)
-                .collect();
-
-            if overrides.is_empty() {
-                if let Some(default_impl) = &method.default_impl {
-                    // copy 'where' clause from unresolved trait impl
-                    let mut default_impl_clone = default_impl.clone();
-                    default_impl_clone.def.where_clause.extend(trait_impl.where_clause.clone());
-
-                    let func_id = self.interner.push_empty_fn();
-                    let module = self.module_id();
-                    let location = Location::new(default_impl.def.span, trait_impl.file_id);
-                    self.interner.push_function(func_id, &default_impl.def, module, location);
-                    self.define_function_meta(&mut default_impl_clone, func_id, false);
-                    func_ids_in_trait.insert(func_id);
-                    ordered_methods.push((
-                        method.default_impl_module_id,
-                        func_id,
-                        *default_impl_clone,
-                    ));
-                } else {
-                    self.push_err(DefCollectorErrorKind::TraitMissingMethod {
-                        trait_name: self.interner.get_trait(trait_id).name.clone(),
-                        method_name: method.name.clone(),
-                        trait_impl_span: trait_impl
-                            .object_type
-                            .span
-                            .expect("type must have a span"),
-                    });
-                }
-            } else {
-                for (_, func_id, _) in &overrides {
-                    func_ids_in_trait.insert(*func_id);
-                }
-
-                if overrides.len() > 1 {
-                    self.push_err(DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::TraitAssociatedFunction,
-                        first_def: overrides[0].2.name_ident().clone(),
-                        second_def: overrides[1].2.name_ident().clone(),
-                    });
-                }
-
-                ordered_methods.push(overrides[0].clone());
-            }
-        }
-
-        // Restore the methods that were taken before the for loop
-        let the_trait = self.interner.get_trait_mut(trait_id);
-        the_trait.set_methods(methods);
-
-        // Emit MethodNotInTrait error for methods in the impl block that
-        // don't have a corresponding method signature defined in the trait
-        for (_, func_id, func) in &trait_impl.methods.functions {
-            if !func_ids_in_trait.contains(func_id) {
-                let trait_name = the_trait.name.clone();
-                let impl_method = func.name_ident().clone();
-                let error = DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method };
-                self.errors.push((error.into(), self.file));
-            }
-        }
-
-        trait_impl.methods.functions = ordered_methods;
-        trait_impl.methods.trait_id = Some(trait_id);
-    }
-
-    fn check_trait_impl_crate_coherence(
-        &mut self,
-        trait_id: TraitId,
-        trait_impl: &UnresolvedTraitImpl,
-    ) {
-        self.local_module = trait_impl.module_id;
-        self.file = trait_impl.file_id;
-
-        let object_crate = match &trait_impl.resolved_object_type {
-            Some(Type::Struct(struct_type, _)) => struct_type.borrow().id.krate(),
-            _ => CrateId::Dummy,
-        };
-
-        let the_trait = self.interner.get_trait(trait_id);
-        if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
-            self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
-                span: trait_impl.object_type.span.expect("object type must have a span"),
-            });
-        }
-    }
-
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.file = alias.file_id;
         self.local_module = alias.module_id;
@@ -1311,9 +1197,10 @@ impl<'context> Elaborator<'context> {
         let (function_name, mut arguments) = Self::parse_attribute(attribute, location)
             .unwrap_or_else(|| (attribute.to_string(), Vec::new()));
 
-        let id = self
-            .lookup_global(Path::from_single(function_name, span))
-            .map_err(|_| (ResolverError::UnknownAnnotation { span }.into(), self.file))?;
+        let Ok(id) = self.lookup_global(Path::from_single(function_name, span)) else {
+            // Do not issue an error if the attribute is unknown
+            return Ok(());
+        };
 
         let definition = self.interner.definition(id);
         let DefinitionKind::Function(function) = definition.kind else {

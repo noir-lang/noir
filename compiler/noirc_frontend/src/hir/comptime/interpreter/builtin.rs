@@ -3,16 +3,17 @@ use std::{
     rc::Rc,
 };
 
+use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::try_vecmap;
 use noirc_errors::{Location, Span};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{IntegerBitSize, TraitBound},
     hir::comptime::{errors::IResult, InterpreterError, Value},
-    macros_api::{NodeInterner, Path, Signedness, UnresolvedTypeData},
-    node_interner::{FuncId, TraitId},
+    macros_api::{NodeInterner, Path, Signedness},
+    node_interner::FuncId,
     parser,
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type,
@@ -29,6 +30,11 @@ pub(super) fn call_builtin(
         "array_len" => array_len(interner, arguments, location),
         "as_slice" => as_slice(interner, arguments, location),
         "is_unconstrained" => Ok(Value::Bool(true)),
+        "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
+        "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
+        "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
+        "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
+        "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
         "slice_insert" => slice_insert(interner, arguments, location),
         "slice_pop_back" => slice_pop_back(interner, arguments, location),
         "slice_pop_front" => slice_pop_front(interner, arguments, location),
@@ -41,7 +47,7 @@ pub(super) fn call_builtin(
         "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
         "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
         "quoted_as_trait_constraint" => quoted_as_trait_constraint(interner, arguments, location),
-        "zeroed" => zeroed(interner, return_type, location),
+        "zeroed" => zeroed(return_type, location),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -393,12 +399,12 @@ fn trait_constraint_eq(
 }
 
 // fn zeroed<T>() -> T
-fn zeroed(interner: &mut NodeInterner, return_type: Type, location: Location) -> IResult<Value> {
+fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
     match return_type {
         Type::FieldElement => Ok(Value::Field(0u128.into())),
         Type::Array(length_type, elem) => {
             if let Some(length) = length_type.evaluate_to_u32() {
-                let element = zeroed(interner, elem.as_ref().clone(), location)?;
+                let element = zeroed(elem.as_ref().clone(), location)?;
                 let array = std::iter::repeat(element).take(length as usize).collect();
                 Ok(Value::Array(array, Type::Array(length_type, elem)))
             } else {
@@ -421,8 +427,7 @@ fn zeroed(interner: &mut NodeInterner, return_type: Type, location: Location) ->
         Type::Bool => Ok(Value::Bool(false)),
         Type::String(length_type) => {
             if let Some(length) = length_type.evaluate_to_u32() {
-                let string = std::iter::repeat('\0').take(length as usize).collect();
-                Ok(Value::String(Rc::new(string)))
+                Ok(Value::String(Rc::new("\0".repeat(length as usize))))
             } else {
                 Err(InterpreterError::NonIntegerArrayLength { typ: *length_type, location })
             }
@@ -433,28 +438,26 @@ fn zeroed(interner: &mut NodeInterner, return_type: Type, location: Location) ->
         }
         Type::Unit => Ok(Value::Unit),
         Type::Tuple(fields) => {
-            Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(interner, field, location))?))
+            Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(field, location))?))
         }
         Type::Struct(struct_type, generics) => {
             let fields = struct_type.borrow().get_fields(&generics);
             let mut values = HashMap::default();
 
             for (field_name, field_type) in fields {
-                let field_value = zeroed(interner, field_type, location)?;
+                let field_value = zeroed(field_type, location)?;
                 values.insert(Rc::new(field_name), field_value);
             }
 
             let typ = Type::Struct(struct_type, generics);
             Ok(Value::Struct(values, typ))
         }
-        Type::Alias(alias, generics) => {
-            zeroed(interner, alias.borrow().get_type(&generics), location)
-        }
+        Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics), location),
         Type::Function(_, _, _) => {
             Ok(Value::Function(FuncId::dummy_id(), Type::Unit, Default::default()))
         }
         Type::MutableReference(element) => {
-            let element = zeroed(interner, *element, location)?;
+            let element = zeroed(*element, location)?;
             Ok(Value::Pointer(Shared::new(element), false))
         }
         Type::Quoted(QuotedType::TraitConstraint) => Ok(Value::TraitConstraint(TraitBound {
@@ -470,4 +473,68 @@ fn zeroed(interner: &mut NodeInterner, return_type: Type, location: Location) ->
         | Type::TraitAsType(_, _, _)
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
+}
+
+fn modulus_be_bits(
+    _interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(0, &arguments, location)?;
+
+    let bits = FieldElement::modulus().to_radix_be(2);
+    let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
+
+    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::One);
+    let typ = Type::Slice(Box::new(int_type));
+    Ok(Value::Slice(bits_vector, typ))
+}
+
+fn modulus_be_bytes(
+    _interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(0, &arguments, location)?;
+
+    let bytes = FieldElement::modulus().to_bytes_be();
+    let bytes_vector = bytes.into_iter().map(Value::U8).collect();
+
+    let int_type = Type::Integer(crate::ast::Signedness::Unsigned, IntegerBitSize::Eight);
+    let typ = Type::Slice(Box::new(int_type));
+    Ok(Value::Slice(bytes_vector, typ))
+}
+
+fn modulus_le_bits(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let Value::Slice(bits, typ) = modulus_be_bits(interner, arguments, location)? else {
+        unreachable!("modulus_be_bits must return slice")
+    };
+    let reversed_bits = bits.into_iter().rev().collect();
+    Ok(Value::Slice(reversed_bits, typ))
+}
+
+fn modulus_le_bytes(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let Value::Slice(bytes, typ) = modulus_be_bytes(interner, arguments, location)? else {
+        unreachable!("modulus_be_bytes must return slice")
+    };
+    let reversed_bytes = bytes.into_iter().rev().collect();
+    Ok(Value::Slice(reversed_bytes, typ))
+}
+
+fn modulus_num_bits(
+    _interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(0, &arguments, location)?;
+    let bits = FieldElement::max_num_bits().into();
+    Ok(Value::U64(bits))
 }
