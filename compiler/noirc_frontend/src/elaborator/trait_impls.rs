@@ -167,8 +167,16 @@ impl<'context> Elaborator<'context> {
         let mut substituted_method_ids = HashSet::default();
         for method_constraint in method.trait_constraints.iter() {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
-            substituted_method_ids
-                .insert((substituted_constraint_type, method_constraint.trait_id));
+            let substituted_trait_generics = method_constraint
+                .trait_generics
+                .iter()
+                .map(|generic| generic.substitute(&bindings))
+                .collect::<Vec<_>>();
+            substituted_method_ids.insert((
+                substituted_constraint_type,
+                method_constraint.trait_id,
+                substituted_trait_generics,
+            ));
         }
 
         for override_trait_constraint in override_meta.trait_constraints.clone() {
@@ -183,11 +191,13 @@ impl<'context> Elaborator<'context> {
             if !substituted_method_ids.contains(&(
                 override_trait_constraint.typ.clone(),
                 override_trait_constraint.trait_id,
+                override_trait_constraint.trait_generics.clone(),
             )) {
                 let the_trait = self.interner.get_trait(override_trait_constraint.trait_id);
                 self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
                     constraint_typ: override_trait_constraint.typ,
                     constraint_name: the_trait.name.0.contents.clone(),
+                    constraint_generics: override_trait_constraint.trait_generics,
                     constraint_span: override_trait_constraint.span,
                     trait_method_name: method.name.0.contents.clone(),
                     trait_method_span: method.location.span,

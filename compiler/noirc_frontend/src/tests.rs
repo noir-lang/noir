@@ -2201,6 +2201,39 @@ fn trait_impl_where_clause_stricter_pass() {
 }
 
 #[test]
+fn impl_stricter_than_trait_different_trait_generics() {
+    let src = r#"
+    trait Foo<T> {
+        fn foo<U>() where T: T2<T>;
+    }
+
+    impl<A> Foo<A> for () {
+        // Should be A: T2<A>
+        fn foo<B>() where A: T2<B> {}
+    }
+
+    trait T2<C> {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        constraint_name,
+        constraint_generics,
+        ..
+    }) = &errors[0].0
+    {
+        dbg!(constraint_name.as_str());
+        assert!(matches!(constraint_typ.to_string().as_str(), "A"));
+        assert!(matches!(constraint_name.as_str(), "T2"));
+        assert!(matches!(constraint_generics[0].to_string().as_str(), "B"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+}
+
+#[test]
 fn impl_not_found_for_inner_impl() {
     // We want to guarantee that we get a no impl found error
     let src = r#"
