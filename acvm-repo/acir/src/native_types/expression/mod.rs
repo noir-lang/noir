@@ -279,10 +279,6 @@ impl<F: AcirField> Expression<F> {
     pub fn width(&self) -> usize {
         let mut width = 0;
 
-        if self.mul_terms.is_empty() {
-            return self.linear_combinations.len();
-        }
-
         for mul_term in &self.mul_terms {
             // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
             assert_ne!(mul_term.0, F::zero());
