@@ -70,7 +70,7 @@ fn call_with_arg() {
 fn with_underscore(_x: i32) {}
 
 fn call_with_underscore() {
-    with_underscore(1); // Should not show parameter names (only one param and it starts with underscore)
+    with_underscore(1); // Should not show parameter names (param name starts with underscore)
 }
 
 fn one_arg_with_one_char(x: i32) {}
