@@ -59,7 +59,7 @@ pub struct CompileOptions {
     /// Generate ACIR without an expression width bound.
     /// This should usually only be used by users looking to hand optimize
     /// their circuits using the `as_witness` builtin.
-    #[arg(long)]
+    #[arg(long, default_value = "true")]
     pub unbounded_codegen: bool,
 
     /// Force a full recompilation.
