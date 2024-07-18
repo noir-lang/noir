@@ -1,0 +1,7 @@
+[package]
+name = "trait_as_constraint"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.31.0"
+
+[dependencies]
