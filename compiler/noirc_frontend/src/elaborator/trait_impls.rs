@@ -39,7 +39,6 @@ impl<'context> Elaborator<'context> {
         let mut func_ids_in_trait = HashSet::default();
 
         let trait_generics = &self.interner.get_trait(trait_id).generics.clone();
-        // let trait_generics = &self.interner.get_trait(trait_id).generics;
         // Temporarily take ownership of the trait's methods so we can iterate over them
         // while also mutating the interner
         let the_trait = self.interner.get_trait_mut(trait_id);
