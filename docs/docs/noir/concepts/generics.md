@@ -104,3 +104,49 @@ impl Eq for MyStruct {
 ```
 
 You can find more details on traits and trait implementations on the [traits page](../concepts/traits.md).
+
+## Turbofish
+
+Paths with generic parameters must prefix the opening brackets with a `::<>` operator.
+The name "turbofish" comes from that `::<>` looks like a little fish.
+
+Examples:
+```rust
+fn double<let N: u32>() -> u32 {
+    N * 2
+}
+fn example() {
+    assert(double::<9>() == 18);
+    assert(double::<7 + 8>() == 30);
+}
+```
+```rust
+trait MyTrait {
+    fn ten() -> Self;
+}
+
+impl MyTrait for Field {
+    fn ten() -> Self { 10 }
+}
+
+struct Foo<T> {
+    inner: T
+}
+        
+impl<T> Foo<T> {
+    fn generic_method<U>(_self: Self) -> U where U: MyTrait {
+        U::ten()
+    }
+}
+        
+fn example() {
+    let foo: Foo<Field> = Foo { inner: 1 };
+    // Using a type other than `Field` here (e.g. u32) would fail as 
+    // there is no matching impl for `u32: MyTrait`. 
+    //
+    // Substituting the `10` on the left hand side of this assert
+    // with `10 as u32` would also fail with a type mismatch as we 
+    // are expecting a `Field` from the right hand side.
+    assert(10 as u32 == foo.generic_method::<Field>());
+}
+```
