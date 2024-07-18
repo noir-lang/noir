@@ -5,7 +5,29 @@ use acvm::FieldElement;
 use noirc_printable_type::{PrintableType, PrintableValue};
 use runtime_tracing::{FullValueRecord, Line, Tracer, ValueRecord};
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// Stores the trace accumulated in `tracer` in the specified directory. The trace is stored as
+/// multiple JSON files.
+pub fn store_trace(tracer: Tracer, trace_dir: &str) {
+    let trace_path = Path::new(trace_dir).join("trace.json");
+    match tracer.store_trace_events(&trace_path) {
+        Ok(_) => println!("Saved trace to {:?}", trace_path),
+        Err(err) => println!("Warning: tracer failed to store trace events: {err}"),
+    }
+
+    let trace_path = Path::new(trace_dir).join("trace_metadata.json");
+    match tracer.store_trace_metadata(&trace_path) {
+        Ok(_) => println!("Saved trace to {:?}", trace_path),
+        Err(err) => println!("Warning: tracer failed to store trace metadata: {err}"),
+    }
+
+    let trace_path = Path::new(trace_dir).join("trace_paths.json");
+    match tracer.store_trace_paths(&trace_path) {
+        Ok(_) => println!("Saved trace to {:?}", trace_path),
+        Err(err) => println!("Warning: tracer failed to store trace metadata: {err}"),
+    }
+}
 
 /// Registers a tracing step to the given `location` in the given `tracer`.
 pub(crate) fn register_step(tracer: &mut Tracer, location: &SourceLocation) {
