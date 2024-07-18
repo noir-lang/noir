@@ -67,3 +67,9 @@ fn call_with_arg() {
     with_arg(x);
 }
 
+fn with_underscore(_x: i32) {}
+
+fn call_with_underscore() {
+    with_underscore(1);
+}
+
