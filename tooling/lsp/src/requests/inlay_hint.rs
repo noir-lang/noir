@@ -410,7 +410,9 @@ impl<'a> InlayHintCollector<'a> {
                 }
 
                 if let Some(call_argument_name) = self.get_expression_name(&call_argument) {
-                    if parameter_name == call_argument_name {
+                    if parameter_name == call_argument_name
+                        || call_argument_name.ends_with(&parameter_name)
+                    {
                         continue;
                     }
                 }
@@ -920,8 +922,8 @@ mod inlay_hints_tests {
     }
 
     #[test]
-    async fn test_dont_show_parameter_inlay_hints_if_single_argument_with_obvious_name() {
-        let inlay_hints = get_inlay_hints(83, 85, parameter_hints()).await;
+    async fn test_dont_show_parameter_inlay_hints_if_param_name_is_suffix_of_arg_name() {
+        let inlay_hints = get_inlay_hints(89, 92, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 }

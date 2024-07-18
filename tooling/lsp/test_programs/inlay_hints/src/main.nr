@@ -85,3 +85,10 @@ fn call_one_arg_with_obvious_name() {
     one_arg_with_obvious_name(1);
 }
 
+fn yet_another_function(name: i32) {}
+
+fn call_yet_another_function() {
+    let some_name = 1;
+    yet_another_function(some_name)
+}
+
