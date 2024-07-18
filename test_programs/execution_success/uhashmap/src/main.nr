@@ -1,4 +1,4 @@
-use std::meta::map::CtHashMap;
+use std::collections::umap::UHashMap;
 use std::hash::BuildHasherDefault;
 use std::hash::poseidon2::Poseidon2Hasher;
 
@@ -19,8 +19,8 @@ global K_CMP = FIELD_CMP;
 global V_CMP = FIELD_CMP;
 global KV_CMP = |a: (K, V), b: (K, V)| a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP = || -> CtHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> 
-    CtHashMap::default();
+global ALLOCATE_HASHMAP = || -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> 
+    UHashMap::default();
 
 unconstrained fn main(input: [Entry; HASHMAP_LEN]) {
     test_sequential(input[0].key, input[0].value);
@@ -38,10 +38,10 @@ unconstrained fn main(input: [Entry; HASHMAP_LEN]) {
 // Insert, get, remove.
 unconstrained fn test_sequential(key: K, value: V) {
     let mut hashmap = ALLOCATE_HASHMAP();
-    assert(hashmap.is_empty(), "New CtHashMap should be empty.");
+    assert(hashmap.is_empty(), "New UHashMap should be empty.");
 
     hashmap.insert(key, value);
-    assert(hashmap.len() == 1, "CtHashMap after one insert should have a length of 1 element.");
+    assert(hashmap.len() == 1, "UHashMap after one insert should have a length of 1 element.");
 
     let got = hashmap.get(key);
     assert(got.is_some(), "Got none value.");
@@ -49,7 +49,7 @@ unconstrained fn test_sequential(key: K, value: V) {
     assert(value == got, f"Inserted {value} but got {got} for the same key.");
 
     hashmap.remove(key);
-    assert(hashmap.is_empty(), "CtHashMap after one insert and corresponding removal should be empty.");
+    assert(hashmap.is_empty(), "UHashMap after one insert and corresponding removal should be empty.");
     let got = hashmap.get(key);
     assert(got.is_none(), "Value has been removed, but is still available (not none).");
 }
@@ -57,14 +57,14 @@ unconstrained fn test_sequential(key: K, value: V) {
 // Insert same pair several times.
 unconstrained fn test_multiple_equal_insert(key: K, value: V) {
     let mut hashmap = ALLOCATE_HASHMAP();
-    assert(hashmap.is_empty(), "New CtHashMap should be empty.");
+    assert(hashmap.is_empty(), "New UHashMap should be empty.");
 
     for _ in 0..HASHMAP_LEN {
         hashmap.insert(key, value);
     }
 
     let len = hashmap.len();
-    assert(len == 1, f"CtHashMap length must be 1, got {len}.");
+    assert(len == 1, f"UHashMap length must be 1, got {len}.");
 
     let got = hashmap.get(key);
     assert(got.is_some(), "Got none value.");
@@ -79,7 +79,7 @@ unconstrained fn test_value_override(key: K, value: V, new_value: V) {
 
     hashmap.insert(key, value);
     hashmap.insert(key, new_value);
-    assert(hashmap.len() == 1, "CtHashMap length is invalid.");
+    assert(hashmap.len() == 1, "UHashMap length is invalid.");
 
     let got = hashmap.get(key);
     assert(got.is_some(), "Got none value.");
@@ -90,7 +90,7 @@ unconstrained fn test_value_override(key: K, value: V, new_value: V) {
 // Insert several distinct pairs and test auxiliary methods.
 unconstrained fn test_insert_and_methods(input: [Entry; HASHMAP_LEN]) {
     let mut hashmap = ALLOCATE_HASHMAP();
-    assert(hashmap.is_empty(), "New CtHashMap should be empty.");
+    assert(hashmap.is_empty(), "New UHashMap should be empty.");
 
     for entry in input {
         println(f"Inserting {entry}");
@@ -105,13 +105,13 @@ unconstrained fn test_insert_and_methods(input: [Entry; HASHMAP_LEN]) {
     }
 
     hashmap.clear();
-    assert(hashmap.is_empty(), "CtHashMap after clear() should be empty.");
+    assert(hashmap.is_empty(), "UHashMap after clear() should be empty.");
 }
 
 // Insert several pairs and test retaining.
 unconstrained fn test_retain() {
     let mut hashmap = ALLOCATE_HASHMAP();
-    assert(hashmap.is_empty(), "New CtHashMap should be empty.");
+    assert(hashmap.is_empty(), "New UHashMap should be empty.");
 
     let (key, value) = (5, 11);
     hashmap.insert(key, value);
@@ -123,7 +123,7 @@ unconstrained fn test_retain() {
     let predicate = |key: K, value: V| -> bool {key * value == 55};
     hashmap.retain(predicate);
 
-    assert(hashmap.len() == 2, "CtHashMap should have retained 2 elements.");
+    assert(hashmap.len() == 2, "UHashMap should have retained 2 elements.");
     assert(hashmap.get(2).is_none(), "Pair should have been removed, since it does not match predicate.");
 }
 
@@ -190,24 +190,24 @@ unconstrained fn test_mut_iterators() {
 }
 
 // docs:start:type_alias
-type MyMap = CtHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>>;
+type MyMap = UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>>;
 // docs:end:type_alias
 
 /// Tests examples from the stdlib cthashmap documentation
 unconstrained fn doc_tests() {
     // docs:start:default_example
-    let hashmap: CtHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> = CtHashMap::default();
+    let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
     assert(hashmap.is_empty());
     // docs:end:default_example
 
     // docs:start:with_hasher_example
     let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
-    let hashmap: CtHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> = CtHashMap::with_hasher(my_hasher);
+    let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::with_hasher(my_hasher);
     assert(hashmap.is_empty());
     // docs:end:with_hasher_example
 
     // docs:start:insert_example
-    let mut map: CtHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> = CtHashMap::default();
+    let mut map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
     map.insert(12, 42);
     assert(map.len() == 1);
     // docs:end:insert_example
@@ -251,7 +251,7 @@ unconstrained fn doc_tests() {
     // docs:end:len_example
 
     // docs:start:capacity_example
-    let empty_map: CtHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> = CtHashMap::default();
+    let empty_map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
     assert(empty_map.len() == 0);
     println(empty_map.capacity());
     // docs:end:capacity_example
@@ -279,8 +279,8 @@ unconstrained fn doc_tests() {
     // docs:end:retain_example
 
     // docs:start:eq_example
-    let mut map1: CtHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = CtHashMap::default();
-    let mut map2: CtHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = CtHashMap::default();
+    let mut map1: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
+    let mut map2: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
 
     map1.insert(1, 2);
     map1.insert(3, 4);
@@ -293,7 +293,7 @@ unconstrained fn doc_tests() {
 }
 
 // docs:start:get_example
-fn get_example(map: CtHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
+fn get_example(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
     let x = map.get(12);
 
     if x.is_some() {
@@ -302,7 +302,7 @@ fn get_example(map: CtHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>
 }
 // docs:end:get_example
 
-fn entries_examples(map: CtHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
+fn entries_examples(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
     // docs:start:entries_example
     let entries = map.entries();
 
@@ -334,7 +334,7 @@ fn entries_examples(map: CtHashMap<Field, Field, BuildHasherDefault<Poseidon2Has
     // docs:end:values_example
 }
 
-unconstrained fn iter_examples(mut map: CtHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
+unconstrained fn iter_examples(mut map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
     // docs:start:iter_mut_example
     // Add 1 to each key in the map, and double the value associated with that key.
     map.iter_mut(|k, v| (k + 1, v * 2));

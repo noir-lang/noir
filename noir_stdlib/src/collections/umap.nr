@@ -6,8 +6,15 @@ use crate::hash::{Hash, Hasher, BuildHasher, BuildHasherDefault};
 use crate::hash::poseidon2::Poseidon2;
 use crate::collections::bounded_vec::BoundedVec;
 
-// Compile-time Hash table with open addressing and quadratic probing.
-struct CtHashMap<K, V, B> {
+// An unconstrained hash table with open addressing and quadratic probing.
+// Note that "unconstrained" here means that almost all operations on this
+// map are unconstrained and importantly are not constrained afterward either.
+// This map is meant to be used in unconstrained or comptime code where this
+// is not an issue.
+//
+// Compared to the constrained HashMap type, UHashMap can grow automatically
+// as needed and is more efficient since it can break out of loops early.
+struct UHashMap<K, V, B> {
     _table: [Slot<K, V>],
 
     // Amount of valid elements in the map.
@@ -16,7 +23,7 @@ struct CtHashMap<K, V, B> {
     _build_hasher: B
 }
 
-// Data unit in the CtHashMap table.
+// Data unit in the UHashMap table.
 // In case Noir adds support for enums in the future, this  
 // should be refactored to have three states:
 // 1. (key, value)
@@ -69,8 +76,8 @@ impl<K, V> Slot<K, V> {
 // While conducting lookup, we iterate attempt from 0 to N - 1 due to heuristic,
 // that if we have went that far without finding desired, 
 // it is very unlikely to be after - performance will be heavily degraded.
-impl<K, V, B, H> CtHashMap<K, V, B> {
-    // Creates a new instance of CtHashMap with specified BuildHasher.
+impl<K, V, B, H> UHashMap<K, V, B> {
+    // Creates a new instance of UHashMap with specified BuildHasher.
     // docs:start:with_hasher
     pub fn with_hasher(_build_hasher: B) -> Self
     where
@@ -122,8 +129,8 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         self._len == 0
     }
 
-    // Returns a slice of all valid entries in this CtHashMap.
-    // The length of the returned vector will always match the length of this CtHashMap.
+    // Returns a BoundedVec of all valid entries in this UHashMap.
+    // The length of the returned vector will always match the length of this UHashMap.
     // docs:start:entries
     pub fn entries(self) -> [(K, V)] {
         // docs:end:entries
@@ -143,8 +150,8 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         entries
     }
 
-    // Returns a slice containing all the keys within this CtHashMap.
-    // The length of the returned vector will always match the length of this CtHashMap.
+    // Returns a BoundedVec containing all the keys within this UHashMap.
+    // The length of the returned vector will always match the length of this UHashMap.
     // docs:start:keys
     pub fn keys(self) -> [K] {
         // docs:end:keys
@@ -163,8 +170,8 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         keys
     }
 
-    // Returns a slice containing all the values within this CtHashMap.
-    // The length of the returned vector will always match the length of this CtHashMap.
+    // Returns a BoundedVec containing all the values within this UHashMap.
+    // The length of the returned vector will always match the length of this UHashMap.
     // docs:start:values
     pub fn values(self) -> [V] {
         // docs:end:values
@@ -195,7 +202,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         H: Hasher {
         // docs:end:iter_mut
         let mut entries = self.entries();
-        let mut new_map = CtHashMap::with_hasher(self._build_hasher);
+        let mut new_map = UHashMap::with_hasher(self._build_hasher);
 
         for entry in entries {
             let (key, value) = f(entry.0, entry.1);
@@ -217,7 +224,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         H: Hasher {
         // docs:end:iter_keys_mut
         let mut entries = self.entries();
-        let mut new_map = CtHashMap::with_hasher(self._build_hasher);
+        let mut new_map = UHashMap::with_hasher(self._build_hasher);
 
         for entry in entries {
             let (key, value) = (f(entry.0), entry.1);
@@ -272,7 +279,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         self._table.len()
     }
 
-    // Get the value by key. If it does not exist, returns Option::none().
+    // Get the value by key. If it does not exist, returns none().
     // docs:start:get
     unconstrained pub fn get(
         self,
@@ -357,7 +364,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         }
     }
 
-    // Removes a key-value entry. If key is not present, CtHashMap remains unchanged.
+    // Removes a key-value entry. If key is not present, UHashMap remains unchanged.
     // docs:start:remove
     unconstrained pub fn remove(
         &mut self,
@@ -387,7 +394,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         }
     }
 
-    // Apply CtHashMap's hasher onto key to obtain pre-hash for probing.
+    // Apply UHashMap's hasher onto key to obtain pre-hash for probing.
     fn hash(
         self,
         key: K
@@ -410,18 +417,18 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
     }
 }
 
-// Equality class on CtHashMap has to test that they have 
+// Equality class on UHashMap has to test that they have 
 // equal sets of key-value entries, 
 // thus one is a subset of the other and vice versa.
 // docs:start:eq
-impl<K, V, B, H> Eq for CtHashMap<K, V, B>
+impl<K, V, B, H> Eq for UHashMap<K, V, B>
 where
     K: Eq + Hash,
     V: Eq,
     B: BuildHasher<H>,
     H: Hasher
 {
-    fn eq(self, other: CtHashMap<K, V, B>) -> bool {
+    fn eq(self, other: UHashMap<K, V, B>) -> bool {
 // docs:end:eq
         let mut equal = false;
 
@@ -450,13 +457,13 @@ where
 }
 
 // docs:start:default
-impl<K, V, B, H> Default for CtHashMap<K, V, B>
+impl<K, V, B, H> Default for UHashMap<K, V, B>
 where
     B: BuildHasher<H> + Default,
     H: Hasher + Default
 {
     fn default() -> Self {
 // docs:end:default
-        CtHashMap::with_hasher(B::default())
+        UHashMap::with_hasher(B::default())
     }
 }
