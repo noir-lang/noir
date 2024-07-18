@@ -1,5 +1,5 @@
 struct MyStruct {
-    operation: fn (u32) -> u32,
+    operation: unconstrained fn (u32) -> u32,
 }
 
 fn main(x: u32) {
@@ -14,7 +14,7 @@ fn main(x: u32) {
     }
 }
 
-unconstrained fn wrapper(func: fn(u32) -> u32, param: u32) -> u32 {
+unconstrained fn wrapper(func: unconstrained fn(u32) -> u32, param: u32) -> u32 {
     func(param)
 }
 
