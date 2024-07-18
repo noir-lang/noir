@@ -109,7 +109,7 @@ You can find more details on traits and trait implementations on the [traits pag
 
 There are times when the compiler cannot reasonably infer what type should be used for a generic, or when the developer themselves may want to manually distinguish generic type parameters. This is where the `::<>` turbofish operator comes into play.
 
-Paths with generic parameters in expressions can prefix the opening brackets with a `::<>` operator. They must be prefixed with `::<>` in cases where the generic type cannot be inferred.
+The `::<>` operator can follow a variable or path and can be used to manually specify generic arguments within the angle brackets.
 The name "turbofish" comes from that `::<>` looks like a little fish.
 
 Examples:
