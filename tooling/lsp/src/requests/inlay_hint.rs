@@ -373,7 +373,7 @@ impl<'a> InlayHintCollector<'a> {
 
             // Skip `self` parameter
             if let Some((pattern, _, _)) = parameters.peek() {
-                if self.is_self_parmeter(pattern) {
+                if self.is_self_parameter(pattern) {
                     parameters.next();
                     parameters_count -= 1;
                 }
@@ -450,13 +450,13 @@ impl<'a> InlayHintCollector<'a> {
         });
     }
 
-    fn is_self_parmeter(&self, pattern: &HirPattern) -> bool {
+    fn is_self_parameter(&self, pattern: &HirPattern) -> bool {
         match pattern {
             HirPattern::Identifier(ident) => {
                 let definition_info = self.interner.definition(ident.id);
                 definition_info.name == "self"
             }
-            HirPattern::Mutable(pattern, _location) => self.is_self_parmeter(pattern),
+            HirPattern::Mutable(pattern, _location) => self.is_self_parameter(pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
     }
