@@ -202,7 +202,7 @@ impl<'a> InlayHintCollector<'a> {
             }
             ExpressionKind::Call(call_expression) => {
                 self.collect_call_parameter_names(
-                    self.get_expression_name(&call_expression.func),
+                    get_expression_name(&call_expression.func),
                     call_expression.func.span,
                     &call_expression.arguments,
                 );
@@ -354,7 +354,7 @@ impl<'a> InlayHintCollector<'a> {
         &mut self,
         function_name: Option<String>,
         at: Span,
-        arguments: &Vec<Expression>,
+        arguments: &[Expression],
     ) {
         if !self.options.parameter_hints.enabled {
             return;
@@ -409,7 +409,7 @@ impl<'a> InlayHintCollector<'a> {
                     }
                 }
 
-                if let Some(call_argument_name) = self.get_expression_name(&call_argument) {
+                if let Some(call_argument_name) = get_expression_name(call_argument) {
                     if parameter_name == call_argument_name
                         || call_argument_name.ends_with(&parameter_name)
                     {
@@ -430,31 +430,6 @@ impl<'a> InlayHintCollector<'a> {
             }
             HirPattern::Mutable(pattern, _location) => self.get_pattern_name(pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => None,
-        }
-    }
-
-    fn get_expression_name(&self, expression: &Expression) -> Option<String> {
-        match &expression.kind {
-            ExpressionKind::Variable(path, _) => Some(path.last_segment().to_string()),
-            ExpressionKind::Prefix(prefix) => self.get_expression_name(&prefix.rhs),
-            ExpressionKind::MemberAccess(member_access) => Some(member_access.rhs.to_string()),
-            ExpressionKind::Call(call) => self.get_expression_name(&call.func),
-            ExpressionKind::MethodCall(method_call) => Some(method_call.method_name.to_string()),
-            ExpressionKind::Cast(cast) => self.get_expression_name(&cast.lhs),
-            ExpressionKind::Parenthesized(expr) => self.get_expression_name(expr),
-            ExpressionKind::Constructor(..)
-            | ExpressionKind::Infix(..)
-            | ExpressionKind::Index(..)
-            | ExpressionKind::Block(..)
-            | ExpressionKind::If(..)
-            | ExpressionKind::Lambda(..)
-            | ExpressionKind::Tuple(..)
-            | ExpressionKind::Quote(..)
-            | ExpressionKind::Unquote(..)
-            | ExpressionKind::Comptime(..)
-            | ExpressionKind::Resolved(..)
-            | ExpressionKind::Literal(..)
-            | ExpressionKind::Error => None,
         }
     }
 
@@ -629,6 +604,31 @@ fn push_type_variable_parts(
         TypeBinding::Unbound(..) => {
             parts.push(string_part(var.to_string()));
         }
+    }
+}
+
+fn get_expression_name(expression: &Expression) -> Option<String> {
+    match &expression.kind {
+        ExpressionKind::Variable(path, _) => Some(path.last_segment().to_string()),
+        ExpressionKind::Prefix(prefix) => get_expression_name(&prefix.rhs),
+        ExpressionKind::MemberAccess(member_access) => Some(member_access.rhs.to_string()),
+        ExpressionKind::Call(call) => get_expression_name(&call.func),
+        ExpressionKind::MethodCall(method_call) => Some(method_call.method_name.to_string()),
+        ExpressionKind::Cast(cast) => get_expression_name(&cast.lhs),
+        ExpressionKind::Parenthesized(expr) => get_expression_name(expr),
+        ExpressionKind::Constructor(..)
+        | ExpressionKind::Infix(..)
+        | ExpressionKind::Index(..)
+        | ExpressionKind::Block(..)
+        | ExpressionKind::If(..)
+        | ExpressionKind::Lambda(..)
+        | ExpressionKind::Tuple(..)
+        | ExpressionKind::Quote(..)
+        | ExpressionKind::Unquote(..)
+        | ExpressionKind::Comptime(..)
+        | ExpressionKind::Resolved(..)
+        | ExpressionKind::Literal(..)
+        | ExpressionKind::Error => None,
     }
 }
 
