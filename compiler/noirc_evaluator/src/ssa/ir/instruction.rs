@@ -613,6 +613,7 @@ impl Instruction {
                         }
                     }
                 }
+                
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, _)), Some(index)) = (array, index) {
