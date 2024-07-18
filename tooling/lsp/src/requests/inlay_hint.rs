@@ -202,6 +202,7 @@ impl<'a> InlayHintCollector<'a> {
             }
             ExpressionKind::Call(call_expression) => {
                 self.collect_call_parameter_names(
+                    self.get_expression_name(&call_expression.func),
                     call_expression.func.span,
                     &call_expression.arguments,
                 );
@@ -213,6 +214,7 @@ impl<'a> InlayHintCollector<'a> {
             }
             ExpressionKind::MethodCall(method_call_expression) => {
                 self.collect_call_parameter_names(
+                    Some(method_call_expression.method_name.to_string()),
                     method_call_expression.method_name.span(),
                     &method_call_expression.arguments,
                 );
@@ -348,7 +350,12 @@ impl<'a> InlayHintCollector<'a> {
         });
     }
 
-    fn collect_call_parameter_names(&mut self, at: Span, arguments: &Vec<Expression>) {
+    fn collect_call_parameter_names(
+        &mut self,
+        function_name: Option<String>,
+        at: Span,
+        arguments: &Vec<Expression>,
+    ) {
         if !self.options.parameter_hints.enabled {
             return;
         }
@@ -362,11 +369,13 @@ impl<'a> InlayHintCollector<'a> {
             let func_meta = self.interner.function_meta(&func_id);
 
             let mut parameters = func_meta.parameters.iter().peekable();
+            let mut parameters_count = func_meta.parameters.len();
 
             // Skip `self` parameter
             if let Some((pattern, _, _)) = parameters.peek() {
                 if self.is_self_parmeter(pattern) {
                     parameters.next();
+                    parameters_count -= 1;
                 }
             }
 
@@ -377,17 +386,25 @@ impl<'a> InlayHintCollector<'a> {
                     continue;
                 };
 
-                let Some(pattern_name) = self.get_pattern_name(pattern) else {
+                let Some(parameter_name) = self.get_pattern_name(pattern) else {
                     continue;
                 };
 
+                if parameters_count == 1 {
+                    if let Some(function_name) = &function_name {
+                        if function_name.ends_with(&parameter_name) {
+                            continue;
+                        }
+                    }
+                }
+
                 if let Some(call_argument_name) = self.get_expression_name(&call_argument) {
-                    if pattern_name == call_argument_name {
+                    if parameter_name == call_argument_name {
                         continue;
                     }
                 }
 
-                self.push_parameter_hint(lsp_location.range.start, &pattern_name);
+                self.push_parameter_hint(lsp_location.range.start, &parameter_name);
             }
         }
     }
@@ -869,6 +886,13 @@ mod inlay_hints_tests {
     #[test]
     async fn test_dont_show_parameter_inlay_hints_if_name_matches_call_name() {
         let inlay_hints = get_inlay_hints(57, 60, parameter_hints()).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_dont_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name()
+    {
+        let inlay_hints = get_inlay_hints(64, 67, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 }

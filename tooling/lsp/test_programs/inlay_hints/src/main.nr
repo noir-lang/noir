@@ -60,3 +60,10 @@ fn call_where_call_matches_name() {
     test_fn(one(), two);
 }
 
+fn with_arg(arg: i32) {}
+
+fn call_with_arg() {
+    let x = 1;
+    with_arg(x);
+}
+
