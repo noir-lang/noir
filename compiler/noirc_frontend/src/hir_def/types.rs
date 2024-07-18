@@ -1660,13 +1660,23 @@ impl Type {
         let target = target.follow_bindings();
 
         if let (Type::Array(_size, element1), Type::Slice(element2)) = (&this, &target) {
-            // Still have to ensure the element types match.
-            // Don't need to issue an error here if not, it will be done in unify_with_coercions
-            let mut bindings = TypeBindings::new();
-            if element1.try_unify(element2, &mut bindings).is_ok() {
-                convert_array_expression_to_slice(expression, this, target, interner);
-                Self::apply_type_bindings(bindings);
-                return true;
+            // We can only do the coercion if the `as_slice` method exists.
+            // This is usually true, but some tests don't have access to the standard library.
+            if let Some(as_slice_method) = interner.lookup_primitive_method(&this, "as_slice") {
+                // Still have to ensure the element types match.
+                // Don't need to issue an error here if not, it will be done in unify_with_coercions
+                let mut bindings = TypeBindings::new();
+                if element1.try_unify(element2, &mut bindings).is_ok() {
+                    convert_array_expression_to_slice(
+                        expression,
+                        this,
+                        target,
+                        as_slice_method,
+                        interner,
+                    );
+                    Self::apply_type_bindings(bindings);
+                    return true;
+                }
             }
         }
         false
@@ -2153,12 +2163,9 @@ fn convert_array_expression_to_slice(
     expression: ExprId,
     array_type: Type,
     target_type: Type,
+    as_slice_method: crate::node_interner::FuncId,
     interner: &mut NodeInterner,
 ) {
-    let as_slice_method = interner
-        .lookup_primitive_method(&array_type, "as_slice")
-        .expect("Expected 'as_slice' method to be present in Noir's stdlib");
-
     let as_slice_id = interner.function_definition_id(as_slice_method);
     let location = interner.expr_location(&expression);
     let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location), None);
