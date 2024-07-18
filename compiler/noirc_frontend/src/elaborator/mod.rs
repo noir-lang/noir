@@ -738,7 +738,7 @@ impl<'context> Elaborator<'context> {
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);
-        let body = BlockExpression { is_unsafe: false, statements };
+        let body = BlockExpression { statements };
 
         let struct_id = if let Some(Type::Struct(struct_type, _)) = &self.self_type {
             Some(struct_type.borrow().id)

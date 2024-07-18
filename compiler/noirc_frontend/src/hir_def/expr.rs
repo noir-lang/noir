@@ -37,6 +37,7 @@ pub enum HirExpression {
     Quote(Tokens),
     Unquote(Tokens),
     Comptime(HirBlockExpression),
+    Unsafe(HirBlockExpression),
     Error,
 }
 
@@ -258,7 +259,6 @@ pub struct HirIndexExpression {
 
 #[derive(Debug, Clone)]
 pub struct HirBlockExpression {
-    pub is_unsafe: bool,
     pub statements: Vec<StmtId>,
 }
 

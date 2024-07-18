@@ -90,6 +90,7 @@ impl<'interner> Interpreter<'interner> {
                 self.interner.replace_expr(&expr, new_expr);
                 Ok(())
             }
+            HirExpression::Unsafe(block) => self.scan_block(block),
             HirExpression::Quote(_) => {
                 // This error could be detected much earlier in the compiler pipeline but
                 // it just makes sense for the comptime code to handle comptime things.

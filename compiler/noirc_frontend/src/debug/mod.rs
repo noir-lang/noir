@@ -250,7 +250,6 @@ impl DebugInstrumenter {
                 comptime: false,
                 expression: ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
-                        is_unsafe: true,
                         statements: block_stmts,
                     }),
                     span: let_stmt.expression.span,
@@ -343,7 +342,6 @@ impl DebugInstrumenter {
                 lvalue: assign_stmt.lvalue.clone(),
                 expression: ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
-                        is_unsafe: false,
                         statements: vec![
                             ast::Statement { kind: let_kind, span: expression_span },
                             new_assign_stmt,
@@ -431,7 +429,6 @@ impl DebugInstrumenter {
         self.walk_expr(&mut for_stmt.block);
         for_stmt.block = ast::Expression {
             kind: ast::ExpressionKind::Block(ast::BlockExpression {
-                is_unsafe: false,
                 statements: vec![
                     set_stmt,
                     ast::Statement {

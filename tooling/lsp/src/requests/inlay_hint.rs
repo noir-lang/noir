@@ -258,6 +258,9 @@ impl<'a> InlayHintCollector<'a> {
             ExpressionKind::Comptime(block_expression, _span) => {
                 self.collect_in_block_expression(block_expression);
             }
+            ExpressionKind::Unsafe(block_expression, _span) => {
+                self.collect_in_block_expression(block_expression);
+            }
             ExpressionKind::Literal(..)
             | ExpressionKind::Variable(..)
             | ExpressionKind::Quote(..)

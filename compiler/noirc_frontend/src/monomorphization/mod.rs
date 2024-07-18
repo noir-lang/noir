@@ -442,6 +442,7 @@ impl<'interner> Monomorphizer<'interner> {
             },
             HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
             HirExpression::Block(block) => self.block(block.statements)?,
+            HirExpression::Unsafe(block) => self.block(block.statements)?,
 
             HirExpression::Prefix(prefix) => {
                 let rhs = self.expr(prefix.rhs)?;

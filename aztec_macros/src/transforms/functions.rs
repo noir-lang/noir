@@ -749,10 +749,8 @@ fn create_loop_over(var: Expression, loop_body: Vec<Statement>) -> Statement {
     // What will be looped over
 
     // - `hasher.add({ident}[i] as Field)`
-    let for_loop_block = expression(ExpressionKind::Block(BlockExpression {
-        is_unsafe: false,
-        statements: loop_body,
-    }));
+    let for_loop_block =
+        expression(ExpressionKind::Block(BlockExpression { statements: loop_body }));
 
     // `for i in 0..{ident}.len()`
     make_statement(StatementKind::For(ForLoopStatement {

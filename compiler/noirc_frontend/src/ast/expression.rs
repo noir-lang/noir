@@ -38,6 +38,7 @@ pub enum ExpressionKind {
     Quote(Tokens),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Span),
+    Unsafe(BlockExpression, Span),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
@@ -270,7 +271,6 @@ impl Expression {
         // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
         let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
             ExpressionKind::Block(BlockExpression {
-                is_unsafe: false,
                 statements: vec![
                     Statement { kind: StatementKind::Expression(lhs), span },
                     Statement {
@@ -548,7 +548,6 @@ pub struct IndexExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BlockExpression {
-    pub is_unsafe: bool,
     pub statements: Vec<Statement>,
 }
 
@@ -602,6 +601,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Comptime(block, _) => write!(f, "comptime {block}"),
+            Unsafe(block, _) => write!(f, "unsafe {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Unquote(expr) => write!(f, "$({expr})"),
@@ -652,8 +652,7 @@ impl Display for Literal {
 
 impl Display for BlockExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let safety = if self.is_unsafe { "unsafe " } else { "" };
-        writeln!(f, "{safety}{{")?;
+        writeln!(f, "{{")?;
         for statement in &self.statements {
             let statement = statement.kind.to_string();
             for line in statement.lines() {

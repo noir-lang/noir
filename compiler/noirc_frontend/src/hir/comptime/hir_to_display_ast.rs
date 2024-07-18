@@ -196,6 +196,9 @@ impl HirExpression {
             HirExpression::Comptime(block) => {
                 ExpressionKind::Comptime(block.to_display_ast(interner), span)
             }
+            HirExpression::Unsafe(block) => {
+                ExpressionKind::Unsafe(block.to_display_ast(interner), span)
+            }
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),
 
             // A macro was evaluated here: return the quoted result
@@ -423,6 +426,6 @@ impl HirBlockExpression {
     fn to_display_ast(&self, interner: &NodeInterner) -> BlockExpression {
         let statements =
             vecmap(self.statements.clone(), |statement| statement.to_display_ast(interner));
-        BlockExpression { statements, is_unsafe: self.is_unsafe }
+        BlockExpression { statements }
     }
 }

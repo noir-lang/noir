@@ -199,10 +199,9 @@ impl FuncMeta {
         match &mut self.function_body {
             FunctionBody::Unresolved(kind, block, span) => {
                 let statements = std::mem::take(&mut block.statements);
-                let is_unsafe = block.is_unsafe;
                 let (kind, span) = (*kind, *span);
                 self.function_body = FunctionBody::Resolving;
-                FunctionBody::Unresolved(kind, BlockExpression { is_unsafe, statements }, span)
+                FunctionBody::Unresolved(kind, BlockExpression { statements }, span)
             }
             FunctionBody::Resolving => FunctionBody::Resolving,
             FunctionBody::Resolved => FunctionBody::Resolved,

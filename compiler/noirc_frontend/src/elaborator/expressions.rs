@@ -60,6 +60,9 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.span)
             }
+            ExpressionKind::Unsafe(block_expression, _) => {
+                self.elaborate_unsafe_block(block_expression)
+            }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
@@ -83,13 +86,6 @@ impl<'context> Elaborator<'context> {
         let mut block_type = Type::Unit;
         let mut statements = Vec::with_capacity(block.statements.len());
 
-        // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
-        let old_in_unsafe_block = self.in_unsafe_block;
-
-        // If we're already in an unsafe block then entering a new block should preserve this even if
-        // the inner block isn't marked as unsafe.
-        self.in_unsafe_block |= block.is_unsafe;
-
         for (i, statement) in block.statements.into_iter().enumerate() {
             let (id, stmt_type) = self.elaborate_statement(statement);
             statements.push(id);
@@ -109,11 +105,21 @@ impl<'context> Elaborator<'context> {
             }
         }
 
+        self.pop_scope();
+        (HirBlockExpression { statements }, block_type)
+    }
+
+    fn elaborate_unsafe_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {
+        // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
+        let old_in_unsafe_block = self.in_unsafe_block;
+        self.in_unsafe_block = true;
+
+        let (hir_block_expression, typ) = self.elaborate_block_expression(block);
+
         // Finally, we restore the original value of `self.in_unsafe_block`.
         self.in_unsafe_block = old_in_unsafe_block;
 
-        self.pop_scope();
-        (HirBlockExpression { is_unsafe: block.is_unsafe, statements }, block_type)
+        (HirExpression::Unsafe(hir_block_expression), typ)
     }
 
     fn elaborate_literal(&mut self, literal: Literal, span: Span) -> (HirExpression, Type) {

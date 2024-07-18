@@ -425,28 +425,22 @@ fn block_expr<'a>(
 fn block<'a>(
     statement: impl NoirParser<StatementKind> + 'a,
 ) -> impl NoirParser<BlockExpression> + 'a {
-    use crate::token::Keyword;
     use Token::*;
 
-    keyword(Keyword::Unsafe)
-        .or_not()
-        .map(|unsafe_token| unsafe_token.is_some())
-        .then(
-            statement
-                .recover_via(statement_recovery())
-                .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
-                .map_with_span(|(kind, rest), span| (Statement { kind, span }, rest))
-                .repeated()
-                .validate(check_statements_require_semicolon)
-                .delimited_by(just(LeftBrace), just(RightBrace))
-                .recover_with(nested_delimiters(
-                    LeftBrace,
-                    RightBrace,
-                    [(LeftParen, RightParen), (LeftBracket, RightBracket)],
-                    |span| vec![Statement { kind: StatementKind::Error, span }],
-                )),
-        )
-        .map(|(is_unsafe, statements)| BlockExpression { is_unsafe, statements })
+    statement
+        .recover_via(statement_recovery())
+        .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
+        .map_with_span(|(kind, rest), span| (Statement { kind, span }, rest))
+        .repeated()
+        .validate(check_statements_require_semicolon)
+        .delimited_by(just(LeftBrace), just(RightBrace))
+        .recover_with(nested_delimiters(
+            LeftBrace,
+            RightBrace,
+            [(LeftParen, RightParen), (LeftBracket, RightBracket)],
+            |span| vec![Statement { kind: StatementKind::Error, span }],
+        ))
+        .map(|statements| BlockExpression { statements })
 }
 
 fn check_statements_require_semicolon(
@@ -571,6 +565,15 @@ where
     keyword(Keyword::Comptime)
         .ignore_then(spanned(block(statement)))
         .map(|(block, span)| ExpressionKind::Comptime(block, span))
+}
+
+fn unsafe_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
+where
+    S: NoirParser<StatementKind> + 'a,
+{
+    keyword(Keyword::Unsafe)
+        .ignore_then(spanned(block(statement)))
+        .map(|(block, span)| ExpressionKind::Unsafe(block, span))
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
@@ -958,7 +961,6 @@ where
             // i.e. rewrite the sugared form `if cond1 {} else if cond2 {}` as `if cond1 {} else { if cond2 {} }`.
             let if_expression = Expression::new(kind, span);
             let desugared_else = BlockExpression {
-                is_unsafe: false,
                 statements: vec![Statement {
                     kind: StatementKind::Expression(if_expression),
                     span,
@@ -1096,7 +1098,8 @@ where
         },
         lambdas::lambda(expr_parser.clone()),
         block(statement.clone()).map(ExpressionKind::Block),
-        comptime_expr(statement),
+        comptime_expr(statement.clone()),
+        unsafe_expr(statement),
         quote(),
         unquote(expr_parser.clone()),
         variable(),

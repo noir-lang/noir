@@ -196,7 +196,7 @@ impl<'context> Elaborator<'context> {
                 typ: typ.clone(),
                 span: name.span(),
             }),
-            body: BlockExpression { is_unsafe: false, statements: Vec::new() },
+            body: BlockExpression { statements: Vec::new() },
             span: name.span(),
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
