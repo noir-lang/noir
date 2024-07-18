@@ -107,7 +107,7 @@ You can find more details on traits and trait implementations on the [traits pag
 
 ## Turbofish
 
-Paths with generic parameters must prefix the opening brackets with a `::<>` operator.
+Paths with generic parameters in expressions must prefix the opening brackets with a `::<>` operator.
 The name "turbofish" comes from that `::<>` looks like a little fish.
 
 Examples:
