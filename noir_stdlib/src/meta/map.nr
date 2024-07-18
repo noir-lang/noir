@@ -163,7 +163,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         keys
     }
 
-    // Returns a BoundedVec containing all the values within this CtHashMap.
+    // Returns a slice containing all the values within this CtHashMap.
     // The length of the returned vector will always match the length of this CtHashMap.
     // docs:start:values
     pub fn values(self) -> [V] {
