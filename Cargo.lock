@@ -2724,7 +2724,6 @@ dependencies = [
  "codespan-lsp",
  "fm",
  "fxhash",
- "lsp-types 0.88.0",
  "lsp-types 0.94.1",
  "nargo",
  "nargo_fmt",
