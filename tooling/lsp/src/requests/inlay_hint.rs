@@ -395,7 +395,10 @@ impl<'a> InlayHintCollector<'a> {
                 }
 
                 if parameters_count == 1 {
-                    if parameter_name.len() == 1 {
+                    if parameter_name.len() == 1
+                        || parameter_name == "other"
+                        || parameter_name == "value"
+                    {
                         continue;
                     }
 
@@ -913,6 +916,12 @@ mod inlay_hints_tests {
     #[test]
     async fn test_dont_show_parameter_inlay_hints_if_single_argument_with_single_letter() {
         let inlay_hints = get_inlay_hints(77, 79, parameter_hints()).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_dont_show_parameter_inlay_hints_if_single_argument_with_obvious_name() {
+        let inlay_hints = get_inlay_hints(83, 85, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 }

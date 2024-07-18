@@ -79,3 +79,9 @@ fn call_one_arg_with_one_char() {
     one_arg_with_one_char(1);
 }
 
+fn one_arg_with_obvious_name(other: i32) {}
+
+fn call_one_arg_with_obvious_name() {
+    one_arg_with_obvious_name(1);
+}
+
