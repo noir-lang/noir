@@ -18,14 +18,9 @@ impl<T, let N: u32> Eq for Bvec<T, N> where T: Eq {
     }
 }
 
-
 impl<T, let N: u32> Bvec<T, N> {
     fn empty() -> Self {
-        Self {
-            inner: [std::unsafe::zeroed(); N],
-            offset: 0,
-            len: 0,
-        }
+        Self { inner: [std::unsafe::zeroed(); N], offset: 0, len: 0 }
     }
 
     fn new(array: [T; N]) -> Self {
@@ -45,11 +40,7 @@ impl<T, let N: u32> Bvec<T, N> {
             len += 1;
         }
 
-        Self {
-            inner,
-            offset: self.offset,
-            len,
-        }
+        Self { inner, offset: self.offset, len }
     }
 
     fn pop_front(self) -> (T, Self) {
@@ -57,11 +48,7 @@ impl<T, let N: u32> Bvec<T, N> {
         assert(self.len != 0);
 
         let first_elem = self.inner[self.offset];
-        let popped_slice = Self {
-            inner: self.inner,
-            offset: self.offset + 1,
-            len: self.len - 1,
-        };
+        let popped_slice = Self { inner: self.inner, offset: self.offset + 1, len: self.len - 1 };
 
         (first_elem, popped_slice)
     }
@@ -75,19 +62,11 @@ struct Match<let N: u32> {
 
 impl<let N: u32> Match<N> {
     fn empty(leftover: Bvec<u8, N>) -> Self {
-        Match {
-            succeeded: true,
-            match_ends: 0,
-            leftover,
-        }
+        Match { succeeded: true, match_ends: 0, leftover }
     }
 
     fn failed(leftover: Bvec<u8, N>) -> Self {
-        Match {
-            succeeded: false,
-            match_ends: 0,
-            leftover,
-        }
+        Match { succeeded: false, match_ends: 0, leftover }
     }
 }
 
@@ -282,43 +261,24 @@ fn reverse_array<T, let N: u32>(input: [T; N]) -> [T; N] {
 }
 
 fn main() {
-
     assert_eq(reverse_array([1, 2, 3, 4]), [4, 3, 2, 1]);
-
 
     let mut xs: Bvec<u8, 3> = Bvec::empty();
 
     xs = xs.push(0);
-    assert_eq(xs, Bvec {
-        inner: [0, 0, 0],
-        offset: 0,
-        len: 1,
-    });
+    assert_eq(xs, Bvec { inner: [0, 0, 0], offset: 0, len: 1 });
 
     xs = xs.push(1);
-    assert_eq(xs, Bvec {
-        inner: [0, 1, 0],
-        offset: 0,
-        len: 2,
-    });
+    assert_eq(xs, Bvec { inner: [0, 1, 0], offset: 0, len: 2 });
 
     xs = xs.push(2);
-    assert_eq(xs, Bvec {
-        inner: [0, 1, 2],
-        offset: 0,
-        len: 3,
-    });
+    assert_eq(xs, Bvec { inner: [0, 1, 2], offset: 0, len: 3 });
 
     xs = xs.push(3);
-    assert_eq(xs, Bvec {
-        inner: [0, 1, 2],
-        offset: 0,
-        len: 3,
-    });
+    assert_eq(xs, Bvec { inner: [0, 1, 2], offset: 0, len: 3 });
 
     let ys = Bvec::new([0, 1, 2]);
     assert_eq(xs, ys);
-
 
     // test that pop_front gives all contents, in order,
     // followed by std::unsafe::zeroed()
@@ -343,24 +303,10 @@ fn main() {
         assert_eq(x, std::unsafe::zeroed());
     }
 
-    assert_eq(new_xs, Bvec {
-        inner: [0, 1, 2],
-        offset: 3,
-        len: 0,
-    });
-
+    assert_eq(new_xs, Bvec { inner: [0, 1, 2], offset: 3, len: 0 });
 
     // gr(a|e)y
-    let graey_regex = (
-        "gr",
-        (
-            Or {
-                lhs: "a",
-                rhs: "e",
-            },
-            "y"
-        )
-    );
+    let graey_regex = ("gr", (Or { lhs: "a", rhs: "e" }, "y"));
 
     let result = graey_regex.match(Bvec::new("gray".as_bytes()));
     println(result);
@@ -375,15 +321,7 @@ fn main() {
     assert_eq(result.leftover.len, 0);
 
     // colou?r
-    let colour_regex = (
-        "colo",
-        (
-            Question {
-                inner: "u",
-            },
-            "r"
-        )
-    );
+    let colour_regex = ("colo", (Question { inner: "u" }, "r"));
 
     let result = colour_regex.match(Bvec::new("color".as_bytes()));
     println(result);
@@ -399,9 +337,7 @@ fn main() {
 
     // parse the empty string three times
     // EMPTY{3}
-    let three_empties_regex: Repeated<(), 3> = Repeated {
-        inner: (),
-    };
+    let three_empties_regex: Repeated<(), 3> = Repeated { inner: () };
 
     let result = three_empties_regex.match(Bvec::new("111".as_bytes()));
     println(result);
@@ -410,9 +346,7 @@ fn main() {
     assert_eq(result.leftover.len, 3);
 
     // 1{0}
-    let zero_ones_regex: Repeated<str<1>, 0> = Repeated {
-        inner: "1",
-    };
+    let zero_ones_regex: Repeated<str<1>, 0> = Repeated { inner: "1" };
 
     let result = zero_ones_regex.match(Bvec::new("111".as_bytes()));
     println(result);
@@ -421,9 +355,7 @@ fn main() {
     assert_eq(result.leftover.len, 3);
 
     // 1{1}
-    let one_ones_regex: Repeated<str<1>, 1> = Repeated {
-        inner: "1",
-    };
+    let one_ones_regex: Repeated<str<1>, 1> = Repeated { inner: "1" };
 
     let result = one_ones_regex.match(Bvec::new("111".as_bytes()));
     println(result);
@@ -432,9 +364,7 @@ fn main() {
     assert_eq(result.leftover.len, 2);
 
     // 1{2}
-    let two_ones_regex: Repeated<str<1>, 2> = Repeated {
-        inner: "1",
-    };
+    let two_ones_regex: Repeated<str<1>, 2> = Repeated { inner: "1" };
 
     let result = two_ones_regex.match(Bvec::new("111".as_bytes()));
     println(result);
@@ -443,9 +373,7 @@ fn main() {
     assert_eq(result.leftover.len, 1);
 
     // 1{3}
-    let three_ones_regex: Repeated<str<1>, 3> = Repeated {
-        inner: "1",
-    };
+    let three_ones_regex: Repeated<str<1>, 3> = Repeated { inner: "1" };
 
     let result = three_ones_regex.match(Bvec::new("1111".as_bytes()));
     println(result);
@@ -454,16 +382,13 @@ fn main() {
     assert_eq(result.leftover.len, 1);
 
     // 1*
-    let ones_regex: Star<str<1>, 5> = Star {
-        inner: "1",
-    };
+    let ones_regex: Star<str<1>, 5> = Star { inner: "1" };
 
     let result = ones_regex.match(Bvec::new("11000".as_bytes()));
     println(result);
     assert(result.succeeded);
     assert_eq(result.match_ends, 2);
     assert_eq(result.leftover.len, 3);
-
 
     let result = ones_regex.match(Bvec::new("11".as_bytes()));
     println(result);
@@ -478,9 +403,7 @@ fn main() {
     assert_eq(result.leftover.len, 1);
 
     // 1+
-    let nonempty_ones_regex: Plus<str<1>, 5, 4> = Plus {
-        inner: "1",
-    };
+    let nonempty_ones_regex: Plus<str<1>, 5, 4> = Plus { inner: "1" };
 
     let result = nonempty_ones_regex.match(Bvec::new("111111".as_bytes()));
     println(result);
@@ -489,10 +412,7 @@ fn main() {
     assert_eq(result.leftover.len, 1);
 
     // 2^n-1 in binary: 1+0
-    let pred_pow_two_regex = (
-        nonempty_ones_regex,
-        "0"
-    );
+    let pred_pow_two_regex = (nonempty_ones_regex, "0");
 
     let result = pred_pow_two_regex.match(Bvec::new("1110".as_bytes()));
     println(result);
@@ -501,12 +421,7 @@ fn main() {
     assert_eq(result.leftover.len, 0);
 
     // (0|1)*
-    let binary_regex: Star<Or<str<1>, str<1>>, 5> = Star {
-        inner: Or {
-            lhs: "0",
-            rhs: "1",
-        }
-    };
+    let binary_regex: Star<Or<str<1>, str<1>>, 5> = Star { inner: Or { lhs: "0", rhs: "1" } };
 
     let result = binary_regex.match(Bvec::new("110100".as_bytes()));
     println(result);
@@ -515,13 +430,7 @@ fn main() {
     assert_eq(result.leftover.len, 1);
 
     // even numbers in binary: 1(0|1)*0
-    let even_binary_regex = (
-        "1",
-        (
-            binary_regex,
-            "0"
-        )
-    );
+    let even_binary_regex = ("1", (binary_regex, "0"));
 
     let result = even_binary_regex.match(Bvec::new("1111110".as_bytes()));
     println(result);
@@ -542,8 +451,8 @@ fn main() {
             "6",
             "7",
             "8",
-            "9",
-        ],
+            "9"
+        ]
     };
 
     let result = digit_regex.match(Bvec::new("157196345823795".as_bytes()));
@@ -560,9 +469,7 @@ fn main() {
 
     // digits: \d+
     // [0-9]+
-    let digits_regex: Plus<AnyOf<str<1>, 10>, 32, 31> = Plus {
-        inner: digit_regex,
-    };
+    let digits_regex: Plus<AnyOf<str<1>, 10>, 32, 31> = Plus { inner: digit_regex };
 
     let result = digits_regex.match(Bvec::new("123456789012345".as_bytes()));
     println(result);
@@ -579,10 +486,7 @@ fn main() {
     // multiples of 10
     // apply to a reversed input string (because there isn't backtracking)
     // 0\d+
-    let backwards_mult_of_10_regex = (
-        "0",
-        digits_regex
-    );
+    let backwards_mult_of_10_regex = ("0", digits_regex);
 
     let result = backwards_mult_of_10_regex.match(Bvec::new(reverse_array("1230".as_bytes())));
     println(result);
@@ -596,8 +500,6 @@ fn main() {
     assert(result.succeeded);
     assert_eq(result.match_ends, 17);
     assert_eq(result.leftover.len, 0);
-
     // adapted URL parser: (https?:\/\/)?([\da-c.\-]+)\.([a-c.]+)([\/\w \.\-]*)*\/?
-
 }
 

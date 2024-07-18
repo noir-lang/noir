@@ -1,4 +1,3 @@
-
 struct Match {
     succeeded: bool,
     match_ends: u32,
@@ -7,11 +6,7 @@ struct Match {
 
 impl Match {
     fn empty(leftover: [u8]) -> Self {
-        Match {
-            succeeded: true,
-            match_ends: 0,
-            leftover,
-        }
+        Match { succeeded: true, match_ends: 0, leftover }
     }
 }
 
@@ -179,235 +174,115 @@ impl<T, let N: u32, let N_PRED: u32> Regex for Plus<T, N, N_PRED> where T: Regex
     }
 }
 
-
 fn main() {
-
     // gr(a|e)y
-    let graey_regex = (
-        "gr",
-        (
-            Or {
-                lhs: "a",
-                rhs: "e",
-            },
-            "y"
-        )
-    );
-    
+    let graey_regex = ("gr", (Or { lhs: "a", rhs: "e" }, "y"));
+
     // NOTE: leftover ignored in Eq: Match
     let result = graey_regex.match("gray".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 4,
-        leftover: &[],
-    });
-    
-    
+    assert_eq(result, Match { succeeded: true, match_ends: 4, leftover: &[] });
+
     // NOTE: leftover ignored in Eq: Match
     let result = graey_regex.match("grey".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 4,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 4, leftover: &[] });
 
     // colou?r
-    let colour_regex = (
-        "colo",
-        (
-            Question {
-                inner: "u",
-            },
-            "r"
-        )
-    );
+    let colour_regex = ("colo", (Question { inner: "u" }, "r"));
 
     let result = colour_regex.match("color".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 5,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
 
     let result = colour_regex.match("colour".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 6,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 6, leftover: &[] });
 
     // parse the empty string three times
     // EMPTY{3}
-    let three_empties_regex: Repeated<(), 3> = Repeated {
-        inner: (),
-    };
+    let three_empties_regex: Repeated<(), 3> = Repeated { inner: () };
 
     let result = three_empties_regex.match("111".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 0,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 0, leftover: &[] });
 
     // 1{0}
-    let zero_ones_regex: Repeated<str<1>, 0> = Repeated {
-        inner: "1",
-    };
+    let zero_ones_regex: Repeated<str<1>, 0> = Repeated { inner: "1" };
 
     let result = zero_ones_regex.match("111".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 0,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 0, leftover: &[] });
 
     // 1{1}
-    let one_ones_regex: Repeated<str<1>, 1> = Repeated {
-        inner: "1",
-    };
+    let one_ones_regex: Repeated<str<1>, 1> = Repeated { inner: "1" };
 
     let result = one_ones_regex.match("111".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 1,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 1, leftover: &[] });
 
     // 1{2}
-    let two_ones_regex: Repeated<str<1>, 2> = Repeated {
-        inner: "1",
-    };
+    let two_ones_regex: Repeated<str<1>, 2> = Repeated { inner: "1" };
 
     let result = two_ones_regex.match("111".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 2,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
 
     // 1{3}
-    let three_ones_regex: Repeated<str<1>, 3> = Repeated {
-        inner: "1",
-    };
+    let three_ones_regex: Repeated<str<1>, 3> = Repeated { inner: "1" };
 
     let result = three_ones_regex.match("1111".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 3,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
 
     // 1*
-    let ones_regex: Star<str<1>, 5> = Star {
-        inner: "1",
-    };
+    let ones_regex: Star<str<1>, 5> = Star { inner: "1" };
 
     let result = ones_regex.match("11000".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 2,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
 
     let result = ones_regex.match("11".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 2,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
 
     let result = ones_regex.match("111111".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 5,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
 
     // 1+
-    let nonempty_ones_regex: Plus<str<1>, 5, 4> = Plus {
-        inner: "1",
-    };
+    let nonempty_ones_regex: Plus<str<1>, 5, 4> = Plus { inner: "1" };
 
     let result = nonempty_ones_regex.match("111111".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 5,
-        leftover: &[],
-    });
-
+    assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
 
     // 2^n-1 in binary: 1+0
-    let pred_pow_two_regex = (
-        nonempty_ones_regex,
-        "0"
-    );
+    let pred_pow_two_regex = (nonempty_ones_regex, "0");
 
     let result = pred_pow_two_regex.match("1110".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 3,
-        leftover: &[],
-    });
-
+    assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
 
     // (0|1)*
-    let binary_regex: Star<Or<str<1>, str<1>>, 5> = Star {
-        inner: Or {
-            lhs: "0",
-            rhs: "1",
-        }
-    };
+    let binary_regex: Star<Or<str<1>, str<1>>, 5> = Star { inner: Or { lhs: "0", rhs: "1" } };
 
     let result = binary_regex.match("110100".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 5,
-        leftover: &[],
-    });
+    assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
 
     // even numbers in binary: 1(0|1)*0
-    let even_binary_regex = (
-        "1",
-        (
-            binary_regex,
-            "0"
-        )
-    );
+    let even_binary_regex = ("1", (binary_regex, "0"));
 
     let result = even_binary_regex.match("1111110".as_bytes().as_slice());
     println(result);
-    assert_eq(result, Match {
-        succeeded: true,
-        match_ends: 6,
-        leftover: &[],
-    });
-
+    assert_eq(result, Match { succeeded: true, match_ends: 6, leftover: &[] });
     // 2-letter capitalized words: [A-Z][a-z]
-
     // numbers: \d+
     // [0-9]+
-
     // words: \w+
     // [a-Z]+
-
     // adapted URL parser: (https?:\/\/)?([\da-z.\-]+)\.([a-z.]+)([\/\w \.\-]*)*\/?
-
-
     // // panics (at compile time) when input string is too short
     // let foo_regex = (
     //     "colo",
@@ -426,6 +301,5 @@ fn main() {
     //     match_ends: 4,
     //     leftover: &[],
     // });
-
 }
 
