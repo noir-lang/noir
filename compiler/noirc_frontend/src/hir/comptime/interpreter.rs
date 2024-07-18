@@ -129,7 +129,11 @@ impl<'a> Interpreter<'a> {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
 
-        let function_body = self.interner.function(&function).as_expr();
+        let function_body = self.interner.function(&function).try_as_expr().ok_or_else(|| {
+            let function = self.interner.function_name(&function).to_owned();
+            InterpreterError::NonComptimeFnCallInSameCrate { function, location }
+        })?;
+
         let result = self.evaluate(function_body)?;
 
         self.exit_function(previous_state);

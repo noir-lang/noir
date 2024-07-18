@@ -7,7 +7,7 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::path_resolver;
 use crate::hir::type_check::TypeCheckError;
-use crate::{ResolvedGeneric, Type};
+use crate::{Generics, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::Context;
@@ -79,12 +79,13 @@ pub struct UnresolvedTraitImpl {
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
+    pub is_comptime: bool,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
-    pub resolved_generics: Vec<ResolvedGeneric>,
+    pub resolved_generics: Generics,
 
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
     // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
@@ -240,7 +241,7 @@ impl DefCollector {
     /// Collect all of the definitions in a given crate into a CrateDefMap
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
-    pub fn collect(
+    pub fn collect_crate_and_dependencies(
         mut def_map: CrateDefMap,
         context: &mut Context,
         ast: SortedModule,
