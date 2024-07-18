@@ -272,7 +272,7 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         self._table.len()
     }
 
-    // Get the value by key. If it does not exist, returns none().
+    // Get the value by key. If it does not exist, returns Option::none().
     // docs:start:get
     unconstrained pub fn get(
         self,
