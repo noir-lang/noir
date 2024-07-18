@@ -1591,6 +1591,13 @@ impl Type {
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
+        // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
+        let Some(make_error) = self.try_fn_to_unconstrained_fn_coercion(
+            expected, expression, interner, errors, make_error,
+        ) else {
+            return;
+        };
+
         let mut bindings = TypeBindings::new();
 
         if let Err(UnificationError) = self.try_unify(expected, &mut bindings) {
@@ -1600,6 +1607,47 @@ impl Type {
         } else {
             Type::apply_type_bindings(bindings);
         }
+    }
+
+    // If `self` and `expected` are function types, tries to coerce `self` to `expected`.
+    // Returns None if this produced an error, otherwise returns Some(make_error) meaning
+    // that regular unification must still be done (and it could produce an error).
+    pub fn try_fn_to_unconstrained_fn_coercion(
+        &self,
+        expected: &Type,
+        expression: ExprId,
+        interner: &mut NodeInterner,
+        errors: &mut Vec<TypeCheckError>,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) -> Option<impl FnOnce() -> TypeCheckError> {
+        // If `self` and `expected` are function types, `self` can be coerced to `expected`
+        // if `self` is unconstrained and `expected` is not. The other way around is an error, though.
+        let (
+            Type::Function(params, ret, env, unconstrained_self),
+            Type::Function(_, _, _, unconstrained_expected),
+        ) = (self.follow_bindings(), expected.follow_bindings())
+        else {
+            // No coercion needed
+            return Some(make_error);
+        };
+
+        // unconstrained status matches: no error
+        if unconstrained_self == unconstrained_expected {
+            return Some(make_error);
+        }
+
+        // unconstrained mismatch: produce an error
+        if unconstrained_self && !unconstrained_expected {
+            errors.push(make_error());
+            return None;
+        }
+
+        // Cast self unconstrained status to that of expected, so it won't produce an error
+        let coerced_self = Type::Function(params, ret, env, unconstrained_expected);
+        coerced_self.unify_with_coercions(expected, expression, interner, errors, make_error);
+
+        // Return None: an error might have been produced in the previous call
+        None
     }
 
     /// Try to apply the array to slice coercion to this given type pair and expression.

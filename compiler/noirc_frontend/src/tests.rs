@@ -2262,3 +2262,31 @@ fn cannot_pass_unconstrained_function_to_constrained_function() {
         panic!("Expected a type mismatch error, got {:?}", errors[0].0);
     };
 }
+
+#[test]
+fn can_assign_regular_function_to_unconstrained_function_in_explicitly_typed_var() {
+    let src = r#"
+    fn main() {
+        let _func: unconstrained fn() -> () = foo;
+    }
+
+    fn foo() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn can_assign_regular_function_to_unconstrained_function_in_struct_member() {
+    let src = r#"
+    fn main() {
+        let _ = Foo { func: foo };
+    }
+
+    fn foo() {}
+
+    struct Foo {
+        func: unconstrained fn() -> (),
+    }
+    "#;
+    assert_no_errors(src);
+}

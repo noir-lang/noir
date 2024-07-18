@@ -726,36 +726,12 @@ impl<'context> Elaborator<'context> {
             return Type::Error;
         }
 
-        for (param, (arg, _, arg_span)) in fn_params.iter().zip(callsite_args) {
-            let unify = |self_type: &mut Elaborator, actual: &Type, expected: &Type| {
-                self_type.unify(actual, expected, || TypeCheckError::TypeMismatch {
-                    expected_typ: expected.to_string(),
-                    expr_typ: actual.to_string(),
-                    expr_span: *arg_span,
-                });
-            };
-
-            // If arg and param are functions, they are incompatible if trying to pass an unconstrained
-            // function arg to a regular function param (the other way around is fine).
-            if let (
-                Type::Function(params, ret, env, unconstrained_arg),
-                Type::Function(_, _, _, unconstrained_param),
-            ) = (arg.follow_bindings(), param.follow_bindings())
-            {
-                if !unconstrained_param && unconstrained_arg {
-                    self.push_err(TypeCheckError::TypeMismatch {
-                        expected_typ: param.to_string(),
-                        expr_typ: arg.to_string(),
-                        expr_span: *arg_span,
-                    });
-                }
-
-                // Cast arg's unconstrained status to that of param, so it won't produce an error
-                let arg = Type::Function(params, ret, env, unconstrained_param);
-                unify(self, &arg, param);
-            } else {
-                unify(self, arg, param);
-            };
+        for (param, (arg, arg_expr_id, arg_span)) in fn_params.iter().zip(callsite_args) {
+            self.unify_with_coercions(arg, param, *arg_expr_id, || TypeCheckError::TypeMismatch {
+                expected_typ: param.to_string(),
+                expr_typ: arg.to_string(),
+                expr_span: *arg_span,
+            });
         }
 
         fn_ret.clone()
