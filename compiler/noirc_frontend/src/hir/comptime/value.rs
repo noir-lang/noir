@@ -82,9 +82,13 @@ impl Value {
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Code(_) => Type::Quoted(QuotedType::Quoted),
             Value::StructDefinition(_) => Type::Quoted(QuotedType::StructDefinition),
-            Value::Pointer(element, _) => {
-                let element = element.borrow().get_type().into_owned();
-                Type::MutableReference(Box::new(element))
+            Value::Pointer(element, auto_deref) => {
+                if *auto_deref {
+                    element.borrow().get_type().into_owned()
+                } else {
+                    let element = element.borrow().get_type().into_owned();
+                    Type::MutableReference(Box::new(element))
+                }
             }
             Value::TraitConstraint { .. } => Type::Quoted(QuotedType::TraitConstraint),
             Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
