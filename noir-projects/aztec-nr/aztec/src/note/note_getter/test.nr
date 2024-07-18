@@ -5,11 +5,12 @@ use crate::{
     note_header::NoteHeader,
     note_getter_options::{NoteGetterOptions, Sort, SortOrder, Comparator, PropertySelector},
     note_getter::constrain_get_notes_internal
-}
+},
+    oracle::execution::get_contract_address
 };
 use dep::protocol_types::address::AztecAddress;
 
-use crate::test::{helpers::{test_environment::TestEnvironment, cheatcodes}, mocks::mock_note::MockNote};
+use crate::test::{helpers::test_environment::TestEnvironment, mocks::mock_note::MockNote};
 
 global storage_slot: Field = 42;
 
@@ -18,7 +19,7 @@ fn setup() -> TestEnvironment {
 }
 
 fn build_valid_note(value: Field) -> MockNote {
-    MockNote::new(value).contract_address(cheatcodes::get_contract_address()).storage_slot(storage_slot).build()
+    MockNote::new(value).contract_address(get_contract_address()).storage_slot(storage_slot).build()
 }
 
 fn assert_equivalent_vec_and_array<T, let N: u32>(
@@ -174,7 +175,7 @@ fn rejects_mismatched_storage_slot() {
     let mut env = setup();
     let mut context = env.private();
 
-    let note = MockNote::new(1).contract_address(cheatcodes::get_contract_address()).build(); // We're not setting the right storage slot
+    let note = MockNote::new(1).contract_address(get_contract_address()).build(); // We're not setting the right storage slot
 
     let mut opt_notes = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
     opt_notes[0] = Option::some(note);

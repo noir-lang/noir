@@ -3,7 +3,8 @@ use dep::aztec::{
     test::helpers::{cheatcodes, test_environment::TestEnvironment},
     protocol_types::storage::map::derive_storage_slot_in_map,
     note::{note_getter::{MAX_NOTES_PER_PAGE, view_notes}, note_viewer_options::NoteViewerOptions},
-    oracle::{unsafe_rand::unsafe_rand, storage::storage_read}, context::PrivateContext
+    oracle::{execution::get_contract_address, unsafe_rand::unsafe_rand, storage::storage_read},
+    context::PrivateContext
 };
 
 use crate::{types::{token_note::TokenNote}, PrivateToken};
@@ -58,7 +59,7 @@ pub fn check_private_balance(
     address: AztecAddress,
     address_amount: Field
 ) {
-    let current_contract_address = cheatcodes::get_contract_address();
+    let current_contract_address = get_contract_address();
     cheatcodes::set_contract_address(token_contract_address);
 
     let header = context.get_header();

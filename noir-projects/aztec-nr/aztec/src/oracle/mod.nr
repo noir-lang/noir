@@ -5,6 +5,7 @@
 mod arguments;
 mod call_private_function;
 mod encryption;
+mod execution;
 mod get_contract_instance;
 mod get_l1_to_l2_membership_witness;
 mod get_nullifier_membership_witness;

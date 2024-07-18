@@ -16,7 +16,7 @@ use crate::note::{
     note_header::NoteHeader, note_interface::NoteInterface,
     utils::{compute_inner_note_hash, compute_note_hash_for_consumption}
 };
-use crate::oracle::notes::notify_created_note;
+use crate::oracle::{execution::{get_block_number, get_contract_address}, notes::notify_created_note};
 
 struct TestEnvironment {}
 
@@ -27,11 +27,11 @@ impl TestEnvironment {
     }
 
     fn block_number(_self: Self) -> u32 {
-        cheatcodes::get_block_number()
+        get_block_number()
     }
 
     fn contract_address(_self: Self) -> AztecAddress {
-        cheatcodes::get_contract_address()
+        get_contract_address()
     }
 
     fn impersonate(_self: Self, address: AztecAddress) {
@@ -39,7 +39,7 @@ impl TestEnvironment {
     }
 
     fn advance_block_to(&mut self, block_number: u32) {
-        let difference = block_number - cheatcodes::get_block_number();
+        let difference = block_number - get_block_number();
         self.advance_block_by(difference);
     }
 
@@ -53,7 +53,7 @@ impl TestEnvironment {
     }
 
     fn private(&mut self) -> PrivateContext {
-        self.private_at(cheatcodes::get_block_number())
+        self.private_at(get_block_number())
     }
 
     // unconstrained is a key word, so we mis-spell purposefully here, like we do with contrakt
@@ -62,7 +62,7 @@ impl TestEnvironment {
     }
 
     fn private_at(&mut self, historical_block_number: u32) -> PrivateContext {
-        if historical_block_number >= cheatcodes::get_block_number() {
+        if historical_block_number >= get_block_number() {
             self.advance_block_to(historical_block_number + 1);
         }
 
@@ -114,7 +114,7 @@ impl TestEnvironment {
 
         let selector = FunctionSelector::from_signature("constructor(Field,Field)");
 
-        let mut context = self.private_at(cheatcodes::get_block_number());
+        let mut context = self.private_at(get_block_number());
 
         let _ = context.call_private_function(address, selector, args);
 
@@ -131,12 +131,12 @@ impl TestEnvironment {
     ) -> T where C: CallInterface<M, PrivateContextInputs, PrivateCircuitPublicInputs, Env>, T: Deserialize<N> {
         let original_fn = call_interface.get_original();
         let original_msg_sender = cheatcodes::get_msg_sender();
-        let original_contract_address = cheatcodes::get_contract_address();
+        let original_contract_address = get_contract_address();
         let target_address = call_interface.get_contract_address();
 
         cheatcodes::set_contract_address(target_address);
         cheatcodes::set_msg_sender(original_contract_address);
-        let mut inputs = cheatcodes::get_private_context_inputs(cheatcodes::get_block_number() - 1);
+        let mut inputs = cheatcodes::get_private_context_inputs(get_block_number() - 1);
         inputs.call_context.function_selector = call_interface.get_selector();
         inputs.call_context.is_static_call = call_interface.get_is_static();
         let public_inputs = original_fn(inputs);
@@ -153,12 +153,12 @@ impl TestEnvironment {
     ) where C: CallInterface<M, PrivateContextInputs, PrivateCircuitPublicInputs, Env> {
         let original_fn = call_interface.get_original();
         let original_msg_sender = cheatcodes::get_msg_sender();
-        let original_contract_address = cheatcodes::get_contract_address();
+        let original_contract_address = get_contract_address();
         let target_address = call_interface.get_contract_address();
 
         cheatcodes::set_contract_address(target_address);
         cheatcodes::set_msg_sender(original_contract_address);
-        let mut inputs = cheatcodes::get_private_context_inputs(cheatcodes::get_block_number() - 1);
+        let mut inputs = cheatcodes::get_private_context_inputs(get_block_number() - 1);
         inputs.call_context.function_selector = call_interface.get_selector();
         inputs.call_context.is_static_call = call_interface.get_is_static();
         let public_inputs = original_fn(inputs);
@@ -175,7 +175,7 @@ impl TestEnvironment {
     ) -> T where C: CallInterface<M, PublicContextInputs, T, Env> {
         let original_fn = call_interface.get_original();
         let original_msg_sender = cheatcodes::get_msg_sender();
-        let original_contract_address = cheatcodes::get_contract_address();
+        let original_contract_address = get_contract_address();
         let original_fn_selector = cheatcodes::get_function_selector();
         let target_address = call_interface.get_contract_address();
         let fn_selector = call_interface.get_selector();
@@ -225,7 +225,7 @@ impl TestEnvironment {
         storage_slot: Field,
         contract_address: AztecAddress
     ) where Note: NoteInterface<N, M> {
-        let original_contract_address = cheatcodes::get_contract_address();
+        let original_contract_address = get_contract_address();
         cheatcodes::set_contract_address(contract_address);
         let note_hash_counter = cheatcodes::get_side_effects_counter();
 
