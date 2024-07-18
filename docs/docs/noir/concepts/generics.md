@@ -105,12 +105,23 @@ impl Eq for MyStruct {
 
 You can find more details on traits and trait implementations on the [traits page](../concepts/traits.md).
 
-## Turbofish
+## Manually Specifying Generics with the Turbofish Operator
 
-Paths with generic parameters in expressions must prefix the opening brackets with a `::<>` operator.
+There are times when the compiler cannot reasonably infer what type should be used for a generic, or when the developer themselves may want to manually distinguish generic type parameters. This is where the `::<>` turbofish operator comes into play.
+
+Paths with generic parameters in expressions can prefix the opening brackets with a `::<>` operator. They must be prefixed with `::<>` in cases where the generic type cannot be inferred.
 The name "turbofish" comes from that `::<>` looks like a little fish.
 
 Examples:
+```rust
+fn main() {
+    let mut slice = [];
+    slice = slice.push_back(1);
+    slice = slice.push_back(2);
+    // Without turbofish a type annotation would be needed on the left hand side
+    let array = slice.as_array::<2>();
+}
+```
 ```rust
 fn double<let N: u32>() -> u32 {
     N * 2
