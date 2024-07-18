@@ -1522,9 +1522,7 @@ impl Type {
                 Function(params_a, ret_a, env_a, unconstrained_a),
                 Function(params_b, ret_b, env_b, unconstrained_b),
             ) => {
-                if *unconstrained_a != *unconstrained_b {
-                    Err(UnificationError)
-                } else if params_a.len() == params_b.len() {
+                if unconstrained_a == unconstrained_b && params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b.iter()) {
                         a.try_unify(b, bindings)?;
                     }
