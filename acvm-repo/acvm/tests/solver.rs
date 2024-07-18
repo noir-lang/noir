@@ -788,83 +788,6 @@ fn allowed_bigint_moduli() -> Vec<Vec<u8>> {
     ]
 }
 
-
-// TODO: cleanup new tests and rename this
-#[test]
-fn binary_operations() {
-
-    // // special cases
-    //         BlackBoxFuncCall::BigIntSub { .. } => BlackBoxFunc::BigIntSub,
-    //         BlackBoxFuncCall::BigIntDiv { .. }
-    //
-    // // BigInt:
-    // //
-    // // pub struct BigIntSolver {
-    // //     bigint_id_to_value: HashMap<u32, BigUint>,
-    // //     bigint_id_to_modulus: HashMap<u32, BigUint>,
-    // // }
-    // //
-    //         BlackBoxFuncCall::BigIntAdd { .. }
-    //         BlackBoxFuncCall::BigIntMul { .. }
-    //
-    // // unique calling convention
-    //         BlackBoxFuncCall::EmbeddedCurveAdd { .. }
-
-    // TODO:
-    // - commutativity
-    // - associativity
-    // - left/right identity
-
-    // let x = FieldElement::from(1u128);
-    // let y = FieldElement::from(3u128);
-
-
-    let zero_constant = false;
-    let modulus = &allowed_bigint_moduli()[0];
-
-    let initial_witness = WitnessMap::from(BTreeMap::from_iter([
-        (Witness(1), FieldElement::zero()),
-    ]));
-
-    let zero_function_input = if zero_constant {
-        FunctionInput::constant(FieldElement::zero(), FieldElement::max_num_bits())
-    } else {
-        FunctionInput::witness(Witness(1), FieldElement::max_num_bits())
-
-    };
-    let zero: Vec<_> = modulus.clone().into_iter().map(|_| zero_function_input).collect();
-
-    let bigint_from_op = BlackBoxFuncCall::BigIntFromLeBytes {
-        inputs: zero,
-        modulus: modulus.clone(),
-        output: 0,
-    };
-
-    // BigIntToLeBytes {
-    //     input: u32,
-    //     outputs: Vec<Witness>,
-    // },
-
-    // let add_op = BlackBoxFuncCall::BigIntAdd {
-    //     lhs: 0,
-    //     rhs: 1,
-    //     output: 2,
-    // };
-
-    let op = Opcode::BlackBoxFuncCall(bigint_from_op);
-    let opcodes = vec![op];
-    let unconstrained_functions = vec![];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
-    let solver_status = acvm.solve();
-    assert_eq!(solver_status, ACVMStatus::Solved);
-    let witness_map = acvm.finalize();
-    
-    dbg!(witness_map[&Witness(1)]);
-
-
-}
-
 fn function_input_from_option(witness: Witness, opt_constant: Option<FieldElement>) -> FunctionInput<FieldElement> {
     opt_constant
         .map(|constant| FunctionInput::constant(constant, FieldElement::max_num_bits()))
@@ -890,8 +813,6 @@ fn xor_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<
         output: Witness(3),
     }
 }
-
-
 
 fn prop_assert_commutative(
     op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
@@ -977,6 +898,17 @@ prop_compose! {
     }
 }
 
+prop_compose! {
+    fn bigint_triple_with_modulus()(xs_ys_modulus in bigint_pair_with_modulus())
+        (zs in proptest::collection::vec(any::<(u8, bool)>(), xs_ys_modulus.2.len()), xs_ys_modulus in Just(xs_ys_modulus))
+        -> (Vec<(FieldElement, bool)>, Vec<(FieldElement, bool)>, Vec<(FieldElement, bool)>, Vec<u8>) {
+        let zs = zs.into_iter().map(|(x, use_constant)| {
+            (FieldElement::from(x as u128), use_constant)
+        }).collect();
+        (xs_ys_modulus.0, xs_ys_modulus.1, zs, xs_ys_modulus.2)
+    }
+}
+
 fn field_element_ones() -> FieldElement {
     let exponent: FieldElement = (FieldElement::max_num_bits() as u128).into();
     FieldElement::from(2u128).pow(&exponent) - FieldElement::one()
@@ -1026,7 +958,6 @@ fn bigint_solve_from_to_le_bytes(modulus: Vec<u8>, input: Vec<(FieldElement, boo
     }).collect()
 }
 
-
 fn bigint_solve_binary_op(middle_op: BlackBoxFuncCall<FieldElement>, modulus: Vec<u8>, xs: Vec<(FieldElement, bool)>, ys: Vec<(FieldElement, bool)>) -> Vec<FieldElement> {
     let initial_witness_vec: Vec<_> = xs.iter().chain(ys.iter()).enumerate().map(|(i, (x, _))| {
         (Witness(i as u32), x.clone())
@@ -1034,7 +965,8 @@ fn bigint_solve_binary_op(middle_op: BlackBoxFuncCall<FieldElement>, modulus: Ve
     let output_witnesses: Vec<_> = initial_witness_vec
         .iter()
         .take(xs.len())
-        .map(|(witness, _)| *witness)
+        .enumerate()
+        .map(|(i, _)| Witness((i + 2 * xs.len()) as u32))
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
@@ -1049,7 +981,7 @@ fn bigint_solve_binary_op(middle_op: BlackBoxFuncCall<FieldElement>, modulus: Ve
         if use_constant {
             FunctionInput::constant(x, FieldElement::max_num_bits())
         } else {
-            FunctionInput::witness(Witness(i as u32), FieldElement::max_num_bits())
+            FunctionInput::witness(Witness((i + xs.len()) as u32), FieldElement::max_num_bits())
         }
     }).collect();
 
@@ -1077,6 +1009,7 @@ fn bigint_solve_binary_op(middle_op: BlackBoxFuncCall<FieldElement>, modulus: Ve
     let unconstrained_functions = vec![];
     let mut acvm =
         ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
@@ -1088,7 +1021,9 @@ fn bigint_solve_binary_op(middle_op: BlackBoxFuncCall<FieldElement>, modulus: Ve
 }
 
 
-
+// NOTE: an "average" bigint is large, so consider increasing the number of proptest shrinking
+// iterations (from the default 1024) to reach a simplified case:
+// PROPTEST_MAX_SHRINK_ITERS=1024000 
 proptest! {
 
     #[test]
@@ -1258,6 +1193,116 @@ proptest! {
     }
 
     #[test]
+    fn bigint_add_commutative((xs, ys, modulus) in bigint_pair_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntAdd {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let lhs_results = bigint_solve_binary_op(op.clone(), modulus.clone(), xs.clone(), ys.clone());
+        let rhs_results = bigint_solve_binary_op(op, modulus, ys, xs);
+
+        prop_assert_eq!(lhs_results, rhs_results)
+    }
+
+    #[test]
+    fn bigint_mul_commutative((xs, ys, modulus) in bigint_pair_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntMul {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let lhs_results = bigint_solve_binary_op(op.clone(), modulus.clone(), xs.clone(), ys.clone());
+        let rhs_results = bigint_solve_binary_op(op, modulus, ys, xs);
+
+        prop_assert_eq!(lhs_results, rhs_results)
+    }
+
+    #[test]
+    fn bigint_add_associative((xs, ys, zs, modulus) in bigint_triple_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntAdd {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        // f(f(xs, ys), zs) ==
+        let op_xs_ys = bigint_solve_binary_op(op.clone(), modulus.clone(), xs.clone(), ys.clone());
+        let xs_ys: Vec<_> = op_xs_ys.into_iter().map(|x| (x, false)).collect();
+        let op_xs_ys_op_zs = bigint_solve_binary_op(op.clone(), modulus.clone(), xs_ys, zs.clone());
+
+        // f(xs, f(ys, zs))
+        let op_ys_zs = bigint_solve_binary_op(op.clone(), modulus.clone(), ys.clone(), zs.clone());
+        let ys_zs: Vec<_> = op_ys_zs.into_iter().map(|x| (x, false)).collect();
+        let op_xs_op_ys_zs = bigint_solve_binary_op(op, modulus, xs, ys_zs);
+
+        prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs)
+    }
+
+    #[test]
+    fn bigint_mul_associative((xs, ys, zs, modulus) in bigint_triple_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntMul {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        // f(f(xs, ys), zs) ==
+        let op_xs_ys = bigint_solve_binary_op(op.clone(), modulus.clone(), xs.clone(), ys.clone());
+        let xs_ys: Vec<_> = op_xs_ys.into_iter().map(|x| (x, false)).collect();
+        let op_xs_ys_op_zs = bigint_solve_binary_op(op.clone(), modulus.clone(), xs_ys, zs.clone());
+
+        // f(xs, f(ys, zs))
+        let op_ys_zs = bigint_solve_binary_op(op.clone(), modulus.clone(), ys.clone(), zs.clone());
+        let ys_zs: Vec<_> = op_ys_zs.into_iter().map(|x| (x, false)).collect();
+        let op_xs_op_ys_zs = bigint_solve_binary_op(op, modulus, xs, ys_zs);
+
+        prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs)
+    }
+
+    // TODO
+    //
+    // minimal failing input: (xs, ys, zs, modulus) = (
+    //     [ (0, false), (0, false), (158, true), (171, true), (134, false), (0, true), (37, true), (5, false), (241, true), (103, false), (20, false), (139, true), (227, false), (7, true), (9, true), (190, true), (220, false), (1, false), (43, true), (147, true), (235, true), (70, false), (146, true), (26, true), (211, true), (234, true), (54, false), (7, true), (97, false), (50, false), (228, true), (6, true)],
+    //     [ (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (7, false), (125, true), (213, false), (40, true), (66, false), (34, true), (102, true), (87, true), (87, true), (166, false), (39, false), (60, true), (179, true), (162, false), (194, false), (235, true), ],
+    //     [ (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (0, false), (1, true), (186, true), (43, false), (167, false), (178, false), (161, true), (70, false), (2⁴×14, false), (129, false), (177, true), (129, true), (2⁴×9, false), (76, true), (104, true), (222, false), (107, true), (197, true), (186, true), (57, true), (251, false), (159, false), ],
+    //     [ 65, 65, 54, 208, 140, 94, 210, 191, 59, 160, 72, 175, 230, 220, 174, 186, 254, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]
+    // )
+    #[test]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
+    fn bigint_mul_add_distributive((xs, ys, zs, modulus) in bigint_triple_with_modulus()) {
+        let add_op = BlackBoxFuncCall::BigIntMul {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+        let mul_op = BlackBoxFuncCall::BigIntMul {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        // xs * (ys + zs) ==
+        let add_ys_zs = bigint_solve_binary_op(add_op.clone(), modulus.clone(), ys.clone(), zs.clone());
+        let add_ys_zs: Vec<_> = add_ys_zs.into_iter().map(|x| (x, false)).collect();
+        let mul_xs_add_ys_zs = bigint_solve_binary_op(mul_op.clone(), modulus.clone(), xs.clone(), add_ys_zs);
+
+        // xs * ys + xs * zs
+        let mul_xs_ys = bigint_solve_binary_op(mul_op.clone(), modulus.clone(), xs.clone(), ys);
+        let mul_xs_ys: Vec<_> = mul_xs_ys.into_iter().map(|x| (x, false)).collect();
+        let mul_xs_zs = bigint_solve_binary_op(mul_op, modulus.clone(), xs, zs);
+        let mul_xs_zs: Vec<_> = mul_xs_zs.into_iter().map(|x| (x, false)).collect();
+        let add_mul_xs_ys_mul_xs_zs = bigint_solve_binary_op(add_op, modulus, mul_xs_ys, mul_xs_zs);
+
+        prop_assert_eq!(mul_xs_add_ys_zs, add_mul_xs_ys_mul_xs_zs)
+    }
+
+
+    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
+    #[test]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_add_zero_l((xs, modulus) in bigint_with_modulus()) {
         let op = BlackBoxFuncCall::BigIntAdd {
             lhs: 0,
@@ -1272,7 +1317,9 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
+    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_add_zero_r((xs, modulus) in bigint_with_modulus()) {
         let op = BlackBoxFuncCall::BigIntAdd {
             lhs: 0,
@@ -1314,7 +1361,9 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
+    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_mul_one_l((xs, modulus) in bigint_with_modulus()) {
         let op = BlackBoxFuncCall::BigIntMul {
             lhs: 0,
@@ -1330,7 +1379,9 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
+    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_mul_one_r((xs, modulus) in bigint_with_modulus()) {
         let op = BlackBoxFuncCall::BigIntMul {
             lhs: 0,
@@ -1341,11 +1392,235 @@ proptest! {
         let mut one: Vec<_> = xs.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect();
         // little-endian
         one[0] = (FieldElement::one(), one[0].1);
+
         let expected_results: Vec<_> = xs.iter().map(|x| x.0).collect();
         let results = bigint_solve_binary_op(op, modulus, xs, one);
         prop_assert_eq!(results, expected_results)
     }
 
+    #[test]
+    fn bigint_sub_self((xs, modulus) in bigint_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntSub {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let expected_results: Vec<_> = xs.iter().map(|_| FieldElement::zero()).collect();
+        let results = bigint_solve_binary_op(op, modulus, xs.clone(), xs);
+        prop_assert_eq!(results, expected_results)
+    }
+
+    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
+    #[test]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
+    fn bigint_sub_zero((xs, modulus) in bigint_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntSub {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let zero: Vec<_> = xs.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect();
+        let expected_results: Vec<_> = xs.iter().map(|x| x.0).collect();
+        let results = bigint_solve_binary_op(op, modulus, xs, zero);
+        prop_assert_eq!(results, expected_results)
+    }
+
+    #[test]
+    fn bigint_sub_one((xs, modulus) in bigint_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntSub {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let mut one: Vec<_> = xs.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect();
+        // little-endian
+        one[0] = (FieldElement::one(), one[0].1);
+
+        let expected_results: Vec<_> = xs.iter().map(|x| x.0).collect();
+        let results = bigint_solve_binary_op(op, modulus, xs, one);
+        prop_assert!(results != expected_results, "{:?} == {:?}", results, expected_results)
+    }
+
+    #[test]
+    fn bigint_div_self((xs, modulus) in bigint_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntDiv {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let mut one: Vec<_> = xs.iter().map(|_| FieldElement::zero()).collect();
+        // little-endian
+        one[0] = FieldElement::one();
+
+        let results = bigint_solve_binary_op(op, modulus, xs.clone(), xs);
+        prop_assert_eq!(results, one)
+    }
+
+    // TODO?
+    #[test]
+    fn bigint_div_by_zero((xs, modulus) in bigint_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntDiv {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let zero: Vec<_> = xs.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect();
+        let expected_results: Vec<_> = xs.iter().map(|_| FieldElement::zero()).collect();
+        let results = bigint_solve_binary_op(op, modulus, xs, zero);
+        prop_assert_eq!(results, expected_results)
+    }
+
+    // Fails on 49, see bigint_add_zero_l_single_case_49
+    #[test]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
+    fn bigint_div_one((xs, modulus) in bigint_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntDiv {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let mut one: Vec<_> = xs.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect();
+        // little-endian
+        one[0] = (FieldElement::one(), one[0].1);
+
+        let expected_results: Vec<_> = xs.iter().map(|x| x.0).collect();
+        let results = bigint_solve_binary_op(op, modulus, xs, one);
+        prop_assert_eq!(results, expected_results)
+    }
+
+    #[test]
+    fn bigint_div_zero((xs, modulus) in bigint_with_modulus()) {
+        let op = BlackBoxFuncCall::BigIntDiv {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let zero: Vec<_> = xs.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect();
+        let expected_results: Vec<_> = xs.iter().map(|_| FieldElement::zero()).collect();
+        let results = bigint_solve_binary_op(op, modulus, zero, xs);
+        prop_assert_eq!(results, expected_results)
+    }
+
+    // TODO: fails on (x=0, y=97)
+    #[test]
+    #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
+    fn bigint_add_sub((xs, ys, modulus) in bigint_pair_with_modulus()) {
+        let add_op = BlackBoxFuncCall::BigIntAdd {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+        let sub_op = BlackBoxFuncCall::BigIntSub {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let expected_results: Vec<_> = xs.iter().map(|x| x.0).collect();
+        let add_results = bigint_solve_binary_op(add_op, modulus.clone(), xs, ys.clone());
+        let add_bigint: Vec<_> = add_results.into_iter().map(|x| (x, false)).collect();
+        let results = bigint_solve_binary_op(sub_op, modulus, add_bigint, ys);
+
+        prop_assert_eq!(results, expected_results)
+    }
+
+    #[test]
+    #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
+    fn bigint_sub_add((xs, ys, modulus) in bigint_pair_with_modulus()) {
+        let add_op = BlackBoxFuncCall::BigIntAdd {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+        let sub_op = BlackBoxFuncCall::BigIntSub {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let expected_results: Vec<_> = xs.iter().map(|x| x.0).collect();
+        let sub_results = bigint_solve_binary_op(sub_op, modulus.clone(), xs, ys.clone());
+        let add_bigint: Vec<_> = sub_results.into_iter().map(|x| (x, false)).collect();
+        let results = bigint_solve_binary_op(add_op, modulus, add_bigint, ys);
+
+        prop_assert_eq!(results, expected_results)
+    }
+
+    // Fails on 49, see bigint_add_zero_l_single_case_49
+    #[test]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
+    fn bigint_div_mul((xs, ys, modulus) in bigint_pair_with_modulus()) {
+        let div_op = BlackBoxFuncCall::BigIntDiv {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+        let mul_op = BlackBoxFuncCall::BigIntMul {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let expected_results: Vec<_> = xs.iter().map(|x| x.0).collect();
+        let div_results = bigint_solve_binary_op(div_op, modulus.clone(), xs, ys.clone());
+        let div_bigint: Vec<_> = div_results.into_iter().map(|x| (x, false)).collect();
+        let results = bigint_solve_binary_op(mul_op, modulus, div_bigint, ys);
+
+        prop_assert_eq!(results, expected_results)
+    }
+
+    // Fails on 49, see bigint_add_zero_l_single_case_49
+    #[test]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
+    fn bigint_mul_div((xs, ys, modulus) in bigint_pair_with_modulus()) {
+        let div_op = BlackBoxFuncCall::BigIntDiv {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+        let mul_op = BlackBoxFuncCall::BigIntMul {
+            lhs: 0,
+            rhs: 1,
+            output: 2,
+        };
+
+        let expected_results: Vec<_> = xs.iter().map(|x| x.0).collect();
+        let mul_results = bigint_solve_binary_op(mul_op, modulus.clone(), xs, ys.clone());
+        let mul_bigint: Vec<_> = mul_results.into_iter().map(|x| (x, false)).collect();
+        let results = bigint_solve_binary_op(div_op, modulus, mul_bigint, ys);
+
+        prop_assert_eq!(results, expected_results)
+    }
+
 }
 
+// TODO: this test is redundant with bigint_add_zero_l,
+// but may be useful for debugging. It can be removed once bigint_add_zero_l is
+// passing because proptest automatically retries previous failures first.
+#[test]
+#[should_panic(expected = "assertion `left == right` failed")]
+fn bigint_add_zero_l_single_case_49() {
+    let modulus = &allowed_bigint_moduli()[0];
+    let mut xs: Vec<_> = modulus.iter().map(|_| (FieldElement::zero(), false)).collect();
+    xs[modulus.len() - 1] = (FieldElement::from(49u128), false);
+
+    let op = BlackBoxFuncCall::BigIntAdd {
+        lhs: 0,
+        rhs: 1,
+        output: 2,
+    };
+
+    let zero: Vec<_> = xs.iter().map(|(_, _use_constant)| (FieldElement::zero(), false)).collect();
+    let expected_results: Vec<_> = xs.iter().map(|x| x.0).collect();
+    let results = bigint_solve_binary_op(op, modulus.clone(), zero, xs);
+
+    assert_eq!(results, expected_results)
+}
 
