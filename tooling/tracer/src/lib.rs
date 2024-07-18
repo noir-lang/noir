@@ -7,7 +7,7 @@ use stack_frame::StackFrame;
 mod debugger_glue;
 use debugger_glue::{get_current_source_locations, get_stack_frames};
 
-mod tracer_glue;
+pub mod tracer_glue;
 use tracer_glue::{register_call, register_return, register_step, register_variables};
 
 pub mod tail_diff_vecs;

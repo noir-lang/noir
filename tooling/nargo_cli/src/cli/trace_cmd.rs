@@ -1,11 +1,11 @@
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
-use std::path::Path;
 
 use noirc_artifacts::debug::DebugArtifact;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noir_tracer::tracer_glue::store_trace;
 use noirc_abi::input_parser::Format;
 use noirc_abi::InputMap;
 use noirc_driver::{
@@ -110,17 +110,7 @@ pub(crate) fn trace_program(
         Ok(()) => (),
     };
 
-    let trace_path = Path::new(trace_dir).join("trace.json");
-    match tracer.store_trace_events(&trace_path) {
-        Ok(_) => println!("Saved trace to {:?}", trace_path),
-        Err(err) => println!("Warning: tracer failed to store trace events: {err}"),
-    }
-
-    let trace_path = Path::new(trace_dir).join("trace_metadata.json");
-    match tracer.store_trace_metadata(&trace_path) {
-        Ok(_) => println!("Saved trace to {:?}", trace_path),
-        Err(err) => println!("Warning: tracer failed to store trace metadata: {err}"),
-    }
+    store_trace(tracer, trace_dir);
 
     Ok(())
 }
