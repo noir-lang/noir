@@ -470,6 +470,63 @@ fn push_type_variable_parts(
     }
 }
 
+// These functions are copied from the codespan_lsp crate, except that they never panic
+// (the library will sometimes panic, so functions returning Result are not always accurate)
+
+fn range_to_byte_span(
+    files: &FileMap,
+    file_id: FileId,
+    range: &lsp_types::Range,
+) -> Option<std::ops::Range<usize>> {
+    Some(
+        position_to_byte_index(files, file_id, &range.start)?
+            ..position_to_byte_index(files, file_id, &range.end)?,
+    )
+}
+
+fn position_to_byte_index(
+    files: &FileMap,
+    file_id: FileId,
+    position: &lsp_types::Position,
+) -> Option<usize> {
+    let Ok(source) = files.source(file_id) else {
+        return None;
+    };
+
+    let Ok(line_span) = files.line_range(file_id, position.line as usize) else {
+        return None;
+    };
+    let line_str = source.get(line_span.clone())?;
+
+    let byte_offset = character_to_line_offset(line_str, position.character)?;
+
+    Some(line_span.start + byte_offset)
+}
+
+fn character_to_line_offset(line: &str, character: u32) -> Option<usize> {
+    let line_len = line.len();
+    let mut character_offset = 0;
+
+    let mut chars = line.chars();
+    while let Some(ch) = chars.next() {
+        if character_offset == character {
+            let chars_off = chars.as_str().len();
+            let ch_off = ch.len_utf8();
+
+            return Some(line_len - chars_off - ch_off);
+        }
+
+        character_offset += ch.len_utf16() as u32;
+    }
+
+    // Handle positions after the last character on the line
+    if character_offset == character {
+        Some(line_len)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod inlay_hints_tests {
     use crate::test_utils;
@@ -586,62 +643,5 @@ mod inlay_hints_tests {
     async fn test_do_not_panic_when_given_line_is_too_big() {
         let inlay_hints = get_inlay_hints(0, 100000).await;
         assert!(!inlay_hints.is_empty());
-    }
-}
-
-// These functions are copied from the codespan_lsp crate, except that they never panic
-// (the library will sometimes panic, so functions returning Result are not always accurate)
-
-fn range_to_byte_span(
-    files: &FileMap,
-    file_id: FileId,
-    range: &lsp_types::Range,
-) -> Option<std::ops::Range<usize>> {
-    Some(
-        position_to_byte_index(files, file_id, &range.start)?
-            ..position_to_byte_index(files, file_id, &range.end)?,
-    )
-}
-
-fn position_to_byte_index(
-    files: &FileMap,
-    file_id: FileId,
-    position: &lsp_types::Position,
-) -> Option<usize> {
-    let Ok(source) = files.source(file_id) else {
-        return None;
-    };
-
-    let Ok(line_span) = files.line_range(file_id, position.line as usize) else {
-        return None;
-    };
-    let line_str = source.get(line_span.clone())?;
-
-    let byte_offset = character_to_line_offset(line_str, position.character)?;
-
-    Some(line_span.start + byte_offset)
-}
-
-fn character_to_line_offset(line: &str, character: u32) -> Option<usize> {
-    let line_len = line.len();
-    let mut character_offset = 0;
-
-    let mut chars = line.chars();
-    while let Some(ch) = chars.next() {
-        if character_offset == character {
-            let chars_off = chars.as_str().len();
-            let ch_off = ch.len_utf8();
-
-            return Some(line_len - chars_off - ch_off);
-        }
-
-        character_offset += ch.len_utf16() as u32;
-    }
-
-    // Handle positions after the last character on the line
-    if character_offset == character {
-        Some(line_len)
-    } else {
-        None
     }
 }
