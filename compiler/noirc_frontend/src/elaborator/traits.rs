@@ -163,7 +163,6 @@ impl<'context> Elaborator<'context> {
                         default_impl,
                         default_impl_module_id: unresolved_trait.module_id,
                         trait_constraints: func_meta.trait_constraints.clone(),
-                        all_generics: func_meta.all_generics.clone(),
                         direct_generics: func_meta.direct_generics.clone(),
                     });
                 });
