@@ -800,12 +800,8 @@ impl FunctionDefinition {
             return_visibility: Visibility::Private,
         }
     }
-}
 
-impl Display for FunctionDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:?}", self.attributes)?;
-
+    pub fn signature(&self) -> String {
         let parameters = vecmap(&self.parameters, |Param { visibility, pattern, typ, span: _ }| {
             if *visibility == Visibility::Public {
                 format!("{pattern}: {visibility} {typ}")
@@ -827,15 +823,14 @@ impl Display for FunctionDefinition {
             format!(" -> {}", self.return_type)
         };
 
-        write!(
-            f,
-            "fn {}({}){}{} {}",
-            self.name,
-            parameters.join(", "),
-            return_type,
-            where_clause_str,
-            self.body
-        )
+        format!("fn {}({}){}{}", self.name, parameters.join(", "), return_type, where_clause_str)
+    }
+}
+
+impl Display for FunctionDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:?}", self.attributes)?;
+        write!(f, "fn {} {}", self.signature(), self.body)
     }
 }
 

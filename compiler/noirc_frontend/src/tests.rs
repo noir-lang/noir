@@ -50,10 +50,7 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
     });
 }
 
-pub(crate) fn get_program(
-    src: &str,
-    use_legacy: bool,
-) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -80,12 +77,11 @@ pub(crate) fn get_program(
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect(
+        errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            use_legacy,
             None, // No debug_comptime_in_file
             &[],  // No macro processors
         ));
@@ -94,7 +90,14 @@ pub(crate) fn get_program(
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-    get_program(src, false).2
+    get_program(src).2
+}
+
+fn assert_no_errors(src: &str) {
+    let errors = get_program_errors(src);
+    if !errors.is_empty() {
+        panic!("Expected no errors, got: {:?}", errors);
+    }
 }
 
 #[test]
@@ -141,10 +144,7 @@ fn check_trait_implemented_for_all_t() {
     fn main(a: Foo) -> pub bool {
         a.is_default()
     }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -767,9 +767,7 @@ fn test_impl_self_within_default_def() {
             self
         }
     }";
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -794,10 +792,7 @@ fn check_trait_as_type_as_fn_parameter() {
     fn main(a: Foo) -> pub bool {
         test_eq(a)
     }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -830,14 +825,11 @@ fn check_trait_as_type_as_two_fn_parameters() {
     fn main(a: Foo, b: u64) -> pub bool {
         test_eq(a, b)
     }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 fn get_program_captures(src: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src, false);
+    let (program, context, _errors) = get_program(src);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
@@ -898,7 +890,7 @@ fn resolve_empty_function() {
 
         }
     ";
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 #[test]
 fn resolve_basic_function() {
@@ -908,7 +900,7 @@ fn resolve_basic_function() {
             assert(y == x);
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 #[test]
 fn resolve_unused_var() {
@@ -981,7 +973,7 @@ fn resolve_literal_expr() {
             assert(y == x);
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1028,7 +1020,7 @@ fn resolve_prefix_expr() {
             let _y = -x;
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1040,7 +1032,7 @@ fn resolve_for_expr() {
             };
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1054,7 +1046,7 @@ fn resolve_call_expr() {
             x
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1071,7 +1063,7 @@ fn resolve_shadowing() {
             x
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1082,7 +1074,7 @@ fn resolve_basic_closure() {
             closure(x)
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1133,7 +1125,7 @@ fn resolve_complex_closures() {
             a + b + c + closure_with_transitive_captures(6)
         }
     "#;
-    assert!(get_program_errors(src).is_empty(), "there should be no errors");
+    assert_no_errors(src);
 
     let expected_captures = vec![
         vec![],
@@ -1199,7 +1191,7 @@ fn resolve_fmt_strings() {
 }
 
 fn check_rewrite(src: &str, expected: &str) {
-    let (_program, mut context, _errors) = get_program(src, false);
+    let (_program, mut context, _errors) = get_program(src);
     let main_func_id = context.def_interner.find_function("main").unwrap();
     let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
     assert!(format!("{}", program) == expected);
@@ -1636,8 +1628,7 @@ fn numeric_generic_in_function_signature() {
     let src = r#"
     fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1749,12 +1740,14 @@ fn numeric_generic_used_in_nested_type_pass() {
         inner: [u64; N],
     }    
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
 fn numeric_generic_used_in_trait() {
+    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
+    // not trigger `expected type, found numeric generic parameter N` as the trait
+    // does in fact expect a numeric generic.
     let src = r#"
     struct MyType<T> {
         a: Field,
@@ -1773,11 +1766,7 @@ fn numeric_generic_used_in_trait() {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
     "#;
-    let errors = get_program_errors(src);
-    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
-    // not trigger `expected type, found numeric generic parameter N` as the trait
-    // does in fact expect a numeric generic.
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1808,8 +1797,7 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1827,8 +1815,7 @@ fn numeric_generic_used_in_where_clause() {
         T::deserialize(fields)
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1845,8 +1832,7 @@ fn numeric_generic_used_in_turbofish() {
         assert(double::<7 + 8>() == 30);
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1866,8 +1852,7 @@ fn constant_used_with_numeric_generic() {
         }
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -2076,8 +2061,7 @@ fn turbofish_numeric_generic_nested_call() {
         let _ = bar::<M>();
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 
     // Check for turbofish numeric generics used with method calls
     let src = r#"
@@ -2107,6 +2091,48 @@ fn turbofish_numeric_generic_nested_call() {
         let _ = bar::<M>();
     }
     "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_super() {
+    let src = r#"
+    fn some_func() {}
+
+    mod foo {
+        use super::some_func;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_super_in_path() {
+    let src = r#"
+    fn some_func() {}
+
+    mod foo {
+        fn func() {
+            super::some_func();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_super() {
+    let src = "use super::some_func;";
     let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
+        PathResolutionError::NoSuper(span),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a 'no super' error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(span.start(), 4);
+    assert_eq!(span.end(), 9);
 }

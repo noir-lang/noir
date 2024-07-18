@@ -53,6 +53,7 @@ pub struct TypeImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(NoirFunction, Span)>,
+    pub is_comptime: bool,
 }
 
 /// Ast node for an implementation of a trait for a particular type
@@ -69,6 +70,8 @@ pub struct NoirTraitImpl {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
     pub items: Vec<TraitImplItem>,
+
+    pub is_comptime: bool,
 }
 
 /// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`
@@ -84,7 +87,7 @@ pub struct UnresolvedTraitConstraint {
 }
 
 /// Represents a single trait bound, such as `TraitX` or `TraitY<U, V>`
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TraitBound {
     pub trait_path: Path,
     pub trait_id: Option<TraitId>, // initially None, gets assigned during DC

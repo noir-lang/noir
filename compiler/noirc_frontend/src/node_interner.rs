@@ -386,11 +386,6 @@ impl StmtId {
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct ExprId(Index);
 
-impl ExprId {
-    pub fn empty_block_id() -> ExprId {
-        ExprId(Index::unsafe_zeroed())
-    }
-}
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct FuncId(Index);
 
@@ -558,7 +553,7 @@ pub struct QuotedTypeId(noirc_arena::Index);
 
 impl Default for NodeInterner {
     fn default() -> Self {
-        let mut interner = NodeInterner {
+        NodeInterner {
             nodes: Arena::default(),
             func_meta: HashMap::new(),
             function_definition_ids: HashMap::new(),
@@ -598,12 +593,7 @@ impl Default for NodeInterner {
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::new(),
             reference_modules: HashMap::new(),
-        };
-
-        // An empty block expression is used often, we add this into the `node` on startup
-        let expr_id = interner.push_expr(HirExpression::empty_block());
-        assert_eq!(expr_id, ExprId::empty_block_id());
-        interner
+        }
     }
 }
 
@@ -1015,6 +1005,10 @@ impl NodeInterner {
 
     pub fn try_module_attributes(&self, module_id: &ModuleId) -> Option<&ModuleAttributes> {
         self.module_attributes.get(module_id)
+    }
+
+    pub fn try_module_parent(&self, module_id: &ModuleId) -> Option<LocalModuleId> {
+        self.try_module_attributes(module_id).map(|attrs| attrs.parent)
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
