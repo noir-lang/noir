@@ -18,7 +18,6 @@ use brillig_vm::brillig::HeapValueType;
 
 use proptest::arbitrary::any;
 use proptest::prelude::*;
-use proptest::result::maybe_ok;
 use proptest::sample::select;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
@@ -821,7 +820,7 @@ fn bigint_zeroed(input: &Vec<(FieldElement, bool)>) -> Vec<(FieldElement, bool)>
 
 // bigint_zeroed, but returns one
 fn bigint_oned(input: &Vec<(FieldElement, bool)>) -> Vec<(FieldElement, bool)> {
-    let mut one = bigint_zeroed(&xs);
+    let mut one = bigint_zeroed(&input);
     // little-endian
     one[0] = (FieldElement::one(), one[0].1);
     one
@@ -1163,7 +1162,7 @@ proptest! {
 
     #[test]
     fn bigint_div_self((xs, modulus) in bigint_with_modulus()) {
-        let one = bigint_oned(&xs);
+        let one = drop_use_constant(&bigint_oned(&xs));
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs.clone(), xs);
         prop_assert_eq!(results, one)
     }
