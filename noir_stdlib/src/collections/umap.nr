@@ -355,7 +355,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
         where B: BuildHasher<H>, K: Eq + Hash, H: Hasher {
         if self.len() + 1 >= self.capacity() / 2 {
             let capacity = self.capacity() * 2;
-            let mut new_map = CtHashMap::with_hasher_and_capacity(self._build_hasher, capacity);
+            let mut new_map = UHashMap::with_hasher_and_capacity(self._build_hasher, capacity);
 
             for entry in self.entries() {
                 new_map.insert(entry.0, entry.1);
