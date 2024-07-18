@@ -53,8 +53,8 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
     /// Specify the backend expression width that should be targeted
-    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
-    pub expression_width: ExpressionWidth,
+    #[arg(long, value_parser = parse_expression_width)]
+    pub expression_width: Option<ExpressionWidth>,
 
     /// Generate ACIR without an expression width bound.
     /// This should usually only be used by users looking to hand optimize
@@ -518,6 +518,12 @@ fn compile_contract_inner(
     }
 }
 
+/// Default expression width used for Noir compilation.
+/// The ACVM native type `ExpressionWidth` has its own default which should always be unbounded,
+/// while we can sometimes expect the compilation target width to change.
+/// Thus, we set it separately here rather than trying to alter the default derivation of the type.
+pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded { width: 4 };
+
 /// Compile the current crate using `main_function` as the entrypoint.
 ///
 /// This function assumes [`check_crate`] is called beforehand.
@@ -559,7 +565,7 @@ pub fn compile_no_check(
         expression_width: if options.unbounded_codegen {
             ExpressionWidth::default()
         } else {
-            options.expression_width
+            options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
         },
     };
 
