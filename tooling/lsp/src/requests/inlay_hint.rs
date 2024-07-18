@@ -371,15 +371,60 @@ impl<'a> InlayHintCollector<'a> {
             }
 
             for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
-                if let HirPattern::Identifier(ident) = pattern {
-                    if let Some(lsp_location) =
-                        to_lsp_location(self.files, self.file_id, call_argument.span)
-                    {
-                        let definition = self.interner.definition(ident.id);
-                        self.push_parameter_hint(lsp_location.range.start, &definition.name);
+                let Some(lsp_location) =
+                    to_lsp_location(self.files, self.file_id, call_argument.span)
+                else {
+                    continue;
+                };
+
+                let Some(pattern_name) = self.get_pattern_name(pattern) else {
+                    continue;
+                };
+
+                if let Some(call_argument_name) = self.get_expression_name(&call_argument) {
+                    if pattern_name == call_argument_name {
+                        continue;
                     }
                 }
+
+                self.push_parameter_hint(lsp_location.range.start, &pattern_name);
             }
+        }
+    }
+
+    fn get_pattern_name(&self, pattern: &HirPattern) -> Option<String> {
+        match pattern {
+            HirPattern::Identifier(ident) => {
+                let definition = self.interner.definition(ident.id);
+                Some(definition.name.clone())
+            }
+            HirPattern::Mutable(pattern, _location) => self.get_pattern_name(pattern),
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => None,
+        }
+    }
+
+    fn get_expression_name(&self, expression: &Expression) -> Option<String> {
+        match &expression.kind {
+            ExpressionKind::Variable(path, _) => Some(path.last_segment().to_string()),
+            ExpressionKind::Prefix(prefix) => self.get_expression_name(&prefix.rhs),
+            ExpressionKind::MemberAccess(member_access) => Some(member_access.rhs.to_string()),
+            ExpressionKind::Call(call) => self.get_expression_name(&call.func),
+            ExpressionKind::MethodCall(method_call) => Some(method_call.method_name.to_string()),
+            ExpressionKind::Cast(cast) => self.get_expression_name(&cast.lhs),
+            ExpressionKind::Parenthesized(expr) => self.get_expression_name(expr),
+            ExpressionKind::Constructor(..)
+            | ExpressionKind::Infix(..)
+            | ExpressionKind::Index(..)
+            | ExpressionKind::Block(..)
+            | ExpressionKind::If(..)
+            | ExpressionKind::Lambda(..)
+            | ExpressionKind::Tuple(..)
+            | ExpressionKind::Quote(..)
+            | ExpressionKind::Unquote(..)
+            | ExpressionKind::Comptime(..)
+            | ExpressionKind::Resolved(..)
+            | ExpressionKind::Literal(..)
+            | ExpressionKind::Error => None,
         }
     }
 
@@ -807,5 +852,23 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
         }
+    }
+
+    #[test]
+    async fn test_dont_show_parameter_inlay_hints_if_name_matches_var_name() {
+        let inlay_hints = get_inlay_hints(41, 45, parameter_hints()).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_dont_show_parameter_inlay_hints_if_name_matches_member_name() {
+        let inlay_hints = get_inlay_hints(48, 52, parameter_hints()).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_dont_show_parameter_inlay_hints_if_name_matches_call_name() {
+        let inlay_hints = get_inlay_hints(57, 60, parameter_hints()).await;
+        assert!(inlay_hints.is_empty());
     }
 }

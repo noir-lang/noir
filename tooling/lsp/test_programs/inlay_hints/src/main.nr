@@ -27,7 +27,7 @@ fn call_test_fn() {
 }
 
 struct SomeStruct {
-
+    one: i32,
 }
 
 impl SomeStruct {
@@ -35,7 +35,28 @@ impl SomeStruct {
 }
 
 fn call_method() {
-    let s = SomeStruct {};
+    let s = SomeStruct { one: 1 };
     s.some_method(1);
+}
+
+fn call_where_name_matches() {
+    let one = 1;
+    let two = 2;
+    test_fn(one, two);
+}
+
+fn call_where_member_name_matches() {
+    let s = SomeStruct { one: 1 };
+    let two = 2;
+    test_fn(s.one, two);
+}
+
+fn one() -> i32 {
+    1
+}
+
+fn call_where_call_matches_name() {
+    let two = 2;
+    test_fn(one(), two);
 }
 
