@@ -431,6 +431,7 @@ impl<'a> Context<'a> {
         }
 
         warnings.extend(return_warnings);
+        
         // Add the warnings from the alter Ssa passes
         Ok(self.acir_context.finish(input_witness, return_witnesses, warnings))
     }
@@ -976,15 +977,6 @@ impl<'a> Context<'a> {
         };
         // Ensure that array id is fully resolved.
         let array = dfg.resolve(array);
-
-        // dbg!(array);
-        // match &dfg[array] {
-        //     Value::Array { array, typ } => {
-        //         dbg!(typ.clone());
-        //         // dbg!(array.clone());
-        //     }
-        //     _ => {}
-        // };
 
         let array_id = dfg.resolve(array);
         let array_typ = dfg.type_of_value(array_id);
