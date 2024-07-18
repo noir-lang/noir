@@ -56,7 +56,8 @@ pub struct CompileOptions {
     #[arg(long, value_parser = parse_expression_width)]
     pub expression_width: Option<ExpressionWidth>,
 
-    /// Generate ACIR with an expression width bound.
+    /// Generate ACIR with the target backend expression width.
+    /// The default is to generate ACIR without a bound and split expressions after code generation.
     /// Activating this flag can sometimes provide optimizations for certain programs.
     #[arg(long, default_value = "false")]
     pub bounded_codegen: bool,
