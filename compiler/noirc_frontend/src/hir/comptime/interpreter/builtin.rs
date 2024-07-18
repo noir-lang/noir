@@ -393,16 +393,16 @@ fn trait_constraint_eq(
 }
 
 // fn zeroed<T>() -> T
-fn zeroed(_interner: &mut NodeInterner, return_type: Type, location: Location) -> IResult<Value> {
+fn zeroed(interner: &mut NodeInterner, return_type: Type, location: Location) -> IResult<Value> {
     match return_type {
         Type::FieldElement => Ok(Value::Field(0u128.into())),
         Type::Array(length_type, elem) => {
             if let Some(length) = length_type.evaluate_to_u32() {
-                let element = zeroed(_interner, elem.as_ref().clone(), location)?;
+                let element = zeroed(interner, elem.as_ref().clone(), location)?;
                 let array = std::iter::repeat(element).take(length as usize).collect();
                 Ok(Value::Array(array, Type::Array(length_type, elem)))
             } else {
-                todo!()
+                Err(InterpreterError::NonIntegerArrayLength { typ: *length_type, location })
             }
         }
         Type::Slice(_) => Ok(Value::Slice(im::Vector::new(), return_type)),
@@ -419,18 +419,28 @@ fn zeroed(_interner: &mut NodeInterner, return_type: Type, location: Location) -
             (Signedness::Signed, IntegerBitSize::SixtyFour) => Ok(Value::I64(0)),
         },
         Type::Bool => Ok(Value::Bool(false)),
-        Type::String(_) => todo!(),
-        Type::FmtString(_, _) => todo!(),
+        Type::String(length_type) => {
+            if let Some(length) = length_type.evaluate_to_u32() {
+                let string = std::iter::repeat('\0').take(length as usize).collect();
+                Ok(Value::String(Rc::new(string)))
+            } else {
+                Err(InterpreterError::NonIntegerArrayLength { typ: *length_type, location })
+            }
+        }
+        Type::FmtString(_, _) => {
+            let item = "format strings in a comptime context".into();
+            Err(InterpreterError::Unimplemented { item, location })
+        }
         Type::Unit => Ok(Value::Unit),
         Type::Tuple(fields) => {
-            Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(_interner, field, location))?))
+            Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(interner, field, location))?))
         }
         Type::Struct(struct_type, generics) => {
             let fields = struct_type.borrow().get_fields(&generics);
             let mut values = HashMap::default();
 
             for (field_name, field_type) in fields {
-                let field_value = zeroed(_interner, field_type, location)?;
+                let field_value = zeroed(interner, field_type, location)?;
                 values.insert(Rc::new(field_name), field_value);
             }
 
@@ -438,26 +448,26 @@ fn zeroed(_interner: &mut NodeInterner, return_type: Type, location: Location) -
             Ok(Value::Struct(values, typ))
         }
         Type::Alias(alias, generics) => {
-            zeroed(_interner, alias.borrow().get_type(&generics), location)
+            zeroed(interner, alias.borrow().get_type(&generics), location)
         }
-        Type::TypeVariable(_, _) => Ok(Value::Zeroed(return_type)),
-        Type::TraitAsType(_, _, _) => todo!(),
-        Type::NamedGeneric(_, _, _) => todo!(),
         Type::Function(_, _, _) => {
             Ok(Value::Function(FuncId::dummy_id(), Type::Unit, Default::default()))
         }
         Type::MutableReference(element) => {
-            let element = zeroed(_interner, *element, location)?;
+            let element = zeroed(interner, *element, location)?;
             Ok(Value::Pointer(Shared::new(element), false))
         }
-        Type::Forall(_, _) => todo!(),
-        Type::Constant(_) => todo!(),
         Type::Quoted(QuotedType::TraitConstraint) => Ok(Value::TraitConstraint(TraitBound {
             trait_path: Path::from_single(String::new(), Span::default()),
             trait_id: None,
             trait_generics: Vec::new(),
         })),
-        Type::Quoted(_) => todo!(),
-        Type::Error => todo!(),
+        Type::TypeVariable(_, _)
+        | Type::Forall(_, _)
+        | Type::Constant(_)
+        | Type::Quoted(_)
+        | Type::Error
+        | Type::TraitAsType(_, _, _)
+        | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
 }
