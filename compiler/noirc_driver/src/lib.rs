@@ -53,8 +53,8 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
     /// Specify the backend expression width that should be targeted
-    #[arg(long, value_parser = parse_expression_width)]
-    pub expression_width: Option<ExpressionWidth>,
+    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
+    pub expression_width: ExpressionWidth,
 
     /// Generate ACIR without an expression width bound.
     /// This should usually only be used by users looking to hand optimize
