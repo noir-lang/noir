@@ -4,11 +4,11 @@ use dep::aztec::protocol_types::{utils::field::field_from_bytes, traits::{Eq, Se
 // Compresses M bytes into N fields.
 // Can be used for longer strings that don't fit in a single field.
 // Each field can store 31 characters, so N should be M/31 rounded up.
-struct CompressedString<N, M> {
+struct CompressedString<let N: u32, let M: u32> {
   value: [Field; N]
 }
 
-impl<N, M> CompressedString<N, M> {
+impl<let N: u32, let M: u32> CompressedString<N, M> {
     pub fn from_string(input_string: str<M>) -> Self {
         let mut fields = [0; N];
         let byts = input_string.as_bytes();
@@ -46,20 +46,20 @@ impl<N, M> CompressedString<N, M> {
     }
 }
 
-impl<N, M> Eq for CompressedString<N, M> {
+impl<let N: u32, let M: u32> Eq for CompressedString<N, M> {
     fn eq(self, other: CompressedString<N, M>) -> bool {
         self.value == other.value
     }
 }
 
-impl<N, M> Serialize<N> for CompressedString<N, M> {
+impl<let N: u32, let M: u32> Serialize<N> for CompressedString<N, M> {
     fn serialize(self) -> [Field; N] {
         self.value
     
     }
 }
 
-impl<N, M> Deserialize<N> for CompressedString<N, M> {
+impl<let N: u32, let M: u32> Deserialize<N> for CompressedString<N, M> {
     fn deserialize(input: [Field; N]) -> Self {
         Self { value: input }
     }

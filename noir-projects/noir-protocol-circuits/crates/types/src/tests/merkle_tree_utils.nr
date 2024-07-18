@@ -160,9 +160,7 @@ impl<let SUBTREE_ITEMS: u32, let TREE_HEIGHT: u8, let SUPERTREE_HEIGHT: u8, let 
         self.left_supertree_branch[SUPERTREE_HEIGHT - 1]
     }
 
-    pub fn get_next_available_index(self) -> u32 {
-        // Silence warning for unused self, pending proper fix.
-        let _  = self;
+    pub fn get_next_available_index(_self: Self) -> u32 {
         SUBTREE_ITEMS
     }
 }

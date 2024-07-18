@@ -1,5 +1,5 @@
 #[oracle(aes128Encrypt)]
-pub fn aes128_encrypt_oracle<let N: u32, let M: u32>(
+unconstrained pub fn aes128_encrypt_oracle<let N: u32, let M: u32>(
     input: [u8; N],
     iv: [u8; 16],
     key: [u8; 16]

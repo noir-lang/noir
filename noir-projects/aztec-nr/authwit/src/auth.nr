@@ -285,7 +285,7 @@ pub fn assert_inner_hash_valid_authwit_public(context: &mut PublicContext, on_be
  * @param args The arguments of the function that is being called
  */
 // docs:start:compute_authwit_message_hash_from_call
-pub fn compute_authwit_message_hash_from_call<N>(
+pub fn compute_authwit_message_hash_from_call<let N: u32>(
     caller: AztecAddress,
     consumer: AztecAddress,
     chain_id: Field,
@@ -307,7 +307,7 @@ pub fn compute_authwit_message_hash_from_call<N>(
  * 
  * @param args The arguments to hash
  */
-pub fn compute_inner_authwit_hash<N>(args: [Field; N]) -> Field {
+pub fn compute_inner_authwit_hash<let N: u32>(args: [Field; N]) -> Field {
     pedersen_hash(args, GENERATOR_INDEX__AUTHWIT_INNER)
 }
 

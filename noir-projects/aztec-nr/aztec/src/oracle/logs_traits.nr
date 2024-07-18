@@ -360,7 +360,7 @@ impl<let N: u32, let M: u32, let L: u32> ToBytesForUnencryptedLog<N, M> for str<
     fn to_be_bytes_arr(self) -> [u8; N] {
         str_to_be_bytes_arr(self)
     }
-    fn output_bytes(self) -> [u8; M] {
+    fn output_bytes(_self: Self) -> [u8; M] {
         [0; M]
     }
 }

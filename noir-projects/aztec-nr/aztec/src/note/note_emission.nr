@@ -15,7 +15,7 @@ impl<Note> NoteEmission<Note> {
         _emit(self);
     }
 
-    pub fn discard(self) {}
+    pub fn discard(_self: Self) {}
 }
 
 /**
@@ -41,5 +41,5 @@ impl<Note> OuterNoteEmission<Note> {
         }
     }
 
-    pub fn discard(self) {}
+    pub fn discard(_self: Self) {}
 }

@@ -123,34 +123,34 @@ unconstrained pub fn set_fn_selector(selector: FunctionSelector) {
 }
 
 #[oracle(reset)]
-fn oracle_reset() {}
+unconstrained fn oracle_reset() {}
 
 #[oracle(getChainId)]
-fn oracle_get_chain_id() -> Field {}
+unconstrained fn oracle_get_chain_id() -> Field {}
 
 #[oracle(getVersion)]
-fn oracle_get_version() -> Field {}
+unconstrained fn oracle_get_version() -> Field {}
 
 #[oracle(getContractAddress)] 
-fn oracle_get_contract_address() -> AztecAddress {}
+unconstrained fn oracle_get_contract_address() -> AztecAddress {}
 
 #[oracle(setContractAddress)]
-fn oracle_set_contract_address(address: AztecAddress) {}
+unconstrained fn oracle_set_contract_address(address: AztecAddress) {}
 
 #[oracle(getBlockNumber)]
-fn oracle_get_block_number() -> u32 {}
+unconstrained fn oracle_get_block_number() -> u32 {}
 
 #[oracle(advanceBlocksBy)]
-fn oracle_advance_blocks_by(blocks: u32) {}
+unconstrained fn oracle_advance_blocks_by(blocks: u32) {}
 
 #[oracle(getPrivateContextInputs)]
-fn oracle_get_private_context_inputs(historical_block_number: u32) -> PrivateContextInputs {}
+unconstrained fn oracle_get_private_context_inputs(historical_block_number: u32) -> PrivateContextInputs {}
 
 #[oracle(getPublicContextInputs)]
-fn oracle_get_public_context_inputs() -> PublicContextInputs {}
+unconstrained fn oracle_get_public_context_inputs() -> PublicContextInputs {}
 
 #[oracle(deploy)]
-fn oracle_deploy<let N: u32, let M: u32>(
+unconstrained fn oracle_deploy<let N: u32, let M: u32>(
     path: str<N>,
     initializer: str<M>,
     args: [Field],
@@ -158,42 +158,42 @@ fn oracle_deploy<let N: u32, let M: u32>(
 ) -> [Field; CONTRACT_INSTANCE_LENGTH] {}
 
 #[oracle(directStorageWrite)]
-fn direct_storage_write_oracle<let N: u32>(
+unconstrained fn direct_storage_write_oracle<let N: u32>(
     _contract_address: AztecAddress,
     _storage_slot: Field,
     _values: [Field; N]
 ) -> [Field; N] {}
 
 #[oracle(createAccount)]
-fn oracle_create_account() -> TestAccount {}
+unconstrained fn oracle_create_account() -> TestAccount {}
 
 #[oracle(addAccount)]
-fn oracle_add_account(secret: Field, partial_address: PartialAddress) -> TestAccount {}
+unconstrained fn oracle_add_account(secret: Field, partial_address: PartialAddress) -> TestAccount {}
 
 #[oracle(deriveKeys)]
-fn oracle_derive_keys(secret: Field) -> PublicKeys {}
+unconstrained fn oracle_derive_keys(secret: Field) -> PublicKeys {}
 
 #[oracle(getMsgSender)]
-fn oracle_get_msg_sender() -> AztecAddress {}
+unconstrained fn oracle_get_msg_sender() -> AztecAddress {}
 
 #[oracle(setMsgSender)]
-fn oracle_set_msg_sender(msg_sender: AztecAddress) {}
+unconstrained fn oracle_set_msg_sender(msg_sender: AztecAddress) {}
 
 #[oracle(getSideEffectsCounter)]
-fn oracle_get_side_effects_counter() -> u32 {}
+unconstrained fn oracle_get_side_effects_counter() -> u32 {}
 
 #[oracle(addAuthWitness)]
-fn orable_add_authwit(address: AztecAddress, message_hash: Field) {}
+unconstrained fn orable_add_authwit(address: AztecAddress, message_hash: Field) {}
 
 #[oracle(assertPublicCallFails)]
-fn oracle_assert_public_call_fails(
+unconstrained fn oracle_assert_public_call_fails(
     target_address: AztecAddress,
     function_selector: FunctionSelector,
     args: [Field]
 ) {}
 
 #[oracle(assertPrivateCallFails)]
-fn oracle_assert_private_call_fails(
+unconstrained fn oracle_assert_private_call_fails(
     target_address: AztecAddress,
     function_selector: FunctionSelector,
     argsHash: Field,
@@ -203,13 +203,13 @@ fn oracle_assert_private_call_fails(
 ) {}
 
 #[oracle(addNullifiers)]
-fn oracle_add_nullifiers(contractAddress: AztecAddress, nullifiers: [Field]) {}
+unconstrained fn oracle_add_nullifiers(contractAddress: AztecAddress, nullifiers: [Field]) {}
 
 #[oracle(addNoteHashes)]
-fn oracle_add_note_hashes(contractAddress: AztecAddress, inner_note_hashes: [Field]) {}
+unconstrained fn oracle_add_note_hashes(contractAddress: AztecAddress, inner_note_hashes: [Field]) {}
 
 #[oracle(getFunctionSelector)]
-fn oracle_get_function_selector() -> FunctionSelector {}
+unconstrained fn oracle_get_function_selector() -> FunctionSelector {}
 
 #[oracle(setFunctionSelector)]
-fn oracle_set_function_selector(selector: FunctionSelector) {}
+unconstrained fn oracle_set_function_selector(selector: FunctionSelector) {}

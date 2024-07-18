@@ -8,7 +8,7 @@ unconstrained fn get_public_keys_and_partial_address_oracle_wrapper(address: Azt
     get_public_keys_and_partial_address_oracle(address)
 }
 
-fn get_public_keys_and_partial_address(address: AztecAddress) -> (PublicKeys, PartialAddress) {
+pub fn get_public_keys_and_partial_address(address: AztecAddress) -> (PublicKeys, PartialAddress) {
     let result = get_public_keys_and_partial_address_oracle_wrapper(address);
 
     let keys = PublicKeys {

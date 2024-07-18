@@ -166,7 +166,7 @@ mod test {
         let note = MockNoteBuilder::new(note_value).contract_address(contract_address).storage_slot(storage_slot).build();
 
         let eph_sk = 0x1358d15019d4639393d62b97e1588c095957ce74a1c32d6ec7d62fe6705d9538;
-        OracleMock::mock("getRandomField").returns(eph_sk);
+        let _ = OracleMock::mock("getRandomField").returns(eph_sk);
 
         let recipient = AztecAddress::from_field(0x10ee41ee4b62703b16f61e03cb0d88c4b306a9eb4a6ceeb2aff13428541689a2);
 

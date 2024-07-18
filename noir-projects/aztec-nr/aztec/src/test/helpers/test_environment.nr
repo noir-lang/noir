@@ -26,15 +26,15 @@ impl TestEnvironment {
         Self {}
     }
 
-    fn block_number(self) -> u32 {
+    fn block_number(_self: Self) -> u32 {
         cheatcodes::get_block_number()
     }
 
-    fn contract_address(self) -> AztecAddress {
+    fn contract_address(_self: Self) -> AztecAddress {
         cheatcodes::get_contract_address()
     }
 
-    fn impersonate(self, address: AztecAddress) {
+    fn impersonate(_self: Self, address: AztecAddress) {
         cheatcodes::set_contract_address(address)
     }
 
@@ -43,11 +43,11 @@ impl TestEnvironment {
         self.advance_block_by(difference);
     }
 
-    fn advance_block_by(&mut self, blocks: u32) {
+    fn advance_block_by(_self: &mut Self, blocks: u32) {
         cheatcodes::advance_blocks_by(blocks);
     }
 
-    fn public(self) -> PublicContext {
+    fn public(_self: Self) -> PublicContext {
         let mut inputs = cheatcodes::get_public_context_inputs();
         PublicContext::new(inputs)
     }
@@ -57,7 +57,7 @@ impl TestEnvironment {
     }
 
     // unconstrained is a key word, so we mis-spell purposefully here, like we do with contrakt
-    fn unkonstrained(self) -> UnconstrainedContext {
+    fn unkonstrained(_self: Self) -> UnconstrainedContext {
         UnconstrainedContext::new()
     }
 
@@ -71,7 +71,7 @@ impl TestEnvironment {
         PrivateContext::new(inputs, 0)
     }
 
-    fn create_account(self) -> AztecAddress {
+    fn create_account(_self: Self) -> AztecAddress {
         let test_account = cheatcodes::create_account();
         let address = test_account.address;
         let keys = test_account.keys;
@@ -121,12 +121,12 @@ impl TestEnvironment {
         address
     }
 
-    fn deploy<let N: u32>(self, path: str<N>) -> Deployer<N> {
+    fn deploy<let N: u32>(_self: Self, path: str<N>) -> Deployer<N> {
         Deployer { path, public_keys_hash: 0 }
     }
 
     fn call_private<C, let M: u32, T, Env, let N: u32>(
-        self,
+        _self: Self,
         call_interface: C
     ) -> T where C: CallInterface<M, PrivateContextInputs, PrivateCircuitPublicInputs, Env>, T: Deserialize<N> {
         let original_fn = call_interface.get_original();
@@ -148,7 +148,7 @@ impl TestEnvironment {
     }
 
     fn call_private_void<C, let M: u32, Env, let N: u32>(
-        self,
+        _self: Self,
         call_interface: C
     ) where C: CallInterface<M, PrivateContextInputs, PrivateCircuitPublicInputs, Env> {
         let original_fn = call_interface.get_original();
@@ -170,7 +170,7 @@ impl TestEnvironment {
     }
 
     fn call_public<C, let M: u32, T, Env, let N: u32>(
-        self,
+        _self: Self,
         call_interface: C
     ) -> T where C: CallInterface<M, PublicContextInputs, T, Env> {
         let original_fn = call_interface.get_original();
@@ -195,7 +195,7 @@ impl TestEnvironment {
     }
 
     fn assert_public_call_fails<C, let M: u32, T, Env, let N: u32>(
-        self,
+        _self: Self,
         call_interface: C
     ) where C: CallInterface<M, PublicContextInputs, T, Env> {
         cheatcodes::assert_public_call_fails(
@@ -206,7 +206,7 @@ impl TestEnvironment {
     }
 
     fn assert_private_call_fails<C, let M: u32, T, Env, let N: u32>(
-        self,
+        _self: Self,
         call_interface: C
     ) where C: CallInterface<M, PrivateContextInputs, T, Env> {
         cheatcodes::assert_private_call_fails(
@@ -220,7 +220,7 @@ impl TestEnvironment {
     }
 
     pub fn store_note_in_cache<Note, let N: u32, let M: u32>(
-        self,
+        _self: Self,
         note: &mut Note,
         storage_slot: Field,
         contract_address: AztecAddress

@@ -16,7 +16,7 @@ pub fn compute_inner_note_hash_from_preimage(storage_slot: Field, note_content_h
     )
 }
 
-fn compute_inner_note_hash<Note, let N: u32, let M: u32>(note: Note) -> Field where Note: NoteInterface<N, M> {
+pub fn compute_inner_note_hash<Note, let N: u32, let M: u32>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
     let note_hash = note.compute_note_content_hash();
 
