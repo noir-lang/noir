@@ -344,11 +344,15 @@ impl<K, V, B, H> CtHashMap<K, V, B> {
         }
     }
 
-    fn try_resize(&mut self)
-        where B: BuildHasher<H> {
+    unconstrained fn try_resize(&mut self)
+        where B: BuildHasher<H>, K: Eq + Hash, H: Hasher {
         if self.len() + 1 >= self.capacity() / 2 {
             let capacity = self.capacity() * 2;
             let mut new_map = CtHashMap::with_hasher_and_capacity(self._build_hasher, capacity);
+
+            for entry in self.entries() {
+                new_map.insert(entry.0, entry.1);
+            }
             *self = new_map;
         }
     }
