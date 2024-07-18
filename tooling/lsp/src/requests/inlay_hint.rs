@@ -14,6 +14,7 @@ use noirc_frontend::{
         BlockExpression, Expression, ExpressionKind, Ident, LetStatement, NoirFunction, Pattern,
         Statement, StatementKind, TraitImplItem, TraitItem, UnresolvedTypeData,
     },
+    hir_def::stmt::HirPattern,
     macros_api::NodeInterner,
     node_interner::ReferenceId,
     parser::{Item, ItemKind},
@@ -200,12 +201,22 @@ impl<'a> InlayHintCollector<'a> {
                 self.collect_in_expression(&index_expression.index);
             }
             ExpressionKind::Call(call_expression) => {
+                self.collect_call_parameter_names(
+                    call_expression.func.span,
+                    &call_expression.arguments,
+                );
+
                 self.collect_in_expression(&call_expression.func);
                 for arg in &call_expression.arguments {
                     self.collect_in_expression(arg);
                 }
             }
             ExpressionKind::MethodCall(method_call_expression) => {
+                self.collect_call_parameter_names(
+                    method_call_expression.method_name.span(),
+                    &method_call_expression.arguments,
+                );
+
                 self.collect_in_expression(&method_call_expression.object);
                 for arg in &method_call_expression.arguments {
                     self.collect_in_expression(arg);
@@ -335,6 +346,69 @@ impl<'a> InlayHintCollector<'a> {
             padding_right: None,
             data: None,
         });
+    }
+
+    fn collect_call_parameter_names(&mut self, at: Span, arguments: &Vec<Expression>) {
+        if !self.options.parameter_hints.enabled {
+            return;
+        }
+
+        // The `at` span might be the span of a path like `Foo::bar`.
+        // In order to find the function behind it, we use a span that is just the last char.
+        let at = Span::single_char(at.end() - 1);
+
+        let referenced = self.interner.find_referenced(Location::new(at, self.file_id));
+        if let Some(ReferenceId::Function(func_id)) = referenced {
+            let func_meta = self.interner.function_meta(&func_id);
+
+            let mut parameters = func_meta.parameters.iter().peekable();
+
+            // Skip `self` parameter
+            if let Some((pattern, _, _)) = parameters.peek() {
+                if self.is_self_parmeter(pattern) {
+                    parameters.next();
+                }
+            }
+
+            for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
+                if let HirPattern::Identifier(ident) = pattern {
+                    if let Some(lsp_location) =
+                        to_lsp_location(self.files, self.file_id, call_argument.span)
+                    {
+                        let definition = self.interner.definition(ident.id);
+                        self.push_parameter_hint(lsp_location.range.start, &definition.name);
+                    }
+                }
+            }
+        }
+    }
+
+    fn push_parameter_hint(&mut self, position: Position, str: &str) {
+        self.push_text_hint(position, format!("{}: ", str));
+    }
+
+    fn push_text_hint(&mut self, position: Position, str: String) {
+        self.inlay_hints.push(InlayHint {
+            position,
+            label: InlayHintLabel::String(str),
+            kind: Some(InlayHintKind::PARAMETER),
+            text_edits: None,
+            tooltip: None,
+            padding_left: None,
+            padding_right: None,
+            data: None,
+        });
+    }
+
+    fn is_self_parmeter(&self, pattern: &HirPattern) -> bool {
+        match pattern {
+            HirPattern::Identifier(ident) => {
+                let definition_info = self.interner.definition(ident.id);
+                definition_info.name == "self"
+            }
+            HirPattern::Mutable(pattern, _location) => self.is_self_parmeter(pattern),
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+        }
     }
 
     fn intersects_span(&self, other_span: Span) -> bool {
@@ -542,7 +616,10 @@ fn character_to_line_offset(line: &str, character: u32) -> Option<usize> {
 
 #[cfg(test)]
 mod inlay_hints_tests {
-    use crate::{requests::TypeHintsOptions, test_utils};
+    use crate::{
+        requests::{ParameterHintsOptions, TypeHintsOptions},
+        test_utils,
+    };
 
     use super::*;
     use lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
@@ -573,11 +650,24 @@ mod inlay_hints_tests {
     }
 
     fn no_hints() -> InlayHintsOptions {
-        InlayHintsOptions { type_hints: TypeHintsOptions { enabled: false } }
+        InlayHintsOptions {
+            type_hints: TypeHintsOptions { enabled: false },
+            parameter_hints: ParameterHintsOptions { enabled: false },
+        }
     }
 
     fn type_hints() -> InlayHintsOptions {
-        InlayHintsOptions { type_hints: TypeHintsOptions { enabled: true } }
+        InlayHintsOptions {
+            type_hints: TypeHintsOptions { enabled: true },
+            parameter_hints: ParameterHintsOptions { enabled: false },
+        }
+    }
+
+    fn parameter_hints() -> InlayHintsOptions {
+        InlayHintsOptions {
+            type_hints: TypeHintsOptions { enabled: false },
+            parameter_hints: ParameterHintsOptions { enabled: true },
+        }
     }
 
     #[test]
@@ -675,5 +765,47 @@ mod inlay_hints_tests {
     async fn test_do_not_panic_when_given_line_is_too_big() {
         let inlay_hints = get_inlay_hints(0, 100000, type_hints()).await;
         assert!(!inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_dont_collect_parameter_inlay_hints_if_disabled() {
+        let inlay_hints = get_inlay_hints(24, 26, no_hints()).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_collect_parameter_inlay_hints_in_function_call() {
+        let inlay_hints = get_inlay_hints(24, 26, parameter_hints()).await;
+        assert_eq!(inlay_hints.len(), 2);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 25, character: 12 });
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, "one: ");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+
+        let inlay_hint = &inlay_hints[1];
+        assert_eq!(inlay_hint.position, Position { line: 25, character: 15 });
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, "two: ");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_collect_parameter_inlay_hints_in_method_call() {
+        let inlay_hints = get_inlay_hints(36, 39, parameter_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 38, character: 18 });
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, "one: ");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
     }
 }

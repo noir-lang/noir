@@ -74,11 +74,20 @@ pub(crate) struct LspInitializationOptions {
 pub(crate) struct InlayHintsOptions {
     #[serde(rename = "typeHints", default = "default_type_hints")]
     pub(crate) type_hints: TypeHintsOptions,
+
+    #[serde(rename = "parameterHints", default = "default_parameter_hints")]
+    pub(crate) parameter_hints: ParameterHintsOptions,
 }
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
 pub(crate) struct TypeHintsOptions {
     #[serde(rename = "enabled", default = "default_type_hints_enabled")]
+    pub(crate) enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct ParameterHintsOptions {
+    #[serde(rename = "enabled", default = "default_parameter_hints_enabled")]
     pub(crate) enabled: bool,
 }
 
@@ -91,7 +100,10 @@ fn default_enable_parsing_cache() -> bool {
 }
 
 fn default_inlay_hints() -> InlayHintsOptions {
-    InlayHintsOptions { type_hints: default_type_hints() }
+    InlayHintsOptions {
+        type_hints: default_type_hints(),
+        parameter_hints: default_parameter_hints(),
+    }
 }
 
 fn default_type_hints() -> TypeHintsOptions {
@@ -99,6 +111,14 @@ fn default_type_hints() -> TypeHintsOptions {
 }
 
 fn default_type_hints_enabled() -> bool {
+    true
+}
+
+fn default_parameter_hints() -> ParameterHintsOptions {
+    ParameterHintsOptions { enabled: default_parameter_hints_enabled() }
+}
+
+fn default_parameter_hints_enabled() -> bool {
     true
 }
 
