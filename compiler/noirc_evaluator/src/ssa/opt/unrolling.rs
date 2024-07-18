@@ -64,8 +64,6 @@ impl Ssa {
                 return Err(unroll_errors.swap_remove(0));
             }
         }
-
-        // println!("{}", ssa);
         Ok(ssa)
     }
 

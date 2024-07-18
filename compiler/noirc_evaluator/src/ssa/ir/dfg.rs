@@ -45,7 +45,7 @@ pub(crate) struct DataFlowGraph {
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ValueId.
     constants: HashMap<(FieldElement, Type), ValueId>,
-    
+
     /// Contains each function that has been imported into the current function.
     /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given FunctionId
     /// will always have the same ValueId within this function.
