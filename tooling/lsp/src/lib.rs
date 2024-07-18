@@ -52,6 +52,7 @@ use requests::{
     on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
     on_inlay_hint_request, on_prepare_rename_request, on_profile_run_request,
     on_references_request, on_rename_request, on_shutdown, on_test_run_request, on_tests_request,
+    LspInitializationOptions,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -85,7 +86,7 @@ pub struct LspState {
     cached_lenses: HashMap<String, Vec<CodeLens>>,
     cached_definitions: HashMap<String, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
-    parsing_cache_enabled: bool,
+    options: LspInitializationOptions,
 }
 
 impl LspState {
@@ -102,7 +103,7 @@ impl LspState {
             cached_definitions: HashMap::new(),
             open_documents_count: 0,
             cached_parsed_files: HashMap::new(),
-            parsing_cache_enabled: true,
+            options: Default::default(),
         }
     }
 }
@@ -341,7 +342,7 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
 }
 
 fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
-    if state.parsing_cache_enabled {
+    if state.options.enable_parsing_cache {
         let noir_file_hashes: Vec<_> = file_manager
             .as_file_map()
             .all_file_ids()

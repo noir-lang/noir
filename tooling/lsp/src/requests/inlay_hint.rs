@@ -22,7 +22,7 @@ use noirc_frontend::{
 
 use crate::LspState;
 
-use super::{process_request, to_lsp_location};
+use super::{process_request, to_lsp_location, InlayHintsOptions};
 
 pub(crate) fn on_inlay_hint_request(
     state: &mut LspState,
@@ -32,6 +32,8 @@ pub(crate) fn on_inlay_hint_request(
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
     };
+
+    let options = state.options.inlay_hints;
 
     let result = process_request(state, text_document_position_params, |args| {
         let path = PathString::from_path(params.text_document.uri.to_file_path().unwrap());
@@ -43,7 +45,8 @@ pub(crate) fn on_inlay_hint_request(
             let span = range_to_byte_span(args.files, file_id, &params.range)
                 .map(|range| Span::from(range.start as u32..range.end as u32));
 
-            let mut collector = InlayHintCollector::new(args.files, file_id, args.interner, span);
+            let mut collector =
+                InlayHintCollector::new(args.files, file_id, args.interner, span, options);
             collector.collect_in_parsed_module(&parsed_moduled);
             collector.inlay_hints
         })
@@ -56,6 +59,7 @@ pub(crate) struct InlayHintCollector<'a> {
     file_id: FileId,
     interner: &'a NodeInterner,
     span: Option<Span>,
+    options: InlayHintsOptions,
     inlay_hints: Vec<InlayHint>,
 }
 
@@ -65,8 +69,9 @@ impl<'a> InlayHintCollector<'a> {
         file_id: FileId,
         interner: &'a NodeInterner,
         span: Option<Span>,
+        options: InlayHintsOptions,
     ) -> InlayHintCollector<'a> {
-        InlayHintCollector { files, file_id, interner, span, inlay_hints: Vec::new() }
+        InlayHintCollector { files, file_id, interner, span, options, inlay_hints: Vec::new() }
     }
     fn collect_in_parsed_module(&mut self, parsed_module: &ParsedModule) {
         for item in &parsed_module.items {
@@ -252,6 +257,10 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn collect_in_pattern(&mut self, pattern: &Pattern) {
+        if !self.options.type_hints.enabled {
+            return;
+        }
+
         match pattern {
             Pattern::Identifier(ident) => {
                 self.collect_in_ident(ident);
@@ -273,6 +282,10 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn collect_in_ident(&mut self, ident: &Ident) {
+        if !self.options.type_hints.enabled {
+            return;
+        }
+
         let span = ident.span();
         let location = Location::new(ident.span(), self.file_id);
         if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
@@ -529,14 +542,19 @@ fn character_to_line_offset(line: &str, character: u32) -> Option<usize> {
 
 #[cfg(test)]
 mod inlay_hints_tests {
-    use crate::test_utils;
+    use crate::{requests::TypeHintsOptions, test_utils};
 
     use super::*;
     use lsp_types::{Range, TextDocumentIdentifier, WorkDoneProgressParams};
     use tokio::test;
 
-    async fn get_inlay_hints(start_line: u32, end_line: u32) -> Vec<InlayHint> {
+    async fn get_inlay_hints(
+        start_line: u32,
+        end_line: u32,
+        options: InlayHintsOptions,
+    ) -> Vec<InlayHint> {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
+        state.options.inlay_hints = options;
 
         on_inlay_hint_request(
             &mut state,
@@ -554,9 +572,23 @@ mod inlay_hints_tests {
         .unwrap()
     }
 
+    fn no_hints() -> InlayHintsOptions {
+        InlayHintsOptions { type_hints: TypeHintsOptions { enabled: false } }
+    }
+
+    fn type_hints() -> InlayHintsOptions {
+        InlayHintsOptions { type_hints: TypeHintsOptions { enabled: true } }
+    }
+
+    #[test]
+    async fn test_dont_collect_type_hints_if_disabled() {
+        let inlay_hints = get_inlay_hints(0, 3, no_hints()).await;
+        assert!(inlay_hints.is_empty());
+    }
+
     #[test]
     async fn test_type_inlay_hints_without_location() {
-        let inlay_hints = get_inlay_hints(0, 3).await;
+        let inlay_hints = get_inlay_hints(0, 3, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
@@ -577,7 +609,7 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_type_inlay_hints_with_location() {
-        let inlay_hints = get_inlay_hints(12, 15).await;
+        let inlay_hints = get_inlay_hints(12, 15, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
@@ -605,7 +637,7 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_type_inlay_hints_in_for() {
-        let inlay_hints = get_inlay_hints(16, 18).await;
+        let inlay_hints = get_inlay_hints(16, 18, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
@@ -623,7 +655,7 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_type_inlay_hints_in_global() {
-        let inlay_hints = get_inlay_hints(19, 21).await;
+        let inlay_hints = get_inlay_hints(19, 21, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
         let inlay_hint = &inlay_hints[0];
@@ -641,7 +673,7 @@ mod inlay_hints_tests {
 
     #[test]
     async fn test_do_not_panic_when_given_line_is_too_big() {
-        let inlay_hints = get_inlay_hints(0, 100000).await;
+        let inlay_hints = get_inlay_hints(0, 100000, type_hints()).await;
         assert!(!inlay_hints.is_empty());
     }
 }
