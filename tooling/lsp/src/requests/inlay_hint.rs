@@ -395,6 +395,10 @@ impl<'a> InlayHintCollector<'a> {
                 }
 
                 if parameters_count == 1 {
+                    if parameter_name.len() == 1 {
+                        continue;
+                    }
+
                     if let Some(function_name) = &function_name {
                         if function_name.ends_with(&parameter_name) {
                             continue;
@@ -903,6 +907,12 @@ mod inlay_hints_tests {
     #[test]
     async fn test_dont_show_parameter_inlay_hints_if_param_name_starts_with_underscore() {
         let inlay_hints = get_inlay_hints(71, 73, parameter_hints()).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_dont_show_parameter_inlay_hints_if_single_argument_with_single_letter() {
+        let inlay_hints = get_inlay_hints(77, 79, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
 }

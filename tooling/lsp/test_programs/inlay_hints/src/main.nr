@@ -73,3 +73,9 @@ fn call_with_underscore() {
     with_underscore(1);
 }
 
+fn one_arg_with_one_char(x: i32) {}
+
+fn call_one_arg_with_one_char() {
+    one_arg_with_one_char(1);
+}
+
