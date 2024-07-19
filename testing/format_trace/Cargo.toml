@@ -1,0 +1,13 @@
+[package]
+name = "format_trace"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = "1.0.204"
+serde_json = { version = "=1.0.96", features = ["preserve_order"] }
+regex = "1.10.5"

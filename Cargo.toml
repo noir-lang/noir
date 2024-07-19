@@ -27,6 +27,7 @@ members = [
     "tooling/artifact_cli",
     "tooling/profiler",
     "tooling/inspector",
+    "testing/format_trace",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",
