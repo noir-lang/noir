@@ -46,25 +46,26 @@ struct Context {
 impl Context {
     fn optimize_array_get(&mut self, function: &mut Function) {
         let block = function.entry_block();
-        let instructions = function.dfg[block].take_instructions();
+        let dfg = &mut function.dfg;
+        let instructions = dfg[block].take_instructions();
 
         for instruction_id in instructions {
-            let instruction = function.dfg[instruction_id].clone();
+            let instruction = dfg[instruction_id].clone();
 
             match &instruction {
                 Instruction::IfElse { then_value, .. } => {
                     let then_value = *then_value;
 
                     // Only apply this optimization to IfElse where values are arrays
-                    let Type::Array(..) = function.dfg.type_of_value(then_value) else {
+                    let Type::Array(..) = dfg.type_of_value(then_value) else {
                         continue;
                     };
 
-                    let results = function.dfg.instruction_results(instruction_id);
+                    let results = dfg.instruction_results(instruction_id);
                     let result = results[0];
                     self.result_if_else.insert(result, instruction_id);
 
-                    function.dfg[block].instructions_mut().push(instruction_id);
+                    dfg[block].instructions_mut().push(instruction_id);
                 }
                 Instruction::ArrayGet { array, index } => {
                     // If this array get is for an array that is the result of a previous IfElse...
@@ -75,14 +76,14 @@ impl Context {
                             else_condition,
                             else_value,
                             ..
-                        } = &function.dfg[*if_else]
+                        } = &dfg[*if_else]
                         {
                             let then_condition = *then_condition;
                             let then_value = *then_value;
                             let else_condition = *else_condition;
                             let else_value = *else_value;
 
-                            let then_value_type = function.dfg.type_of_value(then_value);
+                            let then_value_type = dfg.type_of_value(then_value);
 
                             let Type::Array(element_type, _) = then_value_type else {
                                 panic!("ice: expected array type, got {:?}", then_value_type);
@@ -100,7 +101,7 @@ impl Context {
                             // First create an instruction like this, for the then branch:
                             //
                             //     v12 = array_get v2, index v4
-                            let then_result = function.dfg.insert_instruction_and_results(
+                            let then_result = dfg.insert_instruction_and_results(
                                 Instruction::ArrayGet { array: then_value, index: *index },
                                 block,
                                 Some(element_type.clone()),
@@ -111,7 +112,7 @@ impl Context {
                             // Then create an instruction like this, for the else branch:
                             //
                             //     v13 = array_get v3, index v4
-                            let else_result = function.dfg.insert_instruction_and_results(
+                            let else_result = dfg.insert_instruction_and_results(
                                 Instruction::ArrayGet { array: else_value, index: *index },
                                 block,
                                 Some(element_type.clone()),
@@ -122,7 +123,7 @@ impl Context {
                             // Finally create an IfElse instruction like this:
                             //
                             //     v14 = if v0 then v12 else if v1 then v13
-                            let new_result = function.dfg.insert_instruction_and_results(
+                            let new_result = dfg.insert_instruction_and_results(
                                 Instruction::IfElse {
                                     then_condition: then_condition,
                                     then_value: then_result,
@@ -136,18 +137,18 @@ impl Context {
                             let new_result = new_result.first();
 
                             // And replace the original instruction's value with this final value
-                            let results = function.dfg.instruction_results(instruction_id);
+                            let results = dfg.instruction_results(instruction_id);
                             let result = results[0];
-                            function.dfg.set_value_from_id(result, new_result);
+                            dfg.set_value_from_id(result, new_result);
 
                             continue;
                         }
                     }
 
-                    function.dfg[block].instructions_mut().push(instruction_id);
+                    dfg[block].instructions_mut().push(instruction_id);
                 }
                 _ => {
-                    function.dfg[block].instructions_mut().push(instruction_id);
+                    dfg[block].instructions_mut().push(instruction_id);
                 }
             }
         }
