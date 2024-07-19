@@ -136,7 +136,8 @@ impl<'context> Elaborator<'context> {
                     let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
                     let return_type = func_meta.return_type().clone();
 
-                    let generics = vecmap(&this.generics, |generic| generic.type_var.clone());
+                    let generics =
+                        vecmap(&this.generics.clone(), |generic| generic.type_var.clone());
 
                     let default_impl_list: Vec<_> = unresolved_trait
                         .fns_with_default_impl
@@ -161,6 +162,8 @@ impl<'context> Elaborator<'context> {
                         location: Location::new(name.span(), unresolved_trait.file_id),
                         default_impl,
                         default_impl_module_id: unresolved_trait.module_id,
+                        trait_constraints: func_meta.trait_constraints.clone(),
+                        direct_generics: func_meta.direct_generics.clone(),
                     });
                 });
             }
