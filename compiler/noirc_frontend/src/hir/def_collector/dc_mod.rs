@@ -171,6 +171,7 @@ impl<'a> ModCollector<'a> {
             let module = ModuleId { krate, local_id: self.module_id };
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
+                // Attach any trait constraints on the impl to the function
                 noir_function.def.where_clause.append(&mut trait_impl.where_clause.clone());
                 let location = Location::new(noir_function.def.span, self.file_id);
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);

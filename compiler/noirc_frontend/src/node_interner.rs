@@ -1405,8 +1405,14 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         recursion_limit: u32,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
-        let make_constraint =
-            || TraitConstraint::new(object_type.clone(), trait_id, trait_generics.to_vec());
+        let make_constraint = || {
+            TraitConstraint::new(
+                object_type.clone(),
+                trait_id,
+                trait_generics.to_vec(),
+                Span::default(),
+            )
+        };
 
         // Prevent infinite recursion when looking for impls
         if recursion_limit == 0 {

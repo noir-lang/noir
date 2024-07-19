@@ -519,7 +519,9 @@ impl TypeVariable {
     /// variable is already bound to a different type. This generally
     /// a logic error to use outside of monomorphization.
     pub fn force_bind(&self, typ: Type) {
-        *self.1.borrow_mut() = TypeBinding::Bound(typ);
+        if !typ.occurs(self.id()) {
+            *self.1.borrow_mut() = TypeBinding::Bound(typ);
+        }
     }
 }
 
@@ -1924,9 +1926,11 @@ impl Type {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::NamedGeneric(binding, _, _) | Type::TypeVariable(binding, _) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => binding.occurs(target_id),
+            Type::NamedGeneric(type_var, _, _) | Type::TypeVariable(type_var, _) => {
+                match &*type_var.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        type_var.id() == target_id || binding.occurs(target_id)
+                    }
                     TypeBinding::Unbound(id) => *id == target_id,
                 }
             }
