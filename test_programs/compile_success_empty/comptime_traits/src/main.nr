@@ -20,7 +20,7 @@ struct MyType {
     value: i32,
 }
 
-impl Neg for MyType {
+comptime impl Neg for MyType {
     comptime fn neg(self) -> Self {
         self
     }
