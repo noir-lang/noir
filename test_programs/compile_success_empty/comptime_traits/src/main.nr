@@ -1,3 +1,5 @@
+use std::ops::Neg;
+
 fn main() {
     comptime
     {
@@ -13,3 +15,22 @@ fn main() {
         assert([1, 2] != array);
     }
 }
+
+struct MyType {
+    value: i32,
+}
+
+comptime impl Neg for MyType {
+    comptime fn neg(self) -> Self {
+        self
+    }
+}
+
+fn neg_at_comptime() {
+    comptime
+    {
+        let value = MyType { value: 1 };
+        let _result = -value;
+    }
+}
+
