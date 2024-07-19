@@ -14,18 +14,7 @@ pub struct NoirStruct {
     pub generics: UnresolvedGenerics,
     pub fields: Vec<(Ident, UnresolvedType)>,
     pub span: Span,
-}
-
-impl NoirStruct {
-    pub fn new(
-        name: Ident,
-        attributes: Vec<SecondaryAttribute>,
-        generics: UnresolvedGenerics,
-        fields: Vec<(Ident, UnresolvedType)>,
-        span: Span,
-    ) -> NoirStruct {
-        NoirStruct { name, attributes, generics, fields, span }
-    }
+    pub is_comptime: bool,
 }
 
 impl Display for NoirStruct {

@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    future::Future,
-};
+use std::{collections::HashMap, future::Future};
 
 use crate::{
     parse_diff, resolve_workspace_for_source_path,
@@ -17,11 +14,7 @@ use lsp_types::{
 use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
-use noirc_frontend::{
-    graph::{CrateId, Dependency},
-    hir::def_map::CrateDefMap,
-    macros_api::NodeInterner,
-};
+use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -40,9 +33,11 @@ use crate::{
 // and params passed in.
 
 mod code_lens_request;
+mod document_symbol;
 mod goto_declaration;
 mod goto_definition;
 mod hover;
+mod inlay_hint;
 mod profile_run;
 mod references;
 mod rename;
@@ -51,8 +46,9 @@ mod tests;
 
 pub(crate) use {
     code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
-    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
+    document_symbol::on_document_symbol_request, goto_declaration::on_goto_declaration_request,
+    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
+    hover::on_hover_request, inlay_hint::on_inlay_hint_request,
     profile_run::on_profile_run_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request, test_run::on_test_run_request,
     tests::on_tests_request,
@@ -141,6 +137,20 @@ pub(crate) fn on_initialize(
                         work_done_progress: None,
                     },
                 })),
+                inlay_hint_provider: Some(lsp_types::OneOf::Right(lsp_types::InlayHintOptions {
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                    resolve_provider: None,
+                })),
+                document_symbol_provider: Some(lsp_types::OneOf::Right(
+                    lsp_types::DocumentSymbolOptions {
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        label: Some("Noir".to_string()),
+                    },
+                )),
             },
             server_info: None,
         })
@@ -285,7 +295,6 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     interners: &'a HashMap<String, NodeInterner>,
     root_crate_name: String,
     root_crate_dependencies: &'a Vec<Dependency>,
-    def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
 }
 
 pub(crate) fn process_request<F, T>(
@@ -321,7 +330,7 @@ where
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false, None);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
         interner = &context.def_interner;
     }
 
@@ -340,7 +349,6 @@ where
         interners: &state.cached_definitions,
         root_crate_name: package.name.to_string(),
         root_crate_dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
-        def_maps: &context.def_maps,
     }))
 }
 pub(crate) fn find_all_references_in_workspace(
