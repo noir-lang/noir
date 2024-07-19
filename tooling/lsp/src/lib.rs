@@ -410,7 +410,7 @@ pub fn insert_all_files_for_workspace_into_file_manager(
         file_manager.add_file_with_source_canonical_path(Path::new(path), source.clone());
     }
 
-    nargo::insert_all_files_for_workspace_into_file_manager(&workspace, file_manager);
+    nargo::insert_all_files_for_workspace_into_file_manager(workspace, file_manager);
 }
 
 #[test]
