@@ -26,6 +26,7 @@ members = [
     "tooling/noirc_abi_wasm",
     "tooling/acvm_cli",
     "tooling/profiler",
+    "testing/format_trace",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",
