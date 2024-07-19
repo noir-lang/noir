@@ -41,8 +41,8 @@ fn main() {
     generate_noirc_frontend_failure_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_success_tests(&mut test_file, &test_dir);
     generate_plonky2_prove_failure_tests(&mut test_file, &test_dir);
-    // generate_plonky2_prove_unsupported_tests(&mut test_file, &test_dir);
-    // generate_plonky2_prove_crash_tests(&mut test_file, &test_dir);
+    generate_plonky2_prove_unsupported_tests(&mut test_file, &test_dir);
+    generate_plonky2_prove_crash_tests(&mut test_file, &test_dir);
     generate_plonky2_verify_success_tests(&mut test_file, &test_dir);
     generate_plonky2_verify_failure_tests(&mut test_file, &test_dir);
     generate_plonky2_trace_tests(&mut test_file, &test_dir);
@@ -296,11 +296,8 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
 
 /// Test input programs that are expected to trigger an error in noirc_frontend.
 fn generate_noirc_frontend_failure_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "noirc_frontend_failure";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+    let test_type = "noirc_frontend_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
 
     let expected_messages = HashMap::from([
         (
@@ -321,16 +318,7 @@ fn generate_noirc_frontend_failure_tests(test_file: &mut File, test_data_dir: &P
         ("field_comparison", vec!["Fields cannot be compared, try casting to an integer first"]),
     ]);
 
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -375,22 +363,9 @@ fn noirc_frontend_failure_{test_name}() {{
 
 /// Tests using the experimental PLONKY2 backend as a proving engine that are expected to succeed.
 fn generate_plonky2_prove_success_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "plonky2_prove_success";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_type = "plonky2_prove_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -413,24 +388,12 @@ fn plonky2_prove_success_{test_name}() {{
 
 /// Tests using the experimental PLONKY2 backend as a proving engine that are expected to fail.
 fn generate_plonky2_prove_failure_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "plonky2_prove_failure";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+    let test_type = "plonky2_prove_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
 
     let expected_messages = HashMap::from([("simple_add", vec!["Cannot satisfy constraint"])]);
 
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -474,24 +437,10 @@ fn plonky2_prove_failure_{test_name}() {{
 
 /// Tests using the experimental PLONKY2 backend as a proving engine that are expected to result in
 /// an ICE with a message referring to unsupported features.
-#[allow(dead_code)]
 fn generate_plonky2_prove_unsupported_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "plonky2_prove_unsupported";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_type = "plonky2_prove_unsupported";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -515,24 +464,10 @@ fn plonky2_prove_unsupported_{test_name}() {{
 
 /// Tests using the experimental PLONKY2 backend as a proving engine that are expected to crash.
 /// TODO(stanm): Eliminate dead code before merging into master.
-#[allow(dead_code)]
 fn generate_plonky2_prove_crash_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "plonky2_prove_crash";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_type = "plonky2_prove_crash";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -555,22 +490,9 @@ fn plonky2_prove_crash_{test_name}() {{
 
 /// Tests using the experimental PLONKY2 backend as a proving engine that are expected to succeed.
 fn generate_plonky2_verify_success_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "plonky2_verify_success";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_type = "plonky2_verify_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -599,27 +521,15 @@ fn plonky2_verify_success_{test_name}() {{
 
 /// Tests using the experimental PLONKY2 backend as a proving engine that are expected to fail verification.
 fn generate_plonky2_verify_failure_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "plonky2_verify_failure";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+    let test_type = "plonky2_verify_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
 
     let expected_messages = HashMap::from([
         ("zk_dungeon_verify_fail_1", vec!["Public inputs don't match proof"]),
         ("zk_dungeon_verify_fail_2", vec!["Expected argument `dagger.y`, but none was found"]),
     ]);
 
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -669,22 +579,9 @@ fn plonky2_verify_failure_{test_name}() {{
 }
 
 fn generate_plonky2_trace_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "plonky2_trace";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_type = "plonky2_trace";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
@@ -737,22 +634,9 @@ fn plonky2_trace_{test_name}() {{
 
 /// Tests that compare the produced PLONKY2 backend output, against a given expected output.
 fn generate_plonky2_show_plonky2_regression_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "plonky2_show_plonky2_regression";
-    let test_data_dir = test_data_dir.join(test_sub_dir);
-
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
-
-    for test_dir in test_case_dirs {
-        let test_name =
-            test_dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        };
-        let test_dir = &test_dir.path();
-
+    let test_type = "plonky2_show_plonky2_regression";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+    for (test_name, test_dir) in test_cases {
         write!(
             test_file,
             r#"
