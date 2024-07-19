@@ -1,7 +1,7 @@
 use std::ops::ControlFlow;
 
+use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use noirc_driver::{check_crate, file_manager_with_stdlib};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
@@ -137,7 +137,11 @@ pub(crate) fn process_workspace_for_noir_document(
         })?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    insert_all_files_for_workspace_into_file_manager(
+        state,
+        &workspace,
+        &mut workspace_file_manager,
+    );
 
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
