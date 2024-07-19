@@ -90,7 +90,6 @@ pub(super) fn numeric_generic() -> impl NoirParser<UnresolvedGeneric> {
         .then(parse_type())
         .map(|(ident, typ)| UnresolvedGeneric::Numeric { ident, typ })
         .validate(|generic, span, emit| {
-            dbg!(generic.clone());
             if let UnresolvedGeneric::Numeric { typ, .. } = &generic {
                 if let UnresolvedTypeData::Integer(signedness, _) = typ.typ {
                     if matches!(signedness, Signedness::Signed) {

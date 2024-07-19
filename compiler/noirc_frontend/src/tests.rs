@@ -62,7 +62,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     let (program, parser_errors) = parse_program(src);
     let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
     remove_experimental_warnings(&mut errors);
-    dbg!(!has_parser_error(&errors));
+
     if !has_parser_error(&errors) {
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
