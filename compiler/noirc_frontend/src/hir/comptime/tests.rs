@@ -16,11 +16,10 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
 use crate::hir::{Context, ParsedFiles};
-use crate::macros_api::NodeInterner;
 use crate::node_interner::FuncId;
 use crate::parser::parse_program;
 
-fn elaborate_src_code(src: &str) -> (NodeInterner, FuncId) {
+fn elaborate_src_code(src: &str) -> (Elaborator, FuncId) {
     let file = FileId::default();
 
     // Can't use Index::test_new here for some reason, even with #[cfg(test)].
@@ -47,18 +46,16 @@ fn elaborate_src_code(src: &str) -> (NodeInterner, FuncId) {
     collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context, &[]);
     context.def_maps.insert(krate, collector.def_map);
 
-    let errors = Elaborator::elaborate(&mut context, krate, collector.items, None);
-    assert_eq!(errors.len(), 0);
-
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
+    let elaborator = Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None);
+    assert_eq!(elaborator.errors.len(), 0);
 
-    (context.def_interner, main)
+    (elaborator, main)
 }
 
 fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
-    let (mut interner, main_id) = elaborate_src_code(src);
-    let mut scopes = vec![HashMap::default()];
-    let mut interpreter = Interpreter::new(&mut interner, &mut scopes, CrateId::Root(0));
+    let (mut elaborator, main_id) = elaborate_src_code(src);
+    let mut interpreter = elaborator.setup_interpreter();
 
     let no_location = Location::dummy();
     interpreter.call_function(main_id, Vec::new(), HashMap::new(), no_location)

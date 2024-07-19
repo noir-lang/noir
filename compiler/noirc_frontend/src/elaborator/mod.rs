@@ -97,9 +97,9 @@ pub struct LambdaContext {
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
-    errors: Vec<(CompilationError, FileId)>,
+    pub errors: Vec<(CompilationError, FileId)>,
 
-    interner: &'context mut NodeInterner,
+    pub interner: &'context mut NodeInterner,
 
     def_maps: &'context mut BTreeMap<CrateId, CrateDefMap>,
 
@@ -167,7 +167,7 @@ pub struct Elaborator<'context> {
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions. The first scope is always the global scope.
-    comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
+    pub comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 
     /// The scope of --debug-comptime, or None if unset
     debug_comptime_in_file: Option<FileId>,
@@ -228,6 +228,15 @@ impl<'context> Elaborator<'context> {
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
     ) -> Vec<(CompilationError, FileId)> {
+        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file).errors
+    }
+
+    pub fn elaborate_and_return_self(
+        context: &'context mut Context,
+        crate_id: CrateId,
+        items: CollectedItems,
+        debug_comptime_in_file: Option<FileId>,
+    ) -> Self {
         let mut this = Self::new(context, crate_id, debug_comptime_in_file);
 
         // Filter out comptime items to execute their functions first if needed.
@@ -238,7 +247,7 @@ impl<'context> Elaborator<'context> {
         let (comptime_items, runtime_items) = Self::filter_comptime_items(items);
         this.elaborate_items(comptime_items);
         this.elaborate_items(runtime_items);
-        this.errors
+        this
     }
 
     fn elaborate_items(&mut self, mut items: CollectedItems) {
@@ -1626,8 +1635,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn setup_interpreter(&mut self) -> Interpreter {
-        Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id)
+    pub fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
+        Interpreter::new(self, self.crate_id)
     }
 
     fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(

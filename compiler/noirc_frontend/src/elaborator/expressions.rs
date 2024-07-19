@@ -801,14 +801,14 @@ impl<'context> Elaborator<'context> {
         for argument in arguments {
             match interpreter.evaluate(argument) {
                 Ok(arg) => {
-                    let location = interpreter.interner.expr_location(&argument);
+                    let location = interpreter.elaborator.interner.expr_location(&argument);
                     comptime_args.push((arg, location));
                 }
                 Err(error) => errors.push((error.into(), file)),
             }
         }
 
-        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let bindings = interpreter.elaborator.interner.get_instantiation_bindings(func).clone();
         let result = interpreter.call_function(function, comptime_args, bindings, location);
 
         if !errors.is_empty() {

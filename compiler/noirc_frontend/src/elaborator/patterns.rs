@@ -5,7 +5,6 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     ast::{UnresolvedType, ERROR_IDENT},
     hir::{
-        comptime::Interpreter,
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
@@ -460,8 +459,7 @@ impl<'context> Elaborator<'context> {
         // Comptime variables must be replaced with their values
         if let Some(definition) = self.interner.try_definition(definition_id) {
             if definition.comptime && !self.in_comptime_context() {
-                let mut interpreter =
-                    Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+                let mut interpreter = self.setup_interpreter();
                 let value = interpreter.evaluate(id);
                 return self.inline_comptime_value(value, span);
             }
