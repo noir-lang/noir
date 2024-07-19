@@ -75,7 +75,9 @@ fn read_test_cases(
 ) -> Box<dyn Iterator<Item = (String, PathBuf)>> {
     let test_data_dir = test_data_dir.join(test_sub_dir);
     if let Ok(test_data_read_dir) = fs::read_dir(test_data_dir) {
-        let test_case_dirs = test_data_read_dir.flatten().filter(|c| c.path().is_dir());
+        let test_case_dirs = test_data_read_dir
+            .flatten()
+            .filter(|c| c.path().is_dir() && c.path().join("Nargo.toml").exists());
 
         Box::new(test_case_dirs.into_iter().map(|dir| {
             let test_name =
