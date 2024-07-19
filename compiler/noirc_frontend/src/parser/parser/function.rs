@@ -4,13 +4,13 @@ use super::{
     parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
     self_parameter, where_clause, NoirParser,
 };
-use crate::ast::{
+use crate::{ast::{
     FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility,
-};
+}, macros_api::UnresolvedTypeData, parser::{ParserError, ParserErrorReason}};
 use crate::parser::spanned;
 use crate::token::{Keyword, Token};
 use crate::{
-    ast::{UnresolvedGeneric, UnresolvedGenerics},
+    ast::{UnresolvedGeneric, UnresolvedGenerics, Signedness},
     parser::labels::ParsingRuleLabel,
 };
 
@@ -84,7 +84,19 @@ pub(super) fn numeric_generic() -> impl NoirParser<UnresolvedGeneric> {
         .ignore_then(ident())
         .then_ignore(just(Token::Colon))
         .then(parse_type())
-        .map(|(ident, typ)| UnresolvedGeneric::Numeric { ident, typ })
+        .map(|(ident, typ)| {
+            UnresolvedGeneric::Numeric { ident, typ }
+        })
+        .validate(|generic, span, emit| {
+            if let UnresolvedGeneric::Numeric { typ, .. } = &generic {
+                if let UnresolvedTypeData::Integer(signedness, _) = typ.typ {
+                    if matches!(signedness, Signedness::Signed) {
+                        emit(ParserError::with_reason(ParserErrorReason::SignedNumericGeneric, span));
+                    }
+                }
+            }
+            generic
+        })
 }
 
 pub(super) fn generic_type() -> impl NoirParser<UnresolvedGeneric> {
@@ -233,6 +245,7 @@ mod test {
                 "fn func_name<let T:>(y: T) {}",
                 "fn func_name<T:>(y: T) {}",
                 "fn func_name<T: u64>(y: T) {}",
+                "fn func_name<let N: i8>() {}",
             ],
         );
     }

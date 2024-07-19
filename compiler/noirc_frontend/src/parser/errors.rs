@@ -44,6 +44,8 @@ pub enum ParserErrorReason {
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
+    #[error("Only unsigned integers allowed for numeric generics")]
+    SignedNumericGeneric,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

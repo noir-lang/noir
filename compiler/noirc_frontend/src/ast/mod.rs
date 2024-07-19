@@ -324,7 +324,6 @@ impl UnresolvedTypeExpression {
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, sign)) => {
-                assert!(!sign, "Negative literal is not allowed here");
                 match int.try_to_u32() {
                     Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
                     None => Err(expr),

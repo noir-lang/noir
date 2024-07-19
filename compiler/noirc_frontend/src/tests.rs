@@ -28,7 +28,7 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
 use crate::monomorphization::monomorphize;
-use crate::parser::ParserErrorReason;
+use crate::parser::{ParserError, ParserErrorReason};
 use crate::ParsedModule;
 use crate::{
     hir::def_map::{CrateDefMap, LocalModuleId},
@@ -62,7 +62,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     let (program, parser_errors) = parse_program(src);
     let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
     remove_experimental_warnings(&mut errors);
-
+    dbg!(!has_parser_error(&errors));
     if !has_parser_error(&errors) {
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
@@ -2458,4 +2458,29 @@ fn no_super() {
 
     assert_eq!(span.start(), 4);
     assert_eq!(span.end(), 9);
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/5571): This test can be removed once 
+// support is expanded for type-level integers. 
+// This test provides a regression against the panic in https://github.com/noir-lang/noir/issues/5552
+#[test]
+fn numeric_generic_signed() {
+    let src= r"#
+    struct Foo<let N: i8> { }
+
+    fn main() {
+        let _: Foo<-1> = Foo { };
+    }
+    #";
+
+    let errors = get_program_errors(src);
+    dbg!(errors.clone());
+    assert_eq!(errors.len(), 1);
+    let CompilationError::ParseError(parser_error) = &errors[0].0
+    else {
+        panic!("Expected a parser error, got {:?}", errors[0].0);
+    };
+
+    let parser_err_reason = parser_error.reason().expect("Should have a parser error reason");
+    assert!(matches!(parser_err_reason, ParserErrorReason::SignedNumericGeneric));
 }
