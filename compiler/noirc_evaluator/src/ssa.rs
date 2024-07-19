@@ -84,6 +84,7 @@ pub(crate) fn optimize_into_acir(
     // This pass must come immediately following `mem2reg` as the succeeding passes
     // may create an SSA which inlining fails to handle.
     .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
+    .run_pass(Ssa::array_get_optimization, "After Array Get Optimizations:")
     .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
     .run_pass(Ssa::fold_constants, "After Constant Folding:")
     .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
