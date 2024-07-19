@@ -1,5 +1,5 @@
 [package]
-name = "hashmap"
+name = "uhashmap"
 type = "bin"
 authors = [""]
 
