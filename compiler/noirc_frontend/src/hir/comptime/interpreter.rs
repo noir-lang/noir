@@ -4,33 +4,28 @@ use acvm::{acir::AcirField, FieldElement};
 use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::ast::{
+    ArrayLiteral, AssignStatement, BinaryOpKind, ConstrainStatement, ConstructorExpression,
+    FunctionKind, IfExpression, InfixExpression, IntegerBitSize, LValue, Lambda, Signedness,
+};
 use crate::graph::CrateId;
 use crate::hir_def::expr::ImplKind;
-use crate::macros_api::UnaryOp;
+use crate::macros_api::{
+    BlockExpression, CallExpression, CastExpression, Expression, ExpressionKind, ForLoopStatement,
+    Ident, IndexExpression, LetStatement, Literal, MethodCallExpression, Pattern, PrefixExpression,
+    StatementKind, UnaryOp,
+};
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
 };
 use crate::token::Tokens;
 use crate::{
-    hir_def::{
-        expr::{
-            HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirMemberAccess, HirMethodCallExpression,
-            HirPrefixExpression,
-        },
-        stmt::{
-            HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
-            HirPattern,
-        },
-    },
-    macros_api::{HirLiteral, HirStatement, NodeInterner},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
+    macros_api::{NodeInterner, Statement},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId},
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
@@ -55,6 +50,8 @@ pub struct Interpreter<'interner> {
     /// The scope of --debug-comptime, or None if unset
     pub(super) debug_comptime_in_file: Option<FileId>,
     pub(super) debug_comptime_evaluations: &'interner mut Vec<InterpreterError>,
+
+    file: FileId,
 
     in_loop: bool,
 }
@@ -171,7 +168,7 @@ impl<'a> Interpreter<'a> {
 
     fn call_closure(
         &mut self,
-        closure: HirLambda,
+        closure: &Lambda,
         // TODO: How to define environment here?
         _environment: Vec<Value>,
         arguments: Vec<(Value, Location)>,
@@ -192,7 +189,7 @@ impl<'a> Interpreter<'a> {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
 
-        let result = self.evaluate(closure.body)?;
+        let result = self.evaluate(&closure.body)?;
 
         self.exit_function(previous_state);
         Ok(result)
@@ -234,22 +231,22 @@ impl<'a> Interpreter<'a> {
 
     pub(super) fn define_pattern(
         &mut self,
-        pattern: &HirPattern,
+        pattern: &Pattern,
         typ: &Type,
         argument: Value,
         location: Location,
     ) -> IResult<()> {
         match pattern {
-            HirPattern::Identifier(identifier) => {
+            Pattern::Identifier(identifier) => {
                 self.define(identifier.id, argument);
                 Ok(())
             }
-            HirPattern::Mutable(pattern, _) => {
+            Pattern::Mutable(pattern, _, _) => {
                 // Create a mutable reference to store to
                 let argument = Value::Pointer(Shared::new(argument), true);
                 self.define_pattern(pattern, typ, argument, location)
             }
-            HirPattern::Tuple(pattern_fields, _) => match (argument, typ) {
+            Pattern::Tuple(pattern_fields, _) => match (argument, typ) {
                 (Value::Tuple(fields), Type::Tuple(type_fields))
                     if fields.len() == pattern_fields.len() =>
                 {
@@ -264,7 +261,7 @@ impl<'a> Interpreter<'a> {
                     Err(InterpreterError::TypeMismatch { expected: typ.clone(), value, location })
                 }
             },
-            HirPattern::Struct(struct_type, pattern_fields, _) => {
+            Pattern::Struct(struct_type, pattern_fields, _) => {
                 self.push_scope();
 
                 let res = match argument {
@@ -321,7 +318,7 @@ impl<'a> Interpreter<'a> {
         Err(InterpreterError::VariableNotInScope { location })
     }
 
-    pub(super) fn lookup(&self, ident: &HirIdent) -> IResult<Value> {
+    pub(super) fn lookup(&self, ident: &Ident) -> IResult<Value> {
         self.lookup_id(ident.id, ident.location)
     }
 
@@ -342,48 +339,56 @@ impl<'a> Interpreter<'a> {
 
     /// Evaluate an expression and return the result.
     /// This will automatically dereference a mutable variable if used.
-    pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
-        match self.evaluate_no_dereference(id)? {
+    pub fn evaluate(&mut self, expr: &Expression) -> IResult<Value> {
+        match self.evaluate_no_dereference(expr)? {
             Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
             other => Ok(other),
         }
     }
 
+    fn location(&self, span: Span) -> Location {
+        Location::new(span, self.file)
+    }
+
     /// Evaluating a mutable variable will dereference it automatically.
     /// This function should be used when that is not desired - e.g. when
     /// compiling a `&mut var` expression to grab the original reference.
-    fn evaluate_no_dereference(&mut self, id: ExprId) -> IResult<Value> {
-        match self.interner.expression(&id) {
-            HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
-            HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
-            HirExpression::Block(block) => self.evaluate_block(block),
-            HirExpression::Prefix(prefix) => self.evaluate_prefix(prefix, id),
-            HirExpression::Infix(infix) => self.evaluate_infix(infix, id),
-            HirExpression::Index(index) => self.evaluate_index(index, id),
-            HirExpression::Constructor(constructor) => self.evaluate_constructor(constructor, id),
-            HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
-            HirExpression::Call(call) => self.evaluate_call(call, id),
-            HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
-            HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
-            HirExpression::If(if_) => self.evaluate_if(if_, id),
-            HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
-            HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
-            HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
-            HirExpression::Comptime(block) => self.evaluate_block(block),
-            HirExpression::Unquote(tokens) => {
+    fn evaluate_no_dereference(&mut self, expr: &Expression) -> IResult<Value> {
+        match &expr.kind {
+            ExpressionKind::Literal(literal) => self.evaluate_literal(literal, expr),
+            ExpressionKind::Variable(variable, _generics) => self.evaluate_variable(variable, expr),
+            ExpressionKind::Block(block) => self.evaluate_block(block),
+            ExpressionKind::Prefix(prefix) => self.evaluate_prefix(prefix, expr),
+            ExpressionKind::Infix(infix) => self.evaluate_infix(infix, expr),
+            ExpressionKind::Index(index) => self.evaluate_index(index, expr),
+            ExpressionKind::Call(call) => self.evaluate_call(call, expr),
+            ExpressionKind::MethodCall(call) => self.evaluate_method_call(call, expr),
+            ExpressionKind::Constructor(constructor) => {
+                self.evaluate_constructor(constructor, expr)
+            }
+            ExpressionKind::MemberAccess(access) => self.evaluate_access(access, expr),
+            ExpressionKind::Cast(cast) => self.evaluate_cast(&cast, expr),
+            ExpressionKind::If(if_) => self.evaluate_if(if_, expr),
+            ExpressionKind::Tuple(tuple) => self.evaluate_tuple(tuple),
+            ExpressionKind::Lambda(lambda) => self.evaluate_lambda(lambda, expr),
+            ExpressionKind::Parenthesized(expr) => self.evaluate_no_dereference(expr),
+            ExpressionKind::Quote(tokens) => self.evaluate_quote(tokens, expr),
+            ExpressionKind::Comptime(block, _) => self.evaluate_block(block),
+            ExpressionKind::Resolved(_) => unreachable!("Resolved expr in comptime code"),
+            ExpressionKind::Unquote(tokens) => {
                 // An Unquote expression being found is indicative of a macro being
                 // expanded within another comptime fn which we don't currently support.
-                let location = self.interner.expr_location(&id);
+                let location = self.location(expr.span);
                 Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
             }
-            HirExpression::Error => {
-                let location = self.interner.expr_location(&id);
+            ExpressionKind::Error => {
+                let location = self.interner.expr_location(&expr);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
         }
     }
 
-    pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
+    pub(super) fn evaluate_variable(&mut self, ident: Ident, id: ExprId) -> IResult<Value> {
         let definition = self.interner.try_definition(ident.id).ok_or_else(|| {
             let location = self.interner.expr_location(&id);
             InterpreterError::VariableNotInScope { location }
@@ -438,21 +443,21 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_literal(&mut self, literal: HirLiteral, id: ExprId) -> IResult<Value> {
+    fn evaluate_literal(&mut self, literal: &Literal, id: ExprId) -> IResult<Value> {
         match literal {
-            HirLiteral::Unit => Ok(Value::Unit),
-            HirLiteral::Bool(value) => Ok(Value::Bool(value)),
-            HirLiteral::Integer(value, is_negative) => {
-                self.evaluate_integer(value, is_negative, id)
+            Literal::Unit => Ok(Value::Unit),
+            Literal::Bool(value) => Ok(Value::Bool(*value)),
+            Literal::Integer(value, is_negative) => self.evaluate_integer(*value, *is_negative, id),
+            Literal::Str(string) | Literal::RawStr(string, _) => {
+                Ok(Value::String(Rc::new(string.clone())))
             }
-            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(_, _) => {
+            Literal::FmtStr(_) => {
                 let item = "format strings in a comptime context".into();
                 let location = self.interner.expr_location(&id);
                 Err(InterpreterError::Unimplemented { item, location })
             }
-            HirLiteral::Array(array) => self.evaluate_array(array, id),
-            HirLiteral::Slice(array) => self.evaluate_slice(array, id),
+            Literal::Array(array) => self.evaluate_array(array, id),
+            Literal::Slice(array) => self.evaluate_slice(array, id),
         }
     }
 
@@ -557,11 +562,12 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
-        let last_statement = block.statements.pop();
+    pub fn evaluate_block(&mut self, mut block: &BlockExpression) -> IResult<Value> {
+        let last_statement = block.statements.last();
         self.push_scope();
 
-        for statement in block.statements {
+        let len_minus_one = block.statements.len().saturating_sub(1);
+        for statement in block.statements.iter().take(len_minus_one) {
             self.evaluate_statement(statement)?;
         }
 
@@ -575,11 +581,11 @@ impl<'a> Interpreter<'a> {
         result
     }
 
-    fn evaluate_array(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+    fn evaluate_array(&mut self, array: &ArrayLiteral, id: ExprId) -> IResult<Value> {
         let typ = self.interner.id_type(id).follow_bindings();
 
         match array {
-            HirArrayLiteral::Standard(elements) => {
+            ArrayLiteral::Standard(elements) => {
                 let elements = elements
                     .into_iter()
                     .map(|id| self.evaluate(id))
@@ -587,7 +593,7 @@ impl<'a> Interpreter<'a> {
 
                 Ok(Value::Array(elements, typ))
             }
-            HirArrayLiteral::Repeated { repeated_element, length } => {
+            ArrayLiteral::Repeated { repeated_element, length } => {
                 let element = self.evaluate(repeated_element)?;
 
                 if let Some(length) = length.evaluate_to_u32() {
@@ -601,17 +607,17 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_slice(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
+    fn evaluate_slice(&mut self, array: &ArrayLiteral, id: ExprId) -> IResult<Value> {
         self.evaluate_array(array, id).map(|value| match value {
             Value::Array(array, typ) => Value::Slice(array, typ),
             other => unreachable!("Non-array value returned from evaluate array: {other:?}"),
         })
     }
 
-    fn evaluate_prefix(&mut self, prefix: HirPrefixExpression, id: ExprId) -> IResult<Value> {
+    fn evaluate_prefix(&mut self, prefix: &PrefixExpression, id: ExprId) -> IResult<Value> {
         let rhs = match prefix.operator {
-            UnaryOp::MutableReference => self.evaluate_no_dereference(prefix.rhs)?,
-            _ => self.evaluate(prefix.rhs)?,
+            UnaryOp::MutableReference => self.evaluate_no_dereference(&prefix.rhs)?,
+            _ => self.evaluate(&prefix.rhs)?,
         };
 
         if self.interner.get_selected_impl_for_expression(id).is_some() {
@@ -678,16 +684,16 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_infix(&mut self, infix: HirInfixExpression, id: ExprId) -> IResult<Value> {
-        let lhs = self.evaluate(infix.lhs)?;
-        let rhs = self.evaluate(infix.rhs)?;
+    fn evaluate_infix(&mut self, infix: &InfixExpression, id: ExprId) -> IResult<Value> {
+        let lhs = self.evaluate(&infix.lhs)?;
+        let rhs = self.evaluate(&infix.rhs)?;
 
         if self.interner.get_selected_impl_for_expression(id).is_some() {
             return self.evaluate_overloaded_infix(infix, lhs, rhs, id);
         }
 
         use InterpreterError::InvalidValuesForBinary;
-        match infix.operator.kind {
+        match infix.operator.contents {
             BinaryOpKind::Add => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs + rhs)),
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs + rhs)),
@@ -930,7 +936,7 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_overloaded_infix(
         &mut self,
-        infix: HirInfixExpression,
+        infix: &InfixExpression,
         lhs: Value,
         rhs: Value,
         id: ExprId,
@@ -941,8 +947,8 @@ impl<'a> Interpreter<'a> {
         let method_id = resolve_trait_method(self.interner, method, id)?;
         let type_bindings = self.interner.get_instantiation_bindings(id).clone();
 
-        let lhs = (lhs, self.interner.expr_location(&infix.lhs));
-        let rhs = (rhs, self.interner.expr_location(&infix.rhs));
+        let lhs = (lhs, self.location(infix.lhs.span));
+        let rhs = (rhs, self.location(infix.rhs.span));
 
         let location = self.interner.expr_location(&id);
         let value = self.call_function(method_id, vec![lhs, rhs], type_bindings, location)?;
@@ -960,7 +966,7 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_overloaded_prefix(
         &mut self,
-        prefix: HirPrefixExpression,
+        prefix: &PrefixExpression,
         rhs: Value,
         id: ExprId,
     ) -> IResult<Value> {
@@ -971,7 +977,7 @@ impl<'a> Interpreter<'a> {
         let method_id = resolve_trait_method(self.interner, method, id)?;
         let type_bindings = self.interner.get_instantiation_bindings(id).clone();
 
-        let rhs = (rhs, self.interner.expr_location(&prefix.rhs));
+        let rhs = (rhs, self.location(prefix.rhs.span));
 
         let location = self.interner.expr_location(&id);
         self.call_function(method_id, vec![rhs], type_bindings, location)
@@ -1005,9 +1011,9 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
-        let array = self.evaluate(index.collection)?;
-        let index = self.evaluate(index.index)?;
+    fn evaluate_index(&mut self, index: &IndexExpression, id: ExprId) -> IResult<Value> {
+        let array = self.evaluate(&index.collection)?;
+        let index = self.evaluate(&index.index)?;
 
         let location = self.interner.expr_location(&id);
         let (array, index) = self.bounds_check(array, index, location)?;
@@ -1061,12 +1067,12 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_constructor(
         &mut self,
-        constructor: HirConstructorExpression,
+        constructor: &ConstructorExpression,
         id: ExprId,
     ) -> IResult<Value> {
         let fields = constructor
             .fields
-            .into_iter()
+            .iter()
             .map(|(name, expr)| {
                 let field_value = self.evaluate(expr)?;
                 Ok((Rc::new(name.0.contents), field_value))
@@ -1077,7 +1083,7 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Struct(fields, typ))
     }
 
-    fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
+    fn evaluate_access(&mut self, access: &MemberAccess, id: ExprId) -> IResult<Value> {
         let (fields, struct_type) = match self.evaluate(access.lhs)? {
             Value::Struct(fields, typ) => (fields, typ),
             Value::Tuple(fields) => {
@@ -1106,11 +1112,10 @@ impl<'a> Interpreter<'a> {
         })
     }
 
-    fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
-        let function = self.evaluate(call.func)?;
-        let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.interner.expr_location(&arg)))
-        })?;
+    fn evaluate_call(&mut self, call: &CallExpression, id: ExprId) -> IResult<Value> {
+        let function = self.evaluate(&call.func)?;
+        let arguments =
+            try_vecmap(&call.arguments, |arg| Ok((self.evaluate(arg)?, self.location(arg.span))))?;
         let location = self.interner.expr_location(&id);
 
         match function {
@@ -1118,24 +1123,21 @@ impl<'a> Interpreter<'a> {
                 let bindings = unwrap_rc(bindings);
                 self.call_function(function_id, arguments, bindings, location)
             }
-            Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
+            Value::Closure(closure, env, _) => {
+                self.call_closure(&closure, env, arguments, location)
+            }
             value => Err(InterpreterError::NonFunctionCalled { value, location }),
         }
     }
 
-    fn evaluate_method_call(
-        &mut self,
-        call: HirMethodCallExpression,
-        id: ExprId,
-    ) -> IResult<Value> {
-        let object = self.evaluate(call.object)?;
-        let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.interner.expr_location(&arg)))
-        })?;
+    fn evaluate_method_call(&mut self, call: &MethodCallExpression, id: ExprId) -> IResult<Value> {
+        let object = self.evaluate(&call.object)?;
+        let arguments =
+            try_vecmap(&call.arguments, |arg| Ok((self.evaluate(arg)?, self.location(arg.span))))?;
         let location = self.interner.expr_location(&id);
 
         let typ = object.get_type().follow_bindings();
-        let method_name = &call.method.0.contents;
+        let method_name = &call.method_name.0.contents;
 
         // TODO: Traits
         let method = match &typ {
@@ -1152,14 +1154,14 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
-        let evaluated_lhs = self.evaluate(cast.lhs)?;
+    fn evaluate_cast(&mut self, cast: &CastExpression, id: ExprId) -> IResult<Value> {
+        let evaluated_lhs = self.evaluate(&cast.lhs)?;
         Self::evaluate_cast_one_step(cast, id, evaluated_lhs, self.interner)
     }
 
     /// evaluate_cast without recursion
     pub fn evaluate_cast_one_step(
-        cast: &HirCastExpression,
+        cast: &CastExpression,
         id: ExprId,
         evaluated_lhs: Value,
         interner: &NodeInterner,
@@ -1252,8 +1254,8 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn evaluate_if(&mut self, if_: HirIfExpression, id: ExprId) -> IResult<Value> {
-        let condition = match self.evaluate(if_.condition)? {
+    fn evaluate_if(&mut self, if_: &IfExpression, id: ExprId) -> IResult<Value> {
+        let condition = match self.evaluate(&if_.condition)? {
             Value::Bool(value) => value,
             value => {
                 let location = self.interner.expr_location(&id);
@@ -1265,14 +1267,14 @@ impl<'a> Interpreter<'a> {
 
         let result = if condition {
             if if_.alternative.is_some() {
-                self.evaluate(if_.consequence)
+                self.evaluate(&if_.consequence)
             } else {
-                self.evaluate(if_.consequence)?;
+                self.evaluate(&if_.consequence)?;
                 Ok(Value::Unit)
             }
         } else {
             match if_.alternative {
-                Some(alternative) => self.evaluate(alternative),
+                Some(alternative) => self.evaluate(&alternative),
                 None => Ok(Value::Unit),
             }
         };
@@ -1281,12 +1283,12 @@ impl<'a> Interpreter<'a> {
         result
     }
 
-    fn evaluate_tuple(&mut self, tuple: Vec<ExprId>) -> IResult<Value> {
+    fn evaluate_tuple(&mut self, tuple: &[Expression]) -> IResult<Value> {
         let fields = try_vecmap(tuple, |field| self.evaluate(field))?;
         Ok(Value::Tuple(fields))
     }
 
-    fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
+    fn evaluate_lambda(&mut self, lambda: &Lambda, id: ExprId) -> IResult<Value> {
         let location = self.interner.expr_location(&id);
         let environment =
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
@@ -1295,97 +1297,101 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Closure(lambda, environment, typ))
     }
 
-    fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
+    fn evaluate_quote(&mut self, tokens: &Tokens, expr_id: ExprId) -> IResult<Value> {
         let location = self.interner.expr_location(&expr_id);
+        let mut tokens = tokens.clone();
         tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
         Ok(Value::Code(Rc::new(tokens)))
     }
 
-    pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
-        match self.interner.statement(&statement) {
-            HirStatement::Let(let_) => self.evaluate_let(let_),
-            HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
-            HirStatement::Assign(assign) => self.evaluate_assign(assign),
-            HirStatement::For(for_) => self.evaluate_for(for_),
-            HirStatement::Break => self.evaluate_break(statement),
-            HirStatement::Continue => self.evaluate_continue(statement),
-            HirStatement::Expression(expression) => self.evaluate(expression),
-            HirStatement::Comptime(statement) => self.evaluate_comptime(statement),
-            HirStatement::Semi(expression) => {
+    pub fn evaluate_statement(&mut self, statement: &Statement) -> IResult<Value> {
+        match &statement.kind {
+            StatementKind::Let(let_) => self.evaluate_let(let_),
+            StatementKind::Constrain(constrain) => self.evaluate_constrain(constrain),
+            StatementKind::Assign(assign) => self.evaluate_assign(assign),
+            StatementKind::For(for_) => self.evaluate_for(for_),
+            StatementKind::Break => self.evaluate_break(statement.span),
+            StatementKind::Continue => self.evaluate_continue(statement.span),
+            StatementKind::Expression(expression) => self.evaluate(expression),
+            StatementKind::Comptime(statement) => self.evaluate_comptime(statement),
+            StatementKind::Semi(expression) => {
                 self.evaluate(expression)?;
                 Ok(Value::Unit)
             }
-            HirStatement::Error => {
-                let location = self.interner.id_location(statement);
+            StatementKind::Error => {
+                let location = self.location(statement.span);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
         }
     }
 
-    pub fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
-        let rhs = self.evaluate(let_.expression)?;
-        let location = self.interner.expr_location(&let_.expression);
+    pub fn evaluate_let(&mut self, let_: &LetStatement) -> IResult<Value> {
+        let rhs = self.evaluate(&let_.expression)?;
+        let location = self.location(let_.expression.span);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
         Ok(Value::Unit)
     }
 
-    fn evaluate_constrain(&mut self, constrain: HirConstrainStatement) -> IResult<Value> {
-        match self.evaluate(constrain.0)? {
+    fn evaluate_constrain(&mut self, constrain: &ConstrainStatement) -> IResult<Value> {
+        match self.evaluate(&constrain.0)? {
             Value::Bool(true) => Ok(Value::Unit),
             Value::Bool(false) => {
-                let location = self.interner.expr_location(&constrain.0);
-                let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
+                let location = self.location(constrain.0.span);
+                let message = constrain.1.as_ref().and_then(|expr| self.evaluate(expr).ok());
                 Err(InterpreterError::FailingConstraint { location, message })
             }
             value => {
-                let location = self.interner.expr_location(&constrain.0);
+                let location = self.location(constrain.0.span);
                 Err(InterpreterError::NonBoolUsedInConstrain { value, location })
             }
         }
     }
 
-    fn evaluate_assign(&mut self, assign: HirAssignStatement) -> IResult<Value> {
-        let rhs = self.evaluate(assign.expression)?;
-        self.store_lvalue(assign.lvalue, rhs)?;
+    fn evaluate_assign(&mut self, assign: &AssignStatement) -> IResult<Value> {
+        let rhs = self.evaluate(&assign.expression)?;
+        self.store_lvalue(&assign.lvalue, rhs)?;
         Ok(Value::Unit)
     }
 
-    fn store_lvalue(&mut self, lvalue: HirLValue, rhs: Value) -> IResult<()> {
+    fn store_lvalue(&mut self, lvalue: &LValue, rhs: Value) -> IResult<()> {
         match lvalue {
-            HirLValue::Ident(ident, typ) => self.mutate(ident.id, rhs, ident.location),
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
-                match self.evaluate_lvalue(&lvalue)? {
-                    Value::Pointer(value, _) => {
-                        *value.borrow_mut() = rhs;
-                        Ok(())
-                    }
-                    value => Err(InterpreterError::NonPointerDereferenced { value, location }),
+            LValue::Ident(ident) => self.mutate(ident.id, rhs, ident.location),
+            LValue::Dereference(lvalue, span) => match self.evaluate_lvalue(&lvalue)? {
+                Value::Pointer(value, _) => {
+                    *value.borrow_mut() = rhs;
+                    Ok(())
                 }
-            }
-            HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
+                value => {
+                    let location = self.location(*span);
+                    Err(InterpreterError::NonPointerDereferenced { value, location })
+                }
+            },
+            LValue::MemberAccess { object, field_name, span } => {
                 let object_value = self.evaluate_lvalue(&object)?;
 
                 let index = field_index.ok_or_else(|| {
                     let value = object_value.clone();
                     let field_name = field_name.to_string();
+                    let location = self.location(*span);
                     InterpreterError::ExpectedStructToHaveField { value, field_name, location }
                 })?;
 
                 match object_value {
                     Value::Tuple(mut fields) => {
                         fields[index] = rhs;
-                        self.store_lvalue(*object, Value::Tuple(fields))
+                        self.store_lvalue(object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
                         fields.insert(Rc::new(field_name.0.contents), rhs);
-                        self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
+                        self.store_lvalue(object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
+                        let location = self.location(*span);
                         Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location })
                     }
                 }
             }
-            HirLValue::Index { array, index, typ: _, location } => {
+            LValue::Index { array, index, span } => {
                 let array_value = self.evaluate_lvalue(&array)?;
                 let index = self.evaluate(index)?;
 
@@ -1395,35 +1401,35 @@ impl<'a> Interpreter<'a> {
                 };
 
                 let typ = array_value.get_type().into_owned();
+                let location = self.location(*span);
                 let (elements, index) = self.bounds_check(array_value, index, location)?;
 
                 let new_array = constructor(elements.update(index, rhs), typ);
-                self.store_lvalue(*array, new_array)
+                self.store_lvalue(array, new_array)
             }
         }
     }
 
-    fn evaluate_lvalue(&mut self, lvalue: &HirLValue) -> IResult<Value> {
+    fn evaluate_lvalue(&mut self, lvalue: &LValue) -> IResult<Value> {
         match lvalue {
-            HirLValue::Ident(ident, _) => match self.lookup(ident)? {
+            LValue::Ident(ident) => match self.lookup(ident)? {
                 Value::Pointer(elem, true) => Ok(elem.borrow().clone()),
                 other => Ok(other),
             },
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
-                match self.evaluate_lvalue(lvalue)? {
-                    Value::Pointer(value, _) => Ok(value.borrow().clone()),
-                    value => {
-                        Err(InterpreterError::NonPointerDereferenced { value, location: *location })
-                    }
+            LValue::Dereference(lvalue, span) => match self.evaluate_lvalue(lvalue)? {
+                Value::Pointer(value, _) => Ok(value.borrow().clone()),
+                value => {
+                    let location = self.location(*span);
+                    Err(InterpreterError::NonPointerDereferenced { value, location })
                 }
-            }
-            HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
+            },
+            LValue::MemberAccess { object, field_name, span } => {
                 let object_value = self.evaluate_lvalue(object)?;
 
                 let index = field_index.ok_or_else(|| {
                     let value = object_value.clone();
                     let field_name = field_name.to_string();
-                    let location = *location;
+                    let location = self.location(*span);
                     InterpreterError::ExpectedStructToHaveField { value, field_name, location }
                 })?;
 
@@ -1432,20 +1438,21 @@ impl<'a> Interpreter<'a> {
                     Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
                         value,
-                        location: *location,
+                        location: self.location(*span),
                     }),
                 }
             }
-            HirLValue::Index { array, index, typ: _, location } => {
+            LValue::Index { array, index, span } => {
                 let array = self.evaluate_lvalue(array)?;
-                let index = self.evaluate(*index)?;
-                let (elements, index) = self.bounds_check(array, index, *location)?;
+                let index = self.evaluate(index)?;
+                let location = self.location(*span);
+                let (elements, index) = self.bounds_check(array, index, location)?;
                 Ok(elements[index].clone())
             }
         }
     }
 
-    fn evaluate_for(&mut self, for_: HirForStatement) -> IResult<Value> {
+    fn evaluate_for(&mut self, for_: &ForLoopStatement) -> IResult<Value> {
         // i128 can store all values from i8 - u64
         let get_index = |this: &mut Self, expr| -> IResult<(_, fn(_) -> _)> {
             match this.evaluate(expr)? {
@@ -1458,7 +1465,7 @@ impl<'a> Interpreter<'a> {
                 Value::U32(value) => Ok((value as i128, |i| Value::U32(i as u32))),
                 Value::U64(value) => Ok((value as i128, |i| Value::U64(i as u64))),
                 value => {
-                    let location = this.interner.expr_location(&expr);
+                    let location = this.location(expr.span);
                     Err(InterpreterError::NonIntegerUsedInLoop { value, location })
                 }
             }
@@ -1472,7 +1479,7 @@ impl<'a> Interpreter<'a> {
             self.push_scope();
             self.current_scope_mut().insert(for_.identifier.id, make_value(i));
 
-            match self.evaluate(for_.block) {
+            match self.evaluate(&for_.block) {
                 Ok(_) => (),
                 Err(InterpreterError::Break) => break,
                 Err(InterpreterError::Continue) => continue,
@@ -1486,25 +1493,23 @@ impl<'a> Interpreter<'a> {
         Ok(Value::Unit)
     }
 
-    fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_break(&mut self, span: Span) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Break)
         } else {
-            let location = self.interner.statement_location(id);
-            Err(InterpreterError::BreakNotInLoop { location })
+            Err(InterpreterError::BreakNotInLoop { location: self.location(span) })
         }
     }
 
-    fn evaluate_continue(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_continue(&mut self, span: Span) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Continue)
         } else {
-            let location = self.interner.statement_location(id);
-            Err(InterpreterError::ContinueNotInLoop { location })
+            Err(InterpreterError::ContinueNotInLoop { location: self.location(span) })
         }
     }
 
-    pub(super) fn evaluate_comptime(&mut self, statement: StmtId) -> IResult<Value> {
+    pub(super) fn evaluate_comptime(&mut self, statement: &Statement) -> IResult<Value> {
         self.evaluate_statement(statement)
     }
 

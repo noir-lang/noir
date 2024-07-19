@@ -119,7 +119,7 @@ impl<'interner> Interpreter<'interner> {
             _ => {
                 // Opportunistically evaluate this identifier to see if it is compile-time known.
                 // If so, inline its value.
-                if let Ok(value) = self.evaluate_ident(ident, id) {
+                if let Ok(value) = self.evaluate_variable(ident, id) {
                     // TODO(#4922): Inlining closures is currently unimplemented
                     if !matches!(value, Value::Closure(..)) {
                         let new_expr = self.inline_expression(value, id)?;
