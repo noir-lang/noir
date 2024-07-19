@@ -16,7 +16,7 @@ impl Ssa {
     //
     //     v11 = array_get v4, index v4
     //
-    // we optimize it to this:
+    // we optimize the latter to this:
     //
     //     v12 = array_get v2, index v4
     //     v13 = array_get v3, index v4
