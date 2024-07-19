@@ -770,8 +770,10 @@ fn plonky2_show_plonky2_regression_{test_name}() {{
     let mut cmd_diff = Command::new("diff");
     cmd_diff.arg("-c");
     cmd_diff.arg(plonky2_expected_output);
-    cmd_diff.arg(plonky2_generated_output);
+    cmd_diff.arg(plonky2_generated_output.clone());
     cmd_diff.assert().success();
+
+    std::fs::remove_file(plonky2_generated_output).unwrap();
 }}
             "#,
             test_dir = test_dir.display(),
