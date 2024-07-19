@@ -191,6 +191,10 @@ build:
       && mv wasmtime-v20.0.2-$(uname -m)-linux/wasmtime /usr/local/bin \
       && rm -rf wasmtime*
 
+  # Install yq
+  RUN curl -sL https://github.com/mikefarah/yq/releases/download/v4.42.1/yq_linux_$(dpkg --print-architecture) \
+          -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+
   ARG TARGETARCH
   # NOTE: bump this version when doing non-backwards compatible changes
   SAVE IMAGE --push aztecprotocol/build:1.0-$TARGETARCH
@@ -393,7 +397,7 @@ sysbox:
                     e2scrub_reap.service
 
   # Make use of stopsignal (instead of sigterm) to stop systemd containers.
-  STOPSIGNAL SIGRTMIN+3
+  #STOPSIGNAL SIGRTMIN+3
 
   # Set systemd as entrypoint.
   ENTRYPOINT [ "/sbin/init", "--log-level=err" ]
@@ -404,7 +408,7 @@ sysbox:
   RUN curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh \
       # Add user "ubuntu" to the Docker group
       && usermod -a -G docker ubuntu
-  ADD https://raw.githubusercontent.com/docker/docker-ce/master/components/cli/contrib/completion/bash/docker /etc/bash_completion.d/docker.sh
+  RUN curl -fsSL https://raw.githubusercontent.com/docker/docker-ce/master/components/cli/contrib/completion/bash/docker -o /etc/bash_completion.d/docker.sh
 
   # Install sshd.
   RUN apt install --no-install-recommends -y openssh-server \

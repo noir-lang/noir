@@ -43,8 +43,19 @@ $ earthly +devbox
 ```
 
 This will take significant time and compute however, as it builds several toolchains from the ground up.
-If you have a reasonable internet connection, leveraging the cache to avoid building maybe prefereable.
+If you have a reasonable internet connection, leveraging the cache to avoid building maybe preferable.
 
 ```
 $ earthly --use-inline-cache +devbox
 ```
+
+### Building the sysbox
+
+The sysbox is the image that internal aztec engineers run on the mainframe. A mainframe administrator can run:
+
+```
+$ earthly +sysbox
+```
+
+This will rebuild the sysbox image, and once users perform a `sudo halt` their box should reboot with the new image.
+If the image tag changes, you'll need to update it in `/usr/local/bin/launch_sysbox`.
