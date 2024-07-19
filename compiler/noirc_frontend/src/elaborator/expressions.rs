@@ -709,10 +709,8 @@ impl<'context> Elaborator<'context> {
         let (block, _typ) = self.elaborate_block_expression(block);
 
         self.check_and_pop_function_context();
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
-        self.include_interpreter_errors(interpreter_errors);
         let (id, typ) = self.inline_comptime_value(value, span);
 
         let location = self.interner.id_location(id);
@@ -796,8 +794,7 @@ impl<'context> Elaborator<'context> {
         };
 
         let file = self.file;
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
 
@@ -813,7 +810,6 @@ impl<'context> Elaborator<'context> {
 
         let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
         let result = interpreter.call_function(function, comptime_args, bindings, location);
-        self.include_interpreter_errors(interpreter_errors);
 
         if !errors.is_empty() {
             self.errors.append(&mut errors);
