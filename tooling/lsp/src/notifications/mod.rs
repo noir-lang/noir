@@ -5,7 +5,6 @@ use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use noirc_driver::{check_crate, file_manager_with_stdlib};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
-use crate::requests::collect_lenses_for_package;
 use crate::types::{
     notification, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
@@ -13,8 +12,8 @@ use crate::types::{
 };
 
 use crate::{
-    byte_span_to_range, get_package_tests_in_crate, parse_diff, prepare_source,
-    resolve_workspace_for_source_path, workspace_package_for_file, LspState,
+    byte_span_to_range, get_package_tests_in_crate, parse_diff, resolve_workspace_for_source_path,
+    LspState,
 };
 
 pub(super) fn on_initialized(
@@ -39,7 +38,7 @@ pub(super) fn on_did_open_text_document(
 
     let document_uri = params.text_document.uri;
 
-    match process_workspace_for_noir_document(document_uri, state) {
+    match process_workspace_for_noir_document(state, document_uri, false, true) {
         Ok(_) => {
             state.open_documents_count += 1;
             ControlFlow::Continue(())
@@ -55,41 +54,12 @@ pub(super) fn on_did_change_text_document(
     let text = params.content_changes.into_iter().next().unwrap().text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
 
-    let file_path = params.text_document.uri.to_file_path().unwrap();
+    let document_uri = params.text_document.uri;
 
-    let (mut context, crate_id) = prepare_source(text, state);
-    let _ = check_crate(&mut context, crate_id, false, false, None);
-
-    let workspace = match resolve_workspace_for_source_path(
-        params.text_document.uri.to_file_path().unwrap().as_path(),
-        &state.root_path,
-    ) {
-        Ok(workspace) => workspace,
-        Err(lsp_error) => {
-            return ControlFlow::Break(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                lsp_error.to_string(),
-            )
-            .into()))
-        }
-    };
-
-    let package = match workspace_package_for_file(&workspace, &file_path) {
-        Some(package) => package,
-        None => {
-            return ControlFlow::Break(Err(ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                "Selected workspace has no members",
-            )
-            .into()))
-        }
-    };
-
-    let lenses = collect_lenses_for_package(&context, crate_id, &workspace, package, None);
-
-    state.cached_lenses.insert(params.text_document.uri.to_string(), lenses);
-
-    ControlFlow::Continue(())
+    match process_workspace_for_noir_document(state, document_uri, true, false) {
+        Ok(_) => ControlFlow::Continue(()),
+        Err(err) => ControlFlow::Break(Err(err)),
+    }
 }
 
 pub(super) fn on_did_close_text_document(
@@ -105,7 +75,12 @@ pub(super) fn on_did_close_text_document(
         state.cached_definitions.clear();
     }
 
-    ControlFlow::Continue(())
+    let document_uri = params.text_document.uri;
+
+    match process_workspace_for_noir_document(state, document_uri, true, false) {
+        Ok(_) => ControlFlow::Continue(()),
+        Err(err) => ControlFlow::Break(Err(err)),
+    }
 }
 
 pub(super) fn on_did_save_text_document(
@@ -114,7 +89,7 @@ pub(super) fn on_did_save_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let document_uri = params.text_document.uri;
 
-    match process_workspace_for_noir_document(document_uri, state) {
+    match process_workspace_for_noir_document(state, document_uri, false, true) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -124,8 +99,10 @@ pub(super) fn on_did_save_text_document(
 // it's only contained in a package), then type-checks the workspace's packages,
 // caching code lenses and type definitions, and notifying about compilation errors.
 pub(crate) fn process_workspace_for_noir_document(
-    document_uri: lsp_types::Url,
     state: &mut LspState,
+    document_uri: lsp_types::Url,
+    only_process_document_uri_package: bool,
+    output_diagnostics: bool,
 ) -> Result<(), async_lsp::Error> {
     let file_path = document_uri.to_file_path().map_err(|_| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
@@ -148,6 +125,12 @@ pub(crate) fn process_workspace_for_noir_document(
     let diagnostics: Vec<_> = workspace
         .into_iter()
         .flat_map(|package| -> Vec<Diagnostic> {
+            let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
+
+            if only_process_document_uri_package && !file_path.starts_with(&package.root_dir) {
+                return vec![];
+            }
+
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
@@ -155,8 +138,6 @@ pub(crate) fn process_workspace_for_noir_document(
                 Ok(((), warnings)) => warnings,
                 Err(errors_and_warnings) => errors_and_warnings,
             };
-
-            let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {
@@ -180,46 +161,53 @@ pub(crate) fn process_workspace_for_noir_document(
             let fm = &context.file_manager;
             let files = fm.as_file_map();
 
-            file_diagnostics
-                .into_iter()
-                .filter_map(|FileDiagnostic { file_id, diagnostic, call_stack: _ }| {
-                    // Ignore diagnostics for any file that wasn't the file we saved
-                    // TODO: In the future, we could create "related" diagnostics for these files
-                    if fm.path(file_id).expect("file must exist to have emitted diagnostic")
-                        != file_path
-                    {
-                        return None;
-                    }
+            if output_diagnostics {
+                file_diagnostics
+                    .into_iter()
+                    .filter_map(|FileDiagnostic { file_id, diagnostic, call_stack: _ }| {
+                        // Ignore diagnostics for any file that wasn't the file we saved
+                        // TODO: In the future, we could create "related" diagnostics for these files
+                        if fm.path(file_id).expect("file must exist to have emitted diagnostic")
+                            != file_path
+                        {
+                            return None;
+                        }
 
-                    // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
-                    let range = diagnostic
-                        .secondaries
-                        .into_iter()
-                        .filter_map(|sec| byte_span_to_range(files, file_id, sec.span.into()))
-                        .last()
-                        .unwrap_or_default();
+                        // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
+                        let range = diagnostic
+                            .secondaries
+                            .into_iter()
+                            .filter_map(|sec| byte_span_to_range(files, file_id, sec.span.into()))
+                            .last()
+                            .unwrap_or_default();
 
-                    let severity = match diagnostic.kind {
-                        DiagnosticKind::Error => DiagnosticSeverity::ERROR,
-                        DiagnosticKind::Warning => DiagnosticSeverity::WARNING,
-                        DiagnosticKind::Info => DiagnosticSeverity::INFORMATION,
-                        DiagnosticKind::Bug => DiagnosticSeverity::WARNING,
-                    };
-                    Some(Diagnostic {
-                        range,
-                        severity: Some(severity),
-                        message: diagnostic.message,
-                        ..Default::default()
+                        let severity = match diagnostic.kind {
+                            DiagnosticKind::Error => DiagnosticSeverity::ERROR,
+                            DiagnosticKind::Warning => DiagnosticSeverity::WARNING,
+                            DiagnosticKind::Info => DiagnosticSeverity::INFORMATION,
+                            DiagnosticKind::Bug => DiagnosticSeverity::WARNING,
+                        };
+                        Some(Diagnostic {
+                            range,
+                            severity: Some(severity),
+                            message: diagnostic.message,
+                            ..Default::default()
+                        })
                     })
-                })
-                .collect()
+                    .collect()
+            } else {
+                vec![]
+            }
         })
         .collect();
-    let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
-        uri: document_uri,
-        version: None,
-        diagnostics,
-    });
+
+    if output_diagnostics {
+        let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+            uri: document_uri,
+            version: None,
+            diagnostics,
+        });
+    }
 
     Ok(())
 }

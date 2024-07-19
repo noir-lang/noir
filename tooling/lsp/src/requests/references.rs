@@ -108,7 +108,13 @@ mod references_tests {
         let two_lib = Url::from_file_path(workspace_dir.join("two/src/lib.nr")).unwrap();
 
         // We call this to open the document, so that the entire workspace is analyzed
-        notifications::process_workspace_for_noir_document(one_lib.clone(), &mut state).unwrap();
+        notifications::process_workspace_for_noir_document(
+            &mut state,
+            one_lib.clone(),
+            false,
+            true,
+        )
+        .unwrap();
 
         let params = ReferenceParams {
             text_document_position: TextDocumentPositionParams {
