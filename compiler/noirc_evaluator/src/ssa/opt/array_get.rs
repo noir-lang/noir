@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::ssa::{
     ir::{
         dfg::CallStack, function::Function, instruction::Instruction, map::Id, types::Type,
@@ -10,9 +8,19 @@ use crate::ssa::{
 use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
-    /// Map arrays with the last instruction that uses it
-    /// For this we simply process all the instructions in execution order
-    /// and update the map whenever there is a match
+    // Given an original IfElse instruction is this:
+    //
+    //     v10 = if v0 then v2 else if v1 then v3
+    //
+    // and a later ArrayGet instruction is this:
+    //
+    //     v11 = array_get v4, index v4
+    //
+    // we optimize it to this:
+    //
+    //     v12 = array_get v2, index v4
+    //     v13 = array_get v3, index v4
+    //     v14 = if v0 then v12 else if v1 then v13
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_get_optimization(mut self) -> Self {
         for function in self.functions.values_mut() {
@@ -30,6 +38,8 @@ impl Ssa {
 
 #[derive(Default)]
 struct Context {
+    // Given an IfElse instruction, here we map its result to that instruction.
+    // We only capture such values if the IfElse values are arrays.
     result_if_else: HashMap<ValueId, Id<Instruction>>,
 }
 
@@ -57,6 +67,7 @@ impl Context {
                     function.dfg[block].instructions_mut().push(instruction_id);
                 }
                 Instruction::ArrayGet { array, index } => {
+                    // If this array get is for an array that is the result of a previous IfElse...
                     if let Some(if_else) = self.result_if_else.get(array) {
                         if let Instruction::IfElse {
                             then_condition,
@@ -78,6 +89,17 @@ impl Context {
                             };
                             let element_type: &Vec<Type> = &element_type;
 
+                            // Given the original IfElse instruction is this:
+                            //
+                            //     v10 = if v0 then v2 else if v1 then v3
+                            //
+                            // and the ArrayGet instruction is this:
+                            //
+                            //     v11 = array_get v4, index v4
+
+                            // First create an instruction like this, for the then branch:
+                            //
+                            //     v12 = array_get v2, index v4
                             let then_result = function.dfg.insert_instruction_and_results(
                                 Instruction::ArrayGet { array: then_value, index: *index },
                                 block,
@@ -86,6 +108,9 @@ impl Context {
                             );
                             let then_result = then_result.first();
 
+                            // Then create an instruction like this, for the else branch:
+                            //
+                            //     v13 = array_get v3, index v4
                             let else_result = function.dfg.insert_instruction_and_results(
                                 Instruction::ArrayGet { array: else_value, index: *index },
                                 block,
@@ -94,6 +119,9 @@ impl Context {
                             );
                             let else_result = else_result.first();
 
+                            // Finally create an IfElse instruction like this:
+                            //
+                            //     v14 = if v0 then v12 else if v1 then v13
                             let new_result = function.dfg.insert_instruction_and_results(
                                 Instruction::IfElse {
                                     then_condition: then_condition,
@@ -107,6 +135,7 @@ impl Context {
                             );
                             let new_result = new_result.first();
 
+                            // And replace the original instruction's value with this final value
                             let results = function.dfg.instruction_results(instruction_id);
                             let result = results[0];
                             function.dfg.set_value_from_id(result, new_result);
