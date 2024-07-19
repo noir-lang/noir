@@ -72,21 +72,24 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
 fn read_test_cases(
     test_data_dir: &Path,
     test_sub_dir: &str,
-) -> impl Iterator<Item = (String, PathBuf)> {
+) -> Box<dyn Iterator<Item = (String, PathBuf)>> {
     let test_data_dir = test_data_dir.join(test_sub_dir);
-    let test_case_dirs =
-        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+    if let Ok(test_data_read_dir) = fs::read_dir(test_data_dir) {
+        let test_case_dirs = test_data_read_dir.flatten().filter(|c| c.path().is_dir());
 
-    test_case_dirs.into_iter().map(|dir| {
-        let test_name =
-            dir.file_name().into_string().expect("Directory can't be converted to string");
-        if test_name.contains('-') {
-            panic!(
-                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
-            );
-        }
-        (test_name, dir.path())
-    })
+        Box::new(test_case_dirs.into_iter().map(|dir| {
+            let test_name =
+                dir.file_name().into_string().expect("Directory can't be converted to string");
+            if test_name.contains('-') {
+                panic!(
+                    "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+                );
+            }
+            (test_name, dir.path())
+        }))
+    } else {
+        Box::new([].into_iter())
+    }
 }
 
 fn generate_test_case(
