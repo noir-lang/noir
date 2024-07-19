@@ -93,18 +93,18 @@ impl Eq for EmbeddedCurveScalar {
 pub fn multi_scalar_mul<let N: u32>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N]
-) -> [Field; 3]
+) -> EmbeddedCurvePoint
 // docs:end:multi_scalar_mul
 {}
 
 #[foreign(multi_scalar_mul)]
-pub(crate) fn multi_scalar_mul_slice(points: [EmbeddedCurvePoint], scalars: [EmbeddedCurveScalar]) -> [Field; 3] {}
+pub(crate) fn multi_scalar_mul_slice(points: [EmbeddedCurvePoint], scalars: [EmbeddedCurveScalar]) -> EmbeddedCurvePoint {}
 
 // docs:start:fixed_base_scalar_mul
 pub fn fixed_base_scalar_mul(
     scalar_low: Field,
     scalar_high: Field
-) -> [Field; 3]
+) -> EmbeddedCurvePoint
 // docs:end:fixed_base_scalar_mul
 {
     let g1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };

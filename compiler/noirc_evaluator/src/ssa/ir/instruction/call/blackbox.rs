@@ -95,11 +95,7 @@ pub(super) fn simplify_msm(
             let result_y = dfg.make_constant(result_y, Type::field());
             let result_is_infinity = dfg.make_constant(result_is_infinity, Type::bool());
 
-            let typ = Type::Array(Rc::new(vec![Type::field()]), 3);
-            let result_array =
-                dfg.make_array(im::vector![result_x, result_y, result_is_infinity], typ);
-
-            SimplifyResult::SimplifiedTo(result_array)
+            SimplifyResult::SimplifiedToMultiple(vec![result_x, result_y, result_is_infinity])
         }
         _ => SimplifyResult::None,
     }

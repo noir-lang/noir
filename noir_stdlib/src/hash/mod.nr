@@ -40,8 +40,7 @@ fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: 
         points[i] = from_field_unsafe(input[i]);
     }
     let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
-    let values = multi_scalar_mul(generators, points);
-    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
+    multi_scalar_mul(generators, points)
 }
 
 fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {
@@ -55,7 +54,7 @@ fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -
     let mut vec_generators = Vec::from_slice(domain_generators.as_slice());
     let length_generator : [EmbeddedCurvePoint; 1] = derive_generators("pedersen_hash_length".as_bytes(), 0);
     vec_generators.push(length_generator[0]);
-    multi_scalar_mul_slice(vec_generators.slice, scalars.slice)[0]
+    multi_scalar_mul_slice(vec_generators.slice, scalars.slice).x
 }
 
 // docs:start:pedersen_hash
