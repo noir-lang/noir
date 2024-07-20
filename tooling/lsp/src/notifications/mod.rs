@@ -218,3 +218,82 @@ pub(super) fn on_exit(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     ControlFlow::Continue(())
 }
+
+#[cfg(test)]
+mod notification_tests {
+    use crate::test_utils;
+
+    use super::*;
+    use lsp_types::{
+        InlayHintLabel, InlayHintParams, Position, TextDocumentContentChangeEvent,
+        TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
+        WorkDoneProgressParams,
+    };
+    use tokio::test;
+
+    #[test]
+    async fn test_caches_open_files() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
+
+        // Open the document, fake the text to be empty
+        on_did_open_text_document(
+            &mut state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: noir_text_document.clone(),
+                    language_id: "noir".to_string(),
+                    version: 0,
+                    text: "".to_string(),
+                },
+            },
+        );
+
+        // Fake the text to change to "global a = 1;"
+        on_did_change_text_document(
+            &mut state,
+            DidChangeTextDocumentParams {
+                text_document: VersionedTextDocumentIdentifier {
+                    uri: noir_text_document.clone(),
+                    version: 1,
+                },
+                content_changes: vec![TextDocumentContentChangeEvent {
+                    range: None,
+                    range_length: None,
+                    // Should get an inlay hint for ": bool" after "a"
+                    text: "global a = true;".to_string(),
+                }],
+            },
+        );
+
+        // Get inlay hints. These should now be relative to the changed text,
+        // not the saved file's text.
+        let inlay_hints = crate::requests::on_inlay_hint_request(
+            &mut state,
+            InlayHintParams {
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+                text_document: TextDocumentIdentifier { uri: noir_text_document },
+                range: lsp_types::Range {
+                    start: lsp_types::Position { line: 0, character: 0 },
+                    end: lsp_types::Position { line: 1, character: 0 },
+                },
+            },
+        )
+        .await
+        .expect("Could not execute on_inlay_hint_request")
+        .unwrap();
+
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 0, character: 8 });
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].value, ": ");
+            assert_eq!(labels[0].location, None);
+            assert_eq!(labels[1].value, "bool");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+    }
+}
