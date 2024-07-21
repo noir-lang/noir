@@ -3,7 +3,7 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::ERROR_IDENT,
+    ast::{UnresolvedType, ERROR_IDENT},
     hir::{
         comptime::Interpreter,
         def_collector::dc_crate::CompilationError,
@@ -15,7 +15,7 @@ use crate::{
         stmt::HirPattern,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, ReferenceId, TraitImplKind},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
     Shared, StructType, Type, TypeBindings,
 };
 
@@ -200,9 +200,15 @@ impl<'context> Elaborator<'context> {
             new_definitions,
         );
 
-        let referenced = ReferenceId::Struct(struct_type.borrow().id);
-        let reference = ReferenceId::Variable(Location::new(name_span, self.file), is_self_type);
-        self.interner.add_reference(referenced, reference);
+        let struct_id = struct_type.borrow().id;
+
+        let reference_location = Location::new(name_span, self.file);
+        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
+
+        for (field_index, field) in fields.iter().enumerate() {
+            let reference_location = Location::new(field.0.span(), self.file);
+            self.interner.add_struct_member_reference(struct_id, field_index, reference_location);
+        }
 
         HirPattern::Struct(expected_type, fields, location)
     }
@@ -398,14 +404,52 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    /// Resolve generics using the expected kinds of the function we are calling
+    pub(super) fn resolve_turbofish_generics(
+        &mut self,
+        func_id: &FuncId,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Option<Vec<Type>> {
+        let direct_generics = self.interner.function_meta(func_id).direct_generics.clone();
+
+        unresolved_turbofish.map(|option_inner| {
+            if option_inner.len() != direct_generics.len() {
+                let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
+                    expected_count: direct_generics.len(),
+                    actual_count: option_inner.len(),
+                    span,
+                };
+                self.push_err(type_check_err);
+            }
+
+            let generics_with_types = direct_generics.iter().zip(option_inner);
+            vecmap(generics_with_types, |(generic, unresolved_type)| {
+                self.resolve_type_inner(unresolved_type, &generic.kind)
+            })
+        })
+    }
+
     pub(super) fn elaborate_variable(
         &mut self,
         variable: Path,
-        generics: Option<Vec<Type>>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
     ) -> (ExprId, Type) {
         let span = variable.span;
         let expr = self.resolve_variable(variable);
         let definition_id = expr.id;
+
+        let definition_kind =
+            self.interner.try_definition(definition_id).map(|definition| definition.kind.clone());
+
+        // Resolve any generics if we the variable we have resolved is a function
+        // and if the turbofish operator was used.
+        let generics = definition_kind.and_then(|definition_kind| match &definition_kind {
+            DefinitionKind::Function(function) => {
+                self.resolve_turbofish_generics(function, unresolved_turbofish, span)
+            }
+            _ => None,
+        });
 
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
@@ -416,9 +460,16 @@ impl<'context> Elaborator<'context> {
         // Comptime variables must be replaced with their values
         if let Some(definition) = self.interner.try_definition(definition_id) {
             if definition.comptime && !self.in_comptime_context() {
-                let mut interpreter =
-                    Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+                let mut interpreter_errors = vec![];
+                let mut interpreter = Interpreter::new(
+                    self.interner,
+                    &mut self.comptime_scopes,
+                    self.crate_id,
+                    self.debug_comptime_in_file,
+                    &mut interpreter_errors,
+                );
                 let value = interpreter.evaluate(id);
+                self.include_interpreter_errors(interpreter_errors);
                 return self.inline_comptime_value(value, span);
             }
         }
@@ -438,7 +489,7 @@ impl<'context> Elaborator<'context> {
             // Otherwise, then it is referring to an Identifier
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
-            let is_self_type_name = path.last_segment().is_self_type_name();
+            let span = path.span();
             let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
 
             if hir_ident.id != DefinitionId::dummy_id() {
@@ -448,9 +499,7 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_function_dependency(current_item, func_id);
                         }
 
-                        let variable = ReferenceId::Variable(hir_ident.location, is_self_type_name);
-                        let function = ReferenceId::Function(func_id);
-                        self.interner.add_reference(function, variable);
+                        self.interner.add_function_reference(func_id, hir_ident.location);
                     }
                     DefinitionKind::Global(global_id) => {
                         if let Some(global) = self.unresolved_globals.remove(&global_id) {
@@ -460,9 +509,7 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
 
-                        let variable = ReferenceId::Variable(hir_ident.location, is_self_type_name);
-                        let global = ReferenceId::Global(global_id);
-                        self.interner.add_reference(global, variable);
+                        self.interner.add_global_reference(global_id, hir_ident.location);
                     }
                     DefinitionKind::GenericType(_) => {
                         // Initialize numeric generics to a polymorphic integer type in case
@@ -477,6 +524,9 @@ impl<'context> Elaborator<'context> {
                     DefinitionKind::Local(_) => {
                         // only local variables can be captured by closures.
                         self.resolve_local_variable(hir_ident.clone(), var_scope_index);
+
+                        let reference_location = Location::new(span, self.file);
+                        self.interner.add_local_reference(hir_ident.id, reference_location);
                     }
                 }
             }
@@ -546,7 +596,6 @@ impl<'context> Elaborator<'context> {
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
-
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
                     self.push_trait_constraint(constraint, expr_id);

@@ -25,3 +25,16 @@ use foo::some_other_function as bar;
 fn x() {
     bar();
 }
+
+struct SomeStruct {
+
+}
+
+impl SomeStruct {
+    fn some_method(self) {}
+}
+
+fn y() {
+    let some_struct = SomeStruct {};
+    some_struct.some_method();
+}

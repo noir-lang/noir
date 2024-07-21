@@ -14,6 +14,7 @@ use nargo::{
     package::{Dependency, Package, PackageType},
     workspace::Workspace,
 };
+use noirc_driver::parse_expression_width;
 use noirc_frontend::graph::CrateName;
 use serde::Deserialize;
 
@@ -199,6 +200,16 @@ impl PackageConfig {
             })?;
         }
 
+        let expression_width = self
+            .package
+            .expression_width
+            .as_ref()
+            .map(|expression_width| {
+                parse_expression_width(expression_width)
+                    .map_err(|err| ManifestError::ParseExpressionWidth(err.to_string()))
+            })
+            .map_or(Ok(None), |res| res.map(Some))?;
+
         Ok(Package {
             version: self.package.version.clone(),
             compiler_required_version: self.package.compiler_version.clone(),
@@ -207,6 +218,7 @@ impl PackageConfig {
             package_type,
             name,
             dependencies,
+            expression_width,
         })
     }
 }
@@ -275,6 +287,7 @@ struct PackageMetadata {
     // so you will not need to supply an ACIR and compiler version
     compiler_version: Option<String>,
     license: Option<String>,
+    expression_width: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -526,6 +539,21 @@ fn parse_workspace_default_member_toml() {
         [workspace]
         members = ["a", "b"]
         default-member = "a"
+    "#;
+
+    assert!(Config::try_from(String::from(src)).is_ok());
+    assert!(Config::try_from(src).is_ok());
+}
+
+#[test]
+fn parse_package_expression_width_toml() {
+    let src = r#"
+    [package]
+    name = "test"
+    version = "0.1.0"
+    type = "bin"
+    authors = [""]
+    expression_width = "3"
     "#;
 
     assert!(Config::try_from(String::from(src)).is_ok());

@@ -509,6 +509,59 @@ jobs:
         working-directory: ./examples/codegen_verifier
         run: ./test.sh
 
+  external-repo-checks:
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+        #  - { repo: AztecProtocol/aztec-nr, path: ./ }
+        #  - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
+         # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
+         #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
+         - { repo: zac-williamson/noir-edwards, path: ./, ref: 0016ce82cd58b6ebb0c43c271725590bcff4e755  }
+        # TODO: Enable these once they're passing against master again.
+        #  - { repo: zac-williamson/noir-bignum, path: ./, ref: 030c2acce1e6b97c44a3bbbf3429ed96f20d72d3  }
+        #  - { repo: vlayer-xyz/monorepo, path: ./, ref: ee46af88c025863872234eb05d890e1e447907cb }
+        #  - { repo: hashcloak/noir-bigint, path: ./, ref: 940ddba3a5201b508e7b37a2ef643551afcf5ed8 }
+
+    name: Check external repo - ${{ matrix.project.repo }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
+      
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+            
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+      
+      - name: Remove requirements on compiler version
+        working-directory: ./test-repo
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          sed -i '/^compiler_version/d' ./**/Nargo.toml
+
+      - name: Run nargo check
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: nargo check
+
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:

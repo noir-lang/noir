@@ -19,6 +19,7 @@ pub enum DiagnosticKind {
     Error,
     Bug,
     Warning,
+    Info,
 }
 
 /// A count of errors that have been already reported to stderr
@@ -37,17 +38,31 @@ impl CustomDiagnostic {
         }
     }
 
-    pub fn simple_error(
+    fn simple_with_kind(
         primary_message: String,
         secondary_message: String,
         secondary_span: Span,
+        kind: DiagnosticKind,
     ) -> CustomDiagnostic {
         CustomDiagnostic {
             message: primary_message,
             secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
             notes: Vec::new(),
-            kind: DiagnosticKind::Error,
+            kind,
         }
+    }
+
+    pub fn simple_error(
+        primary_message: String,
+        secondary_message: String,
+        secondary_span: Span,
+    ) -> CustomDiagnostic {
+        Self::simple_with_kind(
+            primary_message,
+            secondary_message,
+            secondary_span,
+            DiagnosticKind::Error,
+        )
     }
 
     pub fn simple_warning(
@@ -55,12 +70,25 @@ impl CustomDiagnostic {
         secondary_message: String,
         secondary_span: Span,
     ) -> CustomDiagnostic {
-        CustomDiagnostic {
-            message: primary_message,
-            secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
-            notes: Vec::new(),
-            kind: DiagnosticKind::Warning,
-        }
+        Self::simple_with_kind(
+            primary_message,
+            secondary_message,
+            secondary_span,
+            DiagnosticKind::Warning,
+        )
+    }
+
+    pub fn simple_info(
+        primary_message: String,
+        secondary_message: String,
+        secondary_span: Span,
+    ) -> CustomDiagnostic {
+        Self::simple_with_kind(
+            primary_message,
+            secondary_message,
+            secondary_span,
+            DiagnosticKind::Info,
+        )
     }
 
     pub fn simple_bug(
@@ -94,6 +122,10 @@ impl CustomDiagnostic {
 
     pub fn is_warning(&self) -> bool {
         matches!(self.kind, DiagnosticKind::Warning)
+    }
+
+    pub fn is_info(&self) -> bool {
+        matches!(self.kind, DiagnosticKind::Info)
     }
 
     pub fn is_bug(&self) -> bool {
@@ -191,6 +223,7 @@ fn convert_diagnostic(
 ) -> Diagnostic<fm::FileId> {
     let diagnostic = match (cd.kind, deny_warnings) {
         (DiagnosticKind::Warning, false) => Diagnostic::warning(),
+        (DiagnosticKind::Info, _) => Diagnostic::note(),
         (DiagnosticKind::Bug, ..) => Diagnostic::bug(),
         _ => Diagnostic::error(),
     };

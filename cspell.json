@@ -208,6 +208,8 @@
         "unoptimized",
         "urem",
         "USERPROFILE",
+        "vararg",
+        "varargs",
         "vecmap",
         "vitkov",
         "wasi",
