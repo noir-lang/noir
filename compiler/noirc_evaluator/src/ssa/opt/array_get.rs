@@ -1,8 +1,5 @@
 use crate::ssa::{
-    ir::{
-        dfg::CallStack, function::Function, instruction::Instruction, map::Id, types::Type,
-        value::ValueId,
-    },
+    ir::{function::Function, instruction::Instruction, map::Id, types::Type, value::ValueId},
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
@@ -85,6 +82,8 @@ impl Context {
                             };
                             let element_type: &Vec<Type> = &element_type;
 
+                            let call_stack = dfg.get_call_stack(instruction_id);
+
                             // Given the original IfElse instruction is this:
                             //
                             //     v10 = if v0 then v2 else if v1 then v3
@@ -100,7 +99,7 @@ impl Context {
                                 Instruction::ArrayGet { array: then_value, index: *index },
                                 block,
                                 Some(element_type.clone()),
-                                CallStack::new(), // TODO: check callstack
+                                call_stack.clone(),
                             );
                             let then_result = then_result.first();
 
@@ -111,7 +110,7 @@ impl Context {
                                 Instruction::ArrayGet { array: else_value, index: *index },
                                 block,
                                 Some(element_type.clone()),
-                                CallStack::new(), // TODO: check callstack
+                                call_stack.clone(),
                             );
                             let else_result = else_result.first();
 
@@ -126,8 +125,8 @@ impl Context {
                                     else_value: else_result,
                                 },
                                 block,
-                                None,             // TODO: are these needed?
-                                CallStack::new(), // TODO: check callstack
+                                None,
+                                call_stack,
                             );
                             let new_result = new_result.first();
 
