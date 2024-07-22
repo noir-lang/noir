@@ -1,8 +1,7 @@
 use crate::ssa::{
-    ir::{function::Function, instruction::Instruction, map::Id, types::Type, value::ValueId},
+    ir::{function::Function, instruction::Instruction, types::Type, value::Value},
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     // Given an original IfElse instruction is this:
@@ -21,131 +20,105 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_get_from_if_else_result_optimization(mut self) -> Self {
         for function in self.functions.values_mut() {
-            Context::default().optimize_array_get_from_if_else_result(function);
+            optimize_array_get_from_if_else_result(function);
         }
 
         self
     }
 }
 
-#[derive(Default)]
-struct Context {
-    // Given an IfElse instruction, here we map its result to that instruction.
-    // We only capture such values if the IfElse values are arrays.
-    result_if_else: HashMap<ValueId, Id<Instruction>>,
-}
+fn optimize_array_get_from_if_else_result(function: &mut Function) {
+    let block_id = function.entry_block();
+    let dfg = &mut function.dfg;
+    let instructions = dfg[block_id].take_instructions();
 
-impl Context {
-    fn optimize_array_get_from_if_else_result(&mut self, function: &mut Function) {
-        let block = function.entry_block();
-        let dfg = &mut function.dfg;
-        let instructions = dfg[block].take_instructions();
+    for instruction_id in instructions {
+        // Only apply this optimization to ArrayGet
+        let Instruction::ArrayGet { array, index } = &dfg[instruction_id].clone() else {
+            dfg[block_id].instructions_mut().push(instruction_id);
+            continue;
+        };
 
-        for instruction_id in instructions {
-            let instruction = dfg[instruction_id].clone();
+        // Only if getting an array from a previous instruction
+        let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*array)] else {
+            dfg[block_id].instructions_mut().push(instruction_id);
+            continue;
+        };
 
-            match &instruction {
-                Instruction::IfElse { then_value, .. } => {
-                    let then_value = *then_value;
+        // Only if that previous instruction is an IfElse
+        let Instruction::IfElse { then_condition, then_value, else_condition, else_value } =
+            &dfg[*instruction]
+        else {
+            dfg[block_id].instructions_mut().push(instruction_id);
+            continue;
+        };
 
-                    // Only apply this optimization to IfElse where values are arrays
-                    let Type::Array(..) = dfg.type_of_value(then_value) else {
-                        continue;
-                    };
+        let then_condition = *then_condition;
+        let then_value = *then_value;
+        let else_condition = *else_condition;
+        let else_value = *else_value;
 
-                    let results = dfg.instruction_results(instruction_id);
-                    let result = results[0];
-                    self.result_if_else.insert(result, instruction_id);
+        let then_value_type = dfg.type_of_value(then_value);
 
-                    dfg[block].instructions_mut().push(instruction_id);
-                }
-                Instruction::ArrayGet { array, index } => {
-                    // If this array get is for an array that is the result of a previous IfElse...
-                    if let Some(if_else) = self.result_if_else.get(array) {
-                        if let Instruction::IfElse {
-                            then_condition,
-                            then_value,
-                            else_condition,
-                            else_value,
-                            ..
-                        } = &dfg[*if_else]
-                        {
-                            let then_condition = *then_condition;
-                            let then_value = *then_value;
-                            let else_condition = *else_condition;
-                            let else_value = *else_value;
+        // Only if the IfElse instruction has an array type
+        let Type::Array(element_type, _) = then_value_type else {
+            dfg[block_id].instructions_mut().push(instruction_id);
+            continue;
+        };
 
-                            let then_value_type = dfg.type_of_value(then_value);
+        let element_type: &Vec<Type> = &element_type;
+        let call_stack = dfg.get_call_stack(instruction_id);
 
-                            let Type::Array(element_type, _) = then_value_type else {
-                                panic!("ice: expected array type, got {:?}", then_value_type);
-                            };
-                            let element_type: &Vec<Type> = &element_type;
+        // Given the original IfElse instruction is this:
+        //
+        //     v10 = if v0 then v2 else if v1 then v3
+        //
+        // and the ArrayGet instruction is this:
+        //
+        //     v11 = array_get v4, index v4
 
-                            let call_stack = dfg.get_call_stack(instruction_id);
+        // First create an instruction like this, for the then branch:
+        //
+        //     v12 = array_get v2, index v4
+        let then_result = dfg.insert_instruction_and_results(
+            Instruction::ArrayGet { array: then_value, index: *index },
+            block_id,
+            Some(element_type.clone()),
+            call_stack.clone(),
+        );
+        let then_result = then_result.first();
 
-                            // Given the original IfElse instruction is this:
-                            //
-                            //     v10 = if v0 then v2 else if v1 then v3
-                            //
-                            // and the ArrayGet instruction is this:
-                            //
-                            //     v11 = array_get v4, index v4
+        // Then create an instruction like this, for the else branch:
+        //
+        //     v13 = array_get v3, index v4
+        let else_result = dfg.insert_instruction_and_results(
+            Instruction::ArrayGet { array: else_value, index: *index },
+            block_id,
+            Some(element_type.clone()),
+            call_stack.clone(),
+        );
+        let else_result = else_result.first();
 
-                            // First create an instruction like this, for the then branch:
-                            //
-                            //     v12 = array_get v2, index v4
-                            let then_result = dfg.insert_instruction_and_results(
-                                Instruction::ArrayGet { array: then_value, index: *index },
-                                block,
-                                Some(element_type.clone()),
-                                call_stack.clone(),
-                            );
-                            let then_result = then_result.first();
+        // Finally create an IfElse instruction like this:
+        //
+        //     v14 = if v0 then v12 else if v1 then v13
+        let new_result = dfg.insert_instruction_and_results(
+            Instruction::IfElse {
+                then_condition: then_condition,
+                then_value: then_result,
+                else_condition: else_condition,
+                else_value: else_result,
+            },
+            block_id,
+            None,
+            call_stack,
+        );
+        let new_result = new_result.first();
 
-                            // Then create an instruction like this, for the else branch:
-                            //
-                            //     v13 = array_get v3, index v4
-                            let else_result = dfg.insert_instruction_and_results(
-                                Instruction::ArrayGet { array: else_value, index: *index },
-                                block,
-                                Some(element_type.clone()),
-                                call_stack.clone(),
-                            );
-                            let else_result = else_result.first();
-
-                            // Finally create an IfElse instruction like this:
-                            //
-                            //     v14 = if v0 then v12 else if v1 then v13
-                            let new_result = dfg.insert_instruction_and_results(
-                                Instruction::IfElse {
-                                    then_condition: then_condition,
-                                    then_value: then_result,
-                                    else_condition: else_condition,
-                                    else_value: else_result,
-                                },
-                                block,
-                                None,
-                                call_stack,
-                            );
-                            let new_result = new_result.first();
-
-                            // And replace the original instruction's value with this final value
-                            let results = dfg.instruction_results(instruction_id);
-                            let result = results[0];
-                            dfg.set_value_from_id(result, new_result);
-
-                            continue;
-                        }
-                    }
-
-                    dfg[block].instructions_mut().push(instruction_id);
-                }
-                _ => {
-                    dfg[block].instructions_mut().push(instruction_id);
-                }
-            }
-        }
+        // And replace the original instruction's value with this final value
+        let results = dfg.instruction_results(instruction_id);
+        let result = results[0];
+        dfg.set_value_from_id(result, new_result);
     }
 }
 
