@@ -127,7 +127,7 @@ resource "aws_ecs_task_definition" "aztec-proving-agent" {
       },
       {
         "name": "AZTEC_NODE_URL",
-        "value": "http://${var.DEPLOY_TAG}-aztec-node-${count.index + 1}.local/${var.DEPLOY_TAG}/aztec-node-${count.index + 1}"
+        "value": "http://${var.DEPLOY_TAG}-aztec-node-${count.index + 1}.local/${var.DEPLOY_TAG}/aztec-node-${count.index + 1}/${var.API_KEY}"
       },
       {
         "name": "PROVER_AGENTS",

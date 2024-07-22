@@ -2,6 +2,8 @@ import { type LogFn } from '@aztec/foundation/log';
 
 import { type Command } from 'commander';
 
+export * from './deploy_contracts.js';
+
 export function injectCommands(program: Command, log: LogFn) {
   program
     .command('generate-keys')

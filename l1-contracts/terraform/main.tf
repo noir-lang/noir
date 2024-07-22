@@ -11,6 +11,15 @@ terraform {
   }
 }
 
+variable "DEPLOY_TAG" {
+  type = string
+}
+
+# S3 Bucket to store contract addresses
+resource "aws_s3_bucket" "contract_addresses" {
+  bucket = "aztec-${var.DEPLOY_TAG}-deployments"
+}
+
 variable "ROLLUP_CONTRACT_ADDRESS" {
   type    = string
   default = ""

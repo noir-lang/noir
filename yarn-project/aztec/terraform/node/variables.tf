@@ -70,5 +70,5 @@ variable "P2P_ENABLED" {
 
 variable "PROVING_ENABLED" {
   type    = bool
-  default = true
+  default = false
 }

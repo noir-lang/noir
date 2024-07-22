@@ -21,7 +21,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       'Url of the ethereum host. Chain identifiers localhost and testnet can be used',
       ETHEREUM_HOST,
     )
-    .requiredOption('-p, --private-key <string>', 'The private key to use for deployment', PRIVATE_KEY)
+    .requiredOption('-pk, --private-key <string>', 'The private key to use for deployment', PRIVATE_KEY)
     .option(
       '-m, --mnemonic <string>',
       'The mnemonic to use in deployment',
@@ -49,7 +49,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       ETHEREUM_HOST,
     )
     .addOption(pxeOption)
-    .requiredOption('-p, --private-key <string>', 'The private key to use for deployment', PRIVATE_KEY)
+    .requiredOption('-pk, --private-key <string>', 'The private key to use for deployment', PRIVATE_KEY)
     .option(
       '-m, --mnemonic <string>',
       'The mnemonic to use in deployment',

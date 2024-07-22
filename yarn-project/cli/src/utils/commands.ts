@@ -46,7 +46,7 @@ export const l1ChainIdOption = new Option('-c, --l1-chain-id <number>', 'Chain I
   });
 
 export const createPrivateKeyOption = (description: string, mandatory: boolean) =>
-  new Option('-e, --private-key <string>', description)
+  new Option('-pk, --private-key <string>', description)
     .env('PRIVATE_KEY')
     .argParser(parsePrivateKey)
     .makeOptionMandatory(mandatory);

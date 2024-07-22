@@ -11,7 +11,6 @@ env:
   DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
   GIT_COMMIT: ${{ github.sha }}
   DEPLOY_TAG: devnet
-  FILE_PATH: ./l1-contracts/addresses.txt
   L1_CHAIN_ID: 677692
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -34,13 +33,9 @@ jobs:
       username: master
       runner_type: builder-x86
     secrets: inherit
-
   build:
     needs: setup
     runs-on: ${{ github.actor }}-x86
-    outputs:
-      l1_contracts_changed: ${{ steps.check_l1_changes.outputs.result }}
-      mainnet_fork_changed: ${{ steps.check_fork_changes.outputs.result }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,20 +47,9 @@ jobs:
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
       - name: "Build & Push aztec images"
         timeout-minutes: 40
-        # Run the build steps for each image with version and arch, push to dockerhub
         run: |
           earthly-ci \
           --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }}
-
-      - name: Check if L1 contracts need deployment
-        id: check_l1_changes
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { execSync } = require('child_process');
-            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
-            const fileChanged = changedFiles.some(file => file.startsWith('l1-contracts'));
-            return fileChanged
 
       - name: Check if mainnet fork needs deployment
         id: check_fork_changes
@@ -104,33 +88,55 @@ jobs:
           aws-region: eu-west-2
 
       - name: Deploy mainnet fork
-        if: needs.build.outputs.mainnet_fork_changed == 'true'
         working-directory: ./iac/mainnet-fork/terraform
         run: |
           terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/mainnet-fork"
-          terraform apply -input=false -auto-approve -replace="aws_ecs_service.aztec_mainnet_fork" -replace="aws_efs_file_system.aztec_mainnet_fork_data_store"
+          terraform apply -input=false -auto-approve -replace="aws_efs_file_system.aztec_mainnet_fork_data_store"
 
       - name: Wait for mainnet fork deployment
-        if: needs.build.outputs.mainnet_fork_changed == 'true'
         run: |
-          ./.github/scripts/wait_for_fork.sh ${{ env.DEPLOY_TAG }} ${{ secrets.FORK_API_KEY }}
+          ./.github/scripts/wait_for_infra.sh mainnet-fork ${{ env.DEPLOY_TAG }} ${{ secrets.FORK_API_KEY }}
 
       - name: Deploy L1 Contracts
-        if: needs.build.outputs.l1_contracts_changed == 'true' || needs.build.outputs.mainnet_fork_changed == 'true'
         run: |
           docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}
           docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} deploy-l1-contracts \
             --private-key ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }} \
             --rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
             --l1-chain-id ${{ env.L1_CHAIN_ID }} \
-            | tee ${{ env.FILE_PATH }}
-          ./.github/scripts/extract_l1_addresses.sh ${{ env.FILE_PATH }}
+            | tee  ./l1-contracts/addresses.txt
+          ./.github/scripts/extract_output.sh l1-contracts ./l1-contracts/addresses.txt
 
       - name: Apply l1-contracts Terraform
-        if: needs.build.outputs.l1_contracts_changed == 'true' || needs.build.outputs.mainnet_fork_changed == 'true'
         working-directory: ./l1-contracts/terraform
         run: |
           terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/l1-contracts"
+          terraform apply -input=false -auto-approve
+
+      - name: Upload L1 contract addresses to S3
+        run: |
+          aws s3 cp ./l1-contracts.json s3://aztec-${{ env.DEPLOY_TAG }}-deployments/l1_contract_addresses.json
+
+      - name: Init Aztec Node Terraform
+        working-directory: ./yarn-project/aztec/terraform/node
+        run: |
+          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/aztec-node"
+
+      - name: Deploy Aztec Nodes
+        working-directory: ./yarn-project/aztec/terraform/node
+        run: |
+          terraform apply -input=false -auto-approve -replace="aws_efs_file_system.node_data_store"
+
+      - name: Deploy Provers
+        working-directory: ./yarn-project/aztec/terraform/prover
+        run: |
+          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/prover"
+          terraform apply -input=false -auto-approve
+
+      - name: Deploy PXE
+        working-directory: ./yarn-project/aztec/terraform/pxe
+        run: |
+          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/pxe"
           terraform apply -input=false -auto-approve
 
       - name: Deploy P2P Bootstrap Nodes
@@ -139,24 +145,70 @@ jobs:
           terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/p2p-bootstrap"
           terraform apply -input=false -auto-approve
 
-      - name: Init Aztec Node Terraform
-        working-directory: ./yarn-project/aztec/terraform/node
-        run: |
-          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/aztec-node"
+  bootstrap:
+    runs-on: ubuntu-latest
+    needs: terraform_deploy
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
 
-      - name: Taint node filesystem if L1 contracts are redeployed
-        if: needs.build.outputs.l1_contracts_changed == 'true'
-        working-directory: ./yarn-project/aztec/terraform/node
-        run: |
-          terraform taint aws_efs_file_system.node_data_store
+      - uses: ./.github/ci-setup-action
 
-      - name: Deploy Aztec Nodes
-        working-directory: ./yarn-project/aztec/terraform/node
-        run: |
-          terraform apply -input=false -auto-approve
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
 
-      - name: Deploy Provers
-        working-directory: ./yarn-project/aztec/terraform/prover
+      - name: Wait for PXE to be available
         run: |
-          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/prover"
-          terraform apply -input=false -auto-approve
+          ./.github/scripts/wait_for_infra.sh pxe ${{ env.DEPLOY_TAG }} ${{ secrets.FORK_API_KEY }}
+
+      - name: Bootstrap devnet
+        run: |
+          docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}
+          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} bootstrap \
+            --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
+            --l1-chain-id ${{ env.L1_CHAIN_ID }} \
+            | tee  ./bootstrap_addresses.txt
+          source ./.github/scripts/extract_output.sh l2-bootstrap ./bootstrap_addresses.txt
+
+      - name: Deploy contracts
+        run: |
+          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} create-account \
+            --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
+            | tee ./account.txt
+          source ./.github/scripts/extract_output.sh account ./account.txt
+          echo "PK: $AZTEC_PRIVATE_KEY"
+          echo "CA: $AZTEC_ADDRESS"
+          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} deploy TokenContract \
+            --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
+            --args $AZTEC_ADDRESS DevCoin DEV 18 \
+            --private-key $AZTEC_PRIVATE_KEY \
+            --public-deployment \
+            --class-registration \
+            | tee ./token_contract.txt
+          source ./.github/scripts/extract_output.sh l2-contract ./token_contract.txt TOKEN_CONTRACT_ADDRESS
+
+          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} deploy FPCContract \
+            --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
+            --args $TOKEN_CONTRACT_ADDRESS $FEE_JUICE_ADDRESS \
+            --private-key $AZTEC_PRIVATE_KEY \
+            --public-deployment \
+            --class-registration \
+            | tee ./fpc_contract.txt
+          source ./.github/scripts/extract_output.sh l2-contract ./fpc_contract.txt FPC_CONTRACT_ADDRESS
+
+      - name: Upload addreses to S3
+        run: |
+          echo '{
+            "fee_juice_address": "'$FEE_JUICE_ADDRESS'",
+            "key_registry_address": "'$KEY_REGISTRY_ADDRESS'",
+            "auth_registry_address": "'$AUTH_REGISTRY_ADDRESS'",
+            "token_contract_address": "'$TOKEN_CONTRACT_ADDRESS'",
+            "fpc_contract_address": "'$FPC_CONTRACT_ADDRESS'
+          }' > ./l2_addresses.json
+
+          aws s3 cp ./l2_addresses.json s3://aztec-${{ env.DEPLOY_TAG }}-deployments/l2_contract_addresses.json

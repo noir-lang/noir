@@ -16,6 +16,7 @@
   "scripts": {
     "build": "yarn clean && tsc -b",
     "start": "node --no-warnings ./dest/bin",
+    "start:debug": "node --inspect=0.0.0.0:9221 --no-warnings ./dest/bin",
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
