@@ -6,6 +6,7 @@ use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::graph::CrateId;
+use crate::hir::def_map::LocalModuleId;
 use crate::macros_api::{BlockExpression, StructId};
 use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
 use crate::{ResolvedGeneric, Type};
@@ -154,6 +155,9 @@ pub struct FuncMeta {
 
     /// The crate this function was defined in
     pub source_crate: CrateId,
+
+    /// The module this function was defined in
+    pub source_module: LocalModuleId,
 }
 
 #[derive(Debug, Clone)]
