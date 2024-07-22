@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Duration;
 
@@ -46,7 +46,7 @@ pub(crate) struct CompileCommand {
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
+    let toml_path = get_package_manifest(&config.program_dir, config.debug_compile_stdin)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
@@ -55,13 +55,14 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+        config.debug_compile_stdin,
     )?;
 
     if args.watch {
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
-        compile_workspace_full(&workspace, &args.compile_options)?;
+        compile_workspace_full(&workspace, &args.compile_options, config.debug_compile_stdin)?;
     }
 
     Ok(())
@@ -80,7 +81,8 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     let mut screen = std::io::stdout();
     write!(screen, "{}", termion::cursor::Save).unwrap();
     screen.flush().unwrap();
-    let _ = compile_workspace_full(workspace, compile_options);
+    let no_dummy_toml = false;
+    let _ = compile_workspace_full(workspace, compile_options, no_dummy_toml);
     for res in rx {
         let debounced_events = res.map_err(|mut err| err.remove(0))?;
 
@@ -101,7 +103,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         if noir_files_modified {
             write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
             screen.flush().unwrap();
-            let _ = compile_workspace_full(workspace, compile_options);
+            let _ = compile_workspace_full(workspace, compile_options, no_dummy_toml);
         }
     }
 
@@ -113,13 +115,22 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
+    debug_compile_stdin: bool,
 ) -> Result<(), CliError> {
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    if debug_compile_stdin {
+        let mut main_nr = String::new();
+        let stdin = std::io::stdin();
+        let mut stdin_handle = stdin.lock();
+        stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
+        workspace_file_manager.add_file_with_source(Path::new("/src/main.nr"), main_nr);
+    } else {
+        insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
+    }
 
+    let parsed_files = parse_all(&workspace_file_manager);
     let compiled_workspace =
-        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options, debug_compile_stdin);
 
     report_errors(
         compiled_workspace,
@@ -136,6 +147,7 @@ fn compile_workspace(
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
     compile_options: &CompileOptions,
+    debug_compile_stdin: bool,
 ) -> CompilationResult<()> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
@@ -145,7 +157,7 @@ fn compile_workspace(
 
     // Compile all of the packages in parallel.
     let program_warnings_or_errors: CompilationResult<()> =
-        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options);
+        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options, debug_compile_stdin);
     let contract_warnings_or_errors: CompilationResult<()> = compiled_contracts(
         file_manager,
         parsed_files,
@@ -172,6 +184,7 @@ fn compile_programs(
     workspace: &Workspace,
     binary_packages: &[Package],
     compile_options: &CompileOptions,
+    debug_compile_stdin: bool,
 ) -> CompilationResult<()> {
     let load_cached_program = |package| {
         let program_artifact_path = workspace.package_build_path(package);
@@ -196,11 +209,13 @@ fn compile_programs(
                 get_target_width(package.expression_width, compile_options.expression_width);
             let program = nargo::ops::transform_program(program, target_width);
 
-            save_program_to_file(
-                &program.clone().into(),
-                &package.name,
-                workspace.target_directory_path(),
-            );
+            if !debug_compile_stdin {
+                save_program_to_file(
+                    &program.clone().into(),
+                    &package.name,
+                    workspace.target_directory_path(),
+                );
+            }
             Ok(((), warnings))
         })
         .collect();

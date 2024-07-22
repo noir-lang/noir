@@ -48,7 +48,8 @@ pub(crate) struct ExecuteCommand {
 }
 
 pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
+    let no_dummy_toml = false;
+    let toml_path = get_package_manifest(&config.program_dir, no_dummy_toml)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
@@ -56,11 +57,12 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        no_dummy_toml,
     )?;
     let target_dir = &workspace.target_directory_path();
 
     // Compile the full workspace in order to generate any build artifacts.
-    compile_workspace_full(&workspace, &args.compile_options)?;
+    compile_workspace_full(&workspace, &args.compile_options, no_dummy_toml)?;
 
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {

@@ -22,6 +22,8 @@ impl Display for PackageType {
     }
 }
 
+// TODO: remove debug
+#[derive(Debug)]
 #[derive(Clone)]
 pub enum Dependency {
     Local { package: Package },
@@ -42,6 +44,8 @@ impl Dependency {
     }
 }
 
+// TODO: remove debug
+#[derive(Debug)]
 #[derive(Clone)]
 pub struct Package {
     pub version: Option<String>,

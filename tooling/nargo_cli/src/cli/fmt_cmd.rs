@@ -22,11 +22,13 @@ pub(crate) struct FormatCommand {
 pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {
     let check_mode = args.check;
 
-    let toml_path = get_package_manifest(&config.program_dir)?;
+    let no_dummy_toml = false;
+    let toml_path = get_package_manifest(&config.program_dir, no_dummy_toml)?;
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         PackageSelection::All,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        no_dummy_toml,
     )?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);

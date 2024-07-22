@@ -247,7 +247,8 @@ pub(crate) fn resolve_workspace_for_source_path(
         let mut current_path = file_path;
         let mut current_toml_path = None;
         while current_path.starts_with(root_path) {
-            if let Some(toml_path) = find_file_manifest(current_path) {
+            let no_dummy_toml = false;
+            if let Some(toml_path) = find_file_manifest(current_path, no_dummy_toml) {
                 current_toml_path = Some(toml_path);
 
                 if let Some(next_path) = current_path.parent() {
@@ -261,10 +262,12 @@ pub(crate) fn resolve_workspace_for_source_path(
         }
 
         if let Some(toml_path) = current_toml_path {
+            let no_dummy_toml = false;
             return resolve_workspace_from_toml(
                 &toml_path,
                 PackageSelection::All,
                 Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+                no_dummy_toml,
             )
             .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
         }

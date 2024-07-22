@@ -27,7 +27,8 @@ fn on_tests_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find project root")
     })?;
 
-    let toml_path = match find_package_manifest(root_path, root_path) {
+    let no_dummy_toml = false;
+    let toml_path = match find_package_manifest(root_path, root_path, no_dummy_toml) {
         Ok(toml_path) => toml_path,
         Err(err) => {
             // If we cannot find a manifest, we log a warning but return no code lenses
@@ -40,10 +41,12 @@ fn on_tests_request_inner(
         }
     };
 
+    let no_dummy_toml = false;
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         PackageSelection::All,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        no_dummy_toml,
     )
     .map_err(|err| {
         // If we found a manifest, but the workspace is invalid, we raise an error about it

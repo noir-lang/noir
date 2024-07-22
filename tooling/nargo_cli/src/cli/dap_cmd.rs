@@ -66,7 +66,8 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
 }
 
 fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspace> {
-    let Ok(toml_path) = get_package_manifest(Path::new(project_folder)) else {
+    let no_dummy_toml = false;
+    let Ok(toml_path) = get_package_manifest(Path::new(project_folder), no_dummy_toml) else {
         eprintln!("ERROR: Failed to get package manifest");
         return None;
     };
@@ -76,6 +77,7 @@ fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspa
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        no_dummy_toml,
     ) {
         Ok(workspace) => Some(workspace),
         Err(err) => {

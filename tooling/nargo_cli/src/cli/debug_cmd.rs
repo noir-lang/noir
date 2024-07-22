@@ -57,12 +57,14 @@ pub(crate) fn run(args: DebugCommand, config: NargoConfig) -> Result<(), CliErro
     let acir_mode = args.acir_mode;
     let skip_instrumentation = args.skip_instrumentation.unwrap_or(acir_mode);
 
-    let toml_path = get_package_manifest(&config.program_dir)?;
+    let no_dummy_toml = false;
+    let toml_path = get_package_manifest(&config.program_dir, no_dummy_toml)?;
     let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        no_dummy_toml,
     )?;
     let target_dir = &workspace.target_directory_path();
 

@@ -49,6 +49,11 @@ pub(crate) struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
     #[arg(long, hide = true, global = true, default_value = "./")]
     program_dir: PathBuf,
+
+    /// Accept a single '.nr' file through STDIN instead of reading from the
+    /// root directory
+    #[clap(long, hide = true)]
+    debug_compile_stdin: bool,
 }
 
 #[non_exhaustive]
@@ -80,12 +85,19 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         config.program_dir = std::env::current_dir().unwrap().join(config.program_dir);
     }
 
+    // TODO
+    // if config.debug_compile_stdin && !matches!(command, NargoCommand::Compile(_)) {
+    //     ERROR
+    // }
+
     // Search through parent directories to find package root if necessary.
     if !matches!(
         command,
         NargoCommand::New(_) | NargoCommand::Init(_) | NargoCommand::Lsp(_) | NargoCommand::Dap(_)
     ) {
-        config.program_dir = find_package_root(&config.program_dir)?;
+
+        // TODO: needs actual debug_compile_stdin
+        config.program_dir = find_package_root(&config.program_dir, config.debug_compile_stdin)?;
     }
 
     match command {
