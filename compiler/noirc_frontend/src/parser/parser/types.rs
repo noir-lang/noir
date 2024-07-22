@@ -3,7 +3,9 @@ use super::{
     expression_with_precedence, keyword, nothing, parenthesized, path, NoirParser, ParserError,
     ParserErrorReason, Precedence,
 };
-use crate::ast::{Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression};
+use crate::ast::{
+    Expression, Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+};
 use crate::QuotedType;
 
 use crate::parser::labels::ParsingRuleLabel;
@@ -201,8 +203,16 @@ pub(super) fn generic_type_args<'a>(
         // separator afterward. Failing early here ensures we try the `type_expression`
         // parser afterward.
         .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(type_expression()
-            .map_with_span(|expr, span| UnresolvedTypeData::Expression(expr).with_span(span)))
+        .or(numeric_generic_type_expression().validate(|(type_arg, err_expr), span, emit| {
+            if let UnresolvedTypeData::Error = type_arg.typ {
+                let err_expr = err_expr.expect("Error expression is expected with an error type");
+                emit(ParserError::with_reason(
+                    ParserErrorReason::InvalidNumericGenericExpression(err_expr),
+                    span,
+                ));
+            }
+            type_arg
+        }))
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)
@@ -235,6 +245,23 @@ pub(super) fn slice_type(
 }
 
 pub(super) fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
+    type_expression_inner().try_map(UnresolvedTypeExpression::from_expr)
+}
+
+pub(super) fn numeric_generic_type_expression(
+) -> impl NoirParser<(UnresolvedType, Option<Expression>)> {
+    type_expression_inner().map_with_span(|expr, span| {
+        let expr = UnresolvedTypeExpression::from_expr_helper(expr);
+        match expr {
+            Ok(type_expression) => {
+                (UnresolvedTypeData::Expression(type_expression).with_span(span), None)
+            }
+            Err(err_expr) => (UnresolvedType::error(span), Some(err_expr)),
+        }
+    })
+}
+
+fn type_expression_inner() -> impl NoirParser<Expression> {
     recursive(|expr| {
         expression_with_precedence(
             Precedence::lowest_type_precedence(),
@@ -246,7 +273,6 @@ pub(super) fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
         )
     })
     .labelled(ParsingRuleLabel::TypeExpression)
-    .try_map(UnresolvedTypeExpression::from_expr)
 }
 
 pub(super) fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>

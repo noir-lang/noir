@@ -2224,7 +2224,6 @@ fn impl_stricter_than_trait_different_trait_generics() {
         ..
     }) = &errors[0].0
     {
-        dbg!(constraint_name.as_str());
         assert!(matches!(constraint_typ.to_string().as_str(), "A"));
         assert!(matches!(constraint_name.as_str(), "T2"));
         assert!(matches!(constraint_generics[0].to_string().as_str(), "B"));
@@ -2458,4 +2457,23 @@ fn no_super() {
 
     assert_eq!(span.start(), 4);
     assert_eq!(span.end(), 9);
+}
+
+#[test]
+fn too_big_num_generic() {
+    let src = r#"
+    fn big<let N: u32>() -> u32 {
+        N
+    }
+
+    fn main() {
+        let _ = big::<18446744073709551615>();
+
+        // let x: [Field; 18446744073709551615] = [0; 18446744073709551615];
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    dbg!(errors.clone());
+    dbg!(errors.len());
 }
