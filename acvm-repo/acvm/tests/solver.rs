@@ -20,8 +20,6 @@ use proptest::arbitrary::any;
 use proptest::prelude::*;
 use proptest::sample::select;
 
-// Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
-
 #[test]
 fn bls12_381_circuit() {
     type Bls12FieldElement = GenericFieldElement<ark_bls12_381::Fr>;
@@ -819,7 +817,7 @@ fn bigint_zeroed(input: &Vec<(FieldElement, bool)>) -> Vec<(FieldElement, bool)>
 }
 
 // bigint_zeroed, but returns one
-fn bigint_oned(input: &Vec<(FieldElement, bool)>) -> Vec<(FieldElement, bool)> {
+fn bigint_to_one(input: &Vec<(FieldElement, bool)>) -> Vec<(FieldElement, bool)> {
     let mut one = bigint_zeroed(&input);
     // little-endian
     one[0] = (FieldElement::one(), one[0].1);
@@ -927,7 +925,6 @@ fn bigint_solve_from_to_le_bytes(
 // iterations (from the default 1024) to reach a simplified case, e.g.
 // PROPTEST_MAX_SHRINK_ITERS=1024000
 proptest! {
-
     #[test]
     fn bigint_from_to_le_bytes_zero_one(modulus in select(allowed_bigint_moduli()), zero_or_ones_constant in any::<bool>(), use_constant in any::<bool>()) {
         let zero_function_input = if zero_or_ones_constant {
@@ -949,7 +946,7 @@ proptest! {
     }
 
     #[test]
-    // TODO: desired behavior?
+    // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
     fn bigint_from_to_le_bytes_extra_input_byte((input, modulus) in bigint_with_modulus(), extra_byte in any::<u8>(), use_constant in any::<bool>()) {
         let mut input = input;
         input.push((FieldElement::from(extra_byte as u128), use_constant));
@@ -959,7 +956,7 @@ proptest! {
     }
 
     #[test]
-    // TODO: desired behavior?
+    // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
     fn bigint_from_to_le_bytes_two_extra_input_bytes((input, modulus) in bigint_with_modulus(), extra_byte in any::<u8>(), extra_byte_2 in any::<u8>(), use_constant in any::<bool>(), use_constant_2 in any::<bool>()) {
         let mut input = input;
         input.push((FieldElement::from(extra_byte as u128), use_constant));
@@ -970,7 +967,7 @@ proptest! {
     }
 
     #[test]
-    // TODO: desired behavior?
+    // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
     fn bigint_from_to_le_bytes_extra_input_bytes((input, modulus) in bigint_with_modulus(), extra_bytes_len in any::<u8>(), extra_bytes in proptest::collection::vec(any::<(u8, bool)>(), u8::MAX as usize)) {
         let mut input = input;
         let mut extra_bytes: Vec<_> = extra_bytes.into_iter().take(extra_bytes_len as usize).map(|(x, use_constant)| (FieldElement::from(x as u128), use_constant)).collect();
@@ -981,7 +978,7 @@ proptest! {
     }
 
     #[test]
-    // TODO: desired behavior?
+    // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_from_to_le_bytes_bigger_than_u8((input, modulus) in bigint_with_modulus(), patch_location in any::<usize>(), larger_value in any::<u16>(), use_constant in any::<bool>()) {
         let mut input = input;
@@ -994,7 +991,7 @@ proptest! {
     }
 
     #[test]
-    // TODO: this test attempts to use a guaranteed-invalid BigInt modulus
+    // TODO(https://github.com/noir-lang/noir/issues/5578): this test attempts to use a guaranteed-invalid BigInt modulus
     #[should_panic(expected = "attempt to add with overflow")]
     fn bigint_from_to_le_bytes_disallowed_modulus(modulus in select(allowed_bigint_moduli()), patch_location in any::<usize>(), patch_amount in any::<u8>(), zero_or_ones_constant in any::<bool>(), use_constant in any::<bool>()) {
         let patch_location = patch_location % modulus.len();
@@ -1078,7 +1075,7 @@ proptest! {
     }
 
 
-    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
+    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_add_zero_l((xs, modulus) in bigint_with_modulus()) {
@@ -1089,7 +1086,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
+    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_add_zero_r((xs, modulus) in bigint_with_modulus()) {
@@ -1115,21 +1112,21 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
+    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_mul_one_l((xs, modulus) in bigint_with_modulus()) {
-        let one = bigint_oned(&xs);
+        let one = bigint_to_one(&xs);
         let expected_results: Vec<_> = drop_use_constant(&xs);
         let results = bigint_solve_binary_op(bigint_mul_op(), modulus, one, xs);
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
+    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_mul_one_r((xs, modulus) in bigint_with_modulus()) {
-        let one = bigint_oned(&xs);
+        let one = bigint_to_one(&xs);
         let expected_results = drop_use_constant(&xs);
         let results = bigint_solve_binary_op(bigint_mul_op(), modulus, xs, one);
         prop_assert_eq!(results, expected_results)
@@ -1142,7 +1139,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO: Fails on 49, see bigint_add_zero_l_single_case_49
+    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_sub_zero((xs, modulus) in bigint_with_modulus()) {
@@ -1154,7 +1151,7 @@ proptest! {
 
     #[test]
     fn bigint_sub_one((xs, modulus) in bigint_with_modulus()) {
-        let one = bigint_oned(&xs);
+        let one = bigint_to_one(&xs);
         let expected_results: Vec<_> = drop_use_constant(&xs);
         let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs, one);
         prop_assert!(results != expected_results, "{:?} == {:?}", results, expected_results)
@@ -1162,7 +1159,7 @@ proptest! {
 
     #[test]
     fn bigint_div_self((xs, modulus) in bigint_with_modulus()) {
-        let one = drop_use_constant(&bigint_oned(&xs));
+        let one = drop_use_constant(&bigint_to_one(&xs));
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs.clone(), xs);
         prop_assert_eq!(results, one)
     }
@@ -1175,11 +1172,11 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // Fails on 49, see bigint_add_zero_l_single_case_49
+    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_div_one((xs, modulus) in bigint_with_modulus()) {
-        let one = bigint_oned(&xs);
+        let one = bigint_to_one(&xs);
         let expected_results = drop_use_constant(&xs);
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs, one);
         prop_assert_eq!(results, expected_results)
@@ -1193,7 +1190,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO: fails on (x=0, y=97)
+    // TODO(https://github.com/noir-lang/noir/issues/5579): fails on (x=0, y=97)
     #[test]
     #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
     fn bigint_add_sub((xs, ys, modulus) in bigint_pair_with_modulus()) {
@@ -1205,6 +1202,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
+    // TODO(https://github.com/noir-lang/noir/issues/5579)
     #[test]
     #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
     fn bigint_sub_add((xs, ys, modulus) in bigint_pair_with_modulus()) {
@@ -1216,7 +1214,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // Fails on 49, see bigint_add_zero_l_single_case_49
+    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_div_mul((xs, ys, modulus) in bigint_pair_with_modulus()) {
@@ -1228,7 +1226,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // Fails on 49, see bigint_add_zero_l_single_case_49
+    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_mul_div((xs, ys, modulus) in bigint_pair_with_modulus()) {
@@ -1239,11 +1237,11 @@ proptest! {
 
         prop_assert_eq!(results, expected_results)
     }
-
 }
 
-// TODO: this test is redundant with bigint_add_zero_l,
-// but may be useful for debugging. It can be removed once bigint_add_zero_l is
+// TODO(https://github.com/noir-lang/noir/issues/5579):
+// this test is redundant with bigint_add_zero_l, but may be useful for
+// debugging. It can be removed once bigint_add_zero_l is
 // passing because proptest automatically retries previous failures first.
 #[test]
 #[should_panic(expected = "assertion `left == right` failed")]

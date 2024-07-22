@@ -1,8 +1,8 @@
 use std::bigint::{bn254_fq, BigInt};
 
-// TODO: make issue for this to fail at compile time and then move to compile_failure
+// TODO(https://github.com/noir-lang/noir/issues/5580): decide whether this is desired behavior
 //
-// Fails at runtime:
+// Fails at execution time:
 //
 // error: Assertion failed: 'Index out of bounds'
 //    ┌─ std/cmp.nr:35:34
