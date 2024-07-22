@@ -169,4 +169,8 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
   buildInitialHeader(): Promise<Header> {
     throw new Error('Building initial header not supported on snapshot.');
   }
+
+  getInitialHeader(): Promise<Header> {
+    throw new Error('Getting initial header not supported on snapshot.');
+  }
 }

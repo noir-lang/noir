@@ -2,6 +2,7 @@ import { type AztecArray } from './array.js';
 import { type Key } from './common.js';
 import { type AztecCounter } from './counter.js';
 import { type AztecMap, type AztecMultiMap } from './map.js';
+import { type AztecSet } from './set.js';
 import { type AztecSingleton } from './singleton.js';
 
 /** A key-value store */
@@ -12,6 +13,13 @@ export interface AztecKVStore {
    * @returns The map
    */
   openMap<K extends string | number, V>(name: string): AztecMap<K, V>;
+
+  /**
+   * Creates a new set.
+   * @param name - The name of the set
+   * @returns The set
+   */
+  openSet<K extends string | number>(name: string): AztecSet<K>;
 
   /**
    * Creates a new multi-map.

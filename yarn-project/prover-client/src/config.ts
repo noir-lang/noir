@@ -14,6 +14,8 @@ export type ProverClientConfig = ProverConfig & {
   bbWorkingDirectory: string;
   /** The path to the bb binary */
   bbBinaryPath: string;
+  /** True to disable proving altogether. */
+  disableProver: boolean;
 };
 
 /**
@@ -28,6 +30,7 @@ export function getProverEnvVars(): ProverClientConfig {
     ACVM_BINARY_PATH = '',
     BB_WORKING_DIRECTORY = tmpdir(),
     BB_BINARY_PATH = '',
+    PROVER_DISABLED = '',
     /** @deprecated */
     PROVER_AGENTS = '1',
     PROVER_AGENT_ENABLED = '1',
@@ -44,6 +47,7 @@ export function getProverEnvVars(): ProverClientConfig {
   const proverAgentPollInterval = safeParseNumber(PROVER_AGENT_POLL_INTERVAL_MS, 100);
   const proverJobTimeoutMs = safeParseNumber(PROVER_JOB_TIMEOUT_MS, 60000);
   const proverJobPollIntervalMs = safeParseNumber(PROVER_JOB_POLL_INTERVAL_MS, 1000);
+  const disableProver = ['1', 'true'].includes(PROVER_DISABLED);
 
   return {
     acvmWorkingDirectory: ACVM_WORKING_DIRECTORY,
@@ -51,6 +55,7 @@ export function getProverEnvVars(): ProverClientConfig {
     bbBinaryPath: BB_BINARY_PATH,
     bbWorkingDirectory: BB_WORKING_DIRECTORY,
     realProofs,
+    disableProver,
     proverAgentEnabled,
     proverAgentPollInterval,
     proverAgentConcurrency,

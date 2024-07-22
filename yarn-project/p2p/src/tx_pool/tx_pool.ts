@@ -18,6 +18,12 @@ export interface TxPool {
   getTxByHash(txHash: TxHash): Tx | undefined;
 
   /**
+   * Marks the set of txs as mined, as opposed to pending.
+   * @param txHashes - Hashes of the txs to flag as mined.
+   */
+  markAsMined(txHashes: TxHash[]): Promise<void>;
+
+  /**
    * Deletes transactions from the pool. Tx hashes that are not present are ignored.
    * @param txHashes - An array of tx hashes to be removed from the tx pool.
    */
@@ -36,9 +42,21 @@ export interface TxPool {
   getAllTxHashes(): TxHash[];
 
   /**
-   * Returns a boolean indicating if the transaction is present in the pool.
-   * @param txHash - The hash of the transaction to be queried.
-   * @returns True if the transaction present, false otherwise.
+   * Gets the hashes of pending transactions currently in the tx pool.
+   * @returns An array of pending transaction hashes found in the tx pool.
    */
-  hasTx(txHash: TxHash): boolean;
+  getPendingTxHashes(): TxHash[];
+
+  /**
+   * Gets the hashes of mined transactions currently in the tx pool.
+   * @returns An array of mined transaction hashes found in the tx pool.
+   */
+  getMinedTxHashes(): TxHash[];
+
+  /**
+   * Returns whether the given tx hash is flagged as pending or mined.
+   * @param txHash - Hash of the tx to query.
+   * @returns Pending or mined depending on its status, or undefined if not found.
+   */
+  getTxStatus(txHash: TxHash): 'pending' | 'mined' | undefined;
 }

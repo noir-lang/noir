@@ -47,6 +47,7 @@
     "p2p-bootstrap",
     "protocol-contracts",
     "prover-client",
+    "prover-node",
     "rollup-provider",
     "sequencer-client",
     "scripts",

@@ -378,7 +378,7 @@ export async function setup(
     config.bbBinaryPath = bbConfig.bbBinaryPath;
     config.bbWorkingDirectory = bbConfig.bbWorkingDirectory;
   }
-  config.l1BlockPublishRetryIntervalMS = 100;
+  config.l1PublishRetryIntervalMS = 100;
   const aztecNode = await AztecNodeService.createAndSync(config, telemetry);
   const sequencer = aztecNode.getSequencer();
   const prover = aztecNode.getProver();

@@ -152,6 +152,9 @@ export abstract class BaseWallet implements Wallet {
   getBlockNumber(): Promise<number> {
     return this.pxe.getBlockNumber();
   }
+  getProvenBlockNumber(): Promise<number> {
+    return this.pxe.getProvenBlockNumber();
+  }
   getNodeInfo(): Promise<NodeInfo> {
     return this.pxe.getNodeInfo();
   }

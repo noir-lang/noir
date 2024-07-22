@@ -47,7 +47,7 @@ describe('L1Publisher', () => {
     txSender.getTransactionReceipt.mockResolvedValueOnce(publishTxReceipt).mockResolvedValueOnce(processTxReceipt);
     txSender.getCurrentArchive.mockResolvedValue(l2Block.header.lastArchive.root.toBuffer());
 
-    publisher = new L1Publisher(txSender, { l1BlockPublishRetryIntervalMS: 1 });
+    publisher = new L1Publisher(txSender, { l1PublishRetryIntervalMS: 1 });
   });
 
   it('publishes l2 block to l1', async () => {

@@ -1,8 +1,16 @@
 import { type EthAddress } from '@aztec/foundation/eth-address';
-import { type Logger } from '@aztec/foundation/log';
+import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 
 import { type AztecKVStore } from './interfaces/store.js';
 import { AztecLmdbStore } from './lmdb/store.js';
+
+export function createStore(
+  config: { dataDirectory: string | undefined },
+  rollupAddress: EthAddress,
+  log: Logger = createDebugLogger('aztec:kv-store'),
+) {
+  return initStoreForRollup(AztecLmdbStore.open(config.dataDirectory, false, log), rollupAddress, log);
+}
 
 /**
  * Clears the store if the rollup address does not match the one stored in the database.

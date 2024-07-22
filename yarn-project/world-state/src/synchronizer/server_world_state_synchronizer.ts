@@ -44,7 +44,7 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
     store: AztecKVStore,
     private merkleTreeDb: MerkleTrees,
     private l2BlockSource: L2BlockSource & L1ToL2MessageSource,
-    config: WorldStateConfig,
+    private config: WorldStateConfig,
     private log = createDebugLogger('aztec:world_state'),
   ) {
     this.blockNumber = store.openSingleton('world_state_synch_last_block_number');
@@ -76,7 +76,9 @@ export class ServerWorldStateSynchronizer implements WorldStateSynchronizer {
     }
 
     // get the current latest block number
-    this.latestBlockNumberAtStart = await this.l2BlockSource.getBlockNumber();
+    this.latestBlockNumberAtStart = await (this.config.worldStateProvenBlocksOnly
+      ? this.l2BlockSource.getProvenBlockNumber()
+      : this.l2BlockSource.getBlockNumber());
 
     const blockToDownloadFrom = this.currentL2BlockNum + 1;
 

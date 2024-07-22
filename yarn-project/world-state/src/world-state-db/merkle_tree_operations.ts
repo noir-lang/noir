@@ -73,7 +73,13 @@ export interface MerkleTreeOperations {
   getStateReference(): Promise<StateReference>;
 
   /**
+   * Gets the initial header.
+   */
+  getInitialHeader(): Promise<Header>;
+
+  /**
    * Builds the initial header.
+   * @deprecated Use `getInitialHeader` instead.
    */
   buildInitialHeader(): Promise<Header>;
 

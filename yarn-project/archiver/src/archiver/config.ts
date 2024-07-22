@@ -1,5 +1,4 @@
-import { type L1ContractAddresses } from '@aztec/ethereum';
-import { EthAddress } from '@aztec/foundation/eth-address';
+import { type L1ContractAddresses, getL1ContractAddressesFromEnv } from '@aztec/ethereum';
 
 /**
  * There are 2 polling intervals used in this configuration. The first is the archiver polling interval, archiverPollingIntervalMS.
@@ -12,6 +11,11 @@ import { EthAddress } from '@aztec/foundation/eth-address';
  * The archiver configuration.
  */
 export interface ArchiverConfig {
+  /**
+   * URL for an archiver service. If set, will return an archiver client as opposed to starting a new one.
+   */
+  archiverUrl?: string;
+
   /**
    * The url of the Ethereum RPC node.
    */
@@ -45,7 +49,7 @@ export interface ArchiverConfig {
   /**
    * Optional dir to store data. If omitted will store in memory.
    */
-  dataDirectory?: string;
+  dataDirectory: string | undefined;
 
   /** The max number of logs that can be obtained in 1 "getUnencryptedLogs" call. */
   maxLogs?: number;
@@ -56,43 +60,24 @@ export interface ArchiverConfig {
  * Note: If an environment variable is not set, the default value is used.
  * @returns The archiver configuration.
  */
-export function getConfigEnvVars(): ArchiverConfig {
+export function getArchiverConfigFromEnv(): ArchiverConfig {
   const {
     ETHEREUM_HOST,
     L1_CHAIN_ID,
     ARCHIVER_POLLING_INTERVAL_MS,
     ARCHIVER_VIEM_POLLING_INTERVAL_MS,
-    AVAILABILITY_ORACLE_CONTRACT_ADDRESS,
-    ROLLUP_CONTRACT_ADDRESS,
     API_KEY,
-    INBOX_CONTRACT_ADDRESS,
-    OUTBOX_CONTRACT_ADDRESS,
-    REGISTRY_CONTRACT_ADDRESS,
-    GAS_TOKEN_CONTRACT_ADDRESS,
-    GAS_PORTAL_CONTRACT_ADDRESS,
     DATA_DIRECTORY,
+    ARCHIVER_URL,
   } = process.env;
-  // Populate the relevant addresses for use by the archiver.
-  const addresses: L1ContractAddresses = {
-    availabilityOracleAddress: AVAILABILITY_ORACLE_CONTRACT_ADDRESS
-      ? EthAddress.fromString(AVAILABILITY_ORACLE_CONTRACT_ADDRESS)
-      : EthAddress.ZERO,
-    rollupAddress: ROLLUP_CONTRACT_ADDRESS ? EthAddress.fromString(ROLLUP_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    registryAddress: REGISTRY_CONTRACT_ADDRESS ? EthAddress.fromString(REGISTRY_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    inboxAddress: INBOX_CONTRACT_ADDRESS ? EthAddress.fromString(INBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    outboxAddress: OUTBOX_CONTRACT_ADDRESS ? EthAddress.fromString(OUTBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    gasTokenAddress: GAS_TOKEN_CONTRACT_ADDRESS ? EthAddress.fromString(GAS_TOKEN_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    gasPortalAddress: GAS_PORTAL_CONTRACT_ADDRESS
-      ? EthAddress.fromString(GAS_PORTAL_CONTRACT_ADDRESS)
-      : EthAddress.ZERO,
-  };
   return {
     rpcUrl: ETHEREUM_HOST || '',
     l1ChainId: L1_CHAIN_ID ? +L1_CHAIN_ID : 31337, // 31337 is the default chain id for anvil
     archiverPollingIntervalMS: ARCHIVER_POLLING_INTERVAL_MS ? +ARCHIVER_POLLING_INTERVAL_MS : 1_000,
     viemPollingIntervalMS: ARCHIVER_VIEM_POLLING_INTERVAL_MS ? +ARCHIVER_VIEM_POLLING_INTERVAL_MS : 1_000,
     apiKey: API_KEY,
-    l1Contracts: addresses,
+    l1Contracts: getL1ContractAddressesFromEnv(),
     dataDirectory: DATA_DIRECTORY,
+    archiverUrl: ARCHIVER_URL,
   };
 }

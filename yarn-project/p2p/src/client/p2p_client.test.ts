@@ -30,7 +30,10 @@ describe('In-Memory P2P Client', () => {
       deleteTxs: jest.fn(),
       getAllTxs: jest.fn().mockReturnValue([]),
       getAllTxHashes: jest.fn().mockReturnValue([]),
-      hasTx: jest.fn().mockReturnValue(false),
+      getMinedTxHashes: jest.fn().mockReturnValue([]),
+      getPendingTxHashes: jest.fn().mockReturnValue([]),
+      getTxStatus: jest.fn().mockReturnValue(undefined),
+      markAsMined: jest.fn(),
     };
 
     p2pService = {
@@ -96,6 +99,6 @@ describe('In-Memory P2P Client', () => {
     await client.stop();
 
     const client2 = new P2PClient(kvStore, blockSource, txPool, p2pService);
-    expect(client2.getSyncedBlockNum()).toEqual(client.getSyncedBlockNum());
+    expect(client2.getSyncedLatestBlockNum()).toEqual(client.getSyncedLatestBlockNum());
   });
 });

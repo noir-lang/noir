@@ -12,8 +12,8 @@ import { getPublicIp, splitAddressPort } from '../util.js';
 export * from './p2p_client.js';
 
 export const createP2PClient = async (
-  store: AztecKVStore,
   config: P2PConfig,
+  store: AztecKVStore,
   txPool: TxPool,
   l2BlockSource: L2BlockSource,
 ) => {

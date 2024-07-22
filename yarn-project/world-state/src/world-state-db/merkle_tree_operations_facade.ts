@@ -44,6 +44,10 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
     return this.trees.buildInitialHeader(this.includeUncommitted);
   }
 
+  getInitialHeader(): Promise<Header> {
+    return this.trees.getInitialHeader(this.includeUncommitted);
+  }
+
   /**
    * Appends a set of leaf values to the tree.
    * @param treeId - Id of the tree to append leaves to.

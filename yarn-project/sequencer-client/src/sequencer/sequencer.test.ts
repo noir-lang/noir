@@ -131,7 +131,7 @@ describe('sequencer', () => {
       provingPromise: Promise.resolve(result),
     };
 
-    p2p.getTxs.mockResolvedValueOnce([tx]);
+    p2p.getTxs.mockReturnValueOnce([tx]);
     proverClient.startNewBlock.mockResolvedValueOnce(ticket);
     proverClient.finaliseBlock.mockResolvedValue({ block, aggregationObject: [], proof });
     publisher.processL2Block.mockResolvedValueOnce(true);
@@ -163,7 +163,7 @@ describe('sequencer', () => {
       provingPromise: Promise.resolve(result),
     };
 
-    p2p.getTxs.mockResolvedValueOnce([tx]);
+    p2p.getTxs.mockReturnValueOnce([tx]);
     proverClient.startNewBlock.mockResolvedValueOnce(ticket);
     proverClient.finaliseBlock.mockResolvedValue({ block, aggregationObject: [], proof });
     publisher.processL2Block.mockResolvedValueOnce(true);
@@ -204,7 +204,7 @@ describe('sequencer', () => {
       provingPromise: Promise.resolve(result),
     };
 
-    p2p.getTxs.mockResolvedValueOnce(txs);
+    p2p.getTxs.mockReturnValueOnce(txs);
     proverClient.startNewBlock.mockResolvedValueOnce(ticket);
     proverClient.finaliseBlock.mockResolvedValue({ block, aggregationObject: [], proof });
     publisher.processL2Block.mockResolvedValueOnce(true);
@@ -248,7 +248,7 @@ describe('sequencer', () => {
       provingPromise: Promise.resolve(result),
     };
 
-    p2p.getTxs.mockResolvedValueOnce(txs);
+    p2p.getTxs.mockReturnValueOnce(txs);
     proverClient.startNewBlock.mockResolvedValueOnce(ticket);
     proverClient.finaliseBlock.mockResolvedValue({ block, aggregationObject: [], proof });
     publisher.processL2Block.mockResolvedValueOnce(true);
@@ -286,7 +286,7 @@ describe('sequencer', () => {
       provingPromise: Promise.resolve(result),
     };
 
-    p2p.getTxs.mockResolvedValueOnce(txs);
+    p2p.getTxs.mockReturnValueOnce(txs);
     proverClient.startNewBlock.mockResolvedValueOnce(ticket);
     proverClient.finaliseBlock.mockResolvedValue({ block, aggregationObject: [], proof });
     publisher.processL2Block.mockResolvedValueOnce(true);
@@ -322,7 +322,7 @@ describe('sequencer', () => {
       provingPromise: Promise.resolve(result),
     };
 
-    p2p.getTxs.mockResolvedValueOnce([tx]);
+    p2p.getTxs.mockReturnValueOnce([tx]);
     proverClient.startNewBlock.mockResolvedValueOnce(ticket);
     proverClient.finaliseBlock.mockResolvedValue({ block, aggregationObject: [], proof });
     publisher.processL2Block.mockResolvedValueOnce(true);

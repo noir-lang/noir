@@ -134,7 +134,7 @@ export class L1Publisher implements L2BlockReceiver {
   private log = createDebugLogger('aztec:sequencer:publisher');
 
   constructor(private txSender: L1PublisherTxSender, config?: PublisherConfig) {
-    this.sleepTimeMs = config?.l1BlockPublishRetryIntervalMS ?? 60_000;
+    this.sleepTimeMs = config?.l1PublishRetryIntervalMS ?? 60_000;
   }
 
   public async isItMyTurnToSubmit(blockNumber: number): Promise<boolean> {

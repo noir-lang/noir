@@ -32,7 +32,8 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
     .option('-px, --pxe [options]', cliTexts.pxe)
     .option('-a, --archiver [options]', cliTexts.archiver)
     .option('-s, --sequencer [options]', cliTexts.sequencer)
-    .option('-r, --prover [options]', cliTexts.prover)
+    .option('-r, --prover [options]', cliTexts.proverAgent)
+    .option('-o, --prover-node [options]', cliTexts.proverNode)
     .option('-p2p, --p2p-bootstrap [options]', cliTexts.p2pBootstrap)
     .option('-t, --txe [options]', cliTexts.txe)
     .action(async options => {
@@ -69,6 +70,9 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
         if (options.node) {
           const { startNode } = await import('./cmds/start_node.js');
           services = await startNode(options, signalHandlers, userLog);
+        } else if (options.proverNode) {
+          const { startProverNode } = await import('./cmds/start_prover_node.js');
+          services = await startProverNode(options, signalHandlers, userLog);
         } else if (options.pxe) {
           const { startPXE } = await import('./cmds/start_pxe.js');
           services = await startPXE(options, signalHandlers, userLog);
@@ -78,12 +82,18 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
         } else if (options.p2pBootstrap) {
           const { startP2PBootstrap } = await import('./cmds/start_p2p_bootstrap.js');
           await startP2PBootstrap(options, userLog, debugLogger);
-        } else if (options.prover) {
-          const { startProver } = await import('./cmds/start_prover.js');
-          services = await startProver(options, signalHandlers, userLog);
+        } else if (options.proverAgent) {
+          const { startProverAgent } = await import('./cmds/start_prover_agent.js');
+          services = await startProverAgent(options, signalHandlers, userLog);
         } else if (options.txe) {
           const { startTXE } = await import('./cmds/start_txe.js');
           startTXE(options, debugLogger);
+        } else if (options.sequencer) {
+          userLog(`Cannot run a standalone sequencer without a node`);
+          process.exit(1);
+        } else {
+          userLog(`No module specified to start`);
+          process.exit(1);
         }
       }
       installSignalHandlers(debugLogger.info, signalHandlers);

@@ -71,11 +71,19 @@ export const cliTexts = {
     'allowedFeePaymentContractClasses:SEQ_FPC_CLASSES - string[] - Which fee payment contract classes the sequencer allows' +
     'allowedFeePaymentContractInstances:SEQ_FPC_INSTANCES - string[] - Which fee payment contracts the sequencer allows.' +
     contractAddresses,
-  prover:
-    'Starts a Prover with options. If started additionally to --node, the Prover will attach to that node.\n' +
+  proverAgent:
+    'Starts a Prover Agent with options. If started additionally to --node or --prover-node, the Prover will attach to that node.\n' +
     'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +
     'acvmBinaryPath:ACVM_BINARY_PATH - string - The full path to an instance of the acvm cli application. If not provided will fallback to WASM circuit simulation\n' +
     'acvmWorkingDirectory:ACVM_WORKING_DIRECTORY - string - A directory to use for temporary files used by the acvm application. If not provided WASM circuit simulation will be used\n',
+  proverNode:
+    'Starts a Prover Node with options. The node will automatically check for unproven blocks on L1 and attempt to prove them, and then upload the proof back to L1.\n' +
+    'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +
+    'rcpUrl:ETHEREUM_HOST - string - The host of the Ethereum node to connect to. Default: http://localhost:8545\n' +
+    'archiverUrl:ARCHIVER_URL - string - A URL for an archiver service that the node will use. Run with --archiver to spin up an archiver within this node.\n' +
+    'nodeUrl:AZTEC_NODE_URL - string - The URL of the Aztec Node to connect to to fetch tx client proofs.\n' +
+    'dataDirectory:DATA_DIRECTORY - string - Where to store node data. If not set, will store temporarily.\n' +
+    contractAddresses,
   p2pBootstrap:
     'Starts a P2P bootstrap node with options.\n' +
     'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +

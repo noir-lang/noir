@@ -1,5 +1,5 @@
 import { BBNativeRollupProver, TestCircuitProver } from '@aztec/bb-prover';
-import { type ProcessedTx } from '@aztec/circuit-types';
+import { type L2BlockSource, type ProcessedTx } from '@aztec/circuit-types';
 import {
   type BlockResult,
   type ProverClient,
@@ -96,8 +96,8 @@ export class TxProver implements ProverClient {
   public static async new(
     config: ProverClientConfig,
     worldStateSynchronizer: WorldStateSynchronizer,
+    blockSource: L2BlockSource,
     telemetry: TelemetryClient,
-    initialHeader?: Header,
   ) {
     const agent = config.proverAgentEnabled
       ? new ProverAgent(
@@ -107,6 +107,7 @@ export class TxProver implements ProverClient {
         )
       : undefined;
 
+    const initialHeader = await worldStateSynchronizer.getCommitted().getInitialHeader();
     const prover = new TxProver(config, worldStateSynchronizer, telemetry, agent, initialHeader);
     await prover.start();
     return prover;

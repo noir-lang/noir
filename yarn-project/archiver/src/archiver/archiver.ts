@@ -140,7 +140,7 @@ export class Archiver implements ArchiveSource {
     }
 
     if (blockUntilSynced) {
-      this.log.info(`Performing initial chain sync...`);
+      this.log.info(`Performing initial chain sync to rollup contract ${this.rollupAddress.toString()}`);
       await this.sync(blockUntilSynced);
     }
 
@@ -165,15 +165,13 @@ export class Archiver implements ArchiveSource {
      *
      * This code does not handle reorgs.
      */
-    const l1SynchPoint = await this.store.getSynchPoint();
+    const { blocksSynchedTo, messagesSynchedTo } = await this.store.getSynchPoint();
     const currentL1BlockNumber = await this.publicClient.getBlockNumber();
 
-    if (
-      currentL1BlockNumber <= l1SynchPoint.blocksSynchedTo &&
-      currentL1BlockNumber <= l1SynchPoint.messagesSynchedTo
-    ) {
+    if (currentL1BlockNumber <= blocksSynchedTo && currentL1BlockNumber <= messagesSynchedTo) {
       // chain hasn't moved forward
       // or it's been rolled back
+      this.log.debug(`Nothing to sync`, { currentL1BlockNumber, blocksSynchedTo, messagesSynchedTo });
       return;
     }
 
@@ -204,14 +202,14 @@ export class Archiver implements ArchiveSource {
       this.publicClient,
       this.inboxAddress,
       blockUntilSynced,
-      l1SynchPoint.messagesSynchedTo + 1n,
+      messagesSynchedTo + 1n,
       currentL1BlockNumber,
     );
 
     if (retrievedL1ToL2Messages.retrievedData.length !== 0) {
       this.log.verbose(
         `Retrieved ${retrievedL1ToL2Messages.retrievedData.length} new L1 -> L2 messages between L1 blocks ${
-          l1SynchPoint.messagesSynchedTo + 1n
+          messagesSynchedTo + 1n
         } and ${currentL1BlockNumber}.`,
       );
     }
@@ -225,7 +223,7 @@ export class Archiver implements ArchiveSource {
       this.publicClient,
       this.availabilityOracleAddress,
       blockUntilSynced,
-      l1SynchPoint.blocksSynchedTo + 1n,
+      blocksSynchedTo + 1n,
       currentL1BlockNumber,
     );
 
@@ -240,7 +238,7 @@ export class Archiver implements ArchiveSource {
         this.publicClient,
         this.rollupAddress,
         blockUntilSynced,
-        l1SynchPoint.blocksSynchedTo + 1n,
+        blocksSynchedTo + 1n,
         currentL1BlockNumber,
         nextExpectedL2BlockNum,
       );
@@ -259,15 +257,11 @@ export class Archiver implements ArchiveSource {
         (blockMetadata, i) => new L2Block(blockMetadata[1], blockMetadata[0], blockBodiesFromStore[i]),
       );
 
-      if (blocks.length === 0) {
-        return;
-      } else {
-        this.log.verbose(
-          `Retrieved ${blocks.length} new L2 blocks between L1 blocks ${
-            l1SynchPoint.blocksSynchedTo + 1n
-          } and ${currentL1BlockNumber}.`,
-        );
-      }
+      (blocks.length ? this.log.verbose : this.log.debug)(
+        `Retrieved ${blocks.length || 'no'} new L2 blocks between L1 blocks ${
+          blocksSynchedTo + 1n
+        } and ${currentL1BlockNumber}.`,
+      );
 
       retrievedBlocks = {
         lastProcessedL1BlockNumber: retrievedBlockMetadata.lastProcessedL1BlockNumber,
@@ -296,19 +290,27 @@ export class Archiver implements ArchiveSource {
       }),
     );
 
-    await this.store.addBlocks(retrievedBlocks);
-    this.instrumentation.processNewBlocks(retrievedBlocks.retrievedData);
+    if (retrievedBlocks.retrievedData.length > 0) {
+      await this.store.addBlocks(retrievedBlocks);
+      this.instrumentation.processNewBlocks(retrievedBlocks.retrievedData);
+      const lastL2BlockNumber = retrievedBlocks.retrievedData[retrievedBlocks.retrievedData.length - 1].number;
+      this.log.verbose(`Processed ${retrievedBlocks.retrievedData.length} new L2 blocks up to ${lastL2BlockNumber}`);
+    }
 
     // Fetch the logs for proven blocks in the block range and update the last proven block number.
     // Note it's ok to read repeated data here, since we're just using the largest number we see on the logs.
-    await this.updateLastProvenL2Block(l1SynchPoint.blocksSynchedTo, currentL1BlockNumber);
+    await this.updateLastProvenL2Block(blocksSynchedTo, currentL1BlockNumber);
+
+    if (retrievedBlocks.retrievedData.length > 0 || blockUntilSynced) {
+      (blockUntilSynced ? this.log.info : this.log.verbose)(`Synced to L1 block ${currentL1BlockNumber}`);
+    }
   }
 
   private async updateLastProvenL2Block(fromBlock: bigint, toBlock: bigint) {
     const logs = await this.publicClient.getLogs({
       address: this.rollupAddress.toString(),
       fromBlock,
-      toBlock,
+      toBlock: toBlock + 1n, // toBlock is exclusive
       strict: true,
       event: getAbiItem({ abi: RollupAbi, name: 'L2ProofVerified' }),
     });
@@ -319,7 +321,15 @@ export class Archiver implements ArchiveSource {
     }
 
     const provenBlockNumber = lastLog.args.blockNumber;
-    await this.store.setProvenL2BlockNumber(Number(provenBlockNumber));
+    if (!provenBlockNumber) {
+      throw new Error(`Missing argument blockNumber from L2ProofVerified event`);
+    }
+
+    const currentProvenBlockNumber = await this.store.getProvenL2BlockNumber();
+    if (provenBlockNumber > currentProvenBlockNumber) {
+      this.log.verbose(`Updated last proven block number from ${currentProvenBlockNumber} to ${provenBlockNumber}`);
+      await this.store.setProvenL2BlockNumber(Number(provenBlockNumber));
+    }
   }
 
   /**
@@ -500,6 +510,11 @@ export class Archiver implements ArchiveSource {
 
   public getProvenBlockNumber(): Promise<number> {
     return this.store.getProvenL2BlockNumber();
+  }
+
+  /** Forcefully updates the last proven block number. Use for testing. */
+  public setProvenBlockNumber(block: number): Promise<void> {
+    return this.store.setProvenL2BlockNumber(block);
   }
 
   public getContractClass(id: Fr): Promise<ContractClassPublic | undefined> {

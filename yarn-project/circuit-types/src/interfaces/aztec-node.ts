@@ -176,6 +176,13 @@ export interface AztecNode {
    * @returns The block number.
    */
   getBlockNumber(): Promise<number>;
+
+  /**
+   * Fetches the latest proven block number.
+   * @returns The block number.
+   */
+  getProvenBlockNumber(): Promise<number>;
+
   /**
    * Method to determine if the node is ready to accept transactions.
    * @returns - Flag indicating the readiness for tx submission.
@@ -281,7 +288,7 @@ export interface AztecNode {
    * @param txHash - The transaction hash to return.
    * @returns The pending tx if it exists.
    */
-  getPendingTxByHash(txHash: TxHash): Promise<Tx | undefined>;
+  getTxByHash(txHash: TxHash): Promise<Tx | undefined>;
 
   /**
    * Gets the storage value at the given contract storage slot.

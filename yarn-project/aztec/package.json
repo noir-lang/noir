@@ -48,6 +48,7 @@
     "@aztec/p2p-bootstrap": "workspace:^",
     "@aztec/protocol-contracts": "workspace:^",
     "@aztec/prover-client": "workspace:^",
+    "@aztec/prover-node": "workspace:^",
     "@aztec/pxe": "workspace:^",
     "@aztec/telemetry-client": "workspace:^",
     "@aztec/txe": "workspace:^",

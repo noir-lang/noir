@@ -14,7 +14,7 @@ export interface WorldStateConfig {
  * Returns the configuration values for the world state synchronizer.
  * @returns The configuration values for the world state synchronizer.
  */
-export function getConfigEnvVars(): WorldStateConfig {
+export function getWorldStateConfigFromEnv(): WorldStateConfig {
   const { WS_BLOCK_CHECK_INTERVAL_MS, WS_L2_BLOCK_QUEUE_SIZE, WS_PROVEN_BLOCKS_ONLY } = process.env;
   const envVars: WorldStateConfig = {
     worldStateBlockCheckIntervalMS: WS_BLOCK_CHECK_INTERVAL_MS ? +WS_BLOCK_CHECK_INTERVAL_MS : 100,

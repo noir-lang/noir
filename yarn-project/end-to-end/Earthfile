@@ -139,6 +139,9 @@ e2e-pending-note-hashes-contract:
 e2e-private-voting-contract:
   DO +E2E_TEST --test=./src/e2e_private_voting_contract.test.ts
 
+e2e-prover-node:
+  DO +E2E_TEST --test=./src/e2e_prover_node.test.ts
+
 e2e-fees-private-payments:
   DO +E2E_TEST --test=./src/e2e_fees/private_payments.test.ts
 

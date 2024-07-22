@@ -14,6 +14,8 @@ export class InMemoryTxPool implements TxPool {
    * Our tx pool, stored as a Map in-memory, with K: tx hash and V: the transaction.
    */
   private txs: Map<bigint, Tx>;
+  private minedTxs: Set<bigint>;
+  private pendingTxs: Set<bigint>;
 
   private metrics: TxPoolInstrumentation;
 
@@ -23,7 +25,37 @@ export class InMemoryTxPool implements TxPool {
    */
   constructor(telemetry: TelemetryClient, private log = createDebugLogger('aztec:tx_pool')) {
     this.txs = new Map<bigint, Tx>();
+    this.minedTxs = new Set();
+    this.pendingTxs = new Set();
     this.metrics = new TxPoolInstrumentation(telemetry, 'InMemoryTxPool');
+  }
+
+  public markAsMined(txHashes: TxHash[]): Promise<void> {
+    const keys = txHashes.map(x => x.toBigInt());
+    for (const key of keys) {
+      this.minedTxs.add(key);
+      this.pendingTxs.delete(key);
+    }
+    return Promise.resolve();
+  }
+
+  public getPendingTxHashes(): TxHash[] {
+    return Array.from(this.pendingTxs).map(x => TxHash.fromBigInt(x));
+  }
+
+  public getMinedTxHashes(): TxHash[] {
+    return Array.from(this.minedTxs).map(x => TxHash.fromBigInt(x));
+  }
+
+  public getTxStatus(txHash: TxHash): 'pending' | 'mined' | undefined {
+    const key = txHash.toBigInt();
+    if (this.pendingTxs.has(key)) {
+      return 'pending';
+    }
+    if (this.minedTxs.has(key)) {
+      return 'mined';
+    }
+    return undefined;
   }
 
   /**
@@ -49,7 +81,12 @@ export class InMemoryTxPool implements TxPool {
         eventName: 'tx-added-to-pool',
         ...tx.getStats(),
       } satisfies TxAddedToPoolStats);
-      this.txs.set(txHash.toBigInt(), tx);
+
+      const key = txHash.toBigInt();
+      this.txs.set(key, tx);
+      if (!this.minedTxs.has(key)) {
+        this.pendingTxs.add(key);
+      }
     }
     return Promise.resolve();
   }
@@ -62,7 +99,10 @@ export class InMemoryTxPool implements TxPool {
   public deleteTxs(txHashes: TxHash[]): Promise<void> {
     this.metrics.removeTxs(txHashes.length);
     for (const txHash of txHashes) {
-      this.txs.delete(txHash.toBigInt());
+      const key = txHash.toBigInt();
+      this.txs.delete(key);
+      this.pendingTxs.delete(key);
+      this.minedTxs.delete(key);
     }
     return Promise.resolve();
   }
@@ -81,14 +121,5 @@ export class InMemoryTxPool implements TxPool {
    */
   public getAllTxHashes(): TxHash[] {
     return Array.from(this.txs.keys()).map(x => TxHash.fromBigInt(x));
-  }
-
-  /**
-   * Returns a boolean indicating if the transaction is present in the pool.
-   * @param txHash - The hash of the transaction to be queried.
-   * @returns True if the transaction present, false otherwise.
-   */
-  public hasTx(txHash: TxHash): boolean {
-    return this.txs.has(txHash.toBigInt());
   }
 }

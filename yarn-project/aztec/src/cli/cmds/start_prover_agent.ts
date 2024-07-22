@@ -9,7 +9,7 @@ import {
 
 import { type ServiceStarter, parseModuleOptions } from '../util.js';
 
-export const startProver: ServiceStarter = async (options, signalHandlers, logger) => {
+export const startProverAgent: ServiceStarter = async (options, signalHandlers, logger) => {
   const proverOptions = {
     ...getProverEnvVars(),
     ...parseModuleOptions(options.prover),

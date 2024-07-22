@@ -569,8 +569,12 @@ export class PXEService implements PXE {
     return this.node.getTxEffect(txHash);
   }
 
-  async getBlockNumber(): Promise<number> {
+  public async getBlockNumber(): Promise<number> {
     return await this.node.getBlockNumber();
+  }
+
+  public async getProvenBlockNumber(): Promise<number> {
+    return await this.node.getProvenBlockNumber();
   }
 
   /**

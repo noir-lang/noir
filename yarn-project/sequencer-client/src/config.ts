@@ -1,16 +1,14 @@
 import { type AllowedElement } from '@aztec/circuit-types';
 import { AztecAddress, Fr, FunctionSelector, getContractClassFromArtifact } from '@aztec/circuits.js';
-import { type L1ContractAddresses, NULL_KEY } from '@aztec/ethereum';
+import { getL1ContractAddressesFromEnv } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { FPCContract } from '@aztec/noir-contracts.js/FPC';
 import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 import { AuthRegistryAddress } from '@aztec/protocol-contracts/auth-registry';
 import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
 
-import { type Hex } from 'viem';
-
 import { type GlobalReaderConfig } from './global_variable_builder/index.js';
-import { type PublisherConfig, type TxSenderConfig } from './publisher/config.js';
+import { type PublisherConfig, type TxSenderConfig, getTxSenderConfigFromEnv } from './publisher/config.js';
 import { type SequencerConfig } from './sequencer/config.js';
 
 /** Chain configuration. */
@@ -35,11 +33,7 @@ export type SequencerClientConfig = PublisherConfig &
  */
 export function getConfigEnvVars(): SequencerClientConfig {
   const {
-    SEQ_PUBLISHER_PRIVATE_KEY,
-    ETHEREUM_HOST,
-    L1_CHAIN_ID,
     VERSION,
-    SEQ_REQUIRED_CONFIRMATIONS,
     SEQ_PUBLISH_RETRY_INTERVAL_MS,
     SEQ_TX_POLLING_INTERVAL_MS,
     SEQ_MAX_TX_PER_BLOCK,
@@ -47,13 +41,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
     SEQ_ALLOWED_SETUP_FN,
     SEQ_ALLOWED_TEARDOWN_FN,
     SEQ_MAX_BLOCK_SIZE_IN_BYTES,
-    AVAILABILITY_ORACLE_CONTRACT_ADDRESS,
-    ROLLUP_CONTRACT_ADDRESS,
-    REGISTRY_CONTRACT_ADDRESS,
-    INBOX_CONTRACT_ADDRESS,
-    OUTBOX_CONTRACT_ADDRESS,
-    GAS_TOKEN_CONTRACT_ADDRESS,
-    GAS_PORTAL_CONTRACT_ADDRESS,
+    SEQ_SKIP_SUBMIT_PROOFS,
     COINBASE,
     FEE_RECIPIENT,
     ACVM_WORKING_DIRECTORY,
@@ -61,37 +49,16 @@ export function getConfigEnvVars(): SequencerClientConfig {
     ENFORCE_FEES = '',
   } = process.env;
 
-  const publisherPrivateKey: Hex = SEQ_PUBLISHER_PRIVATE_KEY
-    ? `0x${SEQ_PUBLISHER_PRIVATE_KEY.replace('0x', '')}`
-    : NULL_KEY;
-  // Populate the relevant addresses for use by the sequencer
-  const addresses: L1ContractAddresses = {
-    availabilityOracleAddress: AVAILABILITY_ORACLE_CONTRACT_ADDRESS
-      ? EthAddress.fromString(AVAILABILITY_ORACLE_CONTRACT_ADDRESS)
-      : EthAddress.ZERO,
-    rollupAddress: ROLLUP_CONTRACT_ADDRESS ? EthAddress.fromString(ROLLUP_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    registryAddress: REGISTRY_CONTRACT_ADDRESS ? EthAddress.fromString(REGISTRY_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    inboxAddress: INBOX_CONTRACT_ADDRESS ? EthAddress.fromString(INBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    outboxAddress: OUTBOX_CONTRACT_ADDRESS ? EthAddress.fromString(OUTBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    gasTokenAddress: GAS_TOKEN_CONTRACT_ADDRESS ? EthAddress.fromString(GAS_TOKEN_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    gasPortalAddress: GAS_PORTAL_CONTRACT_ADDRESS
-      ? EthAddress.fromString(GAS_PORTAL_CONTRACT_ADDRESS)
-      : EthAddress.ZERO,
-  };
-
   return {
     enforceFees: ['1', 'true'].includes(ENFORCE_FEES),
-    rpcUrl: ETHEREUM_HOST ? ETHEREUM_HOST : '',
-    l1ChainId: L1_CHAIN_ID ? +L1_CHAIN_ID : 31337, // 31337 is the default chain id for anvil
     version: VERSION ? +VERSION : 1, // 1 is our default version
-    requiredConfirmations: SEQ_REQUIRED_CONFIRMATIONS ? +SEQ_REQUIRED_CONFIRMATIONS : 1,
-    l1BlockPublishRetryIntervalMS: SEQ_PUBLISH_RETRY_INTERVAL_MS ? +SEQ_PUBLISH_RETRY_INTERVAL_MS : 1_000,
+    l1PublishRetryIntervalMS: SEQ_PUBLISH_RETRY_INTERVAL_MS ? +SEQ_PUBLISH_RETRY_INTERVAL_MS : 1_000,
     transactionPollingIntervalMS: SEQ_TX_POLLING_INTERVAL_MS ? +SEQ_TX_POLLING_INTERVAL_MS : 1_000,
     maxBlockSizeInBytes: SEQ_MAX_BLOCK_SIZE_IN_BYTES ? +SEQ_MAX_BLOCK_SIZE_IN_BYTES : undefined,
-    l1Contracts: addresses,
-    publisherPrivateKey,
+    l1Contracts: getL1ContractAddressesFromEnv(),
     maxTxsPerBlock: SEQ_MAX_TX_PER_BLOCK ? +SEQ_MAX_TX_PER_BLOCK : 32,
     minTxsPerBlock: SEQ_MIN_TX_PER_BLOCK ? +SEQ_MIN_TX_PER_BLOCK : 1,
+    sequencerSkipSubmitProofs: ['1', 'true'].includes(SEQ_SKIP_SUBMIT_PROOFS ?? ''),
     // TODO: undefined should not be allowed for the following 2 values in PROD
     coinbase: COINBASE ? EthAddress.fromString(COINBASE) : undefined,
     feeRecipient: FEE_RECIPIENT ? AztecAddress.fromString(FEE_RECIPIENT) : undefined,
@@ -103,6 +70,7 @@ export function getConfigEnvVars(): SequencerClientConfig {
     allowedInTeardown: SEQ_ALLOWED_TEARDOWN_FN
       ? parseSequencerAllowList(SEQ_ALLOWED_TEARDOWN_FN)
       : getDefaultAllowedTeardownFunctions(),
+    ...getTxSenderConfigFromEnv('SEQ'),
   };
 }
 

@@ -33,4 +33,6 @@ export interface SequencerConfig {
   maxBlockSizeInBytes?: number;
   /** Whether to require every tx to have a fee payer */
   enforceFees?: boolean;
+  /** Temporary flag to skip submitting proofs, so a prover-node takes care of it. */
+  sequencerSkipSubmitProofs?: boolean;
 }

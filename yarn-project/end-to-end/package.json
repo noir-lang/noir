@@ -39,6 +39,7 @@
     "@aztec/p2p": "workspace:^",
     "@aztec/protocol-contracts": "workspace:^",
     "@aztec/prover-client": "workspace:^",
+    "@aztec/prover-node": "workspace:^",
     "@aztec/pxe": "workspace:^",
     "@aztec/sequencer-client": "workspace:^",
     "@aztec/simulator": "workspace:^",

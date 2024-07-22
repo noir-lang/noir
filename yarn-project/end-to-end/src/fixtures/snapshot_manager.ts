@@ -52,8 +52,8 @@ type SnapshotEntry = {
   snapshotPath: string;
 };
 
-export function createSnapshotManager(testName: string, dataPath?: string) {
-  return dataPath ? new SnapshotManager(testName, dataPath) : new MockSnapshotManager(testName);
+export function createSnapshotManager(testName: string, dataPath?: string, config: Partial<AztecNodeConfig> = {}) {
+  return dataPath ? new SnapshotManager(testName, dataPath, config) : new MockSnapshotManager(testName, config);
 }
 
 export interface ISnapshotManager {
@@ -73,7 +73,7 @@ class MockSnapshotManager implements ISnapshotManager {
   private context?: SubsystemsContext;
   private logger: DebugLogger;
 
-  constructor(testName: string) {
+  constructor(testName: string, private config: Partial<AztecNodeConfig> = {}) {
     this.logger = createDebugLogger(`aztec:snapshot_manager:${testName}`);
     this.logger.warn(`No data path given, will not persist any snapshots.`);
   }
@@ -95,7 +95,7 @@ class MockSnapshotManager implements ISnapshotManager {
 
   public async setup() {
     if (!this.context) {
-      this.context = await setupFromFresh(undefined, this.logger);
+      this.context = await setupFromFresh(undefined, this.logger, this.config);
     }
     return this.context;
   }
@@ -116,7 +116,7 @@ class SnapshotManager implements ISnapshotManager {
   private livePath: string;
   private logger: DebugLogger;
 
-  constructor(testName: string, private dataPath: string) {
+  constructor(testName: string, private dataPath: string, private config: Partial<AztecNodeConfig> = {}) {
     this.livePath = join(this.dataPath, 'live', testName);
     this.logger = createDebugLogger(`aztec:snapshot_manager:${testName}`);
   }
@@ -193,7 +193,7 @@ class SnapshotManager implements ISnapshotManager {
           this.logger.verbose(`Restoration of ${e.name} complete.`);
         });
       } else {
-        this.context = await setupFromFresh(this.livePath, this.logger);
+        this.context = await setupFromFresh(this.livePath, this.logger, this.config);
       }
     }
     return this.context;
@@ -227,12 +227,16 @@ async function teardown(context: SubsystemsContext | undefined) {
  * If given a statePath, the state will be written to the path.
  * If there is no statePath, in-memory and temporary state locations will be used.
  */
-async function setupFromFresh(statePath: string | undefined, logger: Logger): Promise<SubsystemsContext> {
+async function setupFromFresh(
+  statePath: string | undefined,
+  logger: Logger,
+  config: Partial<AztecNodeConfig> = {},
+): Promise<SubsystemsContext> {
   logger.verbose(`Initializing state...`);
 
   // Fetch the AztecNode config.
   // TODO: For some reason this is currently the union of a bunch of subsystems. That needs fixing.
-  const aztecNodeConfig: AztecNodeConfig = getConfigEnvVars();
+  const aztecNodeConfig: AztecNodeConfig = { ...getConfigEnvVars(), ...config };
   aztecNodeConfig.dataDirectory = statePath;
 
   // Start anvil. We go via a wrapper script to ensure if the parent dies, anvil dies.
@@ -257,7 +261,7 @@ async function setupFromFresh(statePath: string | undefined, logger: Logger): Pr
   const deployL1ContractsValues = await setupL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, logger);
   aztecNodeConfig.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
   aztecNodeConfig.l1Contracts = deployL1ContractsValues.l1ContractAddresses;
-  aztecNodeConfig.l1BlockPublishRetryIntervalMS = 100;
+  aztecNodeConfig.l1PublishRetryIntervalMS = 100;
 
   const acvmConfig = await getACVMConfig(logger);
   if (acvmConfig) {

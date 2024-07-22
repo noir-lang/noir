@@ -50,6 +50,7 @@ export class Sequencer {
   private allowedInSetup: AllowedElement[] = [];
   private allowedInTeardown: AllowedElement[] = [];
   private maxBlockSizeInBytes: number = 1024 * 1024;
+  private skipSubmitProofs: boolean = false;
 
   public readonly tracer: Tracer;
 
@@ -102,6 +103,10 @@ export class Sequencer {
     if (config.allowedInTeardown) {
       this.allowedInTeardown = config.allowedInTeardown;
     }
+    // TODO(palla/prover) This flag should not be needed: the sequencer should be initialized with a blockprover
+    // that does not return proofs at all (just simulates circuits), and use that to determine whether to submit
+    // proofs or not.
+    this.skipSubmitProofs = !!config.sequencerSkipSubmitProofs;
   }
 
   /**
@@ -175,15 +180,18 @@ export class Sequencer {
 
       // Do not go forward with new block if not my turn
       if (!(await this.publisher.isItMyTurnToSubmit(newBlockNumber))) {
-        this.log.verbose('Not my turn to submit block');
+        this.log.debug('Not my turn to submit block');
         return;
       }
 
       this.state = SequencerState.WAITING_FOR_TXS;
 
       // Get txs to build the new block
-      const pendingTxs = await this.p2pClient.getTxs();
+      const pendingTxs = this.p2pClient.getTxs('pending');
       if (pendingTxs.length < this.minTxsPerBLock) {
+        this.log.debug(
+          `Not creating block because there are not enough txs in the pool (got ${pendingTxs.length} min ${this.minTxsPerBLock})`,
+        );
         return;
       }
       this.log.debug(`Retrieved ${pendingTxs.length} txs from P2P pool`);
@@ -309,10 +317,10 @@ export class Sequencer {
     await this.publishL2Block(block);
     this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
 
-    // Submit the proof if we have configured this sequencer to run with a prover.
+    // Submit the proof if we have configured this sequencer to run with an actual prover.
     // This is temporary while we submit one proof per block, but will have to change once we
     // move onto proving batches of multiple blocks at a time.
-    if (aggregationObject && proof) {
+    if (aggregationObject && proof && !this.skipSubmitProofs) {
       await this.publisher.submitProof(block.header, block.archive.root, aggregationObject, proof);
       this.log.info(`Submitted proof for block ${block.number}`);
     }
@@ -378,7 +386,15 @@ export class Sequencer {
       this.l1ToL2MessageSource.getBlockNumber(),
     ]);
     const min = Math.min(...syncedBlocks);
-    return min >= this.lastPublishedBlock;
+    const [worldState, p2p, l2BlockSource, l1ToL2MessageSource] = syncedBlocks;
+    const result = min >= this.lastPublishedBlock;
+    this.log.debug(`Sync check to last published block ${this.lastPublishedBlock} ${result ? 'succeeded' : 'failed'}`, {
+      worldState,
+      p2p,
+      l2BlockSource,
+      l1ToL2MessageSource,
+    });
+    return result;
   }
 
   get coinbase(): EthAddress {

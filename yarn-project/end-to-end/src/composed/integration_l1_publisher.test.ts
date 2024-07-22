@@ -144,14 +144,14 @@ describe('L1Publisher integration', () => {
     };
     const worldStateSynchronizer = new ServerWorldStateSynchronizer(tmpStore, builderDb, blockSource, worldStateConfig);
     await worldStateSynchronizer.start();
-    builder = await TxProver.new(config, worldStateSynchronizer, new NoopTelemetryClient());
+    builder = await TxProver.new(config, worldStateSynchronizer, blockSource, new NoopTelemetryClient());
 
     publisher = getL1Publisher({
       rpcUrl: config.rpcUrl,
       requiredConfirmations: 1,
       l1Contracts: l1ContractAddresses,
       publisherPrivateKey: sequencerPK,
-      l1BlockPublishRetryIntervalMS: 100,
+      l1PublishRetryIntervalMS: 100,
       l1ChainId: 31337,
     });
 

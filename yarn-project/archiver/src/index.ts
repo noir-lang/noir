@@ -5,11 +5,12 @@ import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { createPublicClient, http } from 'viem';
 import { localhost } from 'viem/chains';
 
-import { Archiver, getConfigEnvVars } from './archiver/index.js';
+import { Archiver, getArchiverConfigFromEnv } from './archiver/index.js';
 import { MemoryArchiverStore } from './archiver/memory_archiver_store/memory_archiver_store.js';
 
 export * from './archiver/index.js';
 export * from './rpc/index.js';
+export * from './factory.js';
 
 const log = createDebugLogger('aztec:archiver');
 
@@ -18,7 +19,7 @@ const log = createDebugLogger('aztec:archiver');
  */
 // eslint-disable-next-line require-await
 async function main() {
-  const config = getConfigEnvVars();
+  const config = getArchiverConfigFromEnv();
   const { rpcUrl, l1Contracts } = config;
 
   const publicClient = createPublicClient({

@@ -128,6 +128,12 @@ export class PublicProcessor {
         const [processedTx, returnValues] = !tx.hasPublicCalls()
           ? [makeProcessedTx(tx, tx.data.toKernelCircuitPublicInputs(), [])]
           : await this.processTxWithPublicCalls(tx);
+        this.log.debug(`Processed tx`, {
+          txHash: processedTx.hash,
+          historicalHeaderHash: processedTx.data.constants.historicalHeader.hash(),
+          blockNumber: processedTx.data.constants.globalVariables.blockNumber,
+          lastArchiveRoot: processedTx.data.constants.historicalHeader.lastArchive.root,
+        });
 
         // Set fee payment update request into the processed tx
         processedTx.finalPublicDataUpdateRequests = await this.createFinalDataUpdateRequests(processedTx);

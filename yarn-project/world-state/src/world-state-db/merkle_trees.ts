@@ -99,6 +99,7 @@ export class MerkleTrees implements MerkleTreeDb {
   // gets initialized in #init
   private trees: MerkleTreeMap = null as any;
   private jobQueue = new SerialQueue();
+  private initialHeader!: Header;
 
   private constructor(private store: AztecKVStore, private log: DebugLogger) {}
 
@@ -172,13 +173,18 @@ export class MerkleTrees implements MerkleTreeDb {
       // We are not initializing from db so we need to populate the first leaf of the archive tree which is a hash of
       // the initial header.
       const initialHeader = await this.buildInitialHeader(true);
+      this.initialHeader = initialHeader;
       await this.#updateArchive(initialHeader, true);
+    } else {
+      // TODO(palla/prover-node) Running buildInitialHeader here yields a WRONG initial header,
+      // we need to reconstruct it from an empty state reference.
+      this.initialHeader = await this.buildInitialHeader(true);
     }
 
     await this.#commit();
   }
 
-  // REFACTOR: Make this private. It only makes sense if called at the beginning of the lifecycle of the object.
+  // TODO(palla/prover-node): Make this private. It only makes sense if called at the beginning of the lifecycle of the object.
   public async buildInitialHeader(includeUncommitted: boolean): Promise<Header> {
     const state = await this.getStateReference(includeUncommitted);
     return new Header(
@@ -188,6 +194,10 @@ export class MerkleTrees implements MerkleTreeDb {
       GlobalVariables.empty(),
       Fr.ZERO,
     );
+  }
+
+  public getInitialHeader(): Promise<Header> {
+    return Promise.resolve(this.initialHeader);
   }
 
   /**

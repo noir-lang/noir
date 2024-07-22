@@ -298,6 +298,12 @@ export interface PXE {
   getBlockNumber(): Promise<number>;
 
   /**
+   * Fetches the current proven block number.
+   * @returns The block number.
+   */
+  getProvenBlockNumber(): Promise<number>;
+
+  /**
    * Returns the information about the server's node. Includes current Node version, compatible Noir version,
    * L1 chain identifier, protocol version, and L1 address of the rollup contract.
    * @returns - The node information.

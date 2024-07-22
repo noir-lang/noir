@@ -133,7 +133,7 @@ export class ProvingOrchestrator {
   ): Promise<ProvingTicket> {
     // Create initial header if not done so yet
     if (!this.initialHeader) {
-      this.initialHeader = await this.db.buildInitialHeader();
+      this.initialHeader = await this.db.getInitialHeader();
     }
 
     if (!Number.isInteger(numTxs) || numTxs < 2) {
@@ -268,7 +268,7 @@ export class ProvingOrchestrator {
     // base rollup inputs
     // Then enqueue the proving of all the transactions
     const unprovenPaddingTx = makeEmptyProcessedTx(
-      this.initialHeader ?? (await this.db.buildInitialHeader()),
+      this.initialHeader ?? (await this.db.getInitialHeader()),
       this.provingState.globalVariables.chainId,
       this.provingState.globalVariables.version,
       getVKTreeRoot(),
@@ -564,7 +564,7 @@ export class ProvingOrchestrator {
 
     const getBaseInputsEmptyTx = async () => {
       const inputs = {
-        header: await this.db.buildInitialHeader(),
+        header: await this.db.getInitialHeader(),
         chainId: tx.data.constants.globalVariables.chainId,
         version: tx.data.constants.globalVariables.version,
         vkTreeRoot: tx.data.constants.vkTreeRoot,

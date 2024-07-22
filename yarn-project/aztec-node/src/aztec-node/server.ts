@@ -1,4 +1,4 @@
-import { type ArchiveSource, Archiver, KVArchiverDataStore, createArchiverClient } from '@aztec/archiver';
+import { createArchiver } from '@aztec/archiver';
 import { BBCircuitVerifier, TestCircuitVerifier } from '@aztec/bb-prover';
 import {
   AggregateTxValidator,
@@ -51,8 +51,7 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256Trunc } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore } from '@aztec/kv-store';
-import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
-import { initStoreForRollup, openTmpStore } from '@aztec/kv-store/utils';
+import { createStore, openTmpStore } from '@aztec/kv-store/utils';
 import { SHA256Trunc, StandardTree, UnbalancedTree } from '@aztec/merkle-tree';
 import { AztecKVTxPool, type P2P, createP2PClient } from '@aztec/p2p';
 import { getCanonicalClassRegisterer } from '@aztec/protocol-contracts/class-registerer';
@@ -60,9 +59,9 @@ import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 import { getCanonicalInstanceDeployer } from '@aztec/protocol-contracts/instance-deployer';
 import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
 import { getCanonicalMultiCallEntrypointAddress } from '@aztec/protocol-contracts/multi-call-entrypoint';
-import { TxProver } from '@aztec/prover-client';
+import { createProverClient } from '@aztec/prover-client';
 import { type GlobalVariableBuilder, SequencerClient, getGlobalVariableBuilder } from '@aztec/sequencer-client';
-import { PublicProcessorFactory, WASMSimulator } from '@aztec/simulator';
+import { PublicProcessorFactory, WASMSimulator, createSimulationProvider } from '@aztec/simulator';
 import { type TelemetryClient } from '@aztec/telemetry-client';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import {
@@ -71,16 +70,9 @@ import {
   type ContractInstanceWithAddress,
   type ProtocolContractAddresses,
 } from '@aztec/types/contracts';
-import {
-  MerkleTrees,
-  ServerWorldStateSynchronizer,
-  type WorldStateConfig,
-  type WorldStateSynchronizer,
-  getConfigEnvVars as getWorldStateConfig,
-} from '@aztec/world-state';
+import { MerkleTrees, type WorldStateSynchronizer, createWorldStateSynchronizer } from '@aztec/world-state';
 
 import { type AztecNodeConfig, getPackageInfo } from './config.js';
-import { getSimulationProvider } from './simulator-factory.js';
 import { MetadataTxValidator } from './tx_validator/tx_metadata_validator.js';
 import { TxProofValidator } from './tx_validator/tx_proof_validator.js';
 
@@ -140,32 +132,19 @@ export class AztecNodeService implements AztecNode {
       );
     }
 
-    const store = await initStoreForRollup(
-      AztecLmdbStore.open(config.dataDirectory, false, storeLog),
-      config.l1Contracts.rollupAddress,
-      storeLog,
-    );
+    const store = await createStore(config, config.l1Contracts.rollupAddress, storeLog);
 
-    let archiver: ArchiveSource;
-    if (!config.archiverUrl) {
-      // first create and sync the archiver
-      const archiverStore = new KVArchiverDataStore(store, config.maxLogs);
-      archiver = await Archiver.createAndSync(config, archiverStore, telemetry, true);
-    } else {
-      archiver = createArchiverClient(config.archiverUrl);
-    }
+    const archiver = await createArchiver(config, store, telemetry, { blockUntilSync: true });
 
     // we identify the P2P transaction protocol by using the rollup contract address.
     // this may well change in future
     config.transactionProtocol = `/aztec/tx/${config.l1Contracts.rollupAddress.toString()}`;
 
     // create the tx pool and the p2p client, which will need the l2 block source
-    const p2pClient = await createP2PClient(store, config, new AztecKVTxPool(store, telemetry), archiver);
+    const p2pClient = await createP2PClient(config, store, new AztecKVTxPool(store, telemetry), archiver);
 
     // now create the merkle trees and the world state synchronizer
-    const merkleTrees = await MerkleTrees.new(store);
-    const worldStateConfig: WorldStateConfig = getWorldStateConfig();
-    const worldStateSynchronizer = new ServerWorldStateSynchronizer(store, merkleTrees, archiver, worldStateConfig);
+    const worldStateSynchronizer = await createWorldStateSynchronizer(config, store, archiver);
 
     // start both and wait for them to sync from the block source
     await Promise.all([p2pClient.start(), worldStateSynchronizer.start()]);
@@ -176,18 +155,9 @@ export class AztecNodeService implements AztecNode {
       new TxProofValidator(proofVerifier),
     );
 
-    // start the prover if we have been told to
-    const simulationProvider = await getSimulationProvider(config, log);
-    const prover = config.disableProver
-      ? undefined
-      : await TxProver.new(
-          config,
-          worldStateSynchronizer,
-          telemetry,
-          await archiver
-            .getBlock(-1)
-            .then(b => b?.header ?? worldStateSynchronizer.getCommitted().buildInitialHeader()),
-        );
+    const simulationProvider = await createSimulationProvider(config, log);
+
+    const prover = await createProverClient(config, worldStateSynchronizer, archiver, telemetry);
 
     if (!prover && !config.disableSequencer) {
       throw new Error("Can't start a sequencer without a prover");
@@ -241,6 +211,10 @@ export class AztecNodeService implements AztecNode {
     return this.prover;
   }
 
+  public getBlockSource(): L2BlockSource {
+    return this.blockSource;
+  }
+
   /**
    * Method to return the currently deployed L1 contract addresses.
    * @returns - The currently deployed L1 contract addresses.
@@ -282,6 +256,10 @@ export class AztecNodeService implements AztecNode {
    */
   public async getBlockNumber(): Promise<number> {
     return await this.blockSource.getBlockNumber();
+  }
+
+  public async getProvenBlockNumber(): Promise<number> {
+    return await this.blockSource.getProvenBlockNumber();
   }
 
   /**
@@ -363,8 +341,7 @@ export class AztecNodeService implements AztecNode {
     // We first check if the tx is in pending (instead of first checking if it is mined) because if we first check
     // for mined and then for pending there could be a race condition where the tx is mined between the two checks
     // and we would incorrectly return a TxReceipt with status DROPPED
-    const pendingTx = await this.getPendingTxByHash(txHash);
-    if (pendingTx) {
+    if (this.p2pClient.getTxStatus(txHash) === 'pending') {
       txReceipt = new TxReceipt(txHash, TxStatus.PENDING, '');
     }
 
@@ -397,17 +374,17 @@ export class AztecNodeService implements AztecNode {
    * Method to retrieve pending txs.
    * @returns - The pending txs.
    */
-  public async getPendingTxs() {
-    return await this.p2pClient!.getTxs();
+  public getPendingTxs() {
+    return Promise.resolve(this.p2pClient!.getTxs('pending'));
   }
 
   /**
-   * Method to retrieve a single pending tx.
+   * Method to retrieve a single tx from the mempool or unfinalised chain.
    * @param txHash - The transaction hash to return.
-   * @returns - The pending tx if it exists.
+   * @returns - The tx if it exists.
    */
-  public async getPendingTxByHash(txHash: TxHash) {
-    return await this.p2pClient!.getTxByHash(txHash);
+  public getTxByHash(txHash: TxHash) {
+    return Promise.resolve(this.p2pClient!.getTxByHash(txHash));
   }
 
   /**
