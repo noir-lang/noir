@@ -3,9 +3,12 @@ src = 'src'
 out = 'out'
 libs = ['lib']
 ffi = true
+optimizer_runs = 500
+gas_limit = 900000000000000000
 
 [fuzz]
 runs = 1
+
 
 solc = "0.8.21"
 

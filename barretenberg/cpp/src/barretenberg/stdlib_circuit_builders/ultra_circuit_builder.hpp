@@ -9,6 +9,8 @@
 #include "barretenberg/stdlib_circuit_builders/op_queue/ecc_op_queue.hpp"
 #include "barretenberg/stdlib_circuit_builders/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/stdlib_circuit_builders/plookup_tables/types.hpp"
+
+// TODO(md): note that this has now been added
 #include "circuit_builder_base.hpp"
 #include <optional>
 #include <unordered_set>

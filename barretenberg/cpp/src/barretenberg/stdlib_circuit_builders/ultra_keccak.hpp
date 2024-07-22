@@ -1,3 +1,4 @@
+// TODO: the only change should be making honk generic over the transcript
 #pragma once
 #include "barretenberg/commitment_schemes/kzg/kzg.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
@@ -21,7 +22,7 @@
 
 namespace bb {
 
-class UltraFlavor {
+class UltraKeccakFlavor {
   public:
     using CircuitBuilder = UltraCircuitBuilder;
     using Curve = curve::BN254;
@@ -327,7 +328,7 @@ class UltraFlavor {
         void compute_logderivative_inverses(const RelationParameters<FF>& relation_parameters)
         {
             // Compute inverses for conventional lookups
-            compute_logderivative_inverse<UltraFlavor, LogDerivLookupRelation<FF>>(
+            compute_logderivative_inverse<UltraKeccakFlavor, LogDerivLookupRelation<FF>>(
                 this->polynomials, relation_parameters, this->circuit_size);
         }
 
@@ -338,15 +339,15 @@ class UltraFlavor {
          */
         void compute_grand_product_polynomials(RelationParameters<FF>& relation_parameters)
         {
-            auto public_input_delta = compute_public_input_delta<UltraFlavor>(this->public_inputs,
-                                                                              relation_parameters.beta,
-                                                                              relation_parameters.gamma,
-                                                                              this->circuit_size,
-                                                                              this->pub_inputs_offset);
+            auto public_input_delta = compute_public_input_delta<UltraKeccakFlavor>(this->public_inputs,
+                                                                                    relation_parameters.beta,
+                                                                                    relation_parameters.gamma,
+                                                                                    this->circuit_size,
+                                                                                    this->pub_inputs_offset);
             relation_parameters.public_input_delta = public_input_delta;
 
             // Compute permutation and lookup grand product polynomials
-            compute_grand_products<UltraFlavor>(this->polynomials, relation_parameters);
+            compute_grand_products<UltraKeccakFlavor>(this->polynomials, relation_parameters);
         }
     };
 
@@ -613,7 +614,7 @@ class UltraFlavor {
      * @brief Derived class that defines proof structure for Ultra proofs, as well as supporting functions.
      *
      */
-    class Transcript : public NativeTranscript {
+    class Transcript : public KeccakTranscript {
       public:
         // Transcript objects defined as public member variables for easy access and modification
         uint32_t circuit_size;
@@ -638,7 +639,7 @@ class UltraFlavor {
 
         // Used by verifier to initialize the transcript
         Transcript(const std::vector<FF>& proof)
-            : NativeTranscript(proof)
+            : KeccakTranscript(proof)
         {}
 
         static std::shared_ptr<Transcript> prover_init_empty()

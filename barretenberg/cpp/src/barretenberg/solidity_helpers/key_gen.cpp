@@ -68,22 +68,22 @@ int main(int argc, char** argv)
     // @todo - Add support for unrolled standard verifier. Needs a new solidity verifier contract.
 
     if (plonk_flavour != "ultra") {
-        info("Only ultra plonk flavour is supported at the moment");
+        info("Flavour must be ultra");
         return 1;
     }
 
-    info("Generating ultra plonk keys for ", circuit_flavour, " circuit");
+    info("Generating ", plonk_flavour, " keys for ", circuit_flavour, " circuit");
 
     if (circuit_flavour == "blake") {
-        generate_keys<UltraComposer, BlakeCircuit>(output_path, plonk_flavour, circuit_flavour);
+        generate_keys<bb::plonk::UltraComposer, BlakeCircuit>(output_path, plonk_flavour, circuit_flavour);
     } else if (circuit_flavour == "add2") {
-        generate_keys<UltraComposer, Add2Circuit>(output_path, plonk_flavour, circuit_flavour);
+        generate_keys<bb::plonk::UltraComposer, Add2Circuit>(output_path, plonk_flavour, circuit_flavour);
     } else if (circuit_flavour == "recursive") {
-        generate_keys<UltraComposer, RecursiveCircuit>(output_path, plonk_flavour, circuit_flavour);
+        generate_keys<bb::plonk::UltraComposer, RecursiveCircuit>(output_path, plonk_flavour, circuit_flavour);
     } else if (circuit_flavour == "ecdsa") {
-        generate_keys<UltraComposer, EcdsaCircuit>(output_path, plonk_flavour, circuit_flavour);
+        generate_keys<bb::plonk::UltraComposer, EcdsaCircuit>(output_path, plonk_flavour, circuit_flavour);
     } else {
-        info("Unsupported circuit are supported at the moment");
+        info("Unsupported circuit");
         return 1;
     }
     return 0;

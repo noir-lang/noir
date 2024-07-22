@@ -1,11 +1,11 @@
-// Verification Key Hash: a0e940165bfc708013d5b4f7940f3b07f3bcf3c0f57ee21d8b4bdb78630817a3
+// Verification Key Hash: f7bbd1b4758c8616f966f56728b3d7127a0d1ca6763cbaf70b4719914be476bd
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2022 Aztec
 pragma solidity >=0.8.4;
 
 library Add2UltraVerificationKey {
     function verificationKeyHash() internal pure returns (bytes32) {
-        return 0xa0e940165bfc708013d5b4f7940f3b07f3bcf3c0f57ee21d8b4bdb78630817a3;
+        return 0xf7bbd1b4758c8616f966f56728b3d7127a0d1ca6763cbaf70b4719914be476bd;
     }
 
     function loadVerificationKey(uint256 _vk, uint256 _omegaInverseLoc) internal pure {
@@ -38,10 +38,10 @@ library Add2UltraVerificationKey {
             mstore(add(_vk, 0x320), 0x261015d69327a58810e6eb1052ed694914b7a89034e1334c50b9e70a161489b7) // vk.SIGMA1.y
             mstore(add(_vk, 0x340), 0x1987df111730a8a6a650423757dbf048f3f43860a7d24a5e2e8bd67b6931ca67) // vk.SIGMA2.x
             mstore(add(_vk, 0x360), 0x1fe074ff24b35d7830bec2a3fad7e53038ffb5e2a3f718a23660d68daffc2953) // vk.SIGMA2.y
-            mstore(add(_vk, 0x380), 0x191d6881b9369e50141da3f2009a2f2dfc9adba276e874eb9f7f3183a0ea8f89) // vk.SIGMA3.x
-            mstore(add(_vk, 0x3a0), 0x2cbfbdd75526be7e9f2830cb1fd99457227f90fb024902635e342344cb6b2926) // vk.SIGMA3.y
-            mstore(add(_vk, 0x3c0), 0x2e7fe658b8f1f34dc561568e4ef6c74bb36330404967952b1e15390c1e2443cf) // vk.SIGMA4.x
-            mstore(add(_vk, 0x3e0), 0x293a5337eedc88329f10aa45a11e4adbb77f74717345987d70ed726e3e4556f1) // vk.SIGMA4.y
+            mstore(add(_vk, 0x380), 0x1995a6246a4cf48e66d1f4753d001b67712f57a94b364498c12b7048f162665f) // vk.SIGMA3.x
+            mstore(add(_vk, 0x3a0), 0x0b09e4f696f8fcdae85a72b71cc2bc2be2be2960d4fa0078d79c32d21619bd5e) // vk.SIGMA3.y
+            mstore(add(_vk, 0x3c0), 0x267b628499addfdfc2ff596957b0aa713baa1054a78cd80dcb0b588bfa209adf) // vk.SIGMA4.x
+            mstore(add(_vk, 0x3e0), 0x119db2893b20259b419e53e6686f2fba9934c9e1af0ffa2ede920718eea14086) // vk.SIGMA4.y
             mstore(add(_vk, 0x400), 0x02c397073c8abce6d4140c9b961209dd783bff1a1cfc999bb29859cfb16c46fc) // vk.TABLE1.x
             mstore(add(_vk, 0x420), 0x2b7bba2d1efffce0d033f596b4d030750599be670db593af86e1923fe8a1bb18) // vk.TABLE1.y
             mstore(add(_vk, 0x440), 0x2c71c58b66498f903b3bbbda3d05ce8ffb571a4b3cf83533f3f71b99a04f6e6b) // vk.TABLE2.x
@@ -52,12 +52,12 @@ library Add2UltraVerificationKey {
             mstore(add(_vk, 0x4e0), 0x13dd7515ccac4095302d204f06f0bff2595d77bdf72e4acdb0b0b43969860d98) // vk.TABLE4.y
             mstore(add(_vk, 0x500), 0x16ff3501369121d410b445929239ba057fe211dad1b706e49a3b55920fac20ec) // vk.TABLE_TYPE.x
             mstore(add(_vk, 0x520), 0x1e190987ebd9cf480f608b82134a00eb8007673c1ed10b834a695adf0068522a) // vk.TABLE_TYPE.y
-            mstore(add(_vk, 0x540), 0x0baaf073a203ba4ba0093c827bb5b3f7a55611765f111ecf80c456f631e99f29) // vk.ID1.x
-            mstore(add(_vk, 0x560), 0x27cd34cafd5735ec970278202765e0f1e9da3494b30b948ebce3414d078cef9e) // vk.ID1.y
+            mstore(add(_vk, 0x540), 0x1e44194e60f0ab4ee0f77adc50f4220944f94301aa6da3016a226de04de52f4c) // vk.ID1.x
+            mstore(add(_vk, 0x560), 0x2a017d0d9f40d0aeb5c8152ffddec56c2c7bea37dfbd20be6bed19efd743397a) // vk.ID1.y
             mstore(add(_vk, 0x580), 0x0868357b28039385c5a5058b6d358ebb29f26f9890d6cc6401f4921d5884edca) // vk.ID2.x
             mstore(add(_vk, 0x5a0), 0x1060afe929554ca473103f5e68193c36fb6e229dde8edf7ec858b12d7e8be485) // vk.ID2.y
-            mstore(add(_vk, 0x5c0), 0x0b1c02619282755533457230b19b4a15226e07e207744c0857074dcab883af4a) // vk.ID3.x
-            mstore(add(_vk, 0x5e0), 0x0d928deafed363659688ed4ccdef521f2a0277e4807e6e1cbabca21dde5eb5e1) // vk.ID3.y
+            mstore(add(_vk, 0x5c0), 0x1953e657c2c941f0eb52e94a96b64a0152c7cc3baff59a345fd6ecd311f313af) // vk.ID3.x
+            mstore(add(_vk, 0x5e0), 0x08579320bf2aa71698b64152f1f3f4afe1873af96d6403dcaf56908dc78c6704) // vk.ID3.y
             mstore(add(_vk, 0x600), 0x2eea648c8732596b1314fe2a4d2f05363f0c994e91cecad25835338edee2294f) // vk.ID4.x
             mstore(add(_vk, 0x620), 0x0ab49886c2b94bd0bd3f6ed1dbbe2cb2671d2ae51d31c1210433c3972bb64578) // vk.ID4.y
             mstore(add(_vk, 0x640), 0x00) // vk.contains_recursive_proof

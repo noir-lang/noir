@@ -2,7 +2,6 @@ import {Vm} from "forge-std/Vm.sol";
 import {strings} from "stringutils/strings.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {TestBase} from "./TestBase.sol";
-import "forge-std/console.sol";
 
 contract DifferentialFuzzer is TestBase {
     using strings for *;
@@ -11,7 +10,8 @@ contract DifferentialFuzzer is TestBase {
     enum PlonkFlavour {
         Invalid,
         Standard,
-        Ultra
+        Ultra,
+        Honk
     }
     enum CircuitFlavour {
         Invalid,
@@ -52,6 +52,8 @@ contract DifferentialFuzzer is TestBase {
             return "standard";
         } else if (plonkFlavour == PlonkFlavour.Ultra) {
             return "ultra";
+        } else if (plonkFlavour == PlonkFlavour.Honk) {
+            return "honk";
         } else {
             revert("Invalid flavour");
         }

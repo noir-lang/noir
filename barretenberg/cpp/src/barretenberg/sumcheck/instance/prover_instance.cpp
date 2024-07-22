@@ -80,6 +80,7 @@ void ProverInstance_<Flavor>::construct_databus_polynomials(Circuit& circuit)
 }
 
 template class ProverInstance_<UltraFlavor>;
+template class ProverInstance_<UltraKeccakFlavor>;
 template class ProverInstance_<MegaFlavor>;
 
 } // namespace bb

@@ -159,9 +159,8 @@ template <typename TranscriptParams> class BaseTranscript {
         // Hash the full buffer with poseidon2, which is believed to be a collision resistant hash function and a random
         // oracle, removing the need to pre-hash to compress and then hash with a random oracle, as we previously did
         // with Pedersen and Blake3s.
-        Fr base_hash = TranscriptParams::hash(full_buffer);
+        Fr new_challenge = TranscriptParams::hash(full_buffer);
 
-        Fr new_challenge = base_hash;
         // update previous challenge buffer for next time we call this function
         previous_challenge = new_challenge;
         return new_challenge;
@@ -278,7 +277,8 @@ template <typename TranscriptParams> class BaseTranscript {
             //             HASH_OUTPUT_SIZE / 2,
             //             field_element_buffer.begin() + HASH_OUTPUT_SIZE / 2);
             */
-            challenges[i] = TranscriptParams::template convert_challenge<ChallengeType>(get_next_challenge_buffer());
+            auto challenge_buffer = get_next_challenge_buffer();
+            challenges[i] = TranscriptParams::template convert_challenge<ChallengeType>(challenge_buffer);
         }
 
         // Prepare for next round.
@@ -396,5 +396,64 @@ static bb::StdlibProof<Builder> convert_proof_to_witness(Builder* builder, const
 }
 
 using NativeTranscript = BaseTranscript<NativeTranscriptParams>;
+
+///////////////////////////////////////////
+// Solidity Transcript
+///////////////////////////////////////////
+
+// This is a compatible wrapper around the keccak256 function from ethash
+inline bb::fr keccak_hash_uint256(std::vector<bb::fr> const& data)
+// Losing 2 bits of this is not an issue -> we can just reduce mod p
+{
+    // cast into uint256_t
+    std::vector<uint8_t> buffer = to_buffer(data);
+
+    keccak256 hash_result = ethash_keccak256(&buffer[0], buffer.size());
+    for (auto& word : hash_result.word64s) {
+        if (is_little_endian()) {
+            word = __builtin_bswap64(word);
+        }
+    }
+    std::array<uint8_t, 32> result;
+
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 8; ++j) {
+            uint8_t byte = static_cast<uint8_t>(hash_result.word64s[i] >> (56 - (j * 8)));
+            result[i * 8 + j] = byte;
+        }
+    }
+
+    auto result_fr = from_buffer<bb::fr>(result);
+
+    return result_fr;
+}
+
+struct KeccakTranscriptParams {
+    using Fr = bb::fr;
+    using Proof = HonkProof;
+
+    static inline Fr hash(const std::vector<Fr>& data) { return keccak_hash_uint256(data); }
+
+    template <typename T> static inline T convert_challenge(const Fr& challenge)
+    {
+        return bb::field_conversion::convert_challenge<T>(challenge);
+    }
+    template <typename T> static constexpr size_t calc_num_bn254_frs()
+    {
+        return bb::field_conversion::calc_num_bn254_frs<T>();
+    }
+    template <typename T> static inline T convert_from_bn254_frs(std::span<const Fr> frs)
+    {
+        return bb::field_conversion::convert_from_bn254_frs<T>(frs);
+    }
+    template <typename T> static inline std::vector<Fr> convert_to_bn254_frs(const T& element)
+    {
+        // TODO(md): Need to refactor this to be able to NOT just be field elements - Im working about it in the
+        // verifier for keccak resulting in twice as much hashing
+        return bb::field_conversion::convert_to_bn254_frs(element);
+    }
+};
+
+using KeccakTranscript = BaseTranscript<KeccakTranscriptParams>;
 
 } // namespace bb

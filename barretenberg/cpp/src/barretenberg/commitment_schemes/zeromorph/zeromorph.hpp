@@ -322,6 +322,7 @@ template <typename Curve> class ZeroMorphProver_ {
      *
      * @todo https://github.com/AztecProtocol/barretenberg/issues/1030: document concatenation trick
      */
+    template <typename Transcript>
     static OpeningClaim prove(FF circuit_size,
                               RefSpan<Polynomial> f_polynomials,
                               RefSpan<Polynomial> g_polynomials,
@@ -329,7 +330,7 @@ template <typename Curve> class ZeroMorphProver_ {
                               RefSpan<FF> g_shift_evaluations,
                               std::span<FF> multilinear_challenge,
                               const std::shared_ptr<CommitmentKey<Curve>>& commitment_key,
-                              const std::shared_ptr<NativeTranscript>& transcript,
+                              const std::shared_ptr<Transcript>& transcript,
                               RefSpan<Polynomial> concatenated_polynomials = {},
                               RefSpan<FF> concatenated_evaluations = {},
                               const std::vector<RefVector<Polynomial>>& concatenation_groups = {})
@@ -725,6 +726,7 @@ template <typename Curve> class ZeroMorphVerifier_ {
      * @param transcript
      * @return VerifierAccumulator Inputs to the final PCS verification check that will be accumulated
      */
+    template <typename Transcript>
     static OpeningClaim<Curve> verify(FF circuit_size,
                                       RefSpan<Commitment> unshifted_commitments,
                                       RefSpan<Commitment> to_be_shifted_commitments,
@@ -732,7 +734,7 @@ template <typename Curve> class ZeroMorphVerifier_ {
                                       RefSpan<FF> shifted_evaluations,
                                       std::span<FF> multivariate_challenge,
                                       const Commitment& g1_identity,
-                                      auto& transcript,
+                                      const std::shared_ptr<Transcript>& transcript,
                                       const std::vector<RefVector<Commitment>>& concatenation_group_commitments = {},
                                       RefSpan<FF> concatenated_evaluations = {})
     {

@@ -12,6 +12,8 @@
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 
+namespace bb {
+
 template <typename Builder> class EcdsaCircuit {
   public:
     using field_ct = stdlib::field_t<Builder>;
@@ -90,3 +92,5 @@ template <typename Builder> class EcdsaCircuit {
         return builder;
     }
 };
+
+} // namespace bb
