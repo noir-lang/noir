@@ -633,7 +633,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         func: &mut NoirFunction,
         func_id: FuncId,
-        is_trait_function: bool,
+        trait_id: Option<TraitId>,
     ) {
         let in_contract = if self.self_type.is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
@@ -747,6 +747,7 @@ impl<'context> Elaborator<'context> {
             direct_generics,
             all_generics: self.generics.clone(),
             struct_id,
+            trait_id,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             parameter_idents,
@@ -755,7 +756,6 @@ impl<'context> Elaborator<'context> {
             has_body: !func.def.body.is_empty(),
             trait_constraints,
             is_entry_point,
-            is_trait_function,
             has_inline_attribute,
             source_crate: self.crate_id,
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
@@ -1452,7 +1452,7 @@ impl<'context> Elaborator<'context> {
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
-                this.define_function_meta(func, *id, false);
+                this.define_function_meta(func, *id, None);
             });
         }
     }

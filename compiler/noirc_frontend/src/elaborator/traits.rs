@@ -123,6 +123,7 @@ impl<'context> Elaborator<'context> {
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
 
                     this.resolve_trait_function(
+                        trait_id,
                         name,
                         generics,
                         parameters,
@@ -173,6 +174,7 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_trait_function(
         &mut self,
+        trait_id: TraitId,
         name: &Ident,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
@@ -206,7 +208,7 @@ impl<'context> Elaborator<'context> {
         };
 
         let mut function = NoirFunction { kind, def };
-        self.define_function_meta(&mut function, func_id, true);
+        self.define_function_meta(&mut function, func_id, Some(trait_id));
         self.elaborate_function(func_id);
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
