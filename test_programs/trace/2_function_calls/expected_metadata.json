@@ -1,5 +1,5 @@
 {
   "workdir": "<ignored-in-tests>",
-  "program": "<program-name>",
+  "program": "2_function_calls",
   "args": []
 }

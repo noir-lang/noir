@@ -1,5 +1,5 @@
 {
   "workdir": "<ignored-in-test>",
-  "program": "<program-name>",
+  "program": "1_mul",
   "args": []
 }
