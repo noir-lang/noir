@@ -76,6 +76,9 @@ pub enum AvmOpcode {
     MSM,
     // Conversions
     TORADIXLE,
+    // Other
+    SHA256COMPRESSION,
+    KECCAKF1600,
 }
 
 impl AvmOpcode {
@@ -169,6 +172,9 @@ impl AvmOpcode {
             AvmOpcode::MSM => "MSM",
             // Conversions
             AvmOpcode::TORADIXLE => "TORADIXLE",
+            // Other
+            AvmOpcode::SHA256COMPRESSION => "SHA256COMPRESSION",
+            AvmOpcode::KECCAKF1600 => "KECCAKF1600",
         }
     }
 }

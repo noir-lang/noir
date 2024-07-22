@@ -805,6 +805,23 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
                 ..Default::default()
             });
         }
+        BlackBoxOp::Keccakf1600 { message, output } => {
+            let message_offset = message.pointer.0;
+            let message_size_offset = message.size.0;
+            let dest_offset = output.pointer.0;
+            assert_eq!(output.size, 25, "Keccakf1600 output size must be 25!");
+
+            avm_instrs.push(AvmInstruction {
+                opcode: AvmOpcode::KECCAKF1600,
+                indirect: Some(ZEROTH_OPERAND_INDIRECT | FIRST_OPERAND_INDIRECT),
+                operands: vec![
+                    AvmOperand::U32 { value: dest_offset as u32 },
+                    AvmOperand::U32 { value: message_offset as u32 },
+                    AvmOperand::U32 { value: message_size_offset as u32 },
+                ],
+                ..Default::default()
+            });
+        }
         BlackBoxOp::ToRadix { input, radix, output } => {
             let num_limbs = output.size as u32;
             let input_offset = input.0 as u32;

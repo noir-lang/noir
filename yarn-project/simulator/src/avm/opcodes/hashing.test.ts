@@ -1,10 +1,10 @@
-import { keccak256, pedersenHash, sha256 } from '@aztec/foundation/crypto';
+import { keccak256, keccakf1600, pedersenHash, sha256 } from '@aztec/foundation/crypto';
 
 import { type AvmContext } from '../avm_context.js';
-import { Field, type Uint8, Uint32 } from '../avm_memory_types.js';
+import { Field, type Uint8, Uint32, Uint64 } from '../avm_memory_types.js';
 import { initContext, randomMemoryBytes, randomMemoryFields } from '../fixtures/index.js';
 import { Addressing, AddressingMode } from './addressing_mode.js';
-import { Keccak, Pedersen, Poseidon2, Sha256 } from './hashing.js';
+import { Keccak, KeccakF1600, Pedersen, Poseidon2, Sha256 } from './hashing.js';
 
 describe('Hashing Opcodes', () => {
   let context: AvmContext;
@@ -133,6 +133,43 @@ describe('Hashing Opcodes', () => {
       const inputBuffer = Buffer.concat(args.map(byte => byte.toBuffer()));
       const expectedHash = keccak256(inputBuffer);
       expect(resultBuffer).toEqual(expectedHash);
+    });
+  });
+
+  describe('Keccakf1600', () => {
+    it('Should (de)serialize correctly', () => {
+      const buf = Buffer.from([
+        KeccakF1600.opcode, // opcode
+        1, // indirect
+        ...Buffer.from('12345678', 'hex'), // dstOffset
+        ...Buffer.from('23456789', 'hex'), // messageOffset
+        ...Buffer.from('3456789a', 'hex'), // messageSizeOffset
+      ]);
+      const inst = new KeccakF1600(
+        /*indirect=*/ 1,
+        /*dstOffset=*/ 0x12345678,
+        /*messageOffset=*/ 0x23456789,
+        /*messageSizeOffset=*/ 0x3456789a,
+      );
+
+      expect(KeccakF1600.deserialize(buf)).toEqual(inst);
+      expect(inst.serialize()).toEqual(buf);
+    });
+
+    it('Should permute correctly - direct', async () => {
+      const rawArgs = [...Array(25)].map(_ => 0n);
+      const args = rawArgs.map(a => new Uint64(a));
+      const indirect = 0;
+      const messageOffset = 0;
+      const messageSizeOffset = 50;
+      const dstOffset = 100;
+      context.machineState.memory.set(messageSizeOffset, new Uint32(args.length));
+      context.machineState.memory.setSlice(messageOffset, args);
+
+      await new KeccakF1600(indirect, dstOffset, messageOffset, messageSizeOffset).execute(context);
+
+      const result = context.machineState.memory.getSliceAs<Uint64>(dstOffset, 25);
+      expect(result).toEqual(keccakf1600(rawArgs).map(a => new Uint64(a)));
     });
   });
 

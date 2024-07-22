@@ -3,7 +3,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { keccak256, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
+import { keccak256, keccakf1600, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
 import { Fq, Fr } from '@aztec/foundation/fields';
 import { type Fieldable } from '@aztec/foundation/serialize';
 
@@ -13,7 +13,7 @@ import { mock } from 'jest-mock-extended';
 import { type PublicSideEffectTraceInterface } from '../public/side_effect_trace_interface.js';
 import { type AvmContext } from './avm_context.js';
 import { type AvmExecutionEnvironment } from './avm_execution_environment.js';
-import { type MemoryValue, TypeTag, type Uint8 } from './avm_memory_types.js';
+import { type MemoryValue, TypeTag, type Uint8, type Uint64 } from './avm_memory_types.js';
 import { AvmSimulator } from './avm_simulator.js';
 import { isAvmBytecode, markBytecodeAsAvm } from './bytecode_utils.js';
 import {
@@ -27,6 +27,7 @@ import {
   initPersistableStateManager,
   randomMemoryBytes,
   randomMemoryFields,
+  randomMemoryUint64s,
 } from './fixtures/index.js';
 import { type HostStorage } from './journal/host_storage.js';
 import { type AvmPersistableStateManager } from './journal/journal.js';
@@ -219,6 +220,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
   describe.each([
     ['sha256_hash', /*input=*/ randomMemoryBytes(10), /*output=*/ sha256FromMemoryBytes],
     ['keccak_hash', /*input=*/ randomMemoryBytes(10), /*output=*/ keccak256FromMemoryBytes],
+    ['keccak_f1600', /*input=*/ randomMemoryUint64s(25), /*output=*/ keccakF1600FromMemoryUint64s],
     ['poseidon2_hash', /*input=*/ randomMemoryFields(10), /*output=*/ poseidon2FromMemoryFields],
     ['pedersen_hash', /*input=*/ randomMemoryFields(10), /*output=*/ pedersenFromMemoryFields],
     ['pedersen_hash_with_index', /*input=*/ randomMemoryFields(10), /*output=*/ indexedPedersenFromMemoryFields],
@@ -881,6 +883,10 @@ function sha256FromMemoryBytes(bytes: Uint8[]): Fr[] {
 
 function keccak256FromMemoryBytes(bytes: Uint8[]): Fr[] {
   return [...keccak256(Buffer.concat(bytes.map(b => b.toBuffer())))].map(b => new Fr(b));
+}
+
+function keccakF1600FromMemoryUint64s(mem: Uint64[]): Fr[] {
+  return [...keccakf1600(mem.map(u => u.toBigInt()))].map(b => new Fr(b));
 }
 
 function poseidon2FromMemoryFields(fields: Fieldable[]): Fr[] {

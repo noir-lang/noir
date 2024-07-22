@@ -1,7 +1,9 @@
-import { keccak256, pedersenHash, poseidon2Permutation, sha256 } from '@aztec/foundation/crypto';
+import { keccak256, keccakf1600, pedersenHash, poseidon2Permutation, sha256 } from '@aztec/foundation/crypto';
+
+import { strict as assert } from 'assert';
 
 import { type AvmContext } from '../avm_context.js';
-import { Field, TypeTag, Uint8 } from '../avm_memory_types.js';
+import { Field, TypeTag, Uint8, Uint64 } from '../avm_memory_types.js';
 import { Opcode, OperandType } from '../serialization/instruction_serialization.js';
 import { Addressing } from './addressing_mode.js';
 import { Instruction } from './instruction.js';
@@ -87,6 +89,55 @@ export class Keccak extends Instruction {
 
     // We need to convert the hashBuffer because map doesn't work as expected on an Uint8Array (Buffer).
     const res = [...hashBuffer].map(byte => new Uint8(byte));
+    memory.setSlice(dstOffset, res);
+
+    memory.assert(memoryOperations);
+    context.machineState.incrementPc();
+  }
+}
+
+export class KeccakF1600 extends Instruction {
+  static type: string = 'KECCAKF1600';
+  static readonly opcode: Opcode = Opcode.KECCAKF1600;
+
+  // Informs (de)serialization. See Instruction.deserialize.
+  static readonly wireFormat: OperandType[] = [
+    OperandType.UINT8,
+    OperandType.UINT8,
+    OperandType.UINT32,
+    OperandType.UINT32,
+    OperandType.UINT32,
+  ];
+
+  constructor(
+    private indirect: number,
+    private dstOffset: number,
+    private stateOffset: number,
+    // This is here for compatibility with the CPP side. Should be removed in both.
+    private stateSizeOffset: number,
+  ) {
+    super();
+  }
+
+  // pub fn keccakf1600(input: [u64; 25]) -> [u64; 25]
+  public async execute(context: AvmContext): Promise<void> {
+    const memory = context.machineState.memory.track(this.type);
+    const [dstOffset, stateOffset, stateSizeOffset] = Addressing.fromWire(this.indirect).resolve(
+      [this.dstOffset, this.stateOffset, this.stateSizeOffset],
+      memory,
+    );
+    memory.checkTag(TypeTag.UINT32, stateSizeOffset);
+    const stateSize = memory.get(stateSizeOffset).toNumber();
+    assert(stateSize === 25, 'Invalid state size for keccakf1600');
+    const memoryOperations = { reads: stateSize + 1, writes: 25, indirect: this.indirect };
+    context.machineState.consumeGas(this.gasCost(memoryOperations));
+
+    memory.checkTagsRange(TypeTag.UINT64, stateOffset, stateSize);
+
+    const stateData = memory.getSlice(stateOffset, stateSize).map(word => word.toBigInt());
+    const updatedState = keccakf1600(stateData);
+
+    const res = updatedState.map(word => new Uint64(word));
     memory.setSlice(dstOffset, res);
 
     memory.assert(memoryOperations);
