@@ -255,6 +255,8 @@ jobs:
         working-directory: ./yarn-project/scripts
         run: |
           earthly-ci -P +bench-comment
+        env:
+          AZTEC_BOT_GITHUB_TOKEN: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
 
   bb-gcc:
     needs: [build-images, changes]
