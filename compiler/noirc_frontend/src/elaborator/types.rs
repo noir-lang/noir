@@ -447,12 +447,8 @@ impl<'context> Elaborator<'context> {
     ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
         let func_id: FuncId = self.lookup(path.clone()).ok()?;
         let meta = self.interner.function_meta(&func_id);
-        let Some(trait_id) = meta.trait_id else {
-            return None;
-        };
-
+        let trait_id = meta.trait_id?;
         let the_trait = self.interner.get_trait(trait_id);
-
         let method = the_trait.find_method(&path.last_segment().0.contents)?;
         let constraint = TraitConstraint {
             typ: Type::TypeVariable(the_trait.self_type_typevar.clone(), TypeVariableKind::Normal),
@@ -462,7 +458,6 @@ impl<'context> Elaborator<'context> {
             trait_id,
             span: path.span(),
         };
-
         Some((method, constraint, false))
     }
 
