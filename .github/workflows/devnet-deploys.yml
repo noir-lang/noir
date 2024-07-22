@@ -25,6 +25,7 @@ env:
   TF_VAR_API_KEY: ${{ secrets.FORK_API_KEY }}
   TF_VAR_FORK_MNEMONIC: ${{ secrets.FORK_MNEMONIC }}
   TF_VAR_INFURA_API_KEY: ${{ secrets.INFURA_API_KEY }}
+  TF_VAR_FAUCET_ACCOUNT_INDEX: 5
 
 jobs:
   setup:
@@ -127,6 +128,12 @@ jobs:
         run: |
           terraform apply -input=false -auto-approve -replace="aws_efs_file_system.node_data_store"
 
+      - name: Deploy Faucet
+        working-directory: ./yarn-project/aztec/aztec-faucet
+        run: |
+          terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/aztec-faucet"
+          terraform apply -input=false -auto-approve
+
       - name: Deploy Provers
         working-directory: ./yarn-project/aztec/terraform/prover
         run: |
@@ -187,8 +194,6 @@ jobs:
             --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
             --args $AZTEC_ADDRESS DevCoin DEV 18 \
             --private-key $AZTEC_PRIVATE_KEY \
-            --public-deployment \
-            --class-registration \
             | tee ./token_contract.txt
           source ./.github/scripts/extract_output.sh l2-contract ./token_contract.txt TOKEN_CONTRACT_ADDRESS
 
@@ -196,8 +201,6 @@ jobs:
             --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
             --args $TOKEN_CONTRACT_ADDRESS $FEE_JUICE_ADDRESS \
             --private-key $AZTEC_PRIVATE_KEY \
-            --public-deployment \
-            --class-registration \
             | tee ./fpc_contract.txt
           source ./.github/scripts/extract_output.sh l2-contract ./fpc_contract.txt FPC_CONTRACT_ADDRESS
 

@@ -7,14 +7,23 @@ import http from 'http';
 import Koa from 'koa';
 import cors from 'koa-cors';
 import Router from 'koa-router';
-import { type Hex, http as ViemHttp, createPublicClient, createWalletClient, parseEther } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import {
+  type Hex,
+  type LocalAccount,
+  http as ViemHttp,
+  createPublicClient,
+  createWalletClient,
+  parseEther,
+} from 'viem';
+import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
 const {
   FAUCET_PORT = 8082,
   API_PREFIX = '',
   RPC_URL = '',
   L1_CHAIN_ID = '',
+  FORK_MNEMONIC = '',
+  FAUCET_ACCOUNT_INDEX = '',
   PRIVATE_KEY = '',
   INTERVAL = '',
   ETH_AMOUNT = '',
@@ -24,7 +33,6 @@ const logger = createDebugLogger('aztec:faucet');
 
 const rpcUrl = RPC_URL;
 const l1ChainId = +L1_CHAIN_ID;
-const privateKey: Hex = PRIVATE_KEY ? createHex(PRIVATE_KEY) : NULL_KEY;
 const interval = +INTERVAL;
 const mapping: { [key: Hex]: Date } = {};
 
@@ -54,13 +62,34 @@ function checkThrottle(address: Hex) {
 }
 
 /**
+ * Get the account to use for sending ETH
+ * @returns The account to use for sending ETH
+ */
+function getFaucetAccount(): LocalAccount {
+  let account: LocalAccount;
+  if (FORK_MNEMONIC) {
+    const accountIndex = Number.isNaN(+FAUCET_ACCOUNT_INDEX) ? 0 : +FAUCET_ACCOUNT_INDEX;
+    account = mnemonicToAccount(FORK_MNEMONIC, {
+      accountIndex,
+    });
+  } else if (PRIVATE_KEY) {
+    account = privateKeyToAccount(PRIVATE_KEY as `0x${string}`);
+  } else {
+    logger.warn('No mnemonic or private key provided, using null key');
+    account = privateKeyToAccount(NULL_KEY);
+  }
+
+  return account;
+}
+
+/**
  * Helper function to send some ETH to the given address
  * @param address - Address to receive some ETH
  */
 async function transferEth(address: string) {
   const chain = createEthereumChain(rpcUrl, l1ChainId);
 
-  const account = privateKeyToAccount(privateKey);
+  const account = getFaucetAccount();
   const walletClient = createWalletClient({
     account: account,
     chain: chain.chainInfo,

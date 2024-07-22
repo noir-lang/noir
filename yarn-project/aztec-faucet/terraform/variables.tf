@@ -17,3 +17,11 @@ variable "FAUCET_PRIVATE_KEY" {
 variable "DOCKERHUB_ACCOUNT" {
   type = string
 }
+
+variable "FORK_MNEMONIC" {
+  type = string
+}
+
+variable "FAUCET_ACCOUNT_INDEX" {
+  type = string
+}

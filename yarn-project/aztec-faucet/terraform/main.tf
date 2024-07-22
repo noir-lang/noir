@@ -132,6 +132,14 @@ resource "aws_ecs_task_definition" "aztec-faucet" {
       {
         "name": "ETH_AMOUNT",
         "value": "1.0"
+      },
+      {
+        "name": "FAUCET_ACCOUNT_INDEX",
+        "value": "${var.FAUCET_ACCOUNT_INDEX}"
+      },
+      {
+        "name": "FORK_MNEMONIC",
+        "value": "${var.FORK_MNEMONIC}"
       }
     ],
     "logConfiguration": {
