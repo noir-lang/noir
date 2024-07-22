@@ -98,9 +98,9 @@ pub struct LambdaContext {
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
-    pub errors: Vec<(CompilationError, FileId)>,
+    pub(crate) errors: Vec<(CompilationError, FileId)>,
 
-    pub interner: &'context mut NodeInterner,
+    pub(crate) interner: &'context mut NodeInterner,
 
     def_maps: &'context mut BTreeMap<CrateId, CrateDefMap>,
 
@@ -168,7 +168,7 @@ pub struct Elaborator<'context> {
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions. The first scope is always the global scope.
-    pub comptime_scopes: Vec<HashMap<DefinitionId, Value>>,
+    pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, Value>>,
 
     /// The scope of --debug-comptime, or None if unset
     debug_comptime_in_file: Option<FileId>,
