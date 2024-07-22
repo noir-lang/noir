@@ -1,5 +1,6 @@
-mod type_def;
 mod trait_constraint;
+mod trait_def;
+mod type_def;
 mod quoted;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
