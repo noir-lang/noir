@@ -44,6 +44,10 @@ pub enum ParserErrorReason {
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
+    // TODO(https://github.com/noir-lang/noir/issues/5571): This error can be removed once support is expanded for type-level integers.
+    // This error reason was added to prevent the panic outline in this issue: https://github.com/noir-lang/noir/issues/5552.
+    #[error("Only unsigned integers allowed for numeric generics")]
+    SignedNumericGeneric,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
