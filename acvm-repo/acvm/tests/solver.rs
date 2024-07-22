@@ -926,7 +926,7 @@ fn bigint_solve_from_to_le_bytes(
 // PROPTEST_MAX_SHRINK_ITERS=1024000
 proptest! {
     #[test]
-    fn bigint_from_to_le_bytes_zero_one(modulus in select(allowed_bigint_moduli()), zero_or_ones_constant in any::<bool>(), use_constant in any::<bool>()) {
+    fn bigint_from_to_le_bytes_zero_one(modulus in select(allowed_bigint_moduli()), zero_or_ones_constant: bool, use_constant: bool) {
         let zero_function_input = if zero_or_ones_constant {
             FieldElement::one()
         } else {
@@ -947,7 +947,7 @@ proptest! {
 
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
-    fn bigint_from_to_le_bytes_extra_input_byte((input, modulus) in bigint_with_modulus(), extra_byte in any::<u8>(), use_constant in any::<bool>()) {
+    fn bigint_from_to_le_bytes_extra_input_byte((input, modulus) in bigint_with_modulus(), extra_byte: u8, use_constant: bool) {
         let mut input = input;
         input.push((FieldElement::from(extra_byte as u128), use_constant));
         let expected_results: Vec<_> = drop_use_constant(&input);
@@ -957,7 +957,7 @@ proptest! {
 
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
-    fn bigint_from_to_le_bytes_two_extra_input_bytes((input, modulus) in bigint_with_modulus(), extra_byte in any::<u8>(), extra_byte_2 in any::<u8>(), use_constant in any::<bool>(), use_constant_2 in any::<bool>()) {
+    fn bigint_from_to_le_bytes_two_extra_input_bytes((input, modulus) in bigint_with_modulus(), extra_byte: u8, extra_byte_2: u8, use_constant: bool, use_constant_2: bool) {
         let mut input = input;
         input.push((FieldElement::from(extra_byte as u128), use_constant));
         input.push((FieldElement::from(extra_byte_2 as u128), use_constant_2));
@@ -968,7 +968,7 @@ proptest! {
 
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
-    fn bigint_from_to_le_bytes_extra_input_bytes((input, modulus) in bigint_with_modulus(), extra_bytes_len in any::<u8>(), extra_bytes in proptest::collection::vec(any::<(u8, bool)>(), u8::MAX as usize)) {
+    fn bigint_from_to_le_bytes_extra_input_bytes((input, modulus) in bigint_with_modulus(), extra_bytes_len: u8, extra_bytes in proptest::collection::vec(any::<(u8, bool)>(), u8::MAX as usize)) {
         let mut input = input;
         let mut extra_bytes: Vec<_> = extra_bytes.into_iter().take(extra_bytes_len as usize).map(|(x, use_constant)| (FieldElement::from(x as u128), use_constant)).collect();
         input.append(&mut extra_bytes);
@@ -980,7 +980,7 @@ proptest! {
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
     #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
-    fn bigint_from_to_le_bytes_bigger_than_u8((input, modulus) in bigint_with_modulus(), patch_location in any::<usize>(), larger_value in any::<u16>(), use_constant in any::<bool>()) {
+    fn bigint_from_to_le_bytes_bigger_than_u8((input, modulus) in bigint_with_modulus(), patch_location: usize, larger_value: u16, use_constant: bool) {
         let mut input = input;
         let patch_location = patch_location % input.len();
         let larger_value = FieldElement::from(std::cmp::max((u8::MAX as u16) + 1, larger_value) as u128);
@@ -993,7 +993,7 @@ proptest! {
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5578): this test attempts to use a guaranteed-invalid BigInt modulus
     #[should_panic(expected = "attempt to add with overflow")]
-    fn bigint_from_to_le_bytes_disallowed_modulus(modulus in select(allowed_bigint_moduli()), patch_location in any::<usize>(), patch_amount in any::<u8>(), zero_or_ones_constant in any::<bool>(), use_constant in any::<bool>()) {
+    fn bigint_from_to_le_bytes_disallowed_modulus(modulus in select(allowed_bigint_moduli()), patch_location: usize, patch_amount: u8, zero_or_ones_constant: bool, use_constant: bool) {
         let patch_location = patch_location % modulus.len();
         let patch_amount = patch_amount.clamp(1, u8::MAX);
         let mut modulus = modulus;
@@ -1192,7 +1192,7 @@ proptest! {
 
     // TODO(https://github.com/noir-lang/noir/issues/5579): fails on (x=0, y=97)
     #[test]
-    #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)")]
     fn bigint_add_sub((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let add_results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs, ys.clone());
@@ -1204,7 +1204,7 @@ proptest! {
 
     // TODO(https://github.com/noir-lang/noir/issues/5579)
     #[test]
-    #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
+    #[should_panic(expected = "Test failed: assertion failed: `(left == right)")]
     fn bigint_sub_add((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let sub_results = bigint_solve_binary_op(bigint_sub_op(), modulus.clone(), xs, ys.clone());
