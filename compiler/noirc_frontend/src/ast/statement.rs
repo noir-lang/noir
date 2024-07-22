@@ -100,7 +100,9 @@ impl StatementKind {
             StatementKind::Expression(expr) => {
                 match (&expr.kind, semi, last_statement_in_block) {
                     // Semicolons are optional for these expressions
-                    (ExpressionKind::Block(_), semi, _) | (ExpressionKind::If(_), semi, _) => {
+                    (ExpressionKind::Block(_), semi, _)
+                    | (ExpressionKind::Unsafe(..), semi, _)
+                    | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
                         } else {
