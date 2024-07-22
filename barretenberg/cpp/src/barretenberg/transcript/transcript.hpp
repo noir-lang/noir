@@ -23,6 +23,16 @@ class TranscriptManifest {
         std::vector<std::string> challenge_label;
         std::vector<std::pair<std::string, size_t>> entries;
 
+        void print()
+        {
+            for (auto& label : challenge_label) {
+                info("\tchallenge: ", label);
+            }
+            for (auto& entry : entries) {
+                info("\telement (", entry.second, "): ", entry.first);
+            }
+        }
+
         bool operator==(const RoundData& other) const = default;
     };
 
@@ -33,12 +43,7 @@ class TranscriptManifest {
     {
         for (auto& round : manifest) {
             info("Round: ", round.first);
-            for (auto& label : round.second.challenge_label) {
-                info("\tchallenge: ", label);
-            }
-            for (auto& entry : round.second.entries) {
-                info("\telement (", entry.second, "): ", entry.first);
-            }
+            round.second.print();
         }
     }
 

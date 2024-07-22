@@ -40,6 +40,12 @@ template <typename FF> void MegaCircuitBuilder_<FF>::add_gates_to_ensure_all_pol
     auto read_idx = this->add_variable(raw_read_idx);
     read_calldata(read_idx);
 
+    // Create an arbitrary secondary_calldata read gate
+    add_public_secondary_calldata(this->add_variable(25)); // ensure there is at least one entry in secondary_calldata
+    raw_read_idx = static_cast<uint32_t>(get_secondary_calldata().size()) - 1; // read data that was just added
+    read_idx = this->add_variable(raw_read_idx);
+    read_secondary_calldata(read_idx);
+
     // Create an arbitrary return data read gate
     add_public_return_data(this->add_variable(17)); // ensure there is at least one entry in return data
     raw_read_idx = static_cast<uint32_t>(get_return_data().size()) - 1; // read data that was just added
@@ -238,17 +244,24 @@ template <typename FF> void MegaCircuitBuilder_<FF>::apply_databus_selectors(con
     case BusId::CALLDATA: {
         block.q_1().emplace_back(1);
         block.q_2().emplace_back(0);
+        block.q_3().emplace_back(0);
+        break;
+    }
+    case BusId::SECONDARY_CALLDATA: {
+        block.q_1().emplace_back(0);
+        block.q_2().emplace_back(1);
+        block.q_3().emplace_back(0);
         break;
     }
     case BusId::RETURNDATA: {
         block.q_1().emplace_back(0);
-        block.q_2().emplace_back(1);
+        block.q_2().emplace_back(0);
+        block.q_3().emplace_back(1);
         break;
     }
     }
     block.q_busread().emplace_back(1);
     block.q_m().emplace_back(0);
-    block.q_3().emplace_back(0);
     block.q_c().emplace_back(0);
     block.q_delta_range().emplace_back(0);
     block.q_arith().emplace_back(0);

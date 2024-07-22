@@ -61,6 +61,9 @@ class MegaTranscriptTests : public ::testing::Test {
         manifest_expected.add_entry(round, "CALLDATA", frs_per_G);
         manifest_expected.add_entry(round, "CALLDATA_READ_COUNTS", frs_per_G);
         manifest_expected.add_entry(round, "CALLDATA_READ_TAGS", frs_per_G);
+        manifest_expected.add_entry(round, "SECONDARY_CALLDATA", frs_per_G);
+        manifest_expected.add_entry(round, "SECONDARY_CALLDATA_READ_COUNTS", frs_per_G);
+        manifest_expected.add_entry(round, "SECONDARY_CALLDATA_READ_TAGS", frs_per_G);
         manifest_expected.add_entry(round, "RETURN_DATA", frs_per_G);
         manifest_expected.add_entry(round, "RETURN_DATA_READ_COUNTS", frs_per_G);
         manifest_expected.add_entry(round, "RETURN_DATA_READ_TAGS", frs_per_G);
@@ -75,6 +78,7 @@ class MegaTranscriptTests : public ::testing::Test {
         round++;
         manifest_expected.add_entry(round, "LOOKUP_INVERSES", frs_per_G);
         manifest_expected.add_entry(round, "CALLDATA_INVERSES", frs_per_G);
+        manifest_expected.add_entry(round, "SECONDARY_CALLDATA_INVERSES", frs_per_G);
         manifest_expected.add_entry(round, "RETURN_DATA_INVERSES", frs_per_G);
         manifest_expected.add_entry(round, "Z_PERM", frs_per_G);
 
@@ -163,7 +167,12 @@ TEST_F(MegaTranscriptTests, ProverManifestConsistency)
     auto prover_manifest = prover.transcript->get_manifest();
     // Note: a manifest can be printed using manifest.print()
     for (size_t round = 0; round < manifest_expected.size(); ++round) {
-        ASSERT_EQ(prover_manifest[round], manifest_expected[round]) << "Prover manifest discrepency in round " << round;
+        if (prover_manifest[round] != manifest_expected[round]) {
+            info("Prover manifest discrepency in round ", round);
+            prover_manifest[round].print();
+            manifest_expected[round].print();
+            ASSERT(false);
+        }
     }
 }
 
@@ -195,8 +204,12 @@ TEST_F(MegaTranscriptTests, VerifierManifestConsistency)
 
     // Note: a manifest can be printed using manifest.print()
     for (size_t round = 0; round < prover_manifest.size(); ++round) {
-        ASSERT_EQ(prover_manifest[round], verifier_manifest[round])
-            << "Prover/Verifier manifest discrepency in round " << round;
+        if (prover_manifest[round] != verifier_manifest[round]) {
+            info("Prover/Verifier manifest discrepency in round ", round);
+            prover_manifest[round].print();
+            verifier_manifest[round].print();
+            ASSERT(false);
+        }
     }
 }
 

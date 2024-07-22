@@ -107,13 +107,14 @@ std::array<typename Flavor::GroupElement, 2> UltraRecursiveVerifier_<Flavor>::ve
     commitments.lookup_inverses =
         transcript->template receive_from_prover<Commitment>(commitment_labels.lookup_inverses);
 
-    // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomial
+    // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomials
     if constexpr (IsGoblinFlavor<Flavor>) {
-        commitments.calldata_inverses =
-            transcript->template receive_from_prover<Commitment>(commitment_labels.calldata_inverses);
-        commitments.return_data_inverses =
-            transcript->template receive_from_prover<Commitment>(commitment_labels.return_data_inverses);
+        for (auto [commitment, label] :
+             zip_view(commitments.get_databus_inverses(), commitment_labels.get_databus_inverses())) {
+            commitment = transcript->template receive_from_prover<Commitment>(label);
+        }
     }
+
     const FF public_input_delta = compute_public_input_delta<Flavor>(
         public_inputs, beta, gamma, circuit_size, static_cast<uint32_t>(key->pub_inputs_offset));
 

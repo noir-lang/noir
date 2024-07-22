@@ -54,7 +54,7 @@ struct BusVector {
  * in-circuit as we would with public inputs).
  *
  */
-using DataBus = std::array<BusVector, 2>;
-enum class BusId { CALLDATA, RETURNDATA };
+using DataBus = std::array<BusVector, 3>;
+enum class BusId { CALLDATA, SECONDARY_CALLDATA, RETURNDATA };
 
 } // namespace bb

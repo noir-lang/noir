@@ -47,39 +47,53 @@ template <typename FF_> class DatabusLookupRelationImpl {
   public:
     using FF = FF_;
     static constexpr size_t LENGTH = 5;          // 1 + polynomial degree of this relation
-    static constexpr size_t NUM_BUS_COLUMNS = 2; // calldata, return data
+    static constexpr size_t NUM_BUS_COLUMNS = 3; // calldata, return data
+
+    static constexpr size_t INVERSE_SUBREL_LENGTH = 5; // deg + 1 of inverse correctness subrelation
+    static constexpr size_t LOOKUP_SUBREL_LENGTH = 5;  // deg + 1 of log-deriv lookup subrelation
 
     // Note: Inverse correctness subrelations are actually LENGTH-1; taking advantage would require additional work
     static constexpr std::array<size_t, NUM_BUS_COLUMNS * 2> SUBRELATION_PARTIAL_LENGTHS{
-        LENGTH, // inverse polynomial correctness subrelation
-        LENGTH, // log-derivative lookup argument subrelation
-        LENGTH, // inverse polynomial correctness subrelation
-        LENGTH  // log-derivative lookup argument subrelation
+        INVERSE_SUBREL_LENGTH, // inverse polynomial correctness subrelation (bus_idx 0)
+        LOOKUP_SUBREL_LENGTH,  // log-derivative lookup argument subrelation (bus_idx 0)
+        INVERSE_SUBREL_LENGTH, // inverse polynomial correctness subrelation (bus_idx 1)
+        LOOKUP_SUBREL_LENGTH,  // log-derivative lookup argument subrelation (bus_idx 1)
+        INVERSE_SUBREL_LENGTH, // inverse polynomial correctness subrelation (bus_idx 2)
+        LOOKUP_SUBREL_LENGTH   // log-derivative lookup argument subrelation (bus_idx 2)
     };
+
+    static constexpr size_t INVERSE_SUBREL_WITNESS_DEGREE = 4; // witness degree of inverse correctness subrelation
+    static constexpr size_t LOOKUP_SUBREL_WITNESS_DEGREE = 4;  // witness degree of log-deriv lookup subrelation
 
     /**
      * @brief For ZK-Flavors: Upper bound on the degrees of subrelations considered as polynomials only in witness
-polynomials,
-     * i.e. all selectors and public polynomials are treated as constants. The subrelation witness degree does not
-     * exceed the subrelation partial degree, which is given by LENGTH - 1 in this case.
+     * polynomials, i.e. all selectors and public polynomials are treated as constants. The subrelation witness degree
+     * does not exceed the subrelation partial degree, which is given by LENGTH - 1 in this case.
      */
     static constexpr std::array<size_t, NUM_BUS_COLUMNS * 2> SUBRELATION_WITNESS_DEGREES{
-        LENGTH - 1, // inverse polynomial correctness subrelation
-        LENGTH - 1, // log-derivative lookup argument subrelation
-        LENGTH - 1, // inverse polynomial correctness subrelation
-        LENGTH - 1  // log-derivative lookup argument subrelation
+        INVERSE_SUBREL_WITNESS_DEGREE, // inverse polynomial correctness subrelation (bus_idx 0)
+        LOOKUP_SUBREL_WITNESS_DEGREE,  // log-derivative lookup argument subrelation (bus_idx 0)
+        INVERSE_SUBREL_WITNESS_DEGREE, // inverse polynomial correctness subrelation (bus_idx 1)
+        LOOKUP_SUBREL_WITNESS_DEGREE,  // log-derivative lookup argument subrelation (bus_idx 1)
+        INVERSE_SUBREL_WITNESS_DEGREE, // inverse polynomial correctness subrelation (bus_idx 2)
+        LOOKUP_SUBREL_WITNESS_DEGREE   // log-derivative lookup argument subrelation (bus_idx 2)
     };
+
+    static constexpr bool INVERSE_SUBREL_LIN_INDEPENDENT = true; // to be satisfied independently at each row
+    static constexpr bool LOOKUP_SUBREL_LIN_INDEPENDENT = false; // to be satisfied as a sum across all rows
 
     // The lookup subrelations are "linearly dependent" in the sense that they establish the value of a sum across the
     // entire execution trace rather than a per-row identity.
     static constexpr std::array<bool, NUM_BUS_COLUMNS* 2> SUBRELATION_LINEARLY_INDEPENDENT = {
-        true, false, true, false
+        INVERSE_SUBREL_LIN_INDEPENDENT, LOOKUP_SUBREL_LIN_INDEPENDENT,  INVERSE_SUBREL_LIN_INDEPENDENT,
+        LOOKUP_SUBREL_LIN_INDEPENDENT,  INVERSE_SUBREL_LIN_INDEPENDENT, LOOKUP_SUBREL_LIN_INDEPENDENT
     };
 
     template <typename AllEntities> inline static bool skip([[maybe_unused]] const AllEntities& in)
     {
         // Ensure the input does not contain a read gate or data that is being read
-        return in.q_busread.is_zero() && in.calldata_read_counts.is_zero() && in.return_data_read_counts.is_zero();
+        return in.q_busread.is_zero() && in.calldata_read_counts.is_zero() &&
+               in.secondary_calldata_read_counts.is_zero() && in.return_data_read_counts.is_zero();
     }
 
     // Interface for easy access of databus components by column (bus_idx)
@@ -95,10 +109,20 @@ polynomials,
         static auto& read_tags(const AllEntities& in) { return in.calldata_read_tags; }
     };
 
-    // Specialization for return data (bus_idx = 1)
+    // Specialization for secondary_calldata (bus_idx = 1)
     template <typename AllEntities> struct BusData</*bus_idx=*/1, AllEntities> {
-        static auto& values(const AllEntities& in) { return in.return_data; }
+        static auto& values(const AllEntities& in) { return in.secondary_calldata; }
         static auto& selector(const AllEntities& in) { return in.q_r; }
+        static auto& inverses(AllEntities& in) { return in.secondary_calldata_inverses; }
+        static auto& inverses(const AllEntities& in) { return in.secondary_calldata_inverses; } // const version
+        static auto& read_counts(const AllEntities& in) { return in.secondary_calldata_read_counts; }
+        static auto& read_tags(const AllEntities& in) { return in.secondary_calldata_read_tags; }
+    };
+
+    // Specialization for return data (bus_idx = 2)
+    template <typename AllEntities> struct BusData</*bus_idx=*/2, AllEntities> {
+        static auto& values(const AllEntities& in) { return in.return_data; }
+        static auto& selector(const AllEntities& in) { return in.q_o; }
         static auto& inverses(AllEntities& in) { return in.return_data_inverses; }
         static auto& inverses(const AllEntities& in) { return in.return_data_inverses; } // const version
         static auto& read_counts(const AllEntities& in) { return in.return_data_read_counts; }
@@ -217,8 +241,12 @@ polynomials,
                 is_read = q_busread == 1 && polynomials.q_l[i] == 1;
                 nonzero_read_count = polynomials.calldata_read_counts[i] > 0;
             }
-            if constexpr (bus_idx == 1) { // return data
+            if constexpr (bus_idx == 1) { // secondary_calldata
                 is_read = q_busread == 1 && polynomials.q_r[i] == 1;
+                nonzero_read_count = polynomials.secondary_calldata_read_counts[i] > 0;
+            }
+            if constexpr (bus_idx == 2) { // return data
+                is_read = q_busread == 1 && polynomials.q_o[i] == 1;
                 nonzero_read_count = polynomials.return_data_read_counts[i] > 0;
             }
             // We only compute the inverse if this row contains a read gate or data that has been read

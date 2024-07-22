@@ -344,6 +344,9 @@ TEST_F(UltraRelationCorrectnessTests, Mega)
     ensure_non_zero(proving_key.polynomials.calldata);
     ensure_non_zero(proving_key.polynomials.calldata_read_counts);
     ensure_non_zero(proving_key.polynomials.calldata_inverses);
+    ensure_non_zero(proving_key.polynomials.secondary_calldata);
+    ensure_non_zero(proving_key.polynomials.secondary_calldata_read_counts);
+    ensure_non_zero(proving_key.polynomials.secondary_calldata_inverses);
     ensure_non_zero(proving_key.polynomials.return_data);
     ensure_non_zero(proving_key.polynomials.return_data_read_counts);
     ensure_non_zero(proving_key.polynomials.return_data_inverses);

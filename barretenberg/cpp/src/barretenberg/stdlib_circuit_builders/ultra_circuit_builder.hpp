@@ -331,7 +331,7 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization_
      * @param varnum number of known witness
      *
      * @note The size of witness_values may be less than varnum. The former is the set of actual witness values known at
-     * the time of acir generation. The former may be larger and essentially acounts for placeholders for witnesses that
+     * the time of acir generation. The latter may be larger and essentially acounts for placeholders for witnesses that
      * we know will exist but whose values are not known during acir generation. Both are in general less than the total
      * number of variables/witnesses that might be present for a circuit generated from acir, since many gates will
      * depend on the details of the bberg implementation (or more generally on the backend used to process acir).

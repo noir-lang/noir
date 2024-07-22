@@ -172,6 +172,16 @@ template <typename FF> class MegaCircuitBuilder_ : public UltraCircuitBuilder_<M
     void add_public_calldata(const uint32_t& in) { return append_to_bus_vector(BusId::CALLDATA, in); }
 
     /**
+     * @brief Add a witness variable to secondary_calldata.
+     * @details In practice this is used in aztec by the kernel circuit to recieve output from a function circuit
+     *
+     */
+    void add_public_secondary_calldata(const uint32_t& in)
+    {
+        return append_to_bus_vector(BusId::SECONDARY_CALLDATA, in);
+    }
+
+    /**
      * @brief Add a witness variable to the public return_data.
      *
      */
@@ -191,6 +201,17 @@ template <typename FF> class MegaCircuitBuilder_ : public UltraCircuitBuilder_<M
     };
 
     /**
+     * @brief Read from secondary_calldata and create a corresponding databus read gate
+     *
+     * @param read_idx_witness_idx Witness index for the secondary_calldata read index
+     * @return uint32_t Witness index for the result of the read
+     */
+    uint32_t read_secondary_calldata(const uint32_t& read_idx_witness_idx)
+    {
+        return read_bus_vector(BusId::SECONDARY_CALLDATA, read_idx_witness_idx);
+    };
+
+    /**
      * @brief Read from return_data and create a corresponding databus read gate
      *
      * @param read_idx_witness_idx Witness index for the return_data read index
@@ -207,6 +228,7 @@ template <typename FF> class MegaCircuitBuilder_ : public UltraCircuitBuilder_<M
     }
 
     const BusVector& get_calldata() { return databus[static_cast<size_t>(BusId::CALLDATA)]; }
+    const BusVector& get_secondary_calldata() { return databus[static_cast<size_t>(BusId::SECONDARY_CALLDATA)]; }
     const BusVector& get_return_data() { return databus[static_cast<size_t>(BusId::RETURNDATA)]; }
 
     void create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in);

@@ -112,10 +112,10 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_log_derivativ
 
     // If Goblin (i.e. using DataBus) receive commitments to log-deriv inverses polynomials
     if constexpr (IsGoblinFlavor<Flavor>) {
-        witness_comms.calldata_inverses =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.calldata_inverses);
-        witness_comms.return_data_inverses =
-            transcript->template receive_from_prover<Commitment>(domain_separator + comm_labels.return_data_inverses);
+        for (auto [commitment, label] :
+             zip_view(witness_comms.get_databus_inverses(), comm_labels.get_databus_inverses())) {
+            commitment = transcript->template receive_from_prover<Commitment>(domain_separator + label);
+        }
     }
 }
 
