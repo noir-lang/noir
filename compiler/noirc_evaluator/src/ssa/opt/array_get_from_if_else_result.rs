@@ -39,6 +39,12 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
             continue;
         };
 
+        // Don't optimize if the index is a constant (this is optimized later on in a different way)
+        if let Value::NumericConstant { .. } = &dfg[dfg.resolve(*index)] {
+            dfg[block].instructions_mut().push(instruction_id);
+            continue;
+        }
+
         // Only if getting an array from a previous instruction
         let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*array)] else {
             dfg[block].instructions_mut().push(instruction_id);
