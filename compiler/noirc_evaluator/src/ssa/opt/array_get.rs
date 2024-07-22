@@ -24,11 +24,6 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_get_optimization(mut self) -> Self {
         for function in self.functions.values_mut() {
-            // This should match the check in flatten_cfg
-            if let crate::ssa::ir::function::RuntimeType::Brillig = function.runtime() {
-                continue;
-            }
-
             Context::default().optimize_array_get(function);
         }
 
