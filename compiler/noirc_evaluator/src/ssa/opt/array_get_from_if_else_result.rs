@@ -148,3 +148,115 @@ impl Context {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::rc::Rc;
+
+    use crate::ssa::{
+        function_builder::FunctionBuilder,
+        ir::{
+            instruction::{Binary, Instruction},
+            map::Id,
+            types::Type,
+        },
+    };
+
+    #[test]
+    fn check_array_get_from_if_else_result_optimization() {
+        // acir(inline) fn main f0 {
+        //   b0(v0: [Field; 3], v1: [Field; 3], v2: u1, v3: u32):
+        //     v4 = not v2
+        //     v5 = if v2 then v0 else if v4 then v1
+        //     v6 = array_get v5, index v3
+        //     (no terminator instruction)
+        // }
+
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let v0 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 3));
+        let v1 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 3));
+        let v2 = builder.add_parameter(Type::bool());
+        let v3 = builder.add_parameter(Type::unsigned(32));
+
+        let v4 = builder.insert_not(v2);
+        let v5 = builder
+            .insert_instruction(
+                Instruction::IfElse {
+                    then_condition: v2,
+                    then_value: v0,
+                    else_condition: v4,
+                    else_value: v1,
+                },
+                None,
+            )
+            .first();
+        builder.insert_array_get(v5, v3, Type::field());
+
+        let ssa = builder.finish();
+        println!("{ssa}");
+
+        // Expected output:
+        // acir(inline) fn main f0 {
+        //   b0(v0: [Field; 3], v1: [Field; 3], v2: u1, v3: u32):
+        //       v4 = not v2
+        //       v5 = if v2 then v0 else if v4 then v1
+        //       v7 = array_get v0, index v3
+        //       v8 = array_get v1, index v3
+        //       v9 = cast v2 as Field
+        //       v10 = cast v4 as Field
+        //       v11 = mul v9, v7
+        //       v12 = mul v10, v8
+        //       v13 = add v11, v12
+        //       (no terminator instruction)
+        //   }
+        let ssa = ssa.array_get_from_if_else_result_optimization();
+        println!("{ssa}");
+
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+
+        // Let's check only instructions v7..=v13
+        let v7 = &main.dfg[instructions[2]];
+        assert_eq!(v7, &Instruction::ArrayGet { array: v0, index: v3 });
+
+        let v8 = &main.dfg[instructions[3]];
+        assert_eq!(v8, &Instruction::ArrayGet { array: v1, index: v3 });
+
+        let v9 = &main.dfg[instructions[4]];
+        assert_eq!(v9, &Instruction::Cast(v2, Type::field()));
+
+        let v10 = &main.dfg[instructions[5]];
+        assert_eq!(v10, &Instruction::Cast(v4, Type::field()));
+
+        let v11 = &main.dfg[instructions[6]];
+        assert_eq!(
+            v11,
+            &Instruction::Binary(Binary {
+                lhs: main.dfg.instruction_results(instructions[4])[0], // v9
+                rhs: main.dfg.instruction_results(instructions[2])[0], // v7
+                operator: crate::ssa::ir::instruction::BinaryOp::Mul
+            })
+        );
+
+        let v12 = &main.dfg[instructions[7]];
+        assert_eq!(
+            v12,
+            &Instruction::Binary(Binary {
+                lhs: main.dfg.instruction_results(instructions[5])[0], // v10
+                rhs: main.dfg.instruction_results(instructions[3])[0], // v8
+                operator: crate::ssa::ir::instruction::BinaryOp::Mul
+            })
+        );
+
+        let v13 = &main.dfg[instructions[8]];
+        assert_eq!(
+            v13,
+            &Instruction::Binary(Binary {
+                lhs: main.dfg.instruction_results(instructions[6])[0], // v11
+                rhs: main.dfg.instruction_results(instructions[7])[0], // v12
+                operator: crate::ssa::ir::instruction::BinaryOp::Add
+            })
+        );
+    }
+}
