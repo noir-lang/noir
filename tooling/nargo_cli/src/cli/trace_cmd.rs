@@ -77,11 +77,13 @@ fn trace_program_and_decode(
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    trace_program(&program, &inputs_map, trace_dir)
+
+    trace_program(&program, &package.name, &inputs_map, trace_dir)
 }
 
 pub(crate) fn trace_program(
     compiled_program: &CompiledProgram,
+    crate_name: &CrateName,
     inputs_map: &InputMap,
     trace_dir: &str,
 ) -> Result<(), CliError> {
@@ -92,7 +94,8 @@ pub(crate) fn trace_program(
         file_map: compiled_program.file_map.clone(),
     };
 
-    let mut tracer = Tracer::new("<program-name>", &vec![]);
+    let crate_name_string: String = crate_name.into();
+    let mut tracer = Tracer::new(crate_name_string.as_str(), &vec![]);
 
     match noir_tracer::trace_circuit(
         &Bn254BlackBoxSolver,

@@ -628,7 +628,7 @@ fn plonky2_trace_{test_name}() {{
         }}
     }}
 
-    assert_eq!(expected_json, actual_json);
+    assert_eq!(expected_json, actual_json, "traces do not match");
 
     let expected_metadata_path = test_program_dir_path.join("expected_metadata.json");
     let expected_metadata = fs::read_to_string(expected_metadata_path).unwrap();
@@ -644,7 +644,7 @@ fn plonky2_trace_{test_name}() {{
         *path = json!("ignored-in-test");
     }}
 
-    assert_eq!(expected_metadata_json, actual_metadata_json);
+    assert_eq!(expected_metadata_json, actual_metadata_json, "trace metadata mismatch");
 
     let expected_paths_file_path = test_program_dir_path.join("expected_paths.json");
     let expected_paths = fs::read_to_string(expected_paths_file_path).unwrap();
@@ -656,7 +656,7 @@ fn plonky2_trace_{test_name}() {{
     let actual_paths_json: Value = serde_json::from_str(&actual_paths).unwrap();
     let num_actual_paths = actual_paths_json.as_array().unwrap().len();
 
-    assert_eq!(num_expected_paths, num_actual_paths);
+    assert_eq!(num_expected_paths, num_actual_paths, "traces use a different number of files");
 }}
 "#,
             test_dir = test_dir.display(),
