@@ -85,7 +85,7 @@ pub fn decompose(x: Field) -> (Field, Field) {
         unsafe {
             // Take hints of the decomposition
             let (xlo, xhi) = decompose_hint(x);
-        
+
             // Range check the limbs
             xlo.assert_max_bit_size(128);
             xhi.assert_max_bit_size(128);
