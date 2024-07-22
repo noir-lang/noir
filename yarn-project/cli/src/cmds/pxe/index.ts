@@ -68,8 +68,8 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       '<artifact>',
       "A compiled Aztec.nr contract's artifact in JSON format or name of a contract artifact exported by @aztec/noir-contracts.js",
     )
-    .option('--initialize <string>', 'The contract initializer function to call', 'constructor')
-    .option('--no-initialize')
+    .option('--init <string>', 'The contract initializer function to call', 'constructor')
+    .option('--no-init', 'Leave the contract uninitialized')
     .option('-a, --args <constructorArgs...>', 'Contract constructor arguments', [])
     .addOption(pxeOption)
     .option(
@@ -88,10 +88,8 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
     // `options.wait` is default true. Passing `--no-wait` will set it to false.
     // https://github.com/tj/commander.js#other-option-types-negatable-boolean-and-booleanvalue
     .option('--no-wait', 'Skip waiting for the contract to be deployed. Print the hash of deployment transaction')
-    .option('--class-registration', 'Register the contract class. Only has to be done once')
-    .option('--no-class-registration', 'Skip registering the contract class')
-    .option('--public-deployment', 'Deploy the public bytecode of contract')
-    .option('--no-public-deployment', "Skip deploying the contract's public bytecode");
+    .option('--no-class-registration', "Don't register this contract class")
+    .option('--no-public-deployment', "Don't emit this contract's public bytecode");
   addOptions(deployCommand, FeeOpts.getOptions()).action(async (artifactPath, opts) => {
     const { deploy } = await import('./deploy.js');
     const {
@@ -103,7 +101,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       wait,
       privateKey,
       classRegistration,
-      initialize,
+      init,
       publicDeployment,
       universal,
     } = opts;
@@ -115,10 +113,10 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       rawArgs,
       salt,
       privateKey,
-      typeof initialize === 'string' ? initialize : undefined,
+      typeof init === 'string' ? init : undefined,
       !publicDeployment,
       !classRegistration,
-      typeof initialize === 'string' ? false : initialize,
+      typeof init === 'string' ? false : init,
       universal,
       wait,
       FeeOpts.fromCli(opts, log),
