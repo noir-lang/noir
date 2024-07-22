@@ -460,16 +460,9 @@ impl<'context> Elaborator<'context> {
         // Comptime variables must be replaced with their values
         if let Some(definition) = self.interner.try_definition(definition_id) {
             if definition.comptime && !self.in_comptime_context() {
-                let mut interpreter_errors = vec![];
-                let mut interpreter = Interpreter::new(
-                    self.interner,
-                    &mut self.comptime_scopes,
-                    self.crate_id,
-                    self.debug_comptime_in_file,
-                    &mut interpreter_errors,
-                );
+                let mut interpreter =
+                    Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
                 let value = interpreter.evaluate(id);
-                self.include_interpreter_errors(interpreter_errors);
                 return self.inline_comptime_value(value, span);
             }
         }
