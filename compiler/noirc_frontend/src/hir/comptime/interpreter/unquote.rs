@@ -7,7 +7,7 @@ use crate::{
 
 use super::Interpreter;
 
-impl<'a> Interpreter<'a> {
+impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Evaluates any expressions within UnquoteMarkers in the given token list
     /// and replaces the expression held by the marker with the evaluated value
     /// in expression form.
@@ -27,7 +27,8 @@ impl<'a> Interpreter<'a> {
                         // turning it into a Quoted block (which would add `quote`, `{`, and `}` tokens).
                         Value::Code(stream) => new_tokens.extend(unwrap_rc(stream).0),
                         value => {
-                            let new_id = value.into_hir_expression(self.interner, location)?;
+                            let new_id =
+                                value.into_hir_expression(self.elaborator.interner, location)?;
                             let new_token = Token::UnquoteMarker(new_id);
                             new_tokens.push(SpannedToken::new(new_token, span));
                         }

@@ -5,12 +5,14 @@ use std::{
 
 use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
+use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
     ast::{IntegerBitSize, TraitBound},
     hir::comptime::{errors::IResult, InterpreterError, Value},
-    macros_api::{NodeInterner, Signedness},
+    macros_api::{NodeInterner, Path, Signedness, UnresolvedTypeData},
+    node_interner::TraitId,
     parser,
     token::{SpannedToken, Token, Tokens},
     QuotedType, Type,
@@ -42,6 +44,9 @@ pub(super) fn call_builtin(
         "struct_def_generics" => struct_def_generics(interner, arguments, location),
         "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
         "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
+        "trait_def_as_trait_constraint" => {
+            trait_def_as_trait_constraint(interner, arguments, location)
+        }
         "quoted_as_trait_constraint" => quoted_as_trait_constraint(interner, arguments, location),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
@@ -98,6 +103,16 @@ fn get_trait_constraint(value: Value, location: Location) -> IResult<TraitBound>
         Value::TraitConstraint(bound) => Ok(bound),
         value => {
             let expected = Type::Quoted(QuotedType::TraitConstraint);
+            Err(InterpreterError::TypeMismatch { expected, value, location })
+        }
+    }
+}
+
+fn get_trait_def(value: Value, location: Location) -> IResult<TraitId> {
+    match value {
+        Value::TraitDefinition(id) => Ok(id),
+        value => {
+            let expected = Type::Quoted(QuotedType::TraitDefinition);
             Err(InterpreterError::TypeMismatch { expected, value, location })
         }
     }
@@ -455,4 +470,25 @@ fn modulus_num_bits(
     check_argument_count(0, &arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
     Ok(Value::U64(bits))
+}
+
+fn trait_def_as_trait_constraint(
+    interner: &mut NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> Result<Value, InterpreterError> {
+    check_argument_count(1, &arguments, location)?;
+
+    let trait_id = get_trait_def(arguments.pop().unwrap().0, location)?;
+    let the_trait = interner.get_trait(trait_id);
+
+    let trait_path = Path::from_ident(the_trait.name.clone());
+
+    let trait_generics = vecmap(&the_trait.generics, |generic| {
+        let name = Path::from_single(generic.name.as_ref().clone(), generic.span);
+        UnresolvedTypeData::Named(name, Vec::new(), false).with_span(generic.span)
+    });
+
+    let trait_id = Some(trait_id);
+    Ok(Value::TraitConstraint(TraitBound { trait_path, trait_id, trait_generics }))
 }

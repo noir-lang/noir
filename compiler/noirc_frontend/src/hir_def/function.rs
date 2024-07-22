@@ -6,8 +6,9 @@ use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::graph::CrateId;
+use crate::hir::def_map::LocalModuleId;
 use crate::macros_api::{BlockExpression, StructId};
-use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
+use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId};
 use crate::{ResolvedGeneric, Type};
 
 /// A Hir function is a block expression with a list of statements.
@@ -133,17 +134,15 @@ pub struct FuncMeta {
     /// The struct this function belongs to, if any
     pub struct_id: Option<StructId>,
 
+    // The trait this function belongs to, if any
+    pub trait_id: Option<TraitId>,
+
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
 
     /// True if this function is an entry point to the program.
     /// For non-contracts, this means the function is `main`.
     pub is_entry_point: bool,
-
-    /// True if this function was defined within a trait (not a trait impl!).
-    /// Trait functions are just stubs and shouldn't have their return type checked
-    /// against their body type, nor should unused variables be checked.
-    pub is_trait_function: bool,
 
     /// True if this function is marked with an attribute
     /// that indicates it should be inlined differently than the default (inline everything).
@@ -154,6 +153,9 @@ pub struct FuncMeta {
 
     /// The crate this function was defined in
     pub source_crate: CrateId,
+
+    /// The module this function was defined in
+    pub source_module: LocalModuleId,
 }
 
 #[derive(Debug, Clone)]
@@ -170,7 +172,7 @@ impl FuncMeta {
     /// We don't check the return type of these functions since it will always have
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
-        self.kind.can_ignore_return_type() || self.is_trait_function
+        self.kind.can_ignore_return_type() || self.trait_id.is_some()
     }
 
     pub fn function_signature(&self) -> FunctionSignature {
