@@ -172,6 +172,7 @@ impl<'context> Elaborator<'context> {
         functions
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn resolve_trait_function(
         &mut self,
         trait_id: TraitId,
