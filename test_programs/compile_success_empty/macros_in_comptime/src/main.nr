@@ -2,7 +2,8 @@ use std::field::modulus_num_bits;
 use std::meta::unquote;
 
 fn main() {
-    comptime {
+    comptime
+    {
         foo::<3>(5);
         submodule::bar();
     }
@@ -26,7 +27,9 @@ unconstrained comptime fn foo<let N: Field>(x: Field) {
 
     // Use `break` which only unconstrained functions can do.
     // This ensures the elaborator knows we're switching from `main` to `foo`
-    for _ in 0..0 { break; }
+    for _ in 0..0 {
+        break;
+    }
 
     let loop = quote { for _ in 0..0 { break; } };
     unquote!(loop);
