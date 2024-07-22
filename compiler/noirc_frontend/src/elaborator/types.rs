@@ -444,8 +444,8 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: &Path,
     ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
-        if path.kind == PathKind::Plain && path.segments.len() == 2 {
-            let method = &path.segments[1];
+        if path.kind == PathKind::Plain && path.segments.len() >= 2 {
+            let method = &path.last_segment();
 
             let mut trait_path = path.clone();
             trait_path.pop();
