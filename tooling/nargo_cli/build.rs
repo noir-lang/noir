@@ -69,6 +69,9 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
 ];
 
+/// Discovers all test directories for the given `test_sub_dir` (if it exists) and returns an
+/// iterator over pairs of the test name and the path to the directory that contains the test. If
+/// there are no tests returns an empty iterator.
 fn read_test_cases(
     test_data_dir: &Path,
     test_sub_dir: &str,
