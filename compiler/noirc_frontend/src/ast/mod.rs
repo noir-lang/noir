@@ -126,7 +126,6 @@ pub enum UnresolvedTypeData {
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
-    // ErrorWithIntegerInfo(FieldElement, /* sign */ bool),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
