@@ -28,20 +28,20 @@ impl Ssa {
 }
 
 fn optimize_array_get_from_if_else_result(function: &mut Function) {
-    let block_id = function.entry_block();
+    let block = function.entry_block();
     let dfg = &mut function.dfg;
-    let instructions = dfg[block_id].take_instructions();
+    let instructions = dfg[block].take_instructions();
 
     for instruction_id in instructions {
         // Only apply this optimization to ArrayGet
         let Instruction::ArrayGet { array, index } = &dfg[instruction_id].clone() else {
-            dfg[block_id].instructions_mut().push(instruction_id);
+            dfg[block].instructions_mut().push(instruction_id);
             continue;
         };
 
         // Only if getting an array from a previous instruction
         let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*array)] else {
-            dfg[block_id].instructions_mut().push(instruction_id);
+            dfg[block].instructions_mut().push(instruction_id);
             continue;
         };
 
@@ -49,7 +49,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
         let Instruction::IfElse { then_condition, then_value, else_condition, else_value } =
             &dfg[*instruction]
         else {
-            dfg[block_id].instructions_mut().push(instruction_id);
+            dfg[block].instructions_mut().push(instruction_id);
             continue;
         };
 
@@ -62,7 +62,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
 
         // Only if the IfElse instruction has an array type
         let Type::Array(element_type, _) = then_value_type else {
-            dfg[block_id].instructions_mut().push(instruction_id);
+            dfg[block].instructions_mut().push(instruction_id);
             continue;
         };
 
@@ -82,7 +82,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
         //     v12 = array_get v2, index v4
         let then_result = dfg.insert_instruction_and_results(
             Instruction::ArrayGet { array: then_value, index: *index },
-            block_id,
+            block,
             Some(element_type.clone()),
             call_stack.clone(),
         );
@@ -93,7 +93,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
         //     v13 = array_get v3, index v4
         let else_result = dfg.insert_instruction_and_results(
             Instruction::ArrayGet { array: else_value, index: *index },
-            block_id,
+            block,
             Some(element_type.clone()),
             call_stack.clone(),
         );
@@ -104,12 +104,12 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
         //     v14 = if v0 then v12 else if v1 then v13
         let new_result = dfg.insert_instruction_and_results(
             Instruction::IfElse {
-                then_condition: then_condition,
+                then_condition,
                 then_value: then_result,
-                else_condition: else_condition,
+                else_condition,
                 else_value: else_result,
             },
-            block_id,
+            block,
             None,
             call_stack,
         );
