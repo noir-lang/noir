@@ -48,6 +48,8 @@ pub struct Interpreter<'local, 'interner> {
     crate_id: CrateId,
 
     in_loop: bool,
+
+    current_function: Option<FuncId>,
 }
 
 #[allow(unused)]
@@ -55,8 +57,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub(crate) fn new(
         elaborator: &'local mut Elaborator<'interner>,
         crate_id: CrateId,
+        current_function: Option<FuncId>,
     ) -> Self {
-        Self { elaborator, crate_id, in_loop: false }
+        Self { elaborator, crate_id, current_function, in_loop: false }
     }
 
     pub(crate) fn call_function(
@@ -69,8 +72,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let trait_method = self.elaborator.interner.get_trait_method_id(function);
 
         perform_instantiation_bindings(&instantiation_bindings);
-        let impl_bindings = perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
+        let impl_bindings =
+            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
+        let old_function = self.current_function.replace(function);
+
         let result = self.call_function_inner(function, arguments, location);
+
+        self.current_function = old_function;
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         result
@@ -110,10 +118,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
 
-        let function_body = self.elaborator.interner.function(&function).try_as_expr().ok_or_else(|| {
-            let function = self.elaborator.interner.function_name(&function).to_owned();
-            InterpreterError::NonComptimeFnCallInSameCrate { function, location }
-        })?;
+        let function_body =
+            self.elaborator.interner.function(&function).try_as_expr().ok_or_else(|| {
+                let function = self.elaborator.interner.function_name(&function).to_owned();
+                InterpreterError::NonComptimeFnCallInSameCrate { function, location }
+            })?;
 
         let result = self.evaluate(function_body)?;
 
@@ -317,6 +326,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Err(InterpreterError::VariableNotInScope { location })
         } else {
             let name = self.elaborator.interner.definition_name(id).to_string();
+            eprintln!("{name} not in scope");
             Err(InterpreterError::NonComptimeVarReferenced { name, location })
         }
     }
@@ -380,7 +390,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
                 let typ = self.elaborator.interner.id_type(id).follow_bindings();
-                let bindings = Rc::new(self.elaborator.interner.get_instantiation_bindings(id).clone());
+                let bindings =
+                    Rc::new(self.elaborator.interner.get_instantiation_bindings(id).clone());
                 Ok(Value::Function(*function_id, typ, bindings))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
@@ -390,10 +401,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(value)
                 } else {
                     let let_ =
-                        self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(|| {
-                            let location = self.elaborator.interner.expr_location(&id);
-                            InterpreterError::VariableNotInScope { location }
-                        })?;
+                        self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(
+                            || {
+                                let location = self.elaborator.interner.expr_location(&id);
+                                InterpreterError::VariableNotInScope { location }
+                            },
+                        )?;
 
                     if let_.comptime {
                         self.evaluate_let(let_.clone())?;
@@ -1097,7 +1110,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match function {
             Value::Function(function_id, _, bindings) => {
                 let bindings = unwrap_rc(bindings);
-                self.call_function(function_id, arguments, bindings, location)
+                let mut result = self.call_function(function_id, arguments, bindings, location)?;
+                if call.is_macro_call {
+                    let expr = result.into_expression(self.elaborator.interner, location)?;
+                    let expr = self
+                        .elaborator
+                        .elaborate_expression_from_comptime(expr, self.current_function);
+                    result = self.evaluate(expr)?;
+                }
+                Ok(result)
             }
             Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
             value => Err(InterpreterError::NonFunctionCalled { value, location }),
@@ -1120,9 +1141,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         // TODO: Traits
         let method = match &typ {
-            Type::Struct(struct_def, _) => {
-                self.elaborator.interner.lookup_method(&typ, struct_def.borrow().id, method_name, false)
-            }
+            Type::Struct(struct_def, _) => self.elaborator.interner.lookup_method(
+                &typ,
+                struct_def.borrow().id,
+                method_name,
+                false,
+            ),
             _ => self.elaborator.interner.lookup_primitive_method(&typ, method_name),
         };
 

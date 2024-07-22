@@ -47,7 +47,8 @@ fn elaborate_src_code(src: &str) -> (Elaborator, FuncId) {
     context.def_maps.insert(krate, collector.def_map);
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
-    let elaborator = Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None);
+    let elaborator =
+        Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None);
     assert_eq!(elaborator.errors.len(), 0);
 
     (elaborator, main)

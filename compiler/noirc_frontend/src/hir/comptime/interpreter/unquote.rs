@@ -27,7 +27,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         // turning it into a Quoted block (which would add `quote`, `{`, and `}` tokens).
                         Value::Code(stream) => new_tokens.extend(unwrap_rc(stream).0),
                         value => {
-                            let new_id = value.into_hir_expression(self.elaborator.interner, location)?;
+                            let new_id =
+                                value.into_hir_expression(self.elaborator.interner, location)?;
                             let new_token = Token::UnquoteMarker(new_id);
                             new_tokens.push(SpannedToken::new(new_token, span));
                         }

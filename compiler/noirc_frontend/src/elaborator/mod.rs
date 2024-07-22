@@ -7,7 +7,7 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::{self, Interpreter, InterpreterError, Value},
+        comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -60,6 +60,7 @@ use crate::{
     macros_api::ItemVisibility,
 };
 
+mod comptime;
 mod expressions;
 mod lints;
 mod patterns;
@@ -167,7 +168,7 @@ pub struct Elaborator<'context> {
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions. The first scope is always the global scope.
-    pub comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
+    pub comptime_scopes: Vec<HashMap<DefinitionId, Value>>,
 
     /// The scope of --debug-comptime, or None if unset
     debug_comptime_in_file: Option<FileId>,
@@ -348,6 +349,21 @@ impl<'context> Elaborator<'context> {
         self.trait_id = None;
     }
 
+    fn introduce_generics_into_scope(&mut self, all_generics: Vec<ResolvedGeneric>) {
+        // Introduce all numeric generics into scope
+        for generic in &all_generics {
+            if let Kind::Numeric(typ) = &generic.kind {
+                let definition = DefinitionKind::GenericType(generic.type_var.clone());
+                let ident = Ident::new(generic.name.to_string(), generic.span);
+                let hir_ident =
+                    self.add_variable_decl_inner(ident, false, false, false, definition);
+                self.interner.push_definition_type(hir_ident.id, *typ.clone());
+            }
+        }
+
+        self.generics = all_generics;
+    }
+
     fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);
         let func_meta =
@@ -369,16 +385,7 @@ impl<'context> Elaborator<'context> {
         self.trait_bounds = func_meta.trait_constraints.clone();
         self.function_context.push(FunctionContext::default());
 
-        // Introduce all numeric generics into scope
-        for generic in &func_meta.all_generics {
-            if let Kind::Numeric(typ) = &generic.kind {
-                let definition = DefinitionKind::GenericType(generic.type_var.clone());
-                let ident = Ident::new(generic.name.to_string(), generic.span);
-                let hir_ident =
-                    self.add_variable_decl_inner(ident, false, false, false, definition);
-                self.interner.push_definition_type(hir_ident.id, *typ.clone());
-            }
-        }
+        self.introduce_generics_into_scope(func_meta.all_generics.clone());
 
         // The DefinitionIds for each parameter were already created in define_function_meta
         // so we need to reintroduce the same IDs into scope here.
@@ -386,8 +393,6 @@ impl<'context> Elaborator<'context> {
             let name = self.interner.definition_name(parameter.id).to_owned();
             self.add_existing_variable_to_scope(name, parameter.clone(), true);
         }
-
-        self.generics = func_meta.all_generics.clone();
 
         self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
@@ -767,6 +772,7 @@ impl<'context> Elaborator<'context> {
             is_trait_function,
             has_inline_attribute,
             source_crate: self.crate_id,
+            source_module: self.local_module,
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
         };
 
@@ -1636,7 +1642,11 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
-        Interpreter::new(self, self.crate_id)
+        let current_function = match self.current_item {
+            Some(DependencyId::Function(function)) => Some(function),
+            _ => None,
+        };
+        Interpreter::new(self, self.crate_id, current_function)
     }
 
     fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
