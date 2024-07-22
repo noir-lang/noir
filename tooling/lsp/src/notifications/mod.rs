@@ -37,8 +37,15 @@ pub(super) fn on_did_open_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     let document_uri = params.text_document.uri;
+    let only_process_document_uri_package = false;
+    let output_diagnostics = true;
 
-    match process_workspace_for_noir_document(state, document_uri, false, true) {
+    match process_workspace_for_noir_document(
+        state,
+        document_uri,
+        only_process_document_uri_package,
+        output_diagnostics,
+    ) {
         Ok(_) => {
             state.open_documents_count += 1;
             ControlFlow::Continue(())
@@ -55,8 +62,15 @@ pub(super) fn on_did_change_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
 
     let document_uri = params.text_document.uri;
+    let only_process_document_uri_package = true;
+    let output_diagnotics = false;
 
-    match process_workspace_for_noir_document(state, document_uri, true, false) {
+    match process_workspace_for_noir_document(
+        state,
+        document_uri,
+        only_process_document_uri_package,
+        output_diagnotics,
+    ) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -76,8 +90,15 @@ pub(super) fn on_did_close_text_document(
     }
 
     let document_uri = params.text_document.uri;
+    let only_process_document_uri_package = true;
+    let output_diagnotics = false;
 
-    match process_workspace_for_noir_document(state, document_uri, true, false) {
+    match process_workspace_for_noir_document(
+        state,
+        document_uri,
+        only_process_document_uri_package,
+        output_diagnotics,
+    ) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -88,8 +109,15 @@ pub(super) fn on_did_save_text_document(
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let document_uri = params.text_document.uri;
+    let only_process_document_uri_package = false;
+    let output_diagnotics = true;
 
-    match process_workspace_for_noir_document(state, document_uri, false, true) {
+    match process_workspace_for_noir_document(
+        state,
+        document_uri,
+        only_process_document_uri_package,
+        output_diagnotics,
+    ) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
