@@ -61,12 +61,19 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
         let then_value_type = dfg.type_of_value(then_value);
 
         // Only if the IfElse instruction has an array type
-        let Type::Array(element_type, _) = then_value_type else {
+        let Type::Array(element_types, _) = then_value_type else {
             dfg[block].instructions_mut().push(instruction_id);
             continue;
         };
 
-        let element_type: &Vec<Type> = &element_type;
+        let element_types: &Vec<Type> = &element_types;
+
+        // Only if the array isn't of a tuple type (or a composite type)
+        if element_types.len() != 1 {
+            dfg[block].instructions_mut().push(instruction_id);
+            continue;
+        }
+
         let call_stack = dfg.get_call_stack(instruction_id);
 
         // Given the original IfElse instruction is this:
@@ -83,7 +90,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
         let then_result = dfg.insert_instruction_and_results(
             Instruction::ArrayGet { array: then_value, index: *index },
             block,
-            Some(element_type.clone()),
+            Some(element_types.clone()),
             call_stack.clone(),
         );
         let then_result = then_result.first();
@@ -94,7 +101,7 @@ fn optimize_array_get_from_if_else_result(function: &mut Function) {
         let else_result = dfg.insert_instruction_and_results(
             Instruction::ArrayGet { array: else_value, index: *index },
             block,
-            Some(element_type.clone()),
+            Some(element_types.clone()),
             call_stack.clone(),
         );
         let else_result = else_result.first();
