@@ -58,15 +58,7 @@ fn elaborate_src_code(src: &str) -> (NodeInterner, FuncId) {
 fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     let (mut interner, main_id) = elaborate_src_code(src);
     let mut scopes = vec![HashMap::default()];
-    let no_debug_evaluate_comptime = None;
-    let mut interpreter_errors = vec![];
-    let mut interpreter = Interpreter::new(
-        &mut interner,
-        &mut scopes,
-        CrateId::Root(0),
-        no_debug_evaluate_comptime,
-        &mut interpreter_errors,
-    );
+    let mut interpreter = Interpreter::new(&mut interner, &mut scopes, CrateId::Root(0));
 
     let no_location = Location::dummy();
     interpreter.call_function(main_id, Vec::new(), HashMap::new(), no_location)

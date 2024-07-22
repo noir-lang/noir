@@ -1217,13 +1217,11 @@ impl<'context> Elaborator<'context> {
         self.handle_varargs_attribute(function, &mut arguments, location);
         arguments.insert(0, (item, location));
 
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
 
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)
             .map_err(|error| error.into_compilation_error_pair())?;
-        self.include_interpreter_errors(interpreter_errors);
 
         if value != Value::Unit {
             let items = value
@@ -1358,8 +1356,7 @@ impl<'context> Elaborator<'context> {
         let global = self.interner.get_global(global_id);
         let definition_id = global.definition_id;
         let location = global.location;
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());
@@ -1374,7 +1371,6 @@ impl<'context> Elaborator<'context> {
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
-        self.include_interpreter_errors(interpreter_errors);
     }
 
     fn define_function_metas(
@@ -1466,10 +1462,6 @@ impl<'context> Elaborator<'context> {
                 this.define_function_meta(func, *id, false);
             });
         }
-    }
-
-    fn include_interpreter_errors(&mut self, errors: Vec<InterpreterError>) {
-        self.errors.extend(errors.into_iter().map(InterpreterError::into_compilation_error_pair));
     }
 
     /// True if we're currently within a `comptime` block, function, or global
@@ -1641,17 +1633,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn setup_interpreter<'a>(
-        &'a mut self,
-        interpreter_errors: &'a mut Vec<InterpreterError>,
-    ) -> Interpreter {
-        Interpreter::new(
-            self.interner,
-            &mut self.comptime_scopes,
-            self.crate_id,
-            self.debug_comptime_in_file,
-            interpreter_errors,
-        )
+    fn setup_interpreter(&mut self) -> Interpreter {
+        Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id)
     }
 
     fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
