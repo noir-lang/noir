@@ -427,6 +427,7 @@ impl<'context> Elaborator<'context> {
                         generic.type_var.clone()
                     })),
                     trait_id,
+                    span: path.span(),
                 };
 
                 return Some((method, constraint, false));
@@ -461,6 +462,7 @@ impl<'context> Elaborator<'context> {
                     generic.type_var.clone()
                 })),
                 trait_id,
+                span: path.span(),
             };
             return Some((method, constraint, false));
         }

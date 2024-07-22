@@ -84,19 +84,20 @@ impl Field {
 }
 
 #[builtin(modulus_num_bits)]
-pub fn modulus_num_bits() -> u64 {}
+pub comptime fn modulus_num_bits() -> u64 {}
 
 #[builtin(modulus_be_bits)]
-pub fn modulus_be_bits() -> [u1] {}
+pub comptime fn modulus_be_bits() -> [u1] {}
 
 #[builtin(modulus_le_bits)]
-pub fn modulus_le_bits() -> [u1] {}
+pub comptime fn modulus_le_bits() -> [u1] {}
 
 #[builtin(modulus_be_bytes)]
-pub fn modulus_be_bytes() -> [u8] {}
+pub comptime fn modulus_be_bytes() -> [u8] {}
 
 #[builtin(modulus_le_bytes)]
-pub fn modulus_le_bytes() -> [u8] {}
+pub comptime fn modulus_le_bytes() -> [u8] {}
+
 // Convert a 32 byte array to a field element by modding
 pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
     // Convert it to a field element
