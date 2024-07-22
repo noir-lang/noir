@@ -19,9 +19,9 @@ impl Ssa {
     //     v13 = array_get v3, index v4
     //     v14 = if v0 then v12 else if v1 then v13
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn array_get_optimization(mut self) -> Self {
+    pub(crate) fn array_get_from_if_else_result_optimization(mut self) -> Self {
         for function in self.functions.values_mut() {
-            Context::default().optimize_array_get(function);
+            Context::default().optimize_array_get_from_if_else_result(function);
         }
 
         self
@@ -36,7 +36,7 @@ struct Context {
 }
 
 impl Context {
-    fn optimize_array_get(&mut self, function: &mut Function) {
+    fn optimize_array_get_from_if_else_result(&mut self, function: &mut Function) {
         let block = function.entry_block();
         let dfg = &mut function.dfg;
         let instructions = dfg[block].take_instructions();

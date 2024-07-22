@@ -3,7 +3,7 @@
 //! Each pass is generally expected to mutate the SSA IR into a gradually
 //! simpler form until the IR only has a single function remaining with 1 block within it.
 //! Generally, these passes are also expected to minimize the final amount of instructions.
-mod array_get;
+mod array_get_from_if_else_result;
 mod array_set;
 mod as_slice_length;
 mod assert_constant;
