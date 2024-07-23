@@ -38,6 +38,7 @@ use super::errors::{IResult, InterpreterError};
 use super::value::{unwrap_rc, Value};
 
 mod builtin;
+mod foreign;
 mod unquote;
 
 #[allow(unused)]
@@ -152,8 +153,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 location,
             )
         } else if let Some(foreign) = func_attrs.foreign() {
-            let item = format!("Comptime evaluation for foreign functions like {foreign}");
-            Err(InterpreterError::Unimplemented { item, location })
+            let foreign = foreign.clone();
+            foreign::call_foreign(self.elaborator.interner, &foreign, arguments, location)
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)
@@ -334,7 +335,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Err(InterpreterError::VariableNotInScope { location })
         } else {
             let name = self.elaborator.interner.definition_name(id).to_string();
-            eprintln!("{name} not in scope");
             Err(InterpreterError::NonComptimeVarReferenced { name, location })
         }
     }
@@ -408,6 +408,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
+                    let crate_of_global = self.elaborator.interner.get_global(*global_id).crate_id;
                     let let_ =
                         self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(
                             || {
@@ -416,7 +417,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             },
                         )?;
 
-                    if let_.comptime {
+                    if let_.comptime || crate_of_global != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
                     self.lookup(&ident)
