@@ -1634,7 +1634,7 @@ fn numeric_generic_in_function_signature() {
 #[test]
 fn numeric_generic_as_struct_field_type() {
     let src = r#"
-    struct Foo<let N: u64> {
+    struct Foo<let N: u32> {
         a: Field,
         b: N,
     }
@@ -1695,7 +1695,7 @@ fn numeric_generic_as_param_type() {
 #[test]
 fn numeric_generic_used_in_nested_type_fail() {
     let src = r#"
-    struct Foo<let N: u64> {
+    struct Foo<let N: u32> {
         a: Field,
         b: Bar<N>,
     }
@@ -1745,7 +1745,7 @@ fn numeric_generic_used_in_nested_type_pass() {
 
 #[test]
 fn numeric_generic_used_in_trait() {
-    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
+    // We want to make sure that `N` in `impl<let N: u32, T> Deserialize<N, T>` does
     // not trigger `expected type, found numeric generic parameter N` as the trait
     // does in fact expect a numeric generic.
     let src = r#"
@@ -1756,7 +1756,7 @@ fn numeric_generic_used_in_trait() {
         d: T,
     }
     
-    impl<let N: u64, T> Deserialize<N, T> for MyType<T> {
+    impl<let N: u32, T> Deserialize<N, T> for MyType<T> {
         fn deserialize(fields: [Field; N], other: T) -> Self {
             MyType { a: fields[0], b: fields[1], c: fields[2], d: other }
         }
@@ -2224,7 +2224,6 @@ fn impl_stricter_than_trait_different_trait_generics() {
         ..
     }) = &errors[0].0
     {
-        dbg!(constraint_name.as_str());
         assert!(matches!(constraint_typ.to_string().as_str(), "A"));
         assert!(matches!(constraint_name.as_str(), "T2"));
         assert!(matches!(constraint_generics[0].to_string().as_str(), "B"));
@@ -2458,4 +2457,40 @@ fn no_super() {
 
     assert_eq!(span.start(), 4);
     assert_eq!(span.end(), 9);
+}
+
+#[test]
+fn trait_impl_generics_count_mismatch() {
+    let src = r#"
+    trait Foo {}
+
+    impl Foo<()> for Field {}
+
+    fn main() {}"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        item,
+        expected,
+        found,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(item, "Foo");
+    assert_eq!(*expected, 0);
+    assert_eq!(*found, 1);
+}
+
+#[test]
+fn bit_not_on_untyped_integer() {
+    let src = r#"
+    fn main() {
+        let _: u32 = 3 & !1;
+    }
+    "#;
+    assert_no_errors(src);
 }

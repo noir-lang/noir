@@ -543,6 +543,7 @@ pub struct GlobalInfo {
     pub definition_id: DefinitionId,
     pub ident: Ident,
     pub local_id: LocalModuleId,
+    pub crate_id: CrateId,
     pub location: Location,
     pub let_statement: StmtId,
     pub value: Option<comptime::Value>,
@@ -756,6 +757,7 @@ impl NodeInterner {
         &mut self,
         ident: Ident,
         local_id: LocalModuleId,
+        crate_id: CrateId,
         let_statement: StmtId,
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
@@ -773,6 +775,7 @@ impl NodeInterner {
             definition_id,
             ident,
             local_id,
+            crate_id,
             let_statement,
             location,
             value: None,
@@ -786,10 +789,12 @@ impl NodeInterner {
     }
 
     /// Intern an empty global. Used for collecting globals before they're defined
+    #[allow(clippy::too_many_arguments)]
     pub fn push_empty_global(
         &mut self,
         name: Ident,
         local_id: LocalModuleId,
+        crate_id: CrateId,
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
@@ -797,7 +802,8 @@ impl NodeInterner {
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
         let span = name.span();
-        let id = self.push_global(name, local_id, statement, file, attributes, mutable, comptime);
+        let id = self
+            .push_global(name, local_id, crate_id, statement, file, attributes, mutable, comptime);
         self.push_stmt_location(statement, span, file);
         id
     }
