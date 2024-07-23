@@ -234,7 +234,6 @@ fn main() {
     let result = three_ones_regex.match("1111".as_bytes().as_slice());
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
-
     // TODO(https://github.com/noir-lang/noir/issues/5462): re-enable these cases and complete the test using ../array_regex
     // 
     // // 1*
@@ -280,7 +279,6 @@ fn main() {
     // let result = even_binary_regex.match("1111110".as_bytes().as_slice());
     // println(result);
     // assert_eq(result, Match { succeeded: true, match_ends: 6, leftover: &[] });
-
     // 2-letter capitalized words: [A-Z][a-z]
     // numbers: \d+
     // [0-9]+
