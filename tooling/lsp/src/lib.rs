@@ -30,7 +30,7 @@ use lsp_types::{
 use nargo::{
     package::{Package, PackageType},
     parse_all,
-    workspace::Workspace,
+    workspace::{self, Workspace},
 };
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
@@ -396,6 +396,22 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
     } else {
         parse_all(file_manager)
     }
+}
+
+pub fn insert_all_files_for_workspace_into_file_manager(
+    state: &LspState,
+    workspace: &workspace::Workspace,
+    file_manager: &mut FileManager,
+) {
+    // First add files we cached: these have the source code of files that are modified
+    // but not saved to disk yet, and we want to make sure all LSP features work well
+    // according to these unsaved buffers, not what's saved on disk.
+    for (path, source) in &state.input_files {
+        let path = path.strip_prefix("file://").unwrap();
+        file_manager.add_file_with_source_canonical_path(Path::new(path), source.clone());
+    }
+
+    nargo::insert_all_files_for_workspace_into_file_manager(workspace, file_manager);
 }
 
 #[test]
