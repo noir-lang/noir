@@ -103,6 +103,15 @@ fn get_slice(
     }
 }
 
+pub(super) fn get_field(value: Value, location: Location) -> IResult<FieldElement> {
+    match value {
+        Value::Field(value) => Ok(value),
+        value => {
+            Err(InterpreterError::TypeMismatch { expected: Type::FieldElement, value, location })
+        }
+    }
+}
+
 pub(super) fn get_u32(value: Value, location: Location) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
