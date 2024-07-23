@@ -812,20 +812,20 @@ fn bigint_div_op() -> BlackBoxFuncCall<FieldElement> {
 //
 // Output is a zeroed BigInt with the same byte-length and use_constant values
 // as the input.
-fn bigint_zeroed(input: &Vec<(FieldElement, bool)>) -> Vec<(FieldElement, bool)> {
+fn bigint_zeroed(input: &[(FieldElement, bool)]) -> Vec<(FieldElement, bool)> {
     input.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect()
 }
 
 // bigint_zeroed, but returns one
-fn bigint_to_one(input: &Vec<(FieldElement, bool)>) -> Vec<(FieldElement, bool)> {
-    let mut one = bigint_zeroed(&input);
+fn bigint_to_one(input: &[(FieldElement, bool)]) -> Vec<(FieldElement, bool)> {
+    let mut one = bigint_zeroed(input);
     // little-endian
     one[0] = (FieldElement::one(), one[0].1);
     one
 }
 
-fn drop_use_constant(input: &Vec<(FieldElement, bool)>) -> Vec<FieldElement> {
-    input.into_iter().map(|x| x.0).collect()
+fn drop_use_constant(input: &[(FieldElement, bool)]) -> Vec<FieldElement> {
+    input.iter().map(|x| x.0).collect()
 }
 
 fn bigint_solve_binary_op_opt(
@@ -834,12 +834,8 @@ fn bigint_solve_binary_op_opt(
     xs: Vec<(FieldElement, bool)>,
     ys: Vec<(FieldElement, bool)>,
 ) -> Vec<FieldElement> {
-    let initial_witness_vec: Vec<_> = xs
-        .iter()
-        .chain(ys.iter())
-        .enumerate()
-        .map(|(i, (x, _))| (Witness(i as u32), x.clone()))
-        .collect();
+    let initial_witness_vec: Vec<_> =
+        xs.iter().chain(ys.iter()).enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
     let output_witnesses: Vec<_> = initial_witness_vec
         .iter()
         .take(xs.len())
@@ -901,7 +897,7 @@ fn bigint_solve_binary_op_opt(
 
     output_witnesses
         .iter()
-        .map(|witness| witness_map.get(witness).expect("all witnesses to be set").clone())
+        .map(|witness| *witness_map.get(witness).expect("all witnesses to be set"))
         .collect()
 }
 
