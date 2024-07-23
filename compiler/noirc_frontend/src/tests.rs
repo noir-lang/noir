@@ -2484,3 +2484,41 @@ fn trait_impl_generics_count_mismatch() {
     assert_eq!(*expected, 0);
     assert_eq!(*found, 1);
 }
+
+#[test]
+fn bit_not_on_untyped_integer() {
+    let src = r#"
+    fn main() {
+        let _: u32 = 3 & !1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn duplicate_struct_field() {
+    let src = r#"
+    struct Foo {
+        x: i32,
+        x: i32,
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::DefinitionError(DefCollectorErrorKind::DuplicateField {
+        first_def,
+        second_def,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a duplicate field error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(first_def.to_string(), "x");
+    assert_eq!(second_def.to_string(), "x");
+
+    assert_eq!(first_def.span().start(), 26);
+    assert_eq!(second_def.span().start(), 42);
+}
