@@ -129,7 +129,11 @@ impl<'a> Interpreter<'a> {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
 
-        let function_body = self.interner.function(&function).as_expr();
+        let function_body = self.interner.function(&function).try_as_expr().ok_or_else(|| {
+            let function = self.interner.function_name(&function).to_owned();
+            InterpreterError::NonComptimeFnCallInSameCrate { function, location }
+        })?;
+
         let result = self.evaluate(function_body)?;
 
         self.exit_function(previous_state);
@@ -609,7 +613,12 @@ impl<'a> Interpreter<'a> {
             UnaryOp::MutableReference => self.evaluate_no_dereference(prefix.rhs)?,
             _ => self.evaluate(prefix.rhs)?,
         };
-        self.evaluate_prefix_with_value(rhs, prefix.operator, id)
+
+        if self.interner.get_selected_impl_for_expression(id).is_some() {
+            self.evaluate_overloaded_prefix(prefix, rhs, id)
+        } else {
+            self.evaluate_prefix_with_value(rhs, prefix.operator, id)
+        }
     }
 
     fn evaluate_prefix_with_value(
@@ -947,6 +956,25 @@ impl<'a> Interpreter<'a> {
             Less | LessEqual | Greater | GreaterEqual => self.evaluate_ordering(value, operator),
             _ => Ok(value),
         }
+    }
+
+    fn evaluate_overloaded_prefix(
+        &mut self,
+        prefix: HirPrefixExpression,
+        rhs: Value,
+        id: ExprId,
+    ) -> IResult<Value> {
+        let method =
+            prefix.trait_method_id.expect("ice: expected prefix operator trait at this point");
+        let operator = prefix.operator;
+
+        let method_id = resolve_trait_method(self.interner, method, id)?;
+        let type_bindings = self.interner.get_instantiation_bindings(id).clone();
+
+        let rhs = (rhs, self.interner.expr_location(&prefix.rhs));
+
+        let location = self.interner.expr_location(&id);
+        self.call_function(method_id, vec![rhs], type_bindings, location)
     }
 
     /// Given the result of a `cmp` operation, convert it into the boolean result of the given operator.

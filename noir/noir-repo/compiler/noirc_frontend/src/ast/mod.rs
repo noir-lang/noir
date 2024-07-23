@@ -323,13 +323,11 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int, sign)) => {
-                assert!(!sign, "Negative literal is not allowed here");
-                match int.try_to_u32() {
-                    Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
-                    None => Err(expr),
-                }
-            }
+            // TODO(https://github.com/noir-lang/noir/issues/5571): The `sign` bool from `Literal::Integer` should be used to construct the constant type expression.
+            ExpressionKind::Literal(Literal::Integer(int, _)) => match int.try_to_u32() {
+                Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
+                None => Err(expr),
+            },
             ExpressionKind::Variable(path, _) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));

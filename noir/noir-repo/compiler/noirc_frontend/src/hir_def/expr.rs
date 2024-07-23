@@ -40,13 +40,6 @@ pub enum HirExpression {
     Error,
 }
 
-impl HirExpression {
-    /// Returns an empty block expression
-    pub const fn empty_block() -> HirExpression {
-        HirExpression::Block(HirBlockExpression { statements: vec![] })
-    }
-}
-
 /// Corresponds to a variable in the source code
 #[derive(Debug, Clone)]
 pub struct HirIdent {
@@ -231,6 +224,7 @@ impl HirMethodCallExpression {
                     typ: object_type,
                     trait_id: method_id.trait_id,
                     trait_generics: generics.clone(),
+                    span: location.span,
                 };
                 (id, ImplKind::TraitMethod(*method_id, constraint, false))
             }

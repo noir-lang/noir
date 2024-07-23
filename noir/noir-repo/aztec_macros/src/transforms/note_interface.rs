@@ -73,6 +73,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 generics: vec![],
                 methods: vec![],
                 where_clause: vec![],
+                is_comptime: false,
             };
             module.impls.push(default_impl.clone());
             module.impls.last_mut().unwrap()

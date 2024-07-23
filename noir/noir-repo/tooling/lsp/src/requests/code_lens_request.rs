@@ -73,7 +73,7 @@ fn on_code_lens_request_inner(
     let (mut context, crate_id) = prepare_source(source_string, state);
     // We ignore the warnings and errors produced by compilation for producing code lenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut context, crate_id, false, false, false, None);
+    let _ = check_crate(&mut context, crate_id, false, false, None);
 
     let collected_lenses =
         collect_lenses_for_package(&context, crate_id, &workspace, package, None);
