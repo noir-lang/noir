@@ -204,8 +204,7 @@ pub(super) fn generic_type_args<'a>(
         // parser afterward.
         .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
         .or(numeric_generic_type_expression().validate(|(type_arg, err_expr), span, emit| {
-            if let UnresolvedTypeData::Error = type_arg.typ {
-                let err_expr = err_expr.expect("Error expression is expected with an error type");
+            if let Some(err_expr) = err_expr {
                 emit(ParserError::with_reason(
                     ParserErrorReason::InvalidNumericGenericExpression(err_expr),
                     span,
