@@ -132,7 +132,12 @@ pub(super) fn compile_workspace_full(
     compile_options: &CompileOptions,
     debug_compile_stdin: bool,
 ) -> Result<(), CliError> {
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let mut workspace_file_manager = if debug_compile_stdin {
+        FileManager::new(&workspace.root_dir)
+    } else {
+        file_manager_with_stdlib(&workspace.root_dir)
+    };
+
     if debug_compile_stdin {
         let mut main_nr = String::new();
         let stdin = std::io::stdin();

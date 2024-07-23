@@ -2,6 +2,9 @@
 
 require 'fileutils'
 
+# NOTE: current files from this one-liner
+# Dir['../../test_programs/compile_success_empty/**/*.nr'].select{|x|`stat -f%z #{x}`.chomp.to_i <= 120}.sort.join(' ')
+
 # target_path = 'test_programs'
 target_path = 'noir_stdlib'
 
