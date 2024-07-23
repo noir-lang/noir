@@ -22,12 +22,12 @@ describe('prover/orchestrator/errors', () => {
 
   describe('errors', () => {
     it('throws if adding too many transactions', async () => {
-      const txs = await Promise.all([
+      const txs = [
         makeBloatedProcessedTx(context.actualDb, 1),
         makeBloatedProcessedTx(context.actualDb, 2),
         makeBloatedProcessedTx(context.actualDb, 3),
         makeBloatedProcessedTx(context.actualDb, 4),
-      ]);
+      ];
 
       const blockTicket = await context.orchestrator.startNewBlock(txs.length, context.globalVariables, []);
 
@@ -36,7 +36,7 @@ describe('prover/orchestrator/errors', () => {
       }
 
       await expect(
-        async () => await context.orchestrator.addNewTx(await makeEmptyProcessedTestTx(context.actualDb)),
+        async () => await context.orchestrator.addNewTx(makeEmptyProcessedTestTx(context.actualDb)),
       ).rejects.toThrow('Rollup not accepting further transactions');
 
       const result = await blockTicket.provingPromise;
@@ -48,7 +48,7 @@ describe('prover/orchestrator/errors', () => {
 
     it('throws if adding a transaction before start', async () => {
       await expect(
-        async () => await context.orchestrator.addNewTx(await makeEmptyProcessedTestTx(context.actualDb)),
+        async () => await context.orchestrator.addNewTx(makeEmptyProcessedTestTx(context.actualDb)),
       ).rejects.toThrow(`Invalid proving state, call startNewBlock before adding transactions`);
     });
 
@@ -94,7 +94,7 @@ describe('prover/orchestrator/errors', () => {
       context.orchestrator.cancelBlock();
 
       await expect(
-        async () => await context.orchestrator.addNewTx(await makeEmptyProcessedTestTx(context.actualDb)),
+        async () => await context.orchestrator.addNewTx(makeEmptyProcessedTestTx(context.actualDb)),
       ).rejects.toThrow('Rollup not accepting further transactions');
     });
 

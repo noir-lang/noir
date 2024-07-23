@@ -35,6 +35,10 @@ export class Header {
     ] as const;
   }
 
+  static from(fields: FieldsOf<Header>) {
+    return new Header(...Header.getFields(fields));
+  }
+
   getSize() {
     return (
       this.lastArchive.getSize() +
@@ -85,14 +89,15 @@ export class Header {
     );
   }
 
-  static empty(): Header {
-    return new Header(
-      AppendOnlyTreeSnapshot.zero(),
-      ContentCommitment.empty(),
-      StateReference.empty(),
-      GlobalVariables.empty(),
-      Fr.ZERO,
-    );
+  static empty(fields: Partial<FieldsOf<Header>> = {}): Header {
+    return Header.from({
+      lastArchive: AppendOnlyTreeSnapshot.zero(),
+      contentCommitment: ContentCommitment.empty(),
+      state: StateReference.empty(),
+      globalVariables: GlobalVariables.empty(),
+      totalFees: Fr.ZERO,
+      ...fields,
+    });
   }
 
   isEmpty(): boolean {

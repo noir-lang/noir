@@ -263,7 +263,7 @@ export class Sequencer {
     );
 
     // We create a fresh processor each time to reset any cached state (eg storage writes)
-    const processor = await this.publicProcessorFactory.create(historicalHeader, newGlobalVariables);
+    const processor = this.publicProcessorFactory.create(historicalHeader, newGlobalVariables);
 
     const numRealTxs = validTxs.length;
     const blockSize = Math.max(2, numRealTxs);

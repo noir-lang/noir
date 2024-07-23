@@ -32,7 +32,7 @@ describe('prover/bb_prover/full-rollup', () => {
     const nonEmptyTxs = 0;
 
     logger.info(`Proving a private-only full rollup with ${nonEmptyTxs}/${totalTxs} non-empty transactions`);
-    const initialHeader = await context.actualDb.buildInitialHeader();
+    const initialHeader = context.actualDb.getInitialHeader();
     const txs = times(nonEmptyTxs, (i: number) => {
       const tx = mockTx(1000 * (i + 1), {
         numberOfNonRevertiblePublicCallRequests: 0,
@@ -79,7 +79,7 @@ describe('prover/bb_prover/full-rollup', () => {
       }),
     );
     for (const tx of txs) {
-      tx.data.constants.historicalHeader = await context.actualDb.buildInitialHeader();
+      tx.data.constants.historicalHeader = context.actualDb.getInitialHeader();
     }
 
     const l1ToL2Messages = makeTuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>(

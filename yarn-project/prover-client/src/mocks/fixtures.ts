@@ -96,12 +96,12 @@ export async function getSimulationProvider(
   return new WASMSimulator();
 }
 
-export const makeBloatedProcessedTx = async (builderDb: MerkleTreeOperations, seed = 0x1) => {
+export const makeBloatedProcessedTx = (builderDb: MerkleTreeOperations, seed = 0x1) => {
   seed *= MAX_NULLIFIERS_PER_TX; // Ensure no clashing given incremental seeds
   const tx = mockTx(seed);
   const kernelOutput = KernelCircuitPublicInputs.empty();
   kernelOutput.constants.vkTreeRoot = getVKTreeRoot();
-  kernelOutput.constants.historicalHeader = await builderDb.buildInitialHeader();
+  kernelOutput.constants.historicalHeader = builderDb.getInitialHeader();
   kernelOutput.end.publicDataUpdateRequests = makeTuple(
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
     i => new PublicDataUpdateRequest(fr(i), fr(i + 10), i + 20),
@@ -127,8 +127,8 @@ export const makeBloatedProcessedTx = async (builderDb: MerkleTreeOperations, se
   return processedTx;
 };
 
-export const makeEmptyProcessedTx = async (builderDb: MerkleTreeOperations, chainId: Fr, version: Fr) => {
-  const header = await builderDb.buildInitialHeader();
+export const makeEmptyProcessedTx = (builderDb: MerkleTreeOperations, chainId: Fr, version: Fr) => {
+  const header = builderDb.getInitialHeader();
   return makeEmptyProcessedTxFromHistoricalTreeRoots(header, chainId, version, getVKTreeRoot());
 };
 
@@ -178,6 +178,5 @@ export const makeGlobals = (blockNumber: number) => {
   );
 };
 
-export const makeEmptyProcessedTestTx = (builderDb: MerkleTreeOperations): Promise<ProcessedTx> => {
-  return makeEmptyProcessedTx(builderDb, Fr.ZERO, Fr.ZERO);
-};
+export const makeEmptyProcessedTestTx = (builderDb: MerkleTreeOperations): ProcessedTx =>
+  makeEmptyProcessedTx(builderDb, Fr.ZERO, Fr.ZERO);

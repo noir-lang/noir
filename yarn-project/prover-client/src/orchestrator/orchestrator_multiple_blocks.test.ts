@@ -21,10 +21,10 @@ describe('prover/orchestrator/multi-block', () => {
   describe('multiple blocks', () => {
     it('builds multiple blocks in sequence', async () => {
       const numBlocks = 5;
-      let header = await context.actualDb.buildInitialHeader();
+      let header = context.actualDb.getInitialHeader();
 
       for (let i = 0; i < numBlocks; i++) {
-        const tx = await makeBloatedProcessedTx(context.actualDb, i + 1);
+        const tx = makeBloatedProcessedTx(context.actualDb, i + 1);
         tx.data.constants.historicalHeader = header;
         tx.data.constants.vkTreeRoot = getVKTreeRoot();
 

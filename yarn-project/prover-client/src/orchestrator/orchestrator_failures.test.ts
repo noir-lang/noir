@@ -65,11 +65,11 @@ describe('prover/orchestrator/failures', () => {
       ],
     ] as const)('handles a %s error', async (message: string, fn: () => void) => {
       fn();
-      const txs = await Promise.all([
+      const txs = [
         makeBloatedProcessedTx(context.actualDb, 1),
         makeBloatedProcessedTx(context.actualDb, 2),
         makeBloatedProcessedTx(context.actualDb, 3),
-      ]);
+      ];
 
       const blockTicket = await orchestrator.startNewBlock(txs.length, context.globalVariables, []);
 

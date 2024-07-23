@@ -34,7 +34,7 @@ describe('prover/orchestrator/public-functions', () => {
           }),
         );
         for (const tx of txs) {
-          tx.data.constants.historicalHeader = await context.actualDb.buildInitialHeader();
+          tx.data.constants.historicalHeader = context.actualDb.getInitialHeader();
           tx.data.constants.vkTreeRoot = getVKTreeRoot();
         }
 

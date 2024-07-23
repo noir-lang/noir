@@ -33,15 +33,9 @@ describe('prover/orchestrator/lifecycle', () => {
 
   describe('lifecycle', () => {
     it('cancels current block and switches to new ones', async () => {
-      const txs1 = await Promise.all([
-        makeBloatedProcessedTx(context.actualDb, 1),
-        makeBloatedProcessedTx(context.actualDb, 2),
-      ]);
+      const txs1 = [makeBloatedProcessedTx(context.actualDb, 1), makeBloatedProcessedTx(context.actualDb, 2)];
 
-      const txs2 = await Promise.all([
-        makeBloatedProcessedTx(context.actualDb, 3),
-        makeBloatedProcessedTx(context.actualDb, 4),
-      ]);
+      const txs2 = [makeBloatedProcessedTx(context.actualDb, 3), makeBloatedProcessedTx(context.actualDb, 4)];
 
       const globals1: GlobalVariables = makeGlobals(100);
       const globals2: GlobalVariables = makeGlobals(101);
@@ -79,15 +73,8 @@ describe('prover/orchestrator/lifecycle', () => {
     });
 
     it('automatically cancels an incomplete block when starting a new one', async () => {
-      const txs1 = await Promise.all([
-        makeBloatedProcessedTx(context.actualDb, 1),
-        makeBloatedProcessedTx(context.actualDb, 2),
-      ]);
-
-      const txs2 = await Promise.all([
-        makeBloatedProcessedTx(context.actualDb, 3),
-        makeBloatedProcessedTx(context.actualDb, 4),
-      ]);
+      const txs1 = [makeBloatedProcessedTx(context.actualDb, 1), makeBloatedProcessedTx(context.actualDb, 2)];
+      const txs2 = [makeBloatedProcessedTx(context.actualDb, 3), makeBloatedProcessedTx(context.actualDb, 4)];
 
       const globals1: GlobalVariables = makeGlobals(100);
       const globals2: GlobalVariables = makeGlobals(101);

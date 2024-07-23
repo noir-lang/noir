@@ -31,7 +31,6 @@ import {
   type BaseRollupInputs,
   Fr,
   type GlobalVariables,
-  type Header,
   type KernelCircuitPublicInputs,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
@@ -98,12 +97,7 @@ export class ProvingOrchestrator {
 
   public readonly tracer: Tracer;
 
-  constructor(
-    private db: MerkleTreeOperations,
-    private prover: ServerCircuitProver,
-    telemetryClient: TelemetryClient,
-    private initialHeader?: Header,
-  ) {
+  constructor(private db: MerkleTreeOperations, private prover: ServerCircuitProver, telemetryClient: TelemetryClient) {
     this.tracer = telemetryClient.getTracer('ProvingOrchestrator');
   }
 
@@ -131,11 +125,6 @@ export class ProvingOrchestrator {
     globalVariables: GlobalVariables,
     l1ToL2Messages: Fr[],
   ): Promise<ProvingTicket> {
-    // Create initial header if not done so yet
-    if (!this.initialHeader) {
-      this.initialHeader = await this.db.getInitialHeader();
-    }
-
     if (!Number.isInteger(numTxs) || numTxs < 2) {
       throw new Error(`Length of txs for the block should be at least two (got ${numTxs})`);
     }
@@ -268,7 +257,7 @@ export class ProvingOrchestrator {
     // base rollup inputs
     // Then enqueue the proving of all the transactions
     const unprovenPaddingTx = makeEmptyProcessedTx(
-      this.initialHeader ?? (await this.db.getInitialHeader()),
+      this.db.getInitialHeader(),
       this.provingState.globalVariables.chainId,
       this.provingState.globalVariables.version,
       getVKTreeRoot(),
@@ -564,7 +553,7 @@ export class ProvingOrchestrator {
 
     const getBaseInputsEmptyTx = async () => {
       const inputs = {
-        header: await this.db.getInitialHeader(),
+        header: this.db.getInitialHeader(),
         chainId: tx.data.constants.globalVariables.chainId,
         version: tx.data.constants.globalVariables.version,
         vkTreeRoot: tx.data.constants.vkTreeRoot,

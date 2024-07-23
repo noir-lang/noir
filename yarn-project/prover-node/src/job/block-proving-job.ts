@@ -66,7 +66,7 @@ export class BlockProvingJob {
         ...globalVariables,
       });
       const provingTicket = await this.prover.startNewBlock(txCount, globalVariables, l1ToL2Messages);
-      const publicProcessor = await this.publicProcessorFactory.create(historicalHeader, globalVariables);
+      const publicProcessor = this.publicProcessorFactory.create(historicalHeader, globalVariables);
 
       const txs = await this.getTxs(txHashes);
       await this.processTxs(publicProcessor, txs, txCount);

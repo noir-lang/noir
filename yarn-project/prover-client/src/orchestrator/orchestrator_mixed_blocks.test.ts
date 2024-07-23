@@ -22,11 +22,11 @@ describe('prover/orchestrator/mixed-blocks', () => {
 
   describe('blocks', () => {
     it('builds an unbalanced L2 block', async () => {
-      const txs = await Promise.all([
+      const txs = [
         makeBloatedProcessedTx(context.actualDb, 1),
         makeBloatedProcessedTx(context.actualDb, 2),
         makeBloatedProcessedTx(context.actualDb, 3),
-      ]);
+      ];
 
       const l1ToL2Messages = range(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, 1 + 0x400).map(fr);
 

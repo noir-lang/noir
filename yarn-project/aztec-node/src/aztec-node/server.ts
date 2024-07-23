@@ -689,18 +689,11 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
-   * Returns the currently committed block header.
+   * Returns the currently committed block header, or the initial header if no blocks have been produced.
    * @returns The current committed block header.
    */
   public async getHeader(): Promise<Header> {
-    const block = await this.getBlock(-1);
-    if (block) {
-      return block.header;
-    }
-
-    // No block was not found so we build the initial header.
-    const committedDb = await this.#getWorldState('latest');
-    return await committedDb.buildInitialHeader();
+    return (await this.getBlock(-1))?.header ?? (await this.#getWorldState('latest')).getInitialHeader();
   }
 
   /**
@@ -733,7 +726,7 @@ export class AztecNodeService implements AztecNode {
       new WASMSimulator(),
       this.telemetry,
     );
-    const processor = await publicProcessorFactory.create(prevHeader, newGlobalVariables);
+    const processor = publicProcessorFactory.create(prevHeader, newGlobalVariables);
     // REFACTOR: Consider merging ProcessReturnValues into ProcessedTx
     const [processedTxs, failedTxs, returns] = await processor.process([tx]);
     // REFACTOR: Consider returning the error/revert rather than throwing

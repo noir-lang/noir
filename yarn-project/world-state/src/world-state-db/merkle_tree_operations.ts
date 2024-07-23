@@ -75,13 +75,7 @@ export interface MerkleTreeOperations {
   /**
    * Gets the initial header.
    */
-  getInitialHeader(): Promise<Header>;
-
-  /**
-   * Builds the initial header.
-   * @deprecated Use `getInitialHeader` instead.
-   */
-  buildInitialHeader(): Promise<Header>;
+  getInitialHeader(): Header;
 
   /**
    * Gets sibling path for a leaf.

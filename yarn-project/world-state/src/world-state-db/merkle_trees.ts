@@ -2,9 +2,7 @@ import { type L2Block, MerkleTreeId, PublicDataWrite, type SiblingPath, TxEffect
 import {
   ARCHIVE_HEIGHT,
   AppendOnlyTreeSnapshot,
-  ContentCommitment,
   Fr,
-  GlobalVariables,
   Header,
   L1_TO_L2_MSG_TREE_HEIGHT,
   MAX_NOTE_HASHES_PER_TX,
@@ -27,7 +25,7 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
-import { type AztecKVStore } from '@aztec/kv-store';
+import { type AztecKVStore, type AztecSingleton } from '@aztec/kv-store';
 import {
   type AppendOnlyTree,
   type BatchInsertionResult,
@@ -99,9 +97,11 @@ export class MerkleTrees implements MerkleTreeDb {
   // gets initialized in #init
   private trees: MerkleTreeMap = null as any;
   private jobQueue = new SerialQueue();
-  private initialHeader!: Header;
+  private initialStateReference: AztecSingleton<Buffer>;
 
-  private constructor(private store: AztecKVStore, private log: DebugLogger) {}
+  private constructor(private store: AztecKVStore, private log: DebugLogger) {
+    this.initialStateReference = store.openSingleton('merkle_trees_initial_state_reference');
+  }
 
   /**
    * Method to asynchronously create and initialize a MerkleTrees instance.
@@ -170,34 +170,18 @@ export class MerkleTrees implements MerkleTreeDb {
     this.jobQueue.start();
 
     if (!fromDb) {
-      // We are not initializing from db so we need to populate the first leaf of the archive tree which is a hash of
-      // the initial header.
-      const initialHeader = await this.buildInitialHeader(true);
-      this.initialHeader = initialHeader;
-      await this.#updateArchive(initialHeader, true);
-    } else {
-      // TODO(palla/prover-node) Running buildInitialHeader here yields a WRONG initial header,
-      // we need to reconstruct it from an empty state reference.
-      this.initialHeader = await this.buildInitialHeader(true);
+      // We are not initializing from db so we need to populate the first leaf of the archive tree which is a hash of the initial header,
+      // and persist the initial header state reference so we can later load it when requested.
+      const initialState = await this.getStateReference(true);
+      await this.#saveInitialStateReference(initialState);
+      await this.#updateArchive(this.getInitialHeader(), true);
     }
 
     await this.#commit();
   }
 
-  // TODO(palla/prover-node): Make this private. It only makes sense if called at the beginning of the lifecycle of the object.
-  public async buildInitialHeader(includeUncommitted: boolean): Promise<Header> {
-    const state = await this.getStateReference(includeUncommitted);
-    return new Header(
-      AppendOnlyTreeSnapshot.zero(),
-      ContentCommitment.empty(),
-      state,
-      GlobalVariables.empty(),
-      Fr.ZERO,
-    );
-  }
-
-  public getInitialHeader(): Promise<Header> {
-    return Promise.resolve(this.initialHeader);
+  public getInitialHeader(): Header {
+    return Header.empty({ state: this.#loadInitialStateReference() });
   }
 
   /**
@@ -459,6 +443,18 @@ export class MerkleTrees implements MerkleTreeDb {
    */
   private async synchronize<T>(fn: () => Promise<T>): Promise<T> {
     return await this.jobQueue.put(fn);
+  }
+
+  #saveInitialStateReference(state: StateReference) {
+    return this.initialStateReference.set(state.toBuffer());
+  }
+
+  #loadInitialStateReference(): StateReference {
+    const serialized = this.initialStateReference.get();
+    if (!serialized) {
+      throw new Error('Initial state reference not found');
+    }
+    return StateReference.fromBuffer(serialized);
   }
 
   async #updateArchive(header: Header, includeUncommitted: boolean) {

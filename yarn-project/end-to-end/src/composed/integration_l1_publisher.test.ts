@@ -158,18 +158,11 @@ describe('L1Publisher integration', () => {
     coinbase = config.coinbase || EthAddress.random();
     feeRecipient = config.feeRecipient || AztecAddress.random();
 
-    prevHeader = await builderDb.buildInitialHeader(false);
+    prevHeader = builderDb.getInitialHeader();
   });
 
-  const makeEmptyProcessedTx = () => {
-    const tx = makeEmptyProcessedTxFromHistoricalTreeRoots(
-      prevHeader,
-      new Fr(chainId),
-      new Fr(config.version),
-      getVKTreeRoot(),
-    );
-    return tx;
-  };
+  const makeEmptyProcessedTx = () =>
+    makeEmptyProcessedTxFromHistoricalTreeRoots(prevHeader, new Fr(chainId), new Fr(config.version), getVKTreeRoot());
 
   const makeBloatedProcessedTx = (seed = 0x1): ProcessedTx => {
     const tx = mockTx(seed);

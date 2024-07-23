@@ -59,11 +59,8 @@ export class PublicProcessorFactory {
    * @param newContracts - Provides access to contract bytecode for public executions.
    * @returns A new instance of a PublicProcessor.
    */
-  public async create(
-    historicalHeader: Header | undefined,
-    globalVariables: GlobalVariables,
-  ): Promise<PublicProcessor> {
-    historicalHeader = historicalHeader ?? (await this.merkleTree.buildInitialHeader());
+  public create(historicalHeader: Header | undefined, globalVariables: GlobalVariables): PublicProcessor {
+    historicalHeader = historicalHeader ?? this.merkleTree.getInitialHeader();
 
     const publicContractsDB = new ContractsDataSourcePublicDB(this.contractDataSource);
     const worldStatePublicDB = new WorldStatePublicDB(this.merkleTree);
