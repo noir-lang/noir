@@ -399,7 +399,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
-                    let global_crate = self.elaborator.interner.get_global(*global_id).crate_id;
+                    let crate_of_global = self.elaborator.interner.get_global(*global_id).crate_id;
                     let let_ =
                         self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(
                             || {
