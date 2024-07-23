@@ -1,6 +1,7 @@
 #include "barretenberg/vm/avm_trace/avm_execution.hpp"
 #include "barretenberg/bb/log.hpp"
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_deserialization.hpp"
@@ -123,6 +124,11 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     }
     auto circuit_builder = bb::AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
+
+    if (circuit_builder.get_circuit_subgroup_size() > SRS_SIZE) {
+        throw_or_abort("Circuit subgroup size (" + std::to_string(circuit_builder.get_circuit_subgroup_size()) +
+                       ") exceeds SRS_SIZE (" + std::to_string(SRS_SIZE) + ")");
+    }
 
     AVM_TRACK_TIME("prove/check_circuit", circuit_builder.check_circuit());
 

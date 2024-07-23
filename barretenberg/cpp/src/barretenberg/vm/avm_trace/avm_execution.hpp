@@ -14,6 +14,10 @@ namespace bb::avm_trace {
 
 class Execution {
   public:
+    // Hardcoded circuit size for now, with enough to support 16-bit range checks and more.
+    // The SRS size is expected to be ~67MB at this size.
+    static constexpr size_t SRS_SIZE = 1 << 20;
+
     Execution() = default;
 
     static std::vector<FF> getDefaultPublicInputs();

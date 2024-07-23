@@ -896,8 +896,8 @@ void avm_prove(const std::filesystem::path& bytecode_path,
     vinfo("hints.externalcall_hints size: ", avm_hints.externalcall_hints.size());
     vinfo("hints.contract_instance_hints size: ", avm_hints.contract_instance_hints.size());
 
-    // Hardcoded circuit size for now, with enough to support 16-bit range checks
-    init_bn254_crs(1 << 17);
+    vinfo("initializing crs with size: ", avm_trace::Execution::SRS_SIZE);
+    init_bn254_crs(avm_trace::Execution::SRS_SIZE);
 
     // Prove execution and return vk
     auto const [verification_key, proof] =
