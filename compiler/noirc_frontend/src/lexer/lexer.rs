@@ -654,7 +654,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn is_code_whitespace(c: char) -> bool {
-        c == '\t' || c == '\n' || c == '\r' || c == ' '
+        c.is_whitespace()
     }
 
     /// Skips white space. They are not significant in the source language
@@ -1361,6 +1361,19 @@ mod tests {
             for token in Lexer::new(source) {
                 assert!(token.is_err(), "Expected Err, found {token:?}");
             }
+        }
+    }
+
+    #[test]
+    fn test_unicode_whitespace() {
+        let source = "let\u{00a0}x";
+
+        let expected = vec![Token::Keyword(Keyword::Let), Token::Ident("x".to_string())];
+
+        let mut lexer = Lexer::new(source);
+        for token in expected.into_iter() {
+            let got = lexer.next_token().unwrap();
+            assert_eq!(got, token);
         }
     }
 }
