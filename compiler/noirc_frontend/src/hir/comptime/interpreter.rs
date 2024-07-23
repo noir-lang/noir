@@ -478,7 +478,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     consuming = false;
 
                     if let Some(value) = values.pop_front() {
-                        result.push_str(&value.to_string())
+                        result.push_str(&value.to_string());
                     }
                 }
                 other if !consuming => {

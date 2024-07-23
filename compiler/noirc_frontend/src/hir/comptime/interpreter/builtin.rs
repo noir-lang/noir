@@ -50,7 +50,7 @@ pub(super) fn call_builtin(
             trait_def_as_trait_constraint(interner, arguments, location)
         }
         "quoted_as_trait_constraint" => quoted_as_trait_constraint(interner, arguments, location),
-        "zeroed" => zeroed(return_type, location),
+        "zeroed" => zeroed(return_type),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -412,12 +412,12 @@ fn trait_constraint_eq(
 }
 
 // fn zeroed<T>() -> T
-fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
+fn zeroed(return_type: Type) -> IResult<Value> {
     match return_type {
         Type::FieldElement => Ok(Value::Field(0u128.into())),
         Type::Array(length_type, elem) => {
             if let Some(length) = length_type.evaluate_to_u32() {
-                let element = zeroed(elem.as_ref().clone(), location)?;
+                let element = zeroed(elem.as_ref().clone())?;
                 let array = std::iter::repeat(element).take(length as usize).collect();
                 Ok(Value::Array(array, Type::Array(length_type, elem)))
             } else {
@@ -458,28 +458,26 @@ fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
             }
         }
         Type::Unit => Ok(Value::Unit),
-        Type::Tuple(fields) => {
-            Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(field, location))?))
-        }
+        Type::Tuple(fields) => Ok(Value::Tuple(try_vecmap(fields, zeroed)?)),
         Type::Struct(struct_type, generics) => {
             let fields = struct_type.borrow().get_fields(&generics);
             let mut values = HashMap::default();
 
             for (field_name, field_type) in fields {
-                let field_value = zeroed(field_type, location)?;
+                let field_value = zeroed(field_type)?;
                 values.insert(Rc::new(field_name), field_value);
             }
 
             let typ = Type::Struct(struct_type, generics);
             Ok(Value::Struct(values, typ))
         }
-        Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics), location),
+        Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics)),
         typ @ Type::Function(..) => {
             // Using Value::Zeroed here is probably safer than using FuncId::dummy_id() or similar
             Ok(Value::Zeroed(typ))
         }
         Type::MutableReference(element) => {
-            let element = zeroed(*element, location)?;
+            let element = zeroed(*element)?;
             Ok(Value::Pointer(Shared::new(element), false))
         }
         Type::Quoted(QuotedType::TraitConstraint) => Ok(Value::TraitConstraint(TraitBound {
