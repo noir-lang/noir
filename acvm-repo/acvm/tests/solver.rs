@@ -837,7 +837,7 @@ prop_compose! {
     // Use both `u128` and hex proptest strategies
     fn field_element()
         (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"),
-         constant_input in any::<bool>())
+         constant_input: bool)
         -> (FieldElement, bool)
     {
         match u128_or_hex {
@@ -878,10 +878,22 @@ proptest! {
         prop_assert_eq!(lhs, rhs);
     }
 
-    // TODO bug
+    // test that AND(x, x) == x
+    #[test]
+    fn and_self_identity(x in field_element()) {
+        prop_assert_eq!(solve_blackbox_func_call(and_op, x, x), x.0);
+    }
+
+    // test that XOR(x, x) == 0
+    #[test]
+    fn xor_self_zero(x in field_element()) {
+        prop_assert_eq!(solve_blackbox_func_call(xor_op, x, x), FieldElement::zero());
+    }
+
+    // TODO(https://github.com/noir-lang/noir/issues/5597)
     #[test]
     #[should_panic(expected="Test failed: assertion failed: `(left == right)`")]
-    fn and_identity_l(x in field_element(), ones_constant in any::<bool>()) {
+    fn and_identity_l(x in field_element(), ones_constant: bool) {
         let ones = (field_element_ones(), ones_constant);
         let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x);
         if x <= ones {
@@ -893,16 +905,16 @@ proptest! {
     }
 
     #[test]
-    fn xor_identity_l(x in field_element(), zero_constant in any::<bool>()) {
+    fn xor_identity_l(x in field_element(), zero_constant: bool) {
         let zero = (FieldElement::zero(), zero_constant);
         let (lhs, rhs) = prop_assert_identity_l(xor_op, zero, x);
         prop_assert_eq!(lhs, rhs);
     }
 
-    // TODO bug
+    // TODO(https://github.com/noir-lang/noir/issues/5597)
     #[test]
     #[should_panic(expected="Test failed: assertion failed: `(left == right)`")]
-    fn and_identity_r(x in field_element(), ones_constant in any::<bool>()) {
+    fn and_identity_r(x in field_element(), ones_constant: bool) {
         let ones = (field_element_ones(), ones_constant);
         let (lhs, rhs) = prop_assert_identity_r(and_op, ones, x);
         if x <= ones {
@@ -914,21 +926,21 @@ proptest! {
     }
 
     #[test]
-    fn xor_identity_r(x in field_element(), zero_constant in any::<bool>()) {
+    fn xor_identity_r(x in field_element(), zero_constant: bool) {
         let zero = (FieldElement::zero(), zero_constant);
         let (lhs, rhs) = prop_assert_identity_r(xor_op, zero, x);
         prop_assert_eq!(lhs, rhs);
     }
 
     #[test]
-    fn and_zero_l(x in field_element(), ones_constant in any::<bool>()) {
+    fn and_zero_l(x in field_element(), ones_constant: bool) {
         let zero = (FieldElement::zero(), ones_constant);
         let (lhs, rhs) = prop_assert_zero_l(and_op, zero, x);
         prop_assert_eq!(lhs, rhs);
     }
 
     #[test]
-    fn and_zero_r(x in field_element(), ones_constant in any::<bool>()) {
+    fn and_zero_r(x in field_element(), ones_constant: bool) {
         let zero = (FieldElement::zero(), ones_constant);
         let (lhs, rhs) = prop_assert_zero_r(and_op, zero, x);
         prop_assert_eq!(lhs, rhs);
