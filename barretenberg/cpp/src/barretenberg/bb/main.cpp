@@ -405,7 +405,7 @@ bool verify_client_ivc(const std::filesystem::path& proof_path,
                        const std::filesystem::path& eccvm_vk_path,
                        const std::filesystem::path& translator_vk_path)
 {
-    init_bn254_crs(1 << 24);
+    init_bn254_crs(1);
     init_grumpkin_crs(1 << 14);
 
     const auto proof = from_buffer<ClientIVC::Proof>(read_file(proof_path));
