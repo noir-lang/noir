@@ -119,6 +119,12 @@ You can currently deploy the Solidity verifier contracts to most EVM compatible 
 - Polygon PoS
 - Scroll
 - Celo
+- BSC
+- Blast L2
+- Avalanche C-Chain
+- Mode
+- Linea
+- Moonbeam
 
 Other EVM chains should work, but have not been tested directly by our team. If you test any other chains, please open a PR on this page to update the list. See [this doc](https://github.com/noir-lang/noir-starter/tree/main/with-foundry#testing-on-chain) for more info about testing verifier contracts on different EVM chains.
 
@@ -126,4 +132,4 @@ Other EVM chains should work, but have not been tested directly by our team. If 
 
 Unfortunately not all "EVM" chains are supported.
 
-**zkSync** and the **Polygon zkEVM** do _not_ currently support proof verification via Solidity verifier contracts. They are missing the bn256 precompile contract that the verifier contract requires. Once these chains support this precompile, they may work.
+For example, **zkSync**, **merlin** and the **Polygon zkEVM** do _not_ currently support proof verification via Solidity verifier contracts. They are missing the bn256 precompile contract that the verifier contract requires. Once these chains support this precompile, they may work.
