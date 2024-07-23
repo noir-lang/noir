@@ -73,6 +73,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 generics: vec![],
                 methods: vec![],
                 where_clause: vec![],
+                is_comptime: false,
             };
             module.impls.push(default_impl.clone());
             module.impls.last_mut().unwrap()
@@ -100,7 +101,9 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
             })
             .collect::<Result<Vec<_>, _>>()?;
         let [note_serialized_len, note_bytes_len]: [_; 2] =
-            note_interface_generics.try_into().unwrap();
+            note_interface_generics.try_into().expect(
+                "NoteInterface must be generic over 2 types, NOTE_FIELDS_LEN and NOTE_BYTES_LEN",
+            );
 
         // Automatically inject the header field if it's not present
         let (header_field_name, _) = if let Some(existing_header) =

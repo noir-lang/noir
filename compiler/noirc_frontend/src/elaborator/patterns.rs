@@ -5,7 +5,6 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     ast::{UnresolvedType, ERROR_IDENT},
     hir::{
-        comptime::Interpreter,
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
@@ -15,9 +14,7 @@ use crate::{
         stmt::HirPattern,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
-    node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, ReferenceId, TraitImplKind,
-    },
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
     Shared, StructType, Type, TypeBindings,
 };
 
@@ -204,14 +201,12 @@ impl<'context> Elaborator<'context> {
 
         let struct_id = struct_type.borrow().id;
 
-        let referenced = ReferenceId::Struct(struct_id);
-        let reference = ReferenceId::Reference(Location::new(name_span, self.file), is_self_type);
-        self.interner.add_reference(referenced, reference);
+        let reference_location = Location::new(name_span, self.file);
+        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         for (field_index, field) in fields.iter().enumerate() {
-            let referenced = ReferenceId::StructMember(struct_id, field_index);
-            let reference = ReferenceId::Reference(Location::new(field.0.span(), self.file), false);
-            self.interner.add_reference(referenced, reference);
+            let reference_location = Location::new(field.0.span(), self.file);
+            self.interner.add_struct_member_reference(struct_id, field_index, reference_location);
         }
 
         HirPattern::Struct(expected_type, fields, location)
@@ -464,16 +459,8 @@ impl<'context> Elaborator<'context> {
         // Comptime variables must be replaced with their values
         if let Some(definition) = self.interner.try_definition(definition_id) {
             if definition.comptime && !self.in_comptime_context() {
-                let mut interpreter_errors = vec![];
-                let mut interpreter = Interpreter::new(
-                    self.interner,
-                    &mut self.comptime_scopes,
-                    self.crate_id,
-                    self.debug_comptime_in_file,
-                    &mut interpreter_errors,
-                );
+                let mut interpreter = self.setup_interpreter();
                 let value = interpreter.evaluate(id);
-                self.include_interpreter_errors(interpreter_errors);
                 return self.inline_comptime_value(value, span);
             }
         }
@@ -494,7 +481,6 @@ impl<'context> Elaborator<'context> {
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
             let span = path.span();
-            let is_self_type_name = path.last_segment().is_self_type_name();
             let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
 
             if hir_ident.id != DefinitionId::dummy_id() {
@@ -504,10 +490,7 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_function_dependency(current_item, func_id);
                         }
 
-                        let variable =
-                            ReferenceId::Reference(hir_ident.location, is_self_type_name);
-                        let function = ReferenceId::Function(func_id);
-                        self.interner.add_reference(function, variable);
+                        self.interner.add_function_reference(func_id, hir_ident.location);
                     }
                     DefinitionKind::Global(global_id) => {
                         if let Some(global) = self.unresolved_globals.remove(&global_id) {
@@ -517,10 +500,7 @@ impl<'context> Elaborator<'context> {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
 
-                        let variable =
-                            ReferenceId::Reference(hir_ident.location, is_self_type_name);
-                        let global = ReferenceId::Global(global_id);
-                        self.interner.add_reference(global, variable);
+                        self.interner.add_global_reference(global_id, hir_ident.location);
                     }
                     DefinitionKind::GenericType(_) => {
                         // Initialize numeric generics to a polymorphic integer type in case
@@ -536,10 +516,8 @@ impl<'context> Elaborator<'context> {
                         // only local variables can be captured by closures.
                         self.resolve_local_variable(hir_ident.clone(), var_scope_index);
 
-                        let referenced = ReferenceId::Local(hir_ident.id);
-                        let reference =
-                            ReferenceId::Reference(Location::new(span, self.file), false);
-                        self.interner.add_reference(referenced, reference);
+                        let reference_location = Location::new(span, self.file);
+                        self.interner.add_local_reference(hir_ident.id, reference_location);
                     }
                 }
             }
@@ -609,7 +587,6 @@ impl<'context> Elaborator<'context> {
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
-
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
                     self.push_trait_constraint(constraint, expr_id);

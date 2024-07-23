@@ -1,10 +1,12 @@
 use crate::foreign_calls::DebugForeignCallExecutor;
+use acvm::acir::brillig::BitSize;
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
-use acvm::acir::native_types::{Witness, WitnessMap};
+use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
-    ACVMStatus, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo, StepResult, ACVM,
+    ACVMStatus, AcirCallWaitInfo, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo,
+    OpcodeNotSolvable, StepResult, ACVM,
 };
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
@@ -15,56 +17,235 @@ use nargo::NargoError;
 use noirc_artifacts::debug::{DebugArtifact, StackFrame};
 use noirc_driver::DebugFile;
 
+use thiserror::Error;
+
 use std::collections::BTreeMap;
 use std::collections::{hash_set::Iter, HashSet};
+
+/// A Noir program is composed by
+/// `n` ACIR circuits
+///       |_ `m` ACIR opcodes
+///                |_ Acir call
+///                |_ Acir Brillig function invocation
+///                           |_ `p` Brillig opcodes
+///
+/// The purpose of this structure is to map the opcode locations in ACIR circuits into
+/// a flat contiguous address space to be able to expose them to the DAP interface.
+/// In this address space, the ACIR circuits are laid out one after the other, and
+/// Brillig functions called from such circuits are expanded inline, replacing
+/// the `BrilligCall` ACIR opcode.
+///
+/// `addresses: Vec<Vec<usize>>`
+///  * The outer vec is `n` sized - one element per ACIR circuit
+///  * Each nested vec is `m` sized - one element per ACIR opcode in circuit
+///    * Each element is the "virtual address" of such opcode
+///
+/// For flattening we map each ACIR circuit and ACIR opcode with a sequential address number
+/// We start by assigning 0 to the very first ACIR opcode and then start accumulating by
+/// traversing by depth-first
+///
+/// Even if the address space is continuous, the `addresses` tree only
+/// keeps track of the ACIR opcodes, since the Brillig opcode addresses can be
+/// calculated from the initial opcode address.
+/// As a result the flattened indexed addresses list may have "holes".
+///
+/// If between two consequent `addresses` nodes there is a "hole" (an address jump),
+/// this means that the first one is actually a ACIR Brillig call
+/// which has as many brillig opcodes as `second_address - first_address`
+///
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+pub struct AddressMap {
+    addresses: Vec<Vec<usize>>,
+
+    // virtual address of the last opcode of the program
+    last_valid_address: usize,
+}
+
+impl AddressMap {
+    pub(super) fn new(
+        circuits: &[Circuit<FieldElement>],
+        unconstrained_functions: &[BrilligBytecode<FieldElement>],
+    ) -> Self {
+        let opcode_address_size = |opcode: &Opcode<FieldElement>| {
+            if let Opcode::BrilligCall { id, .. } = opcode {
+                unconstrained_functions[*id as usize].bytecode.len()
+            } else {
+                1
+            }
+        };
+
+        let mut addresses = Vec::with_capacity(circuits.len());
+        let mut next_address = 0usize;
+
+        for circuit in circuits {
+            let mut circuit_addresses = Vec::with_capacity(circuit.opcodes.len());
+            for opcode in &circuit.opcodes {
+                circuit_addresses.push(next_address);
+                next_address += opcode_address_size(opcode);
+            }
+            addresses.push(circuit_addresses);
+        }
+
+        Self { addresses, last_valid_address: next_address - 1 }
+    }
+
+    /// Returns the absolute address of the opcode at the given location.
+    /// Absolute here means accounting for nested Brillig opcodes in BrilligCall
+    /// opcodes.
+    pub fn debug_location_to_address(&self, location: &DebugLocation) -> usize {
+        let circuit_addresses = &self.addresses[location.circuit_id as usize];
+        match &location.opcode_location {
+            OpcodeLocation::Acir(acir_index) => circuit_addresses[*acir_index],
+            OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                circuit_addresses[*acir_index] + *brillig_index
+            }
+        }
+    }
+
+    pub fn address_to_debug_location(&self, address: usize) -> Option<DebugLocation> {
+        if address > self.last_valid_address {
+            return None;
+        }
+        // We binary search if the given address is the first opcode address of each circuit id
+        // if is not, this means that the address itself is "contained" in the previous
+        // circuit indicated by `Err(insert_index)`
+        let circuit_id =
+            match self.addresses.binary_search_by(|addresses| addresses[0].cmp(&address)) {
+                Ok(found_index) => found_index,
+                // This means that the address is not in `insert_index` circuit
+                // because is an `Err`, so it must be included in previous circuit vec of opcodes
+                Err(insert_index) => insert_index - 1,
+            };
+
+        // We binary search among the selected `circuit_id`` list of opcodes
+        // If Err(insert_index) this means that the given address
+        // is a Brillig addresses that's contained in previous index ACIR opcode index
+        let opcode_location = match self.addresses[circuit_id].binary_search(&address) {
+            Ok(found_index) => OpcodeLocation::Acir(found_index),
+            Err(insert_index) => {
+                let acir_index = insert_index - 1;
+                let base_offset = self.addresses[circuit_id][acir_index];
+                let brillig_index = address - base_offset;
+                OpcodeLocation::Brillig { acir_index, brillig_index }
+            }
+        };
+        Some(DebugLocation { circuit_id: circuit_id as u32, opcode_location })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+pub struct DebugLocation {
+    pub circuit_id: u32,
+    pub opcode_location: OpcodeLocation,
+}
+
+impl std::fmt::Display for DebugLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let circuit_id = self.circuit_id;
+        match self.opcode_location {
+            OpcodeLocation::Acir(index) => write!(f, "{circuit_id}:{index}"),
+            OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                write!(f, "{circuit_id}:{acir_index}.{brillig_index}")
+            }
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum DebugLocationFromStrError {
+    #[error("Invalid debug location string: {0}")]
+    InvalidDebugLocationString(String),
+}
+
+impl std::str::FromStr for DebugLocation {
+    type Err = DebugLocationFromStrError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<_> = s.split(':').collect();
+        let error = Err(DebugLocationFromStrError::InvalidDebugLocationString(s.to_string()));
+
+        match parts.len() {
+            1 => OpcodeLocation::from_str(parts[0]).map_or(error, |opcode_location| {
+                Ok(DebugLocation { circuit_id: 0, opcode_location })
+            }),
+            2 => {
+                let first_part = parts[0].parse().ok();
+                let second_part = OpcodeLocation::from_str(parts[1]).ok();
+                if let (Some(circuit_id), Some(opcode_location)) = (first_part, second_part) {
+                    Ok(DebugLocation { circuit_id, opcode_location })
+                } else {
+                    error
+                }
+            }
+            _ => error,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(super) enum DebugCommandResult {
     Done,
     Ok,
-    BreakpointReached(OpcodeLocation),
+    BreakpointReached(DebugLocation),
     Error(NargoError<FieldElement>),
+}
+
+pub struct ExecutionFrame<'a, B: BlackBoxFunctionSolver<FieldElement>> {
+    circuit_id: u32,
+    acvm: ACVM<'a, FieldElement, B>,
 }
 
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     acvm: ACVM<'a, FieldElement, B>,
+    current_circuit_id: u32,
     brillig_solver: Option<BrilligSolver<'a, FieldElement, B>>,
+
+    witness_stack: WitnessStack<FieldElement>,
+    acvm_stack: Vec<ExecutionFrame<'a, B>>,
+
+    backend: &'a B,
     foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
+
     debug_artifact: &'a DebugArtifact,
-    breakpoints: HashSet<OpcodeLocation>,
-    source_to_opcodes: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>>,
+    breakpoints: HashSet<DebugLocation>,
+    source_to_locations: BTreeMap<FileId, Vec<(usize, DebugLocation)>>,
+
+    circuits: &'a [Circuit<FieldElement>],
     unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
 
-    // Absolute (in terms of all the opcodes ACIR+Brillig) addresses of the ACIR
-    // opcodes with one additional entry for to indicate the last valid address.
-    acir_opcode_addresses: Vec<usize>,
+    acir_opcode_addresses: AddressMap,
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     pub(super) fn new(
         blackbox_solver: &'a B,
-        circuit: &'a Circuit<FieldElement>,
+        circuits: &'a [Circuit<FieldElement>],
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap<FieldElement>,
         foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
     ) -> Self {
         let source_to_opcodes = build_source_to_opcode_debug_mappings(debug_artifact);
-        let acir_opcode_addresses = build_acir_opcode_offsets(circuit, unconstrained_functions);
+        let current_circuit_id: u32 = 0;
+        let initial_circuit = &circuits[current_circuit_id as usize];
+        let acir_opcode_addresses = AddressMap::new(circuits, unconstrained_functions);
         Self {
-            // TODO: need to handle brillig pointer in the debugger
             acvm: ACVM::new(
                 blackbox_solver,
-                &circuit.opcodes,
+                &initial_circuit.opcodes,
                 initial_witness,
                 unconstrained_functions,
-                &circuit.assert_messages,
+                &initial_circuit.assert_messages,
             ),
+            current_circuit_id,
             brillig_solver: None,
+            witness_stack: WitnessStack::default(),
+            acvm_stack: vec![],
+            backend: blackbox_solver,
             foreign_call_executor,
             debug_artifact,
             breakpoints: HashSet::new(),
-            source_to_opcodes,
+            source_to_locations: source_to_opcodes,
+            circuits,
             unconstrained_functions,
             acir_opcode_addresses,
         }
@@ -72,6 +253,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
 
     pub(super) fn get_opcodes(&self) -> &[Opcode<FieldElement>] {
         self.acvm.opcodes()
+    }
+
+    pub(super) fn get_opcodes_of_circuit(&self, circuit_id: u32) -> &[Opcode<FieldElement>] {
+        &self.circuits[circuit_id as usize].opcodes
     }
 
     pub(super) fn get_witness_map(&self) -> &WitnessMap<FieldElement> {
@@ -86,36 +271,49 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.acvm.overwrite_witness(witness, value)
     }
 
-    pub(super) fn get_current_opcode_location(&self) -> Option<OpcodeLocation> {
+    pub(super) fn get_current_debug_location(&self) -> Option<DebugLocation> {
         let ip = self.acvm.instruction_pointer();
         if ip >= self.get_opcodes().len() {
             None
-        } else if let Some(ref solver) = self.brillig_solver {
-            Some(OpcodeLocation::Brillig {
-                acir_index: ip,
-                brillig_index: solver.program_counter(),
-            })
         } else {
-            Some(OpcodeLocation::Acir(ip))
+            let opcode_location = if let Some(ref solver) = self.brillig_solver {
+                OpcodeLocation::Brillig { acir_index: ip, brillig_index: solver.program_counter() }
+            } else {
+                OpcodeLocation::Acir(ip)
+            };
+            Some(DebugLocation { circuit_id: self.current_circuit_id, opcode_location })
         }
     }
 
-    pub(super) fn get_call_stack(&self) -> Vec<OpcodeLocation> {
+    pub(super) fn get_call_stack(&self) -> Vec<DebugLocation> {
+        // Build the frames from parent ACIR calls
+        let mut frames: Vec<_> = self
+            .acvm_stack
+            .iter()
+            .map(|ExecutionFrame { circuit_id, acvm }| DebugLocation {
+                circuit_id: *circuit_id,
+                opcode_location: OpcodeLocation::Acir(acvm.instruction_pointer()),
+            })
+            .collect();
+
+        // Now add the frame(s) for the currently executing ACVM
         let instruction_pointer = self.acvm.instruction_pointer();
-        if instruction_pointer >= self.get_opcodes().len() {
-            vec![]
-        } else if let Some(ref solver) = self.brillig_solver {
-            solver
-                .get_call_stack()
-                .iter()
-                .map(|program_counter| OpcodeLocation::Brillig {
+        let circuit_id = self.current_circuit_id;
+        if let Some(ref solver) = self.brillig_solver {
+            frames.extend(solver.get_call_stack().iter().map(|program_counter| DebugLocation {
+                circuit_id,
+                opcode_location: OpcodeLocation::Brillig {
                     acir_index: instruction_pointer,
                     brillig_index: *program_counter,
-                })
-                .collect()
-        } else {
-            vec![OpcodeLocation::Acir(instruction_pointer)]
+                },
+            }));
+        } else if instruction_pointer < self.get_opcodes().len() {
+            frames.push(DebugLocation {
+                circuit_id,
+                opcode_location: OpcodeLocation::Acir(instruction_pointer),
+            });
         }
+        frames
     }
 
     pub(super) fn is_source_location_in_debug_module(&self, location: &Location) -> bool {
@@ -142,10 +340,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         &self,
         file_id: &FileId,
         line: i64,
-    ) -> Option<OpcodeLocation> {
+    ) -> Option<DebugLocation> {
         let line = line as usize;
-        let line_to_opcodes = self.source_to_opcodes.get(file_id)?;
-        let found_index = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
+        let line_to_opcodes = self.source_to_locations.get(file_id)?;
+        let found_location = match line_to_opcodes.binary_search_by(|x| x.0.cmp(&line)) {
             Ok(index) => {
                 // move backwards to find the first opcode which matches the line
                 let mut index = index;
@@ -161,7 +359,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 line_to_opcodes[index].1
             }
         };
-        Some(found_index)
+        Some(found_location)
     }
 
     /// Returns the callstack in source code locations for the currently
@@ -172,9 +370,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     /// This function also filters source locations that are determined to be in
     /// the internal debug module.
     pub(super) fn get_current_source_location(&self) -> Option<Vec<Location>> {
-        self.get_current_opcode_location()
+        self.get_current_debug_location()
             .as_ref()
-            .map(|opcode_location| self.get_source_location_for_opcode_location(opcode_location))
+            .map(|debug_location| self.get_source_location_for_debug_location(debug_location))
             .filter(|v: &Vec<Location>| !v.is_empty())
     }
 
@@ -184,15 +382,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     /// the given opcode location cannot be mapped back to a source location
     /// (eg. it may be pure debug instrumentation code or other synthetically
     /// produced opcode by the compiler)
-    pub(super) fn get_source_location_for_opcode_location(
+    pub(super) fn get_source_location_for_debug_location(
         &self,
-        opcode_location: &OpcodeLocation,
+        debug_location: &DebugLocation,
     ) -> Vec<Location> {
-        // TODO: this assumes we're debugging a program (ie. the DebugArtifact
-        // will contain a single DebugInfo), but this assumption doesn't hold
-        // for contracts
-        self.debug_artifact.debug_symbols[0]
-            .opcode_location(opcode_location)
+        self.debug_artifact.debug_symbols[debug_location.circuit_id as usize]
+            .opcode_location(&debug_location.opcode_location)
             .map(|source_locations| {
                 source_locations
                     .into_iter()
@@ -208,48 +403,30 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     /// general, the matching between opcode location and source location is 1
     /// to 1, but due to the compiler inlining functions a single opcode
     /// location may expand to multiple source locations.
-    pub(super) fn get_source_call_stack(&self) -> Vec<(OpcodeLocation, Location)> {
+    pub(super) fn get_source_call_stack(&self) -> Vec<(DebugLocation, Location)> {
         self.get_call_stack()
             .iter()
-            .flat_map(|opcode_location| {
-                self.get_source_location_for_opcode_location(opcode_location)
+            .flat_map(|debug_location| {
+                self.get_source_location_for_debug_location(debug_location)
                     .into_iter()
-                    .map(|source_location| (*opcode_location, source_location))
+                    .map(|source_location| (*debug_location, source_location))
             })
             .collect()
     }
 
     /// Returns the absolute address of the opcode at the given location.
-    /// Absolute here means accounting for nested Brillig opcodes in BrilligCall
-    /// opcodes.
-    pub fn opcode_location_to_address(&self, location: &OpcodeLocation) -> usize {
-        match location {
-            OpcodeLocation::Acir(acir_index) => self.acir_opcode_addresses[*acir_index],
-            OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                self.acir_opcode_addresses[*acir_index] + *brillig_index
-            }
-        }
+    pub fn debug_location_to_address(&self, location: &DebugLocation) -> usize {
+        self.acir_opcode_addresses.debug_location_to_address(location)
     }
 
-    pub fn address_to_opcode_location(&self, address: usize) -> Option<OpcodeLocation> {
-        if address >= *self.acir_opcode_addresses.last().unwrap_or(&0) {
-            return None;
-        }
-        let location = match self.acir_opcode_addresses.binary_search(&address) {
-            Ok(found_index) => OpcodeLocation::Acir(found_index),
-            Err(insert_index) => {
-                let acir_index = insert_index - 1;
-                let base_offset = self.acir_opcode_addresses[acir_index];
-                let brillig_index = address - base_offset;
-                OpcodeLocation::Brillig { acir_index, brillig_index }
-            }
-        };
-        Some(location)
+    // Returns the DebugLocation associated to the given address
+    pub fn address_to_debug_location(&self, address: usize) -> Option<DebugLocation> {
+        self.acir_opcode_addresses.address_to_debug_location(address)
     }
 
-    pub(super) fn render_opcode_at_location(&self, location: &OpcodeLocation) -> String {
-        let opcodes = self.get_opcodes();
-        match location {
+    pub(super) fn render_opcode_at_location(&self, location: &DebugLocation) -> String {
+        let opcodes = self.get_opcodes_of_circuit(location.circuit_id);
+        match &location.opcode_location {
             OpcodeLocation::Acir(acir_index) => {
                 let opcode = &opcodes[*acir_index];
                 match opcode {
@@ -280,7 +457,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 self.brillig_solver = Some(solver);
                 if self.breakpoint_reached() {
                     DebugCommandResult::BreakpointReached(
-                        self.get_current_opcode_location()
+                        self.get_current_debug_location()
                             .expect("Breakpoint reached but we have no location"),
                     )
                 } else {
@@ -296,7 +473,6 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 self.handle_foreign_call(foreign_call)
             }
             Err(err) => DebugCommandResult::Error(NargoError::ExecutionError(
-                // TODO: debugger does not handle multiple acir calls
                 ExecutionError::SolvingError(err, None),
             )),
         }
@@ -315,24 +491,82 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 } else {
                     self.acvm.resolve_pending_foreign_call(foreign_call_result);
                 }
-                // TODO: should we retry executing the opcode somehow in this case?
+                // TODO: should we retry executing the opcode somehow in this
+                // case? Otherwise, executing a foreign call takes two debugging
+                // steps.
                 DebugCommandResult::Ok
             }
             Err(error) => DebugCommandResult::Error(error.into()),
         }
     }
 
-    fn handle_acvm_status(&mut self, status: ACVMStatus<FieldElement>) -> DebugCommandResult {
-        if let ACVMStatus::RequiresForeignCall(foreign_call) = status {
-            return self.handle_foreign_call(foreign_call);
-        }
+    fn handle_acir_call(
+        &mut self,
+        call_info: AcirCallWaitInfo<FieldElement>,
+    ) -> DebugCommandResult {
+        let callee_circuit = &self.circuits[call_info.id as usize];
+        let callee_witness_map = call_info.initial_witness;
+        let callee_acvm = ACVM::new(
+            self.backend,
+            &callee_circuit.opcodes,
+            callee_witness_map,
+            self.unconstrained_functions,
+            &callee_circuit.assert_messages,
+        );
+        let caller_acvm = std::mem::replace(&mut self.acvm, callee_acvm);
+        self.acvm_stack
+            .push(ExecutionFrame { circuit_id: self.current_circuit_id, acvm: caller_acvm });
+        self.current_circuit_id = call_info.id;
 
+        // Explicitly handling the new ACVM status here handles two edge cases:
+        // 1. there is a breakpoint set at the beginning of a circuit
+        // 2. the called circuit has no opcodes
+        self.handle_acvm_status(self.acvm.get_status().clone())
+    }
+
+    fn handle_acir_call_finished(&mut self) -> DebugCommandResult {
+        let caller_frame = self.acvm_stack.pop().expect("Execution stack should not be empty");
+        let caller_acvm = caller_frame.acvm;
+        let callee_acvm = std::mem::replace(&mut self.acvm, caller_acvm);
+        self.current_circuit_id = caller_frame.circuit_id;
+        let call_solved_witness = callee_acvm.finalize();
+
+        let ACVMStatus::RequiresAcirCall(call_info) = self.acvm.get_status() else {
+            unreachable!("Resolving an ACIR call, the caller is in an invalid state");
+        };
+        let acir_to_call = &self.circuits[call_info.id as usize];
+
+        let mut call_resolved_outputs = Vec::new();
+        for return_witness_index in acir_to_call.return_values.indices() {
+            if let Some(return_value) = call_solved_witness.get_index(return_witness_index) {
+                call_resolved_outputs.push(*return_value);
+            } else {
+                return DebugCommandResult::Error(
+                    ExecutionError::SolvingError(
+                        OpcodeNotSolvable::MissingAssignment(return_witness_index).into(),
+                        None, // Missing assignment errors do not supply user-facing diagnostics so we do not need to attach a call stack
+                    )
+                    .into(),
+                );
+            }
+        }
+        self.acvm.resolve_pending_acir_call(call_resolved_outputs);
+
+        DebugCommandResult::Ok
+    }
+
+    fn handle_acvm_status(&mut self, status: ACVMStatus<FieldElement>) -> DebugCommandResult {
         match status {
-            ACVMStatus::Solved => DebugCommandResult::Done,
+            ACVMStatus::Solved => {
+                if self.acvm_stack.is_empty() {
+                    return DebugCommandResult::Done;
+                }
+                self.handle_acir_call_finished()
+            }
             ACVMStatus::InProgress => {
                 if self.breakpoint_reached() {
                     DebugCommandResult::BreakpointReached(
-                        self.get_current_opcode_location()
+                        self.get_current_debug_location()
                             .expect("Breakpoint reached but we have no location"),
                     )
                 } else {
@@ -340,15 +574,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 }
             }
             ACVMStatus::Failure(error) => DebugCommandResult::Error(NargoError::ExecutionError(
-                // TODO: debugger does not handle multiple acir calls
                 ExecutionError::SolvingError(error, None),
             )),
-            ACVMStatus::RequiresForeignCall(_) => {
-                unreachable!("Unexpected pending foreign call resolution");
-            }
-            ACVMStatus::RequiresAcirCall(_) => {
-                todo!("Multiple ACIR calls are not supported");
-            }
+            ACVMStatus::RequiresForeignCall(foreign_call) => self.handle_foreign_call(foreign_call),
+            ACVMStatus::RequiresAcirCall(call_info) => self.handle_acir_call(call_info),
         }
     }
 
@@ -367,9 +596,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     fn get_current_acir_index(&self) -> Option<usize> {
-        self.get_current_opcode_location().map(|opcode_location| match opcode_location {
-            OpcodeLocation::Acir(acir_index) => acir_index,
-            OpcodeLocation::Brillig { acir_index, .. } => acir_index,
+        self.get_current_debug_location().map(|debug_location| {
+            match debug_location.opcode_location {
+                OpcodeLocation::Acir(acir_index) => acir_index,
+                OpcodeLocation::Brillig { acir_index, .. } => acir_index,
+            }
         })
     }
 
@@ -394,10 +625,16 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             return true;
         }
 
-        match self.get_current_opcode_location() {
-            Some(OpcodeLocation::Brillig { .. }) => true,
-            Some(OpcodeLocation::Acir(acir_index)) => {
-                matches!(self.get_opcodes()[acir_index], Opcode::BrilligCall { .. })
+        match self.get_current_debug_location() {
+            Some(DebugLocation { opcode_location: OpcodeLocation::Brillig { .. }, .. }) => true,
+            Some(DebugLocation {
+                circuit_id,
+                opcode_location: OpcodeLocation::Acir(acir_index),
+            }) => {
+                matches!(
+                    self.get_opcodes_of_circuit(circuit_id)[acir_index],
+                    Opcode::BrilligCall { .. }
+                )
             }
             _ => false,
         }
@@ -472,7 +709,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.brillig_solver.as_ref().map(|solver| solver.get_memory())
     }
 
-    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement, bit_size: u32) {
+    pub(super) fn write_brillig_memory(
+        &mut self,
+        ptr: usize,
+        value: FieldElement,
+        bit_size: BitSize,
+    ) {
         if let Some(solver) = self.brillig_solver.as_mut() {
             solver.write_memory_at(
                 ptr,
@@ -491,16 +733,19 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     fn breakpoint_reached(&self) -> bool {
-        if let Some(location) = self.get_current_opcode_location() {
+        if let Some(location) = self.get_current_debug_location() {
             self.breakpoints.contains(&location)
         } else {
             false
         }
     }
 
-    pub(super) fn is_valid_opcode_location(&self, location: &OpcodeLocation) -> bool {
-        let opcodes = self.get_opcodes();
-        match *location {
+    pub(super) fn is_valid_debug_location(&self, location: &DebugLocation) -> bool {
+        if location.circuit_id as usize >= self.circuits.len() {
+            return false;
+        }
+        let opcodes = self.get_opcodes_of_circuit(location.circuit_id);
+        match location.opcode_location {
             OpcodeLocation::Acir(acir_index) => acir_index < opcodes.len(),
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
                 if acir_index < opcodes.len() {
@@ -518,19 +763,19 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn is_breakpoint_set(&self, location: &OpcodeLocation) -> bool {
+    pub(super) fn is_breakpoint_set(&self, location: &DebugLocation) -> bool {
         self.breakpoints.contains(location)
     }
 
-    pub(super) fn add_breakpoint(&mut self, location: OpcodeLocation) -> bool {
+    pub(super) fn add_breakpoint(&mut self, location: DebugLocation) -> bool {
         self.breakpoints.insert(location)
     }
 
-    pub(super) fn delete_breakpoint(&mut self, location: &OpcodeLocation) -> bool {
+    pub(super) fn delete_breakpoint(&mut self, location: &DebugLocation) -> bool {
         self.breakpoints.remove(location)
     }
 
-    pub(super) fn iterate_breakpoints(&self) -> Iter<'_, OpcodeLocation> {
+    pub(super) fn iterate_breakpoints(&self) -> Iter<'_, DebugLocation> {
         self.breakpoints.iter()
     }
 
@@ -542,8 +787,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         matches!(self.acvm.get_status(), ACVMStatus::Solved)
     }
 
-    pub fn finalize(self) -> WitnessMap<FieldElement> {
-        self.acvm.finalize()
+    pub fn finalize(mut self) -> WitnessStack<FieldElement> {
+        let last_witness_map = self.acvm.finalize();
+        self.witness_stack.push(0, last_witness_map);
+        self.witness_stack
     }
 }
 
@@ -555,11 +802,10 @@ fn is_debug_file_in_debug_crate(debug_file: &DebugFile) -> bool {
 /// numbers and opcode locations corresponding to those line numbers
 fn build_source_to_opcode_debug_mappings(
     debug_artifact: &DebugArtifact,
-) -> BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> {
+) -> BTreeMap<FileId, Vec<(usize, DebugLocation)>> {
     if debug_artifact.debug_symbols.is_empty() {
         return BTreeMap::new();
     }
-    let locations = &debug_artifact.debug_symbols[0].locations;
     let simple_files: BTreeMap<_, _> = debug_artifact
         .file_map
         .iter()
@@ -572,50 +818,34 @@ fn build_source_to_opcode_debug_mappings(
         })
         .collect();
 
-    let mut result: BTreeMap<FileId, Vec<(usize, OpcodeLocation)>> = BTreeMap::new();
-    locations.iter().for_each(|(opcode_location, source_locations)| {
-        source_locations.iter().for_each(|source_location| {
-            let span = source_location.span;
-            let file_id = source_location.file;
-            let Some(file) = simple_files.get(&file_id) else {
-                return;
-            };
-            let Ok(line_index) = file.line_index((), span.start() as usize) else {
-                return;
-            };
-            let line_number = line_index + 1;
+    let mut result: BTreeMap<FileId, Vec<(usize, DebugLocation)>> = BTreeMap::new();
 
-            result.entry(file_id).or_default().push((line_number, *opcode_location));
-        });
-    });
+    for (circuit_id, debug_symbols) in debug_artifact.debug_symbols.iter().enumerate() {
+        for (opcode_location, source_locations) in &debug_symbols.locations {
+            source_locations.iter().for_each(|source_location| {
+                let span = source_location.span;
+                let file_id = source_location.file;
+                let Some(file) = simple_files.get(&file_id) else {
+                    return;
+                };
+                let Ok(line_index) = file.line_index((), span.start() as usize) else {
+                    return;
+                };
+                let line_number = line_index + 1;
+
+                let debug_location = DebugLocation {
+                    circuit_id: circuit_id as u32,
+                    opcode_location: *opcode_location,
+                };
+                result.entry(file_id).or_default().push((line_number, debug_location));
+            });
+        }
+    }
     result.iter_mut().for_each(|(_, file_locations)| file_locations.sort_by_key(|x| (x.0, x.1)));
 
     result
 }
 
-fn build_acir_opcode_offsets(
-    circuit: &Circuit<FieldElement>,
-    unconstrained_functions: &[BrilligBytecode<FieldElement>],
-) -> Vec<usize> {
-    let mut result = Vec::with_capacity(circuit.opcodes.len() + 1);
-    // address of the first opcode is always 0
-    result.push(0);
-    circuit.opcodes.iter().fold(0, |acc, opcode| {
-        let acc = acc
-            + match opcode {
-                Opcode::BrilligCall { id, .. } => {
-                    unconstrained_functions[*id as usize].bytecode.len()
-                }
-                _ => 1,
-            };
-        // push the starting address of the next opcode
-        result.push(acc);
-        acc
-    });
-    result
-}
-
-// TODO: update all debugger tests to use unconstrained brillig pointers
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -623,9 +853,10 @@ mod tests {
     use crate::foreign_calls::DefaultDebugForeignCallExecutor;
     use acvm::{
         acir::{
+            brillig::IntegerBitSize,
             circuit::{
                 brillig::{BrilligInputs, BrilligOutputs},
-                opcodes::BlockId,
+                opcodes::{BlockId, BlockType},
             },
             native_types::Expression,
             AcirField,
@@ -652,7 +883,7 @@ mod tests {
                 BrilligOpcode::Const {
                     destination: MemoryAddress::from(1),
                     value: fe_0,
-                    bit_size: 32,
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
                 },
                 BrilligOpcode::ForeignCall {
                     function: "clear_mock".into(),
@@ -675,7 +906,8 @@ mod tests {
         }];
         let brillig_funcs = &vec![brillig_bytecode];
         let current_witness_index = 2;
-        let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let circuits = &vec![circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -687,51 +919,66 @@ mod tests {
             Box::new(DefaultDebugForeignCallExecutor::from_artifact(true, debug_artifact));
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
-            circuit,
+            circuits,
             debug_artifact,
             initial_witness,
             foreign_call_executor,
             brillig_funcs,
         );
 
-        assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(0)));
+        assert_eq!(
+            context.get_current_debug_location(),
+            Some(DebugLocation { circuit_id: 0, opcode_location: OpcodeLocation::Acir(0) })
+        );
 
         // Execute the first Brillig opcode (calldata copy)
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
         assert_eq!(
-            context.get_current_opcode_location(),
-            Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 })
+            context.get_current_debug_location(),
+            Some(DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 }
+            })
         );
 
         // execute the second Brillig opcode (const)
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
         assert_eq!(
-            context.get_current_opcode_location(),
-            Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 })
+            context.get_current_debug_location(),
+            Some(DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 }
+            })
         );
 
         // try to execute the third Brillig opcode (and resolve the foreign call)
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
         assert_eq!(
-            context.get_current_opcode_location(),
-            Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 })
+            context.get_current_debug_location(),
+            Some(DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 }
+            })
         );
 
         // retry the third Brillig opcode (foreign call should be finished)
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
         assert_eq!(
-            context.get_current_opcode_location(),
-            Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 })
+            context.get_current_debug_location(),
+            Some(DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 }
+            })
         );
 
         // last Brillig opcode
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Done));
-        assert_eq!(context.get_current_opcode_location(), None);
+        assert_eq!(context.get_current_debug_location(), None);
     }
 
     #[test]
@@ -784,7 +1031,8 @@ mod tests {
             }),
         ];
         let current_witness_index = 3;
-        let circuit = &Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
+        let circuits = &vec![circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -797,7 +1045,7 @@ mod tests {
         let brillig_funcs = &vec![brillig_bytecode];
         let mut context = DebugContext::new(
             &StubbedBlackBoxSolver,
-            circuit,
+            circuits,
             debug_artifact,
             initial_witness,
             foreign_call_executor,
@@ -805,28 +1053,40 @@ mod tests {
         );
 
         // set breakpoint
-        let breakpoint_location = OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 };
+        let breakpoint_location = DebugLocation {
+            circuit_id: 0,
+            opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 },
+        };
         assert!(context.add_breakpoint(breakpoint_location));
 
         // execute the first ACIR opcode (Brillig block) -> should reach the breakpoint instead
         let result = context.step_acir_opcode();
         assert!(matches!(result, DebugCommandResult::BreakpointReached(_)));
-        assert_eq!(context.get_current_opcode_location(), Some(breakpoint_location));
+        assert_eq!(context.get_current_debug_location(), Some(breakpoint_location));
 
         // continue execution to the next ACIR opcode
         let result = context.step_acir_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
-        assert_eq!(context.get_current_opcode_location(), Some(OpcodeLocation::Acir(1)));
+        assert_eq!(
+            context.get_current_debug_location(),
+            Some(DebugLocation { circuit_id: 0, opcode_location: OpcodeLocation::Acir(1) })
+        );
 
         // last ACIR opcode
         let result = context.step_acir_opcode();
         assert!(matches!(result, DebugCommandResult::Done));
-        assert_eq!(context.get_current_opcode_location(), None);
+        assert_eq!(context.get_current_debug_location(), None);
     }
 
     #[test]
-    fn test_address_opcode_location_mapping() {
-        let brillig_bytecode = BrilligBytecode {
+    fn test_address_debug_location_mapping() {
+        let brillig_one = BrilligBytecode {
+            bytecode: vec![
+                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
+                BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
+            ],
+        };
+        let brillig_two = BrilligBytecode {
             bytecode: vec![
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
                 BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 },
@@ -834,22 +1094,33 @@ mod tests {
             ],
         };
 
-        let opcodes = vec![
-            Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
-            Opcode::MemoryInit {
-                block_id: BlockId(0),
-                init: vec![],
-                block_type: acvm::acir::circuit::opcodes::BlockType::Memory,
-            },
-            Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
-            Opcode::AssertZero(Expression::default()),
-        ];
-        let circuit = Circuit { opcodes, ..Circuit::default() };
+        let circuit_one = Circuit {
+            opcodes: vec![
+                Opcode::MemoryInit {
+                    block_id: BlockId(0),
+                    init: vec![],
+                    block_type: BlockType::Memory,
+                },
+                Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
+                Opcode::Call { id: 1, inputs: vec![], outputs: vec![], predicate: None },
+                Opcode::AssertZero(Expression::default()),
+            ],
+            ..Circuit::default()
+        };
+        let circuit_two = Circuit {
+            opcodes: vec![
+                Opcode::BrilligCall { id: 1, inputs: vec![], outputs: vec![], predicate: None },
+                Opcode::AssertZero(Expression::default()),
+            ],
+            ..Circuit::default()
+        };
+        let circuits = vec![circuit_one, circuit_two];
         let debug_artifact = DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
-        let brillig_funcs = &vec![brillig_bytecode];
+        let brillig_funcs = &vec![brillig_one, brillig_two];
+
         let context = DebugContext::new(
             &StubbedBlackBoxSolver,
-            &circuit,
+            &circuits,
             &debug_artifact,
             WitnessMap::new(),
             Box::new(DefaultDebugForeignCallExecutor::new(true)),
@@ -857,46 +1128,56 @@ mod tests {
         );
 
         let locations =
-            (0..=7).map(|address| context.address_to_opcode_location(address)).collect::<Vec<_>>();
+            (0..=8).map(|address| context.address_to_debug_location(address)).collect::<Vec<_>>();
 
         // mapping from addresses to opcode locations
         assert_eq!(
             locations,
             vec![
-                Some(OpcodeLocation::Acir(0)),
-                Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 }),
-                Some(OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 }),
-                Some(OpcodeLocation::Acir(1)),
-                Some(OpcodeLocation::Acir(2)),
-                Some(OpcodeLocation::Brillig { acir_index: 2, brillig_index: 1 }),
-                Some(OpcodeLocation::Brillig { acir_index: 2, brillig_index: 2 }),
-                Some(OpcodeLocation::Acir(3)),
+                Some(DebugLocation { circuit_id: 0, opcode_location: OpcodeLocation::Acir(0) }),
+                Some(DebugLocation { circuit_id: 0, opcode_location: OpcodeLocation::Acir(1) }),
+                Some(DebugLocation {
+                    circuit_id: 0,
+                    opcode_location: OpcodeLocation::Brillig { acir_index: 1, brillig_index: 1 }
+                }),
+                Some(DebugLocation { circuit_id: 0, opcode_location: OpcodeLocation::Acir(2) }),
+                Some(DebugLocation { circuit_id: 0, opcode_location: OpcodeLocation::Acir(3) }),
+                Some(DebugLocation { circuit_id: 1, opcode_location: OpcodeLocation::Acir(0) }),
+                Some(DebugLocation {
+                    circuit_id: 1,
+                    opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 }
+                }),
+                Some(DebugLocation {
+                    circuit_id: 1,
+                    opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 }
+                }),
+                Some(DebugLocation { circuit_id: 1, opcode_location: OpcodeLocation::Acir(1) }),
             ]
         );
 
         let addresses = locations
             .iter()
             .flatten()
-            .map(|location| context.opcode_location_to_address(location))
+            .map(|location| context.debug_location_to_address(location))
             .collect::<Vec<_>>();
 
         // and vice-versa
-        assert_eq!(addresses, (0..=7).collect::<Vec<_>>());
+        assert_eq!(addresses, (0..=8).collect::<Vec<_>>());
 
         // check edge cases
-        assert_eq!(None, context.address_to_opcode_location(8));
+        assert_eq!(None, context.address_to_debug_location(9));
         assert_eq!(
-            0,
-            context.opcode_location_to_address(&OpcodeLocation::Brillig {
-                acir_index: 0,
-                brillig_index: 0
+            1,
+            context.debug_location_to_address(&DebugLocation {
+                circuit_id: 0,
+                opcode_location: OpcodeLocation::Brillig { acir_index: 1, brillig_index: 0 }
             })
         );
         assert_eq!(
-            4,
-            context.opcode_location_to_address(&OpcodeLocation::Brillig {
-                acir_index: 2,
-                brillig_index: 0
+            5,
+            context.debug_location_to_address(&DebugLocation {
+                circuit_id: 1,
+                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 0 }
             })
         );
     }

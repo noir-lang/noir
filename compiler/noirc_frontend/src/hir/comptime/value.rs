@@ -7,13 +7,14 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
-    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
+    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness, TraitBound},
+    hir::def_map::ModuleId,
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
         StructId,
     },
-    node_interner::{ExprId, FuncId},
+    node_interner::{ExprId, FuncId, TraitId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type, TypeBindings,
@@ -31,6 +32,7 @@ pub enum Value {
     I16(i16),
     I32(i32),
     I64(i64),
+    U1(bool),
     U8(u8),
     U16(u16),
     U32(u32),
@@ -40,11 +42,16 @@ pub enum Value {
     Closure(HirLambda, Vec<Value>, Type),
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
-    Pointer(Shared<Value>),
+    Pointer(Shared<Value>, /* auto_deref */ bool),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
     Code(Rc<Tokens>),
     StructDefinition(StructId),
+    TraitConstraint(TraitBound),
+    TraitDefinition(TraitId),
+    FunctionDefinition(FuncId),
+    ModuleDefinition(ModuleId),
+    Zeroed(Type),
 }
 
 impl Value {
@@ -57,6 +64,7 @@ impl Value {
             Value::I16(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
             Value::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
             Value::I64(_) => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
+            Value::U1(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
             Value::U8(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
             Value::U16(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
@@ -75,10 +83,19 @@ impl Value {
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Code(_) => Type::Quoted(QuotedType::Quoted),
             Value::StructDefinition(_) => Type::Quoted(QuotedType::StructDefinition),
-            Value::Pointer(element) => {
-                let element = element.borrow().get_type().into_owned();
-                Type::MutableReference(Box::new(element))
+            Value::Pointer(element, auto_deref) => {
+                if *auto_deref {
+                    element.borrow().get_type().into_owned()
+                } else {
+                    let element = element.borrow().get_type().into_owned();
+                    Type::MutableReference(Box::new(element))
+                }
             }
+            Value::TraitConstraint { .. } => Type::Quoted(QuotedType::TraitConstraint),
+            Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
+            Value::FunctionDefinition(_) => Type::Quoted(QuotedType::FunctionDefinition),
+            Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
+            Value::Zeroed(typ) => return Cow::Borrowed(typ),
         })
     }
 
@@ -114,6 +131,9 @@ impl Value {
                 let value = value.abs();
                 let value = (value as u128).into();
                 ExpressionKind::Literal(Literal::Integer(value, negative))
+            }
+            Value::U1(value) => {
+                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
             Value::U8(value) => {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
@@ -192,7 +212,13 @@ impl Value {
                     }
                 };
             }
-            Value::Pointer(_) | Value::StructDefinition(_) => {
+            Value::Pointer(..)
+            | Value::StructDefinition(_)
+            | Value::TraitConstraint(_)
+            | Value::TraitDefinition(_)
+            | Value::FunctionDefinition(_)
+            | Value::Zeroed(_)
+            | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -234,6 +260,9 @@ impl Value {
                 let value = value.abs();
                 let value = (value as u128).into();
                 HirExpression::Literal(HirLiteral::Integer(value, negative))
+            }
+            Value::U1(value) => {
+                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
             }
             Value::U8(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
@@ -298,7 +327,13 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
-            Value::Pointer(_) | Value::StructDefinition(_) => {
+            Value::Pointer(..)
+            | Value::StructDefinition(_)
+            | Value::TraitConstraint(_)
+            | Value::TraitDefinition(_)
+            | Value::FunctionDefinition(_)
+            | Value::Zeroed(_)
+            | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
         };
@@ -366,6 +401,7 @@ impl Display for Value {
             Value::I16(value) => write!(f, "{value}"),
             Value::I32(value) => write!(f, "{value}"),
             Value::I64(value) => write!(f, "{value}"),
+            Value::U1(value) => write!(f, "{value}"),
             Value::U8(value) => write!(f, "{value}"),
             Value::U16(value) => write!(f, "{value}"),
             Value::U32(value) => write!(f, "{value}"),
@@ -385,7 +421,7 @@ impl Display for Value {
                 let fields = vecmap(fields, |(name, value)| format!("{}: {}", name, value));
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
-            Value::Pointer(value) => write!(f, "&mut {}", value.borrow()),
+            Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow()),
             Value::Array(values, _) => {
                 let values = vecmap(values, ToString::to_string);
                 write!(f, "[{}]", values.join(", "))
@@ -402,6 +438,11 @@ impl Display for Value {
                 write!(f, " }}")
             }
             Value::StructDefinition(_) => write!(f, "(struct definition)"),
+            Value::TraitConstraint { .. } => write!(f, "(trait constraint)"),
+            Value::TraitDefinition(_) => write!(f, "(trait definition)"),
+            Value::FunctionDefinition(_) => write!(f, "(function definition)"),
+            Value::ModuleDefinition(_) => write!(f, "(module)"),
+            Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
         }
     }
 }

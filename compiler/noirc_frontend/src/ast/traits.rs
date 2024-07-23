@@ -7,6 +7,7 @@ use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
     UnresolvedType,
 };
+use crate::macros_api::SecondaryAttribute;
 use crate::node_interner::TraitId;
 
 /// AST node for trait definitions:
@@ -18,6 +19,7 @@ pub struct NoirTrait {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub span: Span,
     pub items: Vec<TraitItem>,
+    pub attributes: Vec<SecondaryAttribute>,
 }
 
 /// Any declaration inside the body of a trait that a user is required to
@@ -51,6 +53,7 @@ pub struct TypeImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(NoirFunction, Span)>,
+    pub is_comptime: bool,
 }
 
 /// Ast node for an implementation of a trait for a particular type
@@ -67,6 +70,8 @@ pub struct NoirTraitImpl {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
     pub items: Vec<TraitImplItem>,
+
+    pub is_comptime: bool,
 }
 
 /// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`
@@ -82,7 +87,7 @@ pub struct UnresolvedTraitConstraint {
 }
 
 /// Represents a single trait bound, such as `TraitX` or `TraitY<U, V>`
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TraitBound {
     pub trait_path: Path,
     pub trait_id: Option<TraitId>, // initially None, gets assigned during DC

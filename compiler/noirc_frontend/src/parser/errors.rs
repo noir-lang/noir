@@ -20,8 +20,8 @@ pub enum ParserErrorReason {
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
-    #[error("Expression is invalid in an array-length type: '{0}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.")]
-    InvalidArrayLengthExpression(Expression),
+    #[error("Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context.")]
+    InvalidTypeExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
     #[error("Patterns aren't allowed in a trait's function declarations")]
@@ -44,6 +44,8 @@ pub enum ParserErrorReason {
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
+    #[error("The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`")]
+    ForbiddenNumericGenericType,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

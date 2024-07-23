@@ -50,10 +50,7 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
     });
 }
 
-pub(crate) fn get_program(
-    src: &str,
-    use_legacy: bool,
-) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -80,12 +77,11 @@ pub(crate) fn get_program(
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect(
+        errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            use_legacy,
             None, // No debug_comptime_in_file
             &[],  // No macro processors
         ));
@@ -94,7 +90,14 @@ pub(crate) fn get_program(
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
-    get_program(src, false).2
+    get_program(src).2
+}
+
+fn assert_no_errors(src: &str) {
+    let errors = get_program_errors(src);
+    if !errors.is_empty() {
+        panic!("Expected no errors, got: {:?}", errors);
+    }
 }
 
 #[test]
@@ -141,10 +144,7 @@ fn check_trait_implemented_for_all_t() {
     fn main(a: Foo) -> pub bool {
         a.is_default()
     }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -767,9 +767,7 @@ fn test_impl_self_within_default_def() {
             self
         }
     }";
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -794,10 +792,7 @@ fn check_trait_as_type_as_fn_parameter() {
     fn main(a: Foo) -> pub bool {
         test_eq(a)
     }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -830,14 +825,11 @@ fn check_trait_as_type_as_two_fn_parameters() {
     fn main(a: Foo, b: u64) -> pub bool {
         test_eq(a, b)
     }";
-
-    let errors = get_program_errors(src);
-    errors.iter().for_each(|err| println!("{:?}", err));
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 fn get_program_captures(src: &str) -> Vec<Vec<String>> {
-    let (program, context, _errors) = get_program(src, false);
+    let (program, context, _errors) = get_program(src);
     let interner = context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
@@ -898,7 +890,7 @@ fn resolve_empty_function() {
 
         }
     ";
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 #[test]
 fn resolve_basic_function() {
@@ -908,7 +900,7 @@ fn resolve_basic_function() {
             assert(y == x);
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 #[test]
 fn resolve_unused_var() {
@@ -981,7 +973,7 @@ fn resolve_literal_expr() {
             assert(y == x);
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1028,7 +1020,7 @@ fn resolve_prefix_expr() {
             let _y = -x;
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1040,7 +1032,7 @@ fn resolve_for_expr() {
             };
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1054,7 +1046,7 @@ fn resolve_call_expr() {
             x
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1071,7 +1063,7 @@ fn resolve_shadowing() {
             x
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1082,7 +1074,7 @@ fn resolve_basic_closure() {
             closure(x)
         }
     "#;
-    assert!(get_program_errors(src).is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1133,7 +1125,7 @@ fn resolve_complex_closures() {
             a + b + c + closure_with_transitive_captures(6)
         }
     "#;
-    assert!(get_program_errors(src).is_empty(), "there should be no errors");
+    assert_no_errors(src);
 
     let expected_captures = vec![
         vec![],
@@ -1199,7 +1191,7 @@ fn resolve_fmt_strings() {
 }
 
 fn check_rewrite(src: &str, expected: &str) {
-    let (_program, mut context, _errors) = get_program(src, false);
+    let (_program, mut context, _errors) = get_program(src);
     let main_func_id = context.def_interner.find_function("main").unwrap();
     let program = monomorphize(main_func_id, &mut context.def_interner).unwrap();
     assert!(format!("{}", program) == expected);
@@ -1636,14 +1628,13 @@ fn numeric_generic_in_function_signature() {
     let src = r#"
     fn foo<let N: u8>(arr: [Field; N]) -> [Field; N] { arr }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
 fn numeric_generic_as_struct_field_type() {
     let src = r#"
-    struct Foo<let N: u64> {
+    struct Foo<let N: u32> {
         a: Field,
         b: N,
     }
@@ -1704,7 +1695,7 @@ fn numeric_generic_as_param_type() {
 #[test]
 fn numeric_generic_used_in_nested_type_fail() {
     let src = r#"
-    struct Foo<let N: u64> {
+    struct Foo<let N: u32> {
         a: Field,
         b: Bar<N>,
     }
@@ -1749,12 +1740,14 @@ fn numeric_generic_used_in_nested_type_pass() {
         inner: [u64; N],
     }    
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
 fn numeric_generic_used_in_trait() {
+    // We want to make sure that `N` in `impl<let N: u32, T> Deserialize<N, T>` does
+    // not trigger `expected type, found numeric generic parameter N` as the trait
+    // does in fact expect a numeric generic.
     let src = r#"
     struct MyType<T> {
         a: Field,
@@ -1763,7 +1756,7 @@ fn numeric_generic_used_in_trait() {
         d: T,
     }
     
-    impl<let N: u64, T> Deserialize<N, T> for MyType<T> {
+    impl<let N: u32, T> Deserialize<N, T> for MyType<T> {
         fn deserialize(fields: [Field; N], other: T) -> Self {
             MyType { a: fields[0], b: fields[1], c: fields[2], d: other }
         }
@@ -1773,11 +1766,7 @@ fn numeric_generic_used_in_trait() {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
     "#;
-    let errors = get_program_errors(src);
-    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
-    // not trigger `expected type, found numeric generic parameter N` as the trait
-    // does in fact expect a numeric generic.
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1808,8 +1797,7 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
         fn deserialize(fields: [Field; N]) -> Self;
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1827,8 +1815,7 @@ fn numeric_generic_used_in_where_clause() {
         T::deserialize(fields)
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1845,8 +1832,7 @@ fn numeric_generic_used_in_turbofish() {
         assert(double::<7 + 8>() == 30);
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1866,8 +1852,7 @@ fn constant_used_with_numeric_generic() {
         }
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }
 
 #[test]
@@ -1969,6 +1954,328 @@ fn quote_code_fragments() {
 
     use InterpreterError::FailingConstraint;
     assert!(matches!(&errors[0].0, CompilationError::InterpreterError(FailingConstraint { .. })));
+}
+
+#[test]
+fn impl_stricter_than_trait_no_trait_method_constraints() {
+    // This test ensures that the error we get from the where clause on the trait impl method
+    // is a `DefCollectorErrorKind::ImplIsStricterThanTrait` error.
+    let src = r#"
+    trait Serialize<let N: u32> {
+        // We want to make sure we trigger the error when override a trait method 
+        // which itself has no trait constraints.
+        fn serialize(self) -> [Field; N];
+    }
+
+    trait ToField {
+        fn to_field(self) -> Field;
+    }
+
+    fn process_array<let N: u32>(array: [Field; N]) -> Field {
+        array[0]
+    }
+
+    fn serialize_thing<A, let N: u32>(thing: A) -> [Field; N] where A: Serialize<N> {
+        thing.serialize()
+    }
+
+    struct MyType<T> {
+        a: T,
+        b: T,
+    }
+
+    impl<T> Serialize<2> for MyType<T> {
+        fn serialize(self) -> [Field; 2] where T: ToField {
+            [ self.a.to_field(), self.b.to_field() ]
+        }
+    }
+
+    impl<T> MyType<T> {
+        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
+            process_array(serialize_thing(self))
+        }
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait { .. })
+    ));
+}
+
+#[test]
+fn impl_stricter_than_trait_different_generics() {
+    let src = r#"
+    trait Default { }
+
+    // Object type of the trait constraint differs
+    trait Foo<T> {
+        fn foo_good<U>() where T: Default;
+
+        fn foo_bad<U>() where T: Default;
+    }
+
+    impl<A> Foo<A> for () {
+        fn foo_good<B>() where A: Default {}
+
+        fn foo_bad<B>() where B: Default {}
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        ..
+    }) = &errors[0].0
+    {
+        assert!(matches!(constraint_typ.to_string().as_str(), "B"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn impl_stricter_than_trait_different_object_generics() {
+    let src = r#"
+    trait MyTrait { }
+
+    trait OtherTrait {}
+
+    struct Option<T> {
+        inner: T
+    }
+
+    struct OtherOption<T> {
+        inner: Option<T>,
+    }
+
+    trait Bar<T> {
+        fn bar_good<U>() where Option<T>: MyTrait, OtherOption<Option<T>>: OtherTrait;
+
+        fn bar_bad<U>() where Option<T>: MyTrait, OtherOption<Option<T>>: OtherTrait;
+
+        fn array_good<U>() where [T; 8]: MyTrait;
+
+        fn array_bad<U>() where [T; 8]: MyTrait;
+
+        fn tuple_good<U>() where (Option<T>, Option<U>): MyTrait;
+
+        fn tuple_bad<U>() where (Option<T>, Option<U>): MyTrait;
+    }
+
+    impl<A> Bar<A> for () {
+        fn bar_good<B>() 
+        where 
+            OtherOption<Option<A>>: OtherTrait, 
+            Option<A>: MyTrait { }
+
+        fn bar_bad<B>() 
+        where 
+            OtherOption<Option<A>>: OtherTrait, 
+            Option<B>: MyTrait { }
+
+        fn array_good<B>() where [A; 8]: MyTrait { }
+
+        fn array_bad<B>() where [B; 8]: MyTrait { }
+
+        fn tuple_good<B>() where (Option<A>, Option<B>): MyTrait { }
+
+        fn tuple_bad<B>() where (Option<B>, Option<A>): MyTrait { }
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 3);
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        constraint_name,
+        ..
+    }) = &errors[0].0
+    {
+        assert!(matches!(constraint_typ.to_string().as_str(), "Option<B>"));
+        assert!(matches!(constraint_name.as_str(), "MyTrait"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        constraint_name,
+        ..
+    }) = &errors[1].0
+    {
+        assert!(matches!(constraint_typ.to_string().as_str(), "[B; 8]"));
+        assert!(matches!(constraint_name.as_str(), "MyTrait"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        constraint_name,
+        ..
+    }) = &errors[2].0
+    {
+        assert!(matches!(constraint_typ.to_string().as_str(), "(Option<B>, Option<A>)"));
+        assert!(matches!(constraint_name.as_str(), "MyTrait"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn impl_stricter_than_trait_different_trait() {
+    let src = r#"
+    trait Default { }
+
+    trait OtherDefault { }
+
+    struct Option<T> {
+        inner: T
+    }
+
+    trait Bar<T> {
+        fn bar<U>() where Option<T>: Default;
+    }
+
+    impl<A> Bar<A> for () {
+        // Trait constraint differs due to the trait even though the constraint
+        // types are the same.
+        fn bar<B>() where Option<A>: OtherDefault {}
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        constraint_name,
+        ..
+    }) = &errors[0].0
+    {
+        assert!(matches!(constraint_typ.to_string().as_str(), "Option<A>"));
+        assert!(matches!(constraint_name.as_str(), "OtherDefault"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn trait_impl_where_clause_stricter_pass() {
+    let src = r#"
+    trait MyTrait {
+        fn good_foo<T, H>() where H: OtherTrait;
+
+        fn bad_foo<T, H>() where H: OtherTrait;
+    }
+
+    trait OtherTrait {}
+
+    struct Option<T> {
+        inner: T
+    }
+
+    impl<T> MyTrait for [T] where Option<T>: MyTrait {
+        fn good_foo<A, B>() where B: OtherTrait { }
+
+        fn bad_foo<A, B>() where A: OtherTrait { }
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        constraint_name,
+        ..
+    }) = &errors[0].0
+    {
+        assert!(matches!(constraint_typ.to_string().as_str(), "A"));
+        assert!(matches!(constraint_name.as_str(), "OtherTrait"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn impl_stricter_than_trait_different_trait_generics() {
+    let src = r#"
+    trait Foo<T> {
+        fn foo<U>() where T: T2<T>;
+    }
+
+    impl<A> Foo<A> for () {
+        // Should be A: T2<A>
+        fn foo<B>() where A: T2<B> {}
+    }
+
+    trait T2<C> {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
+        constraint_typ,
+        constraint_name,
+        constraint_generics,
+        ..
+    }) = &errors[0].0
+    {
+        assert!(matches!(constraint_typ.to_string().as_str(), "A"));
+        assert!(matches!(constraint_name.as_str(), "T2"));
+        assert!(matches!(constraint_generics[0].to_string().as_str(), "B"));
+    } else {
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+    }
+}
+
+#[test]
+fn impl_not_found_for_inner_impl() {
+    // We want to guarantee that we get a no impl found error
+    let src = r#"
+    trait Serialize<let N: u32> {
+        fn serialize(self) -> [Field; N];
+    }
+
+    trait ToField {
+        fn to_field(self) -> Field;
+    }
+
+    fn process_array<let N: u32>(array: [Field; N]) -> Field {
+        array[0]
+    }
+
+    fn serialize_thing<A, let N: u32>(thing: A) -> [Field; N] where A: Serialize<N> {
+        thing.serialize()
+    }
+
+    struct MyType<T> {
+        a: T,
+        b: T,
+    }
+
+    impl<T> Serialize<2> for MyType<T> where T: ToField {
+        fn serialize(self) -> [Field; 2] {
+            [ self.a.to_field(), self.b.to_field() ]
+        }
+    }
+
+    impl<T> MyType<T> {
+        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
+            process_array(serialize_thing(self))
+        }
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::TypeError(TypeCheckError::NoMatchingImplFound { .. })
+    ));
 }
 
 // Regression for #5388
@@ -2076,8 +2383,7 @@ fn turbofish_numeric_generic_nested_call() {
         let _ = bar::<M>();
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 
     // Check for turbofish numeric generics used with method calls
     let src = r#"
@@ -2107,6 +2413,84 @@ fn turbofish_numeric_generic_nested_call() {
         let _ = bar::<M>();
     }
     "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_super() {
+    let src = r#"
+    fn some_func() {}
+
+    mod foo {
+        use super::some_func;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_super_in_path() {
+    let src = r#"
+    fn some_func() {}
+
+    mod foo {
+        fn func() {
+            super::some_func();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_super() {
+    let src = "use super::some_func;";
     let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
+        PathResolutionError::NoSuper(span),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a 'no super' error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(span.start(), 4);
+    assert_eq!(span.end(), 9);
+}
+
+#[test]
+fn trait_impl_generics_count_mismatch() {
+    let src = r#"
+    trait Foo {}
+
+    impl Foo<()> for Field {}
+
+    fn main() {}"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        item,
+        expected,
+        found,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(item, "Foo");
+    assert_eq!(*expected, 0);
+    assert_eq!(*found, 1);
+}
+
+#[test]
+fn bit_not_on_untyped_integer() {
+    let src = r#"
+    fn main() {
+        let _: u32 = 3 & !1;
+    }
+    "#;
+    assert_no_errors(src);
 }
