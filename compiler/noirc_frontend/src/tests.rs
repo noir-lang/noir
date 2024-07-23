@@ -2522,3 +2522,18 @@ fn duplicate_struct_field() {
     assert_eq!(first_def.span().start(), 26);
     assert_eq!(second_def.span().start(), 42);
 }
+
+#[test]
+fn trait_constraint_on_tuple_type() {
+    let src = r#"
+        trait Foo<A> {
+            fn foo(self, x: A) -> bool;
+        }
+
+        fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+            x.foo(y)
+        }
+
+        fn main() {}"#;
+    assert_no_errors(src);
+}
