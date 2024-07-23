@@ -1,8 +1,15 @@
 fn main() {
-    comptime {
+    // format strings are lowered as normal strings
+    let (s1, s2): (str<39>, str<4>) = comptime {
         let x = 4;
         let y = 5;
-        println(f"x is {x}, fake interpolation: \{y}, y is {y}");
-        println(std::unsafe::zeroed::<fmtstr<4, ()>>());
-    }
+
+        // Can't print these at compile-time here since printing to stdout while
+        // compiling breaks the test runner.
+        let s1 = f"x is {x}, fake interpolation: \{y}, y is {y}";
+        let s2 = std::unsafe::zeroed::<fmtstr<4, ()>>();
+        (s1, s2)
+    };
+    println(s1);
+    println(s2);
 }
