@@ -239,15 +239,13 @@ fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
     type_expression_inner().try_map(UnresolvedTypeExpression::from_expr)
 }
 
-/// This parser is the same as `type_expression()`, however, it continues parsing and 
+/// This parser is the same as `type_expression()`, however, it continues parsing and
 /// emits a parser error in the case of an invalid type expression rather than halting the parser.
 fn type_expression_validated() -> impl NoirParser<UnresolvedType> {
     type_expression_inner().validate(|expr, span, emit| {
         let type_expr = UnresolvedTypeExpression::from_expr(expr, span);
         match type_expr {
-            Ok(type_expression) => {
-                UnresolvedTypeData::Expression(type_expression).with_span(span)
-            }
+            Ok(type_expression) => UnresolvedTypeData::Expression(type_expression).with_span(span),
             Err(parser_error) => {
                 emit(parser_error);
                 UnresolvedType::error(span)
