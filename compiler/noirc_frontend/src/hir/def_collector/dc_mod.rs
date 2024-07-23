@@ -84,7 +84,7 @@ pub fn collect_defs(
         });
     }
 
-    errors.extend(collector.collect_globals(context, ast.globals));
+    errors.extend(collector.collect_globals(context, ast.globals, crate_id));
 
     errors.extend(collector.collect_traits(context, ast.traits, crate_id));
 
@@ -106,6 +106,7 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         globals: Vec<LetStatement>,
+        crate_id: CrateId,
     ) -> Vec<(CompilationError, fm::FileId)> {
         let mut errors = vec![];
         for global in globals {
@@ -115,6 +116,7 @@ impl<'a> ModCollector<'a> {
                 global,
                 self.file_id,
                 self.module_id,
+                crate_id,
             );
 
             if let Some(error) = error {
@@ -492,6 +494,7 @@ impl<'a> ModCollector<'a> {
                         let global_id = context.def_interner.push_empty_global(
                             name.clone(),
                             trait_id.0.local_id,
+                            krate,
                             self.file_id,
                             vec![],
                             false,
@@ -862,12 +865,14 @@ pub(crate) fn collect_global(
     global: LetStatement,
     file_id: FileId,
     module_id: LocalModuleId,
+    crate_id: CrateId,
 ) -> (UnresolvedGlobal, Option<(CompilationError, FileId)>) {
     let name = global.pattern.name_ident().clone();
 
     let global_id = interner.push_empty_global(
         name.clone(),
         module_id,
+        crate_id,
         file_id,
         global.attributes.clone(),
         matches!(global.pattern, Pattern::Mutable { .. }),
