@@ -1420,36 +1420,7 @@ impl<'context> Elaborator<'context> {
             // Fetch trait constraints here
             let trait_generics = trait_impl
                 .trait_id
-                .and_then(|trait_id| {
-                    let trait_def = self.interner.get_trait(trait_id);
-                    let resolved_generics = trait_def.generics.clone();
-                    if resolved_generics.len() == trait_impl.trait_generics.len() {
-                        Some(
-                            trait_impl
-                                .trait_generics
-                                .iter()
-                                .enumerate()
-                                .map(|(i, generic)| {
-                                    self.resolve_type_inner(
-                                        generic.clone(),
-                                        &resolved_generics[i].kind,
-                                    )
-                                })
-                                .collect(),
-                        )
-                    } else {
-                        self.push_err(CompilationError::TypeError(
-                            TypeCheckError::GenericCountMismatch {
-                                item: trait_def.name.to_string(),
-                                expected: resolved_generics.len(),
-                                found: trait_impl.trait_generics.len(),
-                                span: trait_impl.trait_path.span(),
-                            },
-                        ));
-
-                        None
-                    }
-                })
+                .and_then(|trait_id| self.resolve_trait_impl_generics(trait_impl, trait_id))
                 .unwrap_or_else(|| {
                     // We still resolve as to continue type checking
                     vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
@@ -1479,6 +1450,36 @@ impl<'context> Elaborator<'context> {
                 );
             }
         }
+    }
+
+    fn resolve_trait_impl_generics(
+        &mut self,
+        trait_impl: &UnresolvedTraitImpl,
+        trait_id: TraitId,
+    ) -> Option<Vec<Type>> {
+        let trait_def = self.interner.get_trait(trait_id);
+        let resolved_generics = trait_def.generics.clone();
+        if resolved_generics.len() != trait_impl.trait_generics.len() {
+            self.push_err(CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+                item: trait_def.name.to_string(),
+                expected: resolved_generics.len(),
+                found: trait_impl.trait_generics.len(),
+                span: trait_impl.trait_path.span(),
+            }));
+
+            return None;
+        }
+
+        Some(
+            trait_impl
+                .trait_generics
+                .iter()
+                .zip(resolved_generics.iter())
+                .map(|(generic, resolved_generic)| {
+                    self.resolve_type_inner(generic.clone(), &resolved_generic.kind)
+                })
+                .collect(),
+        )
     }
 
     fn define_function_metas_for_functions(&mut self, function_set: &mut UnresolvedFunctions) {
