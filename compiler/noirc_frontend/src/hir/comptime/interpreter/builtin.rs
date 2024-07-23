@@ -5,15 +5,15 @@ use std::{
 
 use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
-use iter_extended::try_vecmap;
+use iter_extended::{ try_vecmap, vecmap };
 use noirc_errors::{Location, Span};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{IntegerBitSize, TraitBound},
     hir::comptime::{errors::IResult, InterpreterError, Value},
-    macros_api::{NodeInterner, Path, Signedness},
-    node_interner::FuncId,
+    macros_api::{NodeInterner, Path, Signedness, UnresolvedTypeData},
+    node_interner::TraitId,
     parser,
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type,
@@ -46,6 +46,9 @@ pub(super) fn call_builtin(
         "struct_def_generics" => struct_def_generics(interner, arguments, location),
         "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
         "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
+        "trait_def_as_trait_constraint" => {
+            trait_def_as_trait_constraint(interner, arguments, location)
+        }
         "quoted_as_trait_constraint" => quoted_as_trait_constraint(interner, arguments, location),
         "zeroed" => zeroed(return_type, location),
         _ => {
@@ -103,6 +106,16 @@ fn get_trait_constraint(value: Value, location: Location) -> IResult<TraitBound>
         Value::TraitConstraint(bound) => Ok(bound),
         value => {
             let expected = Type::Quoted(QuotedType::TraitConstraint);
+            Err(InterpreterError::TypeMismatch { expected, value, location })
+        }
+    }
+}
+
+fn get_trait_def(value: Value, location: Location) -> IResult<TraitId> {
+    match value {
+        Value::TraitDefinition(id) => Ok(id),
+        value => {
+            let expected = Type::Quoted(QuotedType::TraitDefinition);
             Err(InterpreterError::TypeMismatch { expected, value, location })
         }
     }
@@ -408,7 +421,8 @@ fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
                 let array = std::iter::repeat(element).take(length as usize).collect();
                 Ok(Value::Array(array, Type::Array(length_type, elem)))
             } else {
-                Err(InterpreterError::NonIntegerArrayLength { typ: *length_type, location })
+                // Assume we can resolve the length later
+                Ok(Value::Zeroed(Type::Array(length_type, elem)))
             }
         }
         Type::Slice(_) => Ok(Value::Slice(im::Vector::new(), return_type)),
@@ -429,7 +443,8 @@ fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
             if let Some(length) = length_type.evaluate_to_u32() {
                 Ok(Value::String(Rc::new("\0".repeat(length as usize))))
             } else {
-                Err(InterpreterError::NonIntegerArrayLength { typ: *length_type, location })
+                // Assume we can resolve the length later
+                Ok(Value::Zeroed(Type::String(length_type)))
             }
         }
         Type::FmtString(_, _) => {
@@ -453,8 +468,9 @@ fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
             Ok(Value::Struct(values, typ))
         }
         Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics), location),
-        Type::Function(_, _, _) => {
-            Ok(Value::Function(FuncId::dummy_id(), Type::Unit, Default::default()))
+        typ @ Type::Function(..) => {
+            // Using Value::Zeroed here is probably safer than using FuncId::dummy_id() or similar
+            Ok(Value::Zeroed(typ))
         }
         Type::MutableReference(element) => {
             let element = zeroed(*element, location)?;
@@ -465,6 +481,7 @@ fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
             trait_id: None,
             trait_generics: Vec::new(),
         })),
+        // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)
@@ -537,4 +554,25 @@ fn modulus_num_bits(
     check_argument_count(0, &arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
     Ok(Value::U64(bits))
+}
+
+fn trait_def_as_trait_constraint(
+    interner: &mut NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> Result<Value, InterpreterError> {
+    check_argument_count(1, &arguments, location)?;
+
+    let trait_id = get_trait_def(arguments.pop().unwrap().0, location)?;
+    let the_trait = interner.get_trait(trait_id);
+
+    let trait_path = Path::from_ident(the_trait.name.clone());
+
+    let trait_generics = vecmap(&the_trait.generics, |generic| {
+        let name = Path::from_single(generic.name.as_ref().clone(), generic.span);
+        UnresolvedTypeData::Named(name, Vec::new(), false).with_span(generic.span)
+    });
+
+    let trait_id = Some(trait_id);
+    Ok(Value::TraitConstraint(TraitBound { trait_path, trait_id, trait_generics }))
 }

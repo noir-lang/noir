@@ -1,5 +1,5 @@
 [package]
-name = "uhashmap"
+name = "trait_call_full_path"
 type = "bin"
 authors = [""]
 
