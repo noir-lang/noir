@@ -1418,22 +1418,42 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_generics = self.generics.clone();
 
             // Fetch trait constraints here
-            let trait_generics = if let Some(trait_id) = trait_impl.trait_id {
-                let trait_def = self.interner.get_trait(trait_id);
-                let resolved_generics = trait_def.generics.clone();
-                assert_eq!(resolved_generics.len(), trait_impl.trait_generics.len());
-                trait_impl
-                    .trait_generics
-                    .iter()
-                    .enumerate()
-                    .map(|(i, generic)| {
-                        self.resolve_type_inner(generic.clone(), &resolved_generics[i].kind)
-                    })
-                    .collect()
-            } else {
-                // We still resolve as to continue type checking
-                vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
-            };
+            let trait_generics = trait_impl
+                .trait_id
+                .and_then(|trait_id| {
+                    let trait_def = self.interner.get_trait(trait_id);
+                    let resolved_generics = trait_def.generics.clone();
+                    if resolved_generics.len() == trait_impl.trait_generics.len() {
+                        Some(
+                            trait_impl
+                                .trait_generics
+                                .iter()
+                                .enumerate()
+                                .map(|(i, generic)| {
+                                    self.resolve_type_inner(
+                                        generic.clone(),
+                                        &resolved_generics[i].kind,
+                                    )
+                                })
+                                .collect(),
+                        )
+                    } else {
+                        self.push_err(CompilationError::TypeError(
+                            TypeCheckError::GenericCountMismatch {
+                                item: trait_def.name.to_string(),
+                                expected: resolved_generics.len(),
+                                found: trait_impl.trait_generics.len(),
+                                span: trait_impl.trait_path.span(),
+                            },
+                        ));
+
+                        None
+                    }
+                })
+                .unwrap_or_else(|| {
+                    // We still resolve as to continue type checking
+                    vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
+                });
 
             trait_impl.resolved_trait_generics = trait_generics;
 
