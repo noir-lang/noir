@@ -1,8 +1,8 @@
 use std::future::{self, Future};
 
+use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use lsp_types::{LogMessageParams, MessageType};
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{check_crate, file_manager_with_stdlib, NOIR_ARTIFACT_VERSION_STRING};
 
@@ -51,7 +51,11 @@ fn on_tests_request_inner(
     })?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    insert_all_files_for_workspace_into_file_manager(
+        state,
+        &workspace,
+        &mut workspace_file_manager,
+    );
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     let package_tests: Vec<_> = workspace

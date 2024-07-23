@@ -1,5 +1,6 @@
 use std::{collections::HashMap, future::Future};
 
+use crate::insert_all_files_for_workspace_into_file_manager;
 use crate::{
     parse_diff, resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
@@ -11,7 +12,6 @@ use lsp_types::{
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
     WorkDoneProgressOptions,
 };
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
 use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
@@ -56,15 +56,39 @@ pub(crate) use {
 
 /// LSP client will send initialization request after the server has started.
 /// [InitializeParams].`initialization_options` will contain the options sent from the client.
-#[derive(Debug, Deserialize, Serialize)]
-struct LspInitializationOptions {
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct LspInitializationOptions {
     /// Controls whether code lens is enabled by the server
     /// By default this will be set to true (enabled).
     #[serde(rename = "enableCodeLens", default = "default_enable_code_lens")]
-    enable_code_lens: bool,
+    pub(crate) enable_code_lens: bool,
 
     #[serde(rename = "enableParsingCache", default = "default_enable_parsing_cache")]
-    enable_parsing_cache: bool,
+    pub(crate) enable_parsing_cache: bool,
+
+    #[serde(rename = "inlayHints", default = "default_inlay_hints")]
+    pub(crate) inlay_hints: InlayHintsOptions,
+}
+
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct InlayHintsOptions {
+    #[serde(rename = "typeHints", default = "default_type_hints")]
+    pub(crate) type_hints: TypeHintsOptions,
+
+    #[serde(rename = "parameterHints", default = "default_parameter_hints")]
+    pub(crate) parameter_hints: ParameterHintsOptions,
+}
+
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct TypeHintsOptions {
+    #[serde(rename = "enabled", default = "default_type_hints_enabled")]
+    pub(crate) enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct ParameterHintsOptions {
+    #[serde(rename = "enabled", default = "default_parameter_hints_enabled")]
+    pub(crate) enabled: bool,
 }
 
 fn default_enable_code_lens() -> bool {
@@ -75,11 +99,35 @@ fn default_enable_parsing_cache() -> bool {
     true
 }
 
+fn default_inlay_hints() -> InlayHintsOptions {
+    InlayHintsOptions {
+        type_hints: default_type_hints(),
+        parameter_hints: default_parameter_hints(),
+    }
+}
+
+fn default_type_hints() -> TypeHintsOptions {
+    TypeHintsOptions { enabled: default_type_hints_enabled() }
+}
+
+fn default_type_hints_enabled() -> bool {
+    true
+}
+
+fn default_parameter_hints() -> ParameterHintsOptions {
+    ParameterHintsOptions { enabled: default_parameter_hints_enabled() }
+}
+
+fn default_parameter_hints_enabled() -> bool {
+    true
+}
+
 impl Default for LspInitializationOptions {
     fn default() -> Self {
         Self {
             enable_code_lens: default_enable_code_lens(),
             enable_parsing_cache: default_enable_parsing_cache(),
+            inlay_hints: default_inlay_hints(),
         }
     }
 }
@@ -93,7 +141,7 @@ pub(crate) fn on_initialize(
         .initialization_options
         .and_then(|value| serde_json::from_value(value).ok())
         .unwrap_or_default();
-    state.parsing_cache_enabled = initialization_options.enable_parsing_cache;
+    state.options = initialization_options;
 
     async move {
         let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
@@ -319,7 +367,11 @@ where
     let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    insert_all_files_for_workspace_into_file_manager(
+        state,
+        &workspace,
+        &mut workspace_file_manager,
+    );
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     let (mut context, crate_id) =

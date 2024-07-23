@@ -8,7 +8,9 @@ use crate::{
         FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
     },
     hir::{
-        def_collector::dc_crate::{CollectedItems, UnresolvedTrait},
+        def_collector::dc_crate::{
+            CollectedItems, CompilationError, UnresolvedTrait, UnresolvedTraitImpl,
+        },
         type_check::TypeCheckError,
     },
     hir_def::{
@@ -123,6 +125,7 @@ impl<'context> Elaborator<'context> {
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
 
                     this.resolve_trait_function(
+                        trait_id,
                         name,
                         generics,
                         parameters,
@@ -171,8 +174,10 @@ impl<'context> Elaborator<'context> {
         functions
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn resolve_trait_function(
         &mut self,
+        trait_id: TraitId,
         name: &Ident,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
@@ -206,11 +211,36 @@ impl<'context> Elaborator<'context> {
         };
 
         let mut function = NoirFunction { kind, def };
-        self.define_function_meta(&mut function, func_id, true);
+        self.define_function_meta(&mut function, func_id, Some(trait_id));
         self.elaborate_function(func_id);
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.generics.truncate(old_generic_count);
+    }
+
+    pub fn resolve_trait_impl_generics(
+        &mut self,
+        trait_impl: &UnresolvedTraitImpl,
+        trait_id: TraitId,
+    ) -> Option<Vec<Type>> {
+        let trait_def = self.interner.get_trait(trait_id);
+        let resolved_generics = trait_def.generics.clone();
+        if resolved_generics.len() != trait_impl.trait_generics.len() {
+            self.push_err(CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+                item: trait_def.name.to_string(),
+                expected: resolved_generics.len(),
+                found: trait_impl.trait_generics.len(),
+                span: trait_impl.trait_path.span(),
+            }));
+
+            return None;
+        }
+
+        let generics = trait_impl.trait_generics.iter().zip(resolved_generics.iter());
+        let mapped = generics.map(|(generic, resolved_generic)| {
+            self.resolve_type_inner(generic.clone(), &resolved_generic.kind)
+        });
+        Some(mapped.collect())
     }
 }
 

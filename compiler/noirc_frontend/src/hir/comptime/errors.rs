@@ -7,7 +7,7 @@ use crate::{
     token::Tokens,
     Type,
 };
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{acir::AcirField, BlackBoxResolutionError, FieldElement};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Location};
@@ -53,13 +53,11 @@ pub enum InterpreterError {
     NoImpl { location: Location },
     NoMatchingImplFound { error: NoMatchingImplFoundError, file: FileId },
     ImplMethodTypeMismatch { expected: Type, actual: Type, location: Location },
-
-    Unimplemented { item: String, location: Location },
-
-    // Perhaps this should be unreachable! due to type checking also preventing this error?
-    // Currently it and the Continue variant are the only interpreter errors without a Location field
     BreakNotInLoop { location: Location },
     ContinueNotInLoop { location: Location },
+    BlackBoxError(BlackBoxResolutionError, Location),
+
+    Unimplemented { item: String, location: Location },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -118,9 +116,11 @@ impl InterpreterError {
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::NoImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
+            | InterpreterError::DebugEvaluateComptime { location, .. }
+            | InterpreterError::BlackBoxError(_, location)
             | InterpreterError::BreakNotInLoop { location, .. }
-            | InterpreterError::DebugEvaluateComptime { location, .. } => *location,
-            InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
             }
@@ -369,6 +369,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Impl method type {actual} does not unify with trait method type {expected}"
                 );
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::BlackBoxError(error, location) => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), location.span)
             }
             InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
             InterpreterError::Break => unreachable!("Uncaught InterpreterError::Break"),
