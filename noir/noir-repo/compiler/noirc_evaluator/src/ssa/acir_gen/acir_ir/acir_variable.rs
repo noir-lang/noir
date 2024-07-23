@@ -768,7 +768,7 @@ impl<F: AcirField> AcirContext<F> {
         let [q_value, r_value]: [AcirValue; 2] = self
             .brillig_call(
                 predicate,
-                &brillig_directive::directive_quotient(bit_size + 1),
+                &brillig_directive::directive_quotient(),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
@@ -777,7 +777,7 @@ impl<F: AcirField> AcirContext<F> {
                 true,
                 false,
                 PLACEHOLDER_BRILLIG_INDEX,
-                Some(BrilligStdlibFunc::Quotient(bit_size + 1)),
+                Some(BrilligStdlibFunc::Quotient),
             )?
             .try_into()
             .expect("quotient only returns two values");

@@ -74,17 +74,14 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum BrilligStdlibFunc {
     Inverse,
-    // The Brillig quotient code is different depending upon the bit size.
-    Quotient(u32),
+    Quotient,
 }
 
 impl BrilligStdlibFunc {
     pub(crate) fn get_generated_brillig<F: AcirField>(&self) -> GeneratedBrillig<F> {
         match self {
             BrilligStdlibFunc::Inverse => brillig_directive::directive_invert(),
-            BrilligStdlibFunc::Quotient(bit_size) => {
-                brillig_directive::directive_quotient(*bit_size)
-            }
+            BrilligStdlibFunc::Quotient => brillig_directive::directive_quotient(),
         }
     }
 }

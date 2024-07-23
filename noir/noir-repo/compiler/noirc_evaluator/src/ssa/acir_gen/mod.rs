@@ -3477,7 +3477,7 @@ mod test {
             if stdlib_func_index == 0 {
                 assert!(matches!(brillig_stdlib_func, BrilligStdlibFunc::Inverse));
             } else {
-                assert!(matches!(brillig_stdlib_func, BrilligStdlibFunc::Quotient(_)));
+                assert!(matches!(brillig_stdlib_func, BrilligStdlibFunc::Quotient));
             }
 
             match opcode_location {
