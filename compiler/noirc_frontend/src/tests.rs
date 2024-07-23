@@ -2461,6 +2461,32 @@ fn no_super() {
 }
 
 #[test]
+fn trait_impl_generics_count_mismatch() {
+    let src = r#"
+    trait Foo {}
+
+    impl Foo<()> for Field {}
+
+    fn main() {}"#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        item,
+        expected,
+        found,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(item, "Foo");
+    assert_eq!(*expected, 0);
+    assert_eq!(*found, 1);
+}
+
+#[test]
 fn duplicate_struct_field() {
     let src = r#"
     struct Foo {
