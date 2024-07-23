@@ -5,7 +5,7 @@ use std::{
 
 use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
-use iter_extended::{ try_vecmap, vecmap };
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::{Location, Span};
 use rustc_hash::FxHashMap as HashMap;
 
