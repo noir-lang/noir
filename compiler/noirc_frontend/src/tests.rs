@@ -2484,3 +2484,13 @@ fn trait_impl_generics_count_mismatch() {
     assert_eq!(*expected, 0);
     assert_eq!(*found, 1);
 }
+
+#[test]
+fn bit_not_on_untyped_integer() {
+    let src = r#"
+    fn main() {
+        let _: u32 = 3 & !1;
+    }
+    "#;
+    assert_no_errors(src);
+}
