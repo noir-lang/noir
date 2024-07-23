@@ -16,8 +16,6 @@ pub struct TraitFunction {
     pub location: Location,
     pub default_impl: Option<Box<NoirFunction>>,
     pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
-    pub trait_constraints: Vec<TraitConstraint>,
-    pub direct_generics: Generics,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -84,17 +82,16 @@ pub struct TraitImpl {
     pub where_clause: Vec<TraitConstraint>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct TraitConstraint {
     pub typ: Type,
     pub trait_id: TraitId,
     pub trait_generics: Vec<Type>,
-    pub span: Span,
 }
 
 impl TraitConstraint {
-    pub fn new(typ: Type, trait_id: TraitId, trait_generics: Vec<Type>, span: Span) -> Self {
-        Self { typ, trait_id, trait_generics, span }
+    pub fn new(typ: Type, trait_id: TraitId, trait_generics: Vec<Type>) -> Self {
+        Self { typ, trait_id, trait_generics }
     }
 
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {

@@ -73,6 +73,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
+        use_legacy: bool,
         debug_comptime_in_file: Option<&str>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
@@ -117,11 +118,12 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect_crate_and_dependencies(
+        errors.extend(DefCollector::collect(
             def_map,
             context,
             ast,
             root_file_id,
+            use_legacy,
             debug_comptime_in_file,
             macro_processors,
         ));

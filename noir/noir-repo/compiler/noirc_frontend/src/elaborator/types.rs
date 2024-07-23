@@ -12,7 +12,10 @@ use crate::{
     hir::{
         comptime::{Interpreter, Value},
         def_map::ModuleDefId,
-        resolution::errors::ResolverError,
+        resolution::{
+            errors::ResolverError,
+            resolver::{verify_mutable_reference, SELF_TYPE_NAME, WILDCARD_TYPE},
+        },
         type_check::{NoMatchingImplFoundError, Source, TypeCheckError},
     },
     hir_def::{
@@ -24,8 +27,8 @@ use crate::{
         traits::TraitConstraint,
     },
     macros_api::{
-        HirExpression, HirLiteral, HirStatement, NodeInterner, Path, PathKind, SecondaryAttribute,
-        Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        HirExpression, HirLiteral, HirStatement, Path, PathKind, SecondaryAttribute, Signedness,
+        UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
         DefinitionKind, DependencyId, ExprId, GlobalId, TraitId, TraitImplKind, TraitMethodId,
@@ -34,9 +37,6 @@ use crate::{
 };
 
 use super::{lints, Elaborator};
-
-pub const SELF_TYPE_NAME: &str = "Self";
-pub const WILDCARD_TYPE: &str = "_";
 
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
@@ -427,7 +427,6 @@ impl<'context> Elaborator<'context> {
                         generic.type_var.clone()
                     })),
                     trait_id,
-                    span: path.span(),
                 };
 
                 return Some((method, constraint, false));
@@ -462,7 +461,6 @@ impl<'context> Elaborator<'context> {
                     generic.type_var.clone()
                 })),
                 trait_id,
-                span: path.span(),
             };
             return Some((method, constraint, false));
         }
@@ -1617,31 +1615,5 @@ impl<'context> Elaborator<'context> {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
         context.trait_constraints.push((constraint, expr_id));
-    }
-}
-
-/// Gives an error if a user tries to create a mutable reference
-/// to an immutable variable.
-fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<(), ResolverError> {
-    match interner.expression(&rhs) {
-        HirExpression::MemberAccess(member_access) => {
-            verify_mutable_reference(interner, member_access.lhs)
-        }
-        HirExpression::Index(_) => {
-            let span = interner.expr_span(&rhs);
-            Err(ResolverError::MutableReferenceToArrayElement { span })
-        }
-        HirExpression::Ident(ident, _) => {
-            if let Some(definition) = interner.try_definition(ident.id) {
-                if !definition.mutable {
-                    return Err(ResolverError::MutableReferenceToImmutableVariable {
-                        span: interner.expr_span(&rhs),
-                        variable: definition.name.clone(),
-                    });
-                }
-            }
-            Ok(())
-        }
-        _ => Ok(()),
     }
 }

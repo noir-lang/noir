@@ -43,12 +43,11 @@ impl<'interner> Interpreter<'interner> {
             return Ok(());
         }
 
-        if let Some(function) = self.interner.function(&function).try_as_expr() {
-            let state = self.enter_function();
-            self.scan_expression(function)?;
-            self.exit_function(state);
-        }
+        let function = self.interner.function(&function);
 
+        let state = self.enter_function();
+        self.scan_expression(function.as_expr())?;
+        self.exit_function(state);
         Ok(())
     }
 

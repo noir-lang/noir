@@ -10,7 +10,7 @@ use super::{
     BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
     MethodCallExpression, UnresolvedType,
 };
-use crate::elaborator::types::SELF_TYPE_NAME;
+use crate::hir::resolution::resolver::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
 use crate::macros_api::SecondaryAttribute;
 use crate::parser::{ParserError, ParserErrorReason};

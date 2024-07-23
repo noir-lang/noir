@@ -32,11 +32,6 @@ fn on_goto_definition_inner(
     process_request(state, params.text_document_position_params, |args| {
         args.interner
             .get_definition_location_from(args.location, return_type_location_instead)
-            .or_else(|| {
-                args.interner
-                    .reference_at_location(args.location)
-                    .map(|reference| args.interner.reference_location(reference))
-            })
             .and_then(|found_location| {
                 let file_id = found_location.file;
                 let definition_position =
@@ -206,33 +201,5 @@ mod goto_definition_tests {
     #[test]
     async fn goto_for_local_variable() {
         expect_goto_for_all_references("local_variable", "some_var", 0).await;
-    }
-
-    #[test]
-    async fn goto_at_struct_definition_finds_same_struct() {
-        expect_goto(
-            "go_to_definition",
-            Position { line: 21, character: 7 }, // "Foo" in "struct Foo"
-            "src/main.nr",
-            Range {
-                start: Position { line: 21, character: 7 },
-                end: Position { line: 21, character: 10 },
-            },
-        )
-        .await;
-    }
-
-    #[test]
-    async fn goto_at_trait_definition_finds_same_trait() {
-        expect_goto(
-            "go_to_definition",
-            Position { line: 25, character: 6 }, // "Trait" in "trait Trait"
-            "src/main.nr",
-            Range {
-                start: Position { line: 25, character: 6 },
-                end: Position { line: 25, character: 11 },
-            },
-        )
-        .await;
     }
 }

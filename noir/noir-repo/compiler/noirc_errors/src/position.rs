@@ -90,10 +90,6 @@ impl Span {
         self.start() <= other.start() && self.end() >= other.end()
     }
 
-    pub fn intersects(&self, other: &Span) -> bool {
-        self.end() > other.start() && self.start() < other.end()
-    }
-
     pub fn is_smaller(&self, other: &Span) -> bool {
         let self_distance = self.end() - self.start();
         let other_distance = other.end() - other.start();

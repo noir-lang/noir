@@ -33,7 +33,7 @@ fn run_stdlib_tests() {
     let (mut context, dummy_crate_id) =
         prepare_package(&file_manager, &parsed_files, &dummy_package);
 
-    let result = check_crate(&mut context, dummy_crate_id, false, false, None);
+    let result = check_crate(&mut context, dummy_crate_id, false, false, false, None);
     report_errors(result, &context.file_manager, true, false)
         .expect("Error encountered while compiling standard library");
 

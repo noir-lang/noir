@@ -1,6 +1,0 @@
-[package]
-name = "inlay_hints"
-type = "bin"
-authors = [""]
-
-[dependencies]
