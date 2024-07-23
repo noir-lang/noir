@@ -318,7 +318,7 @@ impl UnresolvedTypeExpression {
         }
     }
 
-    pub(crate) fn from_expr_helper(
+    fn from_expr_helper(
         expr: Expression,
     ) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
