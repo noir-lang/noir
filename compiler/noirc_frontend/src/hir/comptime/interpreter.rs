@@ -74,11 +74,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         perform_instantiation_bindings(&instantiation_bindings);
         let impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
-        let old_function = self.current_function.replace(function);
 
         let result = self.call_function_inner(function, arguments, location);
 
-        self.current_function = old_function;
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         result
@@ -112,6 +110,22 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return self.call_special(function, arguments, return_type, location);
         }
 
+        // Wait until after call_special to set the current function so that builtin functions like
+        // `.as_type()` still call the resolver in the caller's scope.
+        let old_function = self.current_function.replace(function);
+        let result = self.call_user_defined_function(function, arguments, location);
+        self.current_function = old_function;
+        result
+    }
+
+    /// Call a non-builtin function
+    fn call_user_defined_function(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        location: Location,
+    ) -> IResult<Value> {
+        let meta = self.elaborator.interner.function_meta(&function);
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
