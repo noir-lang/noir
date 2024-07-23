@@ -286,7 +286,7 @@ impl<'a> ModCollector<'a> {
                     }
                     .into(),
                     self.file_id,
-                ))
+                ));
             }
 
             let unresolved = UnresolvedStruct {

@@ -144,10 +144,10 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     let second_span = second_def.0.span();
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
-                        format!("First definition found here"),
+                    "First definition found here".to_string(),
                         first_span,
                     );
-                    diag.add_secondary(format!("Second definition found here"), second_span);
+                    diag.add_secondary("Second definition found here".to_string(), second_span);
                     diag
                 }
             }
