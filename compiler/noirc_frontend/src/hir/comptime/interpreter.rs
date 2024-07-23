@@ -408,7 +408,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             },
                         )?;
 
-                    if let_.comptime || global_crate != self.crate_id {
+                    if let_.comptime || crate_of_global != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
                     self.lookup(&ident)
