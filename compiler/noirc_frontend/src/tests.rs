@@ -2459,3 +2459,31 @@ fn no_super() {
     assert_eq!(span.start(), 4);
     assert_eq!(span.end(), 9);
 }
+
+#[test]
+fn duplicate_struct_field() {
+    let src = r#"
+    struct Foo {
+        x: i32,
+        x: i32,
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::DefinitionError(DefCollectorErrorKind::DuplicateField {
+        first_def,
+        second_def,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a duplicate field error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(first_def.to_string(), "x");
+    assert_eq!(second_def.to_string(), "x");
+
+    assert_eq!(first_def.span().start(), 26);
+    assert_eq!(second_def.span().start(), 42);
+}
