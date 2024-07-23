@@ -2486,6 +2486,16 @@ fn trait_impl_generics_count_mismatch() {
 }
 
 #[test]
+fn bit_not_on_untyped_integer() {
+    let src = r#"
+    fn main() {
+        let _: u32 = 3 & !1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn duplicate_struct_field() {
     let src = r#"
     struct Foo {
