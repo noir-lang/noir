@@ -29,7 +29,7 @@ pub(crate) enum FilesystemError {
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum CliError {
+pub enum CliError {
     #[error("{0}")]
     Generic(String),
     #[error("Error: destination {} already exists", .0.display())]

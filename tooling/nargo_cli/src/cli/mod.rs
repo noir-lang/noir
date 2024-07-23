@@ -9,7 +9,7 @@ use color_eyre::eyre;
 mod fs;
 
 mod check_cmd;
-mod compile_cmd;
+pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
 mod execute_cmd;
@@ -44,16 +44,16 @@ struct NargoCli {
 }
 
 #[non_exhaustive]
-#[derive(Args, Clone, Debug)]
-pub(crate) struct NargoConfig {
+#[derive(Args, Clone, Debug, Default)]
+pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
     #[arg(long, hide = true, global = true, default_value = "./")]
-    program_dir: PathBuf,
+    pub program_dir: PathBuf,
 
     /// Accept a single '.nr' file through STDIN instead of reading from the
     /// root directory
     #[clap(long, hide = true)]
-    debug_compile_stdin: bool,
+    pub debug_compile_stdin: bool,
 }
 
 #[non_exhaustive]

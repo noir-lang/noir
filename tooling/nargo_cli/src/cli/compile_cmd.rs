@@ -28,25 +28,40 @@ use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
-pub(crate) struct CompileCommand {
+pub struct CompileCommand {
     /// The name of the package to compile
     #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
+    pub package: Option<CrateName>,
 
     /// Compile all packages in the workspace.
     #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    pub workspace: bool,
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub compile_options: CompileOptions,
 
     /// Watch workspace and recompile on changes.
     #[clap(long, hide = true)]
-    watch: bool,
+    pub watch: bool,
 }
 
+
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir, config.debug_compile_stdin)?;
+    let debug_compile_stdin = if config.debug_compile_stdin {
+        let mut main_nr = String::new();
+        let stdin = std::io::stdin();
+        let mut stdin_handle = stdin.lock();
+        stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
+        Some(main_nr)
+    } else {
+        None
+    };
+
+    run_debug_compile_stdin(args, config, debug_compile_stdin)
+}
+
+pub fn run_debug_compile_stdin(args: CompileCommand, config: NargoConfig, debug_compile_stdin: Option<String>) -> Result<(), CliError> {
+    let toml_path = get_package_manifest(&config.program_dir, debug_compile_stdin.is_some())?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
@@ -55,14 +70,14 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
-        config.debug_compile_stdin,
+        debug_compile_stdin.is_some(),
     )?;
 
     if args.watch {
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
-        compile_workspace_full(&workspace, &args.compile_options, config.debug_compile_stdin)?;
+        compile_workspace_full_helper(&workspace, &args.compile_options, debug_compile_stdin)?;
     }
 
     Ok(())
@@ -141,6 +156,36 @@ pub(super) fn compile_workspace_full(
 
     Ok(())
 }
+
+// TODO: make compile_workspace_full a wrapper and revert to previous API b/c pub(crate)
+fn compile_workspace_full_helper(
+    workspace: &Workspace,
+    compile_options: &CompileOptions,
+    debug_compile_stdin: Option<String>,
+) -> Result<(), CliError> {
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    let debug_compile_stdin_is_some = debug_compile_stdin.is_some();
+    if let Some(main_nr) = debug_compile_stdin {
+        workspace_file_manager.add_file_with_source(Path::new("/src/main.nr"), main_nr);
+    } else {
+        insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
+    }
+
+    let parsed_files = parse_all(&workspace_file_manager);
+    let compiled_workspace =
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options, debug_compile_stdin_is_some);
+
+    report_errors(
+        compiled_workspace,
+        &workspace_file_manager,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )?;
+
+    Ok(())
+}
+
+
 
 fn compile_workspace(
     file_manager: &FileManager,
