@@ -236,16 +236,11 @@ impl<'context> Elaborator<'context> {
             return None;
         }
 
-        let trait_generics = trait_impl.trait_generics.iter();
-        let resolved_generics = resolved_generics.iter();
-        Some(
-            trait_generics
-                .zip(resolved_generics)
-                .map(|(generic, resolved_generic)| {
-                    self.resolve_type_inner(generic.clone(), &resolved_generic.kind)
-                })
-                .collect(),
-        )
+        let generics = trait_impl.trait_generics.iter().zip(resolved_generics.iter());
+        let mapped = generics.map(|(generic, resolved_generic)| {
+            self.resolve_type_inner(generic.clone(), &resolved_generic.kind)
+        });
+        Some(mapped.collect())
     }
 }
 
