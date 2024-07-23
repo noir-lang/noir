@@ -1634,7 +1634,7 @@ fn numeric_generic_in_function_signature() {
 #[test]
 fn numeric_generic_as_struct_field_type() {
     let src = r#"
-    struct Foo<let N: u64> {
+    struct Foo<let N: u32> {
         a: Field,
         b: N,
     }
@@ -1695,7 +1695,7 @@ fn numeric_generic_as_param_type() {
 #[test]
 fn numeric_generic_used_in_nested_type_fail() {
     let src = r#"
-    struct Foo<let N: u64> {
+    struct Foo<let N: u32> {
         a: Field,
         b: Bar<N>,
     }
@@ -1745,7 +1745,7 @@ fn numeric_generic_used_in_nested_type_pass() {
 
 #[test]
 fn numeric_generic_used_in_trait() {
-    // We want to make sure that `N` in `impl<let N: u64, T> Deserialize<N, T>` does
+    // We want to make sure that `N` in `impl<let N: u32, T> Deserialize<N, T>` does
     // not trigger `expected type, found numeric generic parameter N` as the trait
     // does in fact expect a numeric generic.
     let src = r#"
@@ -1756,7 +1756,7 @@ fn numeric_generic_used_in_trait() {
         d: T,
     }
     
-    impl<let N: u64, T> Deserialize<N, T> for MyType<T> {
+    impl<let N: u32, T> Deserialize<N, T> for MyType<T> {
         fn deserialize(fields: [Field; N], other: T) -> Self {
             MyType { a: fields[0], b: fields[1], c: fields[2], d: other }
         }
@@ -2224,7 +2224,6 @@ fn impl_stricter_than_trait_different_trait_generics() {
         ..
     }) = &errors[0].0
     {
-        dbg!(constraint_name.as_str());
         assert!(matches!(constraint_typ.to_string().as_str(), "A"));
         assert!(matches!(constraint_name.as_str(), "T2"));
         assert!(matches!(constraint_generics[0].to_string().as_str(), "B"));
