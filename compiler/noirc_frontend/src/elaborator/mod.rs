@@ -1608,6 +1608,7 @@ impl<'context> Elaborator<'context> {
                     global,
                     self.file,
                     self.local_module,
+                    self.crate_id,
                 );
 
                 generated_items.globals.push(global);

@@ -334,7 +334,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Err(InterpreterError::VariableNotInScope { location })
         } else {
             let name = self.elaborator.interner.definition_name(id).to_string();
-            eprintln!("{name} not in scope");
             Err(InterpreterError::NonComptimeVarReferenced { name, location })
         }
     }
@@ -408,6 +407,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
+                    let crate_of_global = self.elaborator.interner.get_global(*global_id).crate_id;
                     let let_ =
                         self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(
                             || {
@@ -416,7 +416,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             },
                         )?;
 
-                    if let_.comptime {
+                    if let_.comptime || crate_of_global != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
                     self.lookup(&ident)
