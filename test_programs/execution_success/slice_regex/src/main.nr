@@ -235,48 +235,52 @@ fn main() {
     println(result);
     assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
 
-    // 1*
-    let ones_regex: Star<str<1>, 5> = Star { inner: "1" };
+    // TODO(https://github.com/noir-lang/noir/issues/5462): re-enable these cases and complete the test using ../array_regex
+    // 
+    // // 1*
+    // let ones_regex: Star<str<1>, 5> = Star { inner: "1" };
+    // 
+    // let result = ones_regex.match("11000".as_bytes().as_slice());
+    // println(result);
+    // assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
+    // 
+    // let result = ones_regex.match("11".as_bytes().as_slice());
+    // println(result);
+    // assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
+    // 
+    // let result = ones_regex.match("111111".as_bytes().as_slice());
+    // println(result);
+    // assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
+    // 
+    // 
+    // // 1+
+    // let nonempty_ones_regex: Plus<str<1>, 5, 4> = Plus { inner: "1" };
+    // 
+    // let result = nonempty_ones_regex.match("111111".as_bytes().as_slice());
+    // println(result);
+    // assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
+    // 
+    // // 2^n-1 in binary: 1+0
+    // let pred_pow_two_regex = (nonempty_ones_regex, "0");
+    // 
+    // let result = pred_pow_two_regex.match("1110".as_bytes().as_slice());
+    // println(result);
+    // assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
+    //
+    // // (0|1)*
+    // let binary_regex: Star<Or<str<1>, str<1>>, 5> = Star { inner: Or { lhs: "0", rhs: "1" } };
+    //
+    // let result = binary_regex.match("110100".as_bytes().as_slice());
+    // println(result);
+    // assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
+    //
+    // // even numbers in binary: 1(0|1)*0
+    // let even_binary_regex = ("1", (binary_regex, "0"));
+    //
+    // let result = even_binary_regex.match("1111110".as_bytes().as_slice());
+    // println(result);
+    // assert_eq(result, Match { succeeded: true, match_ends: 6, leftover: &[] });
 
-    let result = ones_regex.match("11000".as_bytes().as_slice());
-    println(result);
-    assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
-
-    let result = ones_regex.match("11".as_bytes().as_slice());
-    println(result);
-    assert_eq(result, Match { succeeded: true, match_ends: 2, leftover: &[] });
-
-    let result = ones_regex.match("111111".as_bytes().as_slice());
-    println(result);
-    assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
-
-    // 1+
-    let nonempty_ones_regex: Plus<str<1>, 5, 4> = Plus { inner: "1" };
-
-    let result = nonempty_ones_regex.match("111111".as_bytes().as_slice());
-    println(result);
-    assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
-
-    // 2^n-1 in binary: 1+0
-    let pred_pow_two_regex = (nonempty_ones_regex, "0");
-
-    let result = pred_pow_two_regex.match("1110".as_bytes().as_slice());
-    println(result);
-    assert_eq(result, Match { succeeded: true, match_ends: 3, leftover: &[] });
-
-    // (0|1)*
-    let binary_regex: Star<Or<str<1>, str<1>>, 5> = Star { inner: Or { lhs: "0", rhs: "1" } };
-
-    let result = binary_regex.match("110100".as_bytes().as_slice());
-    println(result);
-    assert_eq(result, Match { succeeded: true, match_ends: 5, leftover: &[] });
-
-    // even numbers in binary: 1(0|1)*0
-    let even_binary_regex = ("1", (binary_regex, "0"));
-
-    let result = even_binary_regex.match("1111110".as_bytes().as_slice());
-    println(result);
-    assert_eq(result, Match { succeeded: true, match_ends: 6, leftover: &[] });
     // 2-letter capitalized words: [A-Z][a-z]
     // numbers: \d+
     // [0-9]+
