@@ -10,6 +10,7 @@ license.workspace = true
 
 [dependencies]
 acvm.workspace = true
+bn254_blackbox_solver.workspace = true
 noirc_arena.workspace = true
 noirc_errors.workspace = true
 noirc_printable_type.workspace = true

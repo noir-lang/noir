@@ -647,7 +647,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         func: &mut NoirFunction,
         func_id: FuncId,
-        is_trait_function: bool,
+        trait_id: Option<TraitId>,
     ) {
         let in_contract = if self.self_type.is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
@@ -761,6 +761,7 @@ impl<'context> Elaborator<'context> {
             direct_generics,
             all_generics: self.generics.clone(),
             struct_id,
+            trait_id,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             parameter_idents,
@@ -769,7 +770,6 @@ impl<'context> Elaborator<'context> {
             has_body: !func.def.body.is_empty(),
             trait_constraints,
             is_entry_point,
-            is_trait_function,
             has_inline_attribute,
             source_crate: self.crate_id,
             source_module: self.local_module,
@@ -1418,22 +1418,13 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_generics = self.generics.clone();
 
             // Fetch trait constraints here
-            let trait_generics = if let Some(trait_id) = trait_impl.trait_id {
-                let trait_def = self.interner.get_trait(trait_id);
-                let resolved_generics = trait_def.generics.clone();
-                assert_eq!(resolved_generics.len(), trait_impl.trait_generics.len());
-                trait_impl
-                    .trait_generics
-                    .iter()
-                    .enumerate()
-                    .map(|(i, generic)| {
-                        self.resolve_type_inner(generic.clone(), &resolved_generics[i].kind)
-                    })
-                    .collect()
-            } else {
-                // We still resolve as to continue type checking
-                vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
-            };
+            let trait_generics = trait_impl
+                .trait_id
+                .and_then(|trait_id| self.resolve_trait_impl_generics(trait_impl, trait_id))
+                .unwrap_or_else(|| {
+                    // We still resolve as to continue type checking
+                    vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
+                });
 
             trait_impl.resolved_trait_generics = trait_generics;
 
@@ -1467,7 +1458,7 @@ impl<'context> Elaborator<'context> {
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
-                this.define_function_meta(func, *id, false);
+                this.define_function_meta(func, *id, None);
             });
         }
     }
@@ -1617,6 +1608,7 @@ impl<'context> Elaborator<'context> {
                     global,
                     self.file,
                     self.local_module,
+                    self.crate_id,
                 );
 
                 generated_items.globals.push(global);
