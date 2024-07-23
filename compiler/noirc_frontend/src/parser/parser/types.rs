@@ -203,15 +203,7 @@ pub(super) fn generic_type_args<'a>(
         // separator afterward. Failing early here ensures we try the `type_expression`
         // parser afterward.
         .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(numeric_generic_type_expression().validate(|(type_arg, err_expr), span, emit| {
-            if let Some(err_expr) = err_expr {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::InvalidNumericGenericExpression(err_expr),
-                    span,
-                ));
-            }
-            type_arg
-        }))
+        .or(type_expression_validated())
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)
@@ -243,19 +235,23 @@ pub(super) fn slice_type(
         })
 }
 
-pub(super) fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
+fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
     type_expression_inner().try_map(UnresolvedTypeExpression::from_expr)
 }
 
-pub(super) fn numeric_generic_type_expression(
-) -> impl NoirParser<(UnresolvedType, Option<Expression>)> {
-    type_expression_inner().map_with_span(|expr, span| {
-        let expr = UnresolvedTypeExpression::from_expr_helper(expr);
-        match expr {
+/// This parser is the same as `type_expression()`, however, it continues parsing and 
+/// emits a parser error in the case of an invalid type expression rather than halting the parser.
+fn type_expression_validated() -> impl NoirParser<UnresolvedType> {
+    type_expression_inner().validate(|expr, span, emit| {
+        let type_expr = UnresolvedTypeExpression::from_expr(expr, span);
+        match type_expr {
             Ok(type_expression) => {
-                (UnresolvedTypeData::Expression(type_expression).with_span(span), None)
+                UnresolvedTypeData::Expression(type_expression).with_span(span)
             }
-            Err(err_expr) => (UnresolvedType::error(span), Some(err_expr)),
+            Err(parser_error) => {
+                emit(parser_error);
+                UnresolvedType::error(span)
+            }
         }
     })
 }

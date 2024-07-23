@@ -306,10 +306,7 @@ impl UnresolvedTypeExpression {
         span: Span,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
         Self::from_expr_helper(expr).map_err(|err_expr| {
-            ParserError::with_reason(
-                ParserErrorReason::InvalidArrayLengthExpression(err_expr),
-                span,
-            )
+            ParserError::with_reason(ParserErrorReason::InvalidTypeExpression(err_expr), span)
         })
     }
 
