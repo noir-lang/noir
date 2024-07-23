@@ -1452,36 +1452,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_impl_generics(
-        &mut self,
-        trait_impl: &UnresolvedTraitImpl,
-        trait_id: TraitId,
-    ) -> Option<Vec<Type>> {
-        let trait_def = self.interner.get_trait(trait_id);
-        let resolved_generics = trait_def.generics.clone();
-        if resolved_generics.len() != trait_impl.trait_generics.len() {
-            self.push_err(CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
-                item: trait_def.name.to_string(),
-                expected: resolved_generics.len(),
-                found: trait_impl.trait_generics.len(),
-                span: trait_impl.trait_path.span(),
-            }));
-
-            return None;
-        }
-
-        Some(
-            trait_impl
-                .trait_generics
-                .iter()
-                .zip(resolved_generics.iter())
-                .map(|(generic, resolved_generic)| {
-                    self.resolve_type_inner(generic.clone(), &resolved_generic.kind)
-                })
-                .collect(),
-        )
-    }
-
     fn define_function_metas_for_functions(&mut self, function_set: &mut UnresolvedFunctions) {
         self.file = function_set.file_id;
 
