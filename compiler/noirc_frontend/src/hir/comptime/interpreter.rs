@@ -109,7 +109,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         if meta.kind != FunctionKind::Normal {
             let return_type = meta.return_type().follow_bindings();
-            return self.call_builtin(function, arguments, return_type, location);
+            return self.call_special(function, arguments, return_type, location);
         }
 
         let parameters = meta.parameters.0.clone();
@@ -131,7 +131,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(result)
     }
 
-    fn call_builtin(
+    fn call_special(
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
@@ -144,13 +144,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         if let Some(builtin) = func_attrs.builtin() {
             let builtin = builtin.clone();
-            builtin::call_builtin(
-                self.elaborator.interner,
-                &builtin,
-                arguments,
-                return_type,
-                location,
-            )
+            self.call_builtin(&builtin, arguments, return_type, location)
         } else if let Some(foreign) = func_attrs.foreign() {
             let item = format!("Comptime evaluation for foreign functions like {foreign}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -1123,7 +1117,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let expr = result.into_expression(self.elaborator.interner, location)?;
                     let expr = self
                         .elaborator
-                        .elaborate_expression_from_comptime(expr, self.current_function);
+                        .elaborate_item_from_comptime(self.current_function, |elab| {
+                            elab.elaborate_expression(expr).0
+                        });
                     result = self.evaluate(expr)?;
                 }
                 Ok(result)
