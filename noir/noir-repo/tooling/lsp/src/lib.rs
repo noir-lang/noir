@@ -21,7 +21,10 @@ use async_lsp::{
 use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
 use lsp_types::{
-    request::{HoverRequest, PrepareRenameRequest, References, Rename},
+    request::{
+        DocumentSymbolRequest, HoverRequest, InlayHintRequest, PrepareRenameRequest, References,
+        Rename,
+    },
     CodeLens,
 };
 use nargo::{
@@ -45,10 +48,11 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_formatting, on_goto_declaration_request, on_goto_definition_request,
-    on_goto_type_definition_request, on_hover_request, on_initialize, on_prepare_rename_request,
-    on_profile_run_request, on_references_request, on_rename_request, on_shutdown,
-    on_test_run_request, on_tests_request,
+    on_code_lens_request, on_document_symbol_request, on_formatting, on_goto_declaration_request,
+    on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
+    on_inlay_hint_request, on_prepare_rename_request, on_profile_run_request,
+    on_references_request, on_rename_request, on_shutdown, on_test_run_request, on_tests_request,
+    LspInitializationOptions,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -82,7 +86,7 @@ pub struct LspState {
     cached_lenses: HashMap<String, Vec<CodeLens>>,
     cached_definitions: HashMap<String, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
-    parsing_cache_enabled: bool,
+    options: LspInitializationOptions,
 }
 
 impl LspState {
@@ -99,7 +103,7 @@ impl LspState {
             cached_definitions: HashMap::new(),
             open_documents_count: 0,
             cached_parsed_files: HashMap::new(),
-            parsing_cache_enabled: true,
+            options: Default::default(),
         }
     }
 }
@@ -126,10 +130,12 @@ impl NargoLspService {
             .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
             .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
+            .request::<DocumentSymbolRequest, _>(on_document_symbol_request)
             .request::<References, _>(on_references_request)
             .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
             .request::<Rename, _>(on_rename_request)
             .request::<HoverRequest, _>(on_hover_request)
+            .request::<InlayHintRequest, _>(on_inlay_hint_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -336,7 +342,7 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
 }
 
 fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
-    if state.parsing_cache_enabled {
+    if state.options.enable_parsing_cache {
         let noir_file_hashes: Vec<_> = file_manager
             .as_file_map()
             .all_file_ids()
@@ -406,8 +412,7 @@ fn prepare_package_from_source_string() {
     let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
 
     let (mut context, crate_id) = crate::prepare_source(source.to_string(), &mut state);
-    let _check_result =
-        noirc_driver::check_crate(&mut context, crate_id, false, false, false, None);
+    let _check_result = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
     let main_func_id = context.get_main_function(&crate_id);
     assert!(main_func_id.is_some());
 }

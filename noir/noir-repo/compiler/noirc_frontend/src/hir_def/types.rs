@@ -142,6 +142,7 @@ pub enum QuotedType {
     TopLevelItem,
     Type,
     StructDefinition,
+    TraitConstraint,
     TraitDefinition,
     FunctionDefinition,
     Module,
@@ -518,7 +519,9 @@ impl TypeVariable {
     /// variable is already bound to a different type. This generally
     /// a logic error to use outside of monomorphization.
     pub fn force_bind(&self, typ: Type) {
-        *self.1.borrow_mut() = TypeBinding::Bound(typ);
+        if !typ.occurs(self.id()) {
+            *self.1.borrow_mut() = TypeBinding::Bound(typ);
+        }
     }
 }
 
@@ -681,6 +684,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::Type => write!(f, "Type"),
             QuotedType::StructDefinition => write!(f, "StructDefinition"),
             QuotedType::TraitDefinition => write!(f, "TraitDefinition"),
+            QuotedType::TraitConstraint => write!(f, "TraitConstraint"),
             QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
             QuotedType::Module => write!(f, "Module"),
         }
@@ -1922,9 +1926,11 @@ impl Type {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::NamedGeneric(binding, _, _) | Type::TypeVariable(binding, _) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => binding.occurs(target_id),
+            Type::NamedGeneric(type_var, _, _) | Type::TypeVariable(type_var, _) => {
+                match &*type_var.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        type_var.id() == target_id || binding.occurs(target_id)
+                    }
                     TypeBinding::Unbound(id) => *id == target_id,
                 }
             }
@@ -2112,7 +2118,8 @@ fn convert_array_expression_to_slice(
     interner.push_expr_location(argument, location.span, location.file);
 
     let arguments = vec![argument];
-    let call = HirExpression::Call(HirCallExpression { func, arguments, location });
+    let is_macro_call = false;
+    let call = HirExpression::Call(HirCallExpression { func, arguments, location, is_macro_call });
     interner.replace_expr(&expression, call);
 
     interner.push_expr_location(func, location.span, location.file);
