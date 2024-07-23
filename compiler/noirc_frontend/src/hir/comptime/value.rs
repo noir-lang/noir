@@ -38,6 +38,7 @@ pub enum Value {
     U32(u32),
     U64(u64),
     String(Rc<String>),
+    FormatString(Rc<String>, Type),
     Function(FuncId, Type, Rc<TypeBindings>),
     Closure(HirLambda, Vec<Value>, Type),
     Tuple(Vec<Value>),
@@ -73,6 +74,7 @@ impl Value {
                 let length = Type::Constant(value.len() as u32);
                 Type::String(Box::new(length))
             }
+            Value::FormatString(_, typ) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
             Value::Closure(_, _, typ) => return Cow::Borrowed(typ),
             Value::Tuple(fields) => {
@@ -148,6 +150,10 @@ impl Value {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
             Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            // Forat strings are lowered as normal strings since they are already interpolated.
+            Value::FormatString(value, _) => {
+                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            }
             Value::Function(id, typ, bindings) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
@@ -277,6 +283,10 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
             }
             Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
+            // Forat strings are lowered as normal strings since they are already interpolated.
+            Value::FormatString(value, _) => {
+                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
+            }
             Value::Function(id, typ, bindings) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
@@ -407,6 +417,7 @@ impl Display for Value {
             Value::U32(value) => write!(f, "{value}"),
             Value::U64(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
+            Value::FormatString(value, _) => write!(f, "{value}"),
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(_, _, _) => write!(f, "(closure)"),
             Value::Tuple(fields) => {

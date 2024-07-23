@@ -447,9 +447,15 @@ fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
                 Ok(Value::Zeroed(Type::String(length_type)))
             }
         }
-        Type::FmtString(_, _) => {
-            let item = "format strings in a comptime context".into();
-            Err(InterpreterError::Unimplemented { item, location })
+        Type::FmtString(length_type, captures) => {
+            let length = length_type.evaluate_to_u32();
+            let typ = Type::FmtString(length_type, captures);
+            if let Some(length) = length {
+                Ok(Value::FormatString(Rc::new("\0".repeat(length as usize)), typ))
+            } else {
+                // Assume we can resolve the length later
+                Ok(Value::Zeroed(typ))
+            }
         }
         Type::Unit => Ok(Value::Unit),
         Type::Tuple(fields) => {

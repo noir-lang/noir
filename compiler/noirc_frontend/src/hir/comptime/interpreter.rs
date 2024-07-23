@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
@@ -448,14 +449,48 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate_integer(value, is_negative, id)
             }
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(_, _) => {
-                let item = "format strings in a comptime context".into();
-                let location = self.elaborator.interner.expr_location(&id);
-                Err(InterpreterError::Unimplemented { item, location })
+            HirLiteral::FmtStr(string, captures) => {
+                self.evaluate_format_string(string, captures, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
             HirLiteral::Slice(array) => self.evaluate_slice(array, id),
         }
+    }
+
+    fn evaluate_format_string(
+        &mut self,
+        string: String,
+        captures: Vec<ExprId>,
+        id: ExprId,
+    ) -> IResult<Value> {
+        let mut result = String::new();
+        let mut escaped = false;
+        let mut consuming = false;
+
+        let mut values: VecDeque<_> =
+            captures.into_iter().map(|capture| self.evaluate(capture)).collect::<Result<_, _>>()?;
+
+        for character in string.chars() {
+            match character {
+                '\\' => escaped = true,
+                '{' if !escaped => consuming = true,
+                '}' if !escaped && consuming => {
+                    consuming = false;
+
+                    if let Some(value) = values.pop_front() {
+                        result.push_str(&value.to_string())
+                    }
+                }
+                other if !consuming => {
+                    escaped = false;
+                    result.push(other);
+                }
+                _ => (),
+            }
+        }
+
+        let typ = self.elaborator.interner.id_type(id);
+        Ok(Value::FormatString(Rc::new(result), typ))
     }
 
     fn evaluate_integer(
