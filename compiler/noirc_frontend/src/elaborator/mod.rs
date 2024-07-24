@@ -15,6 +15,7 @@ use crate::{
             },
             dc_mod,
         },
+        def_map::DefMaps,
         resolution::{errors::ResolverError, path_resolver::PathResolver},
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
@@ -54,7 +55,7 @@ use crate::{
 use crate::{
     hir::{
         def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl},
-        def_map::{CrateDefMap, ModuleData},
+        def_map::ModuleData,
     },
     hir_def::traits::TraitImpl,
     macros_api::ItemVisibility,
@@ -102,7 +103,7 @@ pub struct Elaborator<'context> {
 
     pub(crate) interner: &'context mut NodeInterner,
 
-    def_maps: &'context mut BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &'context mut DefMaps,
 
     file: FileId,
 
@@ -195,15 +196,16 @@ struct FunctionContext {
 
 impl<'context> Elaborator<'context> {
     pub fn new(
-        context: &'context mut Context,
+        interner: &'context mut NodeInterner,
+        def_maps: &'context mut DefMaps,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
             errors: Vec::new(),
-            interner: &mut context.def_interner,
-            def_maps: &mut context.def_maps,
+            interner,
+            def_maps,
             file: FileId::dummy(),
             nested_loops: 0,
             generics: Vec::new(),
@@ -223,6 +225,19 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    pub fn from_context(
+        context: &'context mut Context,
+        crate_id: CrateId,
+        debug_comptime_in_file: Option<FileId>,
+    ) -> Self {
+        Self::new(
+            &mut context.def_interner,
+            &mut context.def_maps,
+            crate_id,
+            debug_comptime_in_file,
+        )
+    }
+
     pub fn elaborate(
         context: &'context mut Context,
         crate_id: CrateId,
@@ -238,7 +253,7 @@ impl<'context> Elaborator<'context> {
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
     ) -> Self {
-        let mut this = Self::new(context, crate_id, debug_comptime_in_file);
+        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file);
 
         // Filter out comptime items to execute their functions first if needed.
         // This step is why comptime items can only refer to other comptime items
@@ -336,15 +351,13 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
-        self.file = functions.file_id;
-        self.trait_id = functions.trait_id; // TODO: Resolve?
-        self.self_type = functions.self_type;
+        self.trait_id = functions.trait_id;
 
-        for (local_module, id, _) in functions.functions {
-            self.local_module = local_module;
-            self.recover_generics(|this| this.elaborate_function(id));
+        for (_, id, _) in functions.functions {
+            self.elaborate_function(id);
         }
 
+        self.generics.clear();
         self.self_type = None;
         self.trait_id = None;
     }
@@ -364,7 +377,7 @@ impl<'context> Elaborator<'context> {
         self.generics = all_generics;
     }
 
-    fn elaborate_function(&mut self, id: FuncId) {
+    pub(crate) fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);
         let func_meta =
             func_meta.expect("FuncMetas should be declared before a function is elaborated");
@@ -377,10 +390,18 @@ impl<'context> Elaborator<'context> {
             FunctionBody::Resolving => return,
         };
 
+        let func_meta = func_meta.clone();
+
+        assert_eq!(
+            self.crate_id, func_meta.source_crate,
+            "Functions in other crates should be already elaborated"
+        );
+        self.local_module = func_meta.source_module;
+        self.file = func_meta.source_file;
+        self.self_type = func_meta.self_type.clone();
+
         self.scopes.start_function();
         let old_item = std::mem::replace(&mut self.current_item, Some(DependencyId::Function(id)));
-
-        let func_meta = func_meta.clone();
 
         self.trait_bounds = func_meta.trait_constraints.clone();
         self.function_context.push(FunctionContext::default());
@@ -774,6 +795,8 @@ impl<'context> Elaborator<'context> {
             source_crate: self.crate_id,
             source_module: self.local_module,
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
+            self_type: self.self_type.clone(),
+            source_file: self.file,
         };
 
         self.interner.push_fn_meta(meta, func_id);
@@ -1002,10 +1025,7 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
     }
 
-    fn get_module_mut(
-        def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
-        module: ModuleId,
-    ) -> &mut ModuleData {
+    fn get_module_mut(def_maps: &mut DefMaps, module: ModuleId) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
         &mut def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
     }
@@ -1412,6 +1432,7 @@ impl<'context> Elaborator<'context> {
 
             let trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
             trait_impl.trait_id = trait_id;
+            self.trait_id = trait_id;
             let unresolved_type = &trait_impl.object_type;
 
             self.add_generics(&trait_impl.generics);
@@ -1439,6 +1460,7 @@ impl<'context> Elaborator<'context> {
 
             trait_impl.resolved_object_type = self.self_type.take();
             trait_impl.impl_id = self.current_trait_impl.take();
+            self.trait_id = None;
             self.generics.clear();
 
             if let Some(trait_id) = trait_id {
@@ -1458,7 +1480,7 @@ impl<'context> Elaborator<'context> {
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
-                this.define_function_meta(func, *id, None);
+                this.define_function_meta(func, *id, this.trait_id);
             });
         }
     }
