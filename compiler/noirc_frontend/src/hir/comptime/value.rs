@@ -51,6 +51,7 @@ pub enum Value {
     TraitDefinition(TraitId),
     FunctionDefinition(FuncId),
     ModuleDefinition(ModuleId),
+    Type(Type),
     Zeroed(Type),
 }
 
@@ -95,6 +96,7 @@ impl Value {
             Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
             Value::FunctionDefinition(_) => Type::Quoted(QuotedType::FunctionDefinition),
             Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
+            Value::Type(_) => Type::Quoted(QuotedType::Type),
             Value::Zeroed(typ) => return Cow::Borrowed(typ),
         })
     }
@@ -218,6 +220,7 @@ impl Value {
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
+            | Value::Type(_)
             | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
@@ -333,6 +336,7 @@ impl Value {
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
+            | Value::Type(_)
             | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
@@ -342,6 +346,19 @@ impl Value {
         interner.push_expr_location(id, location.span, location.file);
         interner.push_expr_type(id, typ);
         Ok(id)
+    }
+
+    pub(crate) fn into_tokens(
+        self,
+        interner: &mut NodeInterner,
+        location: Location,
+    ) -> IResult<Tokens> {
+        let token = match self {
+            Value::Code(tokens) => return Ok(unwrap_rc(tokens)),
+            Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
+            other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
+        };
+        Ok(Tokens(vec![SpannedToken::new(token, location.span)]))
     }
 
     /// Converts any unsigned `Value` into a `u128`.
@@ -443,6 +460,7 @@ impl Display for Value {
             Value::FunctionDefinition(_) => write!(f, "(function definition)"),
             Value::ModuleDefinition(_) => write!(f, "(module)"),
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
+            Value::Type(typ) => write!(f, "{}", typ),
         }
     }
 }
