@@ -25,3 +25,11 @@ variable "FORK_MNEMONIC" {
 variable "FAUCET_ACCOUNT_INDEX" {
   type = string
 }
+
+variable "GAS_TOKEN_CONTRACT_ADDRESS" {
+  type = string
+}
+
+variable "DEV_COIN_CONTRACT_ADDRESS" {
+  type = string
+}

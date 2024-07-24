@@ -7,7 +7,6 @@ import {
   MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS,
 } from '@aztec/circuits.js';
 import { bufferAsFields } from '@aztec/foundation/abi';
-import { type LogFn } from '@aztec/foundation/log';
 import { getCanonicalAuthRegistry } from '@aztec/protocol-contracts/auth-registry';
 import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
 import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
@@ -18,9 +17,8 @@ import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry'
 export async function deployCanonicalL2GasToken(
   deployer: Wallet,
   gasPortalAddress: EthAddress,
-  log: LogFn,
   waitOpts = DefaultWaitOpts,
-) {
+): Promise<AztecAddress> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
   const { GasTokenContract } = await import('@aztec/noir-contracts.js');
@@ -28,8 +26,7 @@ export async function deployCanonicalL2GasToken(
   const canonicalGasToken = getCanonicalGasToken();
 
   if (await deployer.isContractClassPubliclyRegistered(canonicalGasToken.contractClass.id)) {
-    log(`Gas Token contract class already registered with id ${canonicalGasToken.contractClass.id}`);
-    return;
+    return canonicalGasToken.address;
   }
 
   const publicBytecode = canonicalGasToken.contractClass.packedBytecode;
@@ -56,13 +53,13 @@ export async function deployCanonicalL2GasToken(
     throw new Error(`Failed to deploy Gas Token to ${canonicalGasToken.address}`);
   }
 
-  log(`Deployed Gas Token on L2 at ${canonicalGasToken.address}`);
+  return canonicalGasToken.address;
 }
 
 /**
  * Deploys the key registry on L2.
  */
-export async function deployCanonicalKeyRegistry(deployer: Wallet, log: LogFn, waitOpts = DefaultWaitOpts) {
+export async function deployCanonicalKeyRegistry(deployer: Wallet, waitOpts = DefaultWaitOpts): Promise<AztecAddress> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
   const { KeyRegistryContract } = await import('@aztec/noir-contracts.js');
@@ -77,8 +74,7 @@ export async function deployCanonicalKeyRegistry(deployer: Wallet, log: LogFn, w
     ) &&
     (await deployer.isContractClassPubliclyRegistered(canonicalKeyRegistry.contractClass.id))
   ) {
-    log(`Key Registry already deployed at ${canonicalKeyRegistry.address}`);
-    return;
+    return canonicalKeyRegistry.address;
   }
 
   const keyRegistry = await KeyRegistryContract.deploy(deployer)
@@ -94,13 +90,13 @@ export async function deployCanonicalKeyRegistry(deployer: Wallet, log: LogFn, w
     );
   }
 
-  log(`Deployed Key Registry on L2 at ${canonicalKeyRegistry.address}`);
+  return canonicalKeyRegistry.address;
 }
 
 /**
  * Deploys the auth registry on L2.
  */
-export async function deployCanonicalAuthRegistry(deployer: Wallet, log: LogFn, waitOpts = DefaultWaitOpts) {
+export async function deployCanonicalAuthRegistry(deployer: Wallet, waitOpts = DefaultWaitOpts): Promise<AztecAddress> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
   const { AuthRegistryContract } = await import('@aztec/noir-contracts.js');
@@ -115,8 +111,7 @@ export async function deployCanonicalAuthRegistry(deployer: Wallet, log: LogFn, 
     ) &&
     (await deployer.isContractClassPubliclyRegistered(canonicalAuthRegistry.contractClass.id))
   ) {
-    log(`Auth Registry already deployed at ${canonicalAuthRegistry.address}`);
-    return;
+    return canonicalAuthRegistry.address;
   }
 
   const authRegistry = await AuthRegistryContract.deploy(deployer)
@@ -132,5 +127,5 @@ export async function deployCanonicalAuthRegistry(deployer: Wallet, log: LogFn, 
     );
   }
 
-  log(`Deployed Auth Registry on L2 at ${canonicalAuthRegistry.address}`);
+  return canonicalAuthRegistry.address;
 }

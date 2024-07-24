@@ -161,18 +161,15 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
 
   await deployCanonicalKeyRegistry(
     new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.l1ChainId, aztecNodeConfig.version)),
-    logger.info,
   );
   await deployCanonicalAuthRegistry(
     new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.l1ChainId, aztecNodeConfig.version)),
-    logger.info,
   );
 
   if (config.enableGas) {
     await deployCanonicalL2GasToken(
       new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.l1ChainId, aztecNodeConfig.version)),
       aztecNodeConfig.l1Contracts.gasPortalAddress,
-      logger.info,
     );
   }
 

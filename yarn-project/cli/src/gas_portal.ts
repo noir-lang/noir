@@ -146,11 +146,13 @@ class GasPortalManager {
     return Fr.fromString(messageHash);
   }
 
-  async prepareTokensOnL1(l1TokenBalance: bigint, bridgeAmount: bigint, owner: AztecAddress) {
+  async prepareTokensOnL1(l1TokenBalance: bigint, bridgeAmount: bigint, owner: AztecAddress, mint = true) {
     const [secret, secretHash] = this.generateClaimSecret();
 
     // Mint tokens on L1
-    await this.mintTokensOnL1(l1TokenBalance);
+    if (mint) {
+      await this.mintTokensOnL1(l1TokenBalance);
+    }
 
     // Deposit tokens to the TokenPortal
     const msgHash = await this.sendTokensToPortalPublic(bridgeAmount, owner, secretHash);

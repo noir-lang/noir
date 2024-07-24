@@ -30,7 +30,7 @@ export async function bridgeL1Gas(
     logger: debugLogger,
   });
 
-  const { secret } = await manager.prepareTokensOnL1(amount, amount, recipient);
+  const { secret } = await manager.prepareTokensOnL1(amount, amount, recipient, false);
 
   log(`Minted ${amount} gas tokens on L1 and pushed to L2 portal`);
   log(`claimAmount=${amount},claimSecret=${secret}\n`);

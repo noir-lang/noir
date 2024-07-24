@@ -1,5 +1,6 @@
 import { type ContractArtifact, type FunctionArtifact, loadContractArtifact } from '@aztec/aztec.js/abi';
 import { type L1ContractArtifactsForDeployment } from '@aztec/aztec.js/ethereum';
+import { type DeployL1Contracts } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { type NoirPackageConfig } from '@aztec/foundation/noir';
 import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
@@ -40,10 +41,10 @@ export function getFunctionArtifact(artifact: ContractArtifact, fnName: string):
 export async function deployAztecContracts(
   rpcUrl: string,
   chainId: number,
-  privateKey: string,
+  privateKey: string | undefined,
   mnemonic: string,
   debugLogger: DebugLogger,
-) {
+): Promise<DeployL1Contracts> {
   const {
     InboxAbi,
     InboxBytecode,

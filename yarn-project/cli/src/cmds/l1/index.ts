@@ -21,13 +21,14 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       'Url of the ethereum host. Chain identifiers localhost and testnet can be used',
       ETHEREUM_HOST,
     )
-    .requiredOption('-pk, --private-key <string>', 'The private key to use for deployment', PRIVATE_KEY)
+    .option('-pk, --private-key <string>', 'The private key to use for deployment', PRIVATE_KEY)
     .option(
       '-m, --mnemonic <string>',
       'The mnemonic to use in deployment',
       'test test test test test test test test test test test junk',
     )
     .addOption(l1ChainIdOption)
+    .option('--json', 'Output the contract addresses in JSON format')
     .action(async options => {
       const { deployL1Contracts } = await import('./deploy_l1_contracts.js');
       await deployL1Contracts(
@@ -35,6 +36,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         options.l1ChainId,
         options.privateKey,
         options.mnemonic,
+        options.json,
         log,
         debugLogger,
       );

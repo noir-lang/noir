@@ -9,10 +9,6 @@ export function injectCommands(program: Command, log: LogFn) {
     .command('generate-keys')
     .summary('Generates encryption and signing private keys.')
     .description('Generates and encryption and signing private key pair.')
-    .option(
-      '-m, --mnemonic',
-      'An optional mnemonic string used for the private key generation. If not provided, random private key will be generated.',
-    )
     .action(async _options => {
       const { generateKeys } = await import('./generate_private_key.js');
       const { privateEncryptionKey, privateSigningKey } = generateKeys();

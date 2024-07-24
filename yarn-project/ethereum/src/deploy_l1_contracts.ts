@@ -88,6 +88,11 @@ export interface L1ContractArtifactsForDeployment {
   gasPortal: ContractArtifacts;
 }
 
+export type L1Clients = {
+  publicClient: PublicClient<HttpTransport, Chain>;
+  walletClient: WalletClient<HttpTransport, Chain, Account>;
+};
+
 /**
  * Creates a wallet and a public viem client for interacting with L1.
  * @param rpcUrl - RPC URL to connect to L1.
@@ -99,7 +104,7 @@ export function createL1Clients(
   rpcUrl: string,
   mnemonicOrHdAccount: string | HDAccount | PrivateKeyAccount,
   chain: Chain = foundry,
-): { publicClient: PublicClient<HttpTransport, Chain>; walletClient: WalletClient<HttpTransport, Chain, Account> } {
+): L1Clients {
   const hdAccount =
     typeof mnemonicOrHdAccount === 'string' ? mnemonicToAccount(mnemonicOrHdAccount) : mnemonicOrHdAccount;
 

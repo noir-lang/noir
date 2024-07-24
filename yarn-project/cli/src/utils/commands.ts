@@ -36,7 +36,7 @@ export const pxeOption = new Option('-u, --rpc-url <string>', 'URL of the PXE')
 
 export const l1ChainIdOption = new Option('-c, --l1-chain-id <number>', 'Chain ID of the ethereum host')
   .env('L1_CHAIN_ID')
-  .default('31337')
+  .default(31337)
   .argParser(value => {
     const parsedValue = Number(value);
     if (isNaN(parsedValue)) {

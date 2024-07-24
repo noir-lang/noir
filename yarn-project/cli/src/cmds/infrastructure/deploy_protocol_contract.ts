@@ -13,7 +13,7 @@ const waitOpts: WaitOpts = {
   interval: 1,
 };
 
-export async function bootstrap(rpcUrl: string, l1ChainId: number, log: LogFn) {
+export async function deployProtocolContracts(rpcUrl: string, l1ChainId: number, json: boolean, log: LogFn) {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
   // const { TokenContract } = await import('@aztec/noir-contracts.js');
@@ -21,12 +21,24 @@ export async function bootstrap(rpcUrl: string, l1ChainId: number, log: LogFn) {
   const deployer = new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(l1ChainId, 1));
 
   // Deploy Key Registry
-  await deployCanonicalKeyRegistry(deployer, log, waitOpts);
+  const keyRegistryAddress = await deployCanonicalKeyRegistry(deployer, waitOpts);
 
   // Deploy Auth Registry
-  await deployCanonicalAuthRegistry(deployer, log, waitOpts);
+  const authRegistryAddress = await deployCanonicalAuthRegistry(deployer, waitOpts);
 
   // Deploy Fee Juice
   const gasPortalAddress = (await deployer.getNodeInfo()).l1ContractAddresses.gasPortalAddress;
-  await deployCanonicalL2GasToken(deployer, gasPortalAddress, log, waitOpts);
+  const feeJuiceAddress = await deployCanonicalL2GasToken(deployer, gasPortalAddress, waitOpts);
+
+  if (json) {
+    log('', {
+      keyRegistryAddress: keyRegistryAddress.toString(),
+      authRegistryAddress: authRegistryAddress.toString(),
+      feeJuiceAddress: feeJuiceAddress.toString(),
+    });
+  } else {
+    log(`Key Registry: ${keyRegistryAddress}`);
+    log(`Auth Registry: ${authRegistryAddress}`);
+    log(`Fee Juice: ${feeJuiceAddress}`);
+  }
 }

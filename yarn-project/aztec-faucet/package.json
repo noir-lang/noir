@@ -57,6 +57,7 @@
   "dependencies": {
     "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/l1-artifacts": "workspace:^",
     "koa": "^2.14.2",
     "koa-cors": "^0.0.16",
     "koa-router": "^12.0.0",

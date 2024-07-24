@@ -6,13 +6,14 @@ import { ETHEREUM_HOST, l1ChainIdOption, parseOptionalInteger, pxeOption } from 
 
 export function injectCommands(program: Command, log: LogFn, debugLogger: DebugLogger) {
   program
-    .command('bootstrap')
-    .description('Bootstrap the blockchain')
+    .command('deploy-protocol-contracts')
+    .description('Bootstrap the blockchain by deploying all the protocol contracts')
     .addOption(pxeOption)
     .addOption(l1ChainIdOption)
+    .option('--json', 'Output the contract addresses in JSON format')
     .action(async options => {
-      const { bootstrap } = await import('./bootstrap.js');
-      await bootstrap(options.rpcUrl, options.l1ChainId, log);
+      const { deployProtocolContracts } = await import('./deploy_protocol_contract.js');
+      await deployProtocolContracts(options.rpcUrl, options.l1ChainId, options.json, log);
     });
 
   program

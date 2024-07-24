@@ -11,6 +11,9 @@
     },
     {
       "path": "../foundation"
+    },
+    {
+      "path": "../l1-artifacts"
     }
   ],
   "include": ["src"]
