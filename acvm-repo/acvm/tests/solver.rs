@@ -839,7 +839,7 @@ prop_compose! {
 }
 
 fn field_element_ones() -> FieldElement {
-    let exponent: FieldElement = (FieldElement::max_num_bits() as u128).into();
+    let exponent: FieldElement = (253 as u128).into();
     FieldElement::from(2u128).pow(&exponent) - FieldElement::one()
 }
 
@@ -881,16 +881,13 @@ proptest! {
         prop_assert_eq!(solve_blackbox_func_call(xor_op, x, x), FieldElement::zero());
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5597)
     #[test]
-    #[should_panic(expected="Test failed: assertion failed: `(left == right)`")]
     fn and_identity_l(x in field_element(), ones_constant: bool) {
         let ones = (field_element_ones(), ones_constant);
         let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x);
         if x <= ones {
             prop_assert_eq!(lhs, rhs);
         } else {
-            // TODO
             prop_assert!(lhs != rhs);
         }
     }
