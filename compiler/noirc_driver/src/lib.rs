@@ -56,6 +56,12 @@ pub struct CompileOptions {
     #[arg(long, value_parser = parse_expression_width)]
     pub expression_width: Option<ExpressionWidth>,
 
+    /// Generate ACIR with the target backend expression width.
+    /// The default is to generate ACIR without a bound and split expressions after code generation.
+    /// Activating this flag can sometimes provide optimizations for certain programs.
+    #[arg(long, default_value = "false")]
+    pub bounded_codegen: bool,
+
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -512,6 +518,12 @@ fn compile_contract_inner(
     }
 }
 
+/// Default expression width used for Noir compilation.
+/// The ACVM native type `ExpressionWidth` has its own default which should always be unbounded,
+/// while we can sometimes expect the compilation target width to change.
+/// Thus, we set it separately here rather than trying to alter the default derivation of the type.
+pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded { width: 4 };
+
 /// Compile the current crate using `main_function` as the entrypoint.
 ///
 /// This function assumes [`check_crate`] is called beforehand.
@@ -550,6 +562,11 @@ pub fn compile_no_check(
         enable_brillig_logging: options.show_brillig,
         force_brillig_output: options.force_brillig,
         print_codegen_timings: options.benchmark_codegen,
+        expression_width: if options.bounded_codegen {
+            options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
+        } else {
+            ExpressionWidth::default()
+        },
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
