@@ -2,8 +2,8 @@ use noirc_errors::{Span, Spanned};
 use noirc_frontend::ast::{
     BinaryOpKind, CallExpression, CastExpression, Expression, ExpressionKind, FunctionReturnType,
     Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MemberAccessExpression,
-    MethodCallExpression, NoirTraitImpl, Path, Pattern, PrefixExpression, Statement, StatementKind,
-    TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
+    MethodCallExpression, NoirTraitImpl, Path, PathSegment, Pattern, PrefixExpression, Statement,
+    StatementKind, TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
 };
 use noirc_frontend::token::SecondaryAttribute;
 
@@ -16,6 +16,10 @@ pub fn ident(name: &str) -> Ident {
 
 pub fn ident_path(name: &str) -> Path {
     Path::from_ident(ident(name))
+}
+
+pub fn path_segment(name: &str) -> PathSegment {
+    PathSegment::from(ident(name))
 }
 
 pub fn path(ident: Ident) -> Path {
@@ -149,7 +153,7 @@ macro_rules! chained_path {
         {
             let mut base_path = ident_path($base);
             $(
-                base_path.segments.push(ident($tail));
+                base_path.segments.push(path_segment($tail));
             )*
             base_path
         }
@@ -163,7 +167,7 @@ macro_rules! chained_dep {
             let mut base_path = ident_path($base);
             base_path.kind = PathKind::Plain;
             $(
-                base_path.segments.push(ident($tail));
+                base_path.segments.push(path_segment($tail));
             )*
             base_path
         }

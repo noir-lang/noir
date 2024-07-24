@@ -5,20 +5,21 @@ use crate::token::{Keyword, Token};
 
 use chumsky::prelude::*;
 
-use super::{ident, keyword};
+use super::keyword;
+use super::primitives::path_segment;
 
 pub(super) fn path() -> impl NoirParser<Path> {
-    let idents = || ident().separated_by(just(Token::DoubleColon)).at_least(1);
+    let segments = || path_segment().separated_by(just(Token::DoubleColon)).at_least(1);
     let make_path = |kind| move |segments, span| Path { segments, kind, span };
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
-    let path_kind = |key, kind| prefix(key).ignore_then(idents()).map_with_span(make_path(kind));
+    let path_kind = |key, kind| prefix(key).ignore_then(segments()).map_with_span(make_path(kind));
 
     choice((
         path_kind(Keyword::Crate, PathKind::Crate),
         path_kind(Keyword::Dep, PathKind::Dep),
         path_kind(Keyword::Super, PathKind::Super),
-        idents().map_with_span(make_path(PathKind::Plain)),
+        segments().map_with_span(make_path(PathKind::Plain)),
     ))
 }
 
@@ -52,7 +53,7 @@ mod test {
         for (src, expected_segments) in cases {
             let path: Path = parse_with(path(), src).unwrap();
             for (segment, expected) in path.segments.into_iter().zip(expected_segments) {
-                assert_eq!(segment.0.contents, expected);
+                assert_eq!(segment.ident.0.contents, expected);
             }
         }
 

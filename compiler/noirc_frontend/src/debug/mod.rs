@@ -1,3 +1,4 @@
+use crate::ast::PathSegment;
 use crate::parser::{parse_program, ParsedModule};
 use crate::{
     ast,
@@ -173,7 +174,7 @@ impl DebugInstrumenter {
                 kind: ast::StatementKind::Expression(ast::Expression {
                     kind: ast::ExpressionKind::Variable(
                         ast::Path {
-                            segments: vec![ident("__debug_expr", span)],
+                            segments: vec![PathSegment::from(ident("__debug_expr", span))],
                             kind: PathKind::Plain,
                             span,
                         },
@@ -573,7 +574,7 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
         func: Box::new(ast::Expression {
             kind: ast::ExpressionKind::Variable(
                 ast::Path {
-                    segments: vec![ident("__debug_var_assign", span)],
+                    segments: vec![PathSegment::from(ident("__debug_var_assign", span))],
                     kind: PathKind::Plain,
                     span,
                 },
@@ -592,7 +593,7 @@ fn build_drop_var_stmt(var_id: SourceVarId, span: Span) -> ast::Statement {
         func: Box::new(ast::Expression {
             kind: ast::ExpressionKind::Variable(
                 ast::Path {
-                    segments: vec![ident("__debug_var_drop", span)],
+                    segments: vec![PathSegment::from(ident("__debug_var_drop", span))],
                     kind: PathKind::Plain,
                     span,
                 },
@@ -620,7 +621,10 @@ fn build_assign_member_stmt(
         func: Box::new(ast::Expression {
             kind: ast::ExpressionKind::Variable(
                 ast::Path {
-                    segments: vec![ident(&format!["__debug_member_assign_{arity}"], span)],
+                    segments: vec![PathSegment::from(ident(
+                        &format!["__debug_member_assign_{arity}"],
+                        span,
+                    ))],
                     kind: PathKind::Plain,
                     span,
                 },
@@ -644,7 +648,7 @@ fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, span: Span) -> ast::Stat
         func: Box::new(ast::Expression {
             kind: ast::ExpressionKind::Variable(
                 ast::Path {
-                    segments: vec![ident(&format!["__debug_fn_{fname}"], span)],
+                    segments: vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], span))],
                     kind: PathKind::Plain,
                     span,
                 },
@@ -713,7 +717,11 @@ fn ident(s: &str, span: Span) -> ast::Ident {
 fn id_expr(id: &ast::Ident) -> ast::Expression {
     ast::Expression {
         kind: ast::ExpressionKind::Variable(
-            Path { segments: vec![id.clone()], kind: PathKind::Plain, span: id.span() },
+            Path {
+                segments: vec![PathSegment::from(id.clone())],
+                kind: PathKind::Plain,
+                span: id.span(),
+            },
             None,
         ),
         span: id.span(),

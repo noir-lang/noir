@@ -1,6 +1,6 @@
 use chumsky::prelude::*;
 
-use crate::ast::{ExpressionKind, Ident, UnaryOp};
+use crate::ast::{ExpressionKind, Ident, PathSegment, UnaryOp};
 use crate::macros_api::UnresolvedType;
 use crate::{
     parser::{labels::ParsingRuleLabel, ExprParser, NoirParser, ParserError},
@@ -30,6 +30,10 @@ pub(super) fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
             ))
         }
     })
+}
+
+pub(super) fn path_segment() -> impl NoirParser<PathSegment> {
+    ident().map(PathSegment::from)
 }
 
 pub(super) fn ident() -> impl NoirParser<Ident> {

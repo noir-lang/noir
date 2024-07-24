@@ -415,8 +415,8 @@ impl<'context> Elaborator<'context> {
         let trait_id = self.trait_id?;
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
-            let name = &path.segments[0].0.contents;
-            let method = &path.segments[1];
+            let name = &path.segments[0].ident.0.contents;
+            let method = &path.segments[1].ident;
 
             if name == SELF_TYPE_NAME {
                 let the_trait = self.interner.get_trait(trait_id);
@@ -477,13 +477,12 @@ impl<'context> Elaborator<'context> {
         for constraint in self.trait_bounds.clone() {
             if let Type::NamedGeneric(_, name, _) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if path.segments[0].0.contents != name.as_str() {
+                if path.segments[0].ident.0.contents != name.as_str() {
                     continue;
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_id);
-                if let Some(method) =
-                    the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
+                if let Some(method) = the_trait.find_method(path.last_segment().0.contents.as_str())
                 {
                     return Some((method, constraint, true));
                 }

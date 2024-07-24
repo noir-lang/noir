@@ -55,14 +55,14 @@ impl<'context> Elaborator<'context> {
             path_resolution =
                 resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
 
-            for (referenced, ident) in references.iter().zip(path.segments) {
+            for (referenced, segment) in references.iter().zip(path.segments) {
                 let Some(referenced) = referenced else {
                     continue;
                 };
                 self.interner.add_reference(
                     *referenced,
-                    Location::new(ident.span(), self.file),
-                    ident.is_self_type_name(),
+                    Location::new(segment.ident.span(), self.file),
+                    segment.ident.is_self_type_name(),
                 );
             }
 

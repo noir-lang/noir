@@ -21,6 +21,7 @@ use crate::{
     utils::{
         ast_utils::{
             check_trait_method_implemented, ident, ident_path, is_custom_attribute, make_type,
+            path_segment,
         },
         errors::AztecMacroError,
         hir_utils::{fetch_notes, get_contract_module_data, inject_global},
