@@ -115,7 +115,7 @@ The witness corresponding to this execution will then be written to the file `./
 
 :::info
 
-Nargo no longer handles communicating with backends in order to generate proofs. In order to prove/verify your Noir programs, you'll need an installation of [bb](../barretenberg/index.md).
+Nargo no longer handles communicating with backends in order to generate proofs. In order to prove/verify your Noir programs, you'll need an installation of [bb](../backend/index.md).
 
 :::
 

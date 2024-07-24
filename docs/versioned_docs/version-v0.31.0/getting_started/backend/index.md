@@ -49,7 +49,7 @@ As an example of how a proving backend could be installed, you can install `bb` 
 3. Install the version of `bb` compatible with your Noir version:
 
     ```bash
-    bbup -v 0.46.1
+    bbup -v 0.41.0
     ```
 
 4. Check if the installation was successful:
