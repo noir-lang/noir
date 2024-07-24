@@ -41,7 +41,7 @@ pub const WILDCARD_TYPE: &str = "_";
 
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
-    pub(super) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+    pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let span = typ.span;
         let resolved_type = self.resolve_type_inner(typ, &Kind::Normal);
         if resolved_type.is_nested_slice() {
