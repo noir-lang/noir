@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.47.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.46.7...aztec-package-v0.47.0) (2024-07-24)
+
+
+### Features
+
+* Bootstrap devnet ([#7578](https://github.com/AztecProtocol/aztec-packages/issues/7578)) ([ade373b](https://github.com/AztecProtocol/aztec-packages/commit/ade373bebcf9425b88c7e5bad70fbd9676cdac85))
+* Bootstrap devnet on CI ([#7534](https://github.com/AztecProtocol/aztec-packages/issues/7534)) ([77ce1c3](https://github.com/AztecProtocol/aztec-packages/commit/77ce1c3337853b34ac937877e6c7588f446df3ec))
+* Prover node ([#7452](https://github.com/AztecProtocol/aztec-packages/issues/7452)) ([609a68f](https://github.com/AztecProtocol/aztec-packages/commit/609a68faf9ad40694b33e1a403a8d8863cfc1de9)), closes [#7346](https://github.com/AztecProtocol/aztec-packages/issues/7346)
+* TXE nr deployments, dependency cleanup for CLI ([#7548](https://github.com/AztecProtocol/aztec-packages/issues/7548)) ([92ff2fa](https://github.com/AztecProtocol/aztec-packages/commit/92ff2fa2e944722e5c3fa43fb3363f093b8f1d12))
+
 ## [0.46.7](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.46.6...aztec-package-v0.46.7) (2024-07-16)
 
 

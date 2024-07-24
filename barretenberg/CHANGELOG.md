@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.47.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.46.7...barretenberg-v0.47.0) (2024-07-24)
+
+
+### Features
+
+* **avm:** Concurrency improvements ([#7495](https://github.com/AztecProtocol/aztec-packages/issues/7495)) ([0d5c066](https://github.com/AztecProtocol/aztec-packages/commit/0d5c066382a326fbc2c5f5c6844a9c6cc3a54738))
+* Bus updates ([#7522](https://github.com/AztecProtocol/aztec-packages/issues/7522)) ([bf774c2](https://github.com/AztecProtocol/aztec-packages/commit/bf774c2fbe660401812380b9c1360a33e0274a51))
+* Make Brillig do integer arithmetic operations using u128 instead of Bigint ([#7518](https://github.com/AztecProtocol/aztec-packages/issues/7518)) ([4a2011e](https://github.com/AztecProtocol/aztec-packages/commit/4a2011e771450f0e7efd49f14cf4515fc602f764))
+* Simple sparse commitment ([#7488](https://github.com/AztecProtocol/aztec-packages/issues/7488)) ([df08874](https://github.com/AztecProtocol/aztec-packages/commit/df08874fce805f0f1e8488108e5006fc08fbb6ee))
+* Solidity honk verifier ([#5485](https://github.com/AztecProtocol/aztec-packages/issues/5485)) ([8dfebe4](https://github.com/AztecProtocol/aztec-packages/commit/8dfebe4990195224dc162c9d98137040b30cfab2))
+
+
+### Bug Fixes
+
+* **avm:** One too many range check rows ([#7499](https://github.com/AztecProtocol/aztec-packages/issues/7499)) ([deb6918](https://github.com/AztecProtocol/aztec-packages/commit/deb69180f3a3670c7a512d4c401c3ad8b5da0e17))
+* Do not load the BN254 CRS for verifying client ivc proofs ([#7556](https://github.com/AztecProtocol/aztec-packages/issues/7556)) ([e515b71](https://github.com/AztecProtocol/aztec-packages/commit/e515b71af89d6d725c6355bc852432a6a5dbeb94))
+
+
+### Miscellaneous
+
+* **avm:** Bump SRS to 1 &lt;< 20 ([#7575](https://github.com/AztecProtocol/aztec-packages/issues/7575)) ([fad37a7](https://github.com/AztecProtocol/aztec-packages/commit/fad37a739b4c50db4036600d62df332f3c7d7cfc))
+* **avm:** Count non-zero elems and others ([#7498](https://github.com/AztecProtocol/aztec-packages/issues/7498)) ([7d97c0f](https://github.com/AztecProtocol/aztec-packages/commit/7d97c0f1076146013444ee0a23ea1a56bf98cb38))
+* **avm:** Nuke declare_views ([#7507](https://github.com/AztecProtocol/aztec-packages/issues/7507)) ([7e07ba9](https://github.com/AztecProtocol/aztec-packages/commit/7e07ba9f707b95409ea1cab71f123db44c188994))
+* **avm:** Use commit_sparse ([#7581](https://github.com/AztecProtocol/aztec-packages/issues/7581)) ([6812f2b](https://github.com/AztecProtocol/aztec-packages/commit/6812f2b3012b91df09239420cd82c053855a3850))
+
 ## [0.46.7](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.46.6...barretenberg-v0.46.7) (2024-07-16)
 
 
