@@ -698,6 +698,7 @@ impl<F: AcirField> AcirContext<F> {
                 } else {
                     let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
                     let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
+
                     &lhs_expr + &rhs_witness_expr
                 }
             }
@@ -709,18 +710,25 @@ impl<F: AcirField> AcirContext<F> {
                 if fits_in_one_identity(&new_sum_expr, self.expression_width) {
                     new_sum_expr
                 } else {
-                    let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
-                    let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
-                    &lhs_expr + &rhs_witness_expr
+                    let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
+                    let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
+
+                    &lhs_witness_expr + &rhs_expr
                 }
             }
             Ordering::Equal => {
                 let lhs_witness_var = self.get_or_create_witness_var(lhs)?;
                 let lhs_witness_expr = self.var_to_expression(lhs_witness_var)?;
-                let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
-                let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
 
-                &lhs_witness_expr + &rhs_witness_expr
+                let new_sum_expr = &lhs_witness_expr + &rhs_expr;
+                if fits_in_one_identity(&new_sum_expr, self.expression_width) {
+                    new_sum_expr
+                } else {
+                    let rhs_witness_var = self.get_or_create_witness_var(rhs)?;
+                    let rhs_witness_expr = self.var_to_expression(rhs_witness_var)?;
+
+                    &lhs_witness_expr + &rhs_witness_expr
+                }
             }
         };
 
