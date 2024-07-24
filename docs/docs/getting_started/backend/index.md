@@ -16,43 +16,46 @@ keywords: [
 pagination_next: getting_started/hello_noir/index
 ---
 
-Proving backends each provides their own tools for working with Noir programs, such as generating proofs, verifying proofs and generating verifier smart contracts.
+Proving backends each provide their own tools for working with Noir programs, providing utilities such as proof generation, proof verification and smart contracts verifier generation.
 
-For the latest information of each proving backend's tooling provisions, installation instructions, Noir version compatibility, etc., you may refer to the proving backends' own documentations.
+For the latest information on tooling provided by each proving backend, installation instructions, Noir version compatibility... you may refer to the proving backends' own documentations.
 
 You can find the full list of proving backends compatible with Noir in [Awesome Noir](https://github.com/noir-lang/awesome-noir/?tab=readme-ov-file#proving-backends).
 
-## Example: Installing `bbup` and `bb`
+## Example: Installing `bb`
 
 `bb` is the CLI tool provided by the [Barretenberg proving backend](https://github.com/AztecProtocol/barretenberg) developed by Aztec Labs.
 
-As an example of installing a proving backend, you can install `bbup` (the `bb` installation script) by opening the terminal and run:
+As an example of how a proving backend could be installed, you can install `bb` running the commands below in a terminal.
 
-```bash
-curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
-```
+1. Install `bbup`, Barretenberg CLI's installation script:
 
-Refresh your terminal paths:
+    ```bash
+    curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
+    ```
 
-macOS:
-```bash
-source ~/.zshrc
-```
+2. Reload your terminal shell environment:
 
-Linux:
-```bash
-source ~/.bashrc
-```
+    macOS:
+    ```bash
+    source ~/.zshrc
+    ```
 
-Then install the version of `bb` compatible with your Noir version:
+    Linux:
+    ```bash
+    source ~/.bashrc
+    ```
 
-```bash
-bbup -v 0.45.1
-```
+3. Install the version of `bb` compatible with your Noir version:
 
-You can check if the installation was successful by running:
-```bash
-bb --version
-```
+    ```bash
+    bbup -v 0.45.1
+    ```
 
-If it successfully prints the version of `bb` installed, we're ready to start working on [our first Noir program!](../hello_noir/index.md)
+4. Check if the installation was successful:
+
+    ```bash
+    bb --version
+    ```
+
+If it successfully prints the version of `bb` installed, we are ready to start working on [our first Noir program](../hello_noir/index.md).
