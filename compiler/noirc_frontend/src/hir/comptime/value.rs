@@ -150,7 +150,7 @@ impl Value {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
             Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
-            // Forat strings are lowered as normal strings since they are already interpolated.
+            // Format strings are lowered as normal strings since they are already interpolated.
             Value::FormatString(value, _) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
