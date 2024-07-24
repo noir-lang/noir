@@ -33,7 +33,8 @@ elif [ $# == 2 ] && [ "$1" == "start" ] && [ "$2" == "--sandbox" ]; then
   trap cleanup SIGINT
 
  get_compose -p sandbox $FILE_ARG up --force-recreate --remove-orphans
-else 
+elif [ "$1" == "start" ]; then
   $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
+else
+  SKIP_PORT_ASSIGNMENT=1 $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
 fi
-
