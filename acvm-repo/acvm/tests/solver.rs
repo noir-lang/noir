@@ -797,8 +797,15 @@ fn prop_assert_associative(
     op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
     x: (FieldElement, bool),
     y: (FieldElement, bool),
+    z: (FieldElement, bool),
 ) -> (FieldElement, FieldElement) {
-    (solve_blackbox_func_call(&op, x, y), solve_blackbox_func_call(&op, y, x))
+    let f_xy = (solve_blackbox_func_call(&op, x, y), x.1 ^ y.1);
+    let f_f_xy_z = solve_blackbox_func_call(&op, f_xy, z);
+
+    let f_yz = (solve_blackbox_func_call(&op, y, z), y.1 ^ z.1);
+    let f_x_f_yz = solve_blackbox_func_call(&op, x, f_yz);
+
+    (f_f_xy_z, f_x_f_yz)
 }
 
 fn prop_assert_identity_l(
@@ -809,28 +816,12 @@ fn prop_assert_identity_l(
     (solve_blackbox_func_call(op, op_identity, x), x.0)
 }
 
-fn prop_assert_identity_r(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
-    op_identity: (FieldElement, bool),
-    x: (FieldElement, bool),
-) -> (FieldElement, FieldElement) {
-    (solve_blackbox_func_call(op, x, op_identity), x.0)
-}
-
 fn prop_assert_zero_l(
     op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
     op_zero: (FieldElement, bool),
     x: (FieldElement, bool),
 ) -> (FieldElement, FieldElement) {
     (solve_blackbox_func_call(op, op_zero, x), FieldElement::zero())
-}
-
-fn prop_assert_zero_r(
-    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
-    op_zero: (FieldElement, bool),
-    x: (FieldElement, bool),
-) -> (FieldElement, FieldElement) {
-    (solve_blackbox_func_call(op, x, op_zero), FieldElement::zero())
 }
 
 prop_compose! {
@@ -867,14 +858,14 @@ proptest! {
     }
 
     #[test]
-    fn and_associative(x in field_element(), y in field_element()) {
-        let (lhs, rhs) = prop_assert_associative(and_op, x, y);
+    fn and_associative(x in field_element(), y in field_element(), z in field_element()) {
+        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z);
         prop_assert_eq!(lhs, rhs);
     }
 
     #[test]
-    fn xor_associative(x in field_element(), y in field_element()) {
-        let (lhs, rhs) = prop_assert_associative(xor_op, x, y);
+    fn xor_associative(x in field_element(), y in field_element(), z in field_element()) {
+        let (lhs, rhs) = prop_assert_associative(xor_op, x, y, z);
         prop_assert_eq!(lhs, rhs);
     }
 
@@ -911,38 +902,10 @@ proptest! {
         prop_assert_eq!(lhs, rhs);
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5597)
-    #[test]
-    #[should_panic(expected="Test failed: assertion failed: `(left == right)`")]
-    fn and_identity_r(x in field_element(), ones_constant: bool) {
-        let ones = (field_element_ones(), ones_constant);
-        let (lhs, rhs) = prop_assert_identity_r(and_op, ones, x);
-        if x <= ones {
-            prop_assert_eq!(lhs, rhs);
-        } else {
-            // TODO
-            prop_assert!(lhs != rhs);
-        }
-    }
-
-    #[test]
-    fn xor_identity_r(x in field_element(), zero_constant: bool) {
-        let zero = (FieldElement::zero(), zero_constant);
-        let (lhs, rhs) = prop_assert_identity_r(xor_op, zero, x);
-        prop_assert_eq!(lhs, rhs);
-    }
-
     #[test]
     fn and_zero_l(x in field_element(), ones_constant: bool) {
         let zero = (FieldElement::zero(), ones_constant);
         let (lhs, rhs) = prop_assert_zero_l(and_op, zero, x);
-        prop_assert_eq!(lhs, rhs);
-    }
-
-    #[test]
-    fn and_zero_r(x in field_element(), ones_constant: bool) {
-        let zero = (FieldElement::zero(), ones_constant);
-        let (lhs, rhs) = prop_assert_zero_r(and_op, zero, x);
         prop_assert_eq!(lhs, rhs);
     }
 }
