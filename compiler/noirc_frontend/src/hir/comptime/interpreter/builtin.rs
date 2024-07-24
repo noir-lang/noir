@@ -19,46 +19,54 @@ use crate::{
     QuotedType, Shared, Type,
 };
 
-pub(super) fn call_builtin(
-    interner: &mut NodeInterner,
-    name: &str,
-    arguments: Vec<(Value, Location)>,
-    return_type: Type,
-    location: Location,
-) -> IResult<Value> {
-    match name {
-        "array_len" => array_len(interner, arguments, location),
-        "as_slice" => as_slice(interner, arguments, location),
-        "is_unconstrained" => Ok(Value::Bool(true)),
-        "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
-        "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
-        "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
-        "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
-        "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
-        "slice_insert" => slice_insert(interner, arguments, location),
-        "slice_pop_back" => slice_pop_back(interner, arguments, location),
-        "slice_pop_front" => slice_pop_front(interner, arguments, location),
-        "slice_push_back" => slice_push_back(interner, arguments, location),
-        "slice_push_front" => slice_push_front(interner, arguments, location),
-        "slice_remove" => slice_remove(interner, arguments, location),
-        "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
-        "struct_def_fields" => struct_def_fields(interner, arguments, location),
-        "struct_def_generics" => struct_def_generics(interner, arguments, location),
-        "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
-        "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
-        "trait_def_as_trait_constraint" => {
-            trait_def_as_trait_constraint(interner, arguments, location)
-        }
-        "quoted_as_trait_constraint" => quoted_as_trait_constraint(interner, arguments, location),
-        "zeroed" => zeroed(return_type),
-        _ => {
-            let item = format!("Comptime evaluation for builtin function {name}");
-            Err(InterpreterError::Unimplemented { item, location })
+use super::Interpreter;
+
+impl<'local, 'context> Interpreter<'local, 'context> {
+    pub(super) fn call_builtin(
+        &mut self,
+        name: &str,
+        arguments: Vec<(Value, Location)>,
+        return_type: Type,
+        location: Location,
+    ) -> IResult<Value> {
+        let interner = &mut self.elaborator.interner;
+        match name {
+            "array_len" => array_len(interner, arguments, location),
+            "as_slice" => as_slice(interner, arguments, location),
+            "is_unconstrained" => Ok(Value::Bool(true)),
+            "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
+            "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
+            "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
+            "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
+            "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
+            "slice_insert" => slice_insert(interner, arguments, location),
+            "slice_pop_back" => slice_pop_back(interner, arguments, location),
+            "slice_pop_front" => slice_pop_front(interner, arguments, location),
+            "slice_push_back" => slice_push_back(interner, arguments, location),
+            "slice_push_front" => slice_push_front(interner, arguments, location),
+            "slice_remove" => slice_remove(interner, arguments, location),
+            "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
+            "struct_def_fields" => struct_def_fields(interner, arguments, location),
+            "struct_def_generics" => struct_def_generics(interner, arguments, location),
+            "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
+            "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
+            "trait_def_as_trait_constraint" => {
+                trait_def_as_trait_constraint(interner, arguments, location)
+            }
+            "quoted_as_trait_constraint" => {
+                quoted_as_trait_constraint(interner, arguments, location)
+            }
+            "quoted_as_type" => quoted_as_type(self, arguments, location),
+            "zeroed" => zeroed(return_type),
+            _ => {
+                let item = format!("Comptime evaluation for builtin function {name}");
+                Err(InterpreterError::Unimplemented { item, location })
+            }
         }
     }
 }
 
-fn check_argument_count(
+pub(super) fn check_argument_count(
     expected: usize,
     arguments: &[(Value, Location)],
     location: Location,
@@ -76,6 +84,21 @@ fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IRes
     Err(InterpreterError::FailingConstraint { message, location })
 }
 
+pub(super) fn get_array(
+    interner: &NodeInterner,
+    value: Value,
+    location: Location,
+) -> IResult<(im::Vector<Value>, Type)> {
+    match value {
+        Value::Array(values, typ) => Ok((values, typ)),
+        value => {
+            let type_var = Box::new(interner.next_type_variable());
+            let expected = Type::Array(type_var.clone(), type_var);
+            Err(InterpreterError::TypeMismatch { expected, value, location })
+        }
+    }
+}
+
 fn get_slice(
     interner: &NodeInterner,
     value: Value,
@@ -91,7 +114,16 @@ fn get_slice(
     }
 }
 
-fn get_u32(value: Value, location: Location) -> IResult<u32> {
+pub(super) fn get_field(value: Value, location: Location) -> IResult<FieldElement> {
+    match value {
+        Value::Field(value) => Ok(value),
+        value => {
+            Err(InterpreterError::TypeMismatch { expected: Type::FieldElement, value, location })
+        }
+    }
+}
+
+pub(super) fn get_u32(value: Value, location: Location) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
@@ -179,7 +211,7 @@ fn slice_push_back(
     Ok(Value::Slice(values, typ))
 }
 
-/// fn as_type(self) -> Quoted
+/// fn as_type(self) -> Type
 fn struct_def_as_type(
     interner: &NodeInterner,
     mut arguments: Vec<(Value, Location)>,
@@ -187,28 +219,23 @@ fn struct_def_as_type(
 ) -> IResult<Value> {
     check_argument_count(1, &arguments, location)?;
 
-    let (struct_def, span) = match arguments.pop().unwrap() {
-        (Value::StructDefinition(id), location) => (id, location.span),
+    let struct_def = match arguments.pop().unwrap().0 {
+        Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            return Err(InterpreterError::TypeMismatch { expected, location, value: value.0 });
+            return Err(InterpreterError::TypeMismatch { expected, location, value });
         }
     };
 
-    let struct_def = interner.get_struct(struct_def);
-    let struct_def = struct_def.borrow();
-    let make_token = |name| SpannedToken::new(Token::Ident(name), span);
+    let struct_def_rc = interner.get_struct(struct_def);
+    let struct_def = struct_def_rc.borrow();
 
-    let mut tokens = vec![make_token(struct_def.name.to_string())];
+    let generics = vecmap(&struct_def.generics, |generic| {
+        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), generic.kind.clone())
+    });
 
-    for (i, generic) in struct_def.generics.iter().enumerate() {
-        if i != 0 {
-            tokens.push(SpannedToken::new(Token::Comma, span));
-        }
-        tokens.push(make_token(generic.type_var.borrow().to_string()));
-    }
-
-    Ok(Value::Code(Rc::new(Tokens(tokens))))
+    drop(struct_def);
+    Ok(Value::Type(Type::Struct(struct_def_rc, generics)))
 }
 
 /// fn generics(self) -> [Quoted]
@@ -239,7 +266,7 @@ fn struct_def_generics(
     Ok(Value::Slice(generics.collect(), typ))
 }
 
-/// fn fields(self) -> [(Quoted, Quoted)]
+/// fn fields(self) -> [(Quoted, Type)]
 /// Returns (name, type) pairs of each field of this StructDefinition
 fn struct_def_fields(
     interner: &mut NodeInterner,
@@ -266,15 +293,13 @@ fn struct_def_fields(
 
     for (name, typ) in struct_def.get_fields_as_written() {
         let name = make_quoted(vec![make_token(name)]);
-        let id = interner.push_quoted_type(typ);
-        let typ = SpannedToken::new(Token::QuotedType(id), span);
-        let typ = Value::Code(Rc::new(Tokens(vec![typ])));
+        let typ = Value::Type(typ);
         fields.push_back(Value::Tuple(vec![name, typ]));
     }
 
     let typ = Type::Slice(Box::new(Type::Tuple(vec![
         Type::Quoted(QuotedType::Quoted),
-        Type::Quoted(QuotedType::Quoted),
+        Type::Quoted(QuotedType::Type),
     ])));
     Ok(Value::Slice(fields, typ))
 }
@@ -378,6 +403,30 @@ fn quoted_as_trait_constraint(
     })?;
 
     Ok(Value::TraitConstraint(trait_bound))
+}
+
+// fn as_type(quoted: Quoted) -> Type
+fn quoted_as_type(
+    interpreter: &mut Interpreter,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let tokens = get_quoted(arguments.pop().unwrap().0, location)?;
+    let quoted = tokens.as_ref().clone();
+
+    let typ = parser::parse_type().parse(quoted).map_err(|mut errors| {
+        let error = errors.swap_remove(0);
+        let rule = "a type";
+        InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
+    })?;
+
+    let typ = interpreter
+        .elaborator
+        .elaborate_item_from_comptime(interpreter.current_function, |elab| elab.resolve_type(typ));
+
+    Ok(Value::Type(typ))
 }
 
 // fn constraint_hash(constraint: TraitConstraint) -> Field

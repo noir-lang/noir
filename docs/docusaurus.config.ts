@@ -14,7 +14,6 @@ export default {
   favicon: 'img/favicon.ico',
   url: 'https://noir-lang.org',
   baseUrl: '/',
-  trailingSlash: true,
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
   i18n: {

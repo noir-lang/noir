@@ -262,7 +262,8 @@ impl<'a> ModCollector<'a> {
     }
 
     /// Collect any struct definitions declared within the ast.
-    /// Returns a vector of errors if any structs were already defined.
+    /// Returns a vector of errors if any structs were already defined,
+    /// or if a struct has duplicate fields in it.
     fn collect_structs(
         &mut self,
         context: &mut Context,
@@ -271,6 +272,8 @@ impl<'a> ModCollector<'a> {
     ) -> Vec<(CompilationError, FileId)> {
         let mut definition_errors = vec![];
         for struct_definition in types {
+            self.check_duplicate_field_names(&struct_definition, &mut definition_errors);
+
             let name = struct_definition.name.clone();
 
             let unresolved = UnresolvedStruct {
@@ -328,6 +331,29 @@ impl<'a> ModCollector<'a> {
             );
         }
         definition_errors
+    }
+
+    fn check_duplicate_field_names(
+        &self,
+        struct_definition: &NoirStruct,
+        definition_errors: &mut Vec<(CompilationError, FileId)>,
+    ) {
+        let mut seen_field_names = std::collections::HashSet::new();
+        for (field_name, _) in &struct_definition.fields {
+            if seen_field_names.insert(field_name) {
+                continue;
+            }
+
+            let previous_field_name = *seen_field_names.get(field_name).unwrap();
+            definition_errors.push((
+                DefCollectorErrorKind::DuplicateField {
+                    first_def: previous_field_name.clone(),
+                    second_def: field_name.clone(),
+                }
+                .into(),
+                self.file_id,
+            ));
+        }
     }
 
     /// Collect any type aliases definitions declared within the ast.

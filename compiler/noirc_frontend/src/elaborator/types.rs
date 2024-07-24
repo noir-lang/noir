@@ -41,7 +41,7 @@ pub const WILDCARD_TYPE: &str = "_";
 
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
-    pub(super) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
+    pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let span = typ.span;
         let resolved_type = self.resolve_type_inner(typ, &Kind::Normal);
         if resolved_type.is_nested_slice() {
@@ -1211,37 +1211,7 @@ impl<'context> Elaborator<'context> {
                 None
             }
             Type::NamedGeneric(_, _, _) => {
-                let func_id = match self.current_item {
-                    Some(DependencyId::Function(id)) => id,
-                    _ => panic!("unexpected method outside a function"),
-                };
-                let func_meta = self.interner.function_meta(&func_id);
-
-                for constraint in &func_meta.trait_constraints {
-                    if *object_type == constraint.typ {
-                        if let Some(the_trait) = self.interner.try_get_trait(constraint.trait_id) {
-                            for (method_index, method) in the_trait.methods.iter().enumerate() {
-                                if method.name.0.contents == method_name {
-                                    let trait_method = TraitMethodId {
-                                        trait_id: constraint.trait_id,
-                                        method_index,
-                                    };
-                                    return Some(HirMethodReference::TraitMethodId(
-                                        trait_method,
-                                        constraint.trait_generics.clone(),
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                }
-
-                self.push_err(TypeCheckError::UnresolvedMethodCall {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    span,
-                });
-                None
+                self.lookup_method_in_trait_constraints(object_type, method_name, span)
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a struct or a primitive type.
@@ -1264,15 +1234,51 @@ impl<'context> Elaborator<'context> {
             other => match self.interner.lookup_primitive_method(&other, method_name) {
                 Some(method_id) => Some(HirMethodReference::FuncId(method_id)),
                 None => {
-                    self.push_err(TypeCheckError::UnresolvedMethodCall {
-                        method_name: method_name.to_string(),
-                        object_type: object_type.clone(),
-                        span,
-                    });
-                    None
+                    // It could be that this type is a composite type that is bound to a trait,
+                    // for example `x: (T, U) ... where (T, U): SomeTrait`
+                    // (so this case is a generalization of the NamedGeneric case)
+                    self.lookup_method_in_trait_constraints(object_type, method_name, span)
                 }
             },
         }
+    }
+
+    fn lookup_method_in_trait_constraints(
+        &mut self,
+        object_type: &Type,
+        method_name: &str,
+        span: Span,
+    ) -> Option<HirMethodReference> {
+        let func_id = match self.current_item {
+            Some(DependencyId::Function(id)) => id,
+            _ => panic!("unexpected method outside a function"),
+        };
+        let func_meta = self.interner.function_meta(&func_id);
+
+        for constraint in &func_meta.trait_constraints {
+            if *object_type == constraint.typ {
+                if let Some(the_trait) = self.interner.try_get_trait(constraint.trait_id) {
+                    for (method_index, method) in the_trait.methods.iter().enumerate() {
+                        if method.name.0.contents == method_name {
+                            let trait_method =
+                                TraitMethodId { trait_id: constraint.trait_id, method_index };
+                            return Some(HirMethodReference::TraitMethodId(
+                                trait_method,
+                                constraint.trait_generics.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        self.push_err(TypeCheckError::UnresolvedMethodCall {
+            method_name: method_name.to_string(),
+            object_type: object_type.clone(),
+            span,
+        });
+
+        None
     }
 
     pub(super) fn type_check_call(
