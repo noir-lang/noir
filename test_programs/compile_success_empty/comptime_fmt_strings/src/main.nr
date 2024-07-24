@@ -10,6 +10,6 @@ fn main() {
         let s2 = std::unsafe::zeroed::<fmtstr<4, ()>>();
         (s1, s2)
     };
-    println(s1);
-    println(s2);
+    assert_eq(s1, "x is 4, fake interpolation: {y}, y is 5");
+    assert_eq(s2, "\0\0\0\0");
 }
