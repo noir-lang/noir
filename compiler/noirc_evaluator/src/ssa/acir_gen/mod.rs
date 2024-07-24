@@ -33,7 +33,7 @@ use acvm::acir::circuit::opcodes::BlockType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::{AssertionPayload, ErrorSelector, OpcodeLocation};
+use acvm::acir::circuit::{AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{acir::circuit::opcodes::BlockId, acir::AcirField, FieldElement};
@@ -282,12 +282,16 @@ pub(crate) type Artifacts = (
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn into_acir(self, brillig: &Brillig) -> Result<Artifacts, RuntimeError> {
+    pub(crate) fn into_acir(
+        self,
+        brillig: &Brillig,
+        expression_width: ExpressionWidth,
+    ) -> Result<Artifacts, RuntimeError> {
         let mut acirs = Vec::new();
-        // TODO: can we parallelise this?
+        // TODO: can we parallelize this?
         let mut shared_context = SharedContext::default();
         for function in self.functions.values() {
-            let context = Context::new(&mut shared_context);
+            let context = Context::new(&mut shared_context, expression_width);
             if let Some(mut generated_acir) =
                 context.convert_ssa_function(&self, function, brillig)?
             {
@@ -334,8 +338,12 @@ impl Ssa {
 }
 
 impl<'a> Context<'a> {
-    fn new(shared_context: &'a mut SharedContext<FieldElement>) -> Context<'a> {
+    fn new(
+        shared_context: &'a mut SharedContext<FieldElement>,
+        expression_width: ExpressionWidth,
+    ) -> Context<'a> {
         let mut acir_context = AcirContext::default();
+        acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {
@@ -1288,6 +1296,7 @@ impl<'a> Context<'a> {
                     index_side_effect = false;
                 }
             }
+
             // Fallback to multiplication if the index side_effects have not already been handled
             if index_side_effect {
                 // Set the value to 0 if current_side_effects is 0, to ensure it fits in any value type
@@ -2820,7 +2829,7 @@ mod test {
 
     use acvm::{
         acir::{
-            circuit::{Opcode, OpcodeLocation},
+            circuit::{ExpressionWidth, Opcode, OpcodeLocation},
             native_types::Witness,
         },
         FieldElement,
@@ -2917,7 +2926,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _) = ssa
-            .into_acir(&Brillig::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
         // main f0
@@ -3012,7 +3021,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _) = ssa
-            .into_acir(&Brillig::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
@@ -3102,7 +3111,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _) = ssa
-            .into_acir(&Brillig::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 3, "Should have three ACIR functions");
@@ -3215,8 +3224,9 @@ mod test {
         let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
 
-        let (acir_functions, brillig_functions, _) =
-            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions, _) = ssa
+            .into_acir(&brillig, ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         assert_eq!(brillig_functions.len(), 2, "Should only have generated two Brillig functions");
@@ -3272,7 +3282,7 @@ mod test {
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
         let (acir_functions, brillig_functions, _) = ssa
-            .into_acir(&Brillig::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3343,8 +3353,9 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions, _) =
-            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions, _) = ssa
+            .into_acir(&brillig, ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         // We expect 3 brillig functions:
@@ -3431,8 +3442,9 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions, _) =
-            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions, _) = ssa
+            .into_acir(&brillig, ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
         // We expect 3 brillig functions:

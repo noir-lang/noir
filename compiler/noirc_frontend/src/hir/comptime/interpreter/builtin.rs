@@ -5,8 +5,9 @@ use std::{
 
 use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
-use iter_extended::vecmap;
-use noirc_errors::Location;
+use iter_extended::{try_vecmap, vecmap};
+use noirc_errors::{Location, Span};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{IntegerBitSize, TraitBound},
@@ -15,13 +16,14 @@ use crate::{
     node_interner::TraitId,
     parser,
     token::{SpannedToken, Token, Tokens},
-    QuotedType, Type,
+    QuotedType, Shared, Type,
 };
 
 pub(super) fn call_builtin(
     interner: &mut NodeInterner,
     name: &str,
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     match name {
@@ -48,6 +50,7 @@ pub(super) fn call_builtin(
             trait_def_as_trait_constraint(interner, arguments, location)
         }
         "quoted_as_trait_constraint" => quoted_as_trait_constraint(interner, arguments, location),
+        "zeroed" => zeroed(return_type, location),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -55,7 +58,7 @@ pub(super) fn call_builtin(
     }
 }
 
-fn check_argument_count(
+pub(super) fn check_argument_count(
     expected: usize,
     arguments: &[(Value, Location)],
     location: Location,
@@ -73,6 +76,21 @@ fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IRes
     Err(InterpreterError::FailingConstraint { message, location })
 }
 
+pub(super) fn get_array(
+    interner: &NodeInterner,
+    value: Value,
+    location: Location,
+) -> IResult<(im::Vector<Value>, Type)> {
+    match value {
+        Value::Array(values, typ) => Ok((values, typ)),
+        value => {
+            let type_var = Box::new(interner.next_type_variable());
+            let expected = Type::Array(type_var.clone(), type_var);
+            Err(InterpreterError::TypeMismatch { expected, value, location })
+        }
+    }
+}
+
 fn get_slice(
     interner: &NodeInterner,
     value: Value,
@@ -88,7 +106,16 @@ fn get_slice(
     }
 }
 
-fn get_u32(value: Value, location: Location) -> IResult<u32> {
+pub(super) fn get_field(value: Value, location: Location) -> IResult<FieldElement> {
+    match value {
+        Value::Field(value) => Ok(value),
+        value => {
+            Err(InterpreterError::TypeMismatch { expected: Type::FieldElement, value, location })
+        }
+    }
+}
+
+pub(super) fn get_u32(value: Value, location: Location) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
@@ -406,6 +433,87 @@ fn trait_constraint_eq(
     let constraint_a = get_trait_constraint(arguments.pop().unwrap().0, location)?;
 
     Ok(Value::Bool(constraint_a == constraint_b))
+}
+
+// fn zeroed<T>() -> T
+fn zeroed(return_type: Type, location: Location) -> IResult<Value> {
+    match return_type {
+        Type::FieldElement => Ok(Value::Field(0u128.into())),
+        Type::Array(length_type, elem) => {
+            if let Some(length) = length_type.evaluate_to_u32() {
+                let element = zeroed(elem.as_ref().clone(), location)?;
+                let array = std::iter::repeat(element).take(length as usize).collect();
+                Ok(Value::Array(array, Type::Array(length_type, elem)))
+            } else {
+                // Assume we can resolve the length later
+                Ok(Value::Zeroed(Type::Array(length_type, elem)))
+            }
+        }
+        Type::Slice(_) => Ok(Value::Slice(im::Vector::new(), return_type)),
+        Type::Integer(sign, bits) => match (sign, bits) {
+            (Signedness::Unsigned, IntegerBitSize::One) => Ok(Value::U8(0)),
+            (Signedness::Unsigned, IntegerBitSize::Eight) => Ok(Value::U8(0)),
+            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Ok(Value::U16(0)),
+            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Ok(Value::U32(0)),
+            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Ok(Value::U64(0)),
+            (Signedness::Signed, IntegerBitSize::One) => Ok(Value::I8(0)),
+            (Signedness::Signed, IntegerBitSize::Eight) => Ok(Value::I8(0)),
+            (Signedness::Signed, IntegerBitSize::Sixteen) => Ok(Value::I16(0)),
+            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Ok(Value::I32(0)),
+            (Signedness::Signed, IntegerBitSize::SixtyFour) => Ok(Value::I64(0)),
+        },
+        Type::Bool => Ok(Value::Bool(false)),
+        Type::String(length_type) => {
+            if let Some(length) = length_type.evaluate_to_u32() {
+                Ok(Value::String(Rc::new("\0".repeat(length as usize))))
+            } else {
+                // Assume we can resolve the length later
+                Ok(Value::Zeroed(Type::String(length_type)))
+            }
+        }
+        Type::FmtString(_, _) => {
+            let item = "format strings in a comptime context".into();
+            Err(InterpreterError::Unimplemented { item, location })
+        }
+        Type::Unit => Ok(Value::Unit),
+        Type::Tuple(fields) => {
+            Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(field, location))?))
+        }
+        Type::Struct(struct_type, generics) => {
+            let fields = struct_type.borrow().get_fields(&generics);
+            let mut values = HashMap::default();
+
+            for (field_name, field_type) in fields {
+                let field_value = zeroed(field_type, location)?;
+                values.insert(Rc::new(field_name), field_value);
+            }
+
+            let typ = Type::Struct(struct_type, generics);
+            Ok(Value::Struct(values, typ))
+        }
+        Type::Alias(alias, generics) => zeroed(alias.borrow().get_type(&generics), location),
+        typ @ Type::Function(..) => {
+            // Using Value::Zeroed here is probably safer than using FuncId::dummy_id() or similar
+            Ok(Value::Zeroed(typ))
+        }
+        Type::MutableReference(element) => {
+            let element = zeroed(*element, location)?;
+            Ok(Value::Pointer(Shared::new(element), false))
+        }
+        Type::Quoted(QuotedType::TraitConstraint) => Ok(Value::TraitConstraint(TraitBound {
+            trait_path: Path::from_single(String::new(), Span::default()),
+            trait_id: None,
+            trait_generics: Vec::new(),
+        })),
+        // Optimistically assume we can resolve this type later or that the value is unused
+        Type::TypeVariable(_, _)
+        | Type::Forall(_, _)
+        | Type::Constant(_)
+        | Type::Quoted(_)
+        | Type::Error
+        | Type::TraitAsType(_, _, _)
+        | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
+    }
 }
 
 fn modulus_be_bits(

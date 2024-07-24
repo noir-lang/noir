@@ -316,15 +316,21 @@ impl<'context> Elaborator<'context> {
         }
 
         let location = Location::new(span, self.file);
-        let hir_call = HirCallExpression { func, arguments, location };
-        let typ = self.type_check_call(&hir_call, func_type, args, span);
+        let is_macro_call = call.is_macro_call;
+        let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
+        let mut typ = self.type_check_call(&hir_call, func_type, args, span);
 
-        if call.is_macro_call {
-            self.call_macro(func, comptime_args, location, typ)
-                .unwrap_or_else(|| (HirExpression::Error, Type::Error))
-        } else {
-            (HirExpression::Call(hir_call), typ)
+        if is_macro_call {
+            if self.in_comptime_context() {
+                typ = self.interner.next_type_variable();
+            } else {
+                return self
+                    .call_macro(func, comptime_args, location, typ)
+                    .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+            }
         }
+
+        (HirExpression::Call(hir_call), typ)
     }
 
     fn elaborate_method_call(
@@ -384,6 +390,7 @@ impl<'context> Elaborator<'context> {
                 let location = Location::new(span, self.file);
                 let method = method_call.method_name;
                 let turbofish_generics = generics.clone();
+                let is_macro_call = method_call.is_macro_call;
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };
 
@@ -393,6 +400,7 @@ impl<'context> Elaborator<'context> {
                 let ((function_id, function_name), function_call) = method_call.into_function_call(
                     &method_ref,
                     object_type,
+                    is_macro_call,
                     location,
                     self.interner,
                 );
@@ -737,7 +745,7 @@ impl<'context> Elaborator<'context> {
         (id, typ)
     }
 
-    pub(super) fn inline_comptime_value(
+    pub fn inline_comptime_value(
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
         span: Span,
@@ -817,14 +825,14 @@ impl<'context> Elaborator<'context> {
         for argument in arguments {
             match interpreter.evaluate(argument) {
                 Ok(arg) => {
-                    let location = interpreter.interner.expr_location(&argument);
+                    let location = interpreter.elaborator.interner.expr_location(&argument);
                     comptime_args.push((arg, location));
                 }
                 Err(error) => errors.push((error.into(), file)),
             }
         }
 
-        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let bindings = interpreter.elaborator.interner.get_instantiation_bindings(func).clone();
         let result = interpreter.call_function(function, comptime_args, bindings, location);
 
         if !errors.is_empty() {
