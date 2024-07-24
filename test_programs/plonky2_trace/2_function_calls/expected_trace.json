@@ -4,11 +4,11 @@
   { "Call": { "function_id": 0, "args": [] } },
   { "Type": { "kind": 30, "lang_type": "None", "specific_info": { "kind": "None" } } },
   { "Path": "<relative-to-this>/src/main.nr" },
-  { "Step": { "path_id": 1, "line": 9 } },
-  { "Function": { "path_id": 1, "line": 10, "name": "main" } },
+  { "Function": { "path_id": 1, "line": 9, "name": "main" } },
   { "Type": { "kind": 7, "lang_type": "Field", "specific_info": { "kind": "None" } } },
   { "Variable": "x" },
   { "Variable": "y" },
+  { "Step": { "path_id": 1, "line": 9 } },
   { "Call": { "function_id": 1, "args": [
     { "variable_id": 0, "value": { "kind": "Int", "i": 4, "type_id": 1 } },
     { "variable_id": 1, "value": { "kind": "Int", "i": 5, "type_id": 1 } }
@@ -16,18 +16,15 @@
   { "Step": { "path_id": 1, "line": 10 } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
+  { "Function": { "path_id": 1, "line": 5, "name": "foo" } },
   { "Step": { "path_id": 1, "line": 5 } },
-  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
-  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
-  { "Function": { "path_id": 1, "line": 6, "name": "foo" } },
   { "Call": { "function_id": 2, "args": [
     { "variable_id": 0, "value": { "kind": "Int", "i": 4, "type_id": 1 } }
   ] } },
   { "Step": { "path_id": 1, "line": 6 } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
+  { "Function": { "path_id": 1, "line": 1, "name": "bar" } },
   { "Step": { "path_id": 1, "line": 1 } },
-  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
-  { "Function": { "path_id": 1, "line": 2, "name": "bar" } },
   { "Call": { "function_id": 3, "args": [
     { "variable_id": 1, "value": { "kind": "Int", "i": 4, "type_id": 1 } }
   ] } },
@@ -44,15 +41,12 @@
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
   { "Step": { "path_id": 1, "line": 5 } },
-  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 4, "type_id": 1 } } },
-  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
   { "Call": { "function_id": 2, "args": [
     { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } }
   ] } },
   { "Step": { "path_id": 1, "line": 6 } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
   { "Step": { "path_id": 1, "line": 1 } },
-  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 5, "type_id": 1 } } },
   { "Call": { "function_id": 3, "args": [
     { "variable_id": 1, "value": { "kind": "Int", "i": 5, "type_id": 1 } }
   ] } },

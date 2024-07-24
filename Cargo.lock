@@ -3947,8 +3947,8 @@ dependencies = [
 
 [[package]]
 name = "runtime_tracing"
-version = "0.5.11"
-source = "git+https://github.com/metacraft-labs/runtime_tracing.git?tag=0.5.11#6e18cad50567e3d9386931b73f55106cb070880e"
+version = "0.5.12"
+source = "git+https://github.com/metacraft-labs/runtime_tracing.git?tag=0.5.12#371873fb1b3426d0f3d8d6db509e1ea223b01610"
 dependencies = [
  "num-derive",
  "num-traits",
