@@ -6,7 +6,7 @@ keywords: [sandbox, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
-## 0.xx.0
+## 0.47.0
 
 # [Aztec sandbox] TXE deployment changes
 
@@ -29,8 +29,7 @@ env.deploy("../path/to/workspace@package_name", "ContractName"); // This format 
 
 The deploy function returns a `Deployer`, which requires performing a subsequent call to `without_initializer()`, `with_private_initializer()` or `with_public_initializer()` just like before in order to **actually** deploy the contract.
 
-## 0.46.3
-### [Aztec sandbox] Command refactor and unification + `aztec test`
+### [CLI] Command refactor and unification + `aztec test`
 
 Sandbox commands have been cleaned up and simplified. Doing `aztec-up` now gets you the following top-level commands:
 
