@@ -86,7 +86,7 @@ Inside your project run:
 
 ```shell
 cd your/aztec/project
-aztec-builder update . --contract src/contract1 --contract src/contract2
+aztec update . --contract src/contract1 --contract src/contract2
 ```
 
 The sandbox must be running for the update command to work. Make sure it is [installed and running](../../reference/sandbox_reference/sandbox-reference.md).
@@ -104,16 +104,16 @@ There are four components whose versions need to be kept compatible:
 3. `Aztec.nr`, the Noir framework for writing Aztec contracts
 
 First three are packaged together in docker and are kept compatible by running `aztec-up`.
-But you need to update your Aztec.nr version manually or using `aztec-builder update`.
+But you need to update your Aztec.nr version manually or using `aztec update`.
 
 ## Updating Aztec.nr packages
 
 ### Automatic update
 
-`aztec-builder` will update your Aztec.nr packages to the appropriate version with the `aztec-builder update` command. Run this command from the root of your project and pass the paths to the folders containing the Nargo.toml files for your projects like so:
+You can update your Aztec.nr packages to the appropriate version with the `aztec update` command. Run this command from the root of your project and pass the paths to the folders containing the Nargo.toml files for your projects like so:
 
 ```shell
-aztec-builder update . --contract src/contract1 --contract src/contract2
+aztec update . --contract src/contract1 --contract src/contract2
 ```
 
 ### Manual update

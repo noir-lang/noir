@@ -21,7 +21,7 @@ To keep things simple, we won't create ballots or allow for delegate voting.
 
 ## Prerequisites
 
-- You have followed the [quickstart](../../getting_started.md) to install `aztec-nargo` and `aztec-sandbox`.
+- You have followed the [quickstart](../../getting_started.md) to install `aztec-nargo` and `aztec`.
 - Running Aztec Sandbox
 
 ## Set up a project
@@ -160,10 +160,10 @@ aztec-nargo compile
 
 This will create a new directory called `target` and a JSON artifact inside it.
 
-Use the `aztec-builder` to generate the Typescript artifact for the contract:
+Use `aztec codegen` to generate the Typescript artifact for the contract:
 
 ```bash
-aztec-builder codegen target --outdir src/artifacts
+aztec codegen target --outdir src/artifacts
 ```
 
 Once it is compiled you can [deploy](../../guides/smart_contracts/how_to_deploy_contract.md) it to the sandbox.

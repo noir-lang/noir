@@ -84,7 +84,7 @@ You may get some unused variable warnings - you can ignore these.
 And generate the TypeScript interface for the contract and add it to the test dir. Run this inside `aztec-contracts/token_bridge`:
 
 ```bash
-aztec-builder codegen target -o ../../src/test/fixtures
+aztec codegen target -o ../../src/test/fixtures
 ```
 
 This will create a TS interface inside `fixtures` dir in our `src/test` folder!

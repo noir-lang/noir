@@ -23,16 +23,14 @@ bash -i <(curl -s install.aztec.network)
 
 This will install the following tools:
 
-- **aztec** - launches various infrastructure subsystems (sequencer, prover, pxe, etc).
+- **aztec** - launches various infrastructure subsystems (full sandbox, sequencer, prover, pxe, etc) and provides utility commands to interact with the network
 - **aztec-nargo** - aztec's build of nargo, the noir compiler toolchain.
-- **aztec-sandbox** - a wrapper around docker-compose that launches services needed for sandbox testing.
 - **aztec-up** - a tool to upgrade the aztec toolchain to the latest, or specific versions.
-- **aztec-builder** - A useful tool for projects to generate ABIs and update their dependencies.
 
 Once these have been installed, to start the sandbox, run:
 
 ```bash
-aztec-sandbox
+aztec start --sandbox
 ```
 
 ### Have fun
@@ -63,7 +61,7 @@ If you wish to run components of the Aztec network stack separately, you can use
 aztec start --node [nodeOptions] --pxe [pxeOptions] --archiver [archiverOptions] --sequencer [sequencerOptions] --prover [proverOptions] ----p2p-bootstrap [p2pOptions]
 ```
 
-Starting the aztec node alongside a PXE, sequencer or archiver, will attach the components to the node.Eg if you want to run a PXE separately to a node, you can [read this guide](./aztec/concepts/pxe/index.md)/
+Starting the aztec node alongside a PXE, sequencer or archiver, will attach the components to the node. Eg if you want to run a PXE separately to a node, you can [read this guide](./aztec/concepts/pxe/index.md).
 
 ## Update the sandbox
 

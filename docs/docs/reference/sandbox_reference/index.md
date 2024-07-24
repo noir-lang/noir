@@ -15,4 +15,4 @@ The current sandbox does not generate or verify proofs, but provides a working e
 
 ## Command line tools
 
-Aztec-nargo and aztec-builder are command-line tool allowing you to compile smart contracts. See the [compiling contracts](../../guides/smart_contracts/how_to_compile_contract.md) page for more information.
+Aztec-nargo and aztec CLI are command-line tool allowing you to compile smart contracts. See the [compiling contracts](../../guides/smart_contracts/how_to_compile_contract.md) page for more information.

@@ -480,7 +480,7 @@ aztec-nargo compile
 Once your contract is compiled, optionally generate a typescript interface with the following command:
 
 ```bash
-aztec-builder target -o src/artifacts
+aztec codegen target -o src/artifacts
 ```
 
 ## Next Steps
