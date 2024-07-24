@@ -17,7 +17,7 @@ import {
   getContract,
   http,
 } from 'viem';
-import { type HDAccount, type PrivateKeyAccount, mnemonicToAccount } from 'viem/accounts';
+import { type HDAccount, type PrivateKeyAccount, mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
 import { type L1ContractAddresses } from './l1_contract_addresses.js';
@@ -96,17 +96,21 @@ export type L1Clients = {
 /**
  * Creates a wallet and a public viem client for interacting with L1.
  * @param rpcUrl - RPC URL to connect to L1.
- * @param mnemonicOrHdAccount - Mnemonic or account for the wallet client.
+ * @param mnemonicOrPrivateKeyOrHdAccount - Mnemonic or account for the wallet client.
  * @param chain - Optional chain spec (defaults to local foundry).
  * @returns - A wallet and a public client.
  */
 export function createL1Clients(
   rpcUrl: string,
-  mnemonicOrHdAccount: string | HDAccount | PrivateKeyAccount,
+  mnemonicOrPrivateKeyOrHdAccount: string | `0x${string}` | HDAccount | PrivateKeyAccount,
   chain: Chain = foundry,
 ): L1Clients {
   const hdAccount =
-    typeof mnemonicOrHdAccount === 'string' ? mnemonicToAccount(mnemonicOrHdAccount) : mnemonicOrHdAccount;
+    typeof mnemonicOrPrivateKeyOrHdAccount === 'string'
+      ? mnemonicOrPrivateKeyOrHdAccount.startsWith('0x')
+        ? privateKeyToAccount(mnemonicOrPrivateKeyOrHdAccount as `0x${string}`)
+        : mnemonicToAccount(mnemonicOrPrivateKeyOrHdAccount)
+      : mnemonicOrPrivateKeyOrHdAccount;
 
   const walletClient = createWalletClient({
     account: hdAccount,

@@ -57,6 +57,12 @@ if (EXTRA_ASSETS) {
   });
 }
 
+class ThrottleError extends Error {
+  constructor(address: string) {
+    super(`Not funding address ${address}, please try again later`);
+  }
+}
+
 /**
  * Checks if the requested asset is something the faucet can handle.
  * @param asset - The asset to check
@@ -88,7 +94,7 @@ function checkThrottle(asset: 'eth' | AssetName, address: Hex) {
   const current = new Date();
   const diff = (current.getTime() - last.getTime()) / 1000;
   if (diff < interval) {
-    throw new Error(`Not funding address ${address}, please try again later`);
+    throw new ThrottleError(address);
   }
 }
 
@@ -254,7 +260,7 @@ async function main() {
       await next();
     } catch (err: any) {
       logger.error(err);
-      ctx.status = 400;
+      ctx.status = err instanceof ThrottleError ? 429 : 400;
       ctx.body = { error: err.message };
     }
   };

@@ -3,7 +3,7 @@ import { createEthereumChain, createL1Clients } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { createCompatibleClient } from '../../client.js';
-import { GasPortalManagerFactory } from '../../gas_portal.js';
+import { FeeJuicePortalManager } from '../../portal_manager.js';
 
 export async function bridgeL1Gas(
   amount: bigint,
@@ -12,6 +12,7 @@ export async function bridgeL1Gas(
   l1RpcUrl: string,
   chainId: number,
   mnemonic: string,
+  mint: boolean,
   log: LogFn,
   debugLogger: DebugLogger,
 ) {
@@ -23,14 +24,8 @@ export async function bridgeL1Gas(
   const client = await createCompatibleClient(rpcUrl, debugLogger);
 
   // Setup portal manager
-  const manager = await GasPortalManagerFactory.create({
-    pxeService: client,
-    publicClient: publicClient,
-    walletClient: walletClient,
-    logger: debugLogger,
-  });
-
-  const { secret } = await manager.prepareTokensOnL1(amount, amount, recipient, false);
+  const portal = await FeeJuicePortalManager.create(client, publicClient, walletClient, debugLogger);
+  const { secret } = await portal.prepareTokensOnL1(amount, amount, recipient, mint);
 
   log(`Minted ${amount} gas tokens on L1 and pushed to L2 portal`);
   log(`claimAmount=${amount},claimSecret=${secret}\n`);
