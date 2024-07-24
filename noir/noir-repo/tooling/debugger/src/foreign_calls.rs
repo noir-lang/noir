@@ -49,7 +49,7 @@ pub struct DefaultDebugForeignCallExecutor {
 impl DefaultDebugForeignCallExecutor {
     pub fn new(show_output: bool) -> Self {
         Self {
-            executor: DefaultForeignCallExecutor::new(show_output, None),
+            executor: DefaultForeignCallExecutor::new(show_output, None, None, None),
             debug_vars: DebugVars::default(),
         }
     }

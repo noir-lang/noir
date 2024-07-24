@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
-    "./cli": "./dest/cli/index.js"
+    "./cli": "./dest/bin/cli.js"
   },
   "typedocOptions": {
     "entryPoints": [
@@ -14,7 +14,7 @@
     "tsconfig": "./tsconfig.json"
   },
   "bin": {
-    "aztec-builder": "dest/cli.js"
+    "aztec-builder": "dest/bin/cli.js"
   },
   "scripts": {
     "build": "yarn clean && tsc -b",
@@ -65,8 +65,8 @@
     ]
   },
   "dependencies": {
-    "@aztec/cli": "workspace:^",
     "@aztec/foundation": "workspace:^",
+    "@aztec/types": "workspace:^",
     "commander": "^12.1.0"
   },
   "devDependencies": {

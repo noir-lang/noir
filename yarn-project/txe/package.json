@@ -57,6 +57,7 @@
     ]
   },
   "dependencies": {
+    "@aztec/accounts": "workspace:^",
     "@aztec/archiver": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuit-types": "workspace:^",
@@ -64,7 +65,6 @@
     "@aztec/foundation": "workspace:^",
     "@aztec/key-store": "workspace:^",
     "@aztec/kv-store": "workspace:^",
-    "@aztec/noir-contracts.js": "workspace:^",
     "@aztec/pxe": "workspace:^",
     "@aztec/simulator": "workspace:^",
     "@aztec/types": "workspace:^",

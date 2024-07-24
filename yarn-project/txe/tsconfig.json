@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../accounts"
+    },
+    {
       "path": "../archiver"
     },
     {
@@ -26,9 +29,6 @@
     },
     {
       "path": "../kv-store"
-    },
-    {
-      "path": "../noir-contracts.js"
     },
     {
       "path": "../pxe"

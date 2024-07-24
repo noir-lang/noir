@@ -26,13 +26,14 @@ unconstrained pub fn get_public_context_inputs() -> PublicContextInputs {
     oracle_get_public_context_inputs()
 }
 
-unconstrained pub fn deploy<let N: u32, let M: u32>(
+unconstrained pub fn deploy<let N: u32, let M: u32, let P: u32>(
     path: str<N>,
-    initializer: str<M>,
+    name: str<M>,
+    initializer: str<P>,
     args: [Field],
     public_keys_hash: Field
 ) -> ContractInstance {
-    let instance_fields = oracle_deploy(path, initializer, args, public_keys_hash);
+    let instance_fields = oracle_deploy(path, name, initializer, args, public_keys_hash);
     ContractInstance::deserialize(instance_fields)
 }
 
@@ -44,8 +45,8 @@ unconstrained pub fn create_account() -> TestAccount {
     oracle_create_account()
 }
 
-unconstrained pub fn add_account(secret: Field, partial_address: PartialAddress) -> TestAccount {
-    oracle_add_account(secret, partial_address)
+unconstrained pub fn add_account(secret: Field) -> TestAccount {
+    oracle_add_account(secret)
 }
 
 unconstrained pub fn derive_keys(secret: Field) -> PublicKeys {
@@ -122,9 +123,10 @@ unconstrained fn oracle_get_private_context_inputs(historical_block_number: u32)
 unconstrained fn oracle_get_public_context_inputs() -> PublicContextInputs {}
 
 #[oracle(deploy)]
-unconstrained fn oracle_deploy<let N: u32, let M: u32>(
+unconstrained fn oracle_deploy<let N: u32, let M: u32, let P: u32>(
     path: str<N>,
-    initializer: str<M>,
+    name: str<M>,
+    initializer: str<P>,
     args: [Field],
     public_keys_hash: Field
 ) -> [Field; CONTRACT_INSTANCE_LENGTH] {}
@@ -140,7 +142,7 @@ unconstrained fn direct_storage_write_oracle<let N: u32>(
 unconstrained fn oracle_create_account() -> TestAccount {}
 
 #[oracle(addAccount)]
-unconstrained fn oracle_add_account(secret: Field, partial_address: PartialAddress) -> TestAccount {}
+unconstrained fn oracle_add_account(secret: Field) -> TestAccount {}
 
 #[oracle(deriveKeys)]
 unconstrained fn oracle_derive_keys(secret: Field) -> PublicKeys {}

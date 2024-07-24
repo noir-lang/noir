@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use acvm::acir::native_types::WitnessStack;
 use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -65,13 +67,16 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
         let program_artifact_path = workspace.package_build_path(package);
-        let program: CompiledProgram = read_program_from_file(program_artifact_path)?.into();
+        let program: CompiledProgram =
+            read_program_from_file(program_artifact_path.clone())?.into();
 
         let (return_value, witness_stack) = execute_program_and_decode(
             program,
             package,
             &args.prover_name,
             args.oracle_resolver.as_deref(),
+            Some(workspace.root_dir.clone()),
+            Some(package.name.to_string()),
         )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
@@ -92,11 +97,14 @@ fn execute_program_and_decode(
     package: &Package,
     prover_name: &str,
     foreign_call_resolver_url: Option<&str>,
+    root_path: Option<PathBuf>,
+    package_name: Option<String>,
 ) -> Result<(Option<InputValue>, WitnessStack<FieldElement>), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let witness_stack = execute_program(&program, &inputs_map, foreign_call_resolver_url)?;
+    let witness_stack =
+        execute_program(&program, &inputs_map, foreign_call_resolver_url, root_path, package_name)?;
     // Get the entry point witness for the ABI
     let main_witness =
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
@@ -109,6 +117,8 @@ pub(crate) fn execute_program(
     compiled_program: &CompiledProgram,
     inputs_map: &InputMap,
     foreign_call_resolver_url: Option<&str>,
+    root_path: Option<PathBuf>,
+    package_name: Option<String>,
 ) -> Result<WitnessStack<FieldElement>, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
@@ -116,7 +126,12 @@ pub(crate) fn execute_program(
         &compiled_program.program,
         initial_witness,
         &Bn254BlackBoxSolver,
-        &mut DefaultForeignCallExecutor::new(true, foreign_call_resolver_url),
+        &mut DefaultForeignCallExecutor::new(
+            true,
+            foreign_call_resolver_url,
+            root_path,
+            package_name,
+        ),
     );
     match solved_witness_stack_err {
         Ok(solved_witness_stack) => Ok(solved_witness_stack),

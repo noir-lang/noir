@@ -80,7 +80,7 @@ impl FuzzedExecutor {
             &self.program.bytecode,
             initial_witness,
             &StubbedBlackBoxSolver,
-            &mut DefaultForeignCallExecutor::<FieldElement>::new(false, None),
+            &mut DefaultForeignCallExecutor::<FieldElement>::new(false, None, None, None),
         );
 
         // TODO: Add handling for `vm.assume` equivalent

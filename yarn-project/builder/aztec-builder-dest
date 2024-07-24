@@ -1,3 +1,3 @@
 #!/bin/sh
 SCRIPT_PATH=$(dirname $(realpath $0))
-node --no-warnings $SCRIPT_PATH/dest/cli.js $@
+node --no-warnings $SCRIPT_PATH/dest/bin/cli.js $@

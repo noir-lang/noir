@@ -61,6 +61,8 @@ fn run_stdlib_tests() {
                     &test_function,
                     false,
                     None,
+                    None,
+                    None,
                     &CompileOptions::default(),
                 )
             } else {

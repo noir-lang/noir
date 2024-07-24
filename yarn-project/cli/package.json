@@ -3,7 +3,6 @@
   "version": "0.32.0",
   "type": "module",
   "exports": {
-    "./builder": "./dest/cmds/builder/index.js",
     "./contracts": "./dest/cmds/contracts/index.js",
     "./devnet": "./dest/cmds/devnet/index.js",
     "./infrastructure": "./dest/cmds/infrastructure/index.js",

@@ -1,3 +1,4 @@
+import { SchnorrAccountContractArtifact } from '@aztec/accounts/schnorr';
 import { L2Block, MerkleTreeId, PublicDataWrite } from '@aztec/circuit-types';
 import {
   Fr,
@@ -7,10 +8,11 @@ import {
   PUBLIC_DATA_SUBTREE_HEIGHT,
   Point,
   PublicDataTreeLeaf,
+  computePartialAddress,
   getContractInstanceFromDeployParams,
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
-import { NoteSelector } from '@aztec/foundation/abi';
+import { type ContractArtifact, NoteSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { type Logger } from '@aztec/foundation/log';
 import { KeyStore } from '@aztec/key-store';
@@ -92,27 +94,22 @@ export class TXEService {
   }
 
   async deploy(
-    path: ForeignCallArray,
+    artifact: ContractArtifact,
     initializer: ForeignCallArray,
     _length: ForeignCallSingle,
     args: ForeignCallArray,
     publicKeysHash: ForeignCallSingle,
   ) {
-    const pathStr = fromArray(path)
-      .map(char => String.fromCharCode(char.toNumber()))
-      .join('');
     const initializerStr = fromArray(initializer)
       .map(char => String.fromCharCode(char.toNumber()))
       .join('');
     const decodedArgs = fromArray(args);
     const publicKeysHashFr = fromSingle(publicKeysHash);
     this.logger.debug(
-      `Deploy ${pathStr} with initializer ${initializerStr}(${decodedArgs}) and public keys hash ${publicKeysHashFr}`,
+      `Deploy ${artifact.name} with initializer ${initializerStr}(${decodedArgs}) and public keys hash ${publicKeysHashFr}`,
     );
-    const contractModule = await import(pathStr);
-    // Hacky way of getting the class, the name of the Artifact is always longer
-    const contractClass = contractModule[Object.keys(contractModule).sort((a, b) => a.length - b.length)[0]];
-    const instance = getContractInstanceFromDeployParams(contractClass.artifact, {
+
+    const instance = getContractInstanceFromDeployParams(artifact, {
       constructorArgs: decodedArgs,
       skipArgsDecoding: true,
       salt: Fr.ONE,
@@ -121,9 +118,9 @@ export class TXEService {
       deployer: AztecAddress.ZERO,
     });
 
-    this.logger.debug(`Deployed ${contractClass.artifact.name} at ${instance.address}`);
+    this.logger.debug(`Deployed ${artifact.name} at ${instance.address}`);
     await (this.typedOracle as TXE).addContractInstance(instance);
-    await (this.typedOracle as TXE).addContractArtifact(contractClass.artifact);
+    await (this.typedOracle as TXE).addContractArtifact(artifact);
     return toForeignCallResult([
       toArray([
         instance.salt,
@@ -171,9 +168,26 @@ export class TXEService {
     ]);
   }
 
-  async addAccount(secret: ForeignCallSingle, partialAddress: ForeignCallSingle) {
+  async addAccount(secret: ForeignCallSingle) {
+    const keys = (this.typedOracle as TXE).deriveKeys(fromSingle(secret));
+    const args = [keys.publicKeys.masterIncomingViewingPublicKey.x, keys.publicKeys.masterIncomingViewingPublicKey.y];
+    const hash = keys.publicKeys.hash();
+    const artifact = SchnorrAccountContractArtifact;
+    const instance = getContractInstanceFromDeployParams(artifact, {
+      constructorArgs: args,
+      skipArgsDecoding: true,
+      salt: Fr.ONE,
+      publicKeysHash: hash,
+      constructorArtifact: 'constructor',
+      deployer: AztecAddress.ZERO,
+    });
+
+    this.logger.debug(`Deployed ${artifact.name} at ${instance.address}`);
+    await (this.typedOracle as TXE).addContractInstance(instance);
+    await (this.typedOracle as TXE).addContractArtifact(artifact);
+
     const keyStore = (this.typedOracle as TXE).getKeyStore();
-    const completeAddress = await keyStore.addAccount(fromSingle(secret), fromSingle(partialAddress));
+    const completeAddress = await keyStore.addAccount(fromSingle(secret), computePartialAddress(instance));
     const accountStore = (this.typedOracle as TXE).getTXEDatabase();
     await accountStore.setAccount(completeAddress.address, completeAddress);
     this.logger.debug(`Created account ${completeAddress.address}`);

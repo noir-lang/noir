@@ -7,6 +7,29 @@ keywords: [sandbox, aztec, notes, migration, updating, upgrading]
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
 ## 0.xx.0
+
+# [Aztec sandbox] TXE deployment changes
+
+The way simulated deployments are done in TXE tests has changed to avoid relying on TS interfaces. It is now possible to do it by directly pointing to a Noir standalone contract or workspace:
+
+```diff
+-let deployer = env.deploy("path_to_contract_ts_interface");
++let deployer = env.deploy("path_to_contract_root_folder_where_nargo_toml_is", "ContractName");
+```
+
+Extended syntax for more use cases:
+
+```rust
+// The contract we're testing
+env.deploy_self("ContractName"); // We have to provide ContractName since nargo it's ready to support multi-contract files
+
+// A contract in a workspace
+env.deploy("../path/to/workspace@package_name", "ContractName"); // This format allows locating the artifact in the root workspace target folder, regardless of internal code organization
+```
+
+The deploy function returns a `Deployer`, which requires performing a subsequent call to `without_initializer()`, `with_private_initializer()` or `with_public_initializer()` just like before in order to **actually** deploy the contract.
+
+## 0.46.3
 ### [Aztec sandbox] Command refactor and unification + `aztec test`
 
 Sandbox commands have been cleaned up and simplified. Doing `aztec-up` now gets you the following top-level commands:

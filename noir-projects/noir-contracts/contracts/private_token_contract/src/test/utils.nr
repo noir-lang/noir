@@ -16,7 +16,7 @@ pub fn setup(with_account_contracts: bool) -> (&mut TestEnvironment, AztecAddres
         let owner = env.create_account_contract(1);
         let recipient = env.create_account_contract(2);
         // Deploy canonical auth registry
-        let _auth_registry = env.deploy("@aztec/noir-contracts.js/AuthRegistry").without_initializer();
+        let _auth_registry = env.deploy("./@auth_registry_contract", "AuthRegistry").without_initializer();
         (owner, recipient)
     } else {
         let owner = env.create_account();
@@ -34,7 +34,7 @@ pub fn setup(with_account_contracts: bool) -> (&mut TestEnvironment, AztecAddres
         "TT00000000000000000000000000000",
         18
     );
-    let token_contract = env.deploy("@aztec/noir-contracts.js/PrivateToken").with_public_initializer(initializer_call_interface);
+    let token_contract = env.deploy_self("PrivateToken").with_public_initializer(initializer_call_interface);
     let token_contract_address = token_contract.to_address();
     env.advance_block_by(6);
     (&mut env, token_contract_address, owner, recipient)

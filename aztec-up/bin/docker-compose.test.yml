@@ -6,6 +6,7 @@ services:
       HOST_WORKDIR: "${PWD}" # Loaded from the user shell to show log files absolute path in host
     volumes:
       - ./log:/usr/src/yarn-project/aztec/log:rw
+      - ${HOME}:${HOME}
     command: start --txe
       
   aztec-nargo:

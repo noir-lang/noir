@@ -85,27 +85,11 @@ impl TestEnvironment {
     }
 
     fn create_account_contract(&mut self, secret: Field) -> AztecAddress {
-        let public_keys = cheatcodes::derive_keys(secret);
-        let args = [public_keys.ivpk_m.x, public_keys.ivpk_m.y];
-        let instance = cheatcodes::deploy(
-            "@aztec/noir-contracts.js/SchnorrAccount",
-            "constructor",
-            args.as_slice(),
-            public_keys.hash().to_field()
-        );
+        let test_account = cheatcodes::add_account(secret);
+        let address = test_account.address;
         cheatcodes::advance_blocks_by(1);
-        let test_account = cheatcodes::add_account(
-            secret,
-            PartialAddress::compute(
-                instance.contract_class_id,
-                instance.salt,
-                instance.initialization_hash,
-                instance.deployer
-            )
-        );
-        let keys = test_account.keys;
 
-        let address = instance.to_address();
+        let keys = test_account.keys;
 
         keys::store_master_key(NULLIFIER_INDEX, address, keys.npk_m);
         keys::store_master_key(INCOMING_INDEX, address, keys.ivpk_m);
@@ -115,14 +99,18 @@ impl TestEnvironment {
         let selector = FunctionSelector::from_signature("constructor(Field,Field)");
 
         let mut context = self.private_at(get_block_number());
-
+        let args = [test_account.keys.ivpk_m.x, test_account.keys.ivpk_m.y];
         let _ = context.call_private_function(address, selector, args);
 
         address
     }
 
-    fn deploy<let N: u32>(_self: Self, path: str<N>) -> Deployer<N> {
-        Deployer { path, public_keys_hash: 0 }
+    fn deploy<N, M>(self, path: str<N>, name: str<M>) -> Deployer<N, M> {
+        Deployer { path, name, public_keys_hash: 0 }
+    }
+
+    fn deploy_self<M>(self, name: str<M>) -> Deployer<0, M> {
+        Deployer { path: "", name, public_keys_hash: 0 }
     }
 
     fn call_private<C, let M: u32, T, Env, let N: u32>(

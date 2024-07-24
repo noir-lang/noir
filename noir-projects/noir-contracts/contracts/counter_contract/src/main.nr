@@ -57,7 +57,7 @@ contract Counter {
 
         // Deploy contract and initialize 
         let initializer = Counter::interface().initialize(initial_value as u64, owner, outgoing_viewer);
-        let counter_contract = env.deploy("@aztec/noir-contracts.js/Counter").with_private_initializer(initializer);
+        let counter_contract = env.deploy_self("Counter").with_private_initializer(initializer);
         let contract_address = counter_contract.to_address();
 
         // docs:start:txe_test_read_notes

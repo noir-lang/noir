@@ -37,7 +37,7 @@ for ABI in $(find ../../noir-projects/noir-contracts/target -maxdepth 1 -type f 
 done
 
 # Generate types for the contracts
-node --no-warnings ../builder/dest/cli.js codegen -o $OUT_DIR artifacts
+node --no-warnings ../builder/dest/bin/cli.js codegen -o $OUT_DIR artifacts
 
 # Append exports for each generated TypeScript file to index.ts
 find "$OUT_DIR" -maxdepth 1 -type f -name '*.ts' ! -name 'index.ts' | while read -r TS_FILE; do
