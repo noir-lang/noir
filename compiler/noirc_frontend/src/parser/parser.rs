@@ -38,7 +38,7 @@ use crate::ast::{
     BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
     InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
     Recoverable, Statement, TraitBound, TypeImpl, UnaryRhsMemberAccess, UnaryRhsMethodCall,
-    UnresolvedTraitConstraint, UseTree, UseTreeKind, Visibility,
+    UseTree, UseTreeKind, Visibility,
 };
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
@@ -72,6 +72,7 @@ mod test_helpers;
 use literals::literal;
 use path::{maybe_empty_path, path};
 use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
+use traits::where_clause;
 
 /// Entry function for the parser - also handles lexing internally.
 ///
@@ -366,45 +367,8 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
         .labelled(ParsingRuleLabel::Parameter)
 }
 
-fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
-    struct MultiTraitConstraint {
-        typ: UnresolvedType,
-        trait_bounds: Vec<TraitBound>,
-    }
-
-    let constraints = parse_type()
-        .then_ignore(just(Token::Colon))
-        .then(trait_bounds())
-        .map(|(typ, trait_bounds)| MultiTraitConstraint { typ, trait_bounds });
-
-    keyword(Keyword::Where)
-        .ignore_then(constraints.separated_by(just(Token::Comma)))
-        .or_not()
-        .map(|option| option.unwrap_or_default())
-        .map(|x: Vec<MultiTraitConstraint>| {
-            let mut result: Vec<UnresolvedTraitConstraint> = Vec::new();
-            for constraint in x {
-                for bound in constraint.trait_bounds {
-                    result.push(UnresolvedTraitConstraint {
-                        typ: constraint.typ.clone(),
-                        trait_bound: bound,
-                    });
-                }
-            }
-            result
-        })
-}
-
-fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
-    trait_bound().separated_by(just(Token::Plus)).at_least(1).allow_trailing()
-}
-
 pub fn trait_bound() -> impl NoirParser<TraitBound> {
-    path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
-        trait_path,
-        trait_generics,
-        trait_id: None,
-    })
+    traits::trait_bound()
 }
 
 fn block_expr<'a>(

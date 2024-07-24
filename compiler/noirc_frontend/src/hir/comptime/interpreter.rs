@@ -38,6 +38,7 @@ use super::errors::{IResult, InterpreterError};
 use super::value::{unwrap_rc, Value};
 
 mod builtin;
+mod foreign;
 mod unquote;
 
 #[allow(unused)]
@@ -160,8 +161,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let builtin = builtin.clone();
             self.call_builtin(&builtin, arguments, return_type, location)
         } else if let Some(foreign) = func_attrs.foreign() {
-            let item = format!("Comptime evaluation for foreign functions like {foreign}");
-            Err(InterpreterError::Unimplemented { item, location })
+            let foreign = foreign.clone();
+            foreign::call_foreign(self.elaborator.interner, &foreign, arguments, location)
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)

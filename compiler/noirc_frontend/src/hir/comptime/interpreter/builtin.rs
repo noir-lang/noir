@@ -66,7 +66,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
     }
 }
 
-fn check_argument_count(
+pub(super) fn check_argument_count(
     expected: usize,
     arguments: &[(Value, Location)],
     location: Location,
@@ -84,6 +84,21 @@ fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IRes
     Err(InterpreterError::FailingConstraint { message, location })
 }
 
+pub(super) fn get_array(
+    interner: &NodeInterner,
+    value: Value,
+    location: Location,
+) -> IResult<(im::Vector<Value>, Type)> {
+    match value {
+        Value::Array(values, typ) => Ok((values, typ)),
+        value => {
+            let type_var = Box::new(interner.next_type_variable());
+            let expected = Type::Array(type_var.clone(), type_var);
+            Err(InterpreterError::TypeMismatch { expected, value, location })
+        }
+    }
+}
+
 fn get_slice(
     interner: &NodeInterner,
     value: Value,
@@ -99,7 +114,16 @@ fn get_slice(
     }
 }
 
-fn get_u32(value: Value, location: Location) -> IResult<u32> {
+pub(super) fn get_field(value: Value, location: Location) -> IResult<FieldElement> {
+    match value {
+        Value::Field(value) => Ok(value),
+        value => {
+            Err(InterpreterError::TypeMismatch { expected: Type::FieldElement, value, location })
+        }
+    }
+}
+
+pub(super) fn get_u32(value: Value, location: Location) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
