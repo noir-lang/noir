@@ -221,6 +221,7 @@ pub fn inject_global(
     let global_id = context.def_interner.push_empty_global(
         name.clone(),
         module_id,
+        *crate_id,
         file_id,
         global.attributes.clone(),
         false,

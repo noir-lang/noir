@@ -171,6 +171,7 @@ pub struct HirCallExpression {
     pub func: ExprId,
     pub arguments: Vec<ExprId>,
     pub location: Location,
+    pub is_macro_call: bool,
 }
 
 /// These nodes are temporary, they're
@@ -208,6 +209,7 @@ impl HirMethodCallExpression {
         mut self,
         method: &HirMethodReference,
         object_type: Type,
+        is_macro_call: bool,
         location: Location,
         interner: &mut NodeInterner,
     ) -> ((ExprId, HirIdent), HirCallExpression) {
@@ -232,7 +234,7 @@ impl HirMethodCallExpression {
         let func_var = HirIdent { location, id, impl_kind };
         let func = interner.push_expr(HirExpression::Ident(func_var.clone(), self.generics));
         interner.push_expr_location(func, location.span, location.file);
-        let expr = HirCallExpression { func, arguments, location };
+        let expr = HirCallExpression { func, arguments, location, is_macro_call };
         ((func, func_var), expr)
     }
 }

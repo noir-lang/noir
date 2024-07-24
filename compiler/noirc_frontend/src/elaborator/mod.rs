@@ -7,7 +7,7 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::{self, Interpreter, InterpreterError, Value},
+        comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
@@ -60,6 +60,7 @@ use crate::{
     macros_api::ItemVisibility,
 };
 
+mod comptime;
 mod expressions;
 mod lints;
 mod patterns;
@@ -97,9 +98,9 @@ pub struct LambdaContext {
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
-    errors: Vec<(CompilationError, FileId)>,
+    pub(crate) errors: Vec<(CompilationError, FileId)>,
 
-    interner: &'context mut NodeInterner,
+    pub(crate) interner: &'context mut NodeInterner,
 
     def_maps: &'context mut BTreeMap<CrateId, CrateDefMap>,
 
@@ -167,7 +168,7 @@ pub struct Elaborator<'context> {
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making
     /// up all currently visible definitions. The first scope is always the global scope.
-    comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
+    pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, Value>>,
 
     /// The scope of --debug-comptime, or None if unset
     debug_comptime_in_file: Option<FileId>,
@@ -228,6 +229,15 @@ impl<'context> Elaborator<'context> {
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
     ) -> Vec<(CompilationError, FileId)> {
+        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file).errors
+    }
+
+    pub fn elaborate_and_return_self(
+        context: &'context mut Context,
+        crate_id: CrateId,
+        items: CollectedItems,
+        debug_comptime_in_file: Option<FileId>,
+    ) -> Self {
         let mut this = Self::new(context, crate_id, debug_comptime_in_file);
 
         // Filter out comptime items to execute their functions first if needed.
@@ -238,7 +248,7 @@ impl<'context> Elaborator<'context> {
         let (comptime_items, runtime_items) = Self::filter_comptime_items(items);
         this.elaborate_items(comptime_items);
         this.elaborate_items(runtime_items);
-        this.errors
+        this
     }
 
     fn elaborate_items(&mut self, mut items: CollectedItems) {
@@ -339,6 +349,21 @@ impl<'context> Elaborator<'context> {
         self.trait_id = None;
     }
 
+    fn introduce_generics_into_scope(&mut self, all_generics: Vec<ResolvedGeneric>) {
+        // Introduce all numeric generics into scope
+        for generic in &all_generics {
+            if let Kind::Numeric(typ) = &generic.kind {
+                let definition = DefinitionKind::GenericType(generic.type_var.clone());
+                let ident = Ident::new(generic.name.to_string(), generic.span);
+                let hir_ident =
+                    self.add_variable_decl_inner(ident, false, false, false, definition);
+                self.interner.push_definition_type(hir_ident.id, *typ.clone());
+            }
+        }
+
+        self.generics = all_generics;
+    }
+
     fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);
         let func_meta =
@@ -360,16 +385,7 @@ impl<'context> Elaborator<'context> {
         self.trait_bounds = func_meta.trait_constraints.clone();
         self.function_context.push(FunctionContext::default());
 
-        // Introduce all numeric generics into scope
-        for generic in &func_meta.all_generics {
-            if let Kind::Numeric(typ) = &generic.kind {
-                let definition = DefinitionKind::GenericType(generic.type_var.clone());
-                let ident = Ident::new(generic.name.to_string(), generic.span);
-                let hir_ident =
-                    self.add_variable_decl_inner(ident, false, false, false, definition);
-                self.interner.push_definition_type(hir_ident.id, *typ.clone());
-            }
-        }
+        self.introduce_generics_into_scope(func_meta.all_generics.clone());
 
         // The DefinitionIds for each parameter were already created in define_function_meta
         // so we need to reintroduce the same IDs into scope here.
@@ -377,8 +393,6 @@ impl<'context> Elaborator<'context> {
             let name = self.interner.definition_name(parameter.id).to_owned();
             self.add_existing_variable_to_scope(name, parameter.clone(), true);
         }
-
-        self.generics = func_meta.all_generics.clone();
 
         self.declare_numeric_generics(&func_meta.parameters, func_meta.return_type());
         self.add_trait_constraints_to_scope(&func_meta);
@@ -633,7 +647,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         func: &mut NoirFunction,
         func_id: FuncId,
-        is_trait_function: bool,
+        trait_id: Option<TraitId>,
     ) {
         let in_contract = if self.self_type.is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
@@ -747,6 +761,7 @@ impl<'context> Elaborator<'context> {
             direct_generics,
             all_generics: self.generics.clone(),
             struct_id,
+            trait_id,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
             parameter_idents,
@@ -755,9 +770,9 @@ impl<'context> Elaborator<'context> {
             has_body: !func.def.body.is_empty(),
             trait_constraints,
             is_entry_point,
-            is_trait_function,
             has_inline_attribute,
             source_crate: self.crate_id,
+            source_module: self.local_module,
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
         };
 
@@ -1210,13 +1225,11 @@ impl<'context> Elaborator<'context> {
         self.handle_varargs_attribute(function, &mut arguments, location);
         arguments.insert(0, (item, location));
 
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
 
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)
             .map_err(|error| error.into_compilation_error_pair())?;
-        self.include_interpreter_errors(interpreter_errors);
 
         if value != Value::Unit {
             let items = value
@@ -1351,8 +1364,7 @@ impl<'context> Elaborator<'context> {
         let global = self.interner.get_global(global_id);
         let definition_id = global.definition_id;
         let location = global.location;
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());
@@ -1367,7 +1379,6 @@ impl<'context> Elaborator<'context> {
 
             self.interner.get_global_mut(global_id).value = Some(value);
         }
-        self.include_interpreter_errors(interpreter_errors);
     }
 
     fn define_function_metas(
@@ -1407,22 +1418,13 @@ impl<'context> Elaborator<'context> {
             trait_impl.resolved_generics = self.generics.clone();
 
             // Fetch trait constraints here
-            let trait_generics = if let Some(trait_id) = trait_impl.trait_id {
-                let trait_def = self.interner.get_trait(trait_id);
-                let resolved_generics = trait_def.generics.clone();
-                assert_eq!(resolved_generics.len(), trait_impl.trait_generics.len());
-                trait_impl
-                    .trait_generics
-                    .iter()
-                    .enumerate()
-                    .map(|(i, generic)| {
-                        self.resolve_type_inner(generic.clone(), &resolved_generics[i].kind)
-                    })
-                    .collect()
-            } else {
-                // We still resolve as to continue type checking
-                vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
-            };
+            let trait_generics = trait_impl
+                .trait_id
+                .and_then(|trait_id| self.resolve_trait_impl_generics(trait_impl, trait_id))
+                .unwrap_or_else(|| {
+                    // We still resolve as to continue type checking
+                    vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
+                });
 
             trait_impl.resolved_trait_generics = trait_generics;
 
@@ -1456,13 +1458,9 @@ impl<'context> Elaborator<'context> {
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
-                this.define_function_meta(func, *id, false);
+                this.define_function_meta(func, *id, None);
             });
         }
-    }
-
-    fn include_interpreter_errors(&mut self, errors: Vec<InterpreterError>) {
-        self.errors.extend(errors.into_iter().map(InterpreterError::into_compilation_error_pair));
     }
 
     /// True if we're currently within a `comptime` block, function, or global
@@ -1610,6 +1608,7 @@ impl<'context> Elaborator<'context> {
                     global,
                     self.file,
                     self.local_module,
+                    self.crate_id,
                 );
 
                 generated_items.globals.push(global);
@@ -1634,17 +1633,12 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn setup_interpreter<'a>(
-        &'a mut self,
-        interpreter_errors: &'a mut Vec<InterpreterError>,
-    ) -> Interpreter {
-        Interpreter::new(
-            self.interner,
-            &mut self.comptime_scopes,
-            self.crate_id,
-            self.debug_comptime_in_file,
-            interpreter_errors,
-        )
+    pub fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
+        let current_function = match self.current_item {
+            Some(DependencyId::Function(function)) => Some(function),
+            _ => None,
+        };
+        Interpreter::new(self, self.crate_id, current_function)
     }
 
     fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(

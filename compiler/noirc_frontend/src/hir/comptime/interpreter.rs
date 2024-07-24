@@ -1,13 +1,13 @@
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
-use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
+use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir_def::expr::ImplKind;
 use crate::macros_api::UnaryOp;
@@ -38,44 +38,29 @@ use super::errors::{IResult, InterpreterError};
 use super::value::{unwrap_rc, Value};
 
 mod builtin;
+mod foreign;
 mod unquote;
 
 #[allow(unused)]
-pub struct Interpreter<'interner> {
-    /// To expand macros the Interpreter may mutate hir nodes within the NodeInterner
-    pub interner: &'interner mut NodeInterner,
-
-    /// Each value currently in scope in the interpreter.
-    /// Each element of the Vec represents a scope with every scope together making
-    /// up all currently visible definitions.
-    scopes: &'interner mut Vec<HashMap<DefinitionId, Value>>,
+pub struct Interpreter<'local, 'interner> {
+    /// To expand macros the Interpreter needs access to the Elaborator
+    pub elaborator: &'local mut Elaborator<'interner>,
 
     crate_id: CrateId,
 
-    /// The scope of --debug-comptime, or None if unset
-    pub(super) debug_comptime_in_file: Option<FileId>,
-    pub(super) debug_comptime_evaluations: &'interner mut Vec<InterpreterError>,
-
     in_loop: bool,
+
+    current_function: Option<FuncId>,
 }
 
 #[allow(unused)]
-impl<'a> Interpreter<'a> {
+impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub(crate) fn new(
-        interner: &'a mut NodeInterner,
-        scopes: &'a mut Vec<HashMap<DefinitionId, Value>>,
+        elaborator: &'local mut Elaborator<'interner>,
         crate_id: CrateId,
-        debug_comptime_in_file: Option<FileId>,
-        debug_comptime_evaluations: &'a mut Vec<InterpreterError>,
+        current_function: Option<FuncId>,
     ) -> Self {
-        Self {
-            interner,
-            scopes,
-            crate_id,
-            debug_comptime_in_file,
-            debug_comptime_evaluations,
-            in_loop: false,
-        }
+        Self { elaborator, crate_id, current_function, in_loop: false }
     }
 
     pub(crate) fn call_function(
@@ -85,11 +70,16 @@ impl<'a> Interpreter<'a> {
         instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
-        let trait_method = self.interner.get_trait_method_id(function);
+        let trait_method = self.elaborator.interner.get_trait_method_id(function);
 
         perform_instantiation_bindings(&instantiation_bindings);
-        let impl_bindings = perform_impl_bindings(self.interner, trait_method, function, location)?;
+        let impl_bindings =
+            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
+        let old_function = self.current_function.replace(function);
+
         let result = self.call_function_inner(function, arguments, location);
+
+        self.current_function = old_function;
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         result
@@ -101,7 +91,7 @@ impl<'a> Interpreter<'a> {
         arguments: Vec<(Value, Location)>,
         location: Location,
     ) -> IResult<Value> {
-        let meta = self.interner.function_meta(&function);
+        let meta = self.elaborator.interner.function_meta(&function);
         if meta.parameters.len() != arguments.len() {
             return Err(InterpreterError::ArgumentCountMismatch {
                 expected: meta.parameters.len(),
@@ -110,16 +100,17 @@ impl<'a> Interpreter<'a> {
             });
         }
 
-        let is_comptime = self.interner.function_modifiers(&function).is_comptime;
+        let is_comptime = self.elaborator.interner.function_modifiers(&function).is_comptime;
         if !is_comptime && meta.source_crate == self.crate_id {
             // Calling non-comptime functions from within the current crate is restricted
             // as non-comptime items will have not been elaborated yet.
-            let function = self.interner.function_name(&function).to_owned();
+            let function = self.elaborator.interner.function_name(&function).to_owned();
             return Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location });
         }
 
         if meta.kind != FunctionKind::Normal {
-            return self.call_builtin(function, arguments, location);
+            let return_type = meta.return_type().follow_bindings();
+            return self.call_builtin(function, arguments, return_type, location);
         }
 
         let parameters = meta.parameters.0.clone();
@@ -129,10 +120,11 @@ impl<'a> Interpreter<'a> {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
 
-        let function_body = self.interner.function(&function).try_as_expr().ok_or_else(|| {
-            let function = self.interner.function_name(&function).to_owned();
-            InterpreterError::NonComptimeFnCallInSameCrate { function, location }
-        })?;
+        let function_body =
+            self.elaborator.interner.function(&function).try_as_expr().ok_or_else(|| {
+                let function = self.elaborator.interner.function_name(&function).to_owned();
+                InterpreterError::NonComptimeFnCallInSameCrate { function, location }
+            })?;
 
         let result = self.evaluate(function_body)?;
 
@@ -144,18 +136,25 @@ impl<'a> Interpreter<'a> {
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
+        return_type: Type,
         location: Location,
     ) -> IResult<Value> {
-        let attributes = self.interner.function_attributes(&function);
+        let attributes = self.elaborator.interner.function_attributes(&function);
         let func_attrs = attributes.function.as_ref()
             .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to");
 
         if let Some(builtin) = func_attrs.builtin() {
             let builtin = builtin.clone();
-            builtin::call_builtin(self.interner, &builtin, arguments, location)
+            builtin::call_builtin(
+                self.elaborator.interner,
+                &builtin,
+                arguments,
+                return_type,
+                location,
+            )
         } else if let Some(foreign) = func_attrs.foreign() {
-            let item = format!("Comptime evaluation for foreign functions like {foreign}");
-            Err(InterpreterError::Unimplemented { item, location })
+            let foreign = foreign.clone();
+            foreign::call_foreign(self.elaborator.interner, &foreign, arguments, location)
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)
@@ -164,7 +163,7 @@ impl<'a> Interpreter<'a> {
                 Err(InterpreterError::Unimplemented { item, location })
             }
         } else {
-            let name = self.interner.function_name(&function);
+            let name = self.elaborator.interner.function_name(&function);
             unreachable!("Non-builtin, lowlevel or oracle builtin fn '{name}'")
         }
     }
@@ -204,8 +203,8 @@ impl<'a> Interpreter<'a> {
     pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
         let mut scope = Vec::new();
-        if self.scopes.len() > 1 {
-            scope = self.scopes.drain(1..).collect();
+        if self.elaborator.comptime_scopes.len() > 1 {
+            scope = self.elaborator.comptime_scopes.drain(1..).collect();
         }
         self.push_scope();
         (std::mem::take(&mut self.in_loop), scope)
@@ -215,21 +214,21 @@ impl<'a> Interpreter<'a> {
         self.in_loop = state.0;
 
         // Keep only the global scope
-        self.scopes.truncate(1);
-        self.scopes.append(&mut state.1);
+        self.elaborator.comptime_scopes.truncate(1);
+        self.elaborator.comptime_scopes.append(&mut state.1);
     }
 
     pub(super) fn push_scope(&mut self) {
-        self.scopes.push(HashMap::default());
+        self.elaborator.comptime_scopes.push(HashMap::default());
     }
 
     pub(super) fn pop_scope(&mut self) {
-        self.scopes.pop();
+        self.elaborator.comptime_scopes.pop();
     }
 
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
-        self.scopes.last_mut().unwrap()
+        self.elaborator.comptime_scopes.last_mut().unwrap()
     }
 
     pub(super) fn define_pattern(
@@ -312,7 +311,7 @@ impl<'a> Interpreter<'a> {
             return Ok(());
         }
 
-        for scope in self.scopes.iter_mut().rev() {
+        for scope in self.elaborator.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 entry.insert(argument);
                 return Ok(());
@@ -326,7 +325,7 @@ impl<'a> Interpreter<'a> {
     }
 
     pub fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
-        for scope in self.scopes.iter().rev() {
+        for scope in self.elaborator.comptime_scopes.iter().rev() {
             if let Some(value) = scope.get(&id) {
                 return Ok(value.clone());
             }
@@ -335,7 +334,7 @@ impl<'a> Interpreter<'a> {
         if id == DefinitionId::dummy_id() {
             Err(InterpreterError::VariableNotInScope { location })
         } else {
-            let name = self.interner.definition_name(id).to_string();
+            let name = self.elaborator.interner.definition_name(id).to_string();
             Err(InterpreterError::NonComptimeVarReferenced { name, location })
         }
     }
@@ -353,7 +352,7 @@ impl<'a> Interpreter<'a> {
     /// This function should be used when that is not desired - e.g. when
     /// compiling a `&mut var` expression to grab the original reference.
     fn evaluate_no_dereference(&mut self, id: ExprId) -> IResult<Value> {
-        match self.interner.expression(&id) {
+        match self.elaborator.interner.expression(&id) {
             HirExpression::Ident(ident, _) => self.evaluate_ident(ident, id),
             HirExpression::Literal(literal) => self.evaluate_literal(literal, id),
             HirExpression::Block(block) => self.evaluate_block(block),
@@ -373,33 +372,34 @@ impl<'a> Interpreter<'a> {
             HirExpression::Unquote(tokens) => {
                 // An Unquote expression being found is indicative of a macro being
                 // expanded within another comptime fn which we don't currently support.
-                let location = self.interner.expr_location(&id);
+                let location = self.elaborator.interner.expr_location(&id);
                 Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
             }
             HirExpression::Error => {
-                let location = self.interner.expr_location(&id);
+                let location = self.elaborator.interner.expr_location(&id);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
         }
     }
 
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.interner.try_definition(ident.id).ok_or_else(|| {
-            let location = self.interner.expr_location(&id);
+        let definition = self.elaborator.interner.try_definition(ident.id).ok_or_else(|| {
+            let location = self.elaborator.interner.expr_location(&id);
             InterpreterError::VariableNotInScope { location }
         })?;
 
         if let ImplKind::TraitMethod(method, _, _) = ident.impl_kind {
-            let method_id = resolve_trait_method(self.interner, method, id)?;
-            let typ = self.interner.id_type(id).follow_bindings();
-            let bindings = self.interner.get_instantiation_bindings(id).clone();
+            let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+            let typ = self.elaborator.interner.id_type(id).follow_bindings();
+            let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
             return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
         }
 
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
-                let typ = self.interner.id_type(id).follow_bindings();
-                let bindings = Rc::new(self.interner.get_instantiation_bindings(id).clone());
+                let typ = self.elaborator.interner.id_type(id).follow_bindings();
+                let bindings =
+                    Rc::new(self.elaborator.interner.get_instantiation_bindings(id).clone());
                 Ok(Value::Function(*function_id, typ, bindings))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
@@ -408,13 +408,16 @@ impl<'a> Interpreter<'a> {
                 if let Ok(value) = self.lookup(&ident) {
                     Ok(value)
                 } else {
+                    let crate_of_global = self.elaborator.interner.get_global(*global_id).crate_id;
                     let let_ =
-                        self.interner.get_global_let_statement(*global_id).ok_or_else(|| {
-                            let location = self.interner.expr_location(&id);
-                            InterpreterError::VariableNotInScope { location }
-                        })?;
+                        self.elaborator.interner.get_global_let_statement(*global_id).ok_or_else(
+                            || {
+                                let location = self.elaborator.interner.expr_location(&id);
+                                InterpreterError::VariableNotInScope { location }
+                            },
+                        )?;
 
-                    if let_.comptime {
+                    if let_.comptime || crate_of_global != self.crate_id {
                         self.evaluate_let(let_.clone())?;
                     }
                     self.lookup(&ident)
@@ -427,10 +430,10 @@ impl<'a> Interpreter<'a> {
                 };
 
                 if let Some(value) = value {
-                    let typ = self.interner.id_type(id);
+                    let typ = self.elaborator.interner.id_type(id);
                     self.evaluate_integer((value as u128).into(), false, id)
                 } else {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     let typ = Type::TypeVariable(type_variable.clone(), TypeVariableKind::Normal);
                     Err(InterpreterError::NonIntegerArrayLength { typ, location })
                 }
@@ -448,7 +451,7 @@ impl<'a> Interpreter<'a> {
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(_, _) => {
                 let item = "format strings in a comptime context".into();
-                let location = self.interner.expr_location(&id);
+                let location = self.elaborator.interner.expr_location(&id);
                 Err(InterpreterError::Unimplemented { item, location })
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
@@ -462,8 +465,8 @@ impl<'a> Interpreter<'a> {
         is_negative: bool,
         id: ExprId,
     ) -> IResult<Value> {
-        let typ = self.interner.id_type(id).follow_bindings();
-        let location = self.interner.expr_location(&id);
+        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let location = self.elaborator.interner.expr_location(&id);
 
         if let Type::FieldElement = &typ {
             Ok(Value::Field(value))
@@ -576,7 +579,7 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_array(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
-        let typ = self.interner.id_type(id).follow_bindings();
+        let typ = self.elaborator.interner.id_type(id).follow_bindings();
 
         match array {
             HirArrayLiteral::Standard(elements) => {
@@ -594,7 +597,7 @@ impl<'a> Interpreter<'a> {
                     let elements = (0..length).map(|_| element.clone()).collect();
                     Ok(Value::Array(elements, typ))
                 } else {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InterpreterError::NonIntegerArrayLength { typ: length, location })
                 }
             }
@@ -614,7 +617,7 @@ impl<'a> Interpreter<'a> {
             _ => self.evaluate(prefix.rhs)?,
         };
 
-        if self.interner.get_selected_impl_for_expression(id).is_some() {
+        if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
             self.evaluate_overloaded_prefix(prefix, rhs, id)
         } else {
             self.evaluate_prefix_with_value(rhs, prefix.operator, id)
@@ -639,7 +642,7 @@ impl<'a> Interpreter<'a> {
                 Value::U32(value) => Ok(Value::U32(0 - value)),
                 Value::U64(value) => Ok(Value::U64(0 - value)),
                 value => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     let operator = "minus";
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator })
                 }
@@ -655,7 +658,7 @@ impl<'a> Interpreter<'a> {
                 Value::U32(value) => Ok(Value::U32(!value)),
                 Value::U64(value) => Ok(Value::U64(!value)),
                 value => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
                 }
             },
@@ -671,7 +674,7 @@ impl<'a> Interpreter<'a> {
             UnaryOp::Dereference { implicitly_added: _ } => match rhs {
                 Value::Pointer(element, _) => Ok(element.borrow().clone()),
                 value => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InterpreterError::NonPointerDereferenced { value, location })
                 }
             },
@@ -682,7 +685,7 @@ impl<'a> Interpreter<'a> {
         let lhs = self.evaluate(infix.lhs)?;
         let rhs = self.evaluate(infix.rhs)?;
 
-        if self.interner.get_selected_impl_for_expression(id).is_some() {
+        if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
             return self.evaluate_overloaded_infix(infix, lhs, rhs, id);
         }
 
@@ -699,7 +702,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs + rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs + rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "+" })
                 }
             },
@@ -714,7 +717,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs - rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs - rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "-" })
                 }
             },
@@ -729,7 +732,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs * rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs * rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "*" })
                 }
             },
@@ -744,7 +747,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs / rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs / rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "/" })
                 }
             },
@@ -759,7 +762,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "==" })
                 }
             },
@@ -774,7 +777,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "!=" })
                 }
             },
@@ -789,7 +792,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<" })
                 }
             },
@@ -804,7 +807,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<=" })
                 }
             },
@@ -819,7 +822,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">" })
                 }
             },
@@ -834,7 +837,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">=" })
                 }
             },
@@ -849,7 +852,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs & rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs & rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "&" })
                 }
             },
@@ -864,7 +867,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs | rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs | rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "|" })
                 }
             },
@@ -879,7 +882,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs ^ rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs ^ rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "^" })
                 }
             },
@@ -893,7 +896,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs >> rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs >> rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">>" })
                 }
             },
@@ -907,7 +910,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs << rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs << rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<<" })
                 }
             },
@@ -921,7 +924,7 @@ impl<'a> Interpreter<'a> {
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs % rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs % rhs)),
                 (lhs, rhs) => {
-                    let location = self.interner.expr_location(&id);
+                    let location = self.elaborator.interner.expr_location(&id);
                     Err(InvalidValuesForBinary { lhs, rhs, location, operator: "%" })
                 }
             },
@@ -938,13 +941,13 @@ impl<'a> Interpreter<'a> {
         let method = infix.trait_method_id;
         let operator = infix.operator.kind;
 
-        let method_id = resolve_trait_method(self.interner, method, id)?;
-        let type_bindings = self.interner.get_instantiation_bindings(id).clone();
+        let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+        let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
 
-        let lhs = (lhs, self.interner.expr_location(&infix.lhs));
-        let rhs = (rhs, self.interner.expr_location(&infix.rhs));
+        let lhs = (lhs, self.elaborator.interner.expr_location(&infix.lhs));
+        let rhs = (rhs, self.elaborator.interner.expr_location(&infix.rhs));
 
-        let location = self.interner.expr_location(&id);
+        let location = self.elaborator.interner.expr_location(&id);
         let value = self.call_function(method_id, vec![lhs, rhs], type_bindings, location)?;
 
         // Certain operators add additional operations after the trait call:
@@ -968,12 +971,12 @@ impl<'a> Interpreter<'a> {
             prefix.trait_method_id.expect("ice: expected prefix operator trait at this point");
         let operator = prefix.operator;
 
-        let method_id = resolve_trait_method(self.interner, method, id)?;
-        let type_bindings = self.interner.get_instantiation_bindings(id).clone();
+        let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+        let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
 
-        let rhs = (rhs, self.interner.expr_location(&prefix.rhs));
+        let rhs = (rhs, self.elaborator.interner.expr_location(&prefix.rhs));
 
-        let location = self.interner.expr_location(&id);
+        let location = self.elaborator.interner.expr_location(&id);
         self.call_function(method_id, vec![rhs], type_bindings, location)
     }
 
@@ -1009,7 +1012,7 @@ impl<'a> Interpreter<'a> {
         let array = self.evaluate(index.collection)?;
         let index = self.evaluate(index.index)?;
 
-        let location = self.interner.expr_location(&id);
+        let location = self.elaborator.interner.expr_location(&id);
         let (array, index) = self.bounds_check(array, index, location)?;
 
         Ok(array[index].clone())
@@ -1073,7 +1076,7 @@ impl<'a> Interpreter<'a> {
             })
             .collect::<Result<_, _>>()?;
 
-        let typ = self.interner.id_type(id).follow_bindings();
+        let typ = self.elaborator.interner.id_type(id).follow_bindings();
         Ok(Value::Struct(fields, typ))
     }
 
@@ -1093,13 +1096,13 @@ impl<'a> Interpreter<'a> {
                 (fields, Type::Tuple(field_types))
             }
             value => {
-                let location = self.interner.expr_location(&id);
+                let location = self.elaborator.interner.expr_location(&id);
                 return Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location });
             }
         };
 
         fields.get(&access.rhs.0.contents).cloned().ok_or_else(|| {
-            let location = self.interner.expr_location(&id);
+            let location = self.elaborator.interner.expr_location(&id);
             let value = Value::Struct(fields, struct_type);
             let field_name = access.rhs.0.contents;
             InterpreterError::ExpectedStructToHaveField { value, field_name, location }
@@ -1109,14 +1112,22 @@ impl<'a> Interpreter<'a> {
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.interner.expr_location(&arg)))
+            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
         })?;
-        let location = self.interner.expr_location(&id);
+        let location = self.elaborator.interner.expr_location(&id);
 
         match function {
             Value::Function(function_id, _, bindings) => {
                 let bindings = unwrap_rc(bindings);
-                self.call_function(function_id, arguments, bindings, location)
+                let mut result = self.call_function(function_id, arguments, bindings, location)?;
+                if call.is_macro_call {
+                    let expr = result.into_expression(self.elaborator.interner, location)?;
+                    let expr = self
+                        .elaborator
+                        .elaborate_expression_from_comptime(expr, self.current_function);
+                    result = self.evaluate(expr)?;
+                }
+                Ok(result)
             }
             Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
             value => Err(InterpreterError::NonFunctionCalled { value, location }),
@@ -1130,19 +1141,22 @@ impl<'a> Interpreter<'a> {
     ) -> IResult<Value> {
         let object = self.evaluate(call.object)?;
         let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.interner.expr_location(&arg)))
+            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
         })?;
-        let location = self.interner.expr_location(&id);
+        let location = self.elaborator.interner.expr_location(&id);
 
         let typ = object.get_type().follow_bindings();
         let method_name = &call.method.0.contents;
 
         // TODO: Traits
         let method = match &typ {
-            Type::Struct(struct_def, _) => {
-                self.interner.lookup_method(&typ, struct_def.borrow().id, method_name, false)
-            }
-            _ => self.interner.lookup_primitive_method(&typ, method_name),
+            Type::Struct(struct_def, _) => self.elaborator.interner.lookup_method(
+                &typ,
+                struct_def.borrow().id,
+                method_name,
+                false,
+            ),
+            _ => self.elaborator.interner.lookup_primitive_method(&typ, method_name),
         };
 
         if let Some(method) = method {
@@ -1154,7 +1168,7 @@ impl<'a> Interpreter<'a> {
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
-        Self::evaluate_cast_one_step(cast, id, evaluated_lhs, self.interner)
+        Self::evaluate_cast_one_step(cast, id, evaluated_lhs, self.elaborator.interner)
     }
 
     /// evaluate_cast without recursion
@@ -1256,7 +1270,7 @@ impl<'a> Interpreter<'a> {
         let condition = match self.evaluate(if_.condition)? {
             Value::Bool(value) => value,
             value => {
-                let location = self.interner.expr_location(&id);
+                let location = self.elaborator.interner.expr_location(&id);
                 return Err(InterpreterError::NonBoolUsedInIf { value, location });
             }
         };
@@ -1287,22 +1301,22 @@ impl<'a> Interpreter<'a> {
     }
 
     fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
-        let location = self.interner.expr_location(&id);
+        let location = self.elaborator.interner.expr_location(&id);
         let environment =
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
 
-        let typ = self.interner.id_type(id).follow_bindings();
+        let typ = self.elaborator.interner.id_type(id).follow_bindings();
         Ok(Value::Closure(lambda, environment, typ))
     }
 
     fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
-        let location = self.interner.expr_location(&expr_id);
+        let location = self.elaborator.interner.expr_location(&expr_id);
         tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
         Ok(Value::Code(Rc::new(tokens)))
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
-        match self.interner.statement(&statement) {
+        match self.elaborator.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
@@ -1316,7 +1330,7 @@ impl<'a> Interpreter<'a> {
                 Ok(Value::Unit)
             }
             HirStatement::Error => {
-                let location = self.interner.id_location(statement);
+                let location = self.elaborator.interner.id_location(statement);
                 Err(InterpreterError::ErrorNodeEncountered { location })
             }
         }
@@ -1324,7 +1338,7 @@ impl<'a> Interpreter<'a> {
 
     pub fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
-        let location = self.interner.expr_location(&let_.expression);
+        let location = self.elaborator.interner.expr_location(&let_.expression);
         self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
         Ok(Value::Unit)
     }
@@ -1333,12 +1347,12 @@ impl<'a> Interpreter<'a> {
         match self.evaluate(constrain.0)? {
             Value::Bool(true) => Ok(Value::Unit),
             Value::Bool(false) => {
-                let location = self.interner.expr_location(&constrain.0);
+                let location = self.elaborator.interner.expr_location(&constrain.0);
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
                 Err(InterpreterError::FailingConstraint { location, message })
             }
             value => {
-                let location = self.interner.expr_location(&constrain.0);
+                let location = self.elaborator.interner.expr_location(&constrain.0);
                 Err(InterpreterError::NonBoolUsedInConstrain { value, location })
             }
         }
@@ -1458,7 +1472,7 @@ impl<'a> Interpreter<'a> {
                 Value::U32(value) => Ok((value as i128, |i| Value::U32(i as u32))),
                 Value::U64(value) => Ok((value as i128, |i| Value::U64(i as u64))),
                 value => {
-                    let location = this.interner.expr_location(&expr);
+                    let location = this.elaborator.interner.expr_location(&expr);
                     Err(InterpreterError::NonIntegerUsedInLoop { value, location })
                 }
             }
@@ -1490,7 +1504,7 @@ impl<'a> Interpreter<'a> {
         if self.in_loop {
             Err(InterpreterError::Break)
         } else {
-            let location = self.interner.statement_location(id);
+            let location = self.elaborator.interner.statement_location(id);
             Err(InterpreterError::BreakNotInLoop { location })
         }
     }
@@ -1499,7 +1513,7 @@ impl<'a> Interpreter<'a> {
         if self.in_loop {
             Err(InterpreterError::Continue)
         } else {
-            let location = self.interner.statement_location(id);
+            let location = self.elaborator.interner.statement_location(id);
             Err(InterpreterError::ContinueNotInLoop { location })
         }
     }

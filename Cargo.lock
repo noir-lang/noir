@@ -2906,6 +2906,7 @@ version = "0.32.0"
 dependencies = [
  "acvm",
  "base64 0.21.2",
+ "bn254_blackbox_solver",
  "cfg-if 1.0.0",
  "chumsky",
  "fm",
