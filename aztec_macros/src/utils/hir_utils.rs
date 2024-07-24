@@ -1,6 +1,6 @@
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::{CustomDiagnostic, Location};
 use noirc_frontend::ast;
 use noirc_frontend::elaborator::Elaborator;
 use noirc_frontend::hir::def_collector::dc_crate::{
@@ -195,7 +195,8 @@ pub fn inject_fn(
     let trait_id = None;
     items.functions.push(UnresolvedFunctions { file_id, functions, trait_id, self_type: None });
 
-    let errors = Elaborator::elaborate(context, *crate_id, items, None);
+    let mut errors = Elaborator::elaborate(context, *crate_id, items, None);
+    errors.retain(|(error, _)| !CustomDiagnostic::from(error).is_warning());
 
     if !errors.is_empty() {
         return Err(MacroError {
@@ -220,6 +221,7 @@ pub fn inject_global(
     let global_id = context.def_interner.push_empty_global(
         name.clone(),
         module_id,
+        *crate_id,
         file_id,
         global.attributes.clone(),
         false,
