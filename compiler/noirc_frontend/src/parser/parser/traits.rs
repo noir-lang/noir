@@ -151,7 +151,7 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
     function.or(alias).repeated()
 }
 
-fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
+pub(super) fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
     struct MultiTraitConstraint {
         typ: UnresolvedType,
         trait_bounds: Vec<TraitBound>,
@@ -163,7 +163,7 @@ fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
         .map(|(typ, trait_bounds)| MultiTraitConstraint { typ, trait_bounds });
 
     keyword(Keyword::Where)
-        .ignore_then(constraints.separated_by(just(Token::Comma)))
+        .ignore_then(constraints.separated_by(just(Token::Comma)).allow_trailing())
         .or_not()
         .map(|option| option.unwrap_or_default())
         .map(|x: Vec<MultiTraitConstraint>| {
@@ -184,7 +184,7 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
     trait_bound().separated_by(just(Token::Plus)).at_least(1).allow_trailing()
 }
 
-fn trait_bound() -> impl NoirParser<TraitBound> {
+pub(super) fn trait_bound() -> impl NoirParser<TraitBound> {
     path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
         trait_path,
         trait_generics,
@@ -215,6 +215,7 @@ mod test {
                 "trait GenericTrait<T> { fn elem(&mut self, index: Field) -> T; }",
                 "trait GenericTraitWithConstraints<T> where T: SomeTrait { fn elem(self, index: Field) -> T; }",
                 "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C> { let Size: Field; fn zero() -> Self; }",
+                "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C>, { let Size: Field; fn zero() -> Self; }",
             ],
         );
 

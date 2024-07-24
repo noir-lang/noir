@@ -1,5 +1,6 @@
 use std::{collections::HashMap, future::Future};
 
+use crate::insert_all_files_for_workspace_into_file_manager;
 use crate::{
     parse_diff, resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
@@ -11,7 +12,6 @@ use lsp_types::{
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
     WorkDoneProgressOptions,
 };
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
 use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
@@ -367,7 +367,11 @@ where
     let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    insert_all_files_for_workspace_into_file_manager(
+        state,
+        &workspace,
+        &mut workspace_file_manager,
+    );
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     let (mut context, crate_id) =
