@@ -113,19 +113,21 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             register_return(tracer);
         }
 
-        for i in 0..new_frames.len() {
-            register_call(tracer, &source_locations[first_nomatch + i], new_frames[i]);
+        assert!(new_frames.len() <= 1, "more than one frame entered at the same step");
+        if !new_frames.is_empty() {
+            let location = self.source_locations.last().expect("no previous location before call");
+            register_call(tracer, &location, new_frames[0]);
+        }
+
+        let index = stack_frames.len() as isize - 1;
+        if index >= 0 {
+            let index = index as usize;
+            let location = &source_locations[index];
+            register_step(tracer, location);
+            register_variables(tracer, &stack_frames[index]);
         }
 
         self.stack_frames = stack_frames;
-
-        let (_, _, new_source_locations) = tail_diff_vecs(&self.source_locations, source_locations);
-        for location in new_source_locations {
-            register_step(tracer, location);
-            if let Some(last_frame) = &self.stack_frames.last() {
-                register_variables(tracer, last_frame);
-            }
-        }
     }
 }
 
