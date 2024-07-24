@@ -111,6 +111,18 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
 
         for _ in dropped_frames {
             register_return(tracer);
+            if self.source_locations.len() > 1 {
+                // This branch is for returns not from main.
+                assert!(first_nomatch > 0, "no matching frames after return");
+                let pre_last_index = self.source_locations.len() - 2;
+                let call_site_location = &self.source_locations[pre_last_index];
+                let current_location = source_locations.last().unwrap();
+                if current_location != call_site_location {
+                    let frame = &stack_frames[first_nomatch - 1];
+                    register_step(tracer, call_site_location);
+                    register_variables(tracer, frame);
+                }
+            }
         }
 
         assert!(new_frames.len() <= 1, "more than one frame entered at the same step");
