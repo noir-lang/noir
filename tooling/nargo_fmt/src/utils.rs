@@ -146,9 +146,12 @@ impl HasItem for Param {
     fn format(self, visitor: &FmtVisitor, shape: Shape) -> String {
         let pattern = visitor.slice(self.pattern.span());
         let visibility = match self.visibility {
-            Visibility::Public => "pub",
-            Visibility::Private => "",
-            Visibility::DataBus(_) => "call_data",
+            Visibility::Public => "pub".to_string(),
+            Visibility::Private => "".to_string(),
+            Visibility::DataBus(x) => {
+                let y = if x > 0 { x - 1 } else { 0 };
+                format!("call_data({y})")
+            }
         };
 
         if self.pattern.is_synthesized() || self.typ.is_synthesized() {
