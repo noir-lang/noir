@@ -120,7 +120,7 @@ impl super::FmtVisitor<'_> {
 
             let visibility = match func.def.return_visibility {
                 Visibility::Public => "pub",
-                Visibility::DataBus => "return_data",
+                Visibility::DataBus(_) => "return_data",
                 Visibility::Private => "",
             };
             result.push_str(&append_space_if_nonempty(visibility.into()));

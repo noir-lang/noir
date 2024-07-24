@@ -45,6 +45,7 @@ use crate::ast::{
 use crate::lexer::{lexer::from_spanned_token_result, Lexer};
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Keyword, Token, TokenKind};
+use acvm::AcirField;
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
@@ -644,16 +645,27 @@ where
     })
 }
 
+fn call_data() -> impl NoirParser<Visibility> {
+    keyword(Keyword::CallData)
+        .then(literal().delimited_by(just(Token::LeftParen), just(Token::RightParen)))
+        .map(|token| match &token {
+            (_, ExpressionKind::Literal(Literal::Integer(x, _))) => {
+                let id = (x.to_u128() + 1) as u32;
+                Visibility::DataBus(id)
+            }
+            _ => unreachable!("Invalid call_data identifier"),
+        })
+}
+
 fn optional_visibility() -> impl NoirParser<Visibility> {
     keyword(Keyword::Pub)
-        .or(keyword(Keyword::CallData))
-        .or(keyword(Keyword::ReturnData))
+        .map(|_| Visibility::Public)
+        .or(call_data())
+        .or(keyword(Keyword::ReturnData).map(|_| Visibility::DataBus(0)))
         .or_not()
         .map(|opt| match opt {
-            Some(Token::Keyword(Keyword::Pub)) => Visibility::Public,
-            Some(Token::Keyword(Keyword::CallData)) | Some(Token::Keyword(Keyword::ReturnData)) => {
-                Visibility::DataBus
-            }
+            Some(Visibility::DataBus(x)) => Visibility::DataBus(x),
+            Some(Visibility::Public) => Visibility::Public,
             None => Visibility::Private,
             _ => unreachable!("unexpected token found"),
         })
