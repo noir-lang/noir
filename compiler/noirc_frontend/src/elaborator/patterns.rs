@@ -428,7 +428,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn resolve_turbofish_generics(
         &mut self,
-        generics: &Vec<ResolvedGeneric>,
+        generics: &[ResolvedGeneric],
         turbofish_generics: Vec<UnresolvedType>,
     ) -> Vec<Type> {
         let generics_with_types = generics.iter().zip(turbofish_generics);
