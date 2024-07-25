@@ -7,6 +7,7 @@ mod intrinsics;
 use super::{
     ir::{
         dfg::DataFlowGraph,
+        function::FunctionId,
         instruction::{Binary, InstructionId, Intrinsic},
     },
     ssa_gen::Ssa,
@@ -20,7 +21,7 @@ use plonky2::{
     field::types::Field, iop::target::BoolTarget, iop::target::Target,
     plonk::circuit_data::CircuitConfig,
 };
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use self::config::{P2Builder, P2Config, P2Field};
 use self::intrinsics::make_sha256_circuit;
@@ -302,6 +303,7 @@ pub(crate) struct Builder {
     asm_writer: AsmWriter,
     translation: HashMap<ValueId, P2Value>,
     dfg: DataFlowGraph,
+    function_names: BTreeMap<FunctionId, String>,
     show_plonky2: bool,
 }
 
@@ -312,6 +314,7 @@ impl Builder {
             asm_writer: AsmWriter::new(P2Builder::new(config), show_plonky2, plonky2_print_file),
             translation: HashMap::new(),
             dfg: DataFlowGraph::default(),
+            function_names: BTreeMap::new(),
             show_plonky2,
         }
     }
@@ -322,6 +325,9 @@ impl Builder {
         parameter_names: Vec<String>,
         main_function_signature: FunctionSignature,
     ) -> Result<Plonky2Circuit, RuntimeError> {
+        for (id, func) in &ssa.functions {
+            self.function_names.insert(*id, func.name().to_string());
+        }
         let main_function =
             ssa.functions.into_values().find(|value| value.name() == "main").unwrap();
         let entry_block_id = main_function.entry_block();
@@ -542,6 +548,11 @@ impl Builder {
         Ok(())
     }
 
+    fn is_function_call_safe_to_ignore(&self, function_id: FunctionId) -> bool {
+        let func_name = self.function_names[&function_id].clone();
+        (func_name == "print") || (func_name == "println")
+    }
+
     fn add_instruction(&mut self, instruction_id: InstructionId) -> Result<(), Plonky2GenError> {
         let instruction = self.dfg[instruction_id].clone();
 
@@ -760,6 +771,12 @@ impl Builder {
                             return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                         }
                     },
+                    Value::Function(function_id) => {
+                        if !self.is_function_call_safe_to_ignore(function_id) {
+                            let feature_name = format!("calling {:?}", func);
+                            return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                        }
+                    }
                     _ => {
                         let feature_name = format!("calling {:?}", func);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
