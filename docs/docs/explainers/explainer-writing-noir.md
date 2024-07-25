@@ -1,5 +1,5 @@
 ---
-title: Writing Noir
+title: Writing Noir Well
 description: Understand new considerations when writing Noir
 keywords: [Noir, programming, rust]
 tags: [Optimization]
@@ -18,14 +18,12 @@ When writing firmware for a battery-powered microcontroller, you think of cpu cy
 > Code is written to create applications that perform specific tasks within specific constraints
 
 And these constraints differ depending on where the compiled code is execute.
+
 ### The Ethereum Virtual Machine (EVM)
 
-For the EVM, Solidity code is compiled into bytecode to be executed, and the gas cost of opcodes become as important as clock cycles. These gas costs were designed in to the protocol to reward machines that are executing bytecode for the EVM, so it is no surprise that a lot of the costs are roughly proportional to clock-cycles (a proxy for power consumption). Eg Addition: 3, Multiplication: 8.
+In scenarios where extremely low gas costs are required for an Ethereum application to be viable/competitive, Ethereum smart contract developers get into what is colloquially known as: "*gas golfing*". Finding the lowest execution cost of their compiled code (EVM bytecode) to achieve a specific task.
 
-But there is a twist, the cost of writing to disk is amplified, and is a few orders of magnitude larger. Namely: 20k for allocating and writing a new value, or 5k for writing an existing value.
-So whilst writing efficient code for regular computers and the EVM is mostly the same, there are some key differences like this more immediate compensation of disk writes.
-
-In scenarios where extremely low gas costs are required for an application to be viable/competitive, developers get into what is colloquially known as: "*gas golfing*". Finding the lowest execution cost to achieve a specific task.
+The equivalent optimization task when writing zk circuits is affectionately referred to as "*gate golfing*", finding the lowest gate representation of the compiled Noir code.
 
 ### Coding for circuits - a paradigm shift
 
@@ -71,7 +69,8 @@ Fortunately for Noir developers, when needing a particular function a Rust imple
 A few things to do when converting Rust code to Noir:
 - `println!` is not a macro, use `println` function (same for `assert_eq`)
 - No early `return` in function. Use constrain via assertion instead
-- No reference `&` operator. Remove, will be value copy
+- No passing by reference. Remove `&` operator to pass by value (copy)
+- No boolean operators (`&&`, `||`). Use bitwise operators (`&`, `|`) with boolean values
 - No type `usize`. Use types `u8`, `u32`, `u64`, ... 
 - `main` return must be public, `pub`
 - No `const`, use `global`
@@ -95,7 +94,7 @@ A Noir program compiles to an Abstract Circuit Intermediate Representation which
 
 :::tip
 The command `nargo info` shows the programs circuit size, and is useful to compare the value of changes made.
-Advanced: You can dig deeper and use the `--print-acir` param to take a closer look at individual gates too.
+You can dig deeper and use the `--print-acir` param to take a closer look at individual ACIR opcodes, and the proving backend to see its gate count (eg for barretenberg, `bb gates -b ./target/program.json`).
 :::
 
 ### Use the `Field` type
@@ -114,7 +113,7 @@ Since circuits are made of arithmetic gates, the cost of arithmetic operations t
 
 Inversely, non-arithmetic operators are achieved with multiple gates, vs 1 clock cycle for procedural code.
 
-| (cost\op)  | arithmetic<br>(eg `*`, `+`) | bit-wise ops<br>(eg `<`, `\|`, `>>`) |
+| (cost\op)  | arithmetic<br>(`*`, `+`) | bit-wise ops<br>(eg `<`, `\|`, `>>`) |
 | - | - | - |
 | **cycles** | 10+ | 1 |
 | **gates**  | 1 | 10+ |
@@ -140,19 +139,12 @@ Using `assert_constant(i);` before an index, `i`, is used in an array will give 
 
 ### Leverage unconstrained execution
 
-Constrained verification can leverage unconstrained execution.
+Constrained verification can leverage unconstrained execution, this is especially useful for operations that are represented by many gates.
 Compute result via unconstrained function, verify result.
 
+Eg division generates more gates than multiplication, so calculating the quotient in an unconstrained function then constraining the product for the quotient and divisor (+ any remainder) equals the dividend will be more efficient.
+
 Use `  if is_unconstrained() { /`, to conditionally execute code if being called in an unconstrained vs constrained way.
-
-### A circuit holds all logic
-
-In procedural execution, the following logic: `if (a>0 && b>0) {` , will not perform the second comparison if the first one is false. Whereas a circuit will hold both paths.
-Implementing this type of short-circuiting is much less efficient for circuits since it is effectively adding additional comparisons which add more gates.
-
-:::tip
-Use bit-wise `&` or `|` to combine logical expressions efficiently.
-:::
 
 ## Advanced
 
@@ -167,12 +159,14 @@ $ w_1*w_2*q_m + w_1*q_1 + w_2*q_2 + w_3*q_3 + w_4*q_4 + q_c = 0 $
 
 Here we see there is one occurrence of witness 1 and 2 ($w_1$, $w_2$) being multiplied together, with addition to witnesses 1-4 ($w_1$ .. $w_4$) multiplied by 4 corresponding circuit constants ($q_1$ .. $q_4$) (plus a final circuit constant, $q_c$).
 
-Use `nargo info --print-acir`, to inspect the constraints, and it may present opportunities to amend the order of operations and reduce the number of constraints.
+Use `nargo info --print-acir`, to inspect the ACIR opcodes (and the proving system for gates), and it may present opportunities to amend the order of operations and reduce the number of constraints.
 
-### Variable as witness vs expression
+#### Variable as witness vs expression
 
-`std::as_witness` means variable is interpreted as a witness not an expression.
-When used incorrectly will create **less** efficient circuits (higher gate count).
+If you've come this far and really know what you're doing at the equation level, a temporary lever (that will become unnecessary/useless over time) is: `std::as_witness`. This informs the compiler to save a variable as a witness not an expression.
+
+The compiler will mostly be correct and optimal, but this may help some near term edge cases that are yet to optimize.
+Note: When used incorrectly it will create **less** efficient circuits (higher gate count).
 
 ## References
 - Guillaume's ["`Cryptdoku`" talk](https://www.youtube.com/watch?v=MrQyzuogxgg) (Jun'23)
