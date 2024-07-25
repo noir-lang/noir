@@ -648,7 +648,7 @@ where
 fn call_data() -> impl NoirParser<Visibility> {
     keyword(Keyword::CallData).then(parenthesized(literal())).map(|token| match &token {
         (_, ExpressionKind::Literal(Literal::Integer(x, _))) => {
-            let id = (x.to_u128() + 1) as u32;
+            let id = x.to_u128() as u32;
             Visibility::CallData(id)
         }
         _ => unreachable!("Invalid call_data identifier"),
