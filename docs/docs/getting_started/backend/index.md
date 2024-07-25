@@ -26,36 +26,6 @@ You can find the full list of proving backends compatible with Noir in [Awesome 
 
 `bb` is the CLI tool provided by the [Barretenberg proving backend](https://github.com/AztecProtocol/barretenberg) developed by Aztec Labs.
 
-As an example of how a proving backend could be installed, you can install `bb` running the commands below in a terminal.
+You can find the instructions for installation in [`bb`'s documentation](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/bb/readme.md#installation).
 
-1. Install `bbup`, Barretenberg CLI's installation script:
-
-    ```bash
-    curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
-    ```
-
-2. Reload your terminal shell environment (alternatively, just open a new terminal):
-
-    macOS:
-    ```bash
-    source ~/.zshrc
-    ```
-
-    Linux:
-    ```bash
-    source ~/.bashrc
-    ```
-
-3. Install the version of `bb` compatible with your Noir version:
-
-    ```bash
-    bbup -v 0.46.1
-    ```
-
-4. Check if the installation was successful:
-
-    ```bash
-    bb --version
-    ```
-
-If it successfully prints the version of `bb` installed, we are ready to start working on [our first Noir program](../hello_noir/index.md).
+Once installed, we are ready to start working on [our first Noir program](../hello_noir/index.md).
