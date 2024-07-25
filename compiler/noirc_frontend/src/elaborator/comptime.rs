@@ -1,5 +1,3 @@
-use std::mem::replace;
-
 use crate::{
     hir_def::expr::HirIdent,
     node_interner::{DependencyId, FuncId},
@@ -11,42 +9,40 @@ impl<'context> Elaborator<'context> {
     /// Elaborate an expression from the middle of a comptime scope.
     /// When this happens we require additional information to know
     /// what variables should be in scope.
-    pub fn elaborate_item_from_comptime<T>(
-        &mut self,
+    pub fn elaborate_item_from_comptime<'a, T>(
+        &'a mut self,
         current_function: Option<FuncId>,
-        f: impl FnOnce(&mut Self) -> T,
+        f: impl FnOnce(&mut Elaborator<'a>) -> T,
     ) -> T {
-        self.function_context.push(FunctionContext::default());
-        let old_scope = self.scopes.end_function();
-        self.scopes.start_function();
-        let function_id = current_function.map(DependencyId::Function);
-        let old_item = replace(&mut self.current_item, function_id);
+        // Create a fresh elaborator to ensure no state is changed from
+        // this elaborator
+        let mut elaborator = Elaborator::new(
+            self.interner,
+            self.def_maps,
+            self.crate_id,
+            self.debug_comptime_in_file,
+        );
 
-        // Note: recover_generics isn't good enough here because any existing generics
-        // should not be in scope of this new function
-        let old_generics = std::mem::take(&mut self.generics);
+        elaborator.function_context.push(FunctionContext::default());
+        elaborator.scopes.start_function();
 
-        let old_crate_and_module = current_function.map(|function| {
-            let meta = self.interner.function_meta(&function);
-            let old_crate = replace(&mut self.crate_id, meta.source_crate);
-            let old_module = replace(&mut self.local_module, meta.source_module);
-            self.introduce_generics_into_scope(meta.all_generics.clone());
-            (old_crate, old_module)
-        });
-
-        self.populate_scope_from_comptime_scopes();
-        let result = f(self);
-
-        if let Some((old_crate, old_module)) = old_crate_and_module {
-            self.crate_id = old_crate;
-            self.local_module = old_module;
+        if let Some(function) = current_function {
+            let meta = elaborator.interner.function_meta(&function);
+            elaborator.current_item = Some(DependencyId::Function(function));
+            elaborator.crate_id = meta.source_crate;
+            elaborator.local_module = meta.source_module;
+            elaborator.file = meta.source_file;
+            elaborator.introduce_generics_into_scope(meta.all_generics.clone());
         }
 
-        self.generics = old_generics;
-        self.current_item = old_item;
-        self.scopes.end_function();
-        self.scopes.0.push(old_scope);
-        self.check_and_pop_function_context();
+        elaborator.comptime_scopes = std::mem::take(&mut self.comptime_scopes);
+        elaborator.populate_scope_from_comptime_scopes();
+
+        let result = f(&mut elaborator);
+        elaborator.check_and_pop_function_context();
+
+        self.comptime_scopes = elaborator.comptime_scopes;
+        self.errors.append(&mut elaborator.errors);
         result
     }
 
