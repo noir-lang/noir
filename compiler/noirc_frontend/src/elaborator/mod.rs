@@ -131,8 +131,6 @@ pub struct Elaborator<'context> {
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
 
-    trait_id: Option<TraitId>,
-
     /// In-resolution names
     ///
     /// This needs to be a set because we can have multiple in-resolution
@@ -212,7 +210,6 @@ impl<'context> Elaborator<'context> {
             lambda_stack: Vec::new(),
             self_type: None,
             current_item: None,
-            trait_id: None,
             local_module: LocalModuleId::dummy_id(),
             crate_id,
             resolving_ids: BTreeSet::new(),
@@ -352,15 +349,12 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
-        self.trait_id = functions.trait_id;
-
         for (_, id, _) in functions.functions {
             self.elaborate_function(id);
         }
 
         self.generics.clear();
         self.self_type = None;
-        self.trait_id = None;
     }
 
     fn introduce_generics_into_scope(&mut self, all_generics: Vec<ResolvedGeneric>) {
@@ -397,6 +391,7 @@ impl<'context> Elaborator<'context> {
             self.crate_id, func_meta.source_crate,
             "Functions in other crates should be already elaborated"
         );
+
         self.local_module = func_meta.source_module;
         self.file = func_meta.source_file;
         self.self_type = func_meta.self_type.clone();
@@ -1433,7 +1428,6 @@ impl<'context> Elaborator<'context> {
 
             let trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
             trait_impl.trait_id = trait_id;
-            self.trait_id = trait_id;
             let unresolved_type = &trait_impl.object_type;
 
             self.add_generics(&trait_impl.generics);
@@ -1461,7 +1455,6 @@ impl<'context> Elaborator<'context> {
 
             trait_impl.resolved_object_type = self.self_type.take();
             trait_impl.impl_id = self.current_trait_impl.take();
-            self.trait_id = None;
             self.generics.clear();
 
             if let Some(trait_id) = trait_id {
@@ -1481,7 +1474,7 @@ impl<'context> Elaborator<'context> {
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
-                this.define_function_meta(func, *id, this.trait_id);
+                this.define_function_meta(func, *id, None);
             });
         }
     }

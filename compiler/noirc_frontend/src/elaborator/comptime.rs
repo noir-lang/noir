@@ -1,4 +1,7 @@
-use crate::{hir_def::expr::HirIdent, node_interner::FuncId};
+use crate::{
+    hir_def::expr::HirIdent,
+    node_interner::{DependencyId, FuncId},
+};
 
 use super::{Elaborator, FunctionContext, ResolverMeta};
 
@@ -25,15 +28,20 @@ impl<'context> Elaborator<'context> {
 
         if let Some(function) = current_function {
             let meta = elaborator.interner.function_meta(&function);
+            elaborator.current_item = Some(DependencyId::Function(function));
             elaborator.crate_id = meta.source_crate;
             elaborator.local_module = meta.source_module;
+            elaborator.file = meta.source_file;
             elaborator.introduce_generics_into_scope(meta.all_generics.clone());
         }
 
+        elaborator.comptime_scopes = std::mem::take(&mut self.comptime_scopes);
         elaborator.populate_scope_from_comptime_scopes();
+
         let result = f(&mut elaborator);
         elaborator.check_and_pop_function_context();
 
+        self.comptime_scopes = elaborator.comptime_scopes;
         self.errors.append(&mut elaborator.errors);
         result
     }
