@@ -70,7 +70,7 @@ lalrpop_mod!(pub noir_parser);
 mod test_helpers;
 
 use literals::literal;
-use path::{maybe_empty_path, path};
+use path::{maybe_empty_path, path, path_no_turbofish};
 use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
 use traits::where_clause;
 
@@ -432,8 +432,8 @@ fn rename() -> impl NoirParser<Option<Ident>> {
 
 fn use_tree() -> impl NoirParser<UseTree> {
     recursive(|use_tree| {
-        let simple = path().then(rename()).map(|(mut prefix, alias)| {
-            let ident = prefix.pop();
+        let simple = path_no_turbofish().then(rename()).map(|(mut prefix, alias)| {
+            let ident = prefix.pop().ident;
             UseTree { prefix, kind: UseTreeKind::Path(ident, alias) }
         });
 

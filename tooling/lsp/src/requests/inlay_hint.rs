@@ -609,7 +609,7 @@ fn push_type_variable_parts(
 
 fn get_expression_name(expression: &Expression) -> Option<String> {
     match &expression.kind {
-        ExpressionKind::Variable(path, _) => Some(path.last_segment().to_string()),
+        ExpressionKind::Variable(path) => Some(path.last_name().to_string()),
         ExpressionKind::Prefix(prefix) => get_expression_name(&prefix.rhs),
         ExpressionKind::MemberAccess(member_access) => Some(member_access.rhs.to_string()),
         ExpressionKind::Call(call) => get_expression_name(&call.func),
