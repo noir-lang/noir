@@ -1,3 +1,4 @@
+use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
@@ -156,6 +157,13 @@ pub struct FuncMeta {
 
     /// The module this function was defined in
     pub source_module: LocalModuleId,
+
+    /// THe file this function was defined in
+    pub source_file: FileId,
+
+    /// If this function is from an impl (trait or regular impl), this
+    /// is the object type of the impl. Otherwise this is None.
+    pub self_type: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
