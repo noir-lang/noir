@@ -164,6 +164,18 @@ export type CircuitProvingStats = {
   numPublicInputs: number;
 };
 
+/** Stats for verifying a circuit */
+export type CircuitVerificationStats = {
+  /** Name of the event. */
+  eventName: 'circuit-verification';
+  /** Name of the circuit. */
+  circuitName: CircuitName;
+  /** Type of proof (client-ivc, honk, etc) */
+  proofType: 'client-ivc' | 'ultra-honk';
+  /** Duration in ms. */
+  duration: number;
+};
+
 /** Stats for an L2 block built by a sequencer. */
 export type L2BlockBuiltStats = {
   /** Name of the event. */

@@ -1,6 +1,7 @@
 import { getSchnorrAccount, getSchnorrWallet } from '@aztec/accounts/schnorr';
 import { PublicFeePaymentMethod, TxStatus, sleep } from '@aztec/aztec.js';
 import { type AccountWallet } from '@aztec/aztec.js/wallet';
+import { BBCircuitVerifier } from '@aztec/bb-prover';
 import { CompleteAddress, Fq, Fr, GasSettings } from '@aztec/circuits.js';
 import { FPCContract, GasTokenContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
 import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
@@ -17,6 +18,11 @@ import { type EndToEndContext, setup } from '../fixtures/utils.js';
 jest.setTimeout(1_800_000);
 
 const txTimeoutSec = 3600;
+
+// How many times we'll run bb verify on each tx for benchmarking purposes
+const txVerifyIterations = process.env.BENCH_TX_VERIFY_ITERATIONS
+  ? parseInt(process.env.BENCH_TX_VERIFY_ITERATIONS)
+  : 10;
 
 // This makes AVM proving throw if there's a failure.
 process.env.AVM_PROVING_STRICT = '1';
@@ -191,22 +197,24 @@ describe('benchmarks/proving', () => {
     // };
 
     ctx.logger.info('Proving transactions');
-    await Promise.all([
-      fnCalls[0].prove({
-        fee: feeFnCall0,
-      }),
+    const provenTxs = await Promise.all([
+      fnCalls[0].prove({ fee: feeFnCall0 }),
       fnCalls[1].prove(),
       // fnCalls[2].prove(),
       // fnCalls[3].prove(),
     ]);
 
-    ctx.logger.info('Finished proving');
+    ctx.logger.info('Verifying transactions client proofs');
+    const verifier = await BBCircuitVerifier.new((await getBBConfig(ctx.logger))!);
+    for (let i = 0; i < txVerifyIterations; i++) {
+      for (const tx of provenTxs) {
+        expect(await verifier.verifyProof(tx)).toBe(true);
+      }
+    }
 
     ctx.logger.info('Sending transactions');
     const txs = [
-      fnCalls[0].send({
-        fee: feeFnCall0,
-      }),
+      fnCalls[0].send({ fee: feeFnCall0 }),
       fnCalls[1].send(),
       // fnCalls[2].send(),
       // fnCalls[3].send(),

@@ -622,6 +622,46 @@ export async function verifyAvmProof(
 }
 
 /**
+ * Verifies a ClientIvcProof
+ * TODO(#7370) The verification keys should be supplied separately
+ * @param pathToBB - The full path to the bb binary
+ * @param targetPath - The path to the folder with the proof, accumulator, and verification keys
+ * @param log - A logging function
+ * @returns An object containing a result indication and duration taken
+ */
+export async function verifyClientIvcProof(
+  pathToBB: string,
+  targetPath: string,
+  log: LogFn,
+): Promise<BBFailure | BBSuccess> {
+  const binaryPresent = await fs
+    .access(pathToBB, fs.constants.R_OK)
+    .then(_ => true)
+    .catch(_ => false);
+  if (!binaryPresent) {
+    return { status: BB_RESULT.FAILURE, reason: `Failed to find bb binary at ${pathToBB}` };
+  }
+
+  try {
+    const args = ['-o', targetPath];
+    const timer = new Timer();
+    const command = 'verify_client_ivc';
+    const result = await executeBB(pathToBB, command, args, log);
+    const duration = timer.ms();
+    if (result.status == BB_RESULT.SUCCESS) {
+      return { status: BB_RESULT.SUCCESS, durationMs: duration };
+    }
+    // Not a great error message here but it is difficult to decipher what comes from bb
+    return {
+      status: BB_RESULT.FAILURE,
+      reason: `Failed to verify proof. Exit code ${result.exitCode}. Signal ${result.signal}.`,
+    };
+  } catch (error) {
+    return { status: BB_RESULT.FAILURE, reason: `${error}` };
+  }
+}
+
+/**
  * Used for verifying proofs with BB
  * @param pathToBB - The full path to the bb binary
  * @param proofFullPath - The full path to the proof to be verified

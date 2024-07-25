@@ -1,4 +1,5 @@
 import { type ClientProtocolCircuitVerifier, Tx } from '@aztec/circuit-types';
+import { type CircuitVerificationStats } from '@aztec/circuit-types/stats';
 import { type Proof, type VerificationKeyData } from '@aztec/circuits.js';
 import { runInDirectory } from '@aztec/foundation/fs';
 import { type DebugLogger, type LogFn, createDebugLogger } from '@aztec/foundation/log';
@@ -17,9 +18,11 @@ import {
   VK_FILENAME,
   generateContractForCircuit,
   generateKeyForNoirCircuit,
+  verifyClientIvcProof,
   verifyProof,
 } from '../bb/execute.js';
 import { type BBConfig } from '../config.js';
+import { mapProtocolArtifactNameToCircuitName } from '../stats.js';
 import { extractVkData } from '../verification_key/verification_key_data.js';
 
 export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
@@ -106,7 +109,12 @@ export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
         throw new Error(errorMessage);
       }
 
-      this.logger.debug(`${circuit} verification successful`);
+      this.logger.debug(`${circuit} verification successful`, {
+        circuitName: mapProtocolArtifactNameToCircuitName(circuit),
+        duration: result.durationMs,
+        eventName: 'circuit-verification',
+        proofType: 'ultra-honk',
+      } satisfies CircuitVerificationStats);
     };
     await runInDirectory(this.config.bbWorkingDirectory, operation);
   }
@@ -128,19 +136,43 @@ export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
     return fs.readFile(result.contractPath!, 'utf-8');
   }
 
-  verifyProof(tx: Tx): Promise<boolean> {
-    const expectedCircuit: ClientProtocolArtifact = tx.data.forPublic
-      ? 'PrivateKernelTailToPublicArtifact'
-      : 'PrivateKernelTailArtifact';
-
+  public async verifyProof(tx: Tx): Promise<boolean> {
     try {
-      // TODO(https://github.com/AztecProtocol/barretenberg/issues/1050) we need a proper verify flow for clientIvcProof
-      // For now we handle only the trivial blank data case
-      // await this.verifyProofForCircuit(expectedCircuit, proof);
-      return Promise.resolve(!tx.clientIvcProof.isEmpty());
+      // TODO(#7370) The verification keys should be supplied separately and based on the expectedCircuit
+      // rather than read from the tx object itself. We also need the vks for the translator and ecc, which
+      // are not being saved along the other vks yet. Reuse the 'verifyProofForCircuit' method above once
+      // we have all the verification keys available.
+      const expectedCircuit: ClientProtocolArtifact = tx.data.forPublic
+        ? 'PrivateKernelTailToPublicArtifact'
+        : 'PrivateKernelTailArtifact';
+      const circuit = 'ClientIVC';
+
+      // Block below is almost copy-pasted from verifyProofForCircuit
+      const operation = async (bbWorkingDirectory: string) => {
+        const logFunction = (message: string) => {
+          this.logger.debug(`${circuit} BB out - ${message}`);
+        };
+
+        await tx.clientIvcProof.writeToOutputDirectory(bbWorkingDirectory);
+        const result = await verifyClientIvcProof(this.config.bbBinaryPath, bbWorkingDirectory, logFunction);
+
+        if (result.status === BB_RESULT.FAILURE) {
+          const errorMessage = `Failed to verify ${circuit} proof!`;
+          throw new Error(errorMessage);
+        }
+
+        this.logger.debug(`${circuit} verification successful`, {
+          circuitName: mapProtocolArtifactNameToCircuitName(expectedCircuit),
+          duration: result.durationMs,
+          eventName: 'circuit-verification',
+          proofType: 'client-ivc',
+        } satisfies CircuitVerificationStats);
+      };
+      await runInDirectory(this.config.bbWorkingDirectory, operation);
+      return true;
     } catch (err) {
-      this.logger.warn(`Failed to verify ${expectedCircuit} proof for tx ${Tx.getHash(tx)}: ${String(err)}`);
-      return Promise.resolve(false);
+      this.logger.warn(`Failed to verify ClientIVC proof for tx ${Tx.getHash(tx)}: ${String(err)}`);
+      return false;
     }
   }
 }
