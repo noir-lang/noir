@@ -16,9 +16,9 @@ keywords: [
 pagination_next: getting_started/hello_noir/index
 ---
 
-Proving backends each provide their own tools for working with Noir programs, providing utilities such as proof generation, proof verification and smart contracts verifier generation.
+Proving backends each provide their own tools for working with Noir programs, providing functionality like proof generation, proof verification, and verifier smart contract generation.
 
-For the latest information on tooling provided by each proving backend, installation instructions, Noir version compatibility... you may refer to the proving backends' own documentations.
+For the latest information on tooling provided by each proving backend, installation instructions, Noir version compatibility... you may refer to the proving backends' own documentation.
 
 You can find the full list of proving backends compatible with Noir in [Awesome Noir](https://github.com/noir-lang/awesome-noir/?tab=readme-ov-file#proving-backends).
 
@@ -34,7 +34,7 @@ As an example of how a proving backend could be installed, you can install `bb` 
     curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
     ```
 
-2. Reload your terminal shell environment:
+2. Reload your terminal shell environment (alternatively, just open a new terminal):
 
     macOS:
     ```bash

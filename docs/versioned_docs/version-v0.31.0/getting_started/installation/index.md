@@ -19,7 +19,7 @@ keywords: [
 pagination_next: getting_started/hello_noir/index
 ---
 
-`nargo` is a tool for working with Noir programs on the CLI, providing you the ability to start new projects, compile, execute and test Noir programs from the terminal.
+`nargo` is a tool for working with Noir programs on the CLI, providing you with the ability to start new projects, compile, execute and test Noir programs from the terminal.
 
 The name is inspired by Rust's package manager `cargo`; and similar to Rust's `rustup`, Noir also has an easy installation script `noirup`.
 
