@@ -2537,3 +2537,49 @@ fn trait_constraint_on_tuple_type() {
         fn main() {}"#;
     assert_no_errors(src);
 }
+
+#[test]
+fn turbofish_in_constructor_unsupported_yet() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let _ = Foo::<i32> { x: 1 };
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::UnsupportedTurbofishUsage { .. }),
+    ));
+}
+
+#[test]
+fn turbofish_in_middle_of_variable_unsupported_yet() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    impl <T> Foo<T> {
+        fn new(x: T) -> Self {
+            Foo { x }
+        }
+    }
+
+    fn main() {
+        let _ = Foo::<i32>::new(1);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::UnsupportedTurbofishUsage { .. }),
+    ));
+}

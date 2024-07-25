@@ -21,6 +21,7 @@ use crate::{
     utils::{
         ast_utils::{
             check_trait_method_implemented, ident, ident_path, is_custom_attribute, make_type,
+            path_segment,
         },
         errors::AztecMacroError,
         hir_utils::{fetch_notes, get_contract_module_data, inject_global},
@@ -45,8 +46,8 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
             .iter_mut()
             .find(|trait_impl| {
                 if let UnresolvedTypeData::Named(struct_path, _, _) = &trait_impl.object_type.typ {
-                    struct_path.last_segment() == note_struct.name
-                        && trait_impl.trait_name.last_segment().0.contents == "NoteInterface"
+                    struct_path.last_ident() == note_struct.name
+                        && trait_impl.trait_name.last_name() == "NoteInterface"
                 } else {
                     false
                 }
@@ -61,7 +62,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
         let note_interface_impl_span: Option<Span> = trait_impl.object_type.span;
         // Look for the note struct implementation, generate a default one if it doesn't exist (in order to append methods to it)
         let existing_impl = module.impls.iter_mut().find(|r#impl| match &r#impl.object_type.typ {
-            UnresolvedTypeData::Named(path, _, _) => path.last_segment().eq(&note_struct.name),
+            UnresolvedTypeData::Named(path, _, _) => path.last_ident().eq(&note_struct.name),
             _ => false,
         });
         let note_impl = if let Some(note_impl) = existing_impl {
@@ -85,9 +86,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
             .trait_generics
             .iter()
             .map(|gen| match gen.typ.clone() {
-                UnresolvedTypeData::Named(path, _, _) => {
-                    Ok(path.last_segment().0.contents.to_string())
-                }
+                UnresolvedTypeData::Named(path, _, _) => Ok(path.last_name().to_string()),
                 UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(val, _)) => {
                     Ok(val.to_string())
                 }
@@ -106,9 +105,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
         // Automatically inject the header field if it's not present
         let (header_field_name, _) = if let Some(existing_header) =
             note_struct.fields.iter().find(|(_, field_type)| match &field_type.typ {
-                UnresolvedTypeData::Named(path, _, _) => {
-                    path.last_segment().0.contents == "NoteHeader"
-                }
+                UnresolvedTypeData::Named(path, _, _) => path.last_name() == "NoteHeader",
                 _ => false,
             }) {
             existing_header.clone()

@@ -157,8 +157,8 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
-        let name_span = name.last_segment().span();
-        let is_self_type = name.last_segment().is_self_type_name();
+        let name_span = name.last_ident().span();
+        let is_self_type = name.last_ident().is_self_type_name();
 
         let error_identifier = |this: &mut Self| {
             // Must create a name here to return a HirPattern::Identifier. Allowing
@@ -429,11 +429,12 @@ impl<'context> Elaborator<'context> {
         })
     }
 
-    pub(super) fn elaborate_variable(
-        &mut self,
-        variable: Path,
-        unresolved_turbofish: Option<Vec<UnresolvedType>>,
-    ) -> (ExprId, Type) {
+    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&variable, exclude_last_segment);
+
+        let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
+
         let span = variable.span;
         let expr = self.resolve_variable(variable);
         let definition_id = expr.id;
@@ -648,7 +649,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
-        let location = Location::new(path.last_segment().span(), self.file);
+        let location = Location::new(path.last_ident().span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return found,

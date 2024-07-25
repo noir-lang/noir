@@ -17,7 +17,8 @@ use crate::{
         ast_utils::{
             assignment, assignment_with_type, call, cast, expression, ident, ident_path,
             index_array, make_eq, make_statement, make_type, method_call, mutable_assignment,
-            mutable_reference, path, return_type, variable, variable_ident, variable_path,
+            mutable_reference, path, path_segment, return_type, variable, variable_ident,
+            variable_path,
         },
         errors::AztecMacroError,
     },
@@ -722,8 +723,8 @@ fn add_struct_to_hasher(identifier: &Ident, hasher_name: &str) -> Statement {
 fn str_to_bytes(identifier: &Ident) -> (Statement, Ident) {
     // let identifier_as_bytes = identifier.as_bytes();
     let var = variable_ident(identifier.clone());
-    let contents = if let ExpressionKind::Variable(p, _) = &var.kind {
-        p.segments.first().cloned().unwrap_or_else(|| panic!("No segments")).0.contents
+    let contents = if let ExpressionKind::Variable(p) = &var.kind {
+        p.first_name()
     } else {
         panic!("Unexpected identifier type")
     };
