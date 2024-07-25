@@ -1,8 +1,8 @@
 use crate::{
     abis::{
-    accumulated_data::{private_accumulated_data::PrivateAccumulatedData}, call_request::CallRequest,
-    note_hash::ScopedNoteHash, nullifier::ScopedNullifier,
-    private_call_request::ScopedPrivateCallRequest,
+    accumulated_data::{private_accumulated_data::PrivateAccumulatedData}, note_hash::ScopedNoteHash,
+    nullifier::ScopedNullifier, private_call_request::PrivateCallRequest,
+    public_call_request::PublicCallRequest,
     log_hash::{ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}
 },
     constants::{
@@ -23,8 +23,8 @@ struct PrivateAccumulatedDataBuilder {
     encrypted_logs_hashes: BoundedVec<ScopedEncryptedLogHash, MAX_ENCRYPTED_LOGS_PER_TX>,
     unencrypted_logs_hashes: BoundedVec<ScopedLogHash, MAX_UNENCRYPTED_LOGS_PER_TX>,
 
-    private_call_stack: BoundedVec<ScopedPrivateCallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
-    public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    public_call_requests: BoundedVec<PublicCallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    private_call_stack: BoundedVec<PrivateCallRequest, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>,
 
 }
 
@@ -37,8 +37,8 @@ impl PrivateAccumulatedDataBuilder {
             note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage,
             encrypted_logs_hashes: self.encrypted_logs_hashes.storage,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage,
-            private_call_stack: self.private_call_stack.storage,
-            public_call_stack: self.public_call_stack.storage
+            public_call_requests: self.public_call_requests.storage,
+            private_call_stack: self.private_call_stack.storage
         }
     }
 }
@@ -52,8 +52,8 @@ impl Empty for PrivateAccumulatedDataBuilder {
             note_encrypted_logs_hashes: BoundedVec::new(),
             encrypted_logs_hashes: BoundedVec::new(),
             unencrypted_logs_hashes: BoundedVec::new(),
+            public_call_requests: BoundedVec::new(),
             private_call_stack: BoundedVec::new(),
-            public_call_stack: BoundedVec::new(),
         }
     }
 }

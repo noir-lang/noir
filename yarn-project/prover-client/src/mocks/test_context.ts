@@ -4,6 +4,7 @@ import {
   type BlockResult,
   type ProcessedTx,
   type ProvingTicket,
+  type PublicExecutionRequest,
   type ServerCircuitProver,
   type Tx,
   type TxValidator,
@@ -14,7 +15,6 @@ import { type DebugLogger } from '@aztec/foundation/log';
 import { openTmpStore } from '@aztec/kv-store/utils';
 import {
   type ContractsDataSourcePublicDB,
-  type PublicExecutionRequest,
   type PublicExecutionResult,
   PublicExecutionResultBuilder,
   type PublicExecutor,
@@ -171,7 +171,7 @@ export class TestContext {
           : [...tx.enqueuedPublicFunctionCalls, tx.publicTeardownFunctionCall];
         for (const request of allCalls) {
           if (execution.contractAddress.equals(request.contractAddress)) {
-            const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build({
+            const result = PublicExecutionResultBuilder.fromPublicExecutionRequest({ request }).build({
               startGasLeft: availableGas,
               endGasLeft: availableGas,
               transactionFee,

@@ -15,6 +15,7 @@ export * from './notes/index.js';
 export * from './packed_values.js';
 export * from './public_data_witness.js';
 export * from './public_data_write.js';
+export * from './public_execution_request.js';
 export * from './sibling_path/index.js';
 export * from './simulation_error.js';
 export * from './tx/index.js';

@@ -79,7 +79,7 @@ mod tests {
             previous_kernel.tx_context.gas_settings.gas_limits = Gas::new(1_000_000, 1_000_000);
             previous_kernel.set_first_nullifier();
             previous_kernel.end_setup();
-            previous_kernel.push_public_call_request(1, false);
+            previous_kernel.append_public_call_requests(1);
 
             PrivateKernelTailToPublicInputsBuilder { previous_kernel }
         }
@@ -168,7 +168,7 @@ mod tests {
     #[test(should_fail_with="Private call stack must be empty when executing the tail circuit")]
     fn non_empty_private_call_stack_should_fail() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
-        builder.previous_kernel.add_private_call_request(1, false);
+        builder.previous_kernel.append_private_call_requests(1);
         builder.failed();
     }
 
@@ -190,7 +190,7 @@ mod tests {
     fn can_run_with_only_teardown() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
         builder.previous_kernel.public_call_requests = BoundedVec::new();
-        builder.previous_kernel.push_public_teardown_call_request(1, false);
+        builder.previous_kernel.append_public_teardown_call_request();
 
         builder.succeeded();
     }
@@ -355,12 +355,10 @@ mod tests {
     unconstrained fn enqueued_public_calls_consume_startup_gas() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
         // add an extra non-revertible call
-        builder.previous_kernel.push_public_call_request(42, false);
+        builder.previous_kernel.append_public_call_requests(1);
         builder.previous_kernel.end_setup();
         // add some revertible calls
-        builder.previous_kernel.push_public_call_request(42, false);
-        builder.previous_kernel.push_public_call_request(42, false);
-        builder.previous_kernel.push_public_call_request(42, false);
+        builder.previous_kernel.append_public_call_requests(3);
         let public_inputs = builder.execute();
 
         let expected_revertible_gas_used = Gas::new(0, 3 * FIXED_AVM_STARTUP_L2_GAS);

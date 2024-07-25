@@ -271,7 +271,7 @@ fn new_from_previous_kernel_with_private_call_public_call_requests_succeeds() {
     let output = builder.compose_from_previous_kernel();
 
     assert_array_eq(
-        output.end.public_call_stack,
+        output.end.public_call_requests,
         [prev[0], prev[1], curr[0], curr[1]]
     );
 }

@@ -1,12 +1,11 @@
-import { makeTuple } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { arraySerializedSizeOfNonEmpty } from '@aztec/foundation/collection';
-import { BufferReader, type Tuple, serializeToBuffer } from '@aztec/foundation/serialize';
+import { padArrayEnd } from '@aztec/foundation/collection';
+import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX } from '../../constants.gen.js';
 import { countAccumulatedItems, mergeAccumulatedData } from '../../utils/index.js';
-import { CallRequest } from '../call_request.js';
 import { PartialStateReference } from '../partial_state_reference.js';
+import { PublicCallRequest } from '../public_call_request.js';
 import { RevertCode } from '../revert_code.js';
 import { RollupValidationRequests } from '../rollup_validation_requests.js';
 import { ValidationRequests } from '../validation_requests.js';
@@ -33,7 +32,7 @@ export class PartialPrivateTailPublicInputsForPublic {
     /**
      * Call request for the public teardown function.
      */
-    public publicTeardownCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    public publicTeardownCallRequest: PublicCallRequest,
   ) {}
 
   getSize() {
@@ -41,7 +40,7 @@ export class PartialPrivateTailPublicInputsForPublic {
       this.validationRequests.getSize() +
       this.endNonRevertibleData.getSize() +
       this.end.getSize() +
-      arraySerializedSizeOfNonEmpty(this.publicTeardownCallStack)
+      this.publicTeardownCallRequest.getSize()
     );
   }
 
@@ -54,7 +53,7 @@ export class PartialPrivateTailPublicInputsForPublic {
   }
 
   get needsTeardown() {
-    return !this.publicTeardownCallStack[0].isEmpty();
+    return !this.publicTeardownCallRequest.isEmpty();
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): PartialPrivateTailPublicInputsForPublic {
@@ -63,7 +62,7 @@ export class PartialPrivateTailPublicInputsForPublic {
       reader.readObject(ValidationRequests),
       reader.readObject(PublicAccumulatedData),
       reader.readObject(PublicAccumulatedData),
-      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
+      reader.readObject(PublicCallRequest),
     );
   }
 
@@ -72,7 +71,7 @@ export class PartialPrivateTailPublicInputsForPublic {
       this.validationRequests,
       this.endNonRevertibleData,
       this.end,
-      this.publicTeardownCallStack,
+      this.publicTeardownCallRequest,
     );
   }
 
@@ -81,7 +80,7 @@ export class PartialPrivateTailPublicInputsForPublic {
       ValidationRequests.empty(),
       PublicAccumulatedData.empty(),
       PublicAccumulatedData.empty(),
-      makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
+      PublicCallRequest.empty(),
     );
   }
 }
@@ -165,7 +164,11 @@ export class PrivateKernelTailCircuitPublicInputs {
       this.forPublic.end,
       this.constants,
       this.revertCode,
-      this.forPublic.publicTeardownCallStack,
+      padArrayEnd(
+        [this.forPublic.publicTeardownCallRequest],
+        PublicCallRequest.empty(),
+        MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+      ),
       this.feePayer,
     );
   }
@@ -185,11 +188,36 @@ export class PrivateKernelTailCircuitPublicInputs {
   }
 
   numberOfPublicCallRequests() {
-    return this.forPublic
-      ? countAccumulatedItems(this.forPublic.endNonRevertibleData.publicCallStack) +
-          countAccumulatedItems(this.forPublic.end.publicCallStack) +
-          countAccumulatedItems(this.forPublic.publicTeardownCallStack)
-      : 0;
+    return (
+      this.numberOfNonRevertiblePublicCallRequests() +
+      this.numberOfRevertiblePublicCallRequests() +
+      (this.hasTeardownPublicCallRequest() ? 1 : 0)
+    );
+  }
+
+  numberOfNonRevertiblePublicCallRequests() {
+    return this.forPublic ? countAccumulatedItems(this.forPublic.endNonRevertibleData.publicCallStack) : 0;
+  }
+
+  numberOfRevertiblePublicCallRequests() {
+    return this.forPublic ? countAccumulatedItems(this.forPublic.end.publicCallStack) : 0;
+  }
+
+  hasTeardownPublicCallRequest() {
+    return this.forPublic ? !this.forPublic.publicTeardownCallRequest.isEmpty() : false;
+  }
+
+  getNonRevertiblePublicCallRequests() {
+    return this.forPublic ? this.forPublic.endNonRevertibleData.publicCallStack.filter(r => !r.isEmpty()) : [];
+  }
+
+  getRevertiblePublicCallRequests() {
+    return this.forPublic ? this.forPublic.end.publicCallStack.filter(r => !r.isEmpty()) : [];
+  }
+
+  getTeardownPublicCallRequest() {
+    const publicTeardownCallRequest = this.forPublic?.publicTeardownCallRequest;
+    return !publicTeardownCallRequest?.isEmpty() ? publicTeardownCallRequest : undefined;
   }
 
   getNonEmptyNoteHashes() {

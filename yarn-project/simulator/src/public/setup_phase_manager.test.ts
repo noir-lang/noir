@@ -1,5 +1,5 @@
 import { mockTx } from '@aztec/circuit-types';
-import { GlobalVariables, Header, PublicAccumulatedDataBuilder } from '@aztec/circuits.js';
+import { GlobalVariables, Header } from '@aztec/circuits.js';
 import { type PublicExecutor } from '@aztec/simulator';
 import { type MerkleTreeOperations, type TreeInfo } from '@aztec/world-state';
 
@@ -48,17 +48,7 @@ describe('setup_phase_manager', () => {
   });
 
   it('does not extract non-revertible calls when none exist', function () {
-    const tx = mockTx();
-
-    tx.data.forPublic!.end = PublicAccumulatedDataBuilder.fromPublicAccumulatedData(tx.data.forPublic!.end)
-      .withPublicCallStack([])
-      .build();
-
-    tx.data.forPublic!.endNonRevertibleData = PublicAccumulatedDataBuilder.fromPublicAccumulatedData(
-      tx.data.forPublic!.endNonRevertibleData,
-    )
-      .withPublicCallStack([])
-      .build();
+    const tx = mockTx(1, { numberOfNonRevertiblePublicCallRequests: 0, numberOfRevertiblePublicCallRequests: 0 });
 
     const enqueuedNonRevertibleCalls = phaseManager.extractEnqueuedPublicCalls(tx);
 

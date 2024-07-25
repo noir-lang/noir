@@ -1,7 +1,7 @@
 use crate::{
     abis::{
-    gas::Gas, accumulated_data::public_accumulated_data::PublicAccumulatedData,
-    call_request::CallRequest, note_hash::NoteHash, nullifier::Nullifier,
+    gas::Gas, accumulated_data::public_accumulated_data::PublicAccumulatedData, note_hash::NoteHash,
+    nullifier::Nullifier, public_call_request::PublicCallRequest,
     public_data_update_request::PublicDataUpdateRequest, log_hash::{LogHash, NoteLogHash, ScopedLogHash}
 },
     constants::{
@@ -23,7 +23,7 @@ struct PublicAccumulatedDataBuilder {
 
     public_data_update_requests: BoundedVec<PublicDataUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
 
-    public_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    public_call_stack: BoundedVec<PublicCallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
 
     gas_used: Gas,
 }

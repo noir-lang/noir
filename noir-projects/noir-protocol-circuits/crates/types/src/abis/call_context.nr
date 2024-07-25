@@ -1,29 +1,21 @@
 use crate::{
-    abis::function_selector::FunctionSelector, address::AztecAddress,
-    constants::{CALL_CONTEXT_LENGTH, GENERATOR_INDEX__CALL_CONTEXT}, hash::pedersen_hash,
-    traits::{Deserialize, Hash, Serialize, Empty}, utils::reader::Reader
+    abis::function_selector::FunctionSelector, address::AztecAddress, constants::CALL_CONTEXT_LENGTH,
+    traits::{Deserialize, Serialize, Empty}, utils::reader::Reader
 };
 
 // docs:start:call-context
 struct CallContext {
-    msg_sender : AztecAddress,
-    storage_contract_address : AztecAddress,
-    function_selector : FunctionSelector,
-
-    is_delegate_call : bool,
-    is_static_call : bool,
+    msg_sender: AztecAddress,
+    storage_contract_address: AztecAddress,
+    function_selector: FunctionSelector,
+    is_delegate_call: bool,
+    is_static_call: bool,
 }
 // docs:end:call-context
 
 impl Eq for CallContext {
     fn eq(self, other: CallContext) -> bool {
         self.serialize() == other.serialize()
-    }
-}
-
-impl Hash for CallContext {
-    fn hash(self) -> Field {
-        pedersen_hash(self.serialize(), GENERATOR_INDEX__CALL_CONTEXT)
     }
 }
 
@@ -104,10 +96,4 @@ fn not_eq_test_eq() {
     context2.msg_sender = address2;
 
     assert(context1.eq(context2));
-}
-
-#[test]
-fn hash_smoke() {
-    let context = CallContext::empty();
-    let _hashed = context.hash();
 }

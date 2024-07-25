@@ -1,7 +1,7 @@
-use crate::abis::{call_context::CallContext, function_data::FunctionData, gas::Gas};
+use crate::abis::{call_context::CallContext, gas::Gas};
 use crate::address::AztecAddress;
-use crate::constants::{GENERATOR_INDEX__CALL_STACK_ITEM, PUBLIC_CALL_STACK_ITEM_COMPRESSED_LENGTH};
-use crate::traits::{Hash, Empty, Serialize, Deserialize};
+use crate::constants::PUBLIC_CALL_STACK_ITEM_COMPRESSED_LENGTH;
+use crate::traits::{Empty, Serialize, Deserialize};
 use crate::utils::reader::Reader;
 
 /**
@@ -21,7 +21,6 @@ use crate::utils::reader::Reader;
 struct PublicCallStackItemCompressed {
     contract_address: AztecAddress,
     call_context: CallContext,
-    function_data: FunctionData,
     args_hash: Field,
     returns_hash: Field,
     revert_code: u8,
@@ -33,7 +32,6 @@ impl Eq for PublicCallStackItemCompressed {
     fn eq(self, other: PublicCallStackItemCompressed) -> bool {
         (self.contract_address == other.contract_address)
             & (self.call_context == other.call_context)
-            & (self.function_data == other.function_data)
             & (self.args_hash == other.args_hash)
             & (self.returns_hash == other.returns_hash)
             & (self.revert_code == other.revert_code)
@@ -42,18 +40,11 @@ impl Eq for PublicCallStackItemCompressed {
     }
 }
 
-impl Hash for PublicCallStackItemCompressed {
-    fn hash(self) -> Field {
-        std::hash::pedersen_hash_with_separator(self.serialize(), GENERATOR_INDEX__CALL_STACK_ITEM)
-    }
-}
-
 impl Empty for PublicCallStackItemCompressed {
     fn empty() -> Self {
         PublicCallStackItemCompressed {
             contract_address: AztecAddress::empty(),
             call_context: CallContext::empty(),
-            function_data: FunctionData::empty(),
             args_hash: 0,
             returns_hash: 0,
             revert_code: 0,
@@ -69,7 +60,6 @@ impl Serialize<PUBLIC_CALL_STACK_ITEM_COMPRESSED_LENGTH> for PublicCallStackItem
 
         fields.push(self.contract_address.to_field());
         fields.extend_from_array(self.call_context.serialize());
-        fields.extend_from_array(self.function_data.serialize());
         fields.push(self.args_hash);
         fields.push(self.returns_hash);
         fields.push(self.revert_code as Field);
@@ -89,7 +79,6 @@ impl Deserialize<PUBLIC_CALL_STACK_ITEM_COMPRESSED_LENGTH> for PublicCallStackIt
     let item = PublicCallStackItemCompressed {
       contract_address: reader.read_struct(AztecAddress::deserialize),
       call_context: reader.read_struct(CallContext::deserialize),
-      function_data: reader.read_struct(FunctionData::deserialize),
       args_hash: reader.read(),
       returns_hash: reader.read(),
       revert_code: reader.read() as u8,

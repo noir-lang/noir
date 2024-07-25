@@ -1,6 +1,6 @@
 import {
   AztecAddress,
-  CallRequest,
+  CallContext,
   ClientIvcProof,
   GasSettings,
   LogHash,
@@ -11,11 +11,11 @@ import {
   PartialPrivateTailPublicInputsForPublic,
   PrivateKernelTailCircuitPublicInputs,
   PublicAccumulatedDataBuilder,
-  PublicCallRequest,
   ScopedLogHash,
   computeContractClassId,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
+import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import {
   makeCombinedAccumulatedData,
   makeCombinedConstantData,
@@ -30,6 +30,7 @@ import { type ContractInstanceWithAddress, SerializableContractInstance } from '
 
 import { EncryptedNoteTxL2Logs, EncryptedTxL2Logs, Note, UnencryptedTxL2Logs } from './logs/index.js';
 import { ExtendedNote } from './notes/index.js';
+import { PublicExecutionRequest } from './public_execution_request.js';
 import { NestedProcessReturnValues, PublicSimulationOutput, SimulatedTx, Tx, TxHash } from './tx/index.js';
 
 export const randomTxHash = (): TxHash => new TxHash(randomBytes(32));
@@ -40,27 +41,21 @@ export const mockTx = (
     hasLogs = false,
     numberOfNonRevertiblePublicCallRequests = MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX / 2,
     numberOfRevertiblePublicCallRequests = MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX / 2,
-    publicCallRequests = [],
-    publicTeardownCallRequest = PublicCallRequest.empty(),
+    hasPublicTeardownCallRequest = false,
     feePayer = AztecAddress.ZERO,
   }: {
     hasLogs?: boolean;
     numberOfNonRevertiblePublicCallRequests?: number;
     numberOfRevertiblePublicCallRequests?: number;
-    publicCallRequests?: PublicCallRequest[];
-    publicTeardownCallRequest?: PublicCallRequest;
+    hasPublicTeardownCallRequest?: boolean;
     feePayer?: AztecAddress;
   } = {},
 ) => {
   const totalPublicCallRequests =
-    numberOfNonRevertiblePublicCallRequests + numberOfRevertiblePublicCallRequests || publicCallRequests.length;
-  if (publicCallRequests.length && publicCallRequests.length !== totalPublicCallRequests) {
-    throw new Error(
-      `Provided publicCallRequests does not match the required number of call requests. Expected ${totalPublicCallRequests}. Got ${publicCallRequests.length}`,
-    );
-  }
-
-  const isForPublic = totalPublicCallRequests > 0 || publicTeardownCallRequest.isEmpty() === false;
+    numberOfNonRevertiblePublicCallRequests +
+    numberOfRevertiblePublicCallRequests +
+    (hasPublicTeardownCallRequest ? 1 : 0);
+  const isForPublic = totalPublicCallRequests > 0;
   const data = PrivateKernelTailCircuitPublicInputs.empty();
   const firstNullifier = new Nullifier(new Fr(seed + 1), 0, Fr.ZERO);
   const noteEncryptedLogs = EncryptedNoteTxL2Logs.empty(); // Mock seems to have no new notes => no note logs
@@ -69,43 +64,50 @@ export const mockTx = (
   data.constants.txContext.gasSettings = GasSettings.default();
   data.feePayer = feePayer;
 
+  let enqueuedPublicFunctionCalls: PublicExecutionRequest[] = [];
+  let publicTeardownFunctionCall = PublicExecutionRequest.empty();
   if (isForPublic) {
     data.forRollup = undefined;
     data.forPublic = PartialPrivateTailPublicInputsForPublic.empty();
 
-    publicCallRequests = publicCallRequests.length
-      ? publicCallRequests.slice().sort((a, b) => b.sideEffectCounter - a.sideEffectCounter)
-      : times(totalPublicCallRequests, i => makePublicCallRequest(seed + 0x100 + i));
-
     const revertibleBuilder = new PublicAccumulatedDataBuilder();
     const nonRevertibleBuilder = new PublicAccumulatedDataBuilder();
+
+    const publicCallRequests = times(totalPublicCallRequests, i => makePublicCallRequest(seed + 0x102 + i)).reverse(); // Reverse it so that they are sorted by counters in descending order.
+    const publicFunctionArgs = times(totalPublicCallRequests, i => [new Fr(seed + i * 100), new Fr(seed + i * 101)]);
+    publicCallRequests.forEach((r, i) => (r.item.argsHash = computeVarArgsHash(publicFunctionArgs[i])));
+
+    if (hasPublicTeardownCallRequest) {
+      const request = publicCallRequests.shift()!;
+      data.forPublic.publicTeardownCallRequest = request;
+      const args = publicFunctionArgs.shift()!;
+      publicTeardownFunctionCall = new PublicExecutionRequest(
+        request.item.contractAddress,
+        CallContext.fromFields(request.item.callContext.toFields()),
+        args,
+      );
+    }
+
+    enqueuedPublicFunctionCalls = publicCallRequests.map(
+      (r, i) =>
+        new PublicExecutionRequest(
+          r.item.contractAddress,
+          CallContext.fromFields(r.item.callContext.toFields()),
+          publicFunctionArgs[i],
+        ),
+    );
 
     const nonRevertibleNullifiers = makeTuple(MAX_NULLIFIERS_PER_TX, Nullifier.empty);
     nonRevertibleNullifiers[0] = firstNullifier;
 
     data.forPublic.endNonRevertibleData = nonRevertibleBuilder
       .withNullifiers(nonRevertibleNullifiers)
-      .withPublicCallStack(
-        makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
-          i < numberOfNonRevertiblePublicCallRequests
-            ? publicCallRequests[numberOfRevertiblePublicCallRequests + i].toCallRequest()
-            : CallRequest.empty(),
-        ),
-      )
+      .withPublicCallStack(publicCallRequests.slice(numberOfRevertiblePublicCallRequests))
       .build();
 
     data.forPublic.end = revertibleBuilder
-      .withPublicCallStack(
-        makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i =>
-          i < numberOfRevertiblePublicCallRequests ? publicCallRequests[i].toCallRequest() : CallRequest.empty(),
-        ),
-      )
+      .withPublicCallStack(publicCallRequests.slice(0, numberOfRevertiblePublicCallRequests))
       .build();
-
-    data.forPublic.publicTeardownCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, () => CallRequest.empty());
-    data.forPublic.publicTeardownCallStack[0] = publicTeardownCallRequest.isEmpty()
-      ? CallRequest.empty()
-      : publicTeardownCallRequest.toCallRequest();
 
     if (hasLogs) {
       let i = 1; // 0 used in first nullifier
@@ -177,8 +179,8 @@ export const mockTx = (
     noteEncryptedLogs,
     encryptedLogs,
     unencryptedLogs,
-    publicCallRequests,
-    publicTeardownCallRequest,
+    enqueuedPublicFunctionCalls,
+    publicTeardownFunctionCall,
   );
 
   return tx;

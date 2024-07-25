@@ -1,8 +1,8 @@
 use crate::{
     abis::{
     gas::Gas, call_context::CallContext, note_hash::NoteHash, nullifier::Nullifier,
-    public_circuit_public_inputs::PublicCircuitPublicInputs, read_request::ReadRequest,
-    log_hash::LogHash, global_variables::GlobalVariables
+    public_call_request::PublicCallRequest, public_circuit_public_inputs::PublicCircuitPublicInputs,
+    read_request::ReadRequest, log_hash::LogHash, global_variables::GlobalVariables
 },
     address::AztecAddress,
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
@@ -29,7 +29,7 @@ struct PublicCircuitPublicInputsBuilder {
     l1_to_l2_msg_read_requests: BoundedVec<ReadRequest, MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL>,
     contract_storage_update_requests: BoundedVec<StorageUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL>,
     contract_storage_reads: BoundedVec<StorageRead, MAX_PUBLIC_DATA_READS_PER_CALL>,
-    public_call_stack_hashes: BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
+    public_call_requests: BoundedVec<PublicCallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     note_hashes: BoundedVec<NoteHash, MAX_NOTE_HASHES_PER_CALL>,
     nullifiers: BoundedVec<Nullifier, MAX_NULLIFIERS_PER_CALL>,
     l2_to_l1_msgs: BoundedVec<L2ToL1Message, MAX_L2_TO_L1_MSGS_PER_CALL>,
@@ -63,7 +63,7 @@ impl PublicCircuitPublicInputsBuilder {
             l1_to_l2_msg_read_requests: self.l1_to_l2_msg_read_requests.storage,
             contract_storage_update_requests: self.contract_storage_update_requests.storage,
             contract_storage_reads: self.contract_storage_reads.storage,
-            public_call_stack_hashes: self.public_call_stack_hashes.storage,
+            public_call_requests: self.public_call_requests.storage,
             note_hashes: self.note_hashes.storage,
             nullifiers: self.nullifiers.storage,
             l2_to_l1_msgs: self.l2_to_l1_msgs.storage,
@@ -93,7 +93,7 @@ impl Empty for PublicCircuitPublicInputsBuilder {
             l1_to_l2_msg_read_requests: BoundedVec::new(),
             contract_storage_update_requests: BoundedVec::new(),
             contract_storage_reads: BoundedVec::new(),
-            public_call_stack_hashes: BoundedVec::new(),
+            public_call_requests: BoundedVec::new(),
             note_hashes: BoundedVec::new(),
             nullifiers: BoundedVec::new(),
             l2_to_l1_msgs: BoundedVec::new(),

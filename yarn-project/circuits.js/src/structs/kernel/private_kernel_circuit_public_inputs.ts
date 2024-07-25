@@ -2,7 +2,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { CallRequest } from '../call_request.js';
+import { PublicCallRequest } from '../public_call_request.js';
 import { ValidationRequests } from '../validation_requests.js';
 import { CombinedConstantData } from './combined_constant_data.js';
 import { PrivateAccumulatedData } from './private_accumulated_data.js';
@@ -31,7 +31,7 @@ export class PrivateKernelCircuitPublicInputs {
     /**
      * The call request for the public teardown function
      */
-    public publicTeardownCallRequest: CallRequest,
+    public publicTeardownCallRequest: PublicCallRequest,
     /**
      * The address of the fee payer for the transaction
      */
@@ -61,7 +61,7 @@ export class PrivateKernelCircuitPublicInputs {
       reader.readObject(ValidationRequests),
       reader.readObject(PrivateAccumulatedData),
       reader.readObject(CombinedConstantData),
-      reader.readObject(CallRequest),
+      reader.readObject(PublicCallRequest),
       reader.readObject(AztecAddress),
     );
   }
@@ -72,7 +72,7 @@ export class PrivateKernelCircuitPublicInputs {
       ValidationRequests.empty(),
       PrivateAccumulatedData.empty(),
       CombinedConstantData.empty(),
-      CallRequest.empty(),
+      PublicCallRequest.empty(),
       AztecAddress.ZERO,
     );
   }

@@ -3,6 +3,7 @@ import {
   type AvmProvingRequest,
   MerkleTreeId,
   type NestedProcessReturnValues,
+  type PublicExecutionRequest,
   type PublicKernelNonTailRequest,
   PublicKernelType,
   type PublicProvingRequest,
@@ -13,7 +14,6 @@ import {
 import {
   type AvmExecutionHints,
   AztecAddress,
-  CallRequest,
   ClientIvcProof,
   ContractStorageRead,
   ContractStorageUpdateRequest,
@@ -40,7 +40,7 @@ import {
   NoteHash,
   Nullifier,
   PublicCallData,
-  type PublicCallRequest,
+  PublicCallRequest,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
   PublicKernelCircuitPrivateInputs,
@@ -62,7 +62,6 @@ import {
   getVKSiblingPath,
 } from '@aztec/noir-protocol-circuits-types';
 import {
-  type PublicExecutionRequest,
   type PublicExecutionResult,
   type PublicExecutor,
   accumulateReturnValues,
@@ -165,76 +164,18 @@ export abstract class AbstractPhaseManager {
     previousKernelArtifact: ProtocolArtifact,
   ): Promise<PhaseResult>;
 
-  public static extractEnqueuedPublicCallsByPhase(tx: Tx): Record<PublicKernelType, PublicCallRequest[]> {
-    const data = tx.data.forPublic;
-    if (!data) {
-      return {
-        [PublicKernelType.NON_PUBLIC]: [],
-        [PublicKernelType.SETUP]: [],
-        [PublicKernelType.APP_LOGIC]: [],
-        [PublicKernelType.TEARDOWN]: [],
-        [PublicKernelType.TAIL]: [],
-      };
-    }
-    const publicCallsStack = tx.enqueuedPublicFunctionCalls.slice().reverse();
-    const nonRevertibleCallStack = data.endNonRevertibleData.publicCallStack.filter(i => !i.isEmpty());
-    const revertibleCallStack = data.end.publicCallStack.filter(i => !i.isEmpty());
-
-    const callRequestsStack = publicCallsStack
-      .map(call => call.toCallRequest())
-      .filter(
-        // filter out enqueued calls that are not in the public call stack
-        // TODO mitch left a question about whether this is only needed when unit testing
-        // with mock data
-        call => revertibleCallStack.find(p => p.equals(call)) || nonRevertibleCallStack.find(p => p.equals(call)),
-      );
-
-    const teardownCallStack = tx.publicTeardownFunctionCall.isEmpty() ? [] : [tx.publicTeardownFunctionCall];
-
-    if (callRequestsStack.length === 0) {
-      return {
-        [PublicKernelType.NON_PUBLIC]: [],
-        [PublicKernelType.SETUP]: [],
-        [PublicKernelType.APP_LOGIC]: [],
-        [PublicKernelType.TEARDOWN]: teardownCallStack,
-        [PublicKernelType.TAIL]: [],
-      };
-    }
-
-    // find the first call that is revertible
-    const firstRevertibleCallIndex = callRequestsStack.findIndex(
-      c => revertibleCallStack.findIndex(p => p.equals(c)) !== -1,
-    );
-
-    if (firstRevertibleCallIndex === 0) {
-      return {
-        [PublicKernelType.NON_PUBLIC]: [],
-        [PublicKernelType.SETUP]: [],
-        [PublicKernelType.APP_LOGIC]: publicCallsStack,
-        [PublicKernelType.TEARDOWN]: teardownCallStack,
-        [PublicKernelType.TAIL]: [],
-      };
-    } else if (firstRevertibleCallIndex === -1) {
-      // there's no app logic, split the functions between setup (many) and teardown (just one function call)
-      return {
-        [PublicKernelType.NON_PUBLIC]: [],
-        [PublicKernelType.SETUP]: publicCallsStack,
-        [PublicKernelType.APP_LOGIC]: [],
-        [PublicKernelType.TEARDOWN]: teardownCallStack,
-        [PublicKernelType.TAIL]: [],
-      };
-    } else {
-      return {
-        [PublicKernelType.NON_PUBLIC]: [],
-        [PublicKernelType.SETUP]: publicCallsStack.slice(0, firstRevertibleCallIndex),
-        [PublicKernelType.APP_LOGIC]: publicCallsStack.slice(firstRevertibleCallIndex),
-        [PublicKernelType.TEARDOWN]: teardownCallStack,
-        [PublicKernelType.TAIL]: [],
-      };
-    }
+  public static extractEnqueuedPublicCallsByPhase(tx: Tx): Record<PublicKernelType, PublicExecutionRequest[]> {
+    const teardownRequest = tx.getPublicTeardownExecutionRequest();
+    return {
+      [PublicKernelType.NON_PUBLIC]: [],
+      [PublicKernelType.SETUP]: tx.getNonRevertiblePublicExecutionRequests(),
+      [PublicKernelType.APP_LOGIC]: tx.getRevertiblePublicExecutionRequests(),
+      [PublicKernelType.TEARDOWN]: teardownRequest ? [teardownRequest] : [],
+      [PublicKernelType.TAIL]: [],
+    };
   }
 
-  protected extractEnqueuedPublicCalls(tx: Tx): PublicCallRequest[] {
+  protected extractEnqueuedPublicCalls(tx: Tx): PublicExecutionRequest[] {
     const calls = AbstractPhaseManager.extractEnqueuedPublicCallsByPhase(tx)[this.phase];
 
     return calls;
@@ -245,7 +186,7 @@ export abstract class AbstractPhaseManager {
     previousPublicKernelOutput: PublicKernelCircuitPublicInputs,
     previousKernelArtifact: ProtocolArtifact,
   ): Promise<TxPublicCallsResult> {
-    const enqueuedCalls = this.extractEnqueuedPublicCalls(tx);
+    const enqueuedCalls = [...this.extractEnqueuedPublicCalls(tx)].reverse();
 
     if (!enqueuedCalls || !enqueuedCalls.length) {
       return {
@@ -299,7 +240,7 @@ export abstract class AbstractPhaseManager {
 
         // Sanity check for a current upstream assumption.
         // Consumers of the result seem to expect "reverted <=> revertReason !== undefined".
-        const functionSelector = result.executionRequest.functionSelector.toString();
+        const functionSelector = result.executionRequest.callContext.functionSelector.toString();
         if (result.reverted && !result.revertReason) {
           throw new Error(
             `Simulation of ${result.executionRequest.contractAddress.toString()}:${functionSelector}(${
@@ -460,13 +401,6 @@ export abstract class AbstractPhaseManager {
     const publicDataTreeInfo = await this.db.getTreeInfo(MerkleTreeId.PUBLIC_DATA_TREE);
     this.historicalHeader.state.partial.publicDataTree.root = Fr.fromBuffer(publicDataTreeInfo.root);
 
-    const callStackPreimages = await this.getPublicCallStackPreimages(result);
-    const publicCallStackHashes = padArrayEnd(
-      callStackPreimages.map(c => c.getCompressed().hash()),
-      Fr.ZERO,
-      MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    );
-
     const publicCircuitPublicInputs = PublicCircuitPublicInputs.from({
       callContext: result.executionRequest.callContext,
       proverAddress: AztecAddress.ZERO,
@@ -507,7 +441,11 @@ export abstract class AbstractPhaseManager {
         ContractStorageUpdateRequest.empty(),
         MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
       ),
-      publicCallStackHashes,
+      publicCallRequests: padArrayEnd(
+        result.publicCallRequests,
+        PublicCallRequest.empty(),
+        MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+      ),
       unencryptedLogsHashes: padArrayEnd(result.unencryptedLogsHashes, LogHash.empty(), MAX_UNENCRYPTED_LOGS_PER_CALL),
       historicalHeader: this.historicalHeader,
       globalVariables: this.globalVariables,
@@ -520,21 +458,10 @@ export abstract class AbstractPhaseManager {
 
     return new PublicCallStackItem(
       result.executionRequest.contractAddress,
-      new FunctionData(result.executionRequest.functionSelector, false),
+      new FunctionData(result.executionRequest.callContext.functionSelector, false),
       publicCircuitPublicInputs,
       isExecutionRequest,
     );
-  }
-
-  protected async getPublicCallStackPreimages(result: PublicExecutionResult): Promise<PublicCallStackItem[]> {
-    const nested = result.nestedExecutions;
-    if (nested.length > MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL) {
-      throw new Error(
-        `Public call stack size exceeded (max ${MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL}, got ${nested.length})`,
-      );
-    }
-
-    return await Promise.all(nested.map(n => this.getPublicCallStackItem(n)));
   }
 
   /**
@@ -562,10 +489,7 @@ export abstract class AbstractPhaseManager {
 
     let max = 0;
     for (const sideEffect of sideEffectCounters) {
-      if ('startSideEffectCounter' in sideEffect) {
-        // look at both start and end counters because for enqueued public calls start > 0 while end === 0
-        max = Math.max(max, sideEffect.startSideEffectCounter.toNumber(), sideEffect.endSideEffectCounter.toNumber());
-      } else if ('counter' in sideEffect) {
+      if ('counter' in sideEffect) {
         max = Math.max(max, sideEffect.counter);
       } else {
         throw new Error('Unknown side effect type');
@@ -593,10 +517,6 @@ export abstract class AbstractPhaseManager {
   protected async getPublicCallData(result: PublicExecutionResult, isExecutionRequest = false) {
     const bytecodeHash = await this.getBytecodeHash(result);
     const callStackItem = await this.getPublicCallStackItem(result, isExecutionRequest);
-    const publicCallRequests = (await this.getPublicCallStackPreimages(result)).map(c =>
-      c.toCallRequest(callStackItem.publicInputs.callContext),
-    );
-    const publicCallStack = padArrayEnd(publicCallRequests, CallRequest.empty(), MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
-    return new PublicCallData(callStackItem, publicCallStack, makeEmptyProof(), bytecodeHash);
+    return new PublicCallData(callStackItem, makeEmptyProof(), bytecodeHash);
   }
 }

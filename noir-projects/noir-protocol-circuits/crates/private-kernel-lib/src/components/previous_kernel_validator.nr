@@ -14,12 +14,12 @@ impl PreviousKernelValidator {
 
     pub fn validate_for_private_tail(self) {
         self.validate_common();
-        self.validate_empty_public_call_stack();
+        self.validate_empty_public_call_requests();
     }
 
     pub fn validate_for_private_tail_to_public(self) {
         self.validate_common();
-        self.validate_non_empty_public_call_stack();
+        self.validate_non_empty_public_call_requests();
     }
 
     fn validate_common(self) {
@@ -34,19 +34,19 @@ impl PreviousKernelValidator {
         );
     }
 
-    fn validate_empty_public_call_stack(self) {
+    fn validate_empty_public_call_requests(self) {
         assert_eq(
-            array_length(self.previous_kernel.end.public_call_stack), 0, "Public call stack must be empty when executing the tail circuit"
+            array_length(self.previous_kernel.end.public_call_requests), 0, "Public call stack must be empty when executing the tail circuit"
         );
         assert(
             is_empty(self.previous_kernel.public_teardown_call_request), "Public teardown call request must be empty when executing the tail circuit"
         );
     }
 
-    fn validate_non_empty_public_call_stack(self) {
-        let call_stack_len = array_length(self.previous_kernel.end.public_call_stack);
+    fn validate_non_empty_public_call_requests(self) {
+        let len = array_length(self.previous_kernel.end.public_call_requests);
         assert(
-            (call_stack_len != 0) | !is_empty(self.previous_kernel.public_teardown_call_request), "Must have public calls when exporting public kernel data from the tail circuit"
+            (len != 0) | !is_empty(self.previous_kernel.public_teardown_call_request), "Must have public calls when exporting public kernel data from the tail circuit"
         );
     }
 

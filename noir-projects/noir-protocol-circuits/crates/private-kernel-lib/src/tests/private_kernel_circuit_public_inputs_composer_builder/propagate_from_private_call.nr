@@ -194,7 +194,7 @@ fn propagate_from_private_call_public_call_requests_succeeds() {
 
     let output = builder.compose_from_tx_request();
 
-    assert_array_eq(output.end.public_call_stack, [res[0], res[1]]);
+    assert_array_eq(output.end.public_call_requests, [res[0], res[1]]);
 }
 
 #[test]

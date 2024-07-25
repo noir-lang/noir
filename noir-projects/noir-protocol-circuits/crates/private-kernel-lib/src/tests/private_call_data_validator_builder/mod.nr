@@ -12,7 +12,10 @@ mod validate_private_call_requests;
 
 use crate::components::private_call_data_validator::PrivateCallDataValidator;
 use dep::types::{
-    abis::{note_hash::ScopedNoteHash, private_call_request::ScopedPrivateCallRequest},
+    abis::{
+    note_hash::ScopedNoteHash, private_call_request::PrivateCallRequest,
+    private_kernel::private_call_data::PrivateCallData
+},
     tests::fixture_builder::FixtureBuilder, transaction::tx_request::TxRequest
 };
 
@@ -48,6 +51,10 @@ impl PrivateCallDataValidatorBuilder {
         *self
     }
 
+    pub fn get_private_call_data(self) -> PrivateCallData {
+        self.private_call.to_private_call_data()
+    }
+
     pub fn validate(self) {
         let private_call = self.private_call.to_private_call_data();
         let mut accumulated_note_hashes = self.previous_note_hashes;
@@ -65,8 +72,13 @@ impl PrivateCallDataValidatorBuilder {
         PrivateCallDataValidator::new(private_call).validate_against_tx_request(request);
     }
 
-    pub fn validate_against_call_request(self, request: ScopedPrivateCallRequest) {
+    pub fn validate_against_call_request(self, request: PrivateCallRequest) {
         let private_call = self.private_call.to_private_call_data();
         PrivateCallDataValidator::new(private_call).validate_against_call_request(request);
+    }
+
+    pub fn validate_with_private_call_data(self, data: PrivateCallData) {
+        let accumulated_note_hashes = self.previous_note_hashes;
+        PrivateCallDataValidator::new(data).validate(accumulated_note_hashes.storage);
     }
 }

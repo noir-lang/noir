@@ -44,8 +44,8 @@ mod tests {
         pub fn add_private_call_request(&mut self, counter_start: u32, counter_end: u32) {
             let index = self.private_call.private_call_requests.len();
             self.private_call.append_private_call_requests(1);
-            self.private_call.private_call_requests.storage[index].call_request.start_side_effect_counter = counter_start;
-            self.private_call.private_call_requests.storage[index].call_request.end_side_effect_counter = counter_end;
+            self.private_call.private_call_requests.storage[index].start_side_effect_counter = counter_start;
+            self.private_call.private_call_requests.storage[index].end_side_effect_counter = counter_end;
             self.private_call.counter = counter_end + 1;
         }
 

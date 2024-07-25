@@ -25,14 +25,13 @@ import {
   PUBLIC_DATA_TREE_HEIGHT,
   PartialStateReference,
   PublicAccumulatedDataBuilder,
-  PublicCallRequest,
   PublicDataTreeLeafPreimage,
   PublicDataUpdateRequest,
   RevertCode,
   StateReference,
 } from '@aztec/circuits.js';
 import { computePublicDataTreeLeafSlot } from '@aztec/circuits.js/hash';
-import { fr, makeAztecAddress, makePublicCallRequest, makeSelector } from '@aztec/circuits.js/testing';
+import { fr, makeSelector } from '@aztec/circuits.js/testing';
 import { arrayNonEmptyLength, times } from '@aztec/foundation/collection';
 import { type FieldsOf } from '@aztec/foundation/types';
 import { openTmpStore } from '@aztec/kv-store/utils';
@@ -99,10 +98,7 @@ describe('public_processor', () => {
     });
 
     it('skips txs without public execution requests', async function () {
-      const tx = mockTx(1, {
-        numberOfNonRevertiblePublicCallRequests: 0,
-        numberOfRevertiblePublicCallRequests: 0,
-      });
+      const tx = mockTx(1, { numberOfNonRevertiblePublicCallRequests: 0, numberOfRevertiblePublicCallRequests: 0 });
 
       const hash = tx.getTxHash();
       const [processed, failed] = await processor.process([tx], 1, prover);
@@ -151,34 +147,6 @@ describe('public_processor', () => {
     let publicKernel: PublicKernelCircuitSimulator;
     let publicDataTree: AppendOnlyTree<Fr>;
 
-    const mockTxWithPartialState = (
-      {
-        hasLogs = false,
-        numberOfNonRevertiblePublicCallRequests = 0,
-        numberOfRevertiblePublicCallRequests = 0,
-        publicCallRequests = [],
-        publicTeardownCallRequest = PublicCallRequest.empty(),
-        feePayer = AztecAddress.ZERO,
-      }: {
-        hasLogs?: boolean;
-        numberOfNonRevertiblePublicCallRequests?: number;
-        numberOfRevertiblePublicCallRequests?: number;
-        publicCallRequests?: PublicCallRequest[];
-        publicTeardownCallRequest?: PublicCallRequest;
-        feePayer?: AztecAddress;
-      } = {},
-      seed = 1,
-    ) => {
-      return mockTx(seed, {
-        hasLogs,
-        numberOfNonRevertiblePublicCallRequests,
-        numberOfRevertiblePublicCallRequests,
-        publicCallRequests,
-        publicTeardownCallRequest,
-        feePayer,
-      });
-    };
-
     beforeAll(async () => {
       publicDataTree = await newTree(
         StandardTree,
@@ -210,6 +178,11 @@ describe('public_processor', () => {
       db.getPreviousValueIndex.mockResolvedValue({ index: 0n, alreadyPresent: true });
       db.getLeafPreimage.mockResolvedValue(new PublicDataTreeLeafPreimage(new Fr(0), new Fr(0), new Fr(0), 0n));
 
+      publicExecutor.simulate.mockImplementation(request => {
+        const result = PublicExecutionResultBuilder.fromPublicExecutionRequest({ request }).build();
+        return Promise.resolve(result);
+      });
+
       publicKernel = new RealPublicKernelCircuitSimulator(new WASMSimulator());
       processor = new PublicProcessor(
         db,
@@ -224,20 +197,10 @@ describe('public_processor', () => {
     });
 
     it('runs a tx with enqueued public calls', async function () {
-      const tx = mockTxWithPartialState({
-        hasLogs: true,
+      const tx = mockTx(1, {
+        numberOfNonRevertiblePublicCallRequests: 0,
         numberOfRevertiblePublicCallRequests: 2,
-        publicTeardownCallRequest: PublicCallRequest.empty(),
-      });
-
-      publicExecutor.simulate.mockImplementation(execution => {
-        for (const request of tx.enqueuedPublicFunctionCalls) {
-          if (execution.contractAddress.equals(request.contractAddress)) {
-            const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build();
-            return Promise.resolve(result);
-          }
-        }
-        throw new Error(`Unexpected execution request: ${execution}`);
+        hasLogs: true,
       });
 
       const [processed, failed] = await processor.process([tx], 1, prover);
@@ -258,14 +221,14 @@ describe('public_processor', () => {
     });
 
     it('runs a tx with an enqueued public call with nested execution', async function () {
-      const tx = mockTxWithPartialState({ numberOfRevertiblePublicCallRequests: 1 });
-      const callRequest = tx.enqueuedPublicFunctionCalls[0];
+      const tx = mockTx(1, { numberOfNonRevertiblePublicCallRequests: 0, numberOfRevertiblePublicCallRequests: 1 });
+      const request = tx.getRevertiblePublicExecutionRequests()[0];
 
-      const publicExecutionResult = PublicExecutionResultBuilder.fromPublicCallRequest({
-        request: callRequest,
+      const publicExecutionResult = PublicExecutionResultBuilder.fromPublicExecutionRequest({
+        request,
         nestedExecutions: [
           PublicExecutionResultBuilder.fromFunctionCall({
-            from: callRequest.contractAddress,
+            from: request.contractAddress,
             tx: makeFunctionCall(),
           }).build(),
         ],
@@ -291,22 +254,8 @@ describe('public_processor', () => {
 
     it('does not attempt to overfill a block', async function () {
       const txs = Array.from([1, 2, 3], index =>
-        mockTxWithPartialState({ numberOfRevertiblePublicCallRequests: 1 }, index),
+        mockTx(index, { numberOfNonRevertiblePublicCallRequests: 0, numberOfRevertiblePublicCallRequests: 1 }),
       );
-
-      let txCount = 0;
-
-      publicExecutor.simulate.mockImplementation(execution => {
-        const tx = txs[txCount++];
-        for (const request of tx.enqueuedPublicFunctionCalls) {
-          if (execution.contractAddress.equals(request.contractAddress)) {
-            const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build();
-            // result.unencryptedLogs = tx.unencryptedLogs.functionLogs[0];
-            return Promise.resolve(result);
-          }
-        }
-        throw new Error(`Unexpected execution request: ${execution}`);
-      });
 
       // We are passing 3 txs but only 2 can fit in the block
       const [processed, failed] = await processor.process(txs, 2, prover);
@@ -326,18 +275,7 @@ describe('public_processor', () => {
     });
 
     it('does not send a transaction to the prover if validation fails', async function () {
-      const tx = mockTxWithPartialState({ numberOfRevertiblePublicCallRequests: 1 });
-
-      publicExecutor.simulate.mockImplementation(execution => {
-        for (const request of tx.enqueuedPublicFunctionCalls) {
-          if (execution.contractAddress.equals(request.contractAddress)) {
-            const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build();
-            // result.unencryptedLogs = tx.unencryptedLogs.functionLogs[0];
-            return Promise.resolve(result);
-          }
-        }
-        throw new Error(`Unexpected execution request: ${execution}`);
-      });
+      const tx = mockTx(1, { numberOfNonRevertiblePublicCallRequests: 0, numberOfRevertiblePublicCallRequests: 1 });
 
       const txValidator: MockProxy<TxValidator<ProcessedTx>> = mock();
       txValidator.validateTxs.mockRejectedValue([[], [tx]]);
@@ -352,29 +290,21 @@ describe('public_processor', () => {
     });
 
     it('rolls back app logic db updates on failed public execution, but persists setup', async function () {
-      const baseContractAddressSeed = 0x200;
-      const baseContractAddress = makeAztecAddress(baseContractAddressSeed);
-      const publicCallRequests: PublicCallRequest[] = [
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-      ].map(makePublicCallRequest);
-      publicCallRequests[0].sideEffectCounter = 2;
-      publicCallRequests[1].sideEffectCounter = 3;
-      publicCallRequests[2].sideEffectCounter = 4;
-      const teardown = publicCallRequests.pop()!; // Remove the last call request to test that the processor can handle this
-
-      const tx = mockTxWithPartialState({
+      const tx = mockTx(1, {
         hasLogs: true,
         numberOfNonRevertiblePublicCallRequests: 1,
         numberOfRevertiblePublicCallRequests: 1,
-        publicCallRequests,
-        publicTeardownCallRequest: teardown,
+        hasPublicTeardownCallRequest: true,
       });
+
+      const nonRevertibleRequests = tx.getNonRevertiblePublicExecutionRequests();
+      const revertibleRequests = tx.getRevertiblePublicExecutionRequests();
+      const teardownRequest = tx.getPublicTeardownExecutionRequest()!;
 
       const teardownGas = tx.data.constants.txContext.gasSettings.getTeardownLimits();
       const teardownResultSettings = { startGasLeft: teardownGas, endGasLeft: teardownGas };
 
+      const nestedContractAddress = AztecAddress.fromBigInt(112233n);
       const contractSlotA = fr(0x100);
       const contractSlotB = fr(0x150);
       const contractSlotC = fr(0x200);
@@ -385,46 +315,44 @@ describe('public_processor', () => {
       let simulatorCallCount = 0;
       const simulatorResults: PublicExecutionResult[] = [
         // Setup
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: publicCallRequests[0],
-          contractStorageUpdateRequests: [
-            new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11, baseContractAddress),
-          ],
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: nonRevertibleRequests[0],
+          contractStorageUpdateRequests: [new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11)],
         }).build(),
 
         // App Logic
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: publicCallRequests[1],
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: revertibleRequests[0],
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: publicCallRequests[1].contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              from: revertibleRequests[0].callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 13, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 14, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x200), 15, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 13),
+                new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 14),
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x200), 15),
               ],
             }).build(),
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: publicCallRequests[1].contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              from: revertibleRequests[0].contractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
               revertReason: new SimulationError('Simulation Failed', []),
             }).build(),
           ],
         }).build(),
 
         // Teardown
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: teardown,
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: teardownRequest,
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: teardown.contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              from: teardownRequest.callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 16, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotD, fr(0x251), 17, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotE, fr(0x301), 18, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotF, fr(0x351), 19, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 16),
+                new ContractStorageUpdateRequest(contractSlotD, fr(0x251), 17),
+                new ContractStorageUpdateRequest(contractSlotE, fr(0x301), 18),
+                new ContractStorageUpdateRequest(contractSlotF, fr(0x351), 19),
               ],
             }).build(teardownResultSettings),
           ],
@@ -460,22 +388,18 @@ describe('public_processor', () => {
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
 
       const txEffect = toTxEffect(processed[0], GasFees.default());
-      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(5);
-      expect(txEffect.publicDataWrites[0]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x101)),
-      );
-      expect(txEffect.publicDataWrites[1]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotF), fr(0x351)),
-      );
-      expect(txEffect.publicDataWrites[2]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotD), fr(0x251)),
-      );
-      expect(txEffect.publicDataWrites[3]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotE), fr(0x301)),
-      );
-      expect(txEffect.publicDataWrites[4]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotC), fr(0x201)),
-      );
+      const numPublicDataWrites = 5;
+      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toBe(numPublicDataWrites);
+      expect(txEffect.publicDataWrites.slice(0, numPublicDataWrites)).toEqual([
+        new PublicDataWrite(
+          computePublicDataTreeLeafSlot(nonRevertibleRequests[0].callContext.storageContractAddress, contractSlotA),
+          fr(0x101),
+        ),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotE), fr(0x301)),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotC), fr(0x201)),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotF), fr(0x351)),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotD), fr(0x251)),
+      ]);
 
       // we keep the non-revertible logs
       expect(txEffect.encryptedLogs.getTotalLogCount()).toBe(3);
@@ -485,25 +409,17 @@ describe('public_processor', () => {
     });
 
     it('fails a transaction that reverts in setup', async function () {
-      const baseContractAddressSeed = 0x200;
-      const baseContractAddress = makeAztecAddress(baseContractAddressSeed);
-      const publicCallRequests: PublicCallRequest[] = [
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-      ].map(makePublicCallRequest);
-      publicCallRequests[0].sideEffectCounter = 2;
-      publicCallRequests[1].sideEffectCounter = 3;
-      publicCallRequests[2].sideEffectCounter = 4;
-      const teardown = publicCallRequests.pop()!;
-
-      const tx = mockTxWithPartialState({
+      const tx = mockTx(1, {
         numberOfNonRevertiblePublicCallRequests: 1,
         numberOfRevertiblePublicCallRequests: 1,
-        publicCallRequests,
-        publicTeardownCallRequest: teardown,
+        hasPublicTeardownCallRequest: true,
       });
 
+      const nonRevertibleRequests = tx.getNonRevertiblePublicExecutionRequests();
+      const revertibleRequests = tx.getRevertiblePublicExecutionRequests();
+      const teardownRequest = tx.getPublicTeardownExecutionRequest()!;
+
+      const nestedContractAddress = AztecAddress.fromBigInt(112233n);
       const contractSlotA = fr(0x100);
       const contractSlotB = fr(0x150);
       const contractSlotC = fr(0x200);
@@ -511,43 +427,39 @@ describe('public_processor', () => {
       let simulatorCallCount = 0;
       const simulatorResults: PublicExecutionResult[] = [
         // Setup
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: publicCallRequests[0],
-          contractStorageUpdateRequests: [
-            new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11, baseContractAddress),
-          ],
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: nonRevertibleRequests[0],
+          contractStorageUpdateRequests: [new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11)],
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: publicCallRequests[1].contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              from: nonRevertibleRequests[0].callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 13, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12),
+                new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 13),
               ],
             }).build(),
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: publicCallRequests[1].contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              from: nonRevertibleRequests[0].callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
               revertReason: new SimulationError('Simulation Failed', []),
             }).build(),
           ],
         }).build(),
 
         // App Logic
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: publicCallRequests[2],
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: revertibleRequests[0],
         }).build(),
 
         // Teardown
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: teardown,
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: teardownRequest,
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: teardown.contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
-              contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
-              ],
+              from: teardownRequest.callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
+              contractStorageUpdateRequests: [new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16)],
             }).build(),
           ],
         }).build(),
@@ -585,29 +497,21 @@ describe('public_processor', () => {
     });
 
     it('includes a transaction that reverts in teardown', async function () {
-      const baseContractAddressSeed = 0x200;
-      const baseContractAddress = makeAztecAddress(baseContractAddressSeed);
-      const publicCallRequests: PublicCallRequest[] = [
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-      ].map(makePublicCallRequest);
-      publicCallRequests[0].sideEffectCounter = 2;
-      publicCallRequests[1].sideEffectCounter = 3;
-      publicCallRequests[2].sideEffectCounter = 4;
-      const teardown = publicCallRequests.pop()!;
-
-      const tx = mockTxWithPartialState({
+      const tx = mockTx(1, {
         hasLogs: true,
         numberOfNonRevertiblePublicCallRequests: 1,
         numberOfRevertiblePublicCallRequests: 1,
-        publicCallRequests,
-        publicTeardownCallRequest: teardown,
+        hasPublicTeardownCallRequest: true,
       });
+
+      const nonRevertibleRequests = tx.getNonRevertiblePublicExecutionRequests();
+      const revertibleRequests = tx.getRevertiblePublicExecutionRequests();
+      const teardownRequest = tx.getPublicTeardownExecutionRequest()!;
 
       const teardownGas = tx.data.constants.txContext.gasSettings.getTeardownLimits();
       const teardownResultSettings = { startGasLeft: teardownGas, endGasLeft: teardownGas };
 
+      const nestedContractAddress = AztecAddress.fromBigInt(112233n);
       const contractSlotA = fr(0x100);
       const contractSlotB = fr(0x150);
       const contractSlotC = fr(0x200);
@@ -615,49 +519,43 @@ describe('public_processor', () => {
       let simulatorCallCount = 0;
       const simulatorResults: PublicExecutionResult[] = [
         // Setup
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: publicCallRequests[0],
-          contractStorageUpdateRequests: [
-            new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11, baseContractAddress),
-          ],
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: nonRevertibleRequests[0],
+          contractStorageUpdateRequests: [new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11)],
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: publicCallRequests[0].contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              from: nonRevertibleRequests[0].callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 13, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12),
+                new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 13),
               ],
             }).build(),
           ],
         }).build(),
 
         // App Logic
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: publicCallRequests[1],
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: revertibleRequests[0],
           contractStorageUpdateRequests: [
-            new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 14, baseContractAddress),
-            new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 15, baseContractAddress),
+            new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 14),
+            new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 15),
           ],
         }).build(),
 
         // Teardown
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: teardown,
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: teardownRequest,
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: teardown.contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
-              contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
-              ],
+              from: teardownRequest.callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
+              contractStorageUpdateRequests: [new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16)],
             }).build(teardownResultSettings),
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: teardown.contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
-              contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
-              ],
+              from: teardownRequest.callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
+              contractStorageUpdateRequests: [new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16)],
               revertReason: new SimulationError('Simulation Failed', []),
             }).build(teardownResultSettings),
           ],
@@ -693,13 +591,16 @@ describe('public_processor', () => {
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
 
       const txEffect = toTxEffect(processed[0], GasFees.default());
-      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(2);
-      expect(txEffect.publicDataWrites[0]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotB), fr(0x151)),
-      );
-      expect(txEffect.publicDataWrites[1]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x102)),
-      );
+      const numPublicDataWrites = 3;
+      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toBe(numPublicDataWrites);
+      expect(txEffect.publicDataWrites.slice(0, numPublicDataWrites)).toEqual([
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotB), fr(0x151)),
+        new PublicDataWrite(
+          computePublicDataTreeLeafSlot(nonRevertibleRequests[0].callContext.storageContractAddress, contractSlotA),
+          fr(0x101),
+        ),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotA), fr(0x102)),
+      ]);
 
       // we keep the non-revertible logs
       expect(txEffect.encryptedLogs.getTotalLogCount()).toBe(3);
@@ -711,29 +612,21 @@ describe('public_processor', () => {
     });
 
     it('includes a transaction that reverts in app logic and teardown', async function () {
-      const baseContractAddressSeed = 0x200;
-      const baseContractAddress = makeAztecAddress(baseContractAddressSeed);
-      const publicCallRequests: PublicCallRequest[] = [
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-      ].map(makePublicCallRequest);
-      publicCallRequests[0].sideEffectCounter = 2;
-      publicCallRequests[1].sideEffectCounter = 3;
-      publicCallRequests[2].sideEffectCounter = 4;
-      const teardown = publicCallRequests.pop()!;
-
-      const tx = mockTxWithPartialState({
+      const tx = mockTx(1, {
         hasLogs: true,
         numberOfNonRevertiblePublicCallRequests: 1,
         numberOfRevertiblePublicCallRequests: 1,
-        publicCallRequests,
-        publicTeardownCallRequest: teardown,
+        hasPublicTeardownCallRequest: true,
       });
+
+      const nonRevertibleRequests = tx.getNonRevertiblePublicExecutionRequests();
+      const revertibleRequests = tx.getRevertiblePublicExecutionRequests();
+      const teardownRequest = tx.getPublicTeardownExecutionRequest()!;
 
       const teardownGas = tx.data.constants.txContext.gasSettings.getTeardownLimits();
       const teardownResultSettings = { startGasLeft: teardownGas, endGasLeft: teardownGas };
 
+      const nestedContractAddress = AztecAddress.fromBigInt(112233n);
       const contractSlotA = fr(0x100);
       const contractSlotB = fr(0x150);
       const contractSlotC = fr(0x200);
@@ -741,50 +634,44 @@ describe('public_processor', () => {
       let simulatorCallCount = 0;
       const simulatorResults: PublicExecutionResult[] = [
         // Setup
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: publicCallRequests[0],
-          contractStorageUpdateRequests: [
-            new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11, baseContractAddress),
-          ],
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: nonRevertibleRequests[0],
+          contractStorageUpdateRequests: [new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 11)],
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: publicCallRequests[0].contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              from: nonRevertibleRequests[0].callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 13, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 12),
+                new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 13),
               ],
             }).build(),
           ],
         }).build(),
 
         // App Logic
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: publicCallRequests[1],
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: revertibleRequests[0],
           contractStorageUpdateRequests: [
-            new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 14, baseContractAddress),
-            new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 15, baseContractAddress),
+            new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 14),
+            new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 15),
           ],
           revertReason: new SimulationError('Simulation Failed', []),
         }).build(),
 
         // Teardown
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: teardown,
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: teardownRequest,
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: teardown.contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
-              contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
-              ],
+              from: teardownRequest.callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
+              contractStorageUpdateRequests: [new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16)],
             }).build(teardownResultSettings),
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: teardown.contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
-              contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16, baseContractAddress),
-              ],
+              from: teardownRequest.callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
+              contractStorageUpdateRequests: [new ContractStorageUpdateRequest(contractSlotC, fr(0x202), 16)],
               revertReason: new SimulationError('Simulation Failed', []),
             }).build(teardownResultSettings),
           ],
@@ -820,13 +707,16 @@ describe('public_processor', () => {
       expect(publicWorldStateDB.rollbackToCommit).toHaveBeenCalledTimes(0);
 
       const txEffect = toTxEffect(processed[0], GasFees.default());
-      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(2);
-      expect(txEffect.publicDataWrites[0]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotB), fr(0x151)),
-      );
-      expect(txEffect.publicDataWrites[1]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x102)),
-      );
+      const numPublicDataWrites = 3;
+      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toBe(numPublicDataWrites);
+      expect(txEffect.publicDataWrites.slice(0, numPublicDataWrites)).toEqual([
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotB), fr(0x151)),
+        new PublicDataWrite(
+          computePublicDataTreeLeafSlot(nonRevertibleRequests[0].callContext.storageContractAddress, contractSlotA),
+          fr(0x101),
+        ),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotA), fr(0x102)),
+      ]);
 
       // we keep the non-revertible logs
       expect(txEffect.encryptedLogs.getTotalLogCount()).toBe(3);
@@ -838,24 +728,15 @@ describe('public_processor', () => {
     });
 
     it('runs a tx with setup and teardown phases', async function () {
-      const baseContractAddressSeed = 0x200;
-      const baseContractAddress = makeAztecAddress(baseContractAddressSeed);
-      const publicCallRequests: PublicCallRequest[] = [
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-        baseContractAddressSeed,
-      ].map(makePublicCallRequest);
-      publicCallRequests[0].sideEffectCounter = 2;
-      publicCallRequests[1].sideEffectCounter = 3;
-      publicCallRequests[2].sideEffectCounter = 4;
-      const teardown = publicCallRequests.pop(); // Remove the last call request to test that the processor can handle this
-
-      const tx = mockTxWithPartialState({
+      const tx = mockTx(1, {
         numberOfNonRevertiblePublicCallRequests: 1,
         numberOfRevertiblePublicCallRequests: 1,
-        publicCallRequests,
-        publicTeardownCallRequest: teardown,
+        hasPublicTeardownCallRequest: true,
       });
+
+      const nonRevertibleRequests = tx.getNonRevertiblePublicExecutionRequests();
+      const revertibleRequests = tx.getRevertiblePublicExecutionRequests();
+      const teardownRequest = tx.getPublicTeardownExecutionRequest()!;
 
       const gasLimits = Gas.from({ l2Gas: 1e9, daGas: 1e9 });
       const teardownGas = Gas.from({ l2Gas: 1e7, daGas: 1e7 });
@@ -876,6 +757,7 @@ describe('public_processor', () => {
         .withGasUsed(Gas.empty())
         .build();
 
+      const nestedContractAddress = revertibleRequests[0].callContext.storageContractAddress;
       const contractSlotA = fr(0x100);
       const contractSlotB = fr(0x150);
       const contractSlotC = fr(0x200);
@@ -900,45 +782,45 @@ describe('public_processor', () => {
 
       const simulatorResults: PublicExecutionResult[] = [
         // Setup
-        PublicExecutionResultBuilder.fromPublicCallRequest({ request: publicCallRequests[0] }).build({
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({ request: nonRevertibleRequests[0] }).build({
           startGasLeft: initialGas,
           endGasLeft: afterSetupGas,
         }),
 
         // App Logic
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: publicCallRequests[1],
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: revertibleRequests[0],
           contractStorageUpdateRequests: [
-            new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 10, baseContractAddress),
-            new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 11, baseContractAddress),
+            new ContractStorageUpdateRequest(contractSlotA, fr(0x101), 10),
+            new ContractStorageUpdateRequest(contractSlotB, fr(0x151), 11),
           ],
-          contractStorageReads: [new ContractStorageRead(contractSlotA, fr(0x100), 19, baseContractAddress)],
+          contractStorageReads: [new ContractStorageRead(contractSlotA, fr(0x100), 19)],
         }).build({
           startGasLeft: afterSetupGas,
           endGasLeft: afterAppGas,
         }),
 
         // Teardown
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: teardown!,
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: teardownRequest,
           nestedExecutions: [
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: teardown!.contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              from: teardownRequest.callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x103), 16, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 17, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x103), 16),
+                new ContractStorageUpdateRequest(contractSlotC, fr(0x201), 17),
               ],
-              contractStorageReads: [new ContractStorageRead(contractSlotA, fr(0x102), 15, baseContractAddress)],
+              contractStorageReads: [new ContractStorageRead(contractSlotA, fr(0x102), 15)],
             }).build({ startGasLeft: teardownGas, endGasLeft: teardownGas, transactionFee }),
             PublicExecutionResultBuilder.fromFunctionCall({
-              from: teardown!.contractAddress,
-              tx: makeFunctionCall('', baseContractAddress, makeSelector(5)),
+              from: teardownRequest.callContext.storageContractAddress,
+              tx: makeFunctionCall('', nestedContractAddress, makeSelector(5)),
               contractStorageUpdateRequests: [
-                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 13, baseContractAddress),
-                new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 14, baseContractAddress),
+                new ContractStorageUpdateRequest(contractSlotA, fr(0x102), 13),
+                new ContractStorageUpdateRequest(contractSlotB, fr(0x152), 14),
               ],
-              contractStorageReads: [new ContractStorageRead(contractSlotA, fr(0x101), 12, baseContractAddress)],
+              contractStorageReads: [new ContractStorageRead(contractSlotA, fr(0x101), 12)],
             }).build({ startGasLeft: teardownGas, endGasLeft: teardownGas, transactionFee }),
           ],
         }).build({
@@ -1002,16 +884,13 @@ describe('public_processor', () => {
       expect(processed[0].gasUsed[PublicKernelType.NON_PUBLIC]).toBeUndefined();
 
       const txEffect = toTxEffect(processed[0], GasFees.default());
-      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(3);
-      expect(txEffect.publicDataWrites[0]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotB), fr(0x152)),
-      );
-      expect(txEffect.publicDataWrites[1]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotA), fr(0x103)),
-      );
-      expect(txEffect.publicDataWrites[2]).toEqual(
-        new PublicDataWrite(computePublicDataTreeLeafSlot(baseContractAddress, contractSlotC), fr(0x201)),
-      );
+      const numPublicDataWrites = 3;
+      expect(arrayNonEmptyLength(txEffect.publicDataWrites, PublicDataWrite.isEmpty)).toEqual(numPublicDataWrites);
+      expect(txEffect.publicDataWrites.slice(0, numPublicDataWrites)).toEqual([
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotA), fr(0x103)),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotB), fr(0x152)),
+        new PublicDataWrite(computePublicDataTreeLeafSlot(nestedContractAddress, contractSlotC), fr(0x201)),
+      ]);
       expect(txEffect.encryptedLogs.getTotalLogCount()).toBe(0);
       expect(txEffect.unencryptedLogs.getTotalLogCount()).toBe(0);
 
@@ -1019,14 +898,13 @@ describe('public_processor', () => {
     });
 
     it('runs a tx with only teardown', async function () {
-      const baseContractAddressSeed = 0x200;
-      const teardown = makePublicCallRequest(baseContractAddressSeed);
-      const tx = mockTxWithPartialState({
+      const tx = mockTx(1, {
         numberOfNonRevertiblePublicCallRequests: 0,
         numberOfRevertiblePublicCallRequests: 0,
-        publicCallRequests: [],
-        publicTeardownCallRequest: teardown,
+        hasPublicTeardownCallRequest: true,
       });
+
+      const teardownRequest = tx.getPublicTeardownExecutionRequest()!;
 
       const gasLimits = Gas.from({ l2Gas: 1e9, daGas: 1e9 });
       const teardownGas = Gas.from({ l2Gas: 1e7, daGas: 1e7 });
@@ -1055,8 +933,8 @@ describe('public_processor', () => {
 
       const simulatorResults: PublicExecutionResult[] = [
         // Teardown
-        PublicExecutionResultBuilder.fromPublicCallRequest({
-          request: teardown,
+        PublicExecutionResultBuilder.fromPublicExecutionRequest({
+          request: teardownRequest,
           nestedExecutions: [],
         }).build({
           startGasLeft: teardownGas,
@@ -1097,9 +975,9 @@ describe('public_processor', () => {
         const feePayer = AztecAddress.random();
         const initialBalance = BigInt(1e12);
         const inclusionFee = 100n;
-        const tx = mockTxWithPartialState({
+        const tx = mockTx(1, {
+          numberOfNonRevertiblePublicCallRequests: 0,
           numberOfRevertiblePublicCallRequests: 0,
-          publicTeardownCallRequest: PublicCallRequest.empty(),
           feePayer,
         });
 
@@ -1137,9 +1015,9 @@ describe('public_processor', () => {
         const feePayer = AztecAddress.random();
         const initialBalance = BigInt(1e12);
         const inclusionFee = 100n;
-        const tx = mockTxWithPartialState({
+        const tx = mockTx(1, {
+          numberOfNonRevertiblePublicCallRequests: 0,
           numberOfRevertiblePublicCallRequests: 2,
-          publicTeardownCallRequest: PublicCallRequest.empty(),
           feePayer,
         });
 
@@ -1152,16 +1030,6 @@ describe('public_processor', () => {
         publicWorldStateDB.storageWrite.mockImplementation((address: AztecAddress, slot: Fr) =>
           Promise.resolve(computePublicDataTreeLeafSlot(address, slot).toBigInt()),
         );
-
-        publicExecutor.simulate.mockImplementation(execution => {
-          for (const request of tx.enqueuedPublicFunctionCalls) {
-            if (execution.contractAddress.equals(request.contractAddress)) {
-              const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build();
-              return Promise.resolve(result);
-            }
-          }
-          throw new Error(`Unexpected execution request: ${execution}`);
-        });
 
         const [processed, failed] = await processor.process([tx], 1, prover);
 
@@ -1189,9 +1057,9 @@ describe('public_processor', () => {
         const feePayer = AztecAddress.random();
         const initialBalance = BigInt(1e12);
         const inclusionFee = 100n;
-        const tx = mockTxWithPartialState({
+        const tx = mockTx(1, {
+          numberOfNonRevertiblePublicCallRequests: 0,
           numberOfRevertiblePublicCallRequests: 2,
-          publicTeardownCallRequest: PublicCallRequest.empty(),
           feePayer,
         });
 
@@ -1204,16 +1072,6 @@ describe('public_processor', () => {
         publicWorldStateDB.storageWrite.mockImplementation((address: AztecAddress, slot: Fr) =>
           Promise.resolve(computePublicDataTreeLeafSlot(address, slot).toBigInt()),
         );
-
-        publicExecutor.simulate.mockImplementation(execution => {
-          for (const request of tx.enqueuedPublicFunctionCalls) {
-            if (execution.contractAddress.equals(request.contractAddress)) {
-              const result = PublicExecutionResultBuilder.fromPublicCallRequest({ request }).build();
-              return Promise.resolve(result);
-            }
-          }
-          throw new Error(`Unexpected execution request: ${execution}`);
-        });
 
         tx.data.publicInputs.end.publicDataUpdateRequests[0] = PublicDataUpdateRequest.from({
           leafIndex: computeFeePayerBalanceLeafSlot(feePayer),
@@ -1247,9 +1105,9 @@ describe('public_processor', () => {
         const feePayer = AztecAddress.random();
         const initialBalance = 1n;
         const inclusionFee = 100n;
-        const tx = mockTxWithPartialState({
+        const tx = mockTx(1, {
+          numberOfNonRevertiblePublicCallRequests: 0,
           numberOfRevertiblePublicCallRequests: 0,
-          publicTeardownCallRequest: PublicCallRequest.empty(),
           feePayer,
         });
 

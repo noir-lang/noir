@@ -8,6 +8,7 @@ import {
   L1NotePayload,
   Note,
   type NoteStatus,
+  PublicExecutionRequest,
   TaggedLog,
   type UnencryptedL2Log,
 } from '@aztec/circuit-types';
@@ -17,7 +18,6 @@ import {
   type Header,
   type KeyValidationRequest,
   PrivateContextInputs,
-  PublicCallRequest,
   type TxContext,
 } from '@aztec/circuits.js';
 import { Aes128 } from '@aztec/circuits.js/barretenberg';
@@ -38,7 +38,13 @@ import { type NoteData, toACVMWitness } from '../acvm/index.js';
 import { type PackedValuesCache } from '../common/packed_values_cache.js';
 import { type DBOracle } from './db_oracle.js';
 import { type ExecutionNoteCache } from './execution_note_cache.js';
-import { CountedLog, CountedNoteLog, type ExecutionResult, type NoteAndSlot } from './execution_result.js';
+import {
+  CountedLog,
+  CountedNoteLog,
+  CountedPublicExecutionRequest,
+  type ExecutionResult,
+  type NoteAndSlot,
+} from './execution_result.js';
 import { pickNotes } from './pick_notes.js';
 import { executePrivateFunction } from './private_execution.js';
 import { ViewDataOracle } from './view_data_oracle.js';
@@ -70,8 +76,8 @@ export class ClientExecutionContext extends ViewDataOracle {
   private encryptedLogs: CountedLog<EncryptedL2Log>[] = [];
   private unencryptedLogs: CountedLog<UnencryptedL2Log>[] = [];
   private nestedExecutions: ExecutionResult[] = [];
-  private enqueuedPublicFunctionCalls: PublicCallRequest[] = [];
-  private publicTeardownFunctionCall: PublicCallRequest = PublicCallRequest.empty();
+  private enqueuedPublicFunctionCalls: CountedPublicExecutionRequest[] = [];
+  private publicTeardownFunctionCall: PublicExecutionRequest = PublicExecutionRequest.empty();
 
   constructor(
     contractAddress: AztecAddress,
@@ -528,7 +534,11 @@ export class ClientExecutionContext extends ViewDataOracle {
 
     this.nestedExecutions.push(childExecutionResult);
 
-    return childExecutionResult.callStackItem;
+    const publicInputs = childExecutionResult.callStackItem.publicInputs;
+    return {
+      endSideEffectCounter: publicInputs.endSideEffectCounter,
+      returnsHash: publicInputs.returnsHash,
+    };
   }
 
   /**
@@ -540,7 +550,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * @param isStaticCall - Whether the call is a static call.
    * @returns The public call stack item with the request information.
    */
-  protected async createPublicCallRequest(
+  protected async createPublicExecutionRequest(
     callType: 'enqueued' | 'teardown',
     targetContractAddress: AztecAddress,
     functionSelector: FunctionSelector,
@@ -548,9 +558,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     sideEffectCounter: number,
     isStaticCall: boolean,
     isDelegateCall: boolean,
-  ): Promise<PublicCallRequest> {
-    isStaticCall = isStaticCall || this.callContext.isStaticCall;
-
+  ) {
     const targetArtifact = await this.db.getFunctionArtifact(targetContractAddress, functionSelector);
     const derivedCallContext = this.deriveCallContext(
       targetContractAddress,
@@ -560,22 +568,21 @@ export class ClientExecutionContext extends ViewDataOracle {
     );
     const args = this.packedValuesCache.unpack(argsHash);
 
-    // TODO($846): if enqueued public calls are associated with global
-    // side-effect counter, that will leak info about how many other private
-    // side-effects occurred in the TX. Ultimately the private kernel should
-    // just output everything in the proper order without any counters.
     this.log.verbose(
-      `Created PublicCallRequest of type [${callType}], side-effect counter [${sideEffectCounter}] to ${targetContractAddress}:${functionSelector}(${targetArtifact.name})`,
+      `Created PublicExecutionRequest of type [${callType}], side-effect counter [${sideEffectCounter}] to ${targetContractAddress}:${functionSelector}(${targetArtifact.name})`,
     );
 
-    return PublicCallRequest.from({
+    const request = PublicExecutionRequest.from({
       args,
       callContext: derivedCallContext,
-      parentCallContext: this.callContext,
-      functionSelector,
       contractAddress: targetContractAddress,
-      sideEffectCounter,
     });
+
+    if (callType === 'enqueued') {
+      this.enqueuedPublicFunctionCalls.push(new CountedPublicExecutionRequest(request, sideEffectCounter));
+    } else {
+      this.publicTeardownFunctionCall = request;
+    }
   }
 
   /**
@@ -596,8 +603,8 @@ export class ClientExecutionContext extends ViewDataOracle {
     sideEffectCounter: number,
     isStaticCall: boolean,
     isDelegateCall: boolean,
-  ): Promise<PublicCallRequest> {
-    const enqueuedRequest = await this.createPublicCallRequest(
+  ) {
+    await this.createPublicExecutionRequest(
       'enqueued',
       targetContractAddress,
       functionSelector,
@@ -606,10 +613,6 @@ export class ClientExecutionContext extends ViewDataOracle {
       isStaticCall,
       isDelegateCall,
     );
-
-    this.enqueuedPublicFunctionCalls.push(enqueuedRequest);
-
-    return enqueuedRequest;
   }
 
   /**
@@ -630,8 +633,8 @@ export class ClientExecutionContext extends ViewDataOracle {
     sideEffectCounter: number,
     isStaticCall: boolean,
     isDelegateCall: boolean,
-  ): Promise<PublicCallRequest> {
-    const publicTeardownFunctionCall = await this.createPublicCallRequest(
+  ) {
+    await this.createPublicExecutionRequest(
       'teardown',
       targetContractAddress,
       functionSelector,
@@ -640,10 +643,6 @@ export class ClientExecutionContext extends ViewDataOracle {
       isStaticCall,
       isDelegateCall,
     );
-
-    this.publicTeardownFunctionCall = publicTeardownFunctionCall;
-
-    return publicTeardownFunctionCall;
   }
 
   /**

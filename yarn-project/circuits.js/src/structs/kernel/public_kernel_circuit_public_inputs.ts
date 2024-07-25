@@ -6,7 +6,7 @@ import { BufferReader, FieldReader, type Tuple, serializeToBuffer } from '@aztec
 import { inspect } from 'util';
 
 import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX } from '../../constants.gen.js';
-import { CallRequest } from '../call_request.js';
+import { PublicCallRequest } from '../public_call_request.js';
 import { RevertCode } from '../revert_code.js';
 import { ValidationRequests } from '../validation_requests.js';
 import { CombinedConstantData } from './combined_constant_data.js';
@@ -41,7 +41,7 @@ export class PublicKernelCircuitPublicInputs {
     /**
      * The call request for the public teardown function
      */
-    public publicTeardownCallStack: Tuple<CallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    public publicTeardownCallStack: Tuple<PublicCallRequest, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
     /**
      * The address of the fee payer for the transaction
      */
@@ -97,7 +97,7 @@ export class PublicKernelCircuitPublicInputs {
       reader.readObject(PublicAccumulatedData),
       reader.readObject(CombinedConstantData),
       reader.readObject(RevertCode),
-      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, PublicCallRequest),
       reader.readObject(AztecAddress),
     );
   }
@@ -109,7 +109,7 @@ export class PublicKernelCircuitPublicInputs {
       PublicAccumulatedData.empty(),
       CombinedConstantData.empty(),
       RevertCode.OK,
-      makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest.empty),
+      makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, PublicCallRequest.empty),
       AztecAddress.ZERO,
     );
   }
@@ -122,7 +122,7 @@ export class PublicKernelCircuitPublicInputs {
       PublicAccumulatedData.fromFields(reader),
       CombinedConstantData.fromFields(reader),
       RevertCode.fromField(reader.readField()),
-      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, CallRequest),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, PublicCallRequest),
       AztecAddress.fromFields(reader),
     );
   }

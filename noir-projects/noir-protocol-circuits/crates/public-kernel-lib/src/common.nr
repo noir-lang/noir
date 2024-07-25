@@ -1,11 +1,12 @@
 use dep::types::{
     abis::{
-    call_request::CallRequest, public_call_stack_item::PublicCallStackItem,
+    public_call_stack_item::PublicCallStackItem,
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputsBuilder,
     public_kernel_data::PublicKernelData, note_hash::NoteHash, nullifier::Nullifier,
-    public_call_data::PublicCallData, public_data_read::PublicDataRead,
-    public_data_update_request::PublicDataUpdateRequest, log_hash::{ScopedLogHash, LogHash},
-    global_variables::GlobalVariables, combined_constant_data::CombinedConstantData
+    public_call_data::PublicCallData, public_call_request::PublicCallRequest,
+    public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+    log_hash::{ScopedLogHash, LogHash}, global_variables::GlobalVariables,
+    combined_constant_data::CombinedConstantData
 },
     address::AztecAddress,
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
@@ -29,6 +30,9 @@ pub fn validate_inputs(public_call: PublicCallData) {
     assert(this_call_stack_item.function_data.selector.to_field() != 0, "Function signature cannot be zero");
     assert(
         this_call_stack_item.function_data.is_private == false, "Cannot execute a private function with the public kernel circuit"
+    );
+    assert_eq(
+        this_call_stack_item.function_data.selector, this_call_stack_item.public_inputs.call_context.function_selector, "function selector in call context does not match call stack item"
     );
     assert(public_call.bytecode_hash != 0, "Bytecode hash cannot be zero");
 }
@@ -133,14 +137,29 @@ fn perform_static_call_checks(public_call: PublicCallData) {
     }
 }
 
-fn is_valid_caller(request: CallRequest, public_call: PublicCallData) -> bool {
-    let call_context = public_call.call_stack_item.public_inputs.call_context;
+fn validate_call_context(request: PublicCallRequest, public_call: PublicCallData) {
+    let target_context = request.item.call_context;
+    let target_contract = request.item.contract_address;
+    let this_context = public_call.call_stack_item.public_inputs.call_context;
 
-    let valid_caller_context = request.caller_context.msg_sender.eq(call_context.msg_sender)
-        & request.caller_context.storage_contract_address.eq(call_context.storage_contract_address);
-
-    request.caller_contract_address.eq(public_call.call_stack_item.contract_address)
-        & (request.caller_context.is_empty() | valid_caller_context)
+    if target_context.is_delegate_call {
+        assert_eq(
+            target_context.msg_sender, this_context.msg_sender, "incorrect msg_sender for delegate call request"
+        );
+        assert_eq(
+            target_context.storage_contract_address, this_context.storage_contract_address, "incorrect storage_contract_address for delegate call request"
+        );
+    } else {
+        assert_eq(
+            target_context.msg_sender, this_context.storage_contract_address, "incorrect msg_sender for call request"
+        );
+        assert_eq(
+            target_context.storage_contract_address, target_contract, "incorrect storage_contract_address for call request"
+        );
+    }
+    if !target_context.is_static_call {
+        assert(this_context.is_static_call == false, "static call cannot make non-static calls");
+    }
 }
 
 pub fn update_end_non_revertible_call_stack(
@@ -164,29 +183,15 @@ pub fn update_teardown_call_stack(public_call: PublicCallData, circuit_outputs: 
     circuit_outputs.public_teardown_call_stack.extend_from_bounded_vec(requests);
 }
 
-fn validate_public_call_stack(public_call: PublicCallData) -> BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> {
-    let public_call_requests = array_to_bounded_vec(public_call.public_call_stack);
-    let hashes = public_call.call_stack_item.public_inputs.public_call_stack_hashes;
-    validate_call_requests(public_call_requests, hashes, public_call);
-    public_call_requests
-}
-
-fn validate_call_requests<N>(
-    call_requests: BoundedVec<CallRequest, N>,
-    hashes: [Field; N],
-    public_call: PublicCallData
-) {
-    assert_eq(
-        array_length(hashes), call_requests.len(), "call requests length does not match the expected length"
-    );
-    for i in 0..N {
-        let hash = hashes[i];
-        if hash != 0 {
-            let request = call_requests.get_unchecked(i);
-            assert_eq(request.hash, hash, "call stack hash does not match call request hash");
-            assert(is_valid_caller(request, public_call), "invalid caller");
+fn validate_public_call_stack(public_call: PublicCallData) -> BoundedVec<PublicCallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> {
+    let public_call_requests = public_call.call_stack_item.public_inputs.public_call_requests;
+    for i in 0..public_call_requests.len() {
+        let request = public_call_requests[i];
+        if !request.item.contract_address.is_zero() {
+            validate_call_context(request, public_call);
         }
     }
+    array_to_bounded_vec(public_call_requests)
 }
 
 pub fn update_validation_requests(public_call: PublicCallData, circuit_outputs: &mut PublicKernelCircuitPublicInputsBuilder) {
@@ -543,34 +548,20 @@ pub fn propagate_new_unencrypted_logs_non_revertible(
  * @param builder The circuit builder
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  */
-pub fn validate_call_against_request(public_call: PublicCallData, request: CallRequest) {
+pub fn validate_call_against_request(public_call: PublicCallData, request: PublicCallRequest) {
     // TODO: this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee' tx,
     // and the 'gas rebate' tx).
     let call_stack_item = public_call.call_stack_item;
-
     assert(
-        request.hash == call_stack_item.get_compressed().hash(), "calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the call stack"
+        call_stack_item.get_compressed() == request.item, "call stack item does not match item at the top of the call stack"
     );
 
     let call_context = call_stack_item.public_inputs.call_context;
-
     if call_context.is_delegate_call {
-        let caller_context = request.caller_context;
-        assert(!caller_context.is_empty(), "caller context cannot be empty for delegate calls");
-        assert(
-            call_context.msg_sender.eq(caller_context.msg_sender), "call stack msg_sender does not match expected msg_sender for delegate calls"
-        );
-        assert(
-            call_context.storage_contract_address.eq(caller_context.storage_contract_address), "call stack storage address does not match expected contract address for delegate calls"
-        );
         assert(
             !call_stack_item.contract_address.eq(call_context.storage_contract_address), "curent contract address must not match storage contract address for delegate calls"
         );
     } else {
-        let caller_contract_address = request.caller_contract_address;
-        assert(
-            call_context.msg_sender.eq(caller_contract_address), "call stack msg_sender does not match caller contract address"
-        );
         assert(
             call_context.storage_contract_address.eq(call_stack_item.contract_address), "call stack storage address does not match expected contract address"
         );

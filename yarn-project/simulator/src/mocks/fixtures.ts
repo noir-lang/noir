@@ -1,4 +1,9 @@
-import { type FunctionCall, type SimulationError, UnencryptedFunctionL2Logs } from '@aztec/circuit-types';
+import {
+  type FunctionCall,
+  PublicExecutionRequest,
+  type SimulationError,
+  UnencryptedFunctionL2Logs,
+} from '@aztec/circuit-types';
 import {
   ARGS_LENGTH,
   AvmExecutionHints,
@@ -8,13 +13,12 @@ import {
   type ContractStorageUpdateRequest,
   Fr,
   Gas,
-  type PublicCallRequest,
 } from '@aztec/circuits.js';
 import { makeAztecAddress, makeSelector } from '@aztec/circuits.js/testing';
 import { FunctionType } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
 
-import { type PublicExecutionRequest, type PublicExecutionResult } from '../public/execution.js';
+import { type PublicExecutionResult, resultToPublicCallRequest } from '../public/execution.js';
 
 export class PublicExecutionResultBuilder {
   private _executionRequest: PublicExecutionRequest;
@@ -29,7 +33,7 @@ export class PublicExecutionResultBuilder {
     this._executionRequest = executionRequest;
   }
 
-  static fromPublicCallRequest({
+  static fromPublicExecutionRequest({
     request,
     returnValues = [new Fr(1n)],
     nestedExecutions = [],
@@ -37,7 +41,7 @@ export class PublicExecutionResultBuilder {
     contractStorageReads = [],
     revertReason = undefined,
   }: {
-    request: PublicCallRequest;
+    request: PublicExecutionRequest;
     returnValues?: Fr[];
     nestedExecutions?: PublicExecutionResult[];
     contractStorageUpdateRequests?: ContractStorageUpdateRequest[];
@@ -74,12 +78,9 @@ export class PublicExecutionResultBuilder {
     contractStorageReads?: ContractStorageRead[];
     revertReason?: SimulationError;
   }) {
-    const builder = new PublicExecutionResultBuilder({
-      callContext: new CallContext(from, tx.to, tx.selector, false, false),
-      contractAddress: tx.to,
-      functionSelector: tx.selector,
-      args: tx.args,
-    });
+    const builder = new PublicExecutionResultBuilder(
+      new PublicExecutionRequest(tx.to, new CallContext(from, tx.to, tx.selector, false, false), tx.args),
+    );
 
     builder.withNestedExecutions(...nestedExecutions);
     builder.withContractStorageUpdateRequest(...contractStorageUpdateRequests);
@@ -122,6 +123,7 @@ export class PublicExecutionResultBuilder {
     return {
       executionRequest: this._executionRequest,
       nestedExecutions: this._nestedExecutions,
+      publicCallRequests: this._nestedExecutions.map(resultToPublicCallRequest),
       noteHashReadRequests: [],
       nullifierReadRequests: [],
       nullifierNonExistentReadRequests: [],

@@ -7,13 +7,16 @@ use crate::components::{
 };
 use dep::types::{
     abis::{
-    call_request::CallRequest,
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs},
-    log_hash::{LogHash, ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, nullifier::Nullifier
+    log_hash::{LogHash, ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, nullifier::Nullifier,
+    public_call_request::PublicCallRequest
 },
     hash::{silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier},
-    traits::{Empty, is_empty_array},
-    utils::arrays::{assert_split_sorted_transformed_value_arrays_asc, assert_split_sorted_transformed_value_arrays_desc}
+    traits::{Empty, is_empty, is_empty_array},
+    utils::arrays::{
+    assert_split_sorted_transformed_value_arrays_asc, assert_split_sorted_transformed_value_arrays_desc,
+    validate_array
+}
 };
 
 struct TailToPublicOutputValidator {
@@ -56,6 +59,18 @@ impl TailToPublicOutputValidator {
         );
 
         assert_eq(self.output.fee_payer, self.previous_kernel.fee_payer, "mismatch fee_payer");
+
+        // public_teardown_call_stack
+        let num_teardown_calls = validate_array(self.output.public_teardown_call_stack);
+        assert(
+            (num_teardown_calls == 0) | (num_teardown_calls == 1), "invalid number of teardown call requests"
+        );
+        assert_eq(
+            self.output.public_teardown_call_stack[0].item, self.previous_kernel.public_teardown_call_request.item, "mismatch public_teardown_call_request"
+        );
+        assert_eq(
+            self.output.public_teardown_call_stack[0].counter, 0, "cannot expose teardown call request counter"
+        );
     }
 
     fn validate_propagated_sorted_siloed_values(self, hints: TailToPublicOutputHints) {
@@ -149,7 +164,6 @@ impl TailToPublicOutputValidator {
         );
 
         // unencrypted_logs_hashes
-
         assert_split_sorted_transformed_value_arrays_asc(
             prev_data.unencrypted_logs_hashes,
             prev_data.unencrypted_logs_hashes,
@@ -159,20 +173,22 @@ impl TailToPublicOutputValidator {
             hints.sorted_unencrypted_log_hash_hints
         );
 
-        // public_call_stack
+        // public_data_update_requests
+        let num_non_revertible_writes = validate_array(output_non_revertible.public_data_update_requests);
+        assert_eq(num_non_revertible_writes, 0, "unexpected non-revertible public_data_update_requests");
+        let num_revertible_writes = validate_array(output_revertible.public_data_update_requests);
+        assert_eq(num_revertible_writes, 0, "unexpected revertible public_data_update_requests");
+
+        // public_call_requests
         validate_value_transformation(
-            prev_data.public_call_stack,
+            prev_data.public_call_requests,
             hints.public_call_requests,
-            |cr: CallRequest, public_cr: CallRequest| (public_cr.hash == cr.hash)
-                & (public_cr.caller_contract_address == cr.caller_contract_address)
-                & (public_cr.caller_context == cr.caller_context)
-                // TODO: Hide the counter of a public call request.
-                // & (public_cr.start_side_effect_counter == 0)
-                & (public_cr.end_side_effect_counter == 0)
+            |cr: PublicCallRequest, public_cr: PublicCallRequest| (public_cr.item == cr.item)
+                & (public_cr.counter == 0)
         );
 
         assert_split_sorted_transformed_value_arrays_desc(
-            prev_data.public_call_stack,
+            prev_data.public_call_requests,
             hints.public_call_requests,
             split_counter,
             output_non_revertible.public_call_stack,

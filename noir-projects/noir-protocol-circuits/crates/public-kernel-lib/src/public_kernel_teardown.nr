@@ -146,7 +146,7 @@ impl PublicKernelTeardownCircuitPrivateInputs {
             let reverted_call_request = remaining_calls.pop();
 
             assert(
-                reverted_call_request.hash == self.public_call.call_stack_item.get_compressed().hash(), "calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the teardown call stack"
+                reverted_call_request.item == self.public_call.call_stack_item.get_compressed(), "call stack item does not match item at the top of the call stack"
             );
         }
 
@@ -157,16 +157,15 @@ impl PublicKernelTeardownCircuitPrivateInputs {
 mod tests {
     use crate::{
         public_kernel_teardown::{ALLOWED_PREVIOUS_CIRCUITS, PublicKernelTeardownCircuitPrivateInputs},
-        utils::{
-        assert_eq_call_requests, assert_eq_public_data_reads, assert_eq_public_data_update_requests,
-        compute_public_data_reads, compute_public_data_update_requests
-    }
+        utils::{compute_public_data_reads, compute_public_data_update_requests}
     };
     use dep::types::{
         abis::{
-        call_request::CallRequest, function_selector::FunctionSelector, gas::Gas,
-        kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, public_data_read::PublicDataRead,
-        public_data_update_request::PublicDataUpdateRequest, log_hash::ScopedLogHash
+        function_selector::FunctionSelector, gas::Gas,
+        kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs,
+        public_call_stack_item_compressed::PublicCallStackItemCompressed,
+        public_data_read::PublicDataRead, public_data_update_request::PublicDataUpdateRequest,
+        log_hash::ScopedLogHash
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
         contrakt::storage_read::StorageRead,
@@ -213,14 +212,26 @@ mod tests {
         pub fn execute(&mut self) -> PublicKernelCircuitPublicInputs {
             let public_call = self.public_call.finish();
             // Adjust the call stack item hash for the current call in the previous iteration.
-            let hash = public_call.call_stack_item.get_compressed().hash();
-            let is_delegate_call = public_call.call_stack_item.public_inputs.call_context.is_delegate_call;
-            self.previous_kernel.push_public_teardown_call_request(hash, is_delegate_call);
+            let compressed = public_call.call_stack_item.get_compressed();
+            self.previous_kernel.push_public_teardown_call_request(compressed);
             let mut previous_kernel = self.previous_kernel.to_public_kernel_data(true);
 
             let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
 
             kernel.public_kernel_teardown()
+        }
+
+        pub fn get_call_request_item(self) -> PublicCallStackItemCompressed {
+            let public_call = self.public_call.finish();
+            public_call.call_stack_item.get_compressed()
+        }
+
+        pub fn failed_with_call_request_item(&mut self, item: PublicCallStackItemCompressed) {
+            let public_call = self.public_call.finish();
+            self.previous_kernel.push_public_teardown_call_request(item);
+            let previous_kernel = self.previous_kernel.to_public_kernel_data(true);
+            let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
+            let _ = kernel.public_kernel_teardown();
         }
 
         pub fn succeeded(&mut self) {
@@ -264,14 +275,15 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with="calculated public_kernel_inputs_hash does not match provided public_kernel_inputs_hash at the top of the call stack")]
-    fn inconsistent_call_hash_should_fail() {
+    #[test(should_fail_with="call stack item does not match item at the top of the call stack")]
+    fn inconsistent_call_request_item_should_fail() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         let public_call = builder.public_call.finish();
 
-        let hash = public_call.call_stack_item.get_compressed().hash();
-        // Tweak the call stack item hash.
-        builder.previous_kernel.push_public_teardown_call_request(hash + 1, false);
+        let mut item = public_call.call_stack_item.get_compressed();
+        // Tweak the call stack item.
+        item.args_hash += 1;
+        builder.previous_kernel.push_public_teardown_call_request(item);
         let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
@@ -279,14 +291,15 @@ mod tests {
         let _ = kernel.public_kernel_teardown();
     }
 
-    #[test(should_fail_with="call stack msg_sender does not match caller contract address")]
+    #[test(should_fail_with="call stack item does not match item at the top of the call stack")]
     fn incorrect_msg_sender_fails_for_regular_calls() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
+        let mut item = builder.get_call_request_item();
         // Set the msg_sender to a wrong value.
-        builder.public_call.public_inputs.call_context.msg_sender.inner += 1;
+        item.call_context.msg_sender.inner += 1;
 
-        builder.failed();
+        builder.failed_with_call_request_item(item);
     }
 
     #[test(should_fail_with="call stack storage address does not match expected contract address")]
@@ -305,40 +318,26 @@ mod tests {
         builder.succeeded();
     }
 
-    #[test(should_fail_with="caller context cannot be empty for delegate calls")]
-    fn empty_caller_context_for_delegate_calls_fails() {
-        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_delegate_call();
-        let public_call = builder.public_call.finish();
-
-        let hash = public_call.call_stack_item.get_compressed().hash();
-        // Caller context is empty for regular calls.
-        let is_delegate_call = false;
-        builder.previous_kernel.push_public_teardown_call_request(hash, is_delegate_call);
-        let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
-
-        let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
-
-        let _ = kernel.public_kernel_teardown();
-    }
-
-    #[test(should_fail_with="call stack msg_sender does not match expected msg_sender for delegate calls")]
+    #[test(should_fail_with="call stack item does not match item at the top of the call stack")]
     fn incorrect_msg_sender_for_delegate_calls_fails() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_delegate_call();
 
+        let mut item = builder.get_call_request_item();
         // Set the msg_sender to be the caller contract.
-        builder.public_call.public_inputs.call_context.msg_sender = builder.previous_kernel.contract_address;
+        item.call_context.msg_sender = builder.previous_kernel.contract_address;
 
-        builder.failed();
+        builder.failed_with_call_request_item(item);
     }
 
-    #[test(should_fail_with="call stack storage address does not match expected contract address for delegate calls")]
+    #[test(should_fail_with="call stack item does not match item at the top of the call stack")]
     fn public_kernel_circuit_fails_on_incorrect_storage_contract_in_delegate_call() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new().is_delegate_call();
 
+        let mut item = builder.get_call_request_item();
         // Set the storage contract address to be the contract address.
-        builder.public_call.public_inputs.call_context.storage_contract_address = builder.public_call.contract_address;
+        item.call_context.storage_contract_address = builder.public_call.contract_address;
 
-        builder.failed();
+        builder.failed_with_call_request_item(item);
     }
 
     #[test(should_fail_with="curent contract address must not match storage contract address for delegate calls")]
@@ -350,52 +349,28 @@ mod tests {
         builder.failed();
     }
 
-    #[test(should_fail_with = "call requests length does not match the expected length")]
-    fn incorrect_call_requests_length_fails() {
+    #[test(should_fail_with="incorrect storage_contract_address for call request")]
+    fn incorrect_storage_contract_address_for_call_request_fails() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
-        builder.public_call.append_public_call_requests(2, false);
-        // Remove one call request.
-        let _ = builder.public_call.public_call_stack.pop();
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "call stack hash does not match call request hash")]
-    fn incorrect_call_request_hash_fails() {
-        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
-
-        builder.public_call.append_public_call_requests(2, false);
-        let mut call_request = builder.public_call.public_call_stack.pop();
-        // Change the hash to be a different value.
-        call_request.hash += 1;
-        builder.public_call.public_call_stack.push(call_request);
-
-        builder.failed();
-    }
-
-    #[test(should_fail_with = "invalid caller")]
-    fn incorrect_caller_address_for_call_request_fails() {
-        let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
-
-        builder.public_call.append_public_call_requests(1, false);
-        let mut call_request = builder.public_call.public_call_stack.pop();
+        builder.public_call.append_public_call_requests_for_regular_calls(1);
+        let mut call_request = builder.public_call.public_inputs.public_call_requests.pop();
         // Change the caller contract address to be a different value.
-        call_request.caller_contract_address.inner += 1;
-        builder.public_call.public_call_stack.push(call_request);
+        call_request.item.call_context.storage_contract_address.inner += 1;
+        builder.public_call.public_inputs.public_call_requests.push(call_request);
 
         builder.failed();
     }
 
-    #[test(should_fail_with = "invalid caller")]
-    fn incorrect_caller_context_for_delegate_call_request_fails() {
+    #[test(should_fail_with="incorrect storage_contract_address for delegate call request")]
+    fn incorrect_call_context_for_delegate_call_request_fails() {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
 
-        builder.public_call.append_public_call_requests(1, true);
-        let mut call_request = builder.public_call.public_call_stack.pop();
-        // Change the storage contract to be a different value.
-        call_request.caller_context.storage_contract_address.inner += 1;
-        builder.public_call.public_call_stack.push(call_request);
+        builder.public_call.append_public_call_requests_for_delegate_calls(1);
+        let mut call_request = builder.public_call.public_inputs.public_call_requests.pop();
+        // Change the storage contract address to be the target contract address.
+        call_request.item.call_context.storage_contract_address = call_request.item.contract_address;
+        builder.public_call.public_inputs.public_call_requests.push(call_request);
 
         builder.failed();
     }
@@ -533,10 +508,10 @@ mod tests {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.public_call.public_inputs.revert_code = 1;
         let public_call = builder.public_call.finish();
-        let hash = public_call.call_stack_item.get_compressed().hash();
-        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+        let item = public_call.call_stack_item.get_compressed();
+        builder.previous_kernel.push_public_teardown_call_request(item);
         // push again to check that the stack is cleared
-        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+        builder.previous_kernel.push_public_teardown_call_request(item);
         let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };
@@ -551,10 +526,10 @@ mod tests {
         let mut builder = PublicKernelTeardownCircuitPrivateInputsBuilder::new();
         builder.previous_kernel.revert_code = 1;
         let public_call = builder.public_call.finish();
-        let hash = public_call.call_stack_item.get_compressed().hash();
-        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+        let item = public_call.call_stack_item.get_compressed();
+        builder.previous_kernel.push_public_teardown_call_request(item);
         // push again to check that we keep one item after popping the current call
-        builder.previous_kernel.push_public_teardown_call_request(hash, false);
+        builder.previous_kernel.push_public_teardown_call_request(item);
         let previous_kernel = builder.previous_kernel.to_public_kernel_data(true);
 
         let kernel = PublicKernelTeardownCircuitPrivateInputs { previous_kernel, public_call };

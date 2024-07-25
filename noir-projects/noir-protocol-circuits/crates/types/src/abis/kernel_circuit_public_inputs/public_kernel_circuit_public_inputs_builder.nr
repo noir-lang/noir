@@ -3,7 +3,7 @@ use crate::{
     accumulated_data::{CombinedAccumulatedData, PublicAccumulatedDataBuilder},
     combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs},
-    validation_requests::ValidationRequestsBuilder, call_request::CallRequest
+    public_call_request::PublicCallRequest, validation_requests::ValidationRequestsBuilder
 },
     address::AztecAddress, constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, traits::Empty
 };
@@ -14,7 +14,7 @@ struct PublicKernelCircuitPublicInputsBuilder {
     end: PublicAccumulatedDataBuilder,
     constants: CombinedConstantData,
     revert_code: u8,
-    public_teardown_call_stack: BoundedVec<CallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
+    public_teardown_call_stack: BoundedVec<PublicCallRequest, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>,
     fee_payer: AztecAddress,
 }
 

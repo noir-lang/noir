@@ -1,5 +1,11 @@
-import { EncryptedNoteTxL2Logs, EncryptedTxL2Logs, Tx, UnencryptedTxL2Logs } from '@aztec/circuit-types';
-import { ClientIvcProof, PrivateKernelTailCircuitPublicInputs, PublicCallRequest } from '@aztec/circuits.js';
+import {
+  EncryptedNoteTxL2Logs,
+  EncryptedTxL2Logs,
+  PublicExecutionRequest,
+  Tx,
+  UnencryptedTxL2Logs,
+} from '@aztec/circuit-types';
+import { ClientIvcProof, PrivateKernelTailCircuitPublicInputs } from '@aztec/circuits.js';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
 
 import { type SemVer } from 'semver';
@@ -128,9 +134,9 @@ export function fromTxMessage(buffer: Buffer): Tx {
     unencryptedLogs.obj = new UnencryptedTxL2Logs([]);
   }
 
-  const publicCalls = toObjectArray(unencryptedLogs.remainingData, PublicCallRequest);
+  const publicCalls = toObjectArray(unencryptedLogs.remainingData, PublicExecutionRequest);
 
-  const publicTeardownCall = toObject(publicCalls.remainingData, PublicCallRequest);
+  const publicTeardownCall = toObject(publicCalls.remainingData, PublicExecutionRequest);
   return new Tx(
     publicInputs.obj!,
     clientIvcProof.obj!,

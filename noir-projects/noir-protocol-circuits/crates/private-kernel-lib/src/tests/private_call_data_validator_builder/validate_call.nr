@@ -38,6 +38,17 @@ fn validate_call_is_delegate_call_from_same_contract_fails() {
     builder.validate();
 }
 
+#[test(should_fail_with="function selector in call context does not match call stack item")]
+fn validate_call_mismatch_function_selector_fails() {
+    let mut builder = PrivateCallDataValidatorBuilder::new();
+
+    let mut data = builder.get_private_call_data();
+    // Tweak the function selector in the call context to be different to the one in call stack item.
+    data.call_stack_item.public_inputs.call_context.function_selector.inner += 1;
+
+    builder.validate_with_private_call_data(data);
+}
+
 #[test]
 fn validate_call_is_static_succeeds() {
     let mut builder = PrivateCallDataValidatorBuilder::new().is_static_call();

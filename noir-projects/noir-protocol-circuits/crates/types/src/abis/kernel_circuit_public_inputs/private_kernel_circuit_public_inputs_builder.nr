@@ -2,8 +2,8 @@ use crate::{
     abis::{
     accumulated_data::PrivateAccumulatedDataBuilder, combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::private_kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
-    validation_requests::validation_requests_builder::ValidationRequestsBuilder,
-    call_request::CallRequest
+    public_call_request::PublicCallRequest,
+    validation_requests::validation_requests_builder::ValidationRequestsBuilder
 },
     address::AztecAddress, traits::Empty
 };
@@ -13,7 +13,7 @@ struct PrivateKernelCircuitPublicInputsBuilder {
     validation_requests: ValidationRequestsBuilder,
     end: PrivateAccumulatedDataBuilder,
     constants: CombinedConstantData,
-    public_teardown_call_request: CallRequest,
+    public_teardown_call_request: PublicCallRequest,
     fee_payer: AztecAddress
 }
 
@@ -37,7 +37,7 @@ impl Empty for PrivateKernelCircuitPublicInputsBuilder {
             validation_requests: ValidationRequestsBuilder::empty(),
             end: PrivateAccumulatedDataBuilder::empty(),
             constants: CombinedConstantData::empty(),
-            public_teardown_call_request: CallRequest::empty(),
+            public_teardown_call_request: PublicCallRequest::empty(),
             fee_payer: AztecAddress::empty()
         }
     }

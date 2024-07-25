@@ -165,7 +165,7 @@ fn validate_initial_values_public_teardown_call_request_mismatch_fails() {
     builder.private_call.append_public_teardown_call_request();
     builder.output.append_public_teardown_call_request();
     // Tweak the output.
-    builder.output.public_teardown_call_stack.storage[0].hash += 1;
+    builder.output.public_teardown_call_stack.storage[0].item.args_hash += 1;
 
     builder.validate_as_first_call();
 }

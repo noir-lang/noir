@@ -14,7 +14,6 @@ import {
 import { SchnorrSignature } from '../barretenberg/index.js';
 import {
   ARCHIVE_HEIGHT,
-  ARGS_LENGTH,
   AppendOnlyTreeSnapshot,
   AvmCircuitInputs,
   AvmContractInstanceHint,
@@ -25,8 +24,6 @@ import {
   BaseParityInputs,
   BaseRollupInputs,
   CallContext,
-  CallRequest,
-  CallerContext,
   ClientIvcProof,
   CombineHints,
   CombinedAccumulatedData,
@@ -107,6 +104,7 @@ import {
   PublicCallData,
   PublicCallRequest,
   PublicCallStackItem,
+  PublicCallStackItemCompressed,
   PublicCircuitPublicInputs,
   PublicDataHint,
   PublicDataRead,
@@ -391,7 +389,7 @@ export function makePublicAccumulatedData(seed = 1, full = false): PublicAccumul
       seed + 0xd00,
       PublicDataUpdateRequest.empty,
     ),
-    tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x500, CallRequest.empty),
+    tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makePublicCallRequest, seed + 0x500, PublicCallRequest.empty),
     makeGas(seed + 0x600),
   );
 }
@@ -441,7 +439,7 @@ export function makePublicCircuitPublicInputs(
       ContractStorageUpdateRequest.empty,
     ),
     tupleGenerator(MAX_PUBLIC_DATA_READS_PER_CALL, makeContractStorageRead, seed + 0x500, ContractStorageRead.empty),
-    tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600, Fr.zero),
+    tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, makePublicCallRequest, seed + 0x600, PublicCallRequest.empty),
     tupleGenerator(MAX_NOTE_HASHES_PER_CALL, makeNoteHash, seed + 0x700, NoteHash.empty),
     tupleGenerator(MAX_NULLIFIERS_PER_CALL, makeNullifier, seed + 0x800, Nullifier.empty),
     tupleGenerator(MAX_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x900, L2ToL1Message.empty),
@@ -474,7 +472,7 @@ export function makePublicKernelCircuitPublicInputs(
     makePublicAccumulatedData(seed, fullAccumulatedData),
     makeConstantData(seed + 0x100),
     RevertCode.OK,
-    tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x600, CallRequest.empty),
+    tupleGenerator(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makePublicCallRequest, seed + 0x600, PublicCallRequest.empty),
     makeAztecAddress(seed + 0x700),
   );
 }
@@ -493,7 +491,7 @@ export function makePrivateKernelTailCircuitPublicInputs(
         ValidationRequests.empty(),
         makePublicAccumulatedData(seed + 0x100, false),
         makePublicAccumulatedData(seed + 0x200, false),
-        makeHalfFullTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeCallRequest, seed + 0x400, CallRequest.empty),
+        makePublicCallRequest(seed + 0x400),
       )
     : undefined;
   const forRollup = !isForPublic
@@ -524,25 +522,6 @@ export function makeKernelCircuitPublicInputs(seed = 1, fullAccumulatedData = tr
     makePartialStateReference(seed + 0x200),
     RevertCode.OK,
     makeAztecAddress(seed + 0x700),
-  );
-}
-
-/**
- * Creates a public call request for testing.
- * @param seed - The seed.
- * @returns Public call request.
- */
-export function makePublicCallRequest(seed = 1): PublicCallRequest {
-  const childCallContext = makeCallContext(seed + 0x2, { storageContractAddress: makeAztecAddress(seed) });
-  const parentCallContext = makeCallContext(seed + 0x3, { storageContractAddress: childCallContext.msgSender });
-
-  return new PublicCallRequest(
-    makeAztecAddress(seed),
-    makeSelector(seed + 0x1),
-    childCallContext,
-    parentCallContext,
-    seed + 0x4,
-    makeTuple(ARGS_LENGTH, fr, seed + 0x10),
   );
 }
 
@@ -631,35 +610,32 @@ export function makeProof(seed = 1) {
   return new Proof(Buffer.alloc(16, seed), 0);
 }
 
-/**
- * Makes arbitrary call stack item.
- * @param seed - The seed to use for generating the call stack item.
- * @returns A call stack item.
- */
-export function makeCallerContext(seed = 1): CallerContext {
-  return new CallerContext(makeAztecAddress(seed), makeAztecAddress(seed + 0x1), false);
-}
-
-/**
- * Makes arbitrary call stack item.
- * @param seed - The seed to use for generating the call stack item.
- * @returns A call stack item.
- */
-export function makeCallRequest(seed = 1): CallRequest {
-  return new CallRequest(fr(seed), makeAztecAddress(seed + 0x1), makeCallerContext(seed + 0x2), fr(0), fr(0));
-}
-
 function makePrivateCallRequest(seed = 1): PrivateCallRequest {
   return new PrivateCallRequest(
     makeAztecAddress(seed),
     makeCallContext(seed + 0x1),
-    new FunctionData(makeSelector(seed + 0x2), /*isPrivate=*/ true),
     fr(seed + 0x3),
     fr(seed + 0x4),
-    makeCallerContext(seed + 0x5),
     seed + 0x10,
     seed + 0x11,
   );
+}
+
+function makePublicCallStackItemCompressed(seed = 1, isPublicExecutionResult: boolean): PublicCallStackItemCompressed {
+  const callContext = makeCallContext(seed);
+  return new PublicCallStackItemCompressed(
+    callContext.storageContractAddress,
+    callContext,
+    fr(seed + 0x20),
+    isPublicExecutionResult ? fr(seed + 0x30) : fr(0),
+    RevertCode.OK,
+    isPublicExecutionResult ? makeGas(seed + 0x40) : Gas.empty(),
+    isPublicExecutionResult ? makeGas(seed + 0x50) : Gas.empty(),
+  );
+}
+
+export function makePublicCallRequest(seed = 1, isPublicExecutionResult = false): PublicCallRequest {
+  return new PublicCallRequest(makePublicCallStackItemCompressed(seed, isPublicExecutionResult), seed + 0x60);
 }
 
 /**
@@ -685,12 +661,7 @@ export function makePublicCallStackItem(seed = 1, full = false): PublicCallStack
  * @returns A public call data.
  */
 export function makePublicCallData(seed = 1, full = false): PublicCallData {
-  const publicCallData = new PublicCallData(
-    makePublicCallStackItem(seed, full),
-    makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, makeCallRequest, seed + 0x300),
-    makeProof(),
-    fr(seed + 1),
-  );
+  const publicCallData = new PublicCallData(makePublicCallStackItem(seed, full), makeProof(), fr(seed + 1));
 
   return publicCallData;
 }
@@ -747,35 +718,6 @@ export function makePublicKernelTailCircuitPrivateInputs(seed = 1): PublicKernel
 }
 
 /**
- * Makes arbitrary public kernel private inputs.
- * @param seed - The seed to use for generating the public kernel inputs.
- * @param tweak - An optional function to tweak the output before computing hashes.
- * @returns Public kernel inputs.
- */
-export function makePublicKernelInputsWithTweak(
-  seed = 1,
-  tweak?: (publicKernelInputs: PublicKernelCircuitPrivateInputs) => void,
-): PublicKernelCircuitPrivateInputs {
-  const kernelCircuitPublicInputs = makePublicKernelCircuitPublicInputs(seed, false);
-  const previousKernel = makePublicKernelData(seed, kernelCircuitPublicInputs);
-  const publicCall = makePublicCallData(seed + 0x1000);
-  const publicKernelInputs = new PublicKernelCircuitPrivateInputs(previousKernel, ClientIvcProof.empty(), publicCall);
-  if (tweak) {
-    tweak(publicKernelInputs);
-  }
-  // Set the call stack item for this circuit iteration at the top of the call stack
-  publicKernelInputs.previousKernel.publicInputs.end.publicCallStack[MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX - 1] =
-    new CallRequest(
-      publicCall.callStackItem.getCompressed().hash(),
-      publicCall.callStackItem.publicInputs.callContext.msgSender,
-      makeCallerContext(seed + 0x100),
-      Fr.ZERO,
-      Fr.ZERO,
-    );
-  return publicKernelInputs;
-}
-
-/**
  * Makes arbitrary tx request.
  * @param seed - The seed to use for generating the tx request.
  * @returns A tx request.
@@ -824,8 +766,8 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     noteHashes: makeTuple(MAX_NOTE_HASHES_PER_CALL, makeNoteHash, seed + 0x400),
     nullifiers: makeTuple(MAX_NULLIFIERS_PER_CALL, makeNullifier, seed + 0x500),
     privateCallRequests: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, makePrivateCallRequest, seed + 0x600),
-    publicCallStackHashes: makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x700),
-    publicTeardownFunctionHash: fr(seed + 0x800),
+    publicCallRequests: makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, makePublicCallRequest, seed + 0x700),
+    publicTeardownCallRequest: makePublicCallRequest(seed + 0x800),
     l2ToL1Msgs: makeTuple(MAX_L2_TO_L1_MSGS_PER_CALL, makeL2ToL1Message, seed + 0x800),
     startSideEffectCounter: fr(seed + 0x849),
     endSideEffectCounter: fr(seed + 0x850),

@@ -281,21 +281,21 @@ mod tests {
     #[test(should_fail_with="Private call stack must be empty when executing the tail circuit")]
     fn non_empty_private_call_stack_should_fail() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.add_private_call_request(1, false);
+        builder.previous_kernel.append_private_call_requests(1);
         builder.failed();
     }
 
     #[test(should_fail_with="Public call stack must be empty when executing the tail circuit")]
     fn non_empty_public_call_stack_should_fail() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.push_public_call_request(1, false);
+        builder.previous_kernel.append_public_call_requests(1);
         builder.failed();
     }
 
     #[test(should_fail_with="Public teardown call request must be empty when executing the tail circuit")]
     fn non_empty_public_teardown_call_request_should_fail() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
-        builder.previous_kernel.push_public_teardown_call_request(1, false);
+        builder.previous_kernel.append_public_teardown_call_request();
         builder.failed();
     }
 

@@ -1,7 +1,7 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { Fr } from '@aztec/foundation/fields';
+import { type Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
@@ -46,7 +46,11 @@ export class CallContext {
 
   isEmpty() {
     return (
-      this.msgSender.isZero() && this.storageContractAddress.isZero() && this.functionSelector.isEmpty() && Fr.ZERO
+      this.msgSender.isZero() &&
+      this.storageContractAddress.isZero() &&
+      this.functionSelector.isEmpty() &&
+      !this.isDelegateCall &&
+      !this.isStaticCall
     );
   }
 
@@ -85,7 +89,7 @@ export class CallContext {
   /**
    * Deserialize this from a buffer.
    * @param buffer - The bufferable type from which to deserialize.
-   * @returns The deserialized instance of PublicCallRequest.
+   * @returns The deserialized instance of CallContext.
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);

@@ -1,3 +1,4 @@
+import { type PublicExecutionRequest } from '@aztec/circuit-types';
 import { type AvmSimulationStats } from '@aztec/circuit-types/stats';
 import { Fr, Gas, type GlobalVariables, type Header, type Nullifier, type TxContext } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -10,7 +11,7 @@ import { AvmSimulator } from '../avm/avm_simulator.js';
 import { HostStorage } from '../avm/journal/host_storage.js';
 import { AvmPersistableStateManager } from '../avm/journal/index.js';
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db_interfaces.js';
-import { type PublicExecutionRequest, type PublicExecutionResult } from './execution.js';
+import { type PublicExecutionResult } from './execution.js';
 import { PublicSideEffectTrace } from './side_effect_trace.js';
 
 /**
@@ -47,7 +48,7 @@ export class PublicExecutor {
     startSideEffectCounter: number = 0,
   ): Promise<PublicExecutionResult> {
     const address = executionRequest.contractAddress;
-    const selector = executionRequest.functionSelector;
+    const selector = executionRequest.callContext.functionSelector;
     const fnName = (await this.contractsDb.getDebugFunctionName(address, selector)) ?? `${address}:${selector}`;
 
     PublicExecutor.log.verbose(`[AVM] Executing public external function ${fnName}.`);
@@ -122,7 +123,7 @@ function createAvmExecutionEnvironment(
     executionRequest.contractAddress,
     executionRequest.callContext.storageContractAddress,
     executionRequest.callContext.msgSender,
-    executionRequest.functionSelector,
+    executionRequest.callContext.functionSelector,
     /*contractCallDepth=*/ Fr.zero(),
     transactionFee,
     header,

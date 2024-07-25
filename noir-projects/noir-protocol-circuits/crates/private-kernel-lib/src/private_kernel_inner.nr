@@ -36,9 +36,7 @@ impl PrivateKernelInnerCircuitPrivateInputs {
     unconstrained fn generate_output(self) -> PrivateKernelCircuitPublicInputs {
         PrivateKernelCircuitPublicInputsComposer::new_from_previous_kernel(self.previous_kernel.public_inputs).pop_top_call_request().with_private_call(
             self.private_call.call_stack_item.public_inputs,
-            self.private_call.call_stack_item.contract_address,
-            self.private_call.public_call_stack,
-            self.private_call.public_teardown_call_request
+            self.private_call.call_stack_item.contract_address
         ).finish()
     }
 
@@ -65,10 +63,7 @@ impl PrivateKernelInnerCircuitPrivateInputs {
                 self.previous_kernel.public_inputs,
                 previous_kernel_array_lengths,
                 self.private_call.call_stack_item.public_inputs,
-                private_call_data_validator.array_lengths,
-                self.private_call.call_stack_item.contract_address,
-                self.private_call.public_call_stack,
-                self.private_call.public_teardown_call_request
+                private_call_data_validator.array_lengths
             );
         }
         output

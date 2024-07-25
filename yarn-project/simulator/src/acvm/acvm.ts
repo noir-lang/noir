@@ -18,7 +18,7 @@ import { type ORACLE_NAMES } from './oracle/index.js';
  */
 type ACIRCallback = Record<
   ORACLE_NAMES,
-  (...args: ForeignCallInput[]) => void | ForeignCallOutput | Promise<ForeignCallOutput>
+  (...args: ForeignCallInput[]) => void | Promise<void> | ForeignCallOutput | Promise<ForeignCallOutput>
 >;
 
 /**

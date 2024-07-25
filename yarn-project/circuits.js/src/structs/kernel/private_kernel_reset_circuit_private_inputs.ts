@@ -144,7 +144,7 @@ export class PrivateKernelResetCircuitPrivateInputs<
   ) {}
 
   isForPublic() {
-    return countAccumulatedItems(this.previousKernel.publicInputs.end.publicCallStack) > 0;
+    return countAccumulatedItems(this.previousKernel.publicInputs.end.publicCallRequests) > 0;
   }
 
   /**

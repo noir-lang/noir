@@ -9,13 +9,13 @@ import {
   NullifierMembershipWitness,
   PublicDataWitness,
   PublicDataWrite,
+  PublicExecutionRequest,
   TaggedLog,
   type UnencryptedL2Log,
 } from '@aztec/circuit-types';
 import { type CircuitWitnessGenerationStats } from '@aztec/circuit-types/stats';
 import {
   CallContext,
-  FunctionData,
   Gas,
   GlobalVariables,
   Header,
@@ -25,10 +25,8 @@ import {
   type NullifierLeafPreimage,
   PUBLIC_DATA_SUBTREE_HEIGHT,
   type PUBLIC_DATA_TREE_HEIGHT,
-  PrivateCallStackItem,
   PrivateCircuitPublicInputs,
   PrivateContextInputs,
-  PublicCallRequest,
   PublicDataTreeLeaf,
   type PublicDataTreeLeafPreimage,
   TxContext,
@@ -553,7 +551,7 @@ export class TXE implements TypedOracle {
     sideEffectCounter: number,
     isStaticCall: boolean,
     isDelegateCall: boolean,
-  ): Promise<PrivateCallStackItem> {
+  ) {
     this.logger.verbose(
       `Executing external function ${targetContractAddress}:${functionSelector}(${await this.getDebugFunctionName(
         targetContractAddress,
@@ -609,13 +607,9 @@ export class TXE implements TypedOracle {
         appCircuitName: 'noname',
       } satisfies CircuitWitnessGenerationStats);
 
-      const callStackItem = new PrivateCallStackItem(
-        targetContractAddress,
-        new FunctionData(functionSelector, true),
-        publicInputs,
-      );
       // Apply side effects
-      this.sideEffectsCounter = publicInputs.endSideEffectCounter.toNumber();
+      const endSideEffectCounter = publicInputs.endSideEffectCounter;
+      this.sideEffectsCounter = endSideEffectCounter.toNumber();
 
       await this.addNullifiers(
         targetContractAddress,
@@ -627,7 +621,7 @@ export class TXE implements TypedOracle {
         publicInputs.noteHashes.filter(noteHash => !noteHash.isEmpty()).map(noteHash => noteHash.value),
       );
 
-      return callStackItem;
+      return { endSideEffectCounter, returnsHash: publicInputs.returnsHash };
     } finally {
       this.setContractAddress(currentContractAddress);
       this.setMsgSender(currentMessageSender);
@@ -682,12 +676,7 @@ export class TXE implements TypedOracle {
     return `${artifact.name}:${f.name}`;
   }
 
-  async executePublicFunction(
-    targetContractAddress: AztecAddress,
-    functionSelector: FunctionSelector,
-    args: Fr[],
-    callContext: CallContext,
-  ) {
+  async executePublicFunction(targetContractAddress: AztecAddress, args: Fr[], callContext: CallContext) {
     const header = Header.empty();
     header.state = await this.trees.getStateReference(true);
     header.globalVariables.blockNumber = new Fr(await this.getBlockNumber());
@@ -709,12 +698,7 @@ export class TXE implements TypedOracle {
       new WorldStateDB(this.trees.asLatest()),
       header,
     );
-    const execution = {
-      contractAddress: targetContractAddress,
-      functionSelector,
-      args,
-      callContext,
-    };
+    const execution = new PublicExecutionRequest(targetContractAddress, callContext, args);
 
     return executor.simulate(
       execution,
@@ -748,12 +732,7 @@ export class TXE implements TypedOracle {
     callContext.isStaticCall = isStaticCall;
     callContext.isDelegateCall = isDelegateCall;
 
-    const executionResult = await this.executePublicFunction(
-      targetContractAddress,
-      functionSelector,
-      args,
-      callContext,
-    );
+    const executionResult = await this.executePublicFunction(targetContractAddress, args, callContext);
 
     // Apply side effects
     if (!executionResult.reverted) {
@@ -770,7 +749,7 @@ export class TXE implements TypedOracle {
     targetContractAddress: AztecAddress,
     functionSelector: FunctionSelector,
     argsHash: Fr,
-    sideEffectCounter: number,
+    _sideEffectCounter: number,
     isStaticCall: boolean,
     isDelegateCall: boolean,
   ): Promise<Fr[]> {
@@ -791,12 +770,7 @@ export class TXE implements TypedOracle {
 
     const args = this.packedValuesCache.unpack(argsHash);
 
-    const executionResult = await this.executePublicFunction(
-      targetContractAddress,
-      functionSelector,
-      args,
-      callContext,
-    );
+    const executionResult = await this.executePublicFunction(targetContractAddress, args, callContext);
 
     // Apply side effects
     this.sideEffectsCounter = executionResult.endSideEffectCounter.toNumber();
@@ -811,10 +785,10 @@ export class TXE implements TypedOracle {
     targetContractAddress: AztecAddress,
     functionSelector: FunctionSelector,
     argsHash: Fr,
-    sideEffectCounter: number,
+    _sideEffectCounter: number,
     isStaticCall: boolean,
     isDelegateCall: boolean,
-  ): Promise<PublicCallRequest> {
+  ) {
     // Store and modify env
     const currentContractAddress = AztecAddress.fromField(this.contractAddress);
     const currentMessageSender = AztecAddress.fromField(this.msgSender);
@@ -832,47 +806,26 @@ export class TXE implements TypedOracle {
 
     const args = this.packedValuesCache.unpack(argsHash);
 
-    const executionResult = await this.executePublicFunction(
-      targetContractAddress,
-      functionSelector,
-      args,
-      callContext,
-    );
+    const executionResult = await this.executePublicFunction(targetContractAddress, args, callContext);
 
     // Apply side effects
     this.sideEffectsCounter += executionResult.endSideEffectCounter.toNumber();
     this.setContractAddress(currentContractAddress);
     this.setMsgSender(currentMessageSender);
     this.setFunctionSelector(currentFunctionSelector);
-
-    const parentCallContext = CallContext.empty();
-    parentCallContext.msgSender = currentMessageSender;
-    parentCallContext.functionSelector = currentFunctionSelector;
-    parentCallContext.storageContractAddress = currentContractAddress;
-    parentCallContext.isStaticCall = isStaticCall;
-    parentCallContext.isDelegateCall = isDelegateCall;
-
-    return PublicCallRequest.from({
-      parentCallContext,
-      contractAddress: targetContractAddress,
-      functionSelector,
-      callContext,
-      sideEffectCounter,
-      args,
-    });
   }
 
-  setPublicTeardownFunctionCall(
+  async setPublicTeardownFunctionCall(
     targetContractAddress: AztecAddress,
     functionSelector: FunctionSelector,
     argsHash: Fr,
     sideEffectCounter: number,
     isStaticCall: boolean,
     isDelegateCall: boolean,
-  ): Promise<PublicCallRequest> {
+  ) {
     // Definitely not right, in that the teardown should always be last.
     // But useful for executing flows.
-    return this.enqueuePublicFunctionCall(
+    await this.enqueuePublicFunctionCall(
       targetContractAddress,
       functionSelector,
       argsHash,

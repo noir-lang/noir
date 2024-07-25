@@ -1,6 +1,5 @@
 import { type PrivateKernelProver, type PrivateKernelSimulateOutput } from '@aztec/circuit-types';
 import {
-  CallRequest,
   Fr,
   MAX_KEY_VALIDATION_REQUESTS_PER_TX,
   MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
@@ -8,7 +7,6 @@ import {
   MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
   MAX_NULLIFIERS_PER_TX,
   MAX_NULLIFIER_READ_REQUESTS_PER_TX,
-  MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   PrivateCallData,
   PrivateKernelCircuitPublicInputs,
   PrivateKernelData,
@@ -21,7 +19,6 @@ import {
   VerificationKeyAsFields,
   getNonEmptyItems,
 } from '@aztec/circuits.js';
-import { padArrayEnd } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { assertLength } from '@aztec/foundation/serialize';
 import { pushTestData } from '@aztec/foundation/testing';
@@ -97,11 +94,6 @@ export class KernelProver {
       const currentExecution = executionStack.pop()!;
       executionStack.push(...[...currentExecution.nestedExecutions].reverse());
 
-      const publicCallRequests = currentExecution.enqueuedPublicFunctionCalls.map(result => result.toCallRequest());
-      const publicTeardownCallRequest = currentExecution.publicTeardownFunctionCall.isEmpty()
-        ? CallRequest.empty()
-        : currentExecution.publicTeardownFunctionCall.toCallRequest();
-
       const functionName = await this.oracle.getDebugFunctionName(
         currentExecution.callStackItem.contractAddress,
         currentExecution.callStackItem.functionData.selector,
@@ -113,12 +105,7 @@ export class KernelProver {
       acirs.push(currentExecution.acir);
       witnessStack.push(currentExecution.partialWitness);
 
-      const privateCallData = await this.createPrivateCallData(
-        currentExecution,
-        publicCallRequests,
-        publicTeardownCallRequest,
-        appVk.verificationKey,
-      );
+      const privateCallData = await this.createPrivateCallData(currentExecution, appVk.verificationKey);
 
       if (firstIteration) {
         const proofInput = new PrivateKernelInitCircuitPrivateInputs(txRequest, getVKTreeRoot(), privateCallData);
@@ -248,15 +235,8 @@ export class KernelProver {
     );
   }
 
-  private async createPrivateCallData(
-    { callStackItem }: ExecutionResult,
-    publicCallRequests: CallRequest[],
-    publicTeardownCallRequest: CallRequest,
-    vk: VerificationKeyAsFields,
-  ) {
+  private async createPrivateCallData({ callStackItem }: ExecutionResult, vk: VerificationKeyAsFields) {
     const { contractAddress, functionData } = callStackItem;
-
-    const publicCallStack = padArrayEnd(publicCallRequests, CallRequest.empty(), MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
 
     const functionLeafMembershipWitness = await this.oracle.getFunctionMembershipWitness(
       contractAddress,
@@ -274,8 +254,6 @@ export class KernelProver {
 
     return PrivateCallData.from({
       callStackItem,
-      publicCallStack,
-      publicTeardownCallRequest,
       vk,
       publicKeysHash,
       contractClassArtifactHash,

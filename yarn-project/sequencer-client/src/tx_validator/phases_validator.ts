@@ -1,5 +1,10 @@
-import { type AllowedElement, PublicKernelType, Tx, type TxValidator } from '@aztec/circuit-types';
-import { type PublicCallRequest } from '@aztec/circuits.js';
+import {
+  type AllowedElement,
+  type PublicExecutionRequest,
+  PublicKernelType,
+  Tx,
+  type TxValidator,
+} from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AbstractPhaseManager, ContractsDataSourcePublicDB } from '@aztec/simulator';
 import { type ContractDataSource } from '@aztec/types/contracts';
@@ -47,7 +52,7 @@ export class PhasesTxValidator implements TxValidator<Tx> {
         this.#log.warn(
           `Rejecting tx ${Tx.getHash(tx)} because it calls setup function not on allow list: ${
             setupFn.contractAddress
-          }:${setupFn.functionSelector}`,
+          }:${setupFn.callContext.functionSelector}`,
         );
 
         return false;
@@ -57,12 +62,15 @@ export class PhasesTxValidator implements TxValidator<Tx> {
     return true;
   }
 
-  async isOnAllowList(publicCall: PublicCallRequest, allowList: AllowedElement[]): Promise<boolean> {
+  async isOnAllowList(publicCall: PublicExecutionRequest, allowList: AllowedElement[]): Promise<boolean> {
     if (publicCall.isEmpty()) {
       return true;
     }
 
-    const { contractAddress, functionSelector } = publicCall;
+    const {
+      contractAddress,
+      callContext: { functionSelector },
+    } = publicCall;
 
     // do these checks first since they don't require the contract class
     for (const entry of allowList) {

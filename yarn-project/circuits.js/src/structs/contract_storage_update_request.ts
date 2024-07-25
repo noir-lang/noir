@@ -41,9 +41,9 @@ export class ContractStorageUpdateRequest {
   }
 
   /**
-   * Create PublicCallRequest from a fields dictionary.
+   * Create ContractStorageUpdateRequest from a fields dictionary.
    * @param fields - The dictionary.
-   * @returns A PublicCallRequest object.
+   * @returns A ContractStorageUpdateRequest object.
    */
   static from(fields: FieldsOf<ContractStorageUpdateRequest>): ContractStorageUpdateRequest {
     return new ContractStorageUpdateRequest(...ContractStorageUpdateRequest.getFields(fields));

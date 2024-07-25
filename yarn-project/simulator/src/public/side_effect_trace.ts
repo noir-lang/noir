@@ -1,4 +1,4 @@
-import { UnencryptedFunctionL2Logs, UnencryptedL2Log } from '@aztec/circuit-types';
+import { PublicExecutionRequest, UnencryptedFunctionL2Logs, UnencryptedL2Log } from '@aztec/circuit-types';
 import {
   AvmContractInstanceHint,
   AvmExecutionHints,
@@ -14,6 +14,7 @@ import {
   LogHash,
   NoteHash,
   Nullifier,
+  type PublicCallRequest,
   ReadRequest,
 } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
@@ -23,7 +24,7 @@ import { type ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { type AvmContractCallResult } from '../avm/avm_contract_call_result.js';
 import { type AvmExecutionEnvironment } from '../avm/avm_execution_environment.js';
 import { createSimulationError } from '../common/errors.js';
-import { type PublicExecutionRequest, type PublicExecutionResult } from './execution.js';
+import { type PublicExecutionResult, resultToPublicCallRequest } from './execution.js';
 import { type PublicSideEffectTraceInterface } from './side_effect_trace_interface.js';
 
 export type TracedContractInstance = { exists: boolean } & ContractInstanceWithAddress;
@@ -50,6 +51,8 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
   private unencryptedLogs: UnencryptedL2Log[] = [];
   private allUnencryptedLogs: UnencryptedL2Log[] = [];
   private unencryptedLogsHashes: LogHash[] = [];
+
+  private publicCallRequests: PublicCallRequest[] = [];
 
   private gotContractInstances: ContractInstanceWithAddress[] = [];
 
@@ -247,6 +250,9 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
       result.startGasLeft.daGas - result.endGasLeft.daGas,
       result.startGasLeft.l2Gas - result.endGasLeft.l2Gas,
     );
+
+    this.publicCallRequests.push(resultToPublicCallRequest(result));
+
     this.avmCircuitHints.externalCalls.items.push(
       new AvmExternalCallHint(
         /*success=*/ new Fr(result.reverted ? 0 : 1),
@@ -305,6 +311,7 @@ export class PublicSideEffectTrace implements PublicSideEffectTraceInterface {
       // TODO(dbanks12): process contract instance read requests in public kernel
       //gotContractInstances: this.gotContractInstances,
 
+      publicCallRequests: this.publicCallRequests,
       nestedExecutions: this.nestedExecutions,
 
       avmCircuitHints: this.avmCircuitHints,
@@ -325,11 +332,10 @@ function createPublicExecutionRequest(avmEnvironment: AvmExecutionEnvironment): 
     isDelegateCall: avmEnvironment.isDelegateCall,
     isStaticCall: avmEnvironment.isStaticCall,
   });
-  return {
-    contractAddress: avmEnvironment.address,
-    functionSelector: avmEnvironment.functionSelector,
+  return new PublicExecutionRequest(
+    avmEnvironment.address,
     callContext,
     // execution request does not contain AvmContextInputs prefix
-    args: avmEnvironment.getCalldataWithoutPrefix(),
-  };
+    avmEnvironment.getCalldataWithoutPrefix(),
+  );
 }

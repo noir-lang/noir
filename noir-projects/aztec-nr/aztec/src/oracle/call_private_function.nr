@@ -1,7 +1,4 @@
-use dep::protocol_types::{
-    abis::{function_selector::FunctionSelector, private_call_stack_item::PrivateCallStackItem},
-    address::AztecAddress, constants::PRIVATE_CALL_STACK_ITEM_LENGTH
-};
+use dep::protocol_types::{abis::function_selector::FunctionSelector, address::AztecAddress, utils::reader::Reader};
 
 #[oracle(callPrivateFunction)]
 unconstrained fn call_private_function_oracle(
@@ -11,7 +8,7 @@ unconstrained fn call_private_function_oracle(
     _start_side_effect_counter: u32,
     _is_static_call: bool,
     _is_delegate_call: bool
-) -> [Field; PRIVATE_CALL_STACK_ITEM_LENGTH] {}
+) -> [Field; 2] {}
 
 unconstrained pub fn call_private_function_internal(
     contract_address: AztecAddress,
@@ -20,7 +17,7 @@ unconstrained pub fn call_private_function_internal(
     start_side_effect_counter: u32,
     is_static_call: bool,
     is_delegate_call: bool
-) -> PrivateCallStackItem {
+) -> (u32, Field) {
     let fields = call_private_function_oracle(
         contract_address,
         function_selector,
@@ -30,5 +27,9 @@ unconstrained pub fn call_private_function_internal(
         is_delegate_call
     );
 
-    PrivateCallStackItem::deserialize(fields)
+    let mut reader = Reader::new(fields);
+    let end_side_effect_counter = reader.read_u32();
+    let returns_hash = reader.read();
+
+    (end_side_effect_counter, returns_hash)
 }

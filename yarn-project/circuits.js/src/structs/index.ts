@@ -1,8 +1,6 @@
 export * from '@aztec/foundation/eth-address';
 export * from './avm/avm.js';
 export * from './call_context.js';
-export * from './call_request.js';
-export * from './caller_context.js';
 export * from './client_ivc_proof.js';
 export * from './complete_address.js';
 export * from './content_commitment.js';
@@ -58,6 +56,7 @@ export * from './private_circuit_public_inputs.js';
 export * from './proof.js';
 export * from './public_call_request.js';
 export * from './public_call_stack_item.js';
+export * from './public_call_stack_item_compressed.js';
 export * from './public_circuit_public_inputs.js';
 export * from './public_data_hint.js';
 export * from './public_data_read_request.js';

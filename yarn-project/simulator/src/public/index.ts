@@ -1,6 +1,6 @@
 export * from './abstract_phase_manager.js';
 export * from './db_interfaces.js';
-export { isPublicExecutionResult, type PublicExecutionRequest, type PublicExecutionResult } from './execution.js';
+export { isPublicExecutionResult, type PublicExecutionResult } from './execution.js';
 export { PublicExecutor } from './executor.js';
 export * from './fee_payment.js';
 export { HintsBuilder } from './hints_builder.js';

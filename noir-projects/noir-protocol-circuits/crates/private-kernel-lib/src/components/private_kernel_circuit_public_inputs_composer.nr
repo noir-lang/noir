@@ -1,6 +1,6 @@
 use dep::types::{
     abis::{
-    call_request::CallRequest, combined_constant_data::CombinedConstantData,
+    combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PrivateKernelCircuitPublicInputsBuilder},
     max_block_number::MaxBlockNumber, nullifier::{Nullifier, ScopedNullifier},
     private_circuit_public_inputs::PrivateCircuitPublicInputs
@@ -19,8 +19,6 @@ struct DataSource {
     private_call_public_inputs: PrivateCircuitPublicInputs,
     contract_address: AztecAddress,
     storage_contract_address: AztecAddress,
-    public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
-    public_teardown_call_request: CallRequest,
 }
 
 pub fn create_first_nullifier(tx_request: TxRequest) -> ScopedNullifier {
@@ -76,8 +74,8 @@ impl PrivateKernelCircuitPublicInputsComposer {
         public_inputs.end.note_encrypted_logs_hashes = array_to_bounded_vec(start.note_encrypted_logs_hashes);
         public_inputs.end.encrypted_logs_hashes = array_to_bounded_vec(start.encrypted_logs_hashes);
         public_inputs.end.unencrypted_logs_hashes = array_to_bounded_vec(start.unencrypted_logs_hashes);
+        public_inputs.end.public_call_requests = array_to_bounded_vec(start.public_call_requests);
         public_inputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
-        public_inputs.end.public_call_stack = array_to_bounded_vec(start.public_call_stack);
 
         PrivateKernelCircuitPublicInputsComposer { public_inputs }
     }
@@ -91,18 +89,10 @@ impl PrivateKernelCircuitPublicInputsComposer {
     pub fn with_private_call(
         &mut self,
         private_call_public_inputs: PrivateCircuitPublicInputs,
-        contract_address: AztecAddress,
-        public_call_requests: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
-        public_teardown_call_request: CallRequest
+        contract_address: AztecAddress
     ) -> Self {
         let storage_contract_address = private_call_public_inputs.call_context.storage_contract_address;
-        let source = DataSource {
-            private_call_public_inputs,
-            contract_address,
-            storage_contract_address,
-            public_call_requests,
-            public_teardown_call_request
-        };
+        let source = DataSource { private_call_public_inputs, contract_address, storage_contract_address };
 
         self.propagate_from_private_call(source);
 
@@ -237,29 +227,26 @@ impl PrivateKernelCircuitPublicInputsComposer {
     fn propagate_private_call_requests(&mut self, source: DataSource) {
         let call_requests = source.private_call_public_inputs.private_call_requests;
         let num_requests = array_length(call_requests);
-        let mut proceed = true;
         for i in 0..call_requests.len() {
-            proceed &= i != num_requests;
-            if proceed {
+            if i < num_requests {
                 // Push the call requests to the stack in reverse order.
                 let call_request = call_requests[num_requests - i - 1];
-                self.public_inputs.end.private_call_stack.push(call_request.scope(source.contract_address));
+                self.public_inputs.end.private_call_stack.push(call_request);
             }
         }
     }
 
     fn propagate_public_call_requests(&mut self, source: DataSource) {
-        let call_requests = source.public_call_requests;
+        let call_requests = source.private_call_public_inputs.public_call_requests;
         for i in 0..call_requests.len() {
-            let call_request = call_requests[i];
-            if !is_empty(call_request) {
-                self.public_inputs.end.public_call_stack.push(call_request);
+            if !is_empty(call_requests[i]) {
+                self.public_inputs.end.public_call_requests.push(call_requests[i]);
             }
         }
     }
 
     fn propagate_public_teardown_call_request(&mut self, source: DataSource) {
-        let call_request = source.public_teardown_call_request;
+        let call_request = source.private_call_public_inputs.public_teardown_call_request;
         if !is_empty(call_request) {
             assert(
                 is_empty(self.public_inputs.public_teardown_call_request), "Public teardown call request already set"
@@ -282,7 +269,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
         self.public_inputs.end.note_encrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.note_encrypted_logs_hashes.storage);
         self.public_inputs.end.encrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.encrypted_logs_hashes.storage);
         self.public_inputs.end.unencrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.unencrypted_logs_hashes.storage);
-        self.public_inputs.end.public_call_stack.storage = sort_by_counters_desc(self.public_inputs.end.public_call_stack.storage);
+        self.public_inputs.end.public_call_requests.storage = sort_by_counters_desc(self.public_inputs.end.public_call_requests.storage);
     }
 
     fn silo_scoped_values(&mut self) {

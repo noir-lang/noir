@@ -1,4 +1,4 @@
-import { Note, type PrivateKernelProver } from '@aztec/circuit-types';
+import { Note, type PrivateKernelProver, PublicExecutionRequest } from '@aztec/circuit-types';
 import {
   FunctionData,
   FunctionSelector,
@@ -10,7 +10,6 @@ import {
   PrivateCircuitPublicInputs,
   PrivateKernelCircuitPublicInputs,
   PrivateKernelTailCircuitPublicInputs,
-  PublicCallRequest,
   ScopedNoteHash,
   type TxRequest,
   VK_TREE_HEIGHT,
@@ -74,7 +73,7 @@ describe('Kernel Prover', () => {
       acir: Buffer.alloc(0),
       partialWitness: new Map(),
       enqueuedPublicFunctionCalls: [],
-      publicTeardownFunctionCall: PublicCallRequest.empty(),
+      publicTeardownFunctionCall: PublicExecutionRequest.empty(),
       noteEncryptedLogs: [],
       encryptedLogs: [],
       unencryptedLogs: [],

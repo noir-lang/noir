@@ -1,4 +1,3 @@
-import { ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH, type PublicCallRequest } from '@aztec/circuits.js';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -38,34 +37,6 @@ export function toACVMField(
     buffer = value.toBuffer();
   }
   return `0x${adaptBufferSize(buffer).toString('hex')}`;
-}
-
-// Utilities to write TS classes to ACVM Field arrays
-// In the order that the ACVM expects them
-
-/**
- * Converts a public call stack item with the request for executing a public function to
- * a set of ACVM fields accepted by the enqueue_public_function_call_oracle Aztec.nr function.
- * Note that only the fields related to the request are serialized: those related to the result
- * are empty since this is just an execution request, so we don't send them to the circuit.
- * @param item - The public call stack item to serialize to be passed onto Noir.
- * @returns The fields expected by the enqueue_public_function_call_oracle Aztec.nr function.
- * TODO(#4380): Nuke this and replace it with PublicCallRequest.toFields()
- */
-export function toAcvmEnqueuePublicFunctionResult(item: PublicCallRequest): ACVMField[] {
-  const fields = [
-    item.contractAddress.toField(),
-    item.functionSelector.toField(),
-    ...item.callContext.toFields(),
-    item.sideEffectCounter,
-    item.getArgsHash(),
-  ];
-  if (fields.length !== ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH) {
-    throw new Error(
-      `Invalid length for EnqueuePublicFunctionResult (got ${fields.length} expected ${ENQUEUE_PUBLIC_FUNCTION_CALL_RETURN_LENGTH})`,
-    );
-  }
-  return fields.map(toACVMField);
 }
 
 /**

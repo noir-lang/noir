@@ -1,6 +1,7 @@
 use crate::abis::{
     accumulated_data::PublicAccumulatedData, combined_constant_data::CombinedConstantData,
-    validation_requests::{RollupValidationRequests, ValidationRequests}, call_request::CallRequest
+    public_call_request::PublicCallRequest,
+    validation_requests::{RollupValidationRequests, ValidationRequests}
 };
 use crate::constants::{MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, PUBLIC_KERNEL_CIRCUIT_PUBLIC_INPUTS_LENGTH};
 use crate::traits::{Empty, Serialize, Deserialize, Eq};
@@ -13,7 +14,7 @@ struct PublicKernelCircuitPublicInputs {
     end: PublicAccumulatedData,
     constants: CombinedConstantData,
     revert_code: u8,
-    public_teardown_call_stack: [CallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
+    public_teardown_call_stack: [PublicCallRequest; MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
     fee_payer: AztecAddress
 }
 
@@ -21,18 +22,18 @@ impl PublicKernelCircuitPublicInputs {
     pub fn needs_setup(self) -> bool {
         // public calls for setup are deposited in the non-revertible public call stack.
         // if an element is present, we need to run setup
-        self.end_non_revertible.public_call_stack[0].hash != 0
+        !self.end_non_revertible.public_call_stack[0].item.contract_address.is_zero()
     }
 
     pub fn needs_app_logic(self) -> bool {
         // public calls for app logic are deposited in the revertible public call stack.
         // if an element is present, we need to run app logic
-        self.end.public_call_stack[0].hash != 0
+        !self.end.public_call_stack[0].item.contract_address.is_zero()
     }
 
     pub fn needs_teardown(self) -> bool {
         // the public call specified for teardown, if any, is placed in the teardown call stack
-        self.public_teardown_call_stack[0].hash != 0
+        !self.public_teardown_call_stack[0].item.contract_address.is_zero()
     }
 }
 
@@ -44,7 +45,7 @@ impl Empty for PublicKernelCircuitPublicInputs {
             end: PublicAccumulatedData::empty(),
             constants: CombinedConstantData::empty(),
             revert_code: 0,
-            public_teardown_call_stack: [CallRequest::empty(); MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
+            public_teardown_call_stack: [PublicCallRequest::empty(); MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
             fee_payer: AztecAddress::empty()
         }
     }
@@ -83,7 +84,7 @@ impl Deserialize<PUBLIC_KERNEL_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicKernelCir
         end: reader.read_struct(PublicAccumulatedData::deserialize),
         constants: reader.read_struct(CombinedConstantData::deserialize),
         revert_code: reader.read() as u8,
-        public_teardown_call_stack: reader.read_struct_array(CallRequest::deserialize, [CallRequest::empty(); MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX]),
+        public_teardown_call_stack: reader.read_struct_array(PublicCallRequest::deserialize, [PublicCallRequest::empty(); MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX]),
         fee_payer: reader.read_struct(AztecAddress::deserialize),
     };
     reader.finish();
