@@ -70,8 +70,6 @@ pub struct NoirTraitImpl {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
 
     pub items: Vec<TraitImplItem>,
-
-    pub is_comptime: bool,
 }
 
 /// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`

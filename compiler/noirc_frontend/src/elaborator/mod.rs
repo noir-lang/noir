@@ -1533,7 +1533,6 @@ impl<'context> Elaborator<'context> {
                     methods,
                     generics: trait_impl.impl_generics,
                     where_clause: trait_impl.where_clause,
-                    is_comptime: trait_impl.is_comptime,
 
                     // These last fields are filled in later
                     trait_id: None,

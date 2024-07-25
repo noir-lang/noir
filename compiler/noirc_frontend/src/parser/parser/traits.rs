@@ -3,7 +3,6 @@ use chumsky::prelude::*;
 use super::attributes::{attributes, validate_secondary_attributes};
 use super::function::function_return_type;
 use super::path::path_no_turbofish;
-use super::types::maybe_comp_time;
 use super::{block, expression, fresh_statement, function, function_declaration_parameters};
 
 use crate::ast::{
@@ -105,9 +104,8 @@ fn trait_type_declaration() -> impl NoirParser<TraitItem> {
 ///
 /// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
 pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
-    maybe_comp_time()
-        .then_ignore(keyword(Keyword::Impl))
-        .then(function::generics())
+    keyword(Keyword::Impl)
+        .ignore_then(function::generics())
         .then(path_no_turbofish())
         .then(generic_type_args(parse_type()))
         .then_ignore(keyword(Keyword::For))
@@ -118,7 +116,7 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::RightBrace))
         .map(|args| {
             let (((other_args, object_type), where_clause), items) = args;
-            let (((is_comptime, impl_generics), trait_name), trait_generics) = other_args;
+            let ((impl_generics, trait_name), trait_generics) = other_args;
 
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
@@ -127,7 +125,6 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
                 object_type,
                 items,
                 where_clause,
-                is_comptime,
             })
         })
 }
