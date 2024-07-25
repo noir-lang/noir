@@ -1,12 +1,11 @@
 ---
-title: Writing Noir Well
+title: Writing Performant Noir
 description: Understand new considerations when writing Noir
 keywords: [Noir, programming, rust]
 tags: [Optimization]
 sidebar_position: 0
 ---
 
-# Writing Noir for fun and profit
 
 This article intends to set you up with key concepts essential for writing more viable applications that use zero knowledge proofs, namely around efficient circuits.
 
@@ -140,7 +139,7 @@ Using `assert_constant(i);` before an index, `i`, is used in an array will give 
 ### Leverage unconstrained execution
 
 Constrained verification can leverage unconstrained execution, this is especially useful for operations that are represented by many gates.
-Use an [unconstrained function](https://noir-lang.org/docs/noir/concepts/unconstrained) to perform gate-heavy calculations, then verify and constrain the result.
+Use an [unconstrained function](../noir/concepts/unconstrained.md) to perform gate-heavy calculations, then verify and constrain the result.
 
 Eg division generates more gates than multiplication, so calculating the quotient in an unconstrained function then constraining the product for the quotient and divisor (+ any remainder) equals the dividend will be more efficient.
 
