@@ -8,7 +8,7 @@ sidebar_position: 0
 
 # Writing Noir for fun and profit
 
-This article intends to set you up with a key concept essential for writing more viable applications that use zero knowledge proofs, namely around non-wasteful circuits.
+This article intends to set you up with key concepts essential for writing more viable applications that use zero knowledge proofs, namely around efficient circuits.
 
 ## Context - 'Efficient' is subjective
 
@@ -29,11 +29,11 @@ In scenarios where extremely low gas costs are required for an application to be
 
 ### Coding for circuits - a paradigm shift
 
-In zero knowledge cryptography, code is compiled to arithmetic gates called "circuits", and gate count is the significant cost. Depending on the backend this is linearly proportionate to proving time, and so from a product point this should be kept as low as possible.
+In zero knowledge cryptography, code is compiled to "circuits" consisting of arithmetic gates, and gate count is the significant cost. Depending on the proving system this is linearly proportionate to proving time, and so from a product point this should be kept as low as possible.
 
-Whilst writing efficient code for web apps and solidity has a few key differences, writing efficient circuits have a different set of considerations. It is a bit of a paradigm shift, like writing code for GPUs for the first time...
+Whilst writing efficient code for web apps and Solidity has a few key differences, writing efficient circuits have a different set of considerations. It is a bit of a paradigm shift, like writing code for GPUs for the first time...
 
-Eg drawing a circle at (0, 0) of radius `r`:
+For example, drawing a circle at (0, 0) of radius `r`:
 - For a single CPU thread,
 ```
 for theta in 0..2*pi {
@@ -58,7 +58,7 @@ Whilst this CPU -> GPU does not translate to circuits exactly, it is intended to
 
 For those coming from a primarily web app background, this article will explain what you need to consider when writing circuits. Furthermore, for those experienced writing efficient machine code, prepare to shift what you think is efficient 😬
 
-## Code re-use
+## Translating from Rust
 
 For some applications using Noir, existing code might be a convenient starting point to then proceed to optimize the gate count of.
 
@@ -66,7 +66,7 @@ For some applications using Noir, existing code might be a convenient starting p
 Many valuable functions and algorithms have been written in more established languages (C/C++), and converted to modern ones (like Rust).
 :::
 
-Fortunately for Noir developers, when needing a particular function a rust implementation can be readily compiled into Noir with some key changes. While the compiler does a decent amount of optimizations, it won't be able to change code that has been optimized for clock-cycles into code optimized for arithmetic gates.
+Fortunately for Noir developers, when needing a particular function a Rust implementation can be readily compiled into Noir with some key changes. While the compiler does a decent amount of optimizations, it won't be able to change code that has been optimized for clock-cycles into code optimized for arithmetic gates.
 
 A few things to do when converting Rust code to Noir:
 - `println!` is not a macro, use `println` function (same for `assert_eq`)
@@ -82,7 +82,7 @@ A few things to do when converting Rust code to Noir:
 The following points help refine our understanding over time.
 
 :::note
-> A Noir program makes a statement that can be verified.
+A Noir program makes a statement that can be verified.
 :::
 
 It compiles to a structure that represents the calculation, and can assert results within the calculation at any stage (via the `constrain` keyword).
@@ -110,7 +110,7 @@ Where possible, use `Field` type for values. Using smaller value types, and bit-
 
 ### Use Arithmetic over non-arithmetic operations
 
-Since circuits are made of arithmetic gates, the cost of them tends to be one gate. Whereas for procedural code, they represent several clock cycles.
+Since circuits are made of arithmetic gates, the cost of arithmetic operations tends to be one gate. Whereas for procedural code, they represent several clock cycles.
 
 Inversely, non-arithmetic operators are achieved with multiple gates, vs 1 clock cycle for procedural code.
 
@@ -119,9 +119,11 @@ Inversely, non-arithmetic operators are achieved with multiple gates, vs 1 clock
 | **cycles** | 10+ | 1 |
 | **gates**  | 1 | 10+ |
 
-:::tip
-Preference arithmetic operators where possible. Attempting to optimize a circuit with bit-wise operations will lead to MORE gates.
-:::
+Bit-wise operations (e.g. bit shifts `<<` and `>>`), albeit commonly used in general programming and especially for clock cycle optimizations, are on the contrary expensive in gates when performed within circuits.
+
+Translate away from bit shifts when writing constrained functions for the best performance.
+
+On the flip side, feel free to use bit shifts in unconstrained functions and tests if necessary, as they are executed outside of circuits and does not induce performance hits.
 
 ### Use static over dynamic values
 
@@ -133,7 +135,7 @@ Related to this, if an index used to access an array is not known at compile tim
 
 :::tip
 Use arrays and indices that are known at compile time where possible.
-NB: Using `assert_constant(i);` before an index, `i`, is used in an array will give a compile error if `i` is NOT known at compile time.
+Using `assert_constant(i);` before an index, `i`, is used in an array will give a compile error if `i` is NOT known at compile time.
 :::
 
 ### Leverage unconstrained execution
@@ -158,7 +160,7 @@ Unless you're well into the depth of gate optimization, this advanced section ca
 
 ### Combine arithmetic operations
 
-A Noir program can be honed further by combining arithmetic operators in a way that makes the most of each constraint of the backend. This is in scenarios where the backend might not be doing this perfectly.
+A Noir program can be honed further by combining arithmetic operators in a way that makes the most of each constraint of the backend proving system. This is in scenarios where the backend might not be doing this perfectly.
 
 Eg Barretenberg backend (current default for Noir) is a width-4 PLONKish constraint system
 $ w_1*w_2*q_m + w_1*q_1 + w_2*q_2 + w_3*q_3 + w_4*q_4 + q_c = 0 $
