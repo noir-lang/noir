@@ -207,7 +207,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::FailingConstraint { message, location } => {
                 let (primary, secondary) = match message {
-                    Some(msg) => (format!("{msg:?}"), "Assertion failed".into()),
+                    Some(msg) => (format!("{msg}"), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
                 CustomDiagnostic::simple_error(primary, secondary, location.span)
