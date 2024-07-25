@@ -18,6 +18,8 @@ export type BotConfig = {
   publicTransfersPerTx: number;
   /** How to handle fee payments. */
   feePaymentMethod: 'native' | 'none';
+  /** True to not automatically setup or start the bot on initialization. */
+  noStart: boolean;
 };
 
 export function getBotConfigFromEnv(): BotConfig {
@@ -29,6 +31,7 @@ export function getBotConfigFromEnv(): BotConfig {
     BOT_TX_INTERVAL_SECONDS,
     BOT_PRIVATE_TRANSFERS_PER_TX,
     BOT_PUBLIC_TRANSFERS_PER_TX,
+    BOT_NO_START,
   } = process.env;
   if (BOT_FEE_PAYMENT_METHOD && !['native', 'none'].includes(BOT_FEE_PAYMENT_METHOD)) {
     throw new Error(`Invalid bot fee payment method: ${BOT_FEE_PAYMENT_METHOD}`);
@@ -45,6 +48,7 @@ export function getBotConfigFromEnv(): BotConfig {
     privateTransfersPerTx: BOT_PRIVATE_TRANSFERS_PER_TX ? parseInt(BOT_PRIVATE_TRANSFERS_PER_TX) : undefined,
     publicTransfersPerTx: BOT_PUBLIC_TRANSFERS_PER_TX ? parseInt(BOT_PUBLIC_TRANSFERS_PER_TX) : undefined,
     feePaymentMethod: BOT_FEE_PAYMENT_METHOD ? (BOT_FEE_PAYMENT_METHOD as 'native' | 'none') : undefined,
+    noStart: BOT_NO_START ? ['1', 'true'].includes(BOT_NO_START) : undefined,
   });
 }
 
@@ -58,6 +62,7 @@ export function getBotDefaultConfig(overrides: Partial<BotConfig> = {}): BotConf
     privateTransfersPerTx: 1,
     publicTransfersPerTx: 1,
     feePaymentMethod: 'none',
+    noStart: false,
     ...compact(overrides),
   };
 }

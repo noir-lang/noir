@@ -25,7 +25,7 @@ export async function startBot(
   return services;
 }
 
-export async function addBot(
+export function addBot(
   options: any,
   services: ServerList,
   signalHandlers: (() => Promise<void>)[],
@@ -37,7 +37,10 @@ export async function addBot(
 
   const botRunner = new BotRunner(config, { pxe: deps.pxe });
   const botServer = createBotRunnerRpcServer(botRunner);
-  await botRunner.start();
+  if (!config.noStart) {
+    void botRunner.start(); // Do not block since bot setup takes time
+  }
   services.push({ bot: botServer });
   signalHandlers.push(botRunner.stop);
+  return Promise.resolve();
 }
