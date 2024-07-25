@@ -91,14 +91,14 @@ impl HirExpression {
                 let ident = ident.to_display_ast(interner);
                 let span = ident.span();
                 let segment = PathSegment {
-                    ident: ident,
+                    ident,
                     generics: generics.as_ref().map(|option| {
                         option.iter().map(|generic| generic.to_display_ast()).collect()
                     }),
                 };
 
                 let path =
-                    Path { segments: vec![segment], kind: crate::ast::PathKind::Plain, span: span };
+                    Path { segments: vec![segment], kind: crate::ast::PathKind::Plain, span };
 
                 ExpressionKind::Variable(path)
             }

@@ -458,7 +458,7 @@ impl Display for PathSegment {
 
         if let Some(generics) = &self.generics {
             let generics = vecmap(generics, ToString::to_string);
-            write!(f, "::<{}>", generics.join(", "))?
+            write!(f, "::<{}>", generics.join(", "))?;
         }
 
         Ok(())
