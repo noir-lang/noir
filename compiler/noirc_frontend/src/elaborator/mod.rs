@@ -248,6 +248,7 @@ impl<'context> Elaborator<'context> {
         let (comptime_items, runtime_items) = Self::filter_comptime_items(items);
         this.elaborate_items(comptime_items);
         this.elaborate_items(runtime_items);
+        this.check_and_pop_function_context();
         this
     }
 
