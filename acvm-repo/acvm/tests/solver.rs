@@ -758,10 +758,42 @@ fn allowed_bigint_moduli() -> Vec<Vec<u8>> {
     vec![bn254_fq, bn254_fr, secpk1_fr, secpk1_fq, secpr1_fq, secpr1_fr]
 }
 
+/// Whether to use a FunctionInput::constant or FunctionInput::witness:
+///
+/// (value, use_constant)
+type ConstantOrWitness = (FieldElement, bool);
+
+// For each ConstantOrWitness,
+// - If use_constant, then convert to a FunctionInput::constant
+// - Otherwise, convert to FunctionInput::witness
+//   + With the Witness index as (input_index + offset)
+//
+// Both use FieldElement::max_num_bits as the number of bits.
+fn constant_or_witness_to_function_inputs(
+    xs: Vec<ConstantOrWitness>,
+    offset: usize,
+) -> Vec<FunctionInput<FieldElement>> {
+    xs.into_iter()
+        .enumerate()
+        .map(|(i, (x, use_constant))| {
+            if use_constant {
+                FunctionInput::constant(x, FieldElement::max_num_bits())
+            } else {
+                FunctionInput::witness(Witness((i + offset) as u32), FieldElement::max_num_bits())
+            }
+        })
+        .collect()
+}
+
+// Convert ConstantOrWitness's back to FieldElement's by dropping the bool's
+fn drop_use_constant(input: &[ConstantOrWitness]) -> Vec<FieldElement> {
+    input.iter().map(|x| x.0).collect()
+}
+
 prop_compose! {
     fn bigint_with_modulus()(modulus in select(allowed_bigint_moduli()))
         (input in proptest::collection::vec(any::<(u8, bool)>(), modulus.len()), modulus in Just(modulus))
-        -> (Vec<(FieldElement, bool)>, Vec<u8>) {
+        -> (Vec<ConstantOrWitness>, Vec<u8>) {
         let input = input.into_iter().map(|(x, use_constant)| {
             (FieldElement::from(x as u128), use_constant)
         }).collect();
@@ -772,7 +804,7 @@ prop_compose! {
 prop_compose! {
     fn bigint_pair_with_modulus()(input_modulus in bigint_with_modulus())
         (ys in proptest::collection::vec(any::<(u8, bool)>(), input_modulus.1.len()), input_modulus in Just(input_modulus))
-        -> (Vec<(FieldElement, bool)>, Vec<(FieldElement, bool)>, Vec<u8>) {
+        -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
         let ys = ys.into_iter().map(|(x, use_constant)| {
             (FieldElement::from(x as u128), use_constant)
         }).collect();
@@ -783,7 +815,7 @@ prop_compose! {
 prop_compose! {
     fn bigint_triple_with_modulus()(xs_ys_modulus in bigint_pair_with_modulus())
         (zs in proptest::collection::vec(any::<(u8, bool)>(), xs_ys_modulus.2.len()), xs_ys_modulus in Just(xs_ys_modulus))
-        -> (Vec<(FieldElement, bool)>, Vec<(FieldElement, bool)>, Vec<(FieldElement, bool)>, Vec<u8>) {
+        -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
         let zs = zs.into_iter().map(|(x, use_constant)| {
             (FieldElement::from(x as u128), use_constant)
         }).collect();
@@ -812,27 +844,31 @@ fn bigint_div_op() -> BlackBoxFuncCall<FieldElement> {
 //
 // Output is a zeroed BigInt with the same byte-length and use_constant values
 // as the input.
-fn bigint_zeroed(input: &[(FieldElement, bool)]) -> Vec<(FieldElement, bool)> {
+fn bigint_zeroed(input: &[ConstantOrWitness]) -> Vec<ConstantOrWitness> {
     input.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect()
 }
 
 // bigint_zeroed, but returns one
-fn bigint_to_one(input: &[(FieldElement, bool)]) -> Vec<(FieldElement, bool)> {
+fn bigint_to_one(input: &[ConstantOrWitness]) -> Vec<ConstantOrWitness> {
     let mut one = bigint_zeroed(input);
     // little-endian
     one[0] = (FieldElement::one(), one[0].1);
     one
 }
 
-fn drop_use_constant(input: &[(FieldElement, bool)]) -> Vec<FieldElement> {
-    input.iter().map(|x| x.0).collect()
-}
-
+// Using the given BigInt modulus, solve the following circuit:
+// - Convert xs, ys to BigInt's with ID's 0, 1, resp.
+// - If the middle_op is present, run it
+//   + Input BigInt ID's: 0, 1
+//   + Output BigInt ID: 2
+// - If the middle_op is missing, the output BigInt ID is 0
+// - Run BigIntToLeBytes on the output BigInt ID
+// - Output the resulting Vec of LE bytes
 fn bigint_solve_binary_op_opt(
     middle_op: Option<BlackBoxFuncCall<FieldElement>>,
     modulus: Vec<u8>,
-    xs: Vec<(FieldElement, bool)>,
-    ys: Vec<(FieldElement, bool)>,
+    xs: Vec<ConstantOrWitness>,
+    ys: Vec<ConstantOrWitness>,
 ) -> Vec<FieldElement> {
     let initial_witness_vec: Vec<_> =
         xs.iter().chain(ys.iter()).enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
@@ -840,51 +876,34 @@ fn bigint_solve_binary_op_opt(
         .iter()
         .take(xs.len())
         .enumerate()
-        .map(|(i, _)| Witness((i + 2 * xs.len()) as u32))
+        .map(|(i, _)| Witness((i + 2 * xs.len()) as u32)) // offset past the indices of xs, ys
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
-    let xs: Vec<_> = xs
-        .into_iter()
-        .enumerate()
-        .map(|(i, (x, use_constant))| {
-            if use_constant {
-                FunctionInput::constant(x, FieldElement::max_num_bits())
-            } else {
-                FunctionInput::witness(Witness(i as u32), FieldElement::max_num_bits())
-            }
-        })
-        .collect();
-    let ys: Vec<_> = ys
-        .into_iter()
-        .enumerate()
-        .map(|(i, (x, use_constant))| {
-            if use_constant {
-                FunctionInput::constant(x, FieldElement::max_num_bits())
-            } else {
-                FunctionInput::witness(Witness((i + xs.len()) as u32), FieldElement::max_num_bits())
-            }
-        })
-        .collect();
+    let xs = constant_or_witness_to_function_inputs(xs, 0);
+    let ys = constant_or_witness_to_function_inputs(ys, xs.len());
 
     let to_op_input = if middle_op.is_some() { 2 } else { 0 };
 
-    let bigint_from_x_op =
-        BlackBoxFuncCall::BigIntFromLeBytes { inputs: xs, modulus: modulus.clone(), output: 0 };
-    let bigint_from_y_op =
-        BlackBoxFuncCall::BigIntFromLeBytes { inputs: ys, modulus: modulus.clone(), output: 1 };
-    let bigint_to_op =
-        BlackBoxFuncCall::BigIntToLeBytes { input: to_op_input, outputs: output_witnesses.clone() };
-
-    let bigint_from_x_op = Opcode::BlackBoxFuncCall(bigint_from_x_op);
-    let bigint_from_y_op = Opcode::BlackBoxFuncCall(bigint_from_y_op);
+    let bigint_from_x_op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::BigIntFromLeBytes {
+        inputs: xs,
+        modulus: modulus.clone(),
+        output: 0,
+    });
+    let bigint_from_y_op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::BigIntFromLeBytes {
+        inputs: ys,
+        modulus: modulus.clone(),
+        output: 1,
+    });
+    let bigint_to_op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::BigIntToLeBytes {
+        input: to_op_input,
+        outputs: output_witnesses.clone(),
+    });
 
     let mut opcodes = vec![bigint_from_x_op, bigint_from_y_op];
     if let Some(middle_op) = middle_op {
-        let middle_op = Opcode::BlackBoxFuncCall(middle_op);
-        opcodes.push(middle_op);
+        opcodes.push(Opcode::BlackBoxFuncCall(middle_op));
     }
-    let bigint_to_op = Opcode::BlackBoxFuncCall(bigint_to_op);
     opcodes.push(bigint_to_op);
 
     let unconstrained_functions = vec![];
@@ -901,20 +920,31 @@ fn bigint_solve_binary_op_opt(
         .collect()
 }
 
+// Using the given BigInt modulus, solve the following circuit:
+// - Convert xs, ys to BigInt's with ID's 0, 1, resp.
+// - Run the middle_op:
+//   + Input BigInt ID's: 0, 1
+//   + Output BigInt ID: 2
+// - Run BigIntToLeBytes on the output BigInt ID
+// - Output the resulting Vec of LE bytes
 fn bigint_solve_binary_op(
     middle_op: BlackBoxFuncCall<FieldElement>,
     modulus: Vec<u8>,
-    xs: Vec<(FieldElement, bool)>,
-    ys: Vec<(FieldElement, bool)>,
+    xs: Vec<ConstantOrWitness>,
+    ys: Vec<ConstantOrWitness>,
 ) -> Vec<FieldElement> {
     bigint_solve_binary_op_opt(Some(middle_op), modulus, xs, ys)
 }
 
+// Using the given BigInt modulus, solve the following circuit:
+// - Convert the input to a BigInt with ID 0
+// - Run BigIntToLeBytes on BigInt ID 0
+// - Output the resulting Vec of LE bytes
 fn bigint_solve_from_to_le_bytes(
     modulus: Vec<u8>,
-    input: Vec<(FieldElement, bool)>,
+    input: Vec<ConstantOrWitness>,
 ) -> Vec<FieldElement> {
-    bigint_solve_binary_op_opt(None, modulus, input, vec![]) // TODO: input instead of vec![] ?
+    bigint_solve_binary_op_opt(None, modulus, input, vec![])
 }
 
 // NOTE: an "average" bigint is large, so consider increasing the number of proptest shrinking
@@ -1185,4 +1215,3 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 }
-
