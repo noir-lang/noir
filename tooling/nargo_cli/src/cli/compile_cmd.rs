@@ -9,8 +9,8 @@ use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::file_manager_with_stdlib;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_driver::{file_manager_with_stdlib, DEFAULT_EXPRESSION_WIDTH};
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
 
 use noirc_frontend::graph::CrateName;
@@ -249,12 +249,6 @@ fn save_contract(
         println!("Saved contract artifact to: {}", artifact_path.display());
     }
 }
-
-/// Default expression width used for Noir compilation.
-/// The ACVM native type `ExpressionWidth` has its own default which should always be unbounded,
-/// while we can sometimes expect the compilation target width to change.
-/// Thus, we set it separately here rather than trying to alter the default derivation of the type.
-const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded { width: 4 };
 
 /// If a target width was not specified in the CLI we can safely override the default.
 pub(crate) fn get_target_width(

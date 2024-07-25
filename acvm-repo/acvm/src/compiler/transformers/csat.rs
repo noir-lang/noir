@@ -415,71 +415,8 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
     if expr.mul_terms.len() > 1 {
         return false;
     };
-    // A Polynomial with more terms than fan-in cannot fit within a single opcode
-    if expr.linear_combinations.len() > width {
-        return false;
-    }
 
-    // A polynomial with no mul term and a fan-in that fits inside of the width can fit into a single opcode
-    if expr.mul_terms.is_empty() {
-        return true;
-    }
-
-    // A polynomial with width-2 fan-in terms and a single non-zero mul term can fit into one opcode
-    // Example: Axy + Dz . Notice, that the mul term places a constraint on the first two terms, but not the last term
-    // XXX: This would change if our arithmetic polynomial equation was changed to Axyz for example, but for now it is not.
-    if expr.linear_combinations.len() <= (width - 2) {
-        return true;
-    }
-
-    // We now know that we have a single mul term. We also know that the mul term must match up with at least one of the other terms
-    // A polynomial whose mul terms are non zero which do not match up with two terms in the fan-in cannot fit into one opcode
-    // An example of this is: Axy + Bx + Cy + ...
-    // Notice how the bivariate monomial xy has two univariate monomials with their respective coefficients
-    // XXX: note that if x or y is zero, then we could apply a further optimization, but this would be done in another algorithm.
-    // It would be the same as when we have zero coefficients - Can only work if wire is constrained to be zero publicly
-    let mul_term = &expr.mul_terms[0];
-
-    // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
-    assert_ne!(mul_term.0, F::zero());
-
-    let mut found_x = false;
-    let mut found_y = false;
-
-    for term in expr.linear_combinations.iter() {
-        let witness = &term.1;
-        let x = &mul_term.1;
-        let y = &mul_term.2;
-        if witness == x {
-            found_x = true;
-        };
-        if witness == y {
-            found_y = true;
-        };
-        if found_x & found_y {
-            break;
-        }
-    }
-
-    // If the multiplication is a squaring then we must assign the two witnesses to separate wires and so we
-    // can never get a zero contribution to the width.
-    let multiplication_is_squaring = mul_term.1 == mul_term.2;
-
-    let mul_term_width_contribution = if !multiplication_is_squaring && (found_x & found_y) {
-        // Both witnesses involved in the multiplication exist elsewhere in the expression.
-        // They both do not contribute to the width of the expression as this would be double-counting
-        // due to their appearance in the linear terms.
-        0
-    } else if found_x || found_y {
-        // One of the witnesses involved in the multiplication exists elsewhere in the expression.
-        // The multiplication then only contributes 1 new witness to the width.
-        1
-    } else {
-        // Worst case scenario, the multiplication is using completely unique witnesses so has a contribution of 2.
-        2
-    };
-
-    mul_term_width_contribution + expr.linear_combinations.len() <= width
+    expr.width() <= width
 }
 
 #[cfg(test)]
