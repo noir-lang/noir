@@ -27,8 +27,7 @@ trait Regex {
 
 // Empty
 impl Regex for () {
-    fn match(self, input: [u8]) -> Match {
-        assert(self == self); // ensure 'self' is used
+    fn match(_self: Self, input: [u8]) -> Match {
         Match::empty(input)
     }
 }
