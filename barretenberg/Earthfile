@@ -85,7 +85,7 @@ barretenberg-acir-tests-sol-honk:
     ENV VERBOSE=1
 
     RUN (cd sol-test && yarn)
-    RUN PARALLEL=1 FLOW=honk_sol ./run_acir_tests.sh assert_statement 1_mul slices
+    RUN PARALLEL=1 FLOW=honk_sol ./run_acir_tests.sh assert_statement 1_mul slices verify_honk_proof
 
 barretenberg-acir-tests-bb.js:
     # Playwright not supported on base image ubuntu:noble, results in unmet dependencies
