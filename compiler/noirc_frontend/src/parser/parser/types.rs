@@ -14,7 +14,7 @@ use crate::token::{Keyword, Token, TokenKind};
 use chumsky::prelude::*;
 use noirc_errors::Span;
 
-pub(super) fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
+pub fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
     recursive(parse_type_inner)
 }
 

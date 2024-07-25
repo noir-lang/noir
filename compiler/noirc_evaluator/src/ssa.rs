@@ -45,6 +45,22 @@ mod opt;
 pub mod plonky2_gen;
 pub mod ssa_gen;
 
+pub struct SsaEvaluatorOptions {
+    /// Emit debug information for the intermediate SSA IR
+    pub enable_ssa_logging: bool,
+
+    pub enable_brillig_logging: bool,
+
+    /// Force Brillig output (for step debugging)
+    pub force_brillig_output: bool,
+
+    /// Pretty print benchmark times of each code generation pass
+    pub print_codegen_timings: bool,
+
+    /// Width of expressions to be used for ACIR
+    pub expression_width: ExpressionWidth,
+}
+
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
 
 /// Optimize the given program by converting it into SSA
@@ -102,7 +118,9 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
-    let artifacts = time("SSA to ACIR", options.print_codegen_timings, || ssa.into_acir(&brillig))?;
+    let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
+        ssa.into_acir(&brillig, options.expression_width)
+    })?;
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }
 
@@ -216,19 +234,6 @@ impl SsaProgramArtifact {
     fn add_warnings(&mut self, mut warnings: Vec<SsaReport>) {
         self.warnings.append(&mut warnings);
     }
-}
-
-pub struct SsaEvaluatorOptions {
-    /// Emit debug information for the intermediate SSA IR
-    pub enable_ssa_logging: bool,
-
-    pub enable_brillig_logging: bool,
-
-    /// Force Brillig output (for step debugging)
-    pub force_brillig_output: bool,
-
-    /// Pretty print benchmark times of each code generation pass
-    pub print_codegen_timings: bool,
 }
 
 /// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
