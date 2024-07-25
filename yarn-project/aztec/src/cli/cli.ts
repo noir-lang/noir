@@ -85,7 +85,7 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
         } else if (options.p2pBootstrap) {
           const { startP2PBootstrap } = await import('./cmds/start_p2p_bootstrap.js');
           await startP2PBootstrap(options, userLog, debugLogger);
-        } else if (options.proverAgent) {
+        } else if (options.prover) {
           const { startProverAgent } = await import('./cmds/start_prover_agent.js');
           services = await startProverAgent(options, signalHandlers, userLog);
         } else if (options.txe) {
