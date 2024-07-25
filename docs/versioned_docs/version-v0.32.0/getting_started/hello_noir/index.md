@@ -117,7 +117,7 @@ The command also automatically compiles your Noir program if it was not already 
 
 Proving backends provide the ability to generate and verify proofs of executing Noir programs, following Noir's tooling that compiles and executes the programs. Read the [proving backend installation](../backend/index.md) section to learn more about proving backends and how to install them.
 
-Barretenberg is used as an example here to demonstrate how proving and verifying could be implemented and used. Read the [`bb` installation](../backend/index.md#example-installing-bb) section for how to install Barretenberg's CLI tool; refer to [`bb`'s documentation](https://github.com/AztecProtocol/barretenberg/blob/master/cpp/src/barretenberg/bb/readme.md) for full details about the tool.
+Barretenberg is used as an example here to demonstrate how proving and verifying could be implemented and used. Read the [`bb` installation](../backend/index.md#example-installing-bb) section for how to install Barretenberg's CLI tool; refer to [`bb`'s documentation](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/bb/readme.md) for full details about the tool.
 
 ### 5. Prove an execution of the Noir program
 
