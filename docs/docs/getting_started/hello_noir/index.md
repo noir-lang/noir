@@ -45,7 +45,7 @@ nargo new hello_world
 
 `hello_world` can be any arbitrary project name, we are simply using `hello_world` for demonstration.
 
-In production, the common practice is to name the project folder as `circuits` for better identifiability when sitting alongside other folders in the codebase (e.g. `contracts`, `scripts`, `test`).
+In production, it is common practice to name the project folder, `circuits`, for clarity amongst other folders in the codebase (like: `contracts`, `scripts`, and `test`).
 
 A `hello_world` folder would be created. Similar to Rust, the folder houses _src/main.nr_ and
 _Nargo.toml_ which contain the source code and environmental options of your Noir program
@@ -117,7 +117,7 @@ The command also automatically compiles your Noir program if it was not already 
 
 Proving backends provide the ability to generate and verify proofs of executing Noir programs, following Noir's tooling that compiles and executes the programs. Read the [proving backend installation](../backend/index.md) section to learn more about proving backends and how to install them.
 
-Barretenberg is used as an example here to demonstrate how proving and verifying could be implemented and used. Read the [`bb` installation](../backend/index.md#example-installing-bb) section for how to install Barretenberg's CLI tool; refer to [`bb`'s documentations](https://github.com/AztecProtocol/barretenberg/blob/master/cpp/src/barretenberg/bb/readme.md) for full details about the tool.
+Barretenberg is used as an example here to demonstrate how proving and verifying could be implemented and used. Read the [`bb` installation](../backend/index.md#example-installing-bb) section for how to install Barretenberg's CLI tool; refer to [`bb`'s documentation](https://github.com/AztecProtocol/barretenberg/blob/master/cpp/src/barretenberg/bb/readme.md) for full details about the tool.
 
 ### 5. Prove an execution of the Noir program
 
@@ -133,7 +133,7 @@ The proof generated will then be written to the file `./target/proof`.
 
 Once a proof is generated, we can verify correct execution of our Noir program by verifying the proof file.
 
-Using Barretenberg as an example, generate a verification key for your Noir program running:
+Using Barretenberg as an example, compute the verification key for the Noir program by running:
 
 ```sh
 bb write_vk -b ./target/hello_world.json -o ./target/vk
