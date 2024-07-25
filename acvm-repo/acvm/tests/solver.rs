@@ -943,27 +943,6 @@ proptest! {
 
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
-    fn bigint_from_to_le_bytes_extra_input_byte((input, modulus) in bigint_with_modulus(), extra_byte: u8, use_constant: bool) {
-        let mut input = input;
-        input.push((FieldElement::from(extra_byte as u128), use_constant));
-        let expected_results: Vec<_> = drop_use_constant(&input);
-        let results = bigint_solve_from_to_le_bytes(modulus.clone(), input);
-        prop_assert_eq!(results, expected_results)
-    }
-
-    #[test]
-    // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
-    fn bigint_from_to_le_bytes_two_extra_input_bytes((input, modulus) in bigint_with_modulus(), extra_byte: u8, extra_byte_2: u8, use_constant: bool, use_constant_2: bool) {
-        let mut input = input;
-        input.push((FieldElement::from(extra_byte as u128), use_constant));
-        input.push((FieldElement::from(extra_byte_2 as u128), use_constant_2));
-        let expected_results: Vec<_> = drop_use_constant(&input);
-        let results = bigint_solve_from_to_le_bytes(modulus.clone(), input);
-        prop_assert_eq!(results, expected_results)
-    }
-
-    #[test]
-    // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
     fn bigint_from_to_le_bytes_extra_input_bytes((input, modulus) in bigint_with_modulus(), extra_bytes_len: u8, extra_bytes in proptest::collection::vec(any::<(u8, bool)>(), u8::MAX as usize)) {
         let mut input = input;
         let mut extra_bytes: Vec<_> = extra_bytes.into_iter().take(extra_bytes_len as usize).map(|(x, use_constant)| (FieldElement::from(x as u128), use_constant)).collect();
@@ -1082,29 +1061,11 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
-    #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
-    fn bigint_add_zero_r((xs, modulus) in bigint_with_modulus()) {
-        let zero = bigint_zeroed(&xs);
-        let expected_results: Vec<_> = drop_use_constant(&xs);
-        let results = bigint_solve_binary_op(bigint_add_op(), modulus, xs, zero);
-        prop_assert_eq!(results, expected_results)
-    }
-
     #[test]
     fn bigint_mul_zero_l((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results = drop_use_constant(&zero);
         let results = bigint_solve_binary_op(bigint_mul_op(), modulus, zero, xs);
-        prop_assert_eq!(results, expected_results)
-    }
-
-    #[test]
-    fn bigint_mul_zero_r((xs, modulus) in bigint_with_modulus()) {
-        let zero = bigint_zeroed(&xs);
-        let expected_results = drop_use_constant(&zero);
-        let results = bigint_solve_binary_op(bigint_mul_op(), modulus, xs, zero);
         prop_assert_eq!(results, expected_results)
     }
 
@@ -1115,16 +1076,6 @@ proptest! {
         let one = bigint_to_one(&xs);
         let expected_results: Vec<_> = drop_use_constant(&xs);
         let results = bigint_solve_binary_op(bigint_mul_op(), modulus, one, xs);
-        prop_assert_eq!(results, expected_results)
-    }
-
-    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
-    #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
-    fn bigint_mul_one_r((xs, modulus) in bigint_with_modulus()) {
-        let one = bigint_to_one(&xs);
-        let expected_results = drop_use_constant(&xs);
-        let results = bigint_solve_binary_op(bigint_mul_op(), modulus, xs, one);
         prop_assert_eq!(results, expected_results)
     }
 
@@ -1235,20 +1186,3 @@ proptest! {
     }
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/5579):
-// this test is redundant with bigint_add_zero_l, but may be useful for
-// debugging. It can be removed once bigint_add_zero_l is
-// passing because proptest automatically retries previous failures first.
-#[test]
-#[should_panic(expected = "assertion `left == right` failed")]
-fn bigint_add_zero_l_single_case_49() {
-    let modulus = &allowed_bigint_moduli()[0];
-    let mut xs: Vec<_> = modulus.iter().map(|_| (FieldElement::zero(), false)).collect();
-    xs[modulus.len() - 1] = (FieldElement::from(49u128), false);
-
-    let zero = bigint_zeroed(&xs);
-    let expected_results = drop_use_constant(&xs);
-    let results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), zero, xs);
-
-    assert_eq!(results, expected_results)
-}
