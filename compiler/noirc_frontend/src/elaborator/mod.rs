@@ -964,7 +964,7 @@ impl<'context> Elaborator<'context> {
             let trait_generics = trait_impl.resolved_trait_generics.clone();
 
             let resolved_trait_impl = Shared::new(TraitImpl {
-                ident: trait_impl.trait_path.last_segment().clone(),
+                ident: trait_impl.trait_path.last_ident(),
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics: trait_generics.clone(),
@@ -1442,7 +1442,7 @@ impl<'context> Elaborator<'context> {
             self.generics.clear();
 
             if let Some(trait_id) = trait_id {
-                let trait_name = trait_impl.trait_path.last_segment();
+                let trait_name = trait_impl.trait_path.last_ident();
                 self.interner.add_trait_reference(
                     trait_id,
                     Location::new(trait_name.span(), trait_impl.file_id),

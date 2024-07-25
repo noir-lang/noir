@@ -110,7 +110,7 @@ pub(crate) TopLevelStatement: TopLevelStatement = {
 UseTree: UseTree = {
     // path::to::ident as SomeAlias
     <mut prefix:Path> <alias:Alias?> => {
-        let ident = prefix.pop();
+        let ident = prefix.pop().ident;
         let kind = UseTreeKind::Path(ident, alias);
         UseTree { prefix, kind }
     },

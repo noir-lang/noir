@@ -328,7 +328,7 @@ fn resolve_name_in_module(
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
     match &import_directive.alias {
-        None => import_directive.path.last_segment().clone(),
+        None => import_directive.path.last_ident(),
         Some(ident) => ident.clone(),
     }
 }

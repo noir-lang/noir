@@ -353,7 +353,7 @@ impl DefCollector {
                             .import(name.clone(), ns, resolved_import.is_prelude);
 
                         let file_id = current_def_map.file_id(module_id);
-                        let last_segment = collected_import.path.last_segment();
+                        let last_segment = collected_import.path.last_ident();
 
                         add_import_reference(ns, &last_segment, &mut context.def_interner, file_id);
                         if let Some(ref alias) = collected_import.alias {

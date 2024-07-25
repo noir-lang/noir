@@ -61,8 +61,8 @@ impl<'context> Elaborator<'context> {
         let (named_path_span, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
                 (
-                    Some(named_path.last_segment().span()),
-                    named_path.last_segment().is_self_type_name(),
+                    Some(named_path.last_ident().span()),
+                    named_path.last_ident().is_self_type_name(),
                     synthetic,
                 )
             } else {
@@ -221,7 +221,7 @@ impl<'context> Elaborator<'context> {
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if path.segments.len() == 1 {
-            let name = &path.last_segment().0.contents;
+            let name = path.last_name();
 
             if name == SELF_TYPE_NAME {
                 if let Some(self_type) = self.self_type.clone() {
@@ -352,7 +352,7 @@ impl<'context> Elaborator<'context> {
 
     pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
-            let name = &path.last_segment().0.contents;
+            let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
                 let generic = generic.clone();
                 return Some(Type::NamedGeneric(generic.type_var, generic.name, generic.kind));
@@ -449,7 +449,7 @@ impl<'context> Elaborator<'context> {
         let meta = self.interner.function_meta(&func_id);
         let trait_id = meta.trait_id?;
         let the_trait = self.interner.get_trait(trait_id);
-        let method = the_trait.find_method(&path.last_segment().0.contents)?;
+        let method = the_trait.find_method(path.last_name())?;
         let constraint = TraitConstraint {
             typ: Type::TypeVariable(the_trait.self_type_typevar.clone(), TypeVariableKind::Normal),
             trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
@@ -482,8 +482,7 @@ impl<'context> Elaborator<'context> {
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_id);
-                if let Some(method) = the_trait.find_method(path.last_segment().0.contents.as_str())
-                {
+                if let Some(method) = the_trait.find_method(path.last_name()) {
                     return Some((method, constraint, true));
                 }
             }

@@ -369,8 +369,8 @@ pub struct Path {
 }
 
 impl Path {
-    pub fn pop(&mut self) -> Ident {
-        self.segments.pop().unwrap().ident
+    pub fn pop(&mut self) -> PathSegment {
+        self.segments.pop().unwrap()
     }
 
     fn join(mut self, ident: Ident) -> Path {
@@ -392,14 +392,28 @@ impl Path {
         self.span
     }
 
-    pub fn first_segment(&self) -> Ident {
+    pub fn first_segment(&self) -> PathSegment {
         assert!(!self.segments.is_empty());
-        self.segments.first().unwrap().ident.clone()
+        self.segments.first().unwrap().clone()
     }
 
-    pub fn last_segment(&self) -> Ident {
+    pub fn last_segment(&self) -> PathSegment {
         assert!(!self.segments.is_empty());
-        self.segments.last().unwrap().ident.clone()
+        self.segments.last().unwrap().clone()
+    }
+
+    pub fn last_ident(&self) -> Ident {
+        self.last_segment().ident
+    }
+
+    pub fn first_name(&self) -> &str {
+        assert!(!self.segments.is_empty());
+        &self.segments.first().unwrap().ident.0.contents
+    }
+
+    pub fn last_name(&self) -> &str {
+        assert!(!self.segments.is_empty());
+        &self.segments.last().unwrap().ident.0.contents
     }
 
     pub fn is_ident(&self) -> bool {

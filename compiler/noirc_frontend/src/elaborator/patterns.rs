@@ -157,8 +157,8 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
-        let name_span = name.last_segment().span();
-        let is_self_type = name.last_segment().is_self_type_name();
+        let name_span = name.last_ident().span();
+        let is_self_type = name.last_ident().is_self_type_name();
 
         let error_identifier = |this: &mut Self| {
             // Must create a name here to return a HirPattern::Identifier. Allowing
@@ -646,7 +646,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
-        let location = Location::new(path.last_segment().span(), self.file);
+        let location = Location::new(path.last_ident().span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return found,

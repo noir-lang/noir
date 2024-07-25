@@ -724,7 +724,7 @@ fn str_to_bytes(identifier: &Ident) -> (Statement, Ident) {
     // let identifier_as_bytes = identifier.as_bytes();
     let var = variable_ident(identifier.clone());
     let contents = if let ExpressionKind::Variable(p) = &var.kind {
-        p.first_segment().0.contents
+        p.first_name()
     } else {
         panic!("Unexpected identifier type")
     };

@@ -47,7 +47,7 @@ impl<'context> Elaborator<'context> {
         let path_resolution;
 
         if self.interner.track_references {
-            let last_segment = path.last_segment();
+            let last_segment = path.last_ident();
             let location = Location::new(last_segment.span(), self.file);
             let is_self_type_name = last_segment.is_self_type_name();
 

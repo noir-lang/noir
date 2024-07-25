@@ -409,7 +409,7 @@ impl<'context> Elaborator<'context> {
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
         let span = constructor.type_name.span();
-        let last_segment = constructor.type_name.last_segment();
+        let last_segment = constructor.type_name.last_ident();
         let is_self_type = last_segment.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
