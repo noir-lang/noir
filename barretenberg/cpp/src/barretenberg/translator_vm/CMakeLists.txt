@@ -1,1 +1,1 @@
-barretenberg_module(translator_vm honk sumcheck)
+barretenberg_module(translator_vm sumcheck)

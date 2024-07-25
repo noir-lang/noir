@@ -572,7 +572,7 @@ void prove_tube(const std::string& output_path)
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/1048): INSECURE - make this tube proof actually use
     // these public inputs by turning proof into witnesses and call
     // set_public on each witness
-    auto num_public_inputs = (size_t)proof.folding_proof[1];
+    auto num_public_inputs = static_cast<size_t>(static_cast<uint256_t>(proof.folding_proof[1]));
     for (size_t i = 0; i < num_public_inputs; i++) {
         // We offset 3
         builder->add_public_variable(proof.folding_proof[i + 3]);

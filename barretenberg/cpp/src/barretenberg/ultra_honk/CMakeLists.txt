@@ -1,1 +1,1 @@
-barretenberg_module(ultra_honk honk sumcheck)
+barretenberg_module(ultra_honk sumcheck)

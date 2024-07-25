@@ -1,1 +1,1 @@
-barretenberg_module(eccvm honk sumcheck)
+barretenberg_module(eccvm sumcheck)
