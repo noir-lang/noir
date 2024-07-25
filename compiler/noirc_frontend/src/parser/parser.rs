@@ -646,12 +646,17 @@ where
 }
 
 fn call_data() -> impl NoirParser<Visibility> {
-    keyword(Keyword::CallData).then(parenthesized(literal())).map(|token| match &token {
-        (_, ExpressionKind::Literal(Literal::Integer(x, _))) => {
-            let id = x.to_u128() as u32;
-            Visibility::CallData(id)
+    keyword(Keyword::CallData).then(parenthesized(literal())).validate(|token, span, emit| {
+        match token {
+            (_, ExpressionKind::Literal(Literal::Integer(x, _))) => {
+                let id = x.to_u128() as u32;
+                Visibility::CallData(id)
+            }
+            _ => {
+                emit(ParserError::with_reason(ParserErrorReason::InvalidCallDataIdentifier, span));
+                Visibility::CallData(0)
+            }
         }
-        _ => unreachable!("Invalid call_data identifier"),
     })
 }
 
@@ -661,13 +666,7 @@ fn optional_visibility() -> impl NoirParser<Visibility> {
         .or(call_data())
         .or(keyword(Keyword::ReturnData).map(|_| Visibility::ReturnData))
         .or_not()
-        .map(|opt| match opt {
-            Some(Visibility::CallData(x)) => Visibility::CallData(x),
-            Some(Visibility::ReturnData) => Visibility::ReturnData,
-            Some(Visibility::Public) => Visibility::Public,
-            None => Visibility::Private,
-            _ => unreachable!("unexpected token found"),
-        })
+        .map(|opt| opt.unwrap_or(Visibility::Private))
 }
 
 pub fn expression() -> impl ExprParser {
