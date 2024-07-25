@@ -38,6 +38,7 @@ pub enum Value {
     U32(u32),
     U64(u64),
     String(Rc<String>),
+    FormatString(Rc<String>, Type),
     Function(FuncId, Type, Rc<TypeBindings>),
     Closure(HirLambda, Vec<Value>, Type),
     Tuple(Vec<Value>),
@@ -51,6 +52,7 @@ pub enum Value {
     TraitDefinition(TraitId),
     FunctionDefinition(FuncId),
     ModuleDefinition(ModuleId),
+    Type(Type),
     Zeroed(Type),
 }
 
@@ -73,6 +75,7 @@ impl Value {
                 let length = Type::Constant(value.len() as u32);
                 Type::String(Box::new(length))
             }
+            Value::FormatString(_, typ) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
             Value::Closure(_, _, typ) => return Cow::Borrowed(typ),
             Value::Tuple(fields) => {
@@ -95,6 +98,7 @@ impl Value {
             Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
             Value::FunctionDefinition(_) => Type::Quoted(QuotedType::FunctionDefinition),
             Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
+            Value::Type(_) => Type::Quoted(QuotedType::Type),
             Value::Zeroed(typ) => return Cow::Borrowed(typ),
         })
     }
@@ -148,6 +152,10 @@ impl Value {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
             Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            // Format strings are lowered as normal strings since they are already interpolated.
+            Value::FormatString(value, _) => {
+                ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
+            }
             Value::Function(id, typ, bindings) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
@@ -218,6 +226,7 @@ impl Value {
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
+            | Value::Type(_)
             | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
@@ -277,6 +286,10 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
             }
             Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
+            // Format strings are lowered as normal strings since they are already interpolated.
+            Value::FormatString(value, _) => {
+                HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
+            }
             Value::Function(id, typ, bindings) => {
                 let id = interner.function_definition_id(id);
                 let impl_kind = ImplKind::NotATraitMethod;
@@ -333,6 +346,7 @@ impl Value {
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
+            | Value::Type(_)
             | Value::ModuleDefinition(_) => {
                 return Err(InterpreterError::CannotInlineMacro { value: self, location })
             }
@@ -342,6 +356,19 @@ impl Value {
         interner.push_expr_location(id, location.span, location.file);
         interner.push_expr_type(id, typ);
         Ok(id)
+    }
+
+    pub(crate) fn into_tokens(
+        self,
+        interner: &mut NodeInterner,
+        location: Location,
+    ) -> IResult<Tokens> {
+        let token = match self {
+            Value::Code(tokens) => return Ok(unwrap_rc(tokens)),
+            Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
+            other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
+        };
+        Ok(Tokens(vec![SpannedToken::new(token, location.span)]))
     }
 
     /// Converts any unsigned `Value` into a `u128`.
@@ -407,6 +434,7 @@ impl Display for Value {
             Value::U32(value) => write!(f, "{value}"),
             Value::U64(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
+            Value::FormatString(value, _) => write!(f, "{value}"),
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(_, _, _) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
@@ -443,6 +471,7 @@ impl Display for Value {
             Value::FunctionDefinition(_) => write!(f, "(function definition)"),
             Value::ModuleDefinition(_) => write!(f, "(module)"),
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
+            Value::Type(typ) => write!(f, "{}", typ),
         }
     }
 }
