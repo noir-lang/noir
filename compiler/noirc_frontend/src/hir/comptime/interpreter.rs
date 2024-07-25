@@ -11,6 +11,7 @@ use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir_def::expr::ImplKind;
+use crate::hir_def::function::FunctionBody;
 use crate::macros_api::UnaryOp;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
@@ -135,16 +136,33 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
 
-        let function_body =
-            self.elaborator.interner.function(&function).try_as_expr().ok_or_else(|| {
-                let function = self.elaborator.interner.function_name(&function).to_owned();
-                InterpreterError::NonComptimeFnCallInSameCrate { function, location }
-            })?;
-
+        let function_body = self.get_function_body(function, location)?;
         let result = self.evaluate(function_body)?;
-
         self.exit_function(previous_state);
         Ok(result)
+    }
+
+    /// Try to retrieve a function's body.
+    /// If the function has not yet been resolved this will attempt to lazily resolve it.
+    /// Afterwards, if the function's body is still not known or the function is still
+    /// in a Resolving state we issue an error.
+    fn get_function_body(&mut self, function: FuncId, location: Location) -> IResult<ExprId> {
+        let meta = self.elaborator.interner.function_meta(&function);
+        match self.elaborator.interner.function(&function).try_as_expr() {
+            Some(body) => Ok(body),
+            None => {
+                if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
+                    self.elaborator.elaborate_item_from_comptime(None, |elaborator| {
+                        elaborator.elaborate_function(function);
+                    });
+
+                    self.get_function_body(function, location)
+                } else {
+                    let function = self.elaborator.interner.function_name(&function).to_owned();
+                    Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location })
+                }
+            }
+        }
     }
 
     fn call_special(
