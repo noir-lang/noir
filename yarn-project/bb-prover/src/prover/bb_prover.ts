@@ -9,6 +9,7 @@ import {
 } from '@aztec/circuit-types';
 import { type CircuitProvingStats, type CircuitWitnessGenerationStats } from '@aztec/circuit-types/stats';
 import {
+  AGGREGATION_OBJECT_LENGTH,
   type AvmCircuitInputs,
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
@@ -787,8 +788,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     }
 
     const operation = async (bbWorkingDirectory: string) => {
-      // const numPublicInputs = vk.numPublicInputs;
-      const numPublicInputs = vk.numPublicInputs; // - AGGREGATION_OBJECT_LENGTH;
+      const numPublicInputs = vk.numPublicInputs - AGGREGATION_OBJECT_LENGTH;
       const proofFullFilename = path.join(bbWorkingDirectory, PROOF_FILENAME);
       const vkFullFilename = path.join(bbWorkingDirectory, VK_FILENAME);
 
@@ -900,11 +900,8 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     if (!vkData) {
       throw new Error(`Invalid verification key for ${circuitType}`);
     }
-    const numPublicInputs = vkData.numPublicInputs;
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1044): Reinstate aggregation
-    // const numPublicInputs = CIRCUITS_WITHOUT_AGGREGATION.has(circuitType)
-    //   ? vkData.numPublicInputs
-    //   : vkData.numPublicInputs - AGGREGATION_OBJECT_LENGTH;
+    const numPublicInputs = vkData.numPublicInputs - AGGREGATION_OBJECT_LENGTH;
+
     const fieldsWithoutPublicInputs = json
       .slice(0, 3)
       .map(Fr.fromString)
@@ -949,7 +946,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
     const json = JSON.parse(proofString);
 
-    const numPublicInputs = vkData.numPublicInputs;
+    const numPublicInputs = vkData.numPublicInputs - AGGREGATION_OBJECT_LENGTH;
     if (numPublicInputs === 0) {
       throw new Error(`Tube proof should have public inputs (e.g. the number of public inputs from PrivateKernelTail)`);
     }

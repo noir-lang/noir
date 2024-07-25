@@ -576,6 +576,39 @@ void prove_tube(const std::string& output_path)
     ClientIVC verifier{ builder, input };
 
     verifier.verify(proof);
+
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/911): These are pairing points extracted from a valid
+    // proof. This is a workaround because we can't represent the point at infinity in biggroup yet.
+    std::array<uint32_t, acir_format::HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> current_aggregation_object = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+    fq x0("0x031e97a575e9d05a107acb64952ecab75c020998797da7842ab5d6d1986846cf");
+    fq y0("0x178cbf4206471d722669117f9758a4c410db10a01750aebb5666547acf8bd5a4");
+    fq x1("0x0f94656a2ca489889939f81e9c74027fd51009034b3357f0e91b8a11e7842c38");
+    fq y1("0x1b52c2020d7464a0c80c0da527a08193fe27776f50224bd6fb128b46c1ddb67f");
+    std::vector<fq> aggregation_object_fq_values = { x0, y0, x1, y1 };
+    size_t agg_obj_indices_idx = 0;
+    for (fq val : aggregation_object_fq_values) {
+        const uint256_t x = val;
+        std::array<fr, acir_format::fq_ct::NUM_LIMBS> val_limbs = {
+            x.slice(0, acir_format::fq_ct::NUM_LIMB_BITS),
+            x.slice(acir_format::fq_ct::NUM_LIMB_BITS, acir_format::fq_ct::NUM_LIMB_BITS * 2),
+            x.slice(acir_format::fq_ct::NUM_LIMB_BITS * 2, acir_format::fq_ct::NUM_LIMB_BITS * 3),
+            x.slice(acir_format::fq_ct::NUM_LIMB_BITS * 3, stdlib::field_conversion::TOTAL_BITS)
+        };
+        for (size_t i = 0; i < acir_format::fq_ct::NUM_LIMBS; ++i) {
+            uint32_t idx = builder->add_variable(val_limbs[i]);
+            builder->set_public_input(idx);
+            current_aggregation_object[agg_obj_indices_idx] = idx;
+            agg_obj_indices_idx++;
+        }
+    }
+    // Make sure the verification key records the public input indices of the
+    // final recursion output.
+    std::vector<uint32_t> proof_output_witness_indices(current_aggregation_object.begin(),
+                                                       current_aggregation_object.end());
+    builder->set_recursive_proof(proof_output_witness_indices);
+
     info("num gates in tube circuit: ", builder->get_num_gates());
     using Prover = UltraProver_<UltraFlavor>;
     using Verifier = UltraVerifier_<UltraFlavor>;

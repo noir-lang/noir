@@ -55,7 +55,8 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     using RecursiveVerificationKey = Flavor::VerificationKey;
     using RecursiveVerifier = bb::stdlib::recursion::honk::UltraRecursiveVerifier_<Flavor>;
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1044) reinstate aggregation
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1059): Handle aggregation
+
     static_cast<void>(input_aggregation_object);
     static_cast<void>(nested_aggregation_object);
     // Construct aggregation points from the nested aggregation witness indices
@@ -214,7 +215,7 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     std::array<typename Flavor::GroupElement, 2> pairing_points = verifier.verify_proof(proof_fields);
 
     // Aggregate the current aggregation object with these pairing points from verify_proof
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1044): Reinstate aggregation
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1059): Handle aggregation
     aggregation_state_ct cur_aggregation_object;
     cur_aggregation_object.P0 = pairing_points[0]; // * recursion_separator;
     cur_aggregation_object.P1 = pairing_points[1]; // * recursion_separator;
