@@ -413,7 +413,7 @@ impl<'context> Elaborator<'context> {
         path: &Path,
     ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
         let trait_impl = self.current_trait_impl?;
-        let trait_id = self.interner.get_trait_implementation(trait_impl).borrow().trait_id;
+        let trait_id = self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id;
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let name = &path.segments[0].0.contents;
