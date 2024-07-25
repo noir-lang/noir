@@ -31,11 +31,17 @@ export async function deployProtocolContracts(rpcUrl: string, l1ChainId: number,
   const feeJuiceAddress = await deployCanonicalL2GasToken(deployer, gasPortalAddress, waitOpts);
 
   if (json) {
-    log('', {
-      keyRegistryAddress: keyRegistryAddress.toString(),
-      authRegistryAddress: authRegistryAddress.toString(),
-      feeJuiceAddress: feeJuiceAddress.toString(),
-    });
+    log(
+      JSON.stringify(
+        {
+          keyRegistryAddress: keyRegistryAddress.toString(),
+          authRegistryAddress: authRegistryAddress.toString(),
+          feeJuiceAddress: feeJuiceAddress.toString(),
+        },
+        null,
+        2,
+      ),
+    );
   } else {
     log(`Key Registry: ${keyRegistryAddress}`);
     log(`Auth Registry: ${authRegistryAddress}`);

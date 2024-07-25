@@ -54,9 +54,9 @@ data "terraform_remote_state" "l1_contracts" {
 
 # Compute local variables
 locals {
-  publisher_private_keys = [var.SEQ_1_PUBLISHER_PRIVATE_KEY, var.SEQ_2_PUBLISHER_PRIVATE_KEY]
-  node_p2p_private_keys  = [var.NODE_1_PRIVATE_KEY, var.NODE_2_PRIVATE_KEY]
-  node_count             = length(local.publisher_private_keys)
+  sequencer_private_keys = var.SEQUENCER_PRIVATE_KEYS
+  node_p2p_private_keys  = var.NODE_P2P_PRIVATE_KEYS
+  node_count             = length(local.sequencer_private_keys)
   data_dir               = "/usr/src/yarn-project/aztec"
 }
 
@@ -97,7 +97,7 @@ resource "aws_service_discovery_service" "aztec-node" {
   # Terraform just fails if this resource changes and you have registered instances.
   provisioner "local-exec" {
     when    = destroy
-    command = "${path.module}/servicediscovery-drain.sh ${self.id}"
+    command = "${path.module}/../servicediscovery-drain.sh ${self.id}"
   }
 }
 
@@ -162,7 +162,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
     },
     {
       name              = "${var.DEPLOY_TAG}-aztec-node-${count.index + 1}"
-      image             = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}"
+      image             = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.IMAGE_TAG}"
       command           = ["start", "--node", "--archiver", "--sequencer", "--prover"]
       essential         = true
       memoryReservation = 3776
@@ -226,7 +226,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
         },
         {
           name  = "SEQ_PUBLISHER_PRIVATE_KEY"
-          value = local.publisher_private_keys[count.index]
+          value = local.sequencer_private_keys[count.index]
         },
         {
           name  = "ROLLUP_CONTRACT_ADDRESS"
@@ -323,6 +323,14 @@ resource "aws_ecs_task_definition" "aztec-node" {
         {
           name  = "PROVER_REAL_PROOFS"
           value = tostring(var.PROVING_ENABLED)
+        },
+        {
+          name  = "TEL_COLLECTOR_BASE_URL"
+          value = "http://aztec-otel.local:4318"
+        },
+        {
+          name  = "TEL_SERVICE_NAME"
+          value = "${var.DEPLOY_TAG}-aztec-node-${count.index + 1}"
         }
       ]
       mountPoints = [

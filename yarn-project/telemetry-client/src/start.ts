@@ -1,3 +1,5 @@
+import { createDebugLogger } from '@aztec/foundation/log';
+
 import { NoopTelemetryClient } from './noop.js';
 import { OpenTelemetryClient } from './otel.js';
 import { type TelemetryClient } from './telemetry.js';
@@ -9,9 +11,12 @@ export interface TelemetryClientConfig {
 }
 
 export function createAndStartTelemetryClient(config: TelemetryClientConfig): TelemetryClient {
+  const log = createDebugLogger('aztec:telemetry-client');
   if (config.collectorBaseUrl) {
-    return OpenTelemetryClient.createAndStart(config.serviceName, config.serviceVersion, config.collectorBaseUrl);
+    log.info('Using OpenTelemetry client');
+    return OpenTelemetryClient.createAndStart(config.serviceName, config.serviceVersion, config.collectorBaseUrl, log);
   } else {
+    log.info('Using NoopTelemetryClient');
     return new NoopTelemetryClient();
   }
 }

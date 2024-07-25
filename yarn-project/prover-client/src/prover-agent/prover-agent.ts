@@ -62,10 +62,16 @@ export class ProverAgent {
             return;
           }
 
-          const promise = this.work(jobSource, job).finally(() => this.inFlightPromises.delete(job.id));
-          this.inFlightPromises.set(job.id, promise);
+          try {
+            const promise = this.work(jobSource, job).finally(() => this.inFlightPromises.delete(job.id));
+            this.inFlightPromises.set(job.id, promise);
+          } catch (err) {
+            this.log.warn(
+              `Error processing job! type=${ProvingRequestType[job.request.type]}: ${err}. ${(err as Error).stack}`,
+            );
+          }
         } catch (err) {
-          this.log.warn(`Error processing job: ${err}`);
+          // no-op
         }
       }
     }, this.pollIntervalMs);

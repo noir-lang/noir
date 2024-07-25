@@ -19,14 +19,15 @@ env:
   TF_VAR_L1_CHAIN_ID: 677692
   TF_VAR_BOOTNODE_1_PRIVATE_KEY: ${{ secrets.BOOTNODE_1_PRIVATE_KEY }}
   TF_VAR_BOOTNODE_2_PRIVATE_KEY: ${{ secrets.BOOTNODE_2_PRIVATE_KEY }}
-  TF_VAR_SEQ_1_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }}
-  TF_VAR_SEQ_2_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEQ_2_PUBLISHER_PRIVATE_KEY }}
+  TF_VAR_SEQUENCER_PRIVATE_KEYS: '["${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }}"]'
+  TF_VAR_NODE_P2P_PRIVATE_KEYS: '[""]'
   TF_VAR_DEPLOY_TAG: devnet
+  TF_VAR_IMAGE_TAG: ${{ github.sha }}
   TF_VAR_API_KEY: ${{ secrets.FORK_API_KEY }}
   TF_VAR_FORK_MNEMONIC: ${{ secrets.FORK_MNEMONIC }}
   TF_VAR_INFURA_API_KEY: ${{ secrets.INFURA_API_KEY }}
   TF_VAR_FAUCET_ACCOUNT_INDEX: 5
-  CONTRACT_S3_BUCKET: s3://aztec-${{ env.DEPLOY_TAG }}-deployments
+  CONTRACT_S3_BUCKET: s3://aztec-devnet-deployments
 
 jobs:
   setup:
@@ -47,11 +48,28 @@ jobs:
         with:
           concurrency_key: build-release-artifacts-${{ github.actor }}
           dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+      - name: Check if only workflow flows have changed
+        id: check_only_workflow_changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}')
+              .toString()
+              .split('\n')
+              .filter(line => line);
+            const prefixesToIgnore = ['.github', 'iac'];
+            const suffixesToIgnore = ['.tf'];
+            return changedFiles.every(file => (
+              prefixesToIgnore.some(prefix => file.startsWith(prefix)) ||
+              suffixesToIgnore.some(suffix => file.endsWith(suffix))
+            ));
       - name: "Build & Push aztec images"
         timeout-minutes: 40
+        if: steps.check_only_workflow_changes.outputs.result == 'false'
         run: |
-          earthly-ci \
-          --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }}
+          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }}
+          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ github.sha }}
 
       - name: Check if mainnet fork needs deployment
         id: check_fork_changes
@@ -166,6 +184,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
 
       - uses: ./.github/ci-setup-action
 
@@ -182,6 +201,7 @@ jobs:
 
       - name: Deploy protocol contracts
         run: |
+          set -e
           docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}
           docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} deploy-protocol-contracts \
             --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
@@ -193,6 +213,7 @@ jobs:
 
       - name: Bootstrap devnet
         run: |
+          set -e
           docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} bootstrap-devnet \
             --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
             --l1-rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
@@ -225,6 +246,7 @@ jobs:
 
       - name: Retrieve contract addresses
         run: |
+          set -e
           aws s3 cp ${{ env.CONTRACT_S3_BUCKET }}/l1_contract_addresses.json ./l1-contract_addresses.json
           aws s3 cp ${{ env.CONTRACT_S3_BUCKET }}/devnet-contracts.json ./devnet-contracts.json
 
@@ -232,7 +254,7 @@ jobs:
           echo "TF_VAR_DEV_COIN_CONTRACT_ADDRESS=$(jq -r '.devCoinL1' ./devnet-contracts.json)" >>$GITHUB_ENV
 
       - name: Deploy Faucet
-        working-directory: ./yarn-project/aztec/aztec-faucet
+        working-directory: ./yarn-project/aztec-faucet
         run: |
           terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/aztec-faucet"
           terraform apply -input=false -auto-approve

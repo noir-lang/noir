@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -u
+
+CLIENT_ID=$1
+CLIENT_SECRET=$2
+
+ID_COMMAND="s/GRAFANA_CLIENT_ID/${CLIENT_ID}/g"
+SECRET_COMMAND="s/GRAFANA_CLIENT_SECRET/${CLIENT_SECRET}/g"
+
+sed -i $ID_COMMAND grafana.ini
+sed -i $SECRET_COMMAND grafana.ini

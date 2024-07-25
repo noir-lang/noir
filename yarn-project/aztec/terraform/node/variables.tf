@@ -2,16 +2,20 @@ variable "DEPLOY_TAG" {
   type = string
 }
 
+variable "IMAGE_TAG" {
+  type = string
+}
+
 variable "API_KEY" {
   type = string
 }
 
-variable "SEQ_1_PUBLISHER_PRIVATE_KEY" {
-  type = string
+variable "SEQUENCER_PRIVATE_KEYS" {
+  type = list(string)
 }
 
-variable "SEQ_2_PUBLISHER_PRIVATE_KEY" {
-  type = string
+variable "NODE_P2P_PRIVATE_KEYS" {
+  type = list(string)
 }
 
 variable "L1_CHAIN_ID" {
@@ -27,16 +31,6 @@ variable "NODE_P2P_TCP_PORT" {
 variable "NODE_P2P_UDP_PORT" {
   type    = number
   default = 40300
-}
-
-variable "NODE_1_PRIVATE_KEY" {
-  type    = string
-  default = ""
-}
-
-variable "NODE_2_PRIVATE_KEY" {
-  type    = string
-  default = ""
 }
 
 variable "DOCKERHUB_ACCOUNT" {

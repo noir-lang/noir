@@ -1,4 +1,7 @@
+import { type DebugLogger } from '@aztec/foundation/log';
+
 import { type Meter, type Tracer, type TracerProvider } from '@opentelemetry/api';
+import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { HostMetrics } from '@opentelemetry/host-metrics';
@@ -15,6 +18,7 @@ export class OpenTelemetryClient implements TelemetryClient {
     private resource: Resource,
     private meterProvider: MeterProvider,
     private traceProvider: TracerProvider,
+    private log: DebugLogger,
   ) {}
 
   getMeter(name: string): Meter {
@@ -26,6 +30,9 @@ export class OpenTelemetryClient implements TelemetryClient {
   }
 
   public start() {
+    this.log.info('Starting OpenTelemetry client');
+    diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
+
     this.hostMetrics = new HostMetrics({
       name: this.resource.attributes[SEMRESATTRS_SERVICE_NAME] as string,
       meterProvider: this.meterProvider,
@@ -38,7 +45,12 @@ export class OpenTelemetryClient implements TelemetryClient {
     await Promise.all([this.meterProvider.shutdown()]);
   }
 
-  public static createAndStart(name: string, version: string, collectorBaseUrl: URL): OpenTelemetryClient {
+  public static createAndStart(
+    name: string,
+    version: string,
+    collectorBaseUrl: URL,
+    log: DebugLogger,
+  ): OpenTelemetryClient {
     const resource = new Resource({
       [SEMRESATTRS_SERVICE_NAME]: name,
       [SEMRESATTRS_SERVICE_VERSION]: version,
@@ -63,7 +75,7 @@ export class OpenTelemetryClient implements TelemetryClient {
       ],
     });
 
-    const service = new OpenTelemetryClient(resource, meterProvider, tracerProvider);
+    const service = new OpenTelemetryClient(resource, meterProvider, tracerProvider, log);
     service.start();
 
     return service;

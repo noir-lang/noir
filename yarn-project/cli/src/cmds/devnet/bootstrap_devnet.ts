@@ -46,14 +46,20 @@ export async function bootstrapDevnet(
   const counterAddress = await deployCounter(wallet);
 
   if (json) {
-    log('', {
-      devCoinL1: erc20Address.toString(),
-      devCoinPortalL1: portalAddress.toString(),
-      devCoinL2: tokenAddress.toString(),
-      devCoinBridgeL2: bridgeAddress.toString(),
-      devCoinFpcL2: fpcAddress.toString(),
-      counterL2: counterAddress.toString(),
-    });
+    log(
+      JSON.stringify(
+        {
+          devCoinL1: erc20Address.toString(),
+          devCoinPortalL1: portalAddress.toString(),
+          devCoinL2: tokenAddress.toString(),
+          devCoinBridgeL2: bridgeAddress.toString(),
+          devCoinFpcL2: fpcAddress.toString(),
+          counterL2: counterAddress.toString(),
+        },
+        null,
+        2,
+      ),
+    );
   } else {
     log(`DevCoin L1: ${erc20Address}`);
     log(`DevCoin L1 Portal: ${portalAddress}`);

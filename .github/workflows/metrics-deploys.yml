@@ -1,0 +1,127 @@
+name: Deploy metrics
+on:
+  push:
+    branches: [devnet]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+  GIT_COMMIT: ${{ github.sha }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  # TF Vars
+  TF_VAR_DOCKERHUB_ACCOUNT: aztecprotocol
+  TF_VAR_GRAFANA_CLIENT_ID: ${{ secrets.GRAFANA_CLIENT_ID }}
+  TF_VAR_GRAFANA_CLIENT_SECRET: ${{ secrets.GRAFANA_CLIENT_SECRET }}
+  TF_VAR_IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  setup:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      username: master
+      runner_type: builder-x86
+    secrets: inherit
+  build:
+    needs: setup
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: build-metrics-${{ github.actor }}
+          dockerhub_password: "${{ secrets.DOCKERHUB_PASSWORD }}"
+
+      - name: Check if metrics have changed
+        id: check_metrics_changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
+            const fileChanged = changedFiles.some(file => file.startsWith('metrics'));
+            return fileChanged
+
+      - name: Build & push prometheus
+        working-directory: ./metrics/prometheus
+        if: steps.check_metrics_changes.outputs.result == 'true'
+        run: |
+          docker build -t aztecprotocol/aztec-prometheus .
+          docker tag aztecprotocol/aztec-prometheus aztecprotocol/aztec-prometheus:$GIT_COMMIT
+          docker push aztecprotocol/aztec-prometheus
+          docker push aztecprotocol/aztec-prometheus:$GIT_COMMIT
+
+      - name: Build & push grafana
+        working-directory: ./metrics/grafana
+        if: steps.check_metrics_changes.outputs.result == 'true'
+        run: |
+          docker build -t aztecprotocol/aztec-grafana .
+          docker tag aztecprotocol/aztec-grafana aztecprotocol/aztec-grafana:$GIT_COMMIT
+          docker push aztecprotocol/aztec-grafana
+          docker push aztecprotocol/aztec-grafana:$GIT_COMMIT
+
+      - name: Build & push open telemetry
+        working-directory: ./metrics/otel
+        if: steps.check_metrics_changes.outputs.result == 'true'
+        run: |
+          docker build -t aztecprotocol/aztec-otel .
+          docker tag aztecprotocol/aztec-otel aztecprotocol/aztec-otel:$GIT_COMMIT
+          docker push aztecprotocol/aztec-otel
+          docker push aztecprotocol/aztec-otel:$GIT_COMMIT
+
+  terraform_deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
+      - uses: ./.github/ci-setup-action
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
+      - name: Check if metrics have changed
+        id: check_metrics_changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}').toString().split('\n');
+            const fileChanged = changedFiles.some(file => file.startsWith('metrics'));
+            return fileChanged
+
+      - name: Deploy prometheus
+        working-directory: ./metrics/prometheus/terraform
+        if: steps.check_metrics_changes.outputs.result == 'true'
+        run: |
+          terraform init -input=false -backend-config="key=aztec-prometheus"
+          terraform apply -input=false -auto-approve
+
+      - name: Deploy grafana
+        working-directory: ./metrics/grafana/terraform
+        if: steps.check_metrics_changes.outputs.result == 'true'
+        run: |
+          terraform init -input=false -backend-config="key=aztec-grafana"
+          terraform apply -input=false -auto-approve
+
+      - name: Deploy open telemetry
+        working-directory: ./metrics/otel/terraform
+        if: steps.check_metrics_changes.outputs.result == 'true'
+        run: |
+          terraform init -input=false -backend-config="key=aztec-otel"
+          terraform apply -input=false -auto-approve

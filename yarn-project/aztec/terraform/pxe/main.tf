@@ -65,7 +65,7 @@ resource "aws_service_discovery_service" "aztec-pxe" {
   # Terraform just fails if this resource changes and you have registered instances.
   provisioner "local-exec" {
     when    = destroy
-    command = "${path.module}/servicediscovery-drain.sh ${self.id}"
+    command = "${path.module}/../servicediscovery-drain.sh ${self.id}"
   }
 }
 
@@ -121,7 +121,7 @@ resource "aws_ecs_task_definition" "aztec-pxe" {
   container_definitions = jsonencode([
     {
       name      = "${var.DEPLOY_TAG}-aztec-pxe"
-      image     = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}"
+      image     = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.IMAGE_TAG}"
       command   = ["start", "--pxe"]
       essential = true
       portMappings = [

@@ -85,7 +85,7 @@ resource "aws_service_discovery_service" "aztec-proving-agent" {
   # Terraform just fails if this resource changes and you have registered instances.
   provisioner "local-exec" {
     when    = destroy
-    command = "${path.module}/servicediscovery-drain.sh ${self.id}"
+    command = "${path.module}/../servicediscovery-drain.sh ${self.id}"
   }
 }
 
@@ -103,7 +103,7 @@ resource "aws_ecs_task_definition" "aztec-proving-agent" {
 [
   {
     "name": "${var.DEPLOY_TAG}-aztec-proving-agent-group-${count.index + 1}",
-    "image": "${var.DOCKERHUB_ACCOUNT}/aztec:${var.DEPLOY_TAG}",
+    "image": "${var.DOCKERHUB_ACCOUNT}/aztec:${var.IMAGE_TAG}",
     "command": ["start", "--prover"],
     "essential": true,
     "memoryReservation": 98304,
