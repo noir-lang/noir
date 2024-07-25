@@ -201,7 +201,7 @@ fn rewrite_path(visitor: &FmtVisitor, shape: Shape, path: Path) -> String {
             string.push_str("::");
         }
         string.push_str(&segment.ident.to_string());
-        string.push_str(&rewrite_turbofish(visitor, shape, segment.generics.clone()))
+        string.push_str(&rewrite_turbofish(visitor, shape, segment.generics.clone()));
     }
 
     string
