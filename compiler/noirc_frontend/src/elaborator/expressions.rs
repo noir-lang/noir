@@ -350,7 +350,7 @@ impl<'context> Elaborator<'context> {
                         &mut object,
                     );
 
-                    self.resolve_turbofish_generics(&func_id, method_call.generics, span)
+                    self.resolve_function_turbofish_generics(&func_id, method_call.generics, span)
                 } else {
                     None
                 };
@@ -408,12 +408,12 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
-        let exclude_last_segment = false;
+        let exclude_last_segment = true;
         self.check_unsupported_turbofish_usage(&constructor.type_name, exclude_last_segment);
 
         let span = constructor.type_name.span();
-        let last_segment = constructor.type_name.last_ident();
-        let is_self_type = last_segment.is_self_type_name();
+        let last_segment = constructor.type_name.last_segment();
+        let is_self_type = last_segment.ident.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
             let typ = self.interner.get_struct(struct_id);
@@ -430,6 +430,24 @@ impl<'context> Elaborator<'context> {
             }
         };
 
+        let struct_generics = if let Some(turbofish_generics) = &last_segment.generics {
+            if turbofish_generics.len() == struct_generics.len() {
+                let struct_type = r#type.borrow();
+                self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics.clone())
+            } else {
+                self.push_err(TypeCheckError::GenericCountMismatch {
+                    item: format!("struct {}", last_segment.ident),
+                    expected: struct_generics.len(),
+                    found: turbofish_generics.len(),
+                    span: Span::from(last_segment.ident.span().end()..last_segment.span.end()),
+                });
+
+                struct_generics
+            }
+        } else {
+            struct_generics
+        };
+
         let struct_type = r#type.clone();
         let generics = struct_generics.clone();
 
@@ -444,7 +462,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let struct_id = struct_type.borrow().id;
-        let reference_location = Location::new(last_segment.span(), self.file);
+        let reference_location = Location::new(last_segment.ident.span(), self.file);
         self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::Struct(struct_type, generics))
