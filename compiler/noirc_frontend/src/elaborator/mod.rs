@@ -193,17 +193,6 @@ struct FunctionContext {
     trait_constraints: Vec<(TraitConstraint, ExprId)>,
 }
 
-impl FunctionContext {
-    fn default_type_variables(&self) {
-        for typ in &self.type_variables {
-            if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
-                let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(kind.default_type().expect(msg));
-            }
-        }
-    }
-}
-
 impl<'context> Elaborator<'context> {
     pub fn new(
         context: &'context mut Context,
@@ -259,6 +248,7 @@ impl<'context> Elaborator<'context> {
         let (comptime_items, runtime_items) = Self::filter_comptime_items(items);
         this.elaborate_items(comptime_items);
         this.elaborate_items(runtime_items);
+        this.check_and_pop_function_context();
         this
     }
 
@@ -460,17 +450,14 @@ impl<'context> Elaborator<'context> {
     /// all still-unsolved trait constraints in this context.
     fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
-        context.default_type_variables();
-        self.verify_trait_constraints(context);
-    }
 
-    /// Similar to `check_and_pop_function_context` but doesn't default all type varialbes.
-    fn check_trait_constraints_and_pop_function_context(&mut self) {
-        let context = self.function_context.pop().expect("Imbalanced function_context pushes");
-        self.verify_trait_constraints(context);
-    }
+        for typ in context.type_variables {
+            if let Type::TypeVariable(variable, kind) = typ.follow_bindings() {
+                let msg = "TypeChecker should only track defaultable type vars";
+                variable.bind(kind.default_type().expect(msg));
+            }
+        }
 
-    fn verify_trait_constraints(&mut self, context: FunctionContext) {
         for (mut constraint, expr_id) in context.trait_constraints {
             let span = self.interner.expr_span(&expr_id);
 
@@ -1353,10 +1340,7 @@ impl<'context> Elaborator<'context> {
 
         let comptime = let_stmt.comptime;
 
-        self.function_context.push(FunctionContext::default());
         let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
-        self.check_trait_constraints_and_pop_function_context();
-
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
