@@ -42,13 +42,8 @@ impl DataBusBuilder {
         for param in &main_signature.0 {
             let is_databus = match param.2 {
                 ast::Visibility::Public | ast::Visibility::Private => DatabusVisibility::None,
-                ast::Visibility::DataBus(id) => {
-                    if id > 0 {
-                        DatabusVisibility::CallData(id)
-                    } else {
-                        DatabusVisibility::ReturnData
-                    }
-                }
+                ast::Visibility::CallData(id) => DatabusVisibility::CallData(id),
+                ast::Visibility::ReturnData => DatabusVisibility::ReturnData,
             };
             let len = param.1.field_count() as usize;
             params_is_databus.extend(vec![is_databus; len]);
@@ -95,9 +90,9 @@ impl DataBus {
         return_data: DataBusBuilder,
     ) -> DataBus {
         let mut call_data_args = Vec::new();
-        for call_data in call_data {
-            if let Some(array_id) = call_data.databus {
-                call_data_args.push(CallData { array_id, index_map: call_data.map });
+        for call_data_item in call_data {
+            if let Some(array_id) = call_data_item.databus {
+                call_data_args.push(CallData { array_id, index_map: call_data_item.map });
             }
         }
 

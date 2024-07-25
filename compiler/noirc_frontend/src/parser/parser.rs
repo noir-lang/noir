@@ -646,25 +646,24 @@ where
 }
 
 fn call_data() -> impl NoirParser<Visibility> {
-    keyword(Keyword::CallData)
-        .then(literal().delimited_by(just(Token::LeftParen), just(Token::RightParen)))
-        .map(|token| match &token {
-            (_, ExpressionKind::Literal(Literal::Integer(x, _))) => {
-                let id = (x.to_u128() + 1) as u32;
-                Visibility::DataBus(id)
-            }
-            _ => unreachable!("Invalid call_data identifier"),
-        })
+    keyword(Keyword::CallData).then(parenthesized(literal())).map(|token| match &token {
+        (_, ExpressionKind::Literal(Literal::Integer(x, _))) => {
+            let id = (x.to_u128() + 1) as u32;
+            Visibility::CallData(id)
+        }
+        _ => unreachable!("Invalid call_data identifier"),
+    })
 }
 
 fn optional_visibility() -> impl NoirParser<Visibility> {
     keyword(Keyword::Pub)
         .map(|_| Visibility::Public)
         .or(call_data())
-        .or(keyword(Keyword::ReturnData).map(|_| Visibility::DataBus(0)))
+        .or(keyword(Keyword::ReturnData).map(|_| Visibility::ReturnData))
         .or_not()
         .map(|opt| match opt {
-            Some(Visibility::DataBus(x)) => Visibility::DataBus(x),
+            Some(Visibility::CallData(x)) => Visibility::CallData(x),
+            Some(Visibility::ReturnData) => Visibility::ReturnData,
             Some(Visibility::Public) => Visibility::Public,
             None => Visibility::Private,
             _ => unreachable!("unexpected token found"),

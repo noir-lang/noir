@@ -425,7 +425,7 @@ impl<'a> Context<'a> {
         let call_data_arrays: Vec<ValueId> =
             self.data_bus.call_data.iter().map(|cd| cd.array_id).collect();
         for call_data_array in call_data_arrays {
-            let _ = self.ensure_array_is_initialized(call_data_array, dfg);
+            self.ensure_array_is_initialized(call_data_array, dfg)?;
         }
 
         // TODO: This is a naive method of assigning the return values to their witnesses as
@@ -1712,14 +1712,15 @@ impl<'a> Context<'a> {
             && self.block_id(&self.data_bus.return_data.unwrap()) == array
         {
             databus = BlockType::ReturnData;
-        } else {
-            for array_id in self.data_bus.call_data_array() {
-                if self.block_id(&array_id) == array {
-                    databus = BlockType::CallData;
-                    break;
-                }
+        }
+        for array_id in self.data_bus.call_data_array() {
+            if self.block_id(&array_id) == array {
+                assert!(databus == BlockType::Memory);
+                databus = BlockType::CallData;
+                break;
             }
         }
+
         self.acir_context.initialize_array(array, len, value, databus)?;
         self.initialized_arrays.insert(array);
         Ok(())
