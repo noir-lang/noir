@@ -88,8 +88,7 @@ trait Regex {
 
 // Empty
 impl Regex for () {
-    fn match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
-        assert(self == self); // ensure 'self' is used
+    fn match<let N: u32>(_self: Self, input: Bvec<u8, N>) -> Match<N> {
         Match::empty(input)
     }
 }
