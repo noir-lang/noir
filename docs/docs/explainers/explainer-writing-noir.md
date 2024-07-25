@@ -140,7 +140,7 @@ Using `assert_constant(i);` before an index, `i`, is used in an array will give 
 ### Leverage unconstrained execution
 
 Constrained verification can leverage unconstrained execution, this is especially useful for operations that are represented by many gates.
-Compute result via unconstrained function, verify result.
+Use an [unconstrained function](https://noir-lang.org/docs/noir/concepts/unconstrained) to perform gate-heavy calculations, then verify and constrain the result.
 
 Eg division generates more gates than multiplication, so calculating the quotient in an unconstrained function then constraining the product for the quotient and divisor (+ any remainder) equals the dividend will be more efficient.
 
