@@ -256,7 +256,7 @@ Creates a new vector of equal size by calling a closure on each element in this 
 
 Example:
 
-#include_code bounded-vec-map-example noir_stdlib/src/collections/bounded_vec.nr rust
+#include_code bounded-vec-map-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 ### any
 
