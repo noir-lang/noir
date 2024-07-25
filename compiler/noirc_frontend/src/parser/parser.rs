@@ -24,7 +24,8 @@
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
-use self::types::{generic_type_args, maybe_comp_time, parse_type};
+use self::types::{generic_type_args, maybe_comp_time};
+pub use types::parse_type;
 
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
