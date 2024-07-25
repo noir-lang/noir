@@ -89,12 +89,12 @@ impl HirExpression {
         let kind = match self {
             HirExpression::Ident(ident, generics) => {
                 let ident = ident.to_display_ast(interner);
-                let span = ident.span();
                 let segment = PathSegment {
                     ident,
                     generics: generics.as_ref().map(|option| {
                         option.iter().map(|generic| generic.to_display_ast()).collect()
                     }),
+                    span,
                 };
 
                 let path =

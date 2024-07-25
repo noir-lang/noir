@@ -458,11 +458,13 @@ impl Path {
 pub struct PathSegment {
     pub ident: Ident,
     pub generics: Option<Vec<UnresolvedType>>,
+    pub span: Span,
 }
 
 impl From<Ident> for PathSegment {
     fn from(ident: Ident) -> PathSegment {
-        PathSegment { ident, generics: None }
+        let span = ident.span();
+        PathSegment { ident, generics: None, span }
     }
 }
 

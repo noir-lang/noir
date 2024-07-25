@@ -408,6 +408,9 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
+        let exclude_last_segment = false;
+        self.check_unsupported_turbofish_usage(&constructor.type_name, exclude_last_segment);
+
         let span = constructor.type_name.span();
         let last_segment = constructor.type_name.last_ident();
         let is_self_type = last_segment.is_self_type_name();

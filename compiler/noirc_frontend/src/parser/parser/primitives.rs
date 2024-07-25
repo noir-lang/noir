@@ -36,7 +36,7 @@ pub(super) fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
 pub(super) fn path_segment() -> impl NoirParser<PathSegment> {
     ident()
         .then(turbofish(super::parse_type()))
-        .map(|(ident, generics)| PathSegment { ident, generics })
+        .map_with_span(|(ident, generics), span| PathSegment { ident, generics, span })
 }
 
 pub(super) fn path_segment_no_turbofish() -> impl NoirParser<PathSegment> {

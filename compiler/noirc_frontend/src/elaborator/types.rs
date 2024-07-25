@@ -1614,6 +1614,20 @@ impl<'context> Elaborator<'context> {
         let context = context.expect("The function_context stack should always be non-empty");
         context.trait_constraints.push((constraint, expr_id));
     }
+
+    pub fn check_unsupported_turbofish_usage(&mut self, path: &Path, exclude_last_segment: bool) {
+        for (index, segment) in path.segments.iter().enumerate() {
+            if exclude_last_segment && index == path.segments.len() - 1 {
+                continue;
+            }
+
+            if segment.generics.is_some() {
+                // From "foo::<T>", create a span for just "::<T>"
+                let span = Span::from(segment.ident.span().end()..segment.span.end());
+                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span })
+            }
+        }
+    }
 }
 
 /// Gives an error if a user tries to create a mutable reference
