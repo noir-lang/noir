@@ -6,10 +6,26 @@ use crate::token::{Keyword, Token};
 use chumsky::prelude::*;
 
 use super::keyword;
-use super::primitives::path_segment;
+use super::primitives::{path_segment, path_segment_no_turbofish};
 
 pub(super) fn path() -> impl NoirParser<Path> {
     let segments = || path_segment().separated_by(just(Token::DoubleColon)).at_least(1);
+    let make_path = |kind| move |segments, span| Path { segments, kind, span };
+
+    let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
+    let path_kind = |key, kind| prefix(key).ignore_then(segments()).map_with_span(make_path(kind));
+
+    choice((
+        path_kind(Keyword::Crate, PathKind::Crate),
+        path_kind(Keyword::Dep, PathKind::Dep),
+        path_kind(Keyword::Super, PathKind::Super),
+        segments().map_with_span(make_path(PathKind::Plain)),
+    ))
+}
+
+pub(super) fn path_no_turbofish() -> impl NoirParser<Path> {
+    let segments =
+        || path_segment_no_turbofish().separated_by(just(Token::DoubleColon)).at_least(1);
     let make_path = |kind| move |segments, span| Path { segments, kind, span };
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
@@ -45,7 +61,6 @@ mod test {
             ("std", vec!["std"]),
             ("std::hash", vec!["std", "hash"]),
             ("std::hash::collections", vec!["std", "hash", "collections"]),
-            ("foo::bar", vec!["foo", "bar"]),
             ("foo::bar", vec!["foo", "bar"]),
             ("crate::std::hash", vec!["std", "hash"]),
         ];

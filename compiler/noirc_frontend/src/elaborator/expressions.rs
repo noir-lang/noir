@@ -50,9 +50,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
-            ExpressionKind::Variable(variable, generics) => {
-                return self.elaborate_variable(variable, generics)
-            }
+            ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),

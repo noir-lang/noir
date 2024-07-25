@@ -429,11 +429,10 @@ impl<'context> Elaborator<'context> {
         })
     }
 
-    pub(super) fn elaborate_variable(
-        &mut self,
-        variable: Path,
-        unresolved_turbofish: Option<Vec<UnresolvedType>>,
-    ) -> (ExprId, Type) {
+    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+        // TODO(ary): avoid clone
+        let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
+
         let span = variable.span;
         let expr = self.resolve_variable(variable);
         let definition_id = expr.id;

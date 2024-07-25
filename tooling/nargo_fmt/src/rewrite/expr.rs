@@ -161,8 +161,9 @@ pub(crate) fn rewrite(
 
             visitor.format_if(*if_expr)
         }
-        ExpressionKind::Variable(path, generics) => {
+        ExpressionKind::Variable(path) => {
             let path_string = visitor.slice(path.span);
+            let generics = path.segments.last().unwrap().generics.clone();
 
             let turbofish = rewrite_turbofish(visitor, shape, generics);
             format!("{path_string}{turbofish}")

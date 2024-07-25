@@ -236,14 +236,11 @@ impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
         Expression {
             span: i.0.span(),
-            kind: ExpressionKind::Variable(
-                Path {
-                    span: i.span(),
-                    segments: vec![PathSegment::from(i)],
-                    kind: PathKind::Plain,
-                },
-                None,
-            ),
+            kind: ExpressionKind::Variable(Path {
+                span: i.span(),
+                segments: vec![PathSegment::from(i)],
+                kind: PathKind::Plain,
+            }),
         }
     }
 }
@@ -446,17 +443,25 @@ impl Path {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct PathSegment {
     pub ident: Ident,
+    pub generics: Option<Vec<UnresolvedType>>,
 }
 
 impl From<Ident> for PathSegment {
     fn from(ident: Ident) -> PathSegment {
-        PathSegment { ident }
+        PathSegment { ident, generics: None }
     }
 }
 
 impl Display for PathSegment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.ident.fmt(f)
+        self.ident.fmt(f)?;
+
+        if let Some(generics) = &self.generics {
+            let generics = vecmap(generics, ToString::to_string);
+            write!(f, "::<{}>", generics.join(", "))?
+        }
+
+        Ok(())
     }
 }
 
@@ -543,7 +548,7 @@ impl Recoverable for Pattern {
 impl LValue {
     fn as_expression(&self) -> Expression {
         let kind = match self {
-            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone()), None),
+            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
             LValue::MemberAccess { object, field_name, span: _ } => {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                     lhs: object.as_expression(),
@@ -633,10 +638,11 @@ impl ForRange {
 
                 // array.len()
                 let segments = vec![PathSegment::from(array_ident)];
-                let array_ident = ExpressionKind::Variable(
-                    Path { segments, kind: PathKind::Plain, span: array_span },
-                    None,
-                );
+                let array_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
 
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                     object: Expression::new(array_ident.clone(), array_span),
@@ -653,10 +659,11 @@ impl ForRange {
 
                 // array[i]
                 let segments = vec![PathSegment::from(Ident::new(index_name, array_span))];
-                let index_ident = ExpressionKind::Variable(
-                    Path { segments, kind: PathKind::Plain, span: array_span },
-                    None,
-                );
+                let index_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
 
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
                     collection: Expression::new(array_ident, array_span),

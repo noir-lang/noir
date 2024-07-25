@@ -31,15 +31,15 @@ pub fn expression(kind: ExpressionKind) -> Expression {
 }
 
 pub fn variable(name: &str) -> Expression {
-    expression(ExpressionKind::Variable(ident_path(name), None))
+    expression(ExpressionKind::Variable(ident_path(name)))
 }
 
 pub fn variable_ident(identifier: Ident) -> Expression {
-    expression(ExpressionKind::Variable(path(identifier), None))
+    expression(ExpressionKind::Variable(path(identifier)))
 }
 
 pub fn variable_path(path: Path) -> Expression {
-    expression(ExpressionKind::Variable(path, None))
+    expression(ExpressionKind::Variable(path))
 }
 
 pub fn method_call(
