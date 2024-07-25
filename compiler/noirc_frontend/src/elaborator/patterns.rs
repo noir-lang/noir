@@ -430,7 +430,6 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
-        // TODO(ary): avoid clone
         let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let span = variable.span;
