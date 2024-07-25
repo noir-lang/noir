@@ -395,6 +395,7 @@ impl<'context> Elaborator<'context> {
         self.local_module = func_meta.source_module;
         self.file = func_meta.source_file;
         self.self_type = func_meta.self_type.clone();
+        self.current_trait_impl = func_meta.trait_impl;
 
         self.scopes.start_function();
         let old_item = std::mem::replace(&mut self.current_item, Some(DependencyId::Function(id)));
