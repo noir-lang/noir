@@ -549,7 +549,7 @@ impl Builder {
     }
 
     fn is_function_call_safe_to_ignore(&self, function_id: FunctionId) -> bool {
-        let func_name = self.function_names[&function_id].clone();
+        let func_name = &self.function_names[&function_id];
         (func_name == "print") || (func_name == "println")
     }
 
