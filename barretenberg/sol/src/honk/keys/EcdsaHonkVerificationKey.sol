@@ -4,16 +4,16 @@ pragma solidity >=0.8.21;
 
 import {Honk} from "../HonkTypes.sol";
 
-uint256 constant N = 0x0000000000000000000000000000000000000000000000000000000000010000;
-uint256 constant LOG_N = 0x0000000000000000000000000000000000000000000000000000000000000010;
-uint256 constant NUMBER_OF_PUBLIC_INPUTS = 0x0000000000000000000000000000000000000000000000000000000000000006;
+uint256 constant N = 65536;
+uint256 constant LOG_N = 16;
+uint256 constant NUMBER_OF_PUBLIC_INPUTS = 6;
 
 library EcdsaHonkVerificationKey {
     function loadVerificationKey() internal pure returns (Honk.VerificationKey memory) {
         Honk.VerificationKey memory vk = Honk.VerificationKey({
-            circuitSize: uint256(0x0000000000000000000000000000000000000000000000000000000000010000),
-            logCircuitSize: uint256(0x0000000000000000000000000000000000000000000000000000000000000010),
-            publicInputsSize: uint256(0x0000000000000000000000000000000000000000000000000000000000000006),
+            circuitSize: uint256(65536),
+            logCircuitSize: uint256(16),
+            publicInputsSize: uint256(6),
             ql: Honk.G1Point({
                 x: uint256(0x0b1acdcf739e1e6c27df046577122a292a77f4fcdf8056d8b8ae12f105d3a888),
                 y: uint256(0x145dad3bdd9a262411aaa657129df49dbf44a63f510e9ab8191622c643ebd9bd)

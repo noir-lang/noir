@@ -4,16 +4,16 @@ pragma solidity >=0.8.21;
 
 import {Honk} from "../HonkTypes.sol";
 
-uint256 constant N = 0x0000000000000000000000000000000000000000000000000000000000008000;
-uint256 constant LOG_N = 0x000000000000000000000000000000000000000000000000000000000000000f;
-uint256 constant NUMBER_OF_PUBLIC_INPUTS = 0x0000000000000000000000000000000000000000000000000000000000000004;
+uint256 constant N = 32768;
+uint256 constant LOG_N = 15;
+uint256 constant NUMBER_OF_PUBLIC_INPUTS = 4;
 
 library BlakeHonkVerificationKey {
     function loadVerificationKey() internal pure returns (Honk.VerificationKey memory) {
         Honk.VerificationKey memory vk = Honk.VerificationKey({
-            circuitSize: uint256(0x0000000000000000000000000000000000000000000000000000000000008000),
-            logCircuitSize: uint256(0x000000000000000000000000000000000000000000000000000000000000000f),
-            publicInputsSize: uint256(0x0000000000000000000000000000000000000000000000000000000000000004),
+            circuitSize: uint256(32768),
+            logCircuitSize: uint256(15),
+            publicInputsSize: uint256(4),
             ql: Honk.G1Point({
                 x: uint256(0x2e5f133c25f7e05bd6660196c892121f7fa686cb9a8717a5deea6cd0881e618e),
                 y: uint256(0x1189bba9eeea96ba8935052434f4b0a60b0a481e3464dd81dfcd89e23def001b)

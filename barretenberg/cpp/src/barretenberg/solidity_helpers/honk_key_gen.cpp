@@ -2,11 +2,10 @@
 #include <iostream>
 #include <memory>
 
+#include "barretenberg/honk/utils/honk_key_gen.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
-
-#include "./honk_sol_gen.hpp"
 
 #include "circuits/add_2_circuit.hpp"
 #include "circuits/blake_circuit.hpp"
@@ -38,7 +37,7 @@ void generate_keys_honk(std::string output_path, std::string flavour_prefix, std
     {
         auto vk_filename = output_path + "/keys/" + vk_class_name + ".sol";
         std::ofstream os(vk_filename);
-        bb::output_vk_sol_ultra_honk(os, verification_key, vk_class_name);
+        output_vk_sol_ultra_honk(os, verification_key, vk_class_name, true);
         info("VK contract written to: ", vk_filename);
     }
 }

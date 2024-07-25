@@ -3,10 +3,14 @@
 #include "barretenberg/common/map.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
+#include "barretenberg/dsl/acir_proofs/honk_contract.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/serialize/cbind.hpp"
 #include "barretenberg/stdlib/honk_recursion/verifier/client_ivc_recursive_verifier.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
+#include "barretenberg/stdlib_circuit_builders/ultra_keccak.hpp"
+
 #include <cstddef>
 #ifndef DISABLE_AZTEC_VM
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
@@ -825,6 +829,40 @@ void contract(const std::string& output_path, const std::string& vk_path)
 }
 
 /**
+ * @brief Writes a Honk Solidity verifier contract for an ACIR circuit to a file
+ *
+ * Communication:
+ * - stdout: The Solidity verifier contract is written to stdout as a string
+ * - Filesystem: The Solidity verifier contract is written to the path specified by outputPath
+ *
+ * Note: The fact that the contract was computed is for an ACIR circuit is not of importance
+ * because this method uses the verification key to compute the Solidity verifier contract
+ *
+ * @param output_path Path to write the contract to
+ * @param vk_path Path to the file containing the serialized verification key
+ */
+void contract_honk(const std::string& output_path, const std::string& vk_path)
+{
+    using VerificationKey = UltraFlavor::VerificationKey;
+    using VerifierCommitmentKey = bb::VerifierCommitmentKey<curve::BN254>;
+
+    auto g2_data = get_bn254_g2_data(CRS_PATH);
+    srs::init_crs_factory({}, g2_data);
+    auto vk = std::make_shared<VerificationKey>(from_buffer<VerificationKey>(read_file(vk_path)));
+    vk->pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
+
+    std::string contract = get_honk_solidity_verifier(std::move(vk));
+
+    if (output_path == "-") {
+        writeStringToStdout(contract);
+        vinfo("contract written to stdout");
+    } else {
+        write_file(output_path, { contract.begin(), contract.end() });
+        vinfo("contract written to: ", output_path);
+    }
+}
+
+/**
  * @brief Converts a proof from a byte array into a list of field elements
  *
  * Why is this needed?
@@ -1393,6 +1431,9 @@ int main(int argc, char* argv[])
         } else if (command == "contract") {
             std::string output_path = get_option(args, "-o", "./target/contract.sol");
             contract(output_path, vk_path);
+        } else if (command == "contract_ultra_honk") {
+            std::string output_path = get_option(args, "-o", "./target/contract.sol");
+            contract_honk(output_path, vk_path);
         } else if (command == "write_vk") {
             std::string output_path = get_option(args, "-o", "./target/vk");
             write_vk(bytecode_path, output_path);
@@ -1423,8 +1464,13 @@ int main(int argc, char* argv[])
         } else if (command == "prove_ultra_honk") {
             std::string output_path = get_option(args, "-o", "./proofs/proof");
             prove_honk<UltraFlavor>(bytecode_path, witness_path, output_path);
+        } else if (command == "prove_keccak_ultra_honk") {
+            std::string output_path = get_option(args, "-o", "./proofs/proof");
+            prove_honk<UltraKeccakFlavor>(bytecode_path, witness_path, output_path);
         } else if (command == "verify_ultra_honk") {
             return verify_honk<UltraFlavor>(proof_path, vk_path) ? 0 : 1;
+        } else if (command == "verify_keccak_ultra_honk") {
+            return verify_honk<UltraKeccakFlavor>(proof_path, vk_path) ? 0 : 1;
         } else if (command == "write_vk_ultra_honk") {
             std::string output_path = get_option(args, "-o", "./target/vk");
             write_vk_honk<UltraFlavor>(bytecode_path, output_path);

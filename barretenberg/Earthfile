@@ -70,6 +70,23 @@ barretenberg-acir-tests-sol:
     RUN (cd sol-test && yarn)
     RUN PARALLEL=1 FLOW=sol ./run_acir_tests.sh assert_statement double_verify_proof double_verify_nested_proof
 
+barretenberg-acir-tests-sol-honk:
+    FROM ../build-images/+from-registry
+
+    COPY ./cpp/+preset-sol/ /usr/src/barretenberg/cpp/build
+    COPY ./cpp/+preset-clang-assert/bin/bb /usr/src/barretenberg/cpp/build/bin/bb
+    COPY ./+acir-tests/ /usr/src/barretenberg/acir_tests
+    COPY ./+sol/ /usr/src/barretenberg/sol
+    COPY ../noir/+build-acir-tests/ /usr/src/acir_artifacts
+
+    WORKDIR /usr/src/barretenberg/acir_tests
+
+    ENV TEST_SRC /usr/src/acir_artifacts
+    ENV VERBOSE=1
+
+    RUN (cd sol-test && yarn)
+    RUN PARALLEL=1 FLOW=honk_sol ./run_acir_tests.sh assert_statement 1_mul slices
+
 barretenberg-acir-tests-bb.js:
     # Playwright not supported on base image ubuntu:noble, results in unmet dependencies
     FROM ../build-images/+base-slim-node

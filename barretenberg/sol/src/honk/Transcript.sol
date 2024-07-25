@@ -26,7 +26,6 @@ struct Transcript {
     Fr zmQuotient;
     // Derived
     Fr publicInputsDelta;
-    Fr lookupGrandProductDelta;
 }
 
 library TranscriptLib {
@@ -35,7 +34,6 @@ library TranscriptLib {
         Honk.VerificationKey memory vk,
         bytes32[] calldata publicInputs
     ) internal view returns (Transcript memory t) {
-        // TODO: calcaulte full series of  eta;
         (t.eta, t.etaTwo, t.etaThree) = generateEtaChallenge(proof, publicInputs);
 
         (t.beta, t.gamma) = generateBetaAndGammaChallenges(t.etaThree, proof);
@@ -59,8 +57,6 @@ library TranscriptLib {
         view
         returns (Fr eta, Fr etaTwo, Fr etaThree)
     {
-        // TODO(md): the 12 here will need to be halved when we fix the transcript to not be over field elements
-        // TODO: use assembly
         bytes32[3 + NUMBER_OF_PUBLIC_INPUTS + 12] memory round0;
         round0[0] = bytes32(proof.circuitSize);
         round0[1] = bytes32(proof.publicInputsSize);
@@ -71,7 +67,6 @@ library TranscriptLib {
 
         // Create the first challenge
         // Note: w4 is added to the challenge later on
-        // TODO: UPDATE ALL VALUES IN HERE
         round0[3 + NUMBER_OF_PUBLIC_INPUTS] = bytes32(proof.w1.x_0);
         round0[3 + NUMBER_OF_PUBLIC_INPUTS + 1] = bytes32(proof.w1.x_1);
         round0[3 + NUMBER_OF_PUBLIC_INPUTS + 2] = bytes32(proof.w1.y_0);
@@ -95,7 +90,6 @@ library TranscriptLib {
         view
         returns (Fr beta, Fr gamma)
     {
-        // TODO(md): adjust round size when the proof points are generated correctly - 5
         bytes32[13] memory round1;
         round1[0] = FrLib.toBytes32(previousChallenge);
         round1[1] = bytes32(proof.lookupReadCounts.x_0);
@@ -122,7 +116,6 @@ library TranscriptLib {
         returns (Fr[NUMBER_OF_ALPHAS] memory alphas)
     {
         // Generate the original sumcheck alpha 0 by hashing zPerm and zLookup
-        // TODO(md): 5 post correct proof size fix
         uint256[9] memory alpha0;
         alpha0[0] = Fr.unwrap(previousChallenge);
         alpha0[1] = proof.lookupInverses.x_0;

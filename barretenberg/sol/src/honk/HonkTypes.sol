@@ -123,17 +123,17 @@ library Honk {
         Honk.G1ProofPoint w2;
         Honk.G1ProofPoint w3;
         Honk.G1ProofPoint w4;
-        // Lookup helpers - permutations
+        // Lookup helpers - Permutations
         Honk.G1ProofPoint zPerm;
-        // Lookup helpers - logup plookup
+        // Lookup helpers - logup
         Honk.G1ProofPoint lookupReadCounts;
         Honk.G1ProofPoint lookupReadTags;
         Honk.G1ProofPoint lookupInverses;
         // Sumcheck
-        Fr[BATCHED_RELATION_PARTIAL_LENGTH][LOG_N] sumcheckUnivariates;
+        Fr[BATCHED_RELATION_PARTIAL_LENGTH][CONST_PROOF_SIZE_LOG_N] sumcheckUnivariates;
         Fr[NUMBER_OF_ENTITIES] sumcheckEvaluations;
         // Zero morph
-        Honk.G1ProofPoint[LOG_N] zmCqs;
+        Honk.G1ProofPoint[CONST_PROOF_SIZE_LOG_N] zmCqs;
         Honk.G1ProofPoint zmCq;
         Honk.G1ProofPoint zmPi;
     }

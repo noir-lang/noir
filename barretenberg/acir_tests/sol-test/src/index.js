@@ -4,7 +4,8 @@ import { spawn } from "child_process";
 import { ethers } from "ethers";
 import solc from "solc";
 
-const NUMBER_OF_FIELDS_IN_PROOF = 93;
+const NUMBER_OF_FIELDS_IN_PLONK_PROOF = 93;
+const NUMBER_OF_FIELDS_IN_HONK_PROOF = 393;
 
 // We use the solcjs compiler version in this test, although it is slower than foundry, to run the test end to end
 // it simplifies of parallelising the test suite
@@ -18,6 +19,14 @@ const NUMBER_OF_FIELDS_IN_PROOF = 93;
 // 5. Run the test against the deployed contract
 // 6. Kill the anvil instance
 
+const getEnvVarCanBeUndefined = (envvar) => {
+  const varVal = process.env[envvar];
+  if (!varVal) {
+    return false;
+  }
+  return varVal;
+};
+
 const getEnvVar = (envvar) => {
   const varVal = process.env[envvar];
   if (!varVal) {
@@ -30,32 +39,22 @@ const getEnvVar = (envvar) => {
 const testName = getEnvVar("TEST_NAME");
 
 // Get solidity files, passed into environment from `flows/sol.sh`
-const keyPath = getEnvVar("KEY_PATH");
-const verifierPath = getEnvVar("VERIFIER_PATH");
 const testPath = getEnvVar("TEST_PATH");
-const basePath = getEnvVar("BASE_PATH");
+const verifierPath = getEnvVar("VERIFIER_PATH");
 const encoding = { encoding: "utf8" };
-const [key, test, verifier, base] = await Promise.all([
-  fsPromises.readFile(keyPath, encoding),
+const [test, verifier] = await Promise.all([
   fsPromises.readFile(testPath, encoding),
   fsPromises.readFile(verifierPath, encoding),
-  fsPromises.readFile(basePath, encoding),
 ]);
 
-var input = {
+export const compilationInput = {
   language: "Solidity",
   sources: {
-    "Key.sol": {
-      content: key,
-    },
     "Test.sol": {
       content: test,
     },
     "Verifier.sol": {
       content: verifier,
-    },
-    "BaseUltraVerifier.sol": {
-      content: base,
     },
   },
   settings: {
@@ -72,7 +71,30 @@ var input = {
   },
 };
 
-var output = JSON.parse(solc.compile(JSON.stringify(input)));
+// If testing honk is set, then we compile the honk test suite
+const testingHonk = getEnvVarCanBeUndefined("TESTING_HONK");
+const NUMBER_OF_FIELDS_IN_PROOF = testingHonk ? NUMBER_OF_FIELDS_IN_HONK_PROOF : NUMBER_OF_FIELDS_IN_PLONK_PROOF;
+if (!testingHonk) {
+
+    const keyPath = getEnvVar("KEY_PATH");
+    const basePath = getEnvVar("BASE_PATH");
+    const [key, base] = await Promise.all(
+      [
+        fsPromises.readFile(keyPath, encoding),
+        fsPromises.readFile(basePath, encoding),
+      ]
+    );
+
+    compilationInput.sources["BaseUltraVerifier.sol"] = {
+      content: base,
+    };
+    compilationInput.sources["Key.sol"] = {
+      content: key,
+    };
+}
+
+var output = JSON.parse(solc.compile(JSON.stringify(compilationInput)));
+
 const contract = output.contracts["Test.sol"]["Test"];
 const bytecode = contract.evm.bytecode.object;
 const abi = contract.abi;
@@ -127,8 +149,15 @@ const readPublicInputs = (proofAsFields) => {
   const publicInputs = [];
   // A proof with no public inputs is 93 fields long
   const numPublicInputs = proofAsFields.length - NUMBER_OF_FIELDS_IN_PROOF;
+  let publicInputsOffset = 0;
+  
+  // Honk proofs contain 3 pieces of metadata before the public inputs, while plonk does not
+  if (testingHonk) {
+    publicInputsOffset = 3;
+  } 
+
   for (let i = 0; i < numPublicInputs; i++) {
-    publicInputs.push(proofAsFields[i]);
+    publicInputs.push(proofAsFields[publicInputsOffset + i]);
   }
   return [numPublicInputs, publicInputs];
 };
@@ -179,8 +208,20 @@ try {
   const proofPath = getEnvVar("PROOF");
   const proof = readFileSync(proofPath);
 
-  // Cut the number of public inputs off of the proof string
-  const proofStr = `0x${proof.toString("hex").substring(64 * numPublicInputs)}`;
+  // Cut the number of public inputs out of the proof string
+  let proofStr = proof.toString("hex");
+  if (testingHonk) {
+    // Cut off the serialised buffer size at start
+    proofStr = proofStr.substring(8);
+    // Get the part before and after the public inputs
+    const proofStart = proofStr.slice(0, 64 * 3);
+    const proofEnd = proofStr.substring((64 * 3) + (64 * numPublicInputs));
+    proofStr = proofStart + proofEnd;
+  } else {
+    proofStr = proofStr.substring(64 * numPublicInputs);
+  }
+
+  proofStr = "0x" + proofStr;
 
   const key =
     "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";

@@ -355,6 +355,21 @@ jobs:
         timeout-minutes: 40
         run: earthly-ci --no-output ./+barretenberg-acir-tests-sol
 
+  bb-acir-tests-sol-honk:
+    needs: [noir-build-acir-tests, changes]
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    if: ${{ needs.changes.outputs.barretenberg == 'true' || needs.changes.outputs.noir == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: barretenberg-acir-tests-sol-honk-x86
+      - name: "BB Solidity Acir Tests"
+        working-directory: ./barretenberg/
+        timeout-minutes: 40
+        run: earthly-ci --no-output ./+barretenberg-acir-tests-sol-honk
+
   bb-acir-tests-bb-js:
     needs: [noir-build-acir-tests, changes]
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
@@ -667,6 +682,7 @@ jobs:
       - noir-build-acir-tests
       - bb-acir-tests-bb
       - bb-acir-tests-sol
+      - bb-acir-tests-sol-honk
       - bb-acir-tests-bb-js
       - noir-format
       - noir-test
@@ -717,6 +733,7 @@ jobs:
       - noir-build-acir-tests
       - bb-acir-tests-bb
       - bb-acir-tests-sol
+      - bb-acir-tests-sol-honk
       - bb-acir-tests-bb-js
       - noir-format
       - noir-test

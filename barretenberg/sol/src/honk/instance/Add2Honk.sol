@@ -25,30 +25,6 @@ import {ecMul, ecAdd, ecSub, negateInplace, convertProofPoint} from "../utils.so
 // Field arithmetic libraries
 import {Fr, FrLib} from "../Fr.sol";
 
-struct Proof {
-    uint256 circuitSize;
-    uint256 publicInputsSize;
-    uint256 publicInputsOffset;
-    // Free wires
-    Honk.G1ProofPoint w1;
-    Honk.G1ProofPoint w2;
-    Honk.G1ProofPoint w3;
-    Honk.G1ProofPoint w4;
-    // Lookup helpers - Permutations
-    Honk.G1ProofPoint zPerm;
-    // Lookup helpers - logup
-    Honk.G1ProofPoint lookupReadCounts;
-    Honk.G1ProofPoint lookupReadTags;
-    Honk.G1ProofPoint lookupInverses;
-    // Sumcheck
-    Fr[BATCHED_RELATION_PARTIAL_LENGTH][CONST_PROOF_SIZE_LOG_N] sumcheckUnivariates;
-    Fr[NUMBER_OF_ENTITIES] sumcheckEvaluations;
-    // Zero morph
-    Honk.G1ProofPoint[CONST_PROOF_SIZE_LOG_N] zmCqs;
-    Honk.G1ProofPoint zmCq;
-    Honk.G1ProofPoint zmPi;
-}
-
 // Transcript library to generate fiat shamir challenges
 struct Transcript {
     Fr eta;
@@ -67,16 +43,14 @@ struct Transcript {
     Fr zmQuotient;
     // Derived
     Fr publicInputsDelta;
-    Fr lookupGrandProductDelta;
 }
 
 library TranscriptLib {
-    function generateTranscript(Proof memory proof, Honk.VerificationKey memory vk, bytes32[] calldata publicInputs)
-        internal
-        view
-        returns (Transcript memory t)
-    {
-        // TODO: calcaulte full series of  eta;
+    function generateTranscript(
+        Honk.Proof memory proof,
+        Honk.VerificationKey memory vk,
+        bytes32[] calldata publicInputs
+    ) internal view returns (Transcript memory t) {
         (t.eta, t.etaTwo, t.etaThree) = generateEtaChallenge(proof, publicInputs);
 
         (t.beta, t.gamma) = generateBetaAndGammaChallenges(t.etaThree, proof);
@@ -95,13 +69,11 @@ library TranscriptLib {
         return t;
     }
 
-    function generateEtaChallenge(Proof memory proof, bytes32[] calldata publicInputs)
+    function generateEtaChallenge(Honk.Proof memory proof, bytes32[] calldata publicInputs)
         internal
         view
         returns (Fr eta, Fr etaTwo, Fr etaThree)
     {
-        // TODO(md): the 12 here will need to be halved when we fix the transcript to not be over field elements
-        // TODO: use assembly
         bytes32[3 + NUMBER_OF_PUBLIC_INPUTS + 12] memory round0;
         round0[0] = bytes32(proof.circuitSize);
         round0[1] = bytes32(proof.publicInputsSize);
@@ -112,7 +84,6 @@ library TranscriptLib {
 
         // Create the first challenge
         // Note: w4 is added to the challenge later on
-        // TODO: UPDATE ALL VALUES IN HERE
         round0[3 + NUMBER_OF_PUBLIC_INPUTS] = bytes32(proof.w1.x_0);
         round0[3 + NUMBER_OF_PUBLIC_INPUTS + 1] = bytes32(proof.w1.x_1);
         round0[3 + NUMBER_OF_PUBLIC_INPUTS + 2] = bytes32(proof.w1.y_0);
@@ -131,12 +102,11 @@ library TranscriptLib {
         etaThree = FrLib.fromBytes32(keccak256(abi.encodePacked(Fr.unwrap(etaTwo))));
     }
 
-    function generateBetaAndGammaChallenges(Fr previousChallenge, Proof memory proof)
+    function generateBetaAndGammaChallenges(Fr previousChallenge, Honk.Proof memory proof)
         internal
         view
         returns (Fr beta, Fr gamma)
     {
-        // TODO(md): adjust round size when the proof points are generated correctly - 5
         bytes32[13] memory round1;
         round1[0] = FrLib.toBytes32(previousChallenge);
         round1[1] = bytes32(proof.lookupReadCounts.x_0);
@@ -157,13 +127,12 @@ library TranscriptLib {
     }
 
     // Alpha challenges non-linearise the gate contributions
-    function generateAlphaChallenges(Fr previousChallenge, Proof memory proof)
+    function generateAlphaChallenges(Fr previousChallenge, Honk.Proof memory proof)
         internal
         view
         returns (Fr[NUMBER_OF_ALPHAS] memory alphas)
     {
         // Generate the original sumcheck alpha 0 by hashing zPerm and zLookup
-        // TODO(md): 5 post correct proof size fix
         uint256[9] memory alpha0;
         alpha0[0] = Fr.unwrap(previousChallenge);
         alpha0[1] = proof.lookupInverses.x_0;
@@ -191,7 +160,7 @@ library TranscriptLib {
         }
     }
 
-    function generateSumcheckChallenges(Proof memory proof, Fr prevChallenge)
+    function generateSumcheckChallenges(Honk.Proof memory proof, Fr prevChallenge)
         internal
         view
         returns (Fr[CONST_PROOF_SIZE_LOG_N] memory sumcheckChallenges)
@@ -210,7 +179,7 @@ library TranscriptLib {
         }
     }
 
-    function generateRhoChallenge(Proof memory proof, Fr prevChallenge) internal view returns (Fr rho) {
+    function generateRhoChallenge(Honk.Proof memory proof, Fr prevChallenge) internal view returns (Fr rho) {
         Fr[NUMBER_OF_ENTITIES + 1] memory rhoChallengeElements;
         rhoChallengeElements[0] = prevChallenge;
 
@@ -222,7 +191,11 @@ library TranscriptLib {
         rho = FrLib.fromBytes32(keccak256(abi.encodePacked(rhoChallengeElements)));
     }
 
-    function generateZMYChallenge(Fr previousChallenge, Proof memory proof) internal view returns (Fr zeromorphY) {
+    function generateZMYChallenge(Fr previousChallenge, Honk.Proof memory proof)
+        internal
+        view
+        returns (Fr zeromorphY)
+    {
         uint256[CONST_PROOF_SIZE_LOG_N * 4 + 1] memory zmY;
         zmY[0] = Fr.unwrap(previousChallenge);
 
@@ -236,7 +209,7 @@ library TranscriptLib {
         zeromorphY = FrLib.fromBytes32(keccak256(abi.encodePacked(zmY)));
     }
 
-    function generateZMXZChallenges(Fr previousChallenge, Proof memory proof)
+    function generateZMXZChallenges(Fr previousChallenge, Honk.Proof memory proof)
         internal
         view
         returns (Fr zeromorphX, Fr zeromorphZ)
@@ -263,12 +236,11 @@ error ZeromorphFailed();
 contract Add2HonkVerifier is IVerifier {
     Fr internal constant GRUMPKIN_CURVE_B_PARAMETER_NEGATED = Fr.wrap(17); // -(-17)
 
-    // TODO(md): I would perfer the publicInputs to be uint256
     function verify(bytes calldata proof, bytes32[] calldata publicInputs) public view override returns (bool) {
         Honk.VerificationKey memory vk = loadVerificationKey();
-        Proof memory p = loadProof(proof);
+        Honk.Proof memory p = loadProof(proof);
 
-        if (vk.publicInputsSize != NUMBER_OF_PUBLIC_INPUTS) {
+        if (publicInputs.length != vk.publicInputsSize) {
             revert PublicInputsLengthWrong();
         }
 
@@ -297,8 +269,8 @@ contract Add2HonkVerifier is IVerifier {
     // TODO: mod q proof points
     // TODO: Preprocess all of the memory locations
     // TODO: Adjust proof point serde away from poseidon forced field elements
-    function loadProof(bytes calldata proof) internal view returns (Proof memory) {
-        Proof memory p;
+    function loadProof(bytes calldata proof) internal view returns (Honk.Proof memory) {
+        Honk.Proof memory p;
 
         // Metadata
         p.circuitSize = uint256(bytes32(proof[0x00:0x20]));
@@ -458,7 +430,7 @@ contract Add2HonkVerifier is IVerifier {
 
     uint256 constant ROUND_TARGET = 0;
 
-    function verifySumcheck(Proof memory proof, Transcript memory tp) internal view returns (bool verified) {
+    function verifySumcheck(Honk.Proof memory proof, Transcript memory tp) internal view returns (bool verified) {
         Fr roundTarget;
         Fr powPartialEvaluation = Fr.wrap(1);
 
@@ -554,7 +526,7 @@ contract Add2HonkVerifier is IVerifier {
     // These are stored in the evaluations part of the proof object.
     // We add these together, with the appropiate scaling factor ( the alphas calculated in challenges )
     // This value is checked against the final value of the target total sum - et voila!
-    function accumulateRelationEvaluations(Proof memory proof, Transcript memory tp, Fr powPartialEval)
+    function accumulateRelationEvaluations(Honk.Proof memory proof, Transcript memory tp, Fr powPartialEval)
         internal
         view
         returns (Fr accumulator)
@@ -563,7 +535,6 @@ contract Add2HonkVerifier is IVerifier {
         Fr[NUMBER_OF_SUBRELATIONS] memory evaluations;
 
         // Accumulate all 6 custom gates - each with varying number of subrelations
-        // TODO: annotate how many subrealtions each has
         accumulateArithmeticRelation(purportedEvaluations, evaluations, powPartialEval);
         accumulatePermutationRelation(purportedEvaluations, tp, evaluations, powPartialEval);
         accumulateLogDerivativeLookupRelation(purportedEvaluations, tp, evaluations, powPartialEval);
@@ -666,19 +637,6 @@ contract Add2HonkVerifier is IVerifier {
             evals[3] = acc;
         }
     }
-
-    // Lookup parameters have been yoinked into memory to avoid stack too deep
-    struct LookupParams {
-        Fr eta_sqr;
-        Fr eta_cube;
-        Fr one_plus_beta;
-        Fr gamma_by_one_plus_beta;
-        Fr wire_accum;
-        Fr table_accum;
-        Fr table_accum_shift;
-    }
-
-    // TODO(md): calculate eta one two and three above
 
     function accumulateLogDerivativeLookupRelation(
         Fr[NUMBER_OF_ENTITIES] memory p,
@@ -1138,7 +1096,7 @@ contract Add2HonkVerifier is IVerifier {
         }
     }
 
-    function verifyZeroMorph(Proof memory proof, Honk.VerificationKey memory vk, Transcript memory tp)
+    function verifyZeroMorph(Honk.Proof memory proof, Honk.VerificationKey memory vk, Transcript memory tp)
         internal
         view
         returns (bool verified)
@@ -1159,13 +1117,12 @@ contract Add2HonkVerifier is IVerifier {
         Honk.G1Point memory c_zeta_Z = ecAdd(c_zeta, ecMul(c_zeta_x, tp.zmZ));
 
         // KZG pairing accumulator
-        // WORKTODO: concerned that this is zero - it is multiplied by a point later on
         Fr evaluation = Fr.wrap(0);
         verified = zkgReduceVerify(proof, tp, evaluation, c_zeta_Z);
     }
 
     // Compute commitment to lifted degree quotient identity
-    function computeCZeta(Proof memory proof, Transcript memory tp) internal view returns (Honk.G1Point memory) {
+    function computeCZeta(Honk.Proof memory proof, Transcript memory tp) internal view returns (Honk.G1Point memory) {
         Fr[LOG_N + 1] memory scalars;
         Honk.G1ProofPoint[LOG_N + 1] memory commitments;
 
@@ -1200,11 +1157,12 @@ contract Add2HonkVerifier is IVerifier {
         Fr x_pow_2kp1;
     }
 
-    function computeCZetaX(Proof memory proof, Honk.VerificationKey memory vk, Transcript memory tp, Fr batchedEval)
-        internal
-        view
-        returns (Honk.G1Point memory)
-    {
+    function computeCZetaX(
+        Honk.Proof memory proof,
+        Honk.VerificationKey memory vk,
+        Transcript memory tp,
+        Fr batchedEval
+    ) internal view returns (Honk.G1Point memory) {
         Fr[NUMBER_OF_ENTITIES + CONST_PROOF_SIZE_LOG_N + 1] memory scalars;
         Honk.G1Point[NUMBER_OF_ENTITIES + CONST_PROOF_SIZE_LOG_N + 1] memory commitments;
         CZetaXParams memory cp;
@@ -1394,11 +1352,12 @@ contract Add2HonkVerifier is IVerifier {
         }
     }
 
-    function zkgReduceVerify(Proof memory proof, Transcript memory tp, Fr evaluation, Honk.G1Point memory commitment)
-        internal
-        view
-        returns (bool)
-    {
+    function zkgReduceVerify(
+        Honk.Proof memory proof,
+        Transcript memory tp,
+        Fr evaluation,
+        Honk.G1Point memory commitment
+    ) internal view returns (bool) {
         Honk.G1Point memory quotient_commitment = convertProofPoint(proof.zmPi);
         Honk.G1Point memory ONE = Honk.G1Point({x: 1, y: 2});
 

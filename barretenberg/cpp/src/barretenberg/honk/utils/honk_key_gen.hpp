@@ -1,31 +1,30 @@
-// TODO: check if we need these
-#include "barretenberg/ultra_honk/ultra_prover.hpp"
-#include "barretenberg/ultra_honk/ultra_verifier.hpp"
+#pragma once
 
-#include <iostream>
-#include <memory>
-
-namespace bb {
 /**
  * Write a solidity file containing the vk params to the given stream.
  * Uses UltraHonk
+ *
+ * @param os
+ * @param key - verification key object
+ * @param class_name - the name to give the verification key class
+ * @param include_types_import - include a "HonkTypes" import, only required for local tests, not with the bundled
+ *contract from bb contract_honk
  **/
-inline void output_vk_sol_ultra_honk(
-    std::ostream& os,
-    // TODO: get the VerificationKey outside of the falvor - it's not a part of the flavor
-    auto const& key,
-    std::string const& class_name)
+inline void output_vk_sol_ultra_honk(std::ostream& os,
+                                     auto const& key,
+                                     std::string const& class_name,
+                                     bool include_types_import = false)
 {
 
-    const auto print_u256_const = [&](const bb::fr& element, const std::string& name) {
+    const auto print_u256_const = [&](const auto& element, const std::string& name) {
         os << "uint256 constant " << name << " = " << element << ";" << std::endl;
     };
 
-    const auto print_u256 = [&](const bb::fr& element, const std::string& name) {
+    const auto print_u256 = [&](const auto& element, const std::string& name) {
         os << "            " << name << ": uint256(" << element << ")," << std::endl;
     };
 
-    const auto print_g1 = [&](const bb::g1::affine_element& element, const std::string& name, const bool last = false) {
+    const auto print_g1 = [&](const auto& element, const std::string& name, const bool last = false) {
         os << "            " << name << ": Honk.G1Point({ \n"
            << "               "
            << "x: "
@@ -43,6 +42,13 @@ inline void output_vk_sol_ultra_honk(
         }
     };
 
+    // Include the types import if working with the local test suite
+    const auto print_types_import = [&]() {
+        if (include_types_import) {
+            os << "import { Honk } from \"../HonkTypes.sol\";\n";
+        }
+    };
+
     // clang-format off
     os <<
     //   "// Verification Key Hash: " << key->sha256_hash() << "\n"
@@ -50,16 +56,13 @@ inline void output_vk_sol_ultra_honk(
       "// Copyright 2022 Aztec\n"
       "pragma solidity >=0.8.21;\n"
       "\n"
-      "import { Honk } from \"../HonkTypes.sol\";\n"
     "";
+    print_types_import();
     print_u256_const(key->circuit_size, "N");
     print_u256_const(key->log_circuit_size, "LOG_N");
     print_u256_const(key->num_public_inputs, "NUMBER_OF_PUBLIC_INPUTS");
     os << ""
     "library " << class_name << " {\n"
-    //   "    function verificationKeyHash() internal pure returns(bytes32) {\n"
-    //   "        return 0x" << key->sha256_hash() << ";\n"
-    //   "    }\n\n"
       "    function loadVerificationKey() internal pure returns (Honk.VerificationKey memory) {\n"
       "        Honk.VerificationKey memory vk = Honk.VerificationKey({\n";
     print_u256(key->circuit_size, "circuitSize");
@@ -92,21 +95,10 @@ inline void output_vk_sol_ultra_honk(
     print_g1(key->lagrange_first, "lagrangeFirst");
     print_g1(key->lagrange_last, "lagrangeLast", /*last=*/ true);
     os <<
-
-        // TODO: no recursive proofs
-        // TODO: no pairing check yet
-        // "            mstore(add(_vk, 0x640), " << (key->contains_recursive_proof ? "0x01" : "0x00") << ") // vk.contains_recursive_proof\n"
-        // "            mstore(add(_vk, 0x660), " << (key->contains_recursive_proof ? key->recursive_proof_public_input_indices[0] : 0) << ") // vk.recursive_proof_public_input_indices\n"
-        
-        // "            mstore(add(_vk, 0x680), " <<  key->reference_string->get_g2x().x.c1 << ") // vk.g2_x.X.c1 \n"
-        // "            mstore(add(_vk, 0x6a0), " <<  key->reference_string->get_g2x().x.c0 << ") // vk.g2_x.X.c0 \n"
-        // "            mstore(add(_vk, 0x6c0), " <<  key->reference_string->get_g2x().y.c1 << ") // vk.g2_x.Y.c1 \n"
-        // "            mstore(add(_vk, 0x6e0), " <<  key->reference_string->get_g2x().y.c0 << ") // vk.g2_x.Y.c0 \n"
         "        });\n"
         "        return vk;\n"
         "    }\n"
         "}\n";
 
     os << std::flush;
-}
 }
