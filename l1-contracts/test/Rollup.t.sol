@@ -127,8 +127,9 @@ contract RollupTest is DecoderBase {
     bytes32 archive = data.archive;
     bytes memory body = data.body;
 
-    // Overwrite in the rollup contract
-    vm.store(address(rollup), bytes32(uint256(2)), bytes32(uint256(block.timestamp)));
+    // Beware of the store slot below, if the test is failing might be because of the slot
+    // We overwrite `lastBlockTs` in the rollup
+    vm.store(address(rollup), bytes32(uint256(7)), bytes32(uint256(block.timestamp)));
 
     availabilityOracle.publish(body);
 
@@ -143,8 +144,8 @@ contract RollupTest is DecoderBase {
     bytes memory body = full.block.body;
     uint32 numTxs = full.block.numTxs;
 
-    // We jump to the time of the block.
-    vm.warp(full.block.decodedHeader.globalVariables.timestamp);
+    // We jump to the time of the block. (unless it is in the past)
+    vm.warp(max(block.timestamp, full.block.decodedHeader.globalVariables.timestamp));
 
     _populateInbox(full.populate.sender, full.populate.recipient, full.populate.l1ToL2Content);
 
@@ -199,5 +200,9 @@ contract RollupTest is DecoderBase {
         DataStructures.L2Actor({actor: _recipient, version: 1}), _contents[i], bytes32(0)
       );
     }
+  }
+
+  function max(uint256 a, uint256 b) internal pure returns (uint256) {
+    return a > b ? a : b;
   }
 }

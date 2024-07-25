@@ -179,7 +179,7 @@ export class Sequencer {
           : Number(historicalHeader.globalVariables.blockNumber.toBigInt())) + 1;
 
       // Do not go forward with new block if not my turn
-      if (!(await this.publisher.isItMyTurnToSubmit(newBlockNumber))) {
+      if (!(await this.publisher.isItMyTurnToSubmit())) {
         this.log.debug('Not my turn to submit block');
         return;
       }
@@ -250,7 +250,8 @@ export class Sequencer {
       if (currentBlockNumber + 1 !== newGlobalVariables.blockNumber.toNumber()) {
         throw new Error('New block was emitted while building block');
       }
-      if (!(await this.publisher.isItMyTurnToSubmit(newGlobalVariables.blockNumber.toNumber()))) {
+
+      if (!(await this.publisher.isItMyTurnToSubmit())) {
         throw new Error(`Not this sequencer turn to submit block`);
       }
     };

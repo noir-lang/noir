@@ -17,12 +17,13 @@ import {Hash} from "./libraries/Hash.sol";
 import {Errors} from "./libraries/Errors.sol";
 import {Constants} from "./libraries/ConstantsGen.sol";
 import {MerkleLib} from "./libraries/MerkleLib.sol";
-import {EnumerableSet} from "@oz/utils/structs/EnumerableSet.sol";
+import {SignatureLib} from "./sequencer_selection/SignatureLib.sol";
 
 // Contracts
 import {MockVerifier} from "../mock/MockVerifier.sol";
 import {Inbox} from "./messagebridge/Inbox.sol";
 import {Outbox} from "./messagebridge/Outbox.sol";
+import {Leonidas} from "./sequencer_selection/Leonidas.sol";
 
 /**
  * @title Rollup
@@ -30,8 +31,7 @@ import {Outbox} from "./messagebridge/Outbox.sol";
  * @notice Rollup contract that is concerned about readability and velocity of development
  * not giving a damn about gas costs.
  */
-contract Rollup is IRollup {
-  IVerifier public verifier;
+contract Rollup is Leonidas, IRollup {
   IRegistry public immutable REGISTRY;
   IAvailabilityOracle public immutable AVAILABILITY_ORACLE;
   IInbox public immutable INBOX;
@@ -39,6 +39,7 @@ contract Rollup is IRollup {
   uint256 public immutable VERSION;
   IERC20 public immutable GAS_TOKEN;
 
+  IVerifier public verifier;
   bytes32 public archive; // Root of the archive tree
   uint256 public lastBlockTs;
   // Tracks the last time time was warped on L2 ("warp" is the testing cheatcode).
@@ -47,16 +48,12 @@ contract Rollup is IRollup {
 
   bytes32 public vkTreeRoot;
 
-  using EnumerableSet for EnumerableSet.AddressSet;
-
-  EnumerableSet.AddressSet private sequencers;
-
   constructor(
     IRegistry _registry,
     IAvailabilityOracle _availabilityOracle,
     IERC20 _gasToken,
     bytes32 _vkTreeRoot
-  ) {
+  ) Leonidas(msg.sender) {
     verifier = new MockVerifier();
     REGISTRY = _registry;
     AVAILABILITY_ORACLE = _availabilityOracle;
@@ -65,27 +62,6 @@ contract Rollup is IRollup {
     OUTBOX = new Outbox(address(this));
     vkTreeRoot = _vkTreeRoot;
     VERSION = 1;
-  }
-
-  // HACK: Add a sequencer to set of potential sequencers
-  function addSequencer(address sequencer) external {
-    sequencers.add(sequencer);
-  }
-
-  // HACK: Remove a sequencer from the set of potential sequencers
-  function removeSequencer(address sequencer) external {
-    sequencers.remove(sequencer);
-  }
-
-  // HACK: Return whose turn it is to submit a block
-  function whoseTurnIsIt(uint256 blockNumber) public view returns (address) {
-    return
-      sequencers.length() == 0 ? address(0x0) : sequencers.at(blockNumber % sequencers.length());
-  }
-
-  // HACK: Return all the registered sequencers
-  function getSequencers() external view returns (address[] memory) {
-    return sequencers.values();
   }
 
   function setVerifier(address _verifier) external override(IRollup) {
@@ -101,8 +77,15 @@ contract Rollup is IRollup {
    * @notice Process an incoming L2 block and progress the state
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
+   * @param _signatures - Signatures from the validators
    */
-  function process(bytes calldata _header, bytes32 _archive) external override(IRollup) {
+  function process(
+    bytes calldata _header,
+    bytes32 _archive,
+    SignatureLib.Signature[] memory _signatures
+  ) public {
+    _processPendingBlock(_signatures, _archive);
+
     // Decode and validate header
     HeaderLib.Header memory header = HeaderLib.decode(_header);
     HeaderLib.validate(header, VERSION, lastBlockTs, archive);
@@ -110,12 +93,6 @@ contract Rollup is IRollup {
     // Check if the data is available using availability oracle (change availability oracle if you want a different DA layer)
     if (!AVAILABILITY_ORACLE.isAvailable(header.contentCommitment.txsEffectsHash)) {
       revert Errors.Rollup__UnavailableTxs(header.contentCommitment.txsEffectsHash);
-    }
-
-    // Check that this is the current sequencer's turn
-    address sequencer = whoseTurnIsIt(header.globalVariables.blockNumber);
-    if (sequencer != address(0x0) && sequencer != msg.sender) {
-      revert Errors.Rollup__InvalidSequencer(msg.sender);
     }
 
     archive = _archive;
@@ -140,6 +117,11 @@ contract Rollup is IRollup {
     }
 
     emit L2BlockProcessed(header.globalVariables.blockNumber);
+  }
+
+  function process(bytes calldata _header, bytes32 _archive) external override(IRollup) {
+    SignatureLib.Signature[] memory emptySignatures = new SignatureLib.Signature[](0);
+    process(_header, _archive, emptySignatures);
   }
 
   function submitProof(

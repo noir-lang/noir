@@ -46,7 +46,6 @@ library Errors {
   error Rollup__TimestampInFuture(); // 0xbc1ce916
   error Rollup__TimestampTooOld(); // 0x72ed9c81
   error Rollup__UnavailableTxs(bytes32 txsHash); // 0x414906c3
-  error Rollup__InvalidSequencer(address sequencer); // 0xa127a106
 
   // Registry
   error Registry__RollupNotRegistered(address rollup); // 0xa1fee4cf
@@ -61,4 +60,14 @@ library Errors {
 
   // MerkleLib
   error MerkleLib__InvalidRoot(bytes32 expected, bytes32 actual, bytes32 leaf, uint256 leafIndex); // 0x5f216bf1
+
+  // SignatureLib
+  error SignatureLib__CannotVerifyEmpty(); // 0xc7690a37
+  error SignatureLib__InvalidSignature(address expected, address recovered); // 0xd9cbae6c
+
+  // Sequencer Selection (Leonidas)
+  error Leonidas__NotGod(); // 0xabc2f815
+  error Leonidas__EpochNotSetup(); // 0xcf4e597e
+  error Leonidas__InvalidProposer(address expected, address actual); // 0xd02d278e
+  error Leonidas__InsufficientAttestations(uint256 expected, uint256 actual); // 0xbf1ca4cb
 }

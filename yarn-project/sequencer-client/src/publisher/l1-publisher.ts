@@ -46,8 +46,8 @@ export interface L1PublisherTxSender {
   /** Returns the EOA used for sending txs to L1.  */
   getSenderAddress(): Promise<EthAddress>;
 
-  /** Returns the address elected for submitting a given block number or zero if anyone can submit. */
-  getSubmitterAddressForBlock(blockNumber: number): Promise<EthAddress>;
+  /** Returns the address of the current proposer or zero if anyone can submit. */
+  getSubmitterAddressForBlock(): Promise<EthAddress>;
 
   /**
    * Publishes tx effects to Availability Oracle.
@@ -137,8 +137,8 @@ export class L1Publisher implements L2BlockReceiver {
     this.sleepTimeMs = config?.l1PublishRetryIntervalMS ?? 60_000;
   }
 
-  public async isItMyTurnToSubmit(blockNumber: number): Promise<boolean> {
-    const submitter = await this.txSender.getSubmitterAddressForBlock(blockNumber);
+  public async isItMyTurnToSubmit(): Promise<boolean> {
+    const submitter = await this.txSender.getSubmitterAddressForBlock();
     const sender = await this.txSender.getSenderAddress();
     return submitter.isZero() || submitter.equals(sender);
   }
