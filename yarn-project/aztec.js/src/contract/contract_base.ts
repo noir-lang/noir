@@ -51,7 +51,7 @@ export class ContractBase {
     /** The Application Binary Interface for the contract. */
     public readonly artifact: ContractArtifact,
     /** The wallet used for interacting with this contract. */
-    protected wallet: Wallet,
+    public wallet: Wallet,
   ) {
     artifact.functions.forEach((f: FunctionArtifact) => {
       const interactionFunction = (...args: any[]) => {

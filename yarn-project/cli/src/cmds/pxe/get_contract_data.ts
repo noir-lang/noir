@@ -16,14 +16,20 @@ export async function getContractData(
 
   const isPrivatelyDeployed = !!instance;
   const isPubliclyDeployed = await client.isContractPubliclyDeployed(contractAddress);
+  const isInitialized = await client.isContractInitialized(contractAddress);
+  const initStr = isInitialized ? 'initialized' : 'not initialized';
+  const addrStr = contractAddress.toString();
+
   if (isPubliclyDeployed && isPrivatelyDeployed) {
-    log(`Contract is publicly deployed at ${contractAddress.toString()}`);
+    log(`Contract is ${initStr} and publicly deployed at ${addrStr}`);
   } else if (isPrivatelyDeployed) {
-    log(`Contract is registered in the local pxe at ${contractAddress.toString()} but not publicly deployed`);
+    log(`Contract is ${initStr} and registered in the local pxe at ${addrStr} but not publicly deployed`);
   } else if (isPubliclyDeployed) {
-    log(`Contract is publicly deployed at ${contractAddress.toString()} but not registered in the local pxe`);
+    log(`Contract is ${initStr} and publicly deployed at ${addrStr} but not registered in the local pxe`);
+  } else if (isInitialized) {
+    log(`Contract is initialized but not publicly deployed nor registered in the local pxe at ${addrStr}`);
   } else {
-    log(`No contract found at ${contractAddress.toString()}`);
+    log(`No contract found at ${addrStr}`);
   }
 
   if (instance) {

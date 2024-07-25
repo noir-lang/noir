@@ -133,6 +133,16 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
   }
 
   /**
+   * Register this contract in the PXE and returns the Contract object.
+   * @param options - Deployment options.
+   */
+  public async register(options: DeployOptions = {}): Promise<TContract> {
+    const instance = this.getInstance(options);
+    await this.wallet.registerContract({ artifact: this.artifact, instance });
+    return this.postDeployCtor(instance.address, this.wallet);
+  }
+
+  /**
    * Returns calls for registration of the class and deployment of the instance, depending on the provided options.
    * @param options - Deployment options.
    * @returns A function call array with potentially requests to the class registerer and instance deployer.

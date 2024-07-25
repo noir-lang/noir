@@ -855,6 +855,11 @@ export class PXEService implements PXE {
     return !!(await this.node.getContract(address));
   }
 
+  public async isContractInitialized(address: AztecAddress): Promise<boolean> {
+    const initNullifier = siloNullifier(address, address);
+    return !!(await this.node.getNullifierMembershipWitness('latest', initNullifier));
+  }
+
   public getEvents<T>(
     type: EventType.Encrypted,
     eventMetadata: EventMetadata<T>,

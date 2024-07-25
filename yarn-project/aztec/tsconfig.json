@@ -22,6 +22,9 @@
       "path": "../bb-prover"
     },
     {
+      "path": "../bot"
+    },
+    {
       "path": "../builder"
     },
     {

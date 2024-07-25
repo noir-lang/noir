@@ -76,6 +76,9 @@ e2e-blacklist-token-contract:
 e2e-block-building:
   DO +E2E_TEST --test=./src/e2e_block_building.test.ts
 
+e2e-bot:
+  DO +E2E_TEST --test=./src/e2e_bot.test.ts
+
 e2e-card-game:
   DO +E2E_TEST --test=./src/e2e_card_game.test.ts
 

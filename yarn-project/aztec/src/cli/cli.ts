@@ -36,6 +36,7 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
     .option('-o, --prover-node [options]', cliTexts.proverNode)
     .option('-p2p, --p2p-bootstrap [options]', cliTexts.p2pBootstrap)
     .option('-t, --txe [options]', cliTexts.txe)
+    .option('--bot [options]', cliTexts.bot)
     .action(async options => {
       // list of 'stop' functions to call when process ends
       const signalHandlers: Array<() => Promise<void>> = [];
@@ -66,10 +67,12 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
         signalHandlers.push(stop);
         services = [{ node: nodeServer }, { pxe: pxeServer }];
       } else {
-        // Start Aztec Node
         if (options.node) {
           const { startNode } = await import('./cmds/start_node.js');
           services = await startNode(options, signalHandlers, userLog);
+        } else if (options.bot) {
+          const { startBot } = await import('./cmds/start_bot.js');
+          services = await startBot(options, signalHandlers, userLog);
         } else if (options.proverNode) {
           const { startProverNode } = await import('./cmds/start_prover_node.js');
           services = await startProverNode(options, signalHandlers, userLog);

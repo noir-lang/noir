@@ -17,3 +17,14 @@ export function mapValues<K extends string | number | symbol, T, U>(
   }
   return result;
 }
+
+/** Returns a new object where all keys with undefined values have been removed. */
+export function compact<T extends object>(obj: T): { [P in keyof T]+?: Exclude<T[P], undefined> } {
+  const result: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      result[key] = obj[key];
+    }
+  }
+  return result;
+}

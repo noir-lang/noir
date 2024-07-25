@@ -1,4 +1,4 @@
-import { mapValues } from './object.js';
+import { compact, mapValues } from './object.js';
 
 describe('mapValues', () => {
   it('should return a new object with mapped values', () => {
@@ -26,5 +26,37 @@ describe('mapValues', () => {
     const result = mapValues(obj, fn);
 
     expect(result).toEqual({ a: 'string', b: 'boolean', c: 'object' });
+  });
+});
+
+describe('compact', () => {
+  it('should remove keys with undefined values', () => {
+    const obj = { a: 1, b: undefined, c: 3 };
+    const result = compact(obj);
+    expect(result).toEqual({ a: 1, c: 3 });
+  });
+
+  it('should not remove keys with falsey but not undefined values', () => {
+    const obj = { a: false, b: 0, c: '', d: null, e: [] };
+    const result = compact(obj);
+    expect(result).toEqual(obj);
+  });
+
+  it('should handle an empty object', () => {
+    const obj = {};
+    const result = compact(obj);
+    expect(result).toEqual({});
+  });
+
+  it('should handle an object with all undefined values', () => {
+    const obj = { a: undefined, b: undefined, c: undefined };
+    const result = compact(obj);
+    expect(result).toEqual({});
+  });
+
+  it('should handle an object with no undefined values', () => {
+    const obj = { a: 1, b: 2, c: 3 };
+    const result = compact(obj);
+    expect(result).toEqual({ a: 1, b: 2, c: 3 });
   });
 });

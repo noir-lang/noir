@@ -1,0 +1,38 @@
+{
+  "extends": "..",
+  "compilerOptions": {
+    "outDir": "dest",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../accounts"
+    },
+    {
+      "path": "../aztec.js"
+    },
+    {
+      "path": "../circuit-types"
+    },
+    {
+      "path": "../circuits.js"
+    },
+    {
+      "path": "../entrypoints"
+    },
+    {
+      "path": "../foundation"
+    },
+    {
+      "path": "../noir-contracts.js"
+    },
+    {
+      "path": "../protocol-contracts"
+    },
+    {
+      "path": "../types"
+    }
+  ],
+  "include": ["src"]
+}

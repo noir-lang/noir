@@ -387,6 +387,13 @@ export interface PXE {
   isContractPubliclyDeployed(address: AztecAddress): Promise<boolean>;
 
   /**
+   * Queries the node to check whether the contract instance with the given address has been initialized,
+   * by checking the standard initialization nullifier.
+   * @param address - Address of the contract to check.
+   */
+  isContractInitialized(address: AztecAddress): Promise<boolean>;
+
+  /**
    * Returns the events of a specified type given search parameters.
    * @param type - The type of the event to search for—Encrypted, or Unencrypted.
    * @param eventMetadata - Identifier of the event. This should be the class generated from the contract. e.g. Contract.events.Event

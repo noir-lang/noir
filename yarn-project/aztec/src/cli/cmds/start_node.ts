@@ -3,11 +3,11 @@ import {
   createAztecNodeRpcServer,
   getConfigEnvVars as getNodeConfigEnvVars,
 } from '@aztec/aztec-node';
+import { type PXE } from '@aztec/circuit-types';
 import { NULL_KEY } from '@aztec/ethereum';
 import { type ServerList } from '@aztec/foundation/json-rpc/server';
 import { type LogFn } from '@aztec/foundation/log';
 import { createProvingJobSourceServer } from '@aztec/prover-client/prover-agent';
-import { type PXEServiceConfig, createPXERpcServer, getPXEServiceConfig } from '@aztec/pxe';
 import {
   createAndStartTelemetryClient,
   getConfigEnvVars as getTelemetryClientConfig,
@@ -15,7 +15,7 @@ import {
 
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
-import { MNEMONIC, createAztecNode, createAztecPXE, deployContractsToL1 } from '../../sandbox.js';
+import { MNEMONIC, createAztecNode, deployContractsToL1 } from '../../sandbox.js';
 import { mergeEnvVarsAndCliOptions, parseModuleOptions } from '../util.js';
 
 const { DEPLOY_AZTEC_CONTRACTS } = process.env;
@@ -108,18 +108,17 @@ export const startNode = async (
   // Add node stop function to signal handlers
   signalHandlers.push(node.stop);
 
-  // Create a PXE client that connects to the node.
+  // Add a PXE client that connects to this node if requested
+  let pxe: PXE | undefined;
   if (options.pxe) {
-    const pxeCliOptions = parseModuleOptions(options.pxe);
-    const pxeConfig = mergeEnvVarsAndCliOptions<PXEServiceConfig>(getPXEServiceConfig(), pxeCliOptions);
-    const pxe = await createAztecPXE(node, pxeConfig);
-    const pxeServer = createPXERpcServer(pxe);
+    const { addPXE } = await import('./start_pxe.js');
+    pxe = await addPXE(options, services, signalHandlers, userLog, { node });
+  }
 
-    // Add PXE to services list
-    services.push({ pxe: pxeServer });
-
-    // Add PXE stop function to signal handlers
-    signalHandlers.push(pxe.stop);
+  // Add a txs bot if requested
+  if (options.bot) {
+    const { addBot } = await import('./start_bot.js');
+    await addBot(options, services, signalHandlers, { pxe });
   }
 
   return services;

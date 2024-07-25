@@ -71,6 +71,15 @@ export class AccountManager {
   }
 
   /**
+   * Gets the address for this given account.
+   * Does not require the account to be deployed or registered.
+   * @returns The address.
+   */
+  public getAddress() {
+    return this.getCompleteAddress().address;
+  }
+
+  /**
    * Returns the contract instance definition associated with this account.
    * Does not require the account to be deployed or registered.
    * @returns ContractInstance instance.

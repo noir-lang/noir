@@ -182,6 +182,9 @@ export abstract class BaseWallet implements Wallet {
   isContractPubliclyDeployed(address: AztecAddress): Promise<boolean> {
     return this.pxe.isContractPubliclyDeployed(address);
   }
+  isContractInitialized(address: AztecAddress): Promise<boolean> {
+    return this.pxe.isContractInitialized(address);
+  }
   getPXEInfo(): Promise<PXEInfo> {
     return this.pxe.getPXEInfo();
   }
