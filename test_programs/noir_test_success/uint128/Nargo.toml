@@ -1,0 +1,7 @@
+[package]
+name = "uint128"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]

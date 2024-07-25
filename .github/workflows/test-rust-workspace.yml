@@ -13,6 +13,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ban-noir-stdlib-tests:
+    name: Ensure zero tests in noir_stdlib
+    runs-on: ubuntu-latest
+    # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
+    if: ${{ always() }}
+
+    steps:
+      - name: Report overall success
+        run: |
+           && echo 'failure: tests in the stdlib' || echo 'success: no tests in the stdlib'
+          if grep -r "\s*#\[test]" noir_stdlib; then
+              exit 1 # test found in noir_stdlib, fail
+          else
+              exit 0
+          fi
+
   build-test-artifacts:
     name: Build test artifacts
     runs-on: ubuntu-latest

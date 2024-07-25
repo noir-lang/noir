@@ -1,6 +1,6 @@
 #[test]
 fn test_vec_new_foo() {
-    foo();
+    let _ = foo();
 }
 
 #[test(should_fail)]
@@ -11,7 +11,7 @@ fn test_vec_new_bad() {
 // docs:start:new_example
 fn foo() -> BoundedVec<Field, 10> {
     // Ok! MaxLen is specified with a type annotation
-    let v1: BoundedVec<Field, 3> = BoundedVec::new();
+    let _v1: BoundedVec<Field, 3> = BoundedVec::new();
     let v2 = BoundedVec::new();
 
     // Ok! MaxLen is known from the type of foo's return value
@@ -52,7 +52,7 @@ fn test_vec_get_unchecked<N>() {
 }
 
 // docs:start:get_unchecked_example
-fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
+fn sum_of_first_three<let N: u32>(v: BoundedVec<u32, N>) -> u32 {
     // Always ensure the length is larger than the largest
     // index passed to get_unchecked
     assert(v.len() > 2);
@@ -270,3 +270,161 @@ fn test_vec_any_not_default() {
     assert(!vec.any(|v| v == default_value));
 }
 
+mod bounded_vec_tests {
+
+    mod get {
+        use std::collections::bounded_vec::BoundedVec;
+
+        #[test(should_fail_with = "Attempted to read past end of BoundedVec")]
+        fn panics_when_reading_elements_past_end_of_vec() {
+            let vec: BoundedVec<Field, 5> = BoundedVec::new();
+
+            std::println(vec.get(0));
+        }
+    }
+
+    mod set {
+        use std::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn set_updates_values_properly() {
+            let mut vec = BoundedVec::from_array([0, 0, 0, 0, 0]);
+
+            vec.set(0, 42);
+            assert_eq(vec.storage, [42, 0, 0, 0, 0]);
+
+            vec.set(1, 43);
+            assert_eq(vec.storage, [42, 43, 0, 0, 0]);
+
+            vec.set(2, 44);
+            assert_eq(vec.storage, [42, 43, 44, 0, 0]);
+
+            vec.set(1, 10);
+            assert_eq(vec.storage, [42, 10, 44, 0, 0]);
+
+            vec.set(0, 0);
+            assert_eq(vec.storage, [0, 10, 44, 0, 0]);
+        }
+
+        #[test(should_fail_with = "Attempted to write past end of BoundedVec")]
+        fn panics_when_writing_elements_past_end_of_vec() {
+            let mut vec: BoundedVec<Field, 5> = BoundedVec::new();
+            vec.set(0, 42);
+
+            // Need to use println to avoid DIE removing the write operation.
+            std::println(vec.get(0));
+        }
+    }
+
+    mod map {
+        use std::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn applies_function_correctly() {
+            // docs:start:bounded-vec-map-example
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.map(|value| value * 2);
+            // docs:end:bounded-vec-map-example
+            let expected = BoundedVec::from_array([2, 4, 6, 8]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn applies_function_that_changes_return_type() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.map(|value| (value * 2)  as Field);
+            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 4, 6, 8]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn does_not_apply_function_past_len() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
+            let result = vec.map(|value| if value == 0 { 5 } else { value });
+            let expected = BoundedVec::from_array([5, 1]);
+
+            assert_eq(result, expected);
+            assert_eq(result.storage()[2], 0);
+        }
+    }
+
+    mod from_array {
+        use std::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn empty() {
+            let empty_array: [Field; 0] = [];
+            let bounded_vec = BoundedVec::from_array([]);
+
+            assert_eq(bounded_vec.max_len(), 0);
+            assert_eq(bounded_vec.len(), 0);
+            assert_eq(bounded_vec.storage(), empty_array);
+        }
+
+        #[test]
+        fn equal_len() {
+            let array = [1, 2, 3];
+            let bounded_vec = BoundedVec::from_array(array);
+
+            assert_eq(bounded_vec.max_len(), 3);
+            assert_eq(bounded_vec.len(), 3);
+            assert_eq(bounded_vec.storage(), array);
+        }
+
+        #[test]
+        fn max_len_greater_then_array_len() {
+            let array = [1, 2, 3];
+            let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array(array);
+
+            assert_eq(bounded_vec.max_len(), 10);
+            assert_eq(bounded_vec.len(), 3);
+            assert_eq(bounded_vec.storage()[0], 1);
+            assert_eq(bounded_vec.storage()[1], 2);
+            assert_eq(bounded_vec.storage()[2], 3);
+        }
+
+        #[test(should_fail_with="from array out of bounds")]
+        fn max_len_lower_then_array_len() {
+            let _: BoundedVec<Field, 2> = BoundedVec::from_array([0; 3]);
+        }
+    }
+
+    mod trait_from {
+        use std::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn simple() {
+            let array = [1, 2];
+            let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from(array);
+
+            assert_eq(bounded_vec.max_len(), 10);
+            assert_eq(bounded_vec.len(), 2);
+            assert_eq(bounded_vec.storage()[0], 1);
+            assert_eq(bounded_vec.storage()[1], 2);
+        }
+    }
+
+    mod trait_eq {
+        use std::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn empty_equality() {
+            let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
+            let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+
+            assert_eq(bounded_vec1, bounded_vec2);
+        }
+
+        #[test]
+        fn inequality() {
+            let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
+            let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+            bounded_vec1.push(1);
+            bounded_vec2.push(2);
+
+            assert(bounded_vec1 != bounded_vec2);
+        }
+    }
+}
