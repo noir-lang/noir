@@ -344,18 +344,20 @@ impl Instruction {
             | RangeCheck { .. } => false,
 
             ArrayGet { array, index } | ArraySet { array, index, .. } => {
-                if let Some(known_index) = dfg.get_numeric_constant(*index) {
-                    let array_length = dfg
-                        .try_get_array_length(*array)
-                        .expect("ice: value should have been an array");
-
-                    // If the index is known at compile-time, we can only remove it if it's not out of bounds.
-                    // If it's out of bounds we'd like that to keep failing at runtime.
-                    known_index < array_length.into()
+                if let Some(array_length) = dfg.try_get_array_length(*array) {
+                    if let Some(known_index) = dfg.get_numeric_constant(*index) {
+                        // If the index is known at compile-time, we can only remove it if it's not out of bounds.
+                        // If it's out of bounds we'd like that to keep failing at runtime.
+                        known_index < array_length.into()
+                    } else {
+                        // If the index is not known at compile-time we can't remove this instruction as this
+                        // might be an index out of bounds.
+                        false
+                    }
                 } else {
-                    // If the index is not known at compile-time we can't remove this instruction as this
-                    // might be an index out of bounds.
-                    false
+                    // TODO: the underlying type is a Slice. We consider this instruction can be removed,
+                    // though in practice this can also produce an index out of bounds.
+                    true
                 }
             }
 
