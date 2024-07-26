@@ -24,7 +24,7 @@ struct Poseidon2Config {
     round_constant: [[FieldElement; 4]; 64],
 }
 
-fn field_from_hex(hex: &str) -> FieldElement {
+pub fn field_from_hex(hex: &str) -> FieldElement {
     FieldElement::from_be_bytes_reduce(&hex::decode(hex).expect("Should be passed only valid hex"))
 }
 

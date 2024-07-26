@@ -45,6 +45,7 @@ dependencies = [
  "acir",
  "acvm_blackbox_solver",
  "ark-bls12-381",
+ "bn254_blackbox_solver",
  "brillig_vm",
  "indexmap 1.9.3",
  "num-bigint",

@@ -5,7 +5,7 @@ use acir::{
     brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
         brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
-        opcodes::{BlockId, BlockType, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         Opcode, OpcodeLocation,
     },
     native_types::{Expression, Witness, WitnessMap},
@@ -14,6 +14,7 @@ use acir::{
 
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
+use bn254_blackbox_solver::field_from_hex;
 use brillig_vm::brillig::HeapValueType;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
@@ -722,3 +723,97 @@ fn memory_operations() {
 
     assert_eq!(witness_map[&Witness(8)], FieldElement::from(6u128));
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// TODO: verbatim from BigInt PR: merge target there?
+////////////////////////////////////////////////////////////////////////////////////////////////
+/// Whether to use a FunctionInput::constant or FunctionInput::witness:
+///
+/// (value, use_constant)
+type ConstantOrWitness = (FieldElement, bool);
+
+// For each ConstantOrWitness,
+// - If use_constant, then convert to a FunctionInput::constant
+// - Otherwise, convert to FunctionInput::witness
+//   + With the Witness index as (input_index + offset)
+//
+// Both use FieldElement::max_num_bits as the number of bits.
+fn constant_or_witness_to_function_inputs(
+    xs: Vec<ConstantOrWitness>,
+    offset: usize,
+) -> Vec<FunctionInput<FieldElement>> {
+    xs.into_iter()
+        .enumerate()
+        .map(|(i, (x, use_constant))| {
+            if use_constant {
+                FunctionInput::constant(x, FieldElement::max_num_bits())
+            } else {
+                FunctionInput::witness(Witness((i + offset) as u32), FieldElement::max_num_bits())
+            }
+        })
+        .collect()
+}
+
+// Convert ConstantOrWitness's back to FieldElement's by dropping the bool's
+fn drop_use_constant(input: &[ConstantOrWitness]) -> Vec<FieldElement> {
+    input.iter().map(|x| x.0).collect()
+}
+////////////////////////////////////////////////////////////////////////////////////////////////
+// END TODO: verbatim from BigInt PR: merge target there?
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+// test that the inputs and outputs have the same length
+// sanity check a couple inputs (against?)
+fn solve_poseidon2_permutation(
+    inputs: Vec<ConstantOrWitness>,
+) -> Vec<FieldElement> {
+    let initial_witness_vec: Vec<_> =
+        inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
+    let outputs: Vec<_> = initial_witness_vec
+        .iter()
+        .take(inputs.len())
+        .enumerate()
+        .map(|(i, _)| Witness((i + inputs.len()) as u32)) // offset past the indices of inputs
+        .collect();
+    let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
+
+    let inputs = constant_or_witness_to_function_inputs(inputs, 0);
+
+    let op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Poseidon2Permutation {
+        inputs,
+        outputs,
+        len: inputs.len() as u32,
+    });
+
+    let opcodes = vec![op];
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+
+    let solver_status = acvm.solve();
+    assert_eq!(solver_status, ACVMStatus::Solved);
+    let witness_map = acvm.finalize();
+
+    outputs
+        .iter()
+        .map(|witness| *witness_map.get(witness).expect("all witnesses to be set"))
+        .collect()
+}
+
+
+#[test]
+fn poseidon2_permutation_smoke_test(use_constants: [bool; 4]) {
+
+    let inputs = [FieldElement::zero(); 4].into_iter().zip(use_constants.into_iter()).collect();
+    let result = solve_poseidon2_permutation(inputs);
+
+    let expected_result = vec![
+        field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),
+        field_from_hex("095C230D1D37A246E8D2D5A63B165FE0FADE040D442F61E25F0590E5FB76F839"),
+        field_from_hex("0BB9545846E1AFA4FA3C97414A60A20FC4949F537A68CCECA34C5CE71E28AA59"),
+        field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
+    ];
+    assert_eq!(result, expected_result);
+}
+
+

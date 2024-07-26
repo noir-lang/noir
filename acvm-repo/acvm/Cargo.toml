@@ -21,6 +21,7 @@ serde.workspace = true
 acir.workspace = true
 brillig_vm.workspace = true
 acvm_blackbox_solver.workspace = true
+bn254_blackbox_solver.workspace = true
 
 indexmap = "1.7.0"
 
