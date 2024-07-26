@@ -182,11 +182,13 @@ impl<'context> Elaborator<'context> {
             }
         };
 
+        let turbofish_span = last_segment.turbofish_span();
+
         let generics = self.resolve_struct_turbofish_generics(
             &struct_type.borrow(),
             generics,
             last_segment.generics,
-            Span::from(last_segment.ident.span().end()..last_segment.span.end()),
+            turbofish_span,
         );
 
         let actual_type = Type::Struct(struct_type.clone(), generics);
