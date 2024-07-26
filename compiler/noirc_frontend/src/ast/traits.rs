@@ -53,7 +53,6 @@ pub struct TypeImpl {
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(NoirFunction, Span)>,
-    pub is_comptime: bool,
 }
 
 /// Ast node for an implementation of a trait for a particular type
