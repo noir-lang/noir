@@ -2620,6 +2620,22 @@ fn turbofish_in_struct_pattern() {
 
     fn main() {
         let value: Field = 0;
+        let Foo::<Field> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value: Field = 0;
         let Foo::<i32> { x } = Foo { x: value };
         let _ = x;
     }
