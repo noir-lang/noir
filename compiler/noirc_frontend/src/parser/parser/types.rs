@@ -1,4 +1,4 @@
-use super::path::{path, path_no_turbofish};
+use super::path::path_no_turbofish;
 use super::primitives::token_kind;
 use super::{
     expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
@@ -181,9 +181,9 @@ pub(super) fn int_type() -> impl NoirParser<UnresolvedType> {
 pub(super) fn named_type<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<UnresolvedType> + 'a {
-    path(type_parser.clone()).then(generic_type_args(type_parser)).map_with_span(
-        |(path, args), span| UnresolvedTypeData::Named(path, args, false).with_span(span),
-    )
+    path_no_turbofish().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
+        UnresolvedTypeData::Named(path, args, false).with_span(span)
+    })
 }
 
 pub(super) fn named_trait<'a>(
