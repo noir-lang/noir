@@ -116,7 +116,7 @@ fn to_abi_visibility(value: Visibility) -> AbiVisibility {
     match value {
         Visibility::Public => AbiVisibility::Public,
         Visibility::Private => AbiVisibility::Private,
-        Visibility::DataBus => AbiVisibility::DataBus,
+        Visibility::CallData(_) | Visibility::ReturnData => AbiVisibility::DataBus,
     }
 }
 
