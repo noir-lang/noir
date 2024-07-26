@@ -34,8 +34,8 @@ impl Ssa {
 /// of its instructions are needed elsewhere.
 fn dead_instruction_elimination(function: &mut Function) {
     let mut context = Context::default();
-    if let Some(call_data) = function.dfg.data_bus.call_data {
-        context.mark_used_instruction_results(&function.dfg, call_data);
+    for call_data in &function.dfg.data_bus.call_data {
+        context.mark_used_instruction_results(&function.dfg, call_data.array_id);
     }
 
     let blocks = PostOrder::with_function(function);
