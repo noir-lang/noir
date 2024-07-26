@@ -1053,13 +1053,15 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Integer(..)
             | HirType::Bool
             | HirType::String(..)
-            | HirType::Unit => None,
+            | HirType::Unit
+            | HirType::TraitAsType(..)
+            | HirType::Forall(_, _)
+            | HirType::Constant(_)
+            | HirType::Error
+            | HirType::Quoted(_) => None,
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),
-            HirType::TraitAsType(..) => {
-                unreachable!("All TraitAsType should be replaced before calling convert_type");
-            }
             HirType::NamedGeneric(binding, _, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return Self::check_type(binding, location);
@@ -1118,11 +1120,6 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::MutableReference(element) => Self::check_type(element, location),
-
-            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
-                unreachable!("Unexpected type {} found", typ)
-            }
-            HirType::Quoted(_) => unreachable!("Tried to translate Code type into runtime code"),
         }
     }
 
