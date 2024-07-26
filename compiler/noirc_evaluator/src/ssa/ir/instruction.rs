@@ -355,9 +355,8 @@ impl Instruction {
                         false
                     }
                 } else {
-                    // TODO: the underlying type is a Slice. We consider this instruction can be removed,
-                    // though in practice this can also produce an index out of bounds.
-                    true
+                    // The underlying type is a slice so we can never know if this will be out of bounds
+                    false
                 }
             }
 

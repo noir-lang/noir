@@ -430,4 +430,36 @@ mod test {
 
         assert_eq!(instructions_after, instructions_before);
     }
+
+    #[test]
+    fn does_not_remove_array_set_for_slices() {
+        // fn main f0 {
+        //   b0(v0: [Field]):
+        //     v1 = array_set v0, index u32 10, value Field 1
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::Slice(Rc::new(vec![Type::field()])));
+
+        let const_one = builder.numeric_constant(1_u128, Type::Numeric(NumericType::NativeField));
+        let const_ten = builder.numeric_constant(10_u128, Type::Numeric(NumericType::NativeField));
+        builder.insert_array_set(v0, const_ten, const_one);
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+        println!("{}", ssa);
+
+        let main = ssa.main();
+        let instructions_before = main.dfg[main.entry_block()].instructions().len();
+
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+        let instructions_after = main.dfg[main.entry_block()].instructions().len();
+
+        assert_eq!(instructions_after, instructions_before);
+    }
 }
