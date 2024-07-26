@@ -1,5 +1,5 @@
 use fxhash::FxHashMap as HashMap;
-use std::{collections::VecDeque, rc::Rc, borrow::Cow};
+use std::{borrow::Cow, collections::VecDeque, rc::Rc};
 
 use acvm::{acir::AcirField, acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
@@ -85,12 +85,10 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::ArrayToStrLossy => {
-            match simplify_array_to_str_lossy(dfg, arguments[0]) {
-                Some(string) => SimplifyResult::SimplifiedTo(string),
-                None => SimplifyResult::None,
-            }
-        }
+        Intrinsic::ArrayToStrLossy => match simplify_array_to_str_lossy(dfg, arguments[0]) {
+            Some(string) => SimplifyResult::SimplifiedTo(string),
+            None => SimplifyResult::None,
+        },
         Intrinsic::AsSlice => {
             let array = dfg.get_array_constant(arguments[0]);
             if let Some((array, array_type)) = array {
@@ -349,7 +347,7 @@ fn simplify_array_to_str_lossy(dfg: &mut DataFlowGraph, value: ValueId) -> Optio
             }
             let typ = Type::str(new_array.len());
             Some(dfg.make_array(new_array, typ))
-        },
+        }
     }
 }
 
