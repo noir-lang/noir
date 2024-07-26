@@ -50,6 +50,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Intrinsic {
     ArrayLen,
+    ArrayToStrLossy,
     AsSlice,
     AssertConstant,
     StaticAssert,
@@ -75,6 +76,7 @@ impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::ArrayToStrLossy => write!(f, "array_to_str"),
             Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::StaticAssert => write!(f, "static_assert"),
@@ -115,6 +117,7 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             Intrinsic::ArrayLen
+            | Intrinsic::ArrayToStrLossy
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
@@ -143,6 +146,7 @@ impl Intrinsic {
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
+            "array_to_str_lossy" => Some(Intrinsic::ArrayToStrLossy),
             "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "static_assert" => Some(Intrinsic::StaticAssert),

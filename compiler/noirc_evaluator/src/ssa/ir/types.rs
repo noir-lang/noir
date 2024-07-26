@@ -109,6 +109,11 @@ impl Type {
         Type::unsigned(8)
     }
 
+    /// Creates the str<N> type, of the given length N
+    pub(crate) fn str(length: usize) -> Type {
+        Type::Array(Rc::new(vec![Type::char()]), length)
+    }
+
     /// Creates the native field type.
     pub(crate) fn field() -> Type {
         Type::Numeric(NumericType::NativeField)

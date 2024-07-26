@@ -2714,7 +2714,14 @@ impl<'a> Context<'a> {
                     .get_or_create_witness_var(input)
                     .map(|val| self.convert_vars_to_values(vec![val], dfg, result_ids))?)
             }
-            _ => todo!("expected a black box function"),
+            Intrinsic::ArrayToStrLossy => todo!("non-constant array_to_str_lossy"),
+            Intrinsic::AssertConstant => unreachable!("Expected assert_constant to be removed by this point"),
+            Intrinsic::StaticAssert => unreachable!("Expected static_assert to be removed by this point"),
+            Intrinsic::StrAsBytes => unreachable!("Expected as_bytes to be removed by this point"),
+            Intrinsic::FromField => unreachable!("Expected from_field to be removed by this point"),
+            Intrinsic::AsField => unreachable!("Expected as_field to be removed by this point"),
+            Intrinsic::IsUnconstrained => unreachable!("Expected is_unconstrained to be removed by this point"),
+            Intrinsic::DerivePedersenGenerators => unreachable!("DerivePedersenGenerators can only be called with constants"),
         }
     }
 
