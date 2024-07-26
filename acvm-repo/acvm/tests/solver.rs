@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use acir::{
     acir_field::GenericFieldElement,
@@ -14,8 +15,10 @@ use acir::{
 
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
-use bn254_blackbox_solver::field_from_hex;
+use bn254_blackbox_solver::{POSEIDON2_CONFIG, Bn254BlackBoxSolver, field_from_hex};
 use brillig_vm::brillig::HeapValueType;
+
+use zkhash::poseidon2::{self, poseidon2_params::Poseidon2Params};
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
 
@@ -780,15 +783,15 @@ fn solve_poseidon2_permutation(
     let inputs = constant_or_witness_to_function_inputs(inputs, 0);
 
     let op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Poseidon2Permutation {
-        inputs,
-        outputs,
+        inputs: inputs.clone(),
+        outputs: outputs.clone(),
         len: inputs.len() as u32,
     });
 
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+        ACVM::new(&Bn254BlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
 
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
@@ -802,7 +805,10 @@ fn solve_poseidon2_permutation(
 
 
 #[test]
-fn poseidon2_permutation_smoke_test(use_constants: [bool; 4]) {
+fn poseidon2_permutation_smoke_test() {
+
+    // TODO proptest
+    let use_constants: [bool; 4] = [false; 4];
 
     let inputs = [FieldElement::zero(); 4].into_iter().zip(use_constants.into_iter()).collect();
     let result = solve_poseidon2_permutation(inputs);
@@ -814,6 +820,66 @@ fn poseidon2_permutation_smoke_test(use_constants: [bool; 4]) {
         field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
     ];
     assert_eq!(result, expected_result);
+}
+
+fn into_repr_vec<T>(xs: T) -> Vec<ark_bn254::Fr>
+where
+    T: IntoIterator<Item=FieldElement>,
+{
+    xs.into_iter().map(|x| x.into_repr()).collect()
+}
+
+fn into_repr_mat<T, U>(xs: T) -> Vec<Vec<ark_bn254::Fr>>
+where
+    T: IntoIterator<Item=U>,
+    U: IntoIterator<Item=FieldElement>,
+{
+    xs.into_iter().map(|x| into_repr_vec(x)).collect()
+}
+
+#[test]
+fn poseidon2_permutation() {
+
+    // TODO proptest
+    let use_constants: [bool; 4] = [false; 4];
+
+    let inputs = [FieldElement::zero(); 4].into_iter().zip(use_constants.into_iter()).collect();
+    let result = solve_poseidon2_permutation(inputs);
+
+    let poseidon2_t = POSEIDON2_CONFIG.t as usize;
+
+    let poseidon2_d = 3;
+
+    let rounds_f = POSEIDON2_CONFIG.rounds_f as usize;
+    let rounds_p = POSEIDON2_CONFIG.rounds_p as usize;
+    let mat_internal_diag_m_1 = into_repr_vec(POSEIDON2_CONFIG.internal_matrix_diagonal);
+
+    // TODO: ??
+    let mat_internal = vec![];
+    let round_constants = into_repr_mat(POSEIDON2_CONFIG.round_constant);
+
+    let external_poseidon2 = zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(Poseidon2Params::new(
+        poseidon2_t,
+        poseidon2_d,
+        rounds_f,
+        rounds_p,
+        &mat_internal_diag_m_1,
+        &mat_internal,
+        &round_constants,
+    )));
+
+    // let unwrapped_field_elements = inputs.into_iter().map(|(x, _use_constant)| x.0).collect();
+    // let expected_result = external_poseidon2.permutation(unwrapped_field_elements);
+    // let internal_expected_result = vec![
+    //     field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),
+    //     field_from_hex("095C230D1D37A246E8D2D5A63B165FE0FADE040D442F61E25F0590E5FB76F839"),
+    //     field_from_hex("0BB9545846E1AFA4FA3C97414A60A20FC4949F537A68CCECA34C5CE71E28AA59"),
+    //     field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
+    // ];
+    //
+    // assert_eq!(expected_result, internal_expected_result);
+    // assert_eq!(result, expected_result);
+
 }
 
 
