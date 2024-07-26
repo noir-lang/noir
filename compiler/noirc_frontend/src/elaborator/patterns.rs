@@ -182,23 +182,12 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let generics = if let Some(turbofish_generics) = &last_segment.generics {
-            if turbofish_generics.len() == generics.len() {
-                let struct_type = struct_type.borrow();
-                self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics.clone())
-            } else {
-                self.push_err(TypeCheckError::GenericCountMismatch {
-                    item: format!("struct {}", last_segment.ident),
-                    expected: generics.len(),
-                    found: turbofish_generics.len(),
-                    span: Span::from(last_segment.ident.span().end()..last_segment.span.end()),
-                });
-
-                generics
-            }
-        } else {
-            generics
-        };
+        let generics = self.resolve_struct_turbofish_generics(
+            &struct_type.borrow(),
+            generics,
+            last_segment.generics,
+            Span::from(last_segment.ident.span().end()..last_segment.span.end()),
+        );
 
         let actual_type = Type::Struct(struct_type.clone(), generics);
         let location = Location::new(span, self.file);
@@ -446,6 +435,30 @@ impl<'context> Elaborator<'context> {
 
             self.resolve_turbofish_generics(&direct_generics, unresolved_turbofish)
         })
+    }
+
+    pub(super) fn resolve_struct_turbofish_generics(
+        &mut self,
+        struct_type: &StructType,
+        generics: Vec<Type>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Vec<Type> {
+        let Some(turbofish_generics) = unresolved_turbofish else {
+            return generics;
+        };
+
+        if turbofish_generics.len() != generics.len() {
+            self.push_err(TypeCheckError::GenericCountMismatch {
+                item: format!("struct {}", struct_type.name),
+                expected: generics.len(),
+                found: turbofish_generics.len(),
+                span: span,
+            });
+            return generics;
+        }
+
+        self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics)
     }
 
     pub(super) fn resolve_turbofish_generics(

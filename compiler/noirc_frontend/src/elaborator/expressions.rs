@@ -430,23 +430,12 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let struct_generics = if let Some(turbofish_generics) = &last_segment.generics {
-            if turbofish_generics.len() == struct_generics.len() {
-                let struct_type = r#type.borrow();
-                self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics.clone())
-            } else {
-                self.push_err(TypeCheckError::GenericCountMismatch {
-                    item: format!("struct {}", last_segment.ident),
-                    expected: struct_generics.len(),
-                    found: turbofish_generics.len(),
-                    span: Span::from(last_segment.ident.span().end()..last_segment.span.end()),
-                });
-
-                struct_generics
-            }
-        } else {
-            struct_generics
-        };
+        let struct_generics = self.resolve_struct_turbofish_generics(
+            &r#type.borrow(),
+            struct_generics,
+            last_segment.generics,
+            Span::from(last_segment.ident.span().end()..last_segment.span.end()),
+        );
 
         let struct_type = r#type.clone();
         let generics = struct_generics.clone();
