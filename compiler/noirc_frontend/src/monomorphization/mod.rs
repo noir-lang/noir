@@ -1838,7 +1838,6 @@ pub fn resolve_trait_method(
                 }
                 Err(constraints) => {
                     let location = interner.expr_location(&expr_id);
-                    dbg!(&constraints);
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location.span)
                     {
