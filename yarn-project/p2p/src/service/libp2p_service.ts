@@ -1,4 +1,4 @@
-import { type Tx } from '@aztec/circuit-types';
+import { Tx } from '@aztec/circuit-types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
@@ -21,7 +21,7 @@ import { convertToMultiaddr } from '../util.js';
 import { AztecDatastore } from './data_store.js';
 import { PeerManager } from './peer_manager.js';
 import type { P2PService, PeerDiscoveryService } from './service.js';
-import { AztecTxMessageCreator, fromTxMessage } from './tx_messages.js';
+import { AztecTxMessageCreator } from './tx_messages.js';
 
 export interface PubSubLibp2p extends Libp2p {
   services: {
@@ -239,7 +239,7 @@ export class LibP2PService implements P2PService {
       return;
     }
 
-    const tx = fromTxMessage(Buffer.from(data));
+    const tx = Tx.fromBuffer(Buffer.from(data));
     await this.processTxFromPeer(tx);
   }
 
