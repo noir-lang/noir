@@ -100,14 +100,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             });
         }
 
-        let is_comptime = self.elaborator.interner.function_modifiers(&function).is_comptime;
-        if !is_comptime && meta.source_crate == self.crate_id {
-            // Calling non-comptime functions from within the current crate is restricted
-            // as non-comptime items will have not been elaborated yet.
-            let function = self.elaborator.interner.function_name(&function).to_owned();
-            return Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location });
-        }
-
         if meta.kind != FunctionKind::Normal {
             let return_type = meta.return_type().follow_bindings();
             return self.call_special(function, arguments, return_type, location);
@@ -159,7 +151,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     self.get_function_body(function, location)
                 } else {
                     let function = self.elaborator.interner.function_name(&function).to_owned();
-                    Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location })
+                    Err(InterpreterError::ComptimeDependencyCycle { function, location })
                 }
             }
         }

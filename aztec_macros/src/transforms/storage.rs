@@ -246,7 +246,6 @@ pub fn generate_storage_implementation(
         methods: vec![(init, Span::default())],
 
         where_clause: vec![],
-        is_comptime: false,
     };
     module.impls.push(storage_impl);
 

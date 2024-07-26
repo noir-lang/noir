@@ -218,9 +218,8 @@ fn top_level_statement<'a>(
 ///
 /// implementation: 'impl' generics type '{' function_definition ... '}'
 fn implementation() -> impl NoirParser<TopLevelStatement> {
-    maybe_comp_time()
-        .then_ignore(keyword(Keyword::Impl))
-        .then(function::generics())
+    keyword(Keyword::Impl)
+        .ignore_then(function::generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
@@ -228,14 +227,13 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::RightBrace))
         .map(|args| {
             let ((other_args, where_clause), methods) = args;
-            let ((is_comptime, generics), (object_type, type_span)) = other_args;
+            let (generics, (object_type, type_span)) = other_args;
             TopLevelStatement::Impl(TypeImpl {
                 generics,
                 object_type,
                 type_span,
                 where_clause,
                 methods,
-                is_comptime,
             })
         })
 }

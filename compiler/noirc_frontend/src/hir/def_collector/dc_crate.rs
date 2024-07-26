@@ -80,7 +80,6 @@ pub struct UnresolvedTraitImpl {
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
-    pub is_comptime: bool,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,
