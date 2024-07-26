@@ -355,8 +355,14 @@ impl Instruction {
                         false
                     }
                 } else {
-                    // The underlying type is a slice so we can never know if this will be out of bounds
-                    false
+                    if let ArrayGet { .. } = self {
+                        // array_get on a slice always does an index in bounds check,
+                        // so we can remove this instruction if it's unused
+                        true
+                    } else {
+                        // The same check isn't done on array_set, though
+                        false
+                    }
                 }
             }
 
