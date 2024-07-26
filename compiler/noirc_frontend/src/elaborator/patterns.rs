@@ -157,8 +157,12 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
-        let name_span = name.last_ident().span();
-        let is_self_type = name.last_ident().is_self_type_name();
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&name, exclude_last_segment);
+
+        let last_segment = name.last_segment();
+        let name_span = last_segment.ident.span();
+        let is_self_type = last_segment.ident.is_self_type_name();
 
         let error_identifier = |this: &mut Self| {
             // Must create a name here to return a HirPattern::Identifier. Allowing
@@ -176,6 +180,24 @@ impl<'context> Elaborator<'context> {
                 self.push_err(ResolverError::NonStructUsedInConstructor { typ, span });
                 return error_identifier(self);
             }
+        };
+
+        let generics = if let Some(turbofish_generics) = &last_segment.generics {
+            if turbofish_generics.len() == generics.len() {
+                let struct_type = struct_type.borrow();
+                self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics.clone())
+            } else {
+                self.push_err(TypeCheckError::GenericCountMismatch {
+                    item: format!("struct {}", last_segment.ident),
+                    expected: generics.len(),
+                    found: turbofish_generics.len(),
+                    span: Span::from(last_segment.ident.span().end()..last_segment.span.end()),
+                });
+
+                generics
+            }
+        } else {
+            generics
         };
 
         let actual_type = Type::Struct(struct_type.clone(), generics);
