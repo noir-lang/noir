@@ -439,6 +439,16 @@ export async function setup(
   };
 }
 
+/** Returns an L1 wallet client for anvil using a well-known private key based on the index. */
+export function getL1WalletClient(rpcUrl: string, index: number) {
+  const hdAccount = mnemonicToAccount(MNEMONIC, { addressIndex: index });
+  return createWalletClient({
+    account: hdAccount,
+    chain: foundry,
+    transport: http(rpcUrl),
+  });
+}
+
 /**
  * Ensures there's a running Anvil instance and returns the RPC URL.
  * @returns
