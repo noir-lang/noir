@@ -1,0 +1,8 @@
+[package]
+name = "non_first_public_input"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+version = "1.1.0"
+
+[dependencies]
