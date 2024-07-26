@@ -1623,8 +1623,7 @@ impl<'context> Elaborator<'context> {
             }
 
             if segment.generics.is_some() {
-                // From "foo::<T>", create a span for just "::<T>"
-                let span = Span::from(segment.ident.span().end()..segment.span.end());
+                let span = segment.turbofish_span();
                 self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
             }
         }
