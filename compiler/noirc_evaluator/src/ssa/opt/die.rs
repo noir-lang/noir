@@ -170,12 +170,14 @@ impl Context {
 
 #[cfg(test)]
 mod test {
+    use std::rc::Rc;
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
             instruction::{BinaryOp, Intrinsic},
             map::Id,
-            types::Type,
+            types::{NumericType, Type},
         },
     };
 
@@ -302,5 +304,130 @@ mod test {
         let main = ssa.main();
 
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
+    }
+
+    #[test]
+    fn does_not_remove_array_get_if_index_known_at_compile_time_is_out_of_bounds() {
+        // fn main f0 {
+        //   b0(v0: [Field; 1]):
+        //     v1 = array_get v0, index u32 10
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 1));
+
+        let const_ten = builder.numeric_constant(10_u128, Type::Numeric(NumericType::NativeField));
+        builder.insert_array_get(v0, const_ten, Type::field());
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+        println!("{}", ssa);
+
+        let main = ssa.main();
+        let instructions_before = main.dfg[main.entry_block()].instructions().len();
+
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+        let instructions_after = main.dfg[main.entry_block()].instructions().len();
+
+        assert_eq!(instructions_after, instructions_before);
+    }
+
+    #[test]
+    fn remove_array_get_if_index_known_at_compile_time_is_not_out_of_bounds() {
+        // fn main f0 {
+        //   b0(v0: [Field; 1]):
+        //     v1 = array_get v0, index u32 0
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 1));
+
+        let const_zero = builder.numeric_constant(0_u128, Type::Numeric(NumericType::NativeField));
+        builder.insert_array_get(v0, const_zero, Type::field());
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+        println!("{}", ssa);
+
+        let main = ssa.main();
+        let instructions_before = main.dfg[main.entry_block()].instructions().len();
+
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+        let instructions_after = main.dfg[main.entry_block()].instructions().len();
+
+        assert_eq!(instructions_after, instructions_before - 1);
+    }
+
+    #[test]
+    fn does_not_remove_array_get_if_index_is_not_known_at_compile_time() {
+        // fn main f0 {
+        //   b0(v0: [Field; 1], v1: Field):
+        //     v2 = array_get v0, index v1
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 1));
+        let v1 = builder.add_parameter(Type::field());
+
+        builder.insert_array_get(v0, v1, Type::field());
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+        println!("{}", ssa);
+
+        let main = ssa.main();
+        let instructions_before = main.dfg[main.entry_block()].instructions().len();
+
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+        let instructions_after = main.dfg[main.entry_block()].instructions().len();
+
+        assert_eq!(instructions_after, instructions_before);
+    }
+
+    #[test]
+    fn does_not_remove_array_set_if_index_known_at_compile_time_is_out_of_bounds() {
+        // fn main f0 {
+        //   b0(v0: [Field; 1]):
+        //     v1 = array_set v0, index u32 10, value Field 1
+        //     return
+        // }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::Array(Rc::new(vec![Type::field()]), 1));
+
+        let const_one = builder.numeric_constant(1_u128, Type::Numeric(NumericType::NativeField));
+        let const_ten = builder.numeric_constant(10_u128, Type::Numeric(NumericType::NativeField));
+        builder.insert_array_set(v0, const_ten, const_one);
+        builder.terminate_with_return(Vec::new());
+
+        let ssa = builder.finish();
+        println!("{}", ssa);
+
+        let main = ssa.main();
+        let instructions_before = main.dfg[main.entry_block()].instructions().len();
+
+        let ssa = ssa.dead_instruction_elimination();
+        let main = ssa.main();
+        let instructions_after = main.dfg[main.entry_block()].instructions().len();
+
+        assert_eq!(instructions_after, instructions_before);
     }
 }
