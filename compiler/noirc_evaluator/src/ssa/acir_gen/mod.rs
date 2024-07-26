@@ -430,6 +430,12 @@ impl<'a> Context<'a> {
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
+        let call_data_arrays: Vec<ValueId> =
+            self.data_bus.call_data.iter().map(|cd| cd.array_id).collect();
+        for call_data_array in call_data_arrays {
+            self.ensure_array_is_initialized(call_data_array, dfg)?;
+        }
+
         // TODO: This is a naive method of assigning the return values to their witnesses as
         // we're likely to get a number of constraints which are asserting one witness to be equal to another.
         //
@@ -1263,20 +1269,23 @@ impl<'a> Context<'a> {
         let res_typ = dfg.type_of_value(results[0]);
 
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        if let Some(call_data) = self.data_bus.call_data {
-            if self.data_bus.call_data_map.contains_key(&array) {
-                // TODO: the block_id of call-data must be notified to the backend
-                // TODO: should we do the same for return-data?
-                let type_size = res_typ.flattened_size();
-                let type_size =
-                    self.acir_context.add_constant(FieldElement::from(type_size as i128));
-                let offset = self.acir_context.mul_var(var_index, type_size)?;
-                let bus_index = self
-                    .acir_context
-                    .add_constant(FieldElement::from(self.data_bus.call_data_map[&array] as i128));
-                let new_index = self.acir_context.add_var(offset, bus_index)?;
-                return self.array_get(instruction, call_data, new_index, dfg, index_side_effect);
-            }
+        if let Some(call_data) =
+            self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array))
+        {
+            let type_size = res_typ.flattened_size();
+            let type_size = self.acir_context.add_constant(FieldElement::from(type_size as i128));
+            let offset = self.acir_context.mul_var(var_index, type_size)?;
+            let bus_index = self
+                .acir_context
+                .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
+            let new_index = self.acir_context.add_var(offset, bus_index)?;
+            return self.array_get(
+                instruction,
+                call_data.array_id,
+                new_index,
+                dfg,
+                index_side_effect,
+            );
         }
 
         // Compiler sanity check
@@ -1707,17 +1716,20 @@ impl<'a> Context<'a> {
         len: usize,
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
-        let databus = if self.data_bus.call_data.is_some()
-            && self.block_id(&self.data_bus.call_data.unwrap()) == array
-        {
-            BlockType::CallData
-        } else if self.data_bus.return_data.is_some()
+        let mut databus = BlockType::Memory;
+        if self.data_bus.return_data.is_some()
             && self.block_id(&self.data_bus.return_data.unwrap()) == array
         {
-            BlockType::ReturnData
-        } else {
-            BlockType::Memory
-        };
+            databus = BlockType::ReturnData;
+        }
+        for array_id in self.data_bus.call_data_array() {
+            if self.block_id(&array_id) == array {
+                assert!(databus == BlockType::Memory);
+                databus = BlockType::CallData;
+                break;
+            }
+        }
+
         self.acir_context.initialize_array(array, len, value, databus)?;
         self.initialized_arrays.insert(array);
         Ok(())

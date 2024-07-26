@@ -46,6 +46,8 @@ pub enum ParserErrorReason {
     Lexer(LexerErrorKind),
     #[error("The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`")]
     ForbiddenNumericGenericType,
+    #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
+    InvalidCallDataIdentifier,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
