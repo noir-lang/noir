@@ -453,7 +453,7 @@ impl<'context> Elaborator<'context> {
                 item: format!("struct {}", struct_type.name),
                 expected: generics.len(),
                 found: turbofish_generics.len(),
-                span: span,
+                span,
             });
             return generics;
         }
