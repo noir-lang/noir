@@ -493,7 +493,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_assign_oracle(var_id, value);
             }
             pub fn __debug_var_assign<T>(var_id: u32, value: T) {
-                __debug_var_assign_inner(var_id, value);
+                unsafe {{
+                    __debug_var_assign_inner(var_id, value);
+                }}
             }
 
             #[oracle(__debug_var_drop)]
@@ -502,7 +504,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_drop_oracle(var_id);
             }
             pub fn __debug_var_drop(var_id: u32) {
-                __debug_var_drop_inner(var_id);
+                unsafe {{
+                    __debug_var_drop_inner(var_id);
+                }}
             }
 
             #[oracle(__debug_fn_enter)]
@@ -511,7 +515,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_enter_oracle(fn_id);
             }
             pub fn __debug_fn_enter(fn_id: u32) {
-                __debug_fn_enter_inner(fn_id);
+                unsafe {{
+                    __debug_fn_enter_inner(fn_id);
+                }}
             }
 
             #[oracle(__debug_fn_exit)]
@@ -520,7 +526,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_exit_oracle(fn_id);
             }
             pub fn __debug_fn_exit(fn_id: u32) {
-                __debug_fn_exit_inner(fn_id);
+                unsafe {{
+                    __debug_fn_exit_inner(fn_id);
+                }}
             }
 
             #[oracle(__debug_dereference_assign)]
@@ -529,7 +537,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_dereference_assign_oracle(var_id, value);
             }
             pub fn __debug_dereference_assign<T>(var_id: u32, value: T) {
-                __debug_dereference_assign_inner(var_id, value);
+                unsafe {{
+                    __debug_dereference_assign_inner(var_id, value);
+                }}
             }
         "#
         .to_string(),
@@ -553,7 +563,9 @@ pub fn build_debug_crate_file() -> String {
                     __debug_oracle_member_assign_{n}(var_id, value, {vars});
                 }}
                 pub fn __debug_member_assign_{n}<T, Index>(var_id: u32, value: T, {var_sig}) {{
-                    __debug_inner_member_assign_{n}(var_id, value, {vars});
+                    unsafe {{
+                        __debug_inner_member_assign_{n}(var_id, value, {vars});
+                    }}
                 }}
 
             "#

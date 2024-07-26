@@ -37,6 +37,7 @@ pub enum HirExpression {
     Quote(Tokens),
     Unquote(Tokens),
     Comptime(HirBlockExpression),
+    Unsafe(HirBlockExpression),
     Error,
 }
 

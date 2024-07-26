@@ -261,6 +261,9 @@ impl<'a> InlayHintCollector<'a> {
             ExpressionKind::Comptime(block_expression, _span) => {
                 self.collect_in_block_expression(block_expression);
             }
+            ExpressionKind::Unsafe(block_expression, _span) => {
+                self.collect_in_block_expression(block_expression);
+            }
             ExpressionKind::Literal(..)
             | ExpressionKind::Variable(..)
             | ExpressionKind::Quote(..)
@@ -533,7 +536,11 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 parts.push(string_part(">"));
             }
         }
-        Type::Function(args, return_type, _env) => {
+        Type::Function(args, return_type, _env, unconstrained) => {
+            if *unconstrained {
+                parts.push(string_part("unconstrained "));
+            }
+
             parts.push(string_part("fn("));
             for (index, arg) in args.iter().enumerate() {
                 push_type_parts(arg, parts, files);
@@ -628,6 +635,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::Comptime(..)
         | ExpressionKind::Resolved(..)
         | ExpressionKind::Literal(..)
+        | ExpressionKind::Unsafe(..)
         | ExpressionKind::Error => None,
     }
 }

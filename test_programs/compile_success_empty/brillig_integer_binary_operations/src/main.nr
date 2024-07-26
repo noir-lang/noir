@@ -3,28 +3,30 @@ fn main() {
     let x: u32 = 6;
     let y: u32 = 2;
 
-    assert((x + y) == add(x, y));
+    unsafe {
+        assert((x + y) == add(x, y));
 
-    assert((x - y) == sub(x, y));
+        assert((x - y) == sub(x, y));
 
-    assert((x * y) == mul(x, y));
+        assert((x * y) == mul(x, y));
 
-    assert((x / y) == div(x, y));
-    // TODO SSA => ACIR has some issues with i32 ops
-    assert(check_signed_div(6, 2, 3));
+        assert((x / y) == div(x, y));
+        // TODO SSA => ACIR has some issues with i32 ops
+        assert(check_signed_div(6, 2, 3));
 
-    assert(eq(1, 2) == false);
-    assert(eq(1, 1));
+        assert(eq(1, 2) == false);
+        assert(eq(1, 1));
 
-    assert(lt(x, y) == false);
-    assert(lt(y, x));
+        assert(lt(x, y) == false);
+        assert(lt(y, x));
 
-    assert((x & y) == and(x, y));
-    assert((x | y) == or(x, y));
-    // TODO SSA => ACIR has some issues with xor ops
-    assert(check_xor(x, y, 4));
-    assert((x >> y as u8) == shr(x, y as u8));
-    assert((x << y as u8) == shl(x, y as u8));
+        assert((x & y) == and(x, y));
+        assert((x | y) == or(x, y));
+        // TODO SSA => ACIR has some issues with xor ops
+        assert(check_xor(x, y, 4));
+        assert((x >> y as u8) == shr(x, y as u8));
+        assert((x << y as u8) == shl(x, y as u8));
+    }
 }
 
 unconstrained fn add(x: u32, y: u32) -> u32 {

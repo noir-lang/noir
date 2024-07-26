@@ -136,6 +136,8 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error("Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block")]
+    Unsafe { span: Span },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -263,7 +265,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldNot { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span } | TypeCheckError::Unsafe { span }
             | TypeCheckError::NonConstantSliceLength { span }
             | TypeCheckError::StringIndexAssign { span }
             | TypeCheckError::InvalidShiftSize { span } => {

@@ -36,6 +36,7 @@ pub enum ExpressionKind {
     Quote(Tokens),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Span),
+    Unsafe(BlockExpression, Span),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
@@ -591,6 +592,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Comptime(block, _) => write!(f, "comptime {block}"),
+            Unsafe(block, _) => write!(f, "unsafe {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Unquote(expr) => write!(f, "$({expr})"),

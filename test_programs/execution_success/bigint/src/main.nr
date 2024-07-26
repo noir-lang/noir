@@ -17,7 +17,9 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
     let c = if x[0] != 0 {
         test_unconstrained1(a, b)
     } else {
-        test_unconstrained2(a, b)
+        unsafe {
+            test_unconstrained2(a, b)
+        }
     };
     assert(c.array[0] == std::wrapping_mul(x[0], y[0]));
 
