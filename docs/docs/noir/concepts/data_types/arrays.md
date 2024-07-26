@@ -251,3 +251,23 @@ fn main() {
 }
 
 ```
+
+### as_str_lossy
+
+Converts a byte array of type `[u8; N]` to a UTF-8 encoded string. Any invalid UTF-8 character
+is replaced with a placeholder character in the returned string.
+
+```rust
+impl<let N: u32> [u8; N] {
+    pub fn as_str_lossy(self) -> str<N>
+}
+```
+
+example:
+
+```rust
+fn main() {
+    let hi = [104, 105].as_str_lossy();
+    assert_eq(hi, "hi");
+}
+```
