@@ -383,8 +383,8 @@ impl<'interner> Monomorphizer<'interner> {
                     self.parameter(field, &typ, new_params)?;
                 }
             }
-            HirPattern::Struct(_, fields, _) => {
-                let struct_field_types = unwrap_struct_type(typ);
+            HirPattern::Struct(_, fields, location) => {
+                let struct_field_types = unwrap_struct_type(typ, *location)?;
                 assert_eq!(struct_field_types.len(), fields.len());
 
                 let mut fields =
@@ -663,8 +663,10 @@ impl<'interner> Monomorphizer<'interner> {
         constructor: HirConstructorExpression,
         id: node_interner::ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let location = self.interner.expr_location(&id);
+
         let typ = self.interner.id_type(id);
-        let field_types = unwrap_struct_type(&typ);
+        let field_types = unwrap_struct_type(&typ, location)?;
 
         let field_type_map = btree_map(&field_types, |x| x.clone());
 
@@ -740,8 +742,8 @@ impl<'interner> Monomorphizer<'interner> {
                 let fields = unwrap_tuple_type(typ);
                 self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields))
             }
-            HirPattern::Struct(_, patterns, _) => {
-                let fields = unwrap_struct_type(typ);
+            HirPattern::Struct(_, patterns, location) => {
+                let fields = unwrap_struct_type(typ, location)?;
                 assert_eq!(patterns.len(), fields.len());
 
                 let mut patterns =
@@ -1858,9 +1860,21 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     }
 }
 
-fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
+fn unwrap_struct_type(
+    typ: &HirType,
+    location: Location,
+) -> Result<Vec<(String, HirType)>, MonomorphizationError> {
     match typ.follow_bindings() {
-        HirType::Struct(def, args) => def.borrow().get_fields(&args),
+        HirType::Struct(def, args) => {
+            // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
+            for arg in &args {
+                if let Some(error) = Monomorphizer::check_type(arg, location) {
+                    return Err(error);
+                }
+            }
+
+            Ok(def.borrow().get_fields(&args))
+        }
         other => unreachable!("unwrap_struct_type: expected struct, found {:?}", other),
     }
 }
