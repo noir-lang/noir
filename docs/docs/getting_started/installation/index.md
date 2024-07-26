@@ -19,11 +19,9 @@ keywords: [
 pagination_next: getting_started/hello_noir/index
 ---
 
-`nargo` is the one-stop-shop for almost everything related with Noir. The name comes from our love for Rust and its package manager `cargo`.
+`nargo` is a tool for working with Noir programs on the CLI, providing you with the ability to start new projects, compile, execute and test Noir programs from the terminal.
 
-With `nargo`, you can start new projects, compile, execute, prove, verify, test, generate solidity contracts, and do pretty much all that is available in Noir.
-
-Similarly to `rustup`, we also maintain an easy installation method that covers most machines: `noirup`.
+The name is inspired by Rust's package manager `cargo`; and similar to Rust's `rustup`, Noir also has an easy installation script `noirup`.
 
 ## Installing Noirup
 

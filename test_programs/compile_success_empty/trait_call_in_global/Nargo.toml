@@ -1,0 +1,6 @@
+[package]
+name = "trait_call_in_global"
+type = "bin"
+authors = [""]
+
+[dependencies]
