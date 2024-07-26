@@ -15,7 +15,7 @@ use crate::{
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    Shared, StructType, Type, TypeBindings,
+    ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };
 
 use super::{Elaborator, ResolverMeta};
@@ -404,7 +404,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Resolve generics using the expected kinds of the function we are calling
-    pub(super) fn resolve_turbofish_generics(
+    pub(super) fn resolve_function_turbofish_generics(
         &mut self,
         func_id: &FuncId,
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
@@ -412,20 +412,28 @@ impl<'context> Elaborator<'context> {
     ) -> Option<Vec<Type>> {
         let direct_generics = self.interner.function_meta(func_id).direct_generics.clone();
 
-        unresolved_turbofish.map(|option_inner| {
-            if option_inner.len() != direct_generics.len() {
+        unresolved_turbofish.map(|unresolved_turbofish| {
+            if unresolved_turbofish.len() != direct_generics.len() {
                 let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                     expected_count: direct_generics.len(),
-                    actual_count: option_inner.len(),
+                    actual_count: unresolved_turbofish.len(),
                     span,
                 };
                 self.push_err(type_check_err);
             }
 
-            let generics_with_types = direct_generics.iter().zip(option_inner);
-            vecmap(generics_with_types, |(generic, unresolved_type)| {
-                self.resolve_type_inner(unresolved_type, &generic.kind)
-            })
+            self.resolve_turbofish_generics(&direct_generics, unresolved_turbofish)
+        })
+    }
+
+    pub(super) fn resolve_turbofish_generics(
+        &mut self,
+        generics: &[ResolvedGeneric],
+        turbofish_generics: Vec<UnresolvedType>,
+    ) -> Vec<Type> {
+        let generics_with_types = generics.iter().zip(turbofish_generics);
+        vecmap(generics_with_types, |(generic, unresolved_type)| {
+            self.resolve_type_inner(unresolved_type, &generic.kind)
         })
     }
 
@@ -446,7 +454,7 @@ impl<'context> Elaborator<'context> {
         // and if the turbofish operator was used.
         let generics = definition_kind.and_then(|definition_kind| match &definition_kind {
             DefinitionKind::Function(function) => {
-                self.resolve_turbofish_generics(function, unresolved_turbofish, span)
+                self.resolve_function_turbofish_generics(function, unresolved_turbofish, span)
             }
             _ => None,
         });
