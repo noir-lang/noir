@@ -390,7 +390,9 @@ pub enum Visibility {
     Private,
     /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
     /// it is useful for recursion and is handled by the proving system.
-    DataBus,
+    /// The u32 value is used to group inputs having the same value.
+    CallData(u32),
+    ReturnData,
 }
 
 impl std::fmt::Display for Visibility {
@@ -398,7 +400,8 @@ impl std::fmt::Display for Visibility {
         match self {
             Self::Public => write!(f, "pub"),
             Self::Private => write!(f, "priv"),
-            Self::DataBus => write!(f, "databus"),
+            Self::CallData(id) => write!(f, "calldata{id}"),
+            Self::ReturnData => write!(f, "returndata"),
         }
     }
 }
