@@ -38,6 +38,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
     SEQ_TX_POLLING_INTERVAL_MS,
     SEQ_MAX_TX_PER_BLOCK,
     SEQ_MIN_TX_PER_BLOCK,
+    SEQ_MAX_SECONDS_BETWEEN_BLOCKS,
+    SEQ_MIN_SECONDS_BETWEEN_BLOCKS,
     SEQ_ALLOWED_SETUP_FN,
     SEQ_ALLOWED_TEARDOWN_FN,
     SEQ_MAX_BLOCK_SIZE_IN_BYTES,
@@ -58,6 +60,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
     l1Contracts: getL1ContractAddressesFromEnv(),
     maxTxsPerBlock: SEQ_MAX_TX_PER_BLOCK ? +SEQ_MAX_TX_PER_BLOCK : 32,
     minTxsPerBlock: SEQ_MIN_TX_PER_BLOCK ? +SEQ_MIN_TX_PER_BLOCK : 1,
+    maxSecondsBetweenBlocks: SEQ_MAX_SECONDS_BETWEEN_BLOCKS ? +SEQ_MAX_SECONDS_BETWEEN_BLOCKS : 0,
+    minSecondsBetweenBlocks: SEQ_MIN_SECONDS_BETWEEN_BLOCKS ? +SEQ_MIN_SECONDS_BETWEEN_BLOCKS : 0,
     sequencerSkipSubmitProofs: ['1', 'true'].includes(SEQ_SKIP_SUBMIT_PROOFS ?? ''),
     // TODO: undefined should not be allowed for the following 2 values in PROD
     coinbase: COINBASE ? EthAddress.fromString(COINBASE) : undefined,
