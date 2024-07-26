@@ -975,12 +975,37 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::Struct(def, args) => {
+                // Even though we later call `convert_type` on `fields`, it might be the types
+                // in `args` end up not being part of fields. For example:
+                //
+                //     struct Foo<let N: u32> {}
+                //
+                //     fn main() {
+                //         let _ = Foo {};
+                //     }
+                //
+                // In the above case args is `[N]` but fields is `[]`, so T will never be checked.
+                // However, we want the above program to not compile.
+                for arg in args {
+                    if let Some(error) = Self::check_type(arg, location) {
+                        return Err(error);
+                    }
+                }
+
                 let fields = def.borrow().get_fields(args);
                 let fields = try_vecmap(fields, |(_, field)| Self::convert_type(&field, location))?;
                 ast::Type::Tuple(fields)
             }
 
             HirType::Alias(def, args) => {
+                // Similar to the struct case above: generics of an alias might not end up being
+                // used in the type that is aliased.
+                for arg in args {
+                    if let Some(error) = Self::check_type(arg, location) {
+                        return Err(error);
+                    }
+                }
+
                 Self::convert_type(&def.borrow().get_type(args), location)?
             }
 
@@ -1017,6 +1042,86 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirType::Quoted(_) => unreachable!("Tried to translate Code type into runtime code"),
         })
+    }
+
+    // Similar to `convert_type` but returns an error if any type variable can't be defaulted.
+    fn check_type(typ: &HirType, location: Location) -> Option<MonomorphizationError> {
+        match typ {
+            HirType::FieldElement
+            | HirType::Integer(..)
+            | HirType::Bool
+            | HirType::String(..)
+            | HirType::Unit => None,
+            HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
+            HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
+            HirType::Slice(element) => Self::check_type(element.as_ref(), location),
+            HirType::TraitAsType(..) => {
+                unreachable!("All TraitAsType should be replaced before calling convert_type");
+            }
+            HirType::NamedGeneric(binding, _, _) => {
+                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                    return Self::check_type(binding, location);
+                }
+
+                None
+            }
+
+            HirType::TypeVariable(binding, kind) => {
+                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                    return Self::check_type(binding, location);
+                }
+
+                // Default any remaining unbound type variables.
+                // This should only happen if the variable in question is unused
+                // and within a larger generic type.
+                let default = match kind.default_type() {
+                    Some(typ) => typ,
+                    None => return Some(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                };
+
+                Self::check_type(&default, location)
+            }
+
+            HirType::Struct(_def, args) => {
+                for arg in args {
+                    Self::check_type(arg, location)?;
+                }
+
+                None
+            }
+
+            HirType::Alias(_def, args) => {
+                for arg in args {
+                    Self::check_type(arg, location)?;
+                }
+
+                None
+            }
+
+            HirType::Tuple(fields) => {
+                for field in fields {
+                    Self::check_type(field, location)?;
+                }
+
+                None
+            }
+
+            HirType::Function(args, ret, env) => {
+                for arg in args {
+                    Self::check_type(arg, location)?;
+                }
+
+                Self::check_type(ret, location)?;
+                Self::check_type(env, location)
+            }
+
+            HirType::MutableReference(element) => Self::check_type(element, location),
+
+            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
+                unreachable!("Unexpected type {} found", typ)
+            }
+            HirType::Quoted(_) => unreachable!("Tried to translate Code type into runtime code"),
+        }
     }
 
     fn is_function_closure(&self, t: ast::Type) -> bool {
