@@ -980,9 +980,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Not all generic arguments may be used in a struct's fields so we have to check
                 // the arguments as well as the fields in case any need to be defaulted or are unbound.
                 for arg in args {
-                    if let Some(error) = Self::check_type(arg, location) {
-                        return Err(error);
-                    }
+                    Self::check_type(arg, location)?;
                 }
 
                 let fields = def.borrow().get_fields(args);
@@ -994,9 +992,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Similar to the struct case above: generics of an alias might not end up being
                 // used in the type that is aliased.
                 for arg in args {
-                    if let Some(error) = Self::check_type(arg, location) {
-                        return Err(error);
-                    }
+                    Self::check_type(arg, location)?;
                 }
 
                 Self::convert_type(&def.borrow().get_type(args), location)?
@@ -1038,7 +1034,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     // Similar to `convert_type` but returns an error if any type variable can't be defaulted.
-    fn check_type(typ: &HirType, location: Location) -> Option<MonomorphizationError> {
+    fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
         match typ {
             HirType::FieldElement
             | HirType::Integer(..)
@@ -1049,7 +1045,7 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Forall(_, _)
             | HirType::Constant(_)
             | HirType::Error
-            | HirType::Quoted(_) => None,
+            | HirType::Quoted(_) => Ok(()),
             HirType::FmtString(_size, fields) => Self::check_type(fields.as_ref(), location),
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),
@@ -1058,7 +1054,7 @@ impl<'interner> Monomorphizer<'interner> {
                     return Self::check_type(binding, location);
                 }
 
-                None
+                Ok(())
             }
 
             HirType::TypeVariable(binding, kind) => {
@@ -1071,7 +1067,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // and within a larger generic type.
                 let default = match kind.default_type() {
                     Some(typ) => typ,
-                    None => return Some(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
                 };
 
                 Self::check_type(&default, location)
@@ -1082,7 +1078,7 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(arg, location)?;
                 }
 
-                None
+                Ok(())
             }
 
             HirType::Alias(_def, args) => {
@@ -1090,7 +1086,7 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(arg, location)?;
                 }
 
-                None
+                Ok(())
             }
 
             HirType::Tuple(fields) => {
@@ -1098,7 +1094,7 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(field, location)?;
                 }
 
-                None
+                Ok(())
             }
 
             HirType::Function(args, ret, env) => {
@@ -1856,9 +1852,7 @@ fn unwrap_struct_type(
         HirType::Struct(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             for arg in &args {
-                if let Some(error) = Monomorphizer::check_type(arg, location) {
-                    return Err(error);
-                }
+                Monomorphizer::check_type(arg, location)?;
             }
 
             Ok(def.borrow().get_fields(&args))
