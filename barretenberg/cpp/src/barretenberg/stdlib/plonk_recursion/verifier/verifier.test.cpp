@@ -287,7 +287,7 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
 
     static bool check_recursive_proof_public_inputs(OuterBuilder& builder, const bb::pairing::miller_lines* lines)
     {
-        if (builder.contains_recursive_proof && builder.recursive_proof_public_input_indices.size() == 16) {
+        if (builder.contains_recursive_proof) {
             const auto& inputs = builder.public_inputs;
             const auto recover_fq_from_public_inputs =
                 [&inputs, &builder](const size_t idx0, const size_t idx1, const size_t idx2, const size_t idx3) {
@@ -326,9 +326,6 @@ template <typename OuterComposer> class stdlib_verifier : public testing::Test {
             pairing_target_field result = pairing::reduced_ate_pairing_batch_precomputed(P_affine, lines, 2);
 
             return (result == pairing_target_field::one());
-        }
-        if (builder.contains_recursive_proof && builder.recursive_proof_public_input_indices.size() != 16) {
-            return false;
         }
         return true;
     }

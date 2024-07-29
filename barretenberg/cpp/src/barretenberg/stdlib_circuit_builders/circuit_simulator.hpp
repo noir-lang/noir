@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/plonk_honk_shared/arithmetization/gate_data.hpp"
+#include "barretenberg/plonk_honk_shared/types/aggregation_object_type.hpp"
 #include "barretenberg/plonk_honk_shared/types/circuit_type.hpp"
 #include "barretenberg/plonk_honk_shared/types/merkle_hash_type.hpp"
 #include "barretenberg/plonk_honk_shared/types/pedersen_commitment_type.hpp"
@@ -48,7 +49,7 @@ class CircuitSimulatorBN254 {
     static constexpr uint32_t zero_idx = 0; // Ditto?
     std::vector<FF> public_inputs;
 
-    void add_recursive_proof(const std::vector<FF>& proof_element_limbs)
+    void add_recursive_proof(const AggregationObjectIndices& proof_element_limbs)
     {
 
         if (contains_recursive_proof) {
@@ -58,7 +59,7 @@ class CircuitSimulatorBN254 {
 
         for (uint32_t idx = 0; idx < proof_element_limbs.size(); idx++) {
             set_public_input(proof_element_limbs[idx]);
-            recursive_proof_public_input_indices.push_back(static_cast<uint32_t>(public_inputs.size() - 1));
+            recursive_proof_public_input_indices[idx] = static_cast<uint32_t>(public_inputs.size() - 1);
         }
     }
 
@@ -184,7 +185,7 @@ class CircuitSimulatorBN254 {
     [[nodiscard]] bool check_circuit() const { return !_failed; }
 
     // Public input indices which contain recursive proof information
-    std::vector<uint32_t> recursive_proof_public_input_indices;
+    AggregationObjectPubInputIndices recursive_proof_public_input_indices;
 };
 
 class SimulatorCircuitChecker {

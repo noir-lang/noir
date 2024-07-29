@@ -49,8 +49,7 @@ std::shared_ptr<plonk::proving_key> StandardComposer::compute_proving_key(Circui
     compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), standard_selector_properties());
 
     circuit_proving_key->recursive_proof_public_input_indices =
-        std::vector<uint32_t>(circuit_constructor.recursive_proof_public_input_indices.begin(),
-                              circuit_constructor.recursive_proof_public_input_indices.end());
+        circuit_constructor.recursive_proof_public_input_indices;
 
     circuit_proving_key->contains_recursive_proof = circuit_constructor.contains_recursive_proof;
 
@@ -75,8 +74,7 @@ std::shared_ptr<plonk::verification_key> StandardComposer::compute_verification_
         plonk::compute_verification_key_common(circuit_proving_key, crs_factory_->get_verifier_crs());
     circuit_verification_key->circuit_type = circuit_proving_key->circuit_type;
     circuit_verification_key->recursive_proof_public_input_indices =
-        std::vector<uint32_t>(circuit_constructor.recursive_proof_public_input_indices.begin(),
-                              circuit_constructor.recursive_proof_public_input_indices.end());
+        circuit_constructor.recursive_proof_public_input_indices;
     circuit_verification_key->contains_recursive_proof = circuit_constructor.contains_recursive_proof;
 
     return circuit_verification_key;

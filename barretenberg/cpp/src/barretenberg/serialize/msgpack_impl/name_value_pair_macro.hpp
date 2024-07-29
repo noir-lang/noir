@@ -40,12 +40,22 @@
                       _33,                                                                                             \
                       _34,                                                                                             \
                       _35,                                                                                             \
+                      _36,                                                                                             \
+                      _37,                                                                                             \
+                      _38,                                                                                             \
+                      _39,                                                                                             \
+                      _40,                                                                                             \
                       N,                                                                                               \
                       ...)                                                                                             \
     N
 // AD: support for 40 fields!? one may ask. Well, after 30 not being enough...
 #define VA_NARGS(...)                                                                                                  \
     VA_NARGS_IMPL(__VA_ARGS__,                                                                                         \
+                  40,                                                                                                  \
+                  39,                                                                                                  \
+                  38,                                                                                                  \
+                  37,                                                                                                  \
+                  36,                                                                                                  \
                   35,                                                                                                  \
                   34,                                                                                                  \
                   33,                                                                                                  \
@@ -121,6 +131,11 @@
 #define _NVP33(x, ...) _NVP1(x), _NVP32(__VA_ARGS__)
 #define _NVP34(x, ...) _NVP1(x), _NVP33(__VA_ARGS__)
 #define _NVP35(x, ...) _NVP1(x), _NVP34(__VA_ARGS__)
+#define _NVP36(x, ...) _NVP1(x), _NVP35(__VA_ARGS__)
+#define _NVP37(x, ...) _NVP1(x), _NVP36(__VA_ARGS__)
+#define _NVP38(x, ...) _NVP1(x), _NVP37(__VA_ARGS__)
+#define _NVP39(x, ...) _NVP1(x), _NVP38(__VA_ARGS__)
+#define _NVP40(x, ...) _NVP1(x), _NVP39(__VA_ARGS__)
 
 #define CONCAT(a, b) a##b
 #define _NVP_N(n) CONCAT(_NVP, n)

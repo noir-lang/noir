@@ -387,7 +387,7 @@ aggregation_state<Curve> verify_proof_(typename Curve::Builder* context,
     rhs = (-rhs) - PI_Z;
 
     // TODO(zac): remove this once a3-packages has migrated to calling `assign_object_to_proof_outputs`)
-    std::vector<uint32_t> proof_witness_indices = {
+    AggregationObjectIndices proof_witness_indices = {
         opening_result.x.binary_basis_limbs[0].element.normalize().witness_index,
         opening_result.x.binary_basis_limbs[1].element.normalize().witness_index,
         opening_result.x.binary_basis_limbs[2].element.normalize().witness_index,

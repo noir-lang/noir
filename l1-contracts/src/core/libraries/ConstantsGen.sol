@@ -206,7 +206,7 @@ library Constants {
   uint256 internal constant RECURSIVE_PROOF_LENGTH = 409;
   uint256 internal constant NESTED_RECURSIVE_PROOF_LENGTH = 409;
   uint256 internal constant TUBE_PROOF_LENGTH = 409;
-  uint256 internal constant VERIFICATION_KEY_LENGTH_IN_FIELDS = 103;
+  uint256 internal constant VERIFICATION_KEY_LENGTH_IN_FIELDS = 120;
   uint256 internal constant SENDER_SELECTOR = 0;
   uint256 internal constant ADDRESS_SELECTOR = 1;
   uint256 internal constant STORAGE_ADDRESS_SELECTOR = 1;

@@ -3,6 +3,7 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/plonk_honk_shared/arithmetization/gate_data.hpp"
+#include "barretenberg/plonk_honk_shared/types/aggregation_object_type.hpp"
 #include <msgpack/sbuffer_decl.hpp>
 #include <utility>
 
@@ -36,7 +37,7 @@ template <typename FF_> class CircuitBuilderBase {
     std::map<uint32_t, uint32_t> tau;
 
     // Public input indices which contain recursive proof information
-    std::vector<uint32_t> recursive_proof_public_input_indices;
+    AggregationObjectPubInputIndices recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
 
     // We only know from the circuit description whether a circuit should use a prover which produces
@@ -204,7 +205,7 @@ template <typename FF_> class CircuitBuilderBase {
      * @param proof_output_witness_indices Witness indices that need to become public and stored as recurisve proof
      * specific
      */
-    void add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices);
+    void add_recursive_proof(const AggregationObjectIndices& proof_output_witness_indices);
 
     /**
      * TODO: We can remove this and use `add_recursive_proof` once my question has been addressed
@@ -214,7 +215,7 @@ template <typename FF_> class CircuitBuilderBase {
      *
      * @param proof_output_witness_indices
      */
-    void set_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices);
+    void set_recursive_proof(const AggregationObjectIndices& proof_output_witness_indices);
 
     bool failed() const;
     const std::string& err() const;

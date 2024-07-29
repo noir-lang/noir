@@ -477,6 +477,8 @@ class MegaFlavor {
             this->log_circuit_size = numeric::get_msb(this->circuit_size);
             this->num_public_inputs = proving_key.num_public_inputs;
             this->pub_inputs_offset = proving_key.pub_inputs_offset;
+            this->contains_recursive_proof = proving_key.contains_recursive_proof;
+            this->recursive_proof_public_input_indices = proving_key.recursive_proof_public_input_indices;
 
             for (auto [polynomial, commitment] : zip_view(proving_key.polynomials.get_precomputed(), this->get_all())) {
                 commitment = proving_key.commitment_key->commit(polynomial);
@@ -486,6 +488,8 @@ class MegaFlavor {
         VerificationKey(const size_t circuit_size,
                         const size_t num_public_inputs,
                         const size_t pub_inputs_offset,
+                        const bool contains_recursive_proof,
+                        const AggregationObjectPubInputIndices& recursive_proof_public_input_indices,
                         const Commitment& q_m,
                         const Commitment& q_c,
                         const Commitment& q_l,
@@ -521,6 +525,8 @@ class MegaFlavor {
             this->log_circuit_size = numeric::get_msb(this->circuit_size);
             this->num_public_inputs = num_public_inputs;
             this->pub_inputs_offset = pub_inputs_offset;
+            this->contains_recursive_proof = contains_recursive_proof;
+            this->recursive_proof_public_input_indices = recursive_proof_public_input_indices;
             this->q_m = q_m;
             this->q_c = q_c;
             this->q_l = q_l;
@@ -556,6 +562,8 @@ class MegaFlavor {
                        log_circuit_size,
                        num_public_inputs,
                        pub_inputs_offset,
+                       contains_recursive_proof,
+                       recursive_proof_public_input_indices,
                        q_m,
                        q_c,
                        q_l,

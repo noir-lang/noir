@@ -169,18 +169,16 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                                   proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs));
         } else {
             proof_witnesses.erase(proof_witnesses.begin(),
-                                  proof_witnesses.begin() +
-                                      static_cast<std::ptrdiff_t>(num_inner_public_inputs -
-                                                                  RecursionConstraint::AGGREGATION_OBJECT_SIZE));
+                                  proof_witnesses.begin() + static_cast<std::ptrdiff_t>(num_inner_public_inputs -
+                                                                                        bb::AGGREGATION_OBJECT_SIZE));
         }
 
         const std::vector<bb::fr> key_witnesses = export_key_in_recursion_format(inner_verifier.key);
 
         const uint32_t key_hash_start_idx = static_cast<uint32_t>(witness_offset);
         const uint32_t public_input_start_idx = key_hash_start_idx + 1;
-        const uint32_t proof_indices_start_idx =
-            static_cast<uint32_t>(public_input_start_idx + num_inner_public_inputs -
-                                  (has_nested_proof ? RecursionConstraint::AGGREGATION_OBJECT_SIZE : 0));
+        const uint32_t proof_indices_start_idx = static_cast<uint32_t>(
+            public_input_start_idx + num_inner_public_inputs - (has_nested_proof ? bb::AGGREGATION_OBJECT_SIZE : 0));
         const uint32_t key_indices_start_idx = static_cast<uint32_t>(proof_indices_start_idx + proof_witnesses.size());
 
         std::vector<uint32_t> proof_indices;
@@ -201,7 +199,7 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                 inner_public_inputs.push_back(static_cast<uint32_t>(i + public_input_start_idx));
             }
         } else {
-            for (size_t i = 0; i < num_inner_public_inputs - RecursionConstraint::AGGREGATION_OBJECT_SIZE; ++i) {
+            for (size_t i = 0; i < num_inner_public_inputs - bb::AGGREGATION_OBJECT_SIZE; ++i) {
                 inner_public_inputs.push_back(static_cast<uint32_t>(i + public_input_start_idx));
             }
         }
@@ -236,7 +234,7 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
                 witness[inner_public_inputs[i]] = inner_public_input_values[i];
             }
         } else {
-            for (size_t i = 0; i < num_inner_public_inputs - RecursionConstraint::AGGREGATION_OBJECT_SIZE; ++i) {
+            for (size_t i = 0; i < num_inner_public_inputs - bb::AGGREGATION_OBJECT_SIZE; ++i) {
                 witness[inner_public_inputs[i]] = inner_public_input_values[i];
             }
         }

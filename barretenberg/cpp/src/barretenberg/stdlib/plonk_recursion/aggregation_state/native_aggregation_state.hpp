@@ -2,6 +2,7 @@
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/ecc/groups/affine_element.hpp"
+#include "barretenberg/plonk_honk_shared/types/aggregation_object_type.hpp"
 
 namespace bb::stdlib::recursion {
 
@@ -16,7 +17,7 @@ struct native_aggregation_state {
     typename bb::g1::affine_element P0 = bb::g1::affine_one;
     typename bb::g1::affine_element P1 = bb::g1::affine_one;
     std::vector<bb::fr> public_inputs;
-    std::vector<uint32_t> proof_witness_indices;
+    AggregationObjectIndices proof_witness_indices;
     bool has_data = false;
 
     // For serialization, update with new fields

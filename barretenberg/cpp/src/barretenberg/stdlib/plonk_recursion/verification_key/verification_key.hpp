@@ -240,7 +240,7 @@ template <typename Curve> struct verification_key {
         Builder* ctx,
         const std::vector<field_t<Builder>>& fields,
         bool inner_proof_contains_recursive_proof = false,
-        std::array<uint32_t, 16> recursive_proof_public_input_indices = {})
+        AggregationObjectPubInputIndices recursive_proof_public_input_indices = {})
     {
         std::vector<fr> fields_raw;
         std::shared_ptr<verification_key> key = std::make_shared<verification_key>();
@@ -255,9 +255,8 @@ template <typename Curve> struct verification_key {
         // NOTE: For now `contains_recursive_proof` and `recursive_proof_public_input_indices` need to be circuit
         // constants!
         key->contains_recursive_proof = inner_proof_contains_recursive_proof;
-        for (size_t i = 0; i < 16; ++i) {
-            auto x = recursive_proof_public_input_indices[i];
-            key->recursive_proof_public_input_indices.emplace_back(x);
+        for (size_t i = 0; i < AGGREGATION_OBJECT_SIZE; ++i) {
+            key->recursive_proof_public_input_indices[i] = recursive_proof_public_input_indices[i];
         }
 
         size_t count = 22;
@@ -447,7 +446,7 @@ template <typename Curve> struct verification_key {
     plonk::PolynomialManifest polynomial_manifest;
     // Used to check in the circuit if a proof contains any aggregated state.
     bool contains_recursive_proof = false;
-    std::vector<uint32_t> recursive_proof_public_input_indices;
+    AggregationObjectPubInputIndices recursive_proof_public_input_indices;
     size_t program_width = 4;
     Builder* context;
 };

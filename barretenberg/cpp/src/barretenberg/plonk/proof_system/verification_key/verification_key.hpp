@@ -4,6 +4,7 @@
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
+#include "barretenberg/plonk_honk_shared/types/aggregation_object_type.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/srs/global_crs.hpp"
@@ -17,7 +18,7 @@ struct verification_key_data {
     uint32_t num_public_inputs;
     std::map<std::string, bb::g1::affine_element> commitments;
     bool contains_recursive_proof = false;
-    std::vector<uint32_t> recursive_proof_public_input_indices;
+    AggregationObjectPubInputIndices recursive_proof_public_input_indices;
     bool is_recursive_circuit = false;
 
     // for serialization: update with any new fields
@@ -97,7 +98,7 @@ struct verification_key {
     bb::fr z_pow_n; // ʓ^n (ʓ being the 'evaluation challenge')
 
     bool contains_recursive_proof = false;
-    std::vector<uint32_t> recursive_proof_public_input_indices;
+    AggregationObjectPubInputIndices recursive_proof_public_input_indices;
 
     bool is_recursive_circuit = false;
 

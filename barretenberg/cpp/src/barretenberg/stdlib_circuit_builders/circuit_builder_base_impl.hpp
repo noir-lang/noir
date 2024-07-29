@@ -231,29 +231,31 @@ void CircuitBuilderBase<FF_>::assert_valid_variables(const std::vector<uint32_t>
 }
 
 template <typename FF_>
-void CircuitBuilderBase<FF_>::add_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
+void CircuitBuilderBase<FF_>::add_recursive_proof(const AggregationObjectIndices& proof_output_witness_indices)
 {
     if (contains_recursive_proof) {
         failure("added recursive proof when one already exists");
     }
     contains_recursive_proof = true;
 
+    size_t i = 0;
     for (const auto& idx : proof_output_witness_indices) {
         set_public_input(idx);
-        recursive_proof_public_input_indices.push_back((uint32_t)(public_inputs.size() - 1));
+        recursive_proof_public_input_indices[i] = static_cast<uint32_t>(public_inputs.size() - 1);
+        ++i;
     }
 }
 
 template <typename FF_>
-void CircuitBuilderBase<FF_>::set_recursive_proof(const std::vector<uint32_t>& proof_output_witness_indices)
+void CircuitBuilderBase<FF_>::set_recursive_proof(const AggregationObjectIndices& proof_output_witness_indices)
 {
     if (contains_recursive_proof) {
         failure("added recursive proof when one already exists");
     }
     contains_recursive_proof = true;
     for (size_t i = 0; i < proof_output_witness_indices.size(); ++i) {
-        recursive_proof_public_input_indices.push_back(
-            get_public_input_index(real_variable_index[proof_output_witness_indices[i]]));
+        recursive_proof_public_input_indices[i] =
+            get_public_input_index(real_variable_index[proof_output_witness_indices[i]]);
     }
 }
 

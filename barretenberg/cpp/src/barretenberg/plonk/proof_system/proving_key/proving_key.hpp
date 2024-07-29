@@ -6,6 +6,7 @@
 #include "barretenberg/ecc/scalar_multiplication/runtime_states.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
+#include "barretenberg/plonk_honk_shared/types/aggregation_object_type.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
@@ -24,7 +25,7 @@ struct proving_key_data {
     uint32_t circuit_size;
     uint32_t num_public_inputs;
     bool contains_recursive_proof;
-    std::vector<uint32_t> recursive_proof_public_input_indices;
+    AggregationObjectPubInputIndices recursive_proof_public_input_indices;
     std::vector<uint32_t> memory_read_records;
     std::vector<uint32_t> memory_write_records;
 #ifdef __wasm__
@@ -59,7 +60,7 @@ struct proving_key {
     size_t log_circuit_size;
     size_t num_public_inputs;
     bool contains_recursive_proof = false;
-    std::vector<uint32_t> recursive_proof_public_input_indices;
+    AggregationObjectPubInputIndices recursive_proof_public_input_indices;
     std::vector<uint32_t> memory_read_records;  // Used by UltraPlonkComposer only; for ROM, RAM reads.
     std::vector<uint32_t> memory_write_records; // Used by UltraPlonkComposer only, for RAM writes.
 

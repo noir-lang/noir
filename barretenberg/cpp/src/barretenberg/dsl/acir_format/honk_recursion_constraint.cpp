@@ -1,5 +1,6 @@
 #include "honk_recursion_constraint.hpp"
 #include "barretenberg/flavor/flavor.hpp"
+#include "barretenberg/plonk_honk_shared/types/aggregation_object_type.hpp"
 #include "barretenberg/stdlib/honk_recursion/verifier/ultra_recursive_verifier.hpp"
 #include "barretenberg/stdlib/plonk_recursion/aggregation_state/aggregation_state.hpp"
 #include "barretenberg/stdlib/primitives/bigfield/constants.hpp"
@@ -14,8 +15,8 @@ using field_ct = stdlib::field_t<Builder>;
 using bn254 = stdlib::bn254<Builder>;
 using aggregation_state_ct = bb::stdlib::recursion::aggregation_state<bn254>;
 
-std::array<bn254::Group, 2> agg_points_from_witness_indicies(
-    Builder& builder, const std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE>& obj_witness_indices)
+std::array<bn254::Group, 2> agg_points_from_witness_indicies(Builder& builder,
+                                                             const AggregationObjectIndices& obj_witness_indices)
 {
     std::array<bn254::BaseField, 4> aggregation_elements;
     for (size_t i = 0; i < 4; ++i) {
@@ -44,12 +45,11 @@ std::array<bn254::Group, 2> agg_points_from_witness_indicies(
  *       We would either need a separate ACIR opcode where inner_proof_contains_recursive_proof = true,
  *       or we need non-witness data to be provided as metadata in the ACIR opcode
  */
-std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_honk_recursion_constraints(
-    Builder& builder,
-    const HonkRecursionConstraint& input,
-    std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> input_aggregation_object,
-    std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> nested_aggregation_object,
-    bool has_valid_witness_assignments)
+AggregationObjectIndices create_honk_recursion_constraints(Builder& builder,
+                                                           const HonkRecursionConstraint& input,
+                                                           AggregationObjectIndices input_aggregation_object,
+                                                           AggregationObjectIndices nested_aggregation_object,
+                                                           bool has_valid_witness_assignments)
 {
     using Flavor = UltraRecursiveFlavor_<Builder>;
     using RecursiveVerificationKey = Flavor::VerificationKey;
@@ -139,7 +139,13 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
         builder.assert_equal(builder.add_variable(1 << log_circuit_size), key_fields[0].witness_index);
         builder.assert_equal(builder.add_variable(input.public_inputs.size()), key_fields[1].witness_index);
         builder.assert_equal(builder.add_variable(UltraFlavor::has_zero_row ? 1 : 0), key_fields[2].witness_index);
-        uint32_t offset = 3;
+        builder.assert_equal(builder.add_variable(0), key_fields[4].witness_index);
+        uint32_t offset = 4;
+        // TODO(https://github.com/AztecProtocol/barretenberg/issues/1059): Properly set this to a default agg obj.
+        for (size_t i = 0; i < bb::AGGREGATION_OBJECT_SIZE; i++) {
+            builder.assert_equal(builder.add_variable(0), key_fields[offset].witness_index);
+            offset++;
+        }
 
         for (size_t i = 0; i < Flavor::NUM_PRECOMPUTED_ENTITIES; ++i) {
             auto comm = curve::BN254::AffineElement::one() * fr::random_element();
@@ -220,7 +226,7 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     cur_aggregation_object.P0 = pairing_points[0]; // * recursion_separator;
     cur_aggregation_object.P1 = pairing_points[1]; // * recursion_separator;
 
-    std::vector<uint32_t> proof_witness_indices = {
+    AggregationObjectIndices proof_witness_indices = {
         cur_aggregation_object.P0.x.binary_basis_limbs[0].element.normalize().witness_index,
         cur_aggregation_object.P0.x.binary_basis_limbs[1].element.normalize().witness_index,
         cur_aggregation_object.P0.x.binary_basis_limbs[2].element.normalize().witness_index,
@@ -244,14 +250,8 @@ std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> create_ho
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/996): investigate whether assert_equal on public inputs
     // is important, like what the plonk recursion constraint does.
 
-    // We want to return an array, so just copy the vector into the array
-    ASSERT(result.proof_witness_indices.size() == HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE);
-    std::array<uint32_t, HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE> resulting_output_aggregation_object;
-    std::copy(result.proof_witness_indices.begin(),
-              result.proof_witness_indices.begin() + HonkRecursionConstraint::AGGREGATION_OBJECT_SIZE,
-              resulting_output_aggregation_object.begin());
-
-    return resulting_output_aggregation_object;
+    ASSERT(result.proof_witness_indices.size() == bb::AGGREGATION_OBJECT_SIZE);
+    return result.proof_witness_indices;
 }
 
 } // namespace acir_format

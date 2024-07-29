@@ -181,8 +181,7 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key(CircuitBuilder& 
     circuit_proving_key->polynomial_store.put("z_lookup_fft", std::move(z_lookup_fft));
     circuit_proving_key->polynomial_store.put("s_fft", std::move(s_fft));
 
-    circuit_proving_key->recursive_proof_public_input_indices = std::vector<uint32_t>(
-        circuit.recursive_proof_public_input_indices.begin(), circuit.recursive_proof_public_input_indices.end());
+    circuit_proving_key->recursive_proof_public_input_indices = circuit.recursive_proof_public_input_indices;
 
     circuit_proving_key->contains_recursive_proof = circuit.contains_recursive_proof;
 
@@ -213,8 +212,7 @@ std::shared_ptr<plonk::verification_key> UltraComposer::compute_verification_key
 
     // See `add_recusrive_proof()` for how this recursive data is assigned.
     circuit_verification_key->recursive_proof_public_input_indices =
-        std::vector<uint32_t>(circuit_constructor.recursive_proof_public_input_indices.begin(),
-                              circuit_constructor.recursive_proof_public_input_indices.end());
+        circuit_constructor.recursive_proof_public_input_indices;
 
     circuit_verification_key->contains_recursive_proof = circuit_constructor.contains_recursive_proof;
 

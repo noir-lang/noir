@@ -120,6 +120,8 @@ template <typename BuilderType> class MegaRecursiveFlavor_ {
             this->log_circuit_size = numeric::get_msb(this->circuit_size);
             this->num_public_inputs = native_key->num_public_inputs;
             this->pub_inputs_offset = native_key->pub_inputs_offset;
+            this->contains_recursive_proof = native_key->contains_recursive_proof;
+            this->recursive_proof_public_input_indices = native_key->recursive_proof_public_input_indices;
             this->q_m = Commitment::from_witness(builder, native_key->q_m);
             this->q_l = Commitment::from_witness(builder, native_key->q_l);
             this->q_r = Commitment::from_witness(builder, native_key->q_r);
@@ -178,6 +180,18 @@ template <typename BuilderType> class MegaRecursiveFlavor_ {
                                                    builder, elements.subspan(num_frs_read, num_frs_FF))
                                                    .get_value());
             num_frs_read += num_frs_FF;
+            this->contains_recursive_proof = bool(stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, FF>(
+                                                      builder, elements.subspan(num_frs_read, num_frs_FF))
+                                                      .get_value());
+            num_frs_read += num_frs_FF;
+
+            for (uint32_t i = 0; i < bb::AGGREGATION_OBJECT_SIZE; ++i) {
+                this->recursive_proof_public_input_indices[i] =
+                    uint32_t(stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, FF>(
+                                 builder, elements.subspan(num_frs_read, num_frs_FF))
+                                 .get_value());
+                num_frs_read += num_frs_FF;
+            }
 
             for (Commitment& comm : this->get_all()) {
                 comm = bb::stdlib::field_conversion::convert_from_bn254_frs<CircuitBuilder, Commitment>(
