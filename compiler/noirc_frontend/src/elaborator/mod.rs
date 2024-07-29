@@ -618,7 +618,11 @@ impl<'context> Elaborator<'context> {
         self.resolve_trait_bound(&constraint.trait_bound, typ)
     }
 
-    fn resolve_trait_bound(&mut self, bound: &TraitBound, typ: Type) -> Option<TraitConstraint> {
+    pub fn resolve_trait_bound(
+        &mut self,
+        bound: &TraitBound,
+        typ: Type,
+    ) -> Option<TraitConstraint> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
 
         let resolved_generics = &the_trait.generics.clone();
