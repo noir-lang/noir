@@ -35,7 +35,7 @@ use crate::{
 use super::{Elaborator, LambdaContext};
 
 impl<'context> Elaborator<'context> {
-    pub(super) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
+    pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
             ExpressionKind::Block(block) => self.elaborate_block(block),
@@ -50,9 +50,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
-            ExpressionKind::Variable(variable, generics) => {
-                return self.elaborate_variable(variable, generics)
-            }
+            ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
@@ -300,15 +298,21 @@ impl<'context> Elaborator<'context> {
         }
 
         let location = Location::new(span, self.file);
-        let hir_call = HirCallExpression { func, arguments, location };
-        let typ = self.type_check_call(&hir_call, func_type, args, span);
+        let is_macro_call = call.is_macro_call;
+        let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
+        let mut typ = self.type_check_call(&hir_call, func_type, args, span);
 
-        if call.is_macro_call {
-            self.call_macro(func, comptime_args, location, typ)
-                .unwrap_or_else(|| (HirExpression::Error, Type::Error))
-        } else {
-            (HirExpression::Call(hir_call), typ)
+        if is_macro_call {
+            if self.in_comptime_context() {
+                typ = self.interner.next_type_variable();
+            } else {
+                return self
+                    .call_macro(func, comptime_args, location, typ)
+                    .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+            }
         }
+
+        (HirExpression::Call(hir_call), typ)
     }
 
     fn elaborate_method_call(
@@ -346,7 +350,7 @@ impl<'context> Elaborator<'context> {
                         &mut object,
                     );
 
-                    self.resolve_turbofish_generics(&func_id, method_call.generics, span)
+                    self.resolve_function_turbofish_generics(&func_id, method_call.generics, span)
                 } else {
                     None
                 };
@@ -368,6 +372,7 @@ impl<'context> Elaborator<'context> {
                 let location = Location::new(span, self.file);
                 let method = method_call.method_name;
                 let turbofish_generics = generics.clone();
+                let is_macro_call = method_call.is_macro_call;
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };
 
@@ -377,6 +382,7 @@ impl<'context> Elaborator<'context> {
                 let ((function_id, function_name), function_call) = method_call.into_function_call(
                     &method_ref,
                     object_type,
+                    is_macro_call,
                     location,
                     self.interner,
                 );
@@ -402,9 +408,12 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&constructor.type_name, exclude_last_segment);
+
         let span = constructor.type_name.span();
         let last_segment = constructor.type_name.last_segment();
-        let is_self_type = last_segment.is_self_type_name();
+        let is_self_type = last_segment.ident.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
             let typ = self.interner.get_struct(struct_id);
@@ -421,6 +430,24 @@ impl<'context> Elaborator<'context> {
             }
         };
 
+        let struct_generics = if let Some(turbofish_generics) = &last_segment.generics {
+            if turbofish_generics.len() == struct_generics.len() {
+                let struct_type = r#type.borrow();
+                self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics.clone())
+            } else {
+                self.push_err(TypeCheckError::GenericCountMismatch {
+                    item: format!("struct {}", last_segment.ident),
+                    expected: struct_generics.len(),
+                    found: turbofish_generics.len(),
+                    span: Span::from(last_segment.ident.span().end()..last_segment.span.end()),
+                });
+
+                struct_generics
+            }
+        } else {
+            struct_generics
+        };
+
         let struct_type = r#type.clone();
         let generics = struct_generics.clone();
 
@@ -435,7 +462,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let struct_id = struct_type.borrow().id;
-        let reference_location = Location::new(last_segment.span(), self.file);
+        let reference_location = Location::new(last_segment.ident.span(), self.file);
         self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::Struct(struct_type, generics))
@@ -709,10 +736,8 @@ impl<'context> Elaborator<'context> {
         let (block, _typ) = self.elaborate_block_expression(block);
 
         self.check_and_pop_function_context();
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
-        self.include_interpreter_errors(interpreter_errors);
         let (id, typ) = self.inline_comptime_value(value, span);
 
         let location = self.interner.id_location(id);
@@ -723,7 +748,7 @@ impl<'context> Elaborator<'context> {
         (id, typ)
     }
 
-    pub(super) fn inline_comptime_value(
+    pub fn inline_comptime_value(
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
         span: Span,
@@ -796,24 +821,22 @@ impl<'context> Elaborator<'context> {
         };
 
         let file = self.file;
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
 
         for argument in arguments {
             match interpreter.evaluate(argument) {
                 Ok(arg) => {
-                    let location = interpreter.interner.expr_location(&argument);
+                    let location = interpreter.elaborator.interner.expr_location(&argument);
                     comptime_args.push((arg, location));
                 }
                 Err(error) => errors.push((error.into(), file)),
             }
         }
 
-        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let bindings = interpreter.elaborator.interner.get_instantiation_bindings(func).clone();
         let result = interpreter.call_function(function, comptime_args, bindings, location);
-        self.include_interpreter_errors(interpreter_errors);
 
         if !errors.is_empty() {
             self.errors.append(&mut errors);

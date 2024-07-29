@@ -8,7 +8,7 @@ use crate::{
         FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
     },
     hir::{
-        def_collector::dc_crate::{CollectedItems, UnresolvedTrait},
+        def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTraitImpl},
         type_check::TypeCheckError,
     },
     hir_def::{
@@ -27,14 +27,10 @@ use crate::{
 use super::Elaborator;
 
 impl<'context> Elaborator<'context> {
-    pub fn collect_traits(
-        &mut self,
-        traits: BTreeMap<TraitId, UnresolvedTrait>,
-        generated_items: &mut CollectedItems,
-    ) {
+    pub fn collect_traits(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.recover_generics(|this| {
-                let resolved_generics = this.interner.get_trait(trait_id).generics.clone();
+                let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
                 this.add_existing_generics(
                     &unresolved_trait.trait_def.generics,
                     &resolved_generics,
@@ -42,28 +38,23 @@ impl<'context> Elaborator<'context> {
 
                 // Resolve order
                 // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
-                let _ = this.resolve_trait_types(&unresolved_trait);
+                let _ = this.resolve_trait_types(unresolved_trait);
                 // 2. Trait Constants ( Trait's methods can use trait types & constants, therefore they should be after)
-                let _ = this.resolve_trait_constants(&unresolved_trait);
+                let _ = this.resolve_trait_constants(unresolved_trait);
                 // 3. Trait Methods
-                let methods = this.resolve_trait_methods(trait_id, &unresolved_trait);
+                let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
-                this.interner.update_trait(trait_id, |trait_def| {
+                this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_methods(methods);
                 });
-
-                let attributes = &unresolved_trait.trait_def.attributes;
-                let item = crate::hir::comptime::Value::TraitDefinition(trait_id);
-                let span = unresolved_trait.trait_def.span;
-                this.run_comptime_attributes_on_item(attributes, item, span, generated_items);
             });
 
             // This check needs to be after the trait's methods are set since
             // the interner may set `interner.ordering_type` based on the result type
             // of the Cmp trait, if this is it.
             if self.crate_id.is_stdlib() {
-                self.interner.try_add_infix_operator_trait(trait_id);
-                self.interner.try_add_prefix_operator_trait(trait_id);
+                self.interner.try_add_infix_operator_trait(*trait_id);
+                self.interner.try_add_prefix_operator_trait(*trait_id);
             }
         }
     }
@@ -123,6 +114,7 @@ impl<'context> Elaborator<'context> {
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
 
                     this.resolve_trait_function(
+                        trait_id,
                         name,
                         generics,
                         parameters,
@@ -171,8 +163,10 @@ impl<'context> Elaborator<'context> {
         functions
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn resolve_trait_function(
         &mut self,
+        trait_id: TraitId,
         name: &Ident,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
@@ -206,11 +200,36 @@ impl<'context> Elaborator<'context> {
         };
 
         let mut function = NoirFunction { kind, def };
-        self.define_function_meta(&mut function, func_id, true);
+        self.define_function_meta(&mut function, func_id, Some(trait_id));
         self.elaborate_function(func_id);
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.generics.truncate(old_generic_count);
+    }
+
+    pub fn resolve_trait_impl_generics(
+        &mut self,
+        trait_impl: &UnresolvedTraitImpl,
+        trait_id: TraitId,
+    ) -> Option<Vec<Type>> {
+        let trait_def = self.interner.get_trait(trait_id);
+        let resolved_generics = trait_def.generics.clone();
+        if resolved_generics.len() != trait_impl.trait_generics.len() {
+            self.push_err(CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+                item: trait_def.name.to_string(),
+                expected: resolved_generics.len(),
+                found: trait_impl.trait_generics.len(),
+                span: trait_impl.trait_path.span(),
+            }));
+
+            return None;
+        }
+
+        let generics = trait_impl.trait_generics.iter().zip(resolved_generics.iter());
+        let mapped = generics.map(|(generic, resolved_generic)| {
+            self.resolve_type_inner(generic.clone(), &resolved_generic.kind)
+        });
+        Some(mapped.collect())
     }
 }
 

@@ -236,10 +236,11 @@ impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
         Expression {
             span: i.0.span(),
-            kind: ExpressionKind::Variable(
-                Path { span: i.span(), segments: vec![i], kind: PathKind::Plain },
-                None,
-            ),
+            kind: ExpressionKind::Variable(Path {
+                span: i.span(),
+                segments: vec![PathSegment::from(i)],
+                kind: PathKind::Plain,
+            }),
         }
     }
 }
@@ -362,18 +363,18 @@ impl UseTree {
 // it would most likely cause further errors during name resolution
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Path {
-    pub segments: Vec<Ident>,
+    pub segments: Vec<PathSegment>,
     pub kind: PathKind,
     pub span: Span,
 }
 
 impl Path {
-    pub fn pop(&mut self) -> Ident {
+    pub fn pop(&mut self) -> PathSegment {
         self.segments.pop().unwrap()
     }
 
     fn join(mut self, ident: Ident) -> Path {
-        self.segments.push(ident);
+        self.segments.push(PathSegment::from(ident));
         self
     }
 
@@ -384,16 +385,35 @@ impl Path {
     }
 
     pub fn from_ident(name: Ident) -> Path {
-        Path { span: name.span(), segments: vec![name], kind: PathKind::Plain }
+        Path { span: name.span(), segments: vec![PathSegment::from(name)], kind: PathKind::Plain }
     }
 
     pub fn span(&self) -> Span {
         self.span
     }
 
-    pub fn last_segment(&self) -> Ident {
+    pub fn first_segment(&self) -> PathSegment {
+        assert!(!self.segments.is_empty());
+        self.segments.first().unwrap().clone()
+    }
+
+    pub fn last_segment(&self) -> PathSegment {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
+    }
+
+    pub fn last_ident(&self) -> Ident {
+        self.last_segment().ident
+    }
+
+    pub fn first_name(&self) -> &str {
+        assert!(!self.segments.is_empty());
+        &self.segments.first().unwrap().ident.0.contents
+    }
+
+    pub fn last_name(&self) -> &str {
+        assert!(!self.segments.is_empty());
+        &self.segments.last().unwrap().ident.0.contents
     }
 
     pub fn is_ident(&self) -> bool {
@@ -404,14 +424,14 @@ impl Path {
         if !self.is_ident() {
             return None;
         }
-        self.segments.first()
+        self.segments.first().map(|segment| &segment.ident)
     }
 
     pub fn to_ident(&self) -> Option<Ident> {
         if !self.is_ident() {
             return None;
         }
-        self.segments.first().cloned()
+        self.segments.first().cloned().map(|segment| segment.ident)
     }
 
     pub fn as_string(&self) -> String {
@@ -421,16 +441,43 @@ impl Path {
         match segments.next() {
             None => panic!("empty segment"),
             Some(seg) => {
-                string.push_str(&seg.0.contents);
+                string.push_str(&seg.ident.0.contents);
             }
         }
 
         for segment in segments {
             string.push_str("::");
-            string.push_str(&segment.0.contents);
+            string.push_str(&segment.ident.0.contents);
         }
 
         string
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct PathSegment {
+    pub ident: Ident,
+    pub generics: Option<Vec<UnresolvedType>>,
+    pub span: Span,
+}
+
+impl From<Ident> for PathSegment {
+    fn from(ident: Ident) -> PathSegment {
+        let span = ident.span();
+        PathSegment { ident, generics: None, span }
+    }
+}
+
+impl Display for PathSegment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.ident.fmt(f)?;
+
+        if let Some(generics) = &self.generics {
+            let generics = vecmap(generics, ToString::to_string);
+            write!(f, "::<{}>", generics.join(", "))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -517,7 +564,7 @@ impl Recoverable for Pattern {
 impl LValue {
     fn as_expression(&self) -> Expression {
         let kind = match self {
-            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone()), None),
+            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
             LValue::MemberAccess { object, field_name, span: _ } => {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                     lhs: object.as_expression(),
@@ -606,11 +653,12 @@ impl ForRange {
                 };
 
                 // array.len()
-                let segments = vec![array_ident];
-                let array_ident = ExpressionKind::Variable(
-                    Path { segments, kind: PathKind::Plain, span: array_span },
-                    None,
-                );
+                let segments = vec![PathSegment::from(array_ident)];
+                let array_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
 
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                     object: Expression::new(array_ident.clone(), array_span),
@@ -626,11 +674,12 @@ impl ForRange {
                 let fresh_identifier = Ident::new(index_name.clone(), array_span);
 
                 // array[i]
-                let segments = vec![Ident::new(index_name, array_span)];
-                let index_ident = ExpressionKind::Variable(
-                    Path { segments, kind: PathKind::Plain, span: array_span },
-                    None,
-                );
+                let segments = vec![PathSegment::from(Ident::new(index_name, array_span))];
+                let index_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
 
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
                     collection: Expression::new(array_ident, array_span),

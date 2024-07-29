@@ -1,10 +1,8 @@
 use std::future::{self, Future};
 
+use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::{
-    insert_all_files_for_workspace_into_file_manager,
-    ops::{run_test, TestStatus},
-};
+use nargo::ops::{run_test, TestStatus};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
     check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
@@ -51,7 +49,11 @@ fn on_test_run_request_inner(
     })?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    insert_all_files_for_workspace_into_file_manager(
+        state,
+        &workspace,
+        &mut workspace_file_manager,
+    );
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     // Since we filtered on crate name, this should be the only item in the iterator

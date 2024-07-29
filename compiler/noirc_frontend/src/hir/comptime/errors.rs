@@ -7,7 +7,7 @@ use crate::{
     token::Tokens,
     Type,
 };
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{acir::AcirField, BlackBoxResolutionError, FieldElement};
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Location};
@@ -49,17 +49,15 @@ pub enum InterpreterError {
     DebugEvaluateComptime { diagnostic: CustomDiagnostic, location: Location },
     FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
     UnsupportedTopLevelItemUnquote { item: String, location: Location },
-    NonComptimeFnCallInSameCrate { function: String, location: Location },
+    ComptimeDependencyCycle { function: String, location: Location },
     NoImpl { location: Location },
     NoMatchingImplFound { error: NoMatchingImplFoundError, file: FileId },
     ImplMethodTypeMismatch { expected: Type, actual: Type, location: Location },
-
-    Unimplemented { item: String, location: Location },
-
-    // Perhaps this should be unreachable! due to type checking also preventing this error?
-    // Currently it and the Continue variant are the only interpreter errors without a Location field
     BreakNotInLoop { location: Location },
     ContinueNotInLoop { location: Location },
+    BlackBoxError(BlackBoxResolutionError, Location),
+
+    Unimplemented { item: String, location: Location },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -114,13 +112,15 @@ impl InterpreterError {
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
-            | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
+            | InterpreterError::ComptimeDependencyCycle { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::NoImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
+            | InterpreterError::DebugEvaluateComptime { location, .. }
+            | InterpreterError::BlackBoxError(_, location)
             | InterpreterError::BreakNotInLoop { location, .. }
-            | InterpreterError::DebugEvaluateComptime { location, .. } => *location,
-            InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
             }
@@ -207,7 +207,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::FailingConstraint { message, location } => {
                 let (primary, secondary) = match message {
-                    Some(msg) => (format!("{msg:?}"), "Assertion failed".into()),
+                    Some(msg) => (format!("{msg}"), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
                 CustomDiagnostic::simple_error(primary, secondary, location.span)
@@ -342,10 +342,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 error.add_note(format!("Unquoted item was:\n{item}"));
                 error
             }
-            InterpreterError::NonComptimeFnCallInSameCrate { function, location } => {
-                let msg = format!("`{function}` cannot be called in a `comptime` context here");
+            InterpreterError::ComptimeDependencyCycle { function, location } => {
+                let msg = format!("Comptime dependency cycle while resolving `{function}`");
                 let secondary =
-                    "This function must be `comptime` or in a separate crate to be called".into();
+                    "This function uses comptime code internally which calls into itself".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::Unimplemented { item, location } => {
@@ -369,6 +369,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Impl method type {actual} does not unify with trait method type {expected}"
                 );
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::BlackBoxError(error, location) => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), location.span)
             }
             InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
             InterpreterError::Break => unreachable!("Uncaught InterpreterError::Break"),

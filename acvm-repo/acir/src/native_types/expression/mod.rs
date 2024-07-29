@@ -273,6 +273,60 @@ impl<F: AcirField> Expression<F> {
 
         Expression { mul_terms, linear_combinations, q_c }
     }
+
+    /// Determine the width of this expression.
+    /// The width meaning the number of unique witnesses needed for this expression.
+    pub fn width(&self) -> usize {
+        let mut width = 0;
+
+        for mul_term in &self.mul_terms {
+            // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
+            assert_ne!(mul_term.0, F::zero());
+
+            let mut found_x = false;
+            let mut found_y = false;
+
+            for term in self.linear_combinations.iter() {
+                let witness = &term.1;
+                let x = &mul_term.1;
+                let y = &mul_term.2;
+                if witness == x {
+                    found_x = true;
+                };
+                if witness == y {
+                    found_y = true;
+                };
+                if found_x & found_y {
+                    break;
+                }
+            }
+
+            // If the multiplication is a squaring then we must assign the two witnesses to separate wires and so we
+            // can never get a zero contribution to the width.
+            let multiplication_is_squaring = mul_term.1 == mul_term.2;
+
+            let mul_term_width_contribution = if !multiplication_is_squaring && (found_x & found_y)
+            {
+                // Both witnesses involved in the multiplication exist elsewhere in the expression.
+                // They both do not contribute to the width of the expression as this would be double-counting
+                // due to their appearance in the linear terms.
+                0
+            } else if found_x || found_y {
+                // One of the witnesses involved in the multiplication exists elsewhere in the expression.
+                // The multiplication then only contributes 1 new witness to the width.
+                1
+            } else {
+                // Worst case scenario, the multiplication is using completely unique witnesses so has a contribution of 2.
+                2
+            };
+
+            width += mul_term_width_contribution;
+        }
+
+        width += self.linear_combinations.len();
+
+        width
+    }
 }
 
 impl<F: AcirField> From<F> for Expression<F> {
