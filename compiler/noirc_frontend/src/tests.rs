@@ -2749,3 +2749,31 @@ fn uses_self_for_struct_function_call() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn uses_self_for_trait_function_call() {
+    let src = r#"
+    trait Trait {
+        fn foo() -> i32 {
+            Self::bar()
+        }
+
+        fn bar() -> i32;
+    }
+
+    struct MyStruct {
+
+    }
+
+    impl Trait for MyStruct {
+        fn bar() -> i32 {
+            1
+        }
+    }
+
+    fn main() {
+        let _ = MyStruct::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}

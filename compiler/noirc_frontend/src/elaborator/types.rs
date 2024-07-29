@@ -24,7 +24,7 @@ use crate::{
         traits::TraitConstraint,
     },
     macros_api::{
-        HirExpression, HirLiteral, HirStatement, NodeInterner, Path, PathKind, SecondaryAttribute,
+        HirExpression, HirLiteral, HirStatement, NodeInterner, Path, SecondaryAttribute,
         Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
@@ -416,40 +416,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    // this resolves Self::some_static_method, inside an impl block (where we don't have a concrete self_type)
-    //
-    // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    // E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method_by_self(
-        &mut self,
-        path: &Path,
-    ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
-        let trait_impl = self.current_trait_impl?;
-        let trait_id = self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id;
-
-        if path.kind == PathKind::Plain && path.segments.len() == 2 {
-            let name = &path.segments[0].ident.0.contents;
-            let method = &path.segments[1].ident;
-
-            if name == SELF_TYPE_NAME {
-                let the_trait = self.interner.get_trait(trait_id);
-                let method = the_trait.find_method(method.0.contents.as_str())?;
-
-                let constraint = TraitConstraint {
-                    typ: self.self_type.clone()?,
-                    trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
-                        generic.type_var.clone()
-                    })),
-                    trait_id,
-                    span: path.span(),
-                };
-
-                return Some((method, constraint, false));
-            }
-        }
-        None
-    }
-
     // this resolves TraitName::some_static_method
     //
     // Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
@@ -511,8 +477,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: &Path,
     ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
-        self.resolve_trait_static_method_by_self(path)
-            .or_else(|| self.resolve_trait_static_method(path))
+        self.resolve_trait_static_method(path)
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
     }
 
