@@ -773,7 +773,7 @@ impl Builder {
                     },
                     Value::Function(function_id) => {
                         if !self.is_function_call_safe_to_ignore(function_id) {
-                            let feature_name = format!("calling {:?}", func);
+                            let feature_name = format!("calling function {:?}", func);
                             return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                         }
                     }
