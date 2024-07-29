@@ -1,16 +1,17 @@
 #pragma once
+#include "barretenberg/dsl/acir_format/witness_constant.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 #include <cstdint>
 
 namespace acir_format {
 
 struct EcAdd {
-    uint32_t input1_x;
-    uint32_t input1_y;
-    uint32_t input1_infinite;
-    uint32_t input2_x;
-    uint32_t input2_y;
-    uint32_t input2_infinite;
+    WitnessOrConstant<bb::fr> input1_x;
+    WitnessOrConstant<bb::fr> input1_y;
+    WitnessOrConstant<bb::fr> input1_infinite;
+    WitnessOrConstant<bb::fr> input2_x;
+    WitnessOrConstant<bb::fr> input2_y;
+    WitnessOrConstant<bb::fr> input2_infinite;
     uint32_t result_x;
     uint32_t result_y;
     uint32_t result_infinite;

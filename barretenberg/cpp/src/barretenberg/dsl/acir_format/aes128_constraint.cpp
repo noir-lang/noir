@@ -1,4 +1,5 @@
 #include "aes128_constraint.hpp"
+#include "barretenberg/dsl/acir_format/acir_format.hpp"
 #include "barretenberg/stdlib/encryption/aes128/aes128.hpp"
 #include <cstdint>
 #include <cstdio>
@@ -14,20 +15,21 @@ template <typename Builder> void create_aes128_constraints(Builder& builder, con
     using field_ct = bb::stdlib::field_t<Builder>;
 
     // Packs 16 bytes from the inputs (plaintext, iv, key) into a field element
-    const auto convert_input = [&](std::span<const AES128Input, std::dynamic_extent> inputs, size_t padding) {
-        field_ct converted = 0;
-        for (size_t i = 0; i < 16 - padding; ++i) {
-            converted *= 256;
-            field_ct byte = field_ct::from_witness_index(&builder, inputs[i].witness);
-            converted += byte;
-        }
-        for (size_t i = 0; i < padding; ++i) {
-            converted *= 256;
-            field_ct byte = padding;
-            converted += byte;
-        }
-        return converted;
-    };
+    const auto convert_input =
+        [&](std::span<const WitnessOrConstant<bb::fr>, std::dynamic_extent> inputs, size_t padding, Builder& builder) {
+            field_ct converted = 0;
+            for (size_t i = 0; i < 16 - padding; ++i) {
+                converted *= 256;
+                field_ct byte = to_field_ct(inputs[i], builder);
+                converted += byte;
+            }
+            for (size_t i = 0; i < padding; ++i) {
+                converted *= 256;
+                field_ct byte = padding;
+                converted += byte;
+            }
+            return converted;
+        };
 
     // Packs 16 bytes from the outputs (witness indexes) into a field element for comparison
     const auto convert_output = [&](std::span<const uint32_t, 16> outputs) {
@@ -47,11 +49,14 @@ template <typename Builder> void create_aes128_constraints(Builder& builder, con
     for (size_t i = 0; i < constraint.inputs.size(); i += 16) {
         field_ct to_add;
         if (i + 16 > constraint.inputs.size()) {
-            to_add = convert_input(
-                std::span<const AES128Input, std::dynamic_extent>{ &constraint.inputs[i], 16 - padding_size },
-                padding_size);
+            to_add =
+                convert_input(std::span<const WitnessOrConstant<bb::fr>, std::dynamic_extent>{ &constraint.inputs[i],
+                                                                                               16 - padding_size },
+                              padding_size,
+                              builder);
         } else {
-            to_add = convert_input(std::span<const AES128Input, 16>{ &constraint.inputs[i], 16 }, 0);
+            to_add =
+                convert_input(std::span<const WitnessOrConstant<bb::fr>, 16>{ &constraint.inputs[i], 16 }, 0, builder);
         }
         converted_inputs.emplace_back(to_add);
     }
@@ -63,7 +68,7 @@ template <typename Builder> void create_aes128_constraints(Builder& builder, con
     }
 
     const std::vector<field_ct> output_bytes = bb::stdlib::aes128::encrypt_buffer_cbc<Builder>(
-        converted_inputs, convert_input(constraint.iv, 0), convert_input(constraint.key, 0));
+        converted_inputs, convert_input(constraint.iv, 0, builder), convert_input(constraint.key, 0, builder));
 
     for (size_t i = 0; i < output_bytes.size(); ++i) {
         builder.assert_equal(output_bytes[i].normalize().witness_index, converted_outputs[i].normalize().witness_index);

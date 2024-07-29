@@ -12,24 +12,39 @@ void create_ec_add_constraint(Builder& builder, const EcAdd& input, bool has_val
 {
     // Input to cycle_group points
     using cycle_group_ct = bb::stdlib::cycle_group<Builder>;
-    using field_ct = bb::stdlib::field_t<Builder>;
     using bool_ct = bb::stdlib::bool_t<Builder>;
 
-    auto x1 = field_ct::from_witness_index(&builder, input.input1_x);
-    auto y1 = field_ct::from_witness_index(&builder, input.input1_y);
-    auto x2 = field_ct::from_witness_index(&builder, input.input2_x);
-    auto y2 = field_ct::from_witness_index(&builder, input.input2_y);
-    auto infinite1 = bool_ct(field_ct::from_witness_index(&builder, input.input1_infinite));
-    auto infinite2 = bool_ct(field_ct::from_witness_index(&builder, input.input2_infinite));
+    auto x1 = to_field_ct(input.input1_x, builder);
+    auto y1 = to_field_ct(input.input1_y, builder);
+    auto x2 = to_field_ct(input.input2_x, builder);
+
+    auto y2 = to_field_ct(input.input2_y, builder);
+
+    auto infinite1 = bool_ct(to_field_ct(input.input1_infinite, builder));
+
+    auto infinite2 = bool_ct(to_field_ct(input.input2_infinite, builder));
+
     if (!has_valid_witness_assignments) {
         auto g1 = bb::grumpkin::g1::affine_one;
         // We need to have correct values representing points on the curve
-        builder.variables[input.input1_x] = g1.x;
-        builder.variables[input.input1_y] = g1.y;
-        builder.variables[input.input1_infinite] = bb::fr(0);
-        builder.variables[input.input2_x] = g1.x;
-        builder.variables[input.input2_y] = g1.y;
-        builder.variables[input.input2_infinite] = bb::fr(0);
+        if (!x1.is_constant()) {
+            builder.variables[x1.witness_index] = g1.x;
+        }
+        if (!y1.is_constant()) {
+            builder.variables[y1.witness_index] = g1.y;
+        }
+        if (!infinite1.is_constant()) {
+            builder.variables[infinite1.witness_index] = bb::fr(0);
+        }
+        if (!x2.is_constant()) {
+            builder.variables[x2.witness_index] = g1.x;
+        }
+        if (!y2.is_constant()) {
+            builder.variables[y2.witness_index] = g1.y;
+        }
+        if (!infinite2.is_constant()) {
+            builder.variables[infinite2.witness_index] = bb::fr(0);
+        }
     }
     cycle_group_ct input1_point(x1, y1, infinite1);
     cycle_group_ct input2_point(x2, y2, infinite2);

@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/dsl/acir_format/witness_constant.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 #include <cstdint>
 #include <vector>
@@ -6,7 +7,7 @@
 namespace acir_format {
 
 struct Poseidon2Constraint {
-    std::vector<uint32_t> state;
+    std::vector<WitnessOrConstant<bb::fr>> state;
     std::vector<uint32_t> result;
     uint32_t len;
 

@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <strings.h>
 #include <vector>
 
 namespace acir_format::tests {
@@ -29,7 +30,12 @@ TEST_F(Poseidon2Tests, TestPoseidon2Permutation)
 {
     Poseidon2Constraint
         poseidon2_constraint{
-            .state = { 1, 2, 3, 4, },
+            .state = { 
+                WitnessOrConstant<bb::fr>::from_index(1),
+                WitnessOrConstant<bb::fr>::from_index(2),
+                WitnessOrConstant<bb::fr>::from_index(3),
+                WitnessOrConstant<bb::fr>::from_index(4),
+ },
             .result = { 5, 6, 7, 8, },
             .len = 4,
         };

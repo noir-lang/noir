@@ -39,8 +39,8 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
         };
 
         LogicConstraint logic_constraint{
-            .a = 0,
-            .b = 1,
+            .a = WitnessOrConstant<bb::fr>::from_index(0),
+            .b = WitnessOrConstant<bb::fr>::from_index(1),
             .result = 2,
             .num_bits = 32,
             .is_xor_gate = 1,

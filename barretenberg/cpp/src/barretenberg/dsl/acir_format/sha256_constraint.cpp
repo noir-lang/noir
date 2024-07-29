@@ -56,16 +56,12 @@ void create_sha256_compression_constraints(Builder& builder, const Sha256Compres
     // because of the lookup-tables.
     size_t i = 0;
     for (const auto& witness_index_num_bits : constraint.inputs) {
-        auto witness_index = witness_index_num_bits.witness;
-        field_ct element = field_ct::from_witness_index(&builder, witness_index);
-        inputs[i] = element;
+        inputs[i] = to_field_ct(witness_index_num_bits, builder);
         ++i;
     }
     i = 0;
     for (const auto& witness_index_num_bits : constraint.hash_values) {
-        auto witness_index = witness_index_num_bits.witness;
-        field_ct element = field_ct::from_witness_index(&builder, witness_index);
-        hash_inputs[i] = element;
+        hash_inputs[i] = to_field_ct(witness_index_num_bits, builder);
         ++i;
     }
 

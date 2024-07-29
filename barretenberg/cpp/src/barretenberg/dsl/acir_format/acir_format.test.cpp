@@ -107,8 +107,8 @@ TEST_F(AcirFormatTests, TestLogicGateFromNoirCircuit)
     };
 
     LogicConstraint logic_constraint{
-        .a = 0,
-        .b = 1,
+        .a = WitnessOrConstant<bb::fr>::from_index(0),
+        .b = WitnessOrConstant<bb::fr>::from_index(1),
         .result = 2,
         .num_bits = 32,
         .is_xor_gate = 1,
@@ -510,7 +510,33 @@ TEST_F(AcirFormatTests, TestKeccakPermutation)
 {
     Keccakf1600
         keccak_permutation{
-            .state = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25 },
+             .state = { 
+                WitnessOrConstant<bb::fr>::from_index(1),
+                WitnessOrConstant<bb::fr>::from_index(2),
+                WitnessOrConstant<bb::fr>::from_index(3),
+                WitnessOrConstant<bb::fr>::from_index(4),
+                WitnessOrConstant<bb::fr>::from_index(5),
+                WitnessOrConstant<bb::fr>::from_index(6),
+                WitnessOrConstant<bb::fr>::from_index(7),
+                WitnessOrConstant<bb::fr>::from_index(8),
+                WitnessOrConstant<bb::fr>::from_index(9),
+                WitnessOrConstant<bb::fr>::from_index(10),
+                WitnessOrConstant<bb::fr>::from_index(11),
+                WitnessOrConstant<bb::fr>::from_index(12),
+                WitnessOrConstant<bb::fr>::from_index(13),
+                WitnessOrConstant<bb::fr>::from_index(14),
+                WitnessOrConstant<bb::fr>::from_index(15),
+                WitnessOrConstant<bb::fr>::from_index(16),
+                WitnessOrConstant<bb::fr>::from_index(17),
+                WitnessOrConstant<bb::fr>::from_index(18),
+                WitnessOrConstant<bb::fr>::from_index(19),
+                WitnessOrConstant<bb::fr>::from_index(20),
+                WitnessOrConstant<bb::fr>::from_index(21),
+                WitnessOrConstant<bb::fr>::from_index(22),
+                WitnessOrConstant<bb::fr>::from_index(23),
+                WitnessOrConstant<bb::fr>::from_index(24),
+                WitnessOrConstant<bb::fr>::from_index(25),
+ },
             .result = { 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
                         39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50 },
         };

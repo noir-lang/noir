@@ -25,21 +25,9 @@ template <typename Builder> void create_multi_scalar_mul_constraint(Builder& bui
         field_ct point_x;
         field_ct point_y;
         bool_ct infinite;
-        if (input.points[i].is_constant) {
-            point_x = field_ct(input.points[i].value);
-        } else {
-            point_x = field_ct::from_witness_index(&builder, input.points[i].index);
-        }
-        if (input.points[i + 1].is_constant) {
-            point_y = field_ct(input.points[i + 1].value);
-        } else {
-            point_y = field_ct::from_witness_index(&builder, input.points[i + 1].index);
-        }
-        if (input.points[i + 2].is_constant) {
-            infinite = bool_ct(field_ct(input.points[i + 2].value));
-        } else {
-            infinite = bool_ct(field_ct::from_witness_index(&builder, input.points[i + 2].index));
-        }
+        point_x = to_field_ct(input.points[i], builder);
+        point_y = to_field_ct(input.points[i + 1], builder);
+        infinite = bool_ct(to_field_ct(input.points[i + 2], builder));
         cycle_group_ct input_point(point_x, point_y, infinite);
         // Reconstruct the scalar from the low and high limbs
         field_ct scalar_low_as_field;
