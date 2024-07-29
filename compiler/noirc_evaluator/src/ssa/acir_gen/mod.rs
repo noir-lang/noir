@@ -33,7 +33,7 @@ use acvm::acir::circuit::opcodes::BlockType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
-use acvm::acir::circuit::{AssertionPayload, ErrorSelector, OpcodeLocation};
+use acvm::acir::circuit::{AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
 use acvm::{acir::circuit::opcodes::BlockId, acir::AcirField, FieldElement};
@@ -282,12 +282,16 @@ pub(crate) type Artifacts = (
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn into_acir(self, brillig: &Brillig) -> Result<Artifacts, RuntimeError> {
+    pub(crate) fn into_acir(
+        self,
+        brillig: &Brillig,
+        expression_width: ExpressionWidth,
+    ) -> Result<Artifacts, RuntimeError> {
         let mut acirs = Vec::new();
-        // TODO: can we parallelise this?
+        // TODO: can we parallelize this?
         let mut shared_context = SharedContext::default();
         for function in self.functions.values() {
-            let context = Context::new(&mut shared_context);
+            let context = Context::new(&mut shared_context, expression_width);
             if let Some(mut generated_acir) =
                 context.convert_ssa_function(&self, function, brillig)?
             {
@@ -334,8 +338,12 @@ impl Ssa {
 }
 
 impl<'a> Context<'a> {
-    fn new(shared_context: &'a mut SharedContext<FieldElement>) -> Context<'a> {
+    fn new(
+        shared_context: &'a mut SharedContext<FieldElement>,
+        expression_width: ExpressionWidth,
+    ) -> Context<'a> {
         let mut acir_context = AcirContext::default();
+        acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
         Context {
@@ -421,6 +429,12 @@ impl<'a> Context<'a> {
 
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
+
+        let call_data_arrays: Vec<ValueId> =
+            self.data_bus.call_data.iter().map(|cd| cd.array_id).collect();
+        for call_data_array in call_data_arrays {
+            self.ensure_array_is_initialized(call_data_array, dfg)?;
+        }
 
         // TODO: This is a naive method of assigning the return values to their witnesses as
         // we're likely to get a number of constraints which are asserting one witness to be equal to another.
@@ -1255,20 +1269,23 @@ impl<'a> Context<'a> {
         let res_typ = dfg.type_of_value(results[0]);
 
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
-        if let Some(call_data) = self.data_bus.call_data {
-            if self.data_bus.call_data_map.contains_key(&array) {
-                // TODO: the block_id of call-data must be notified to the backend
-                // TODO: should we do the same for return-data?
-                let type_size = res_typ.flattened_size();
-                let type_size =
-                    self.acir_context.add_constant(FieldElement::from(type_size as i128));
-                let offset = self.acir_context.mul_var(var_index, type_size)?;
-                let bus_index = self
-                    .acir_context
-                    .add_constant(FieldElement::from(self.data_bus.call_data_map[&array] as i128));
-                let new_index = self.acir_context.add_var(offset, bus_index)?;
-                return self.array_get(instruction, call_data, new_index, dfg, index_side_effect);
-            }
+        if let Some(call_data) =
+            self.data_bus.call_data.iter().find(|cd| cd.index_map.contains_key(&array))
+        {
+            let type_size = res_typ.flattened_size();
+            let type_size = self.acir_context.add_constant(FieldElement::from(type_size as i128));
+            let offset = self.acir_context.mul_var(var_index, type_size)?;
+            let bus_index = self
+                .acir_context
+                .add_constant(FieldElement::from(call_data.index_map[&array] as i128));
+            let new_index = self.acir_context.add_var(offset, bus_index)?;
+            return self.array_get(
+                instruction,
+                call_data.array_id,
+                new_index,
+                dfg,
+                index_side_effect,
+            );
         }
 
         // Compiler sanity check
@@ -1288,6 +1305,7 @@ impl<'a> Context<'a> {
                     index_side_effect = false;
                 }
             }
+
             // Fallback to multiplication if the index side_effects have not already been handled
             if index_side_effect {
                 // Set the value to 0 if current_side_effects is 0, to ensure it fits in any value type
@@ -1698,17 +1716,20 @@ impl<'a> Context<'a> {
         len: usize,
         value: Option<AcirValue>,
     ) -> Result<(), InternalError> {
-        let databus = if self.data_bus.call_data.is_some()
-            && self.block_id(&self.data_bus.call_data.unwrap()) == array
-        {
-            BlockType::CallData
-        } else if self.data_bus.return_data.is_some()
+        let mut databus = BlockType::Memory;
+        if self.data_bus.return_data.is_some()
             && self.block_id(&self.data_bus.return_data.unwrap()) == array
         {
-            BlockType::ReturnData
-        } else {
-            BlockType::Memory
-        };
+            databus = BlockType::ReturnData;
+        }
+        for array_id in self.data_bus.call_data_array() {
+            if self.block_id(&array_id) == array {
+                assert!(databus == BlockType::Memory);
+                databus = BlockType::CallData;
+                break;
+            }
+        }
+
         self.acir_context.initialize_array(array, len, value, databus)?;
         self.initialized_arrays.insert(array);
         Ok(())
@@ -2820,7 +2841,7 @@ mod test {
 
     use acvm::{
         acir::{
-            circuit::{Opcode, OpcodeLocation},
+            circuit::{ExpressionWidth, Opcode, OpcodeLocation},
             native_types::Witness,
         },
         FieldElement,
@@ -2917,7 +2938,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _) = ssa
-            .into_acir(&Brillig::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
         // main f0
@@ -3012,7 +3033,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _) = ssa
-            .into_acir(&Brillig::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
@@ -3102,7 +3123,7 @@ mod test {
         let ssa = builder.finish();
 
         let (acir_functions, _, _) = ssa
-            .into_acir(&Brillig::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 3, "Should have three ACIR functions");
@@ -3215,8 +3236,9 @@ mod test {
         let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
 
-        let (acir_functions, brillig_functions, _) =
-            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions, _) = ssa
+            .into_acir(&brillig, ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         assert_eq!(brillig_functions.len(), 2, "Should only have generated two Brillig functions");
@@ -3272,7 +3294,7 @@ mod test {
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
         let (acir_functions, brillig_functions, _) = ssa
-            .into_acir(&Brillig::default())
+            .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3343,8 +3365,9 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions, _) =
-            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions, _) = ssa
+            .into_acir(&brillig, ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
         // We expect 3 brillig functions:
@@ -3431,8 +3454,9 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions, _) =
-            ssa.into_acir(&brillig).expect("Should compile manually written SSA into ACIR");
+        let (acir_functions, brillig_functions, _) = ssa
+            .into_acir(&brillig, ExpressionWidth::default())
+            .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
         // We expect 3 brillig functions:

@@ -1,0 +1,7 @@
+[package]
+name = "bench_ecdsa_secp256k1"
+description = "ECDSA secp256k1 verification"
+type = "bin"
+authors = [""]
+
+[dependencies]

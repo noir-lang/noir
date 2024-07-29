@@ -16,18 +16,6 @@ pub struct NoirStruct {
     pub span: Span,
 }
 
-impl NoirStruct {
-    pub fn new(
-        name: Ident,
-        attributes: Vec<SecondaryAttribute>,
-        generics: UnresolvedGenerics,
-        fields: Vec<(Ident, UnresolvedType)>,
-        span: Span,
-    ) -> NoirStruct {
-        NoirStruct { name, attributes, generics, fields, span }
-    }
-}
-
 impl Display for NoirStruct {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());

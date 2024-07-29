@@ -3,10 +3,8 @@ use noirc_errors::{Location, Spanned};
 use crate::ast::ERROR_IDENT;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
-use crate::hir::resolution::resolver::SELF_TYPE_NAME;
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
 use crate::macros_api::Ident;
-use crate::node_interner::ReferenceId;
 use crate::{
     hir::{
         def_map::{ModuleDefId, TryFromModuleDefId},
@@ -22,6 +20,7 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
+use super::types::SELF_TYPE_NAME;
 use super::{Elaborator, ResolverMeta};
 
 type Scope = GenericScope<String, ResolverMeta>;
@@ -48,17 +47,30 @@ impl<'context> Elaborator<'context> {
         let path_resolution;
 
         if self.interner.track_references {
-            let mut references: Vec<ReferenceId> = Vec::new();
+            let last_segment = path.last_ident();
+            let location = Location::new(last_segment.span(), self.file);
+            let is_self_type_name = last_segment.is_self_type_name();
+
+            let mut references: Vec<_> = Vec::new();
             path_resolution =
                 resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
 
-            for (referenced, ident) in references.iter().zip(path.segments) {
-                let reference = ReferenceId::Reference(
-                    Location::new(ident.span(), self.file),
-                    ident.is_self_type_name(),
+            for (referenced, segment) in references.iter().zip(path.segments) {
+                let Some(referenced) = referenced else {
+                    continue;
+                };
+                self.interner.add_reference(
+                    *referenced,
+                    Location::new(segment.ident.span(), self.file),
+                    segment.ident.is_self_type_name(),
                 );
-                self.interner.add_reference(*referenced, reference);
             }
+
+            self.interner.add_module_def_id_reference(
+                path_resolution.module_def_id,
+                location,
+                is_self_type_name,
+            );
         } else {
             path_resolution = resolver.resolve(self.def_maps, path, &mut None)?;
         }

@@ -114,79 +114,6 @@ pub enum Type {
     Error,
 }
 
-impl Type {
-    /// Returns the number of field elements required to represent the type once encoded.
-    pub fn field_count(&self) -> u32 {
-        match self {
-            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
-            Type::Array(size, typ) => {
-                let length = size
-                    .evaluate_to_u32()
-                    .expect("Cannot have variable sized arrays as a parameter to main");
-                let typ = typ.as_ref();
-                length * typ.field_count()
-            }
-            Type::Struct(def, args) => {
-                let struct_type = def.borrow();
-                let fields = struct_type.get_fields(args);
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
-            }
-            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(),
-            Type::Tuple(fields) => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
-            }
-            Type::String(size) => size
-                .evaluate_to_u32()
-                .expect("Cannot have variable sized strings as a parameter to main"),
-            Type::FmtString(_, _)
-            | Type::Unit
-            | Type::TypeVariable(_, _)
-            | Type::TraitAsType(..)
-            | Type::NamedGeneric(_, _, _)
-            | Type::Function(_, _, _)
-            | Type::MutableReference(_)
-            | Type::Forall(_, _)
-            | Type::Constant(_)
-            | Type::Quoted(_)
-            | Type::Slice(_)
-            | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
-        }
-    }
-
-    pub(crate) fn is_nested_slice(&self) -> bool {
-        match self {
-            Type::Slice(elem) => elem.as_ref().contains_slice(),
-            Type::Array(_, elem) => elem.as_ref().contains_slice(),
-            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
-            _ => false,
-        }
-    }
-
-    pub(crate) fn contains_slice(&self) -> bool {
-        match self {
-            Type::Slice(_) => true,
-            Type::Struct(struct_typ, generics) => {
-                let fields = struct_typ.borrow().get_fields(generics);
-                for field in fields.iter() {
-                    if field.1.contains_slice() {
-                        return true;
-                    }
-                }
-                false
-            }
-            Type::Tuple(types) => {
-                for typ in types.iter() {
-                    if typ.contains_slice() {
-                        return true;
-                    }
-                }
-                false
-            }
-            _ => false,
-        }
-    }
-}
-
 /// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
 /// certain positions.
 ///
@@ -215,6 +142,10 @@ pub enum QuotedType {
     TopLevelItem,
     Type,
     StructDefinition,
+    TraitConstraint,
+    TraitDefinition,
+    FunctionDefinition,
+    Module,
 }
 
 /// A list of TypeVariableIds to bind to a type. Storing the
@@ -588,13 +519,15 @@ impl TypeVariable {
     /// variable is already bound to a different type. This generally
     /// a logic error to use outside of monomorphization.
     pub fn force_bind(&self, typ: Type) {
-        *self.1.borrow_mut() = TypeBinding::Bound(typ);
+        if !typ.occurs(self.id()) {
+            *self.1.borrow_mut() = TypeBinding::Bound(typ);
+        }
     }
 }
 
 /// TypeBindings are the mutable insides of a TypeVariable.
 /// They are either bound to some type, or are unbound.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId),
@@ -609,6 +542,156 @@ impl TypeBinding {
 /// A unique ID used to differentiate different type variables
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct TypeVariableId(pub usize);
+
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::FieldElement => {
+                write!(f, "Field")
+            }
+            Type::Array(len, typ) => {
+                write!(f, "[{typ}; {len}]")
+            }
+            Type::Slice(typ) => {
+                write!(f, "[{typ}]")
+            }
+            Type::Integer(sign, num_bits) => match sign {
+                Signedness::Signed => write!(f, "i{num_bits}"),
+                Signedness::Unsigned => write!(f, "u{num_bits}"),
+            },
+            Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
+            Type::TypeVariable(binding, TypeVariableKind::Integer) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    write!(f, "{}", Type::default_int_type())
+                } else {
+                    write!(f, "{}", binding.borrow())
+                }
+            }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
+                    // what they bind to by default anyway. It is less confusing than displaying it
+                    // as a generic.
+                    write!(f, "Field")
+                } else {
+                    write!(f, "{}", binding.borrow())
+                }
+            }
+            Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    // TypeVariableKind::Constant(n) binds to Type::Constant(n) by default, so just show that.
+                    write!(f, "{n}")
+                } else {
+                    write!(f, "{}", binding.borrow())
+                }
+            }
+            Type::Struct(s, args) => {
+                let args = vecmap(args, |arg| arg.to_string());
+                if args.is_empty() {
+                    write!(f, "{}", s.borrow())
+                } else {
+                    write!(f, "{}<{}>", s.borrow(), args.join(", "))
+                }
+            }
+            Type::Alias(alias, args) => {
+                let args = vecmap(args, |arg| arg.to_string());
+                if args.is_empty() {
+                    write!(f, "{}", alias.borrow())
+                } else {
+                    write!(f, "{}<{}>", alias.borrow(), args.join(", "))
+                }
+            }
+            Type::TraitAsType(_id, name, generics) => {
+                write!(f, "impl {}", name)?;
+                if !generics.is_empty() {
+                    let generics = vecmap(generics, ToString::to_string).join(", ");
+                    write!(f, "<{generics}>")?;
+                }
+                Ok(())
+            }
+            Type::Tuple(elements) => {
+                let elements = vecmap(elements, ToString::to_string);
+                write!(f, "({})", elements.join(", "))
+            }
+            Type::Bool => write!(f, "bool"),
+            Type::String(len) => write!(f, "str<{len}>"),
+            Type::FmtString(len, elements) => {
+                write!(f, "fmtstr<{len}, {elements}>")
+            }
+            Type::Unit => write!(f, "()"),
+            Type::Error => write!(f, "error"),
+            Type::NamedGeneric(binding, name, _) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.fmt(f),
+                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
+                TypeBinding::Unbound(_) => write!(f, "{name}"),
+            },
+            Type::Constant(x) => x.fmt(f),
+            Type::Forall(typevars, typ) => {
+                let typevars = vecmap(typevars, |var| var.id().to_string());
+                write!(f, "forall {}. {}", typevars.join(" "), typ)
+            }
+            Type::Function(args, ret, env) => {
+                let closure_env_text = match **env {
+                    Type::Unit => "".to_string(),
+                    _ => format!(" with env {env}"),
+                };
+
+                let args = vecmap(args.iter(), ToString::to_string);
+
+                write!(f, "fn({}) -> {ret}{closure_env_text}", args.join(", "))
+            }
+            Type::MutableReference(element) => {
+                write!(f, "&mut {element}")
+            }
+            Type::Quoted(quoted) => write!(f, "{}", quoted),
+        }
+    }
+}
+
+impl std::fmt::Display for BinaryTypeOperator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryTypeOperator::Addition => write!(f, "+"),
+            BinaryTypeOperator::Subtraction => write!(f, "-"),
+            BinaryTypeOperator::Multiplication => write!(f, "*"),
+            BinaryTypeOperator::Division => write!(f, "/"),
+            BinaryTypeOperator::Modulo => write!(f, "%"),
+        }
+    }
+}
+
+impl std::fmt::Display for TypeVariableId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "_")
+    }
+}
+
+impl std::fmt::Display for TypeBinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeBinding::Bound(typ) => typ.fmt(f),
+            TypeBinding::Unbound(id) => id.fmt(f),
+        }
+    }
+}
+
+impl std::fmt::Display for QuotedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuotedType::Expr => write!(f, "Expr"),
+            QuotedType::Quoted => write!(f, "Quoted"),
+            QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
+            QuotedType::Type => write!(f, "Type"),
+            QuotedType::StructDefinition => write!(f, "StructDefinition"),
+            QuotedType::TraitDefinition => write!(f, "TraitDefinition"),
+            QuotedType::TraitConstraint => write!(f, "TraitConstraint"),
+            QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
+            QuotedType::Module => write!(f, "Module"),
+        }
+    }
+}
+
+pub struct UnificationError;
 
 impl Type {
     pub fn default_int_or_field_type() -> Type {
@@ -1044,155 +1127,78 @@ impl Type {
     //         | Type::Error => Kind::Normal,
     //     }
     // }
-}
 
-impl std::fmt::Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    /// Returns the number of field elements required to represent the type once encoded.
+    pub fn field_count(&self) -> u32 {
         match self {
-            Type::FieldElement => {
-                write!(f, "Field")
+            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
+            Type::Array(size, typ) => {
+                let length = size
+                    .evaluate_to_u32()
+                    .expect("Cannot have variable sized arrays as a parameter to main");
+                let typ = typ.as_ref();
+                length * typ.field_count()
             }
-            Type::Array(len, typ) => {
-                write!(f, "[{typ}; {len}]")
+            Type::Struct(def, args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args);
+                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
             }
-            Type::Slice(typ) => {
-                write!(f, "[{typ}]")
+            Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(),
+            Type::Tuple(fields) => {
+                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
             }
-            Type::Integer(sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "i{num_bits}"),
-                Signedness::Unsigned => write!(f, "u{num_bits}"),
-            },
-            Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
-            Type::TypeVariable(binding, TypeVariableKind::Integer) => {
-                if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    write!(f, "{}", Type::default_int_type())
-                } else {
-                    write!(f, "{}", binding.borrow())
-                }
-            }
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
-                    // what they bind to by default anyway. It is less confusing than displaying it
-                    // as a generic.
-                    write!(f, "Field")
-                } else {
-                    write!(f, "{}", binding.borrow())
-                }
-            }
-            Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
-                if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    // TypeVariableKind::Constant(n) binds to Type::Constant(n) by default, so just show that.
-                    write!(f, "{n}")
-                } else {
-                    write!(f, "{}", binding.borrow())
-                }
-            }
-            Type::Struct(s, args) => {
-                let args = vecmap(args, |arg| arg.to_string());
-                if args.is_empty() {
-                    write!(f, "{}", s.borrow())
-                } else {
-                    write!(f, "{}<{}>", s.borrow(), args.join(", "))
-                }
-            }
-            Type::Alias(alias, args) => {
-                let args = vecmap(args, |arg| arg.to_string());
-                if args.is_empty() {
-                    write!(f, "{}", alias.borrow())
-                } else {
-                    write!(f, "{}<{}>", alias.borrow(), args.join(", "))
-                }
-            }
-            Type::TraitAsType(_id, name, generics) => {
-                write!(f, "impl {}", name)?;
-                if !generics.is_empty() {
-                    let generics = vecmap(generics, ToString::to_string).join(", ");
-                    write!(f, "<{generics}>")?;
-                }
-                Ok(())
-            }
-            Type::Tuple(elements) => {
-                let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
-            }
-            Type::Bool => write!(f, "bool"),
-            Type::String(len) => write!(f, "str<{len}>"),
-            Type::FmtString(len, elements) => {
-                write!(f, "fmtstr<{len}, {elements}>")
-            }
-            Type::Unit => write!(f, "()"),
-            Type::Error => write!(f, "error"),
-            Type::NamedGeneric(binding, name, _) => match &*binding.borrow() {
-                TypeBinding::Bound(binding) => binding.fmt(f),
-                TypeBinding::Unbound(_) if name.is_empty() => write!(f, "_"),
-                TypeBinding::Unbound(_) => write!(f, "{name}"),
-            },
-            Type::Constant(x) => x.fmt(f),
-            Type::Forall(typevars, typ) => {
-                let typevars = vecmap(typevars, |var| var.id().to_string());
-                write!(f, "forall {}. {}", typevars.join(" "), typ)
-            }
-            Type::Function(args, ret, env) => {
-                let closure_env_text = match **env {
-                    Type::Unit => "".to_string(),
-                    _ => format!(" with env {env}"),
-                };
-
-                let args = vecmap(args.iter(), ToString::to_string);
-
-                write!(f, "fn({}) -> {ret}{closure_env_text}", args.join(", "))
-            }
-            Type::MutableReference(element) => {
-                write!(f, "&mut {element}")
-            }
-            Type::Quoted(quoted) => write!(f, "{}", quoted),
+            Type::String(size) => size
+                .evaluate_to_u32()
+                .expect("Cannot have variable sized strings as a parameter to main"),
+            Type::FmtString(_, _)
+            | Type::Unit
+            | Type::TypeVariable(_, _)
+            | Type::TraitAsType(..)
+            | Type::NamedGeneric(_, _, _)
+            | Type::Function(_, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::Constant(_)
+            | Type::Quoted(_)
+            | Type::Slice(_)
+            | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
     }
-}
 
-impl std::fmt::Display for BinaryTypeOperator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn is_nested_slice(&self) -> bool {
         match self {
-            BinaryTypeOperator::Addition => write!(f, "+"),
-            BinaryTypeOperator::Subtraction => write!(f, "-"),
-            BinaryTypeOperator::Multiplication => write!(f, "*"),
-            BinaryTypeOperator::Division => write!(f, "/"),
-            BinaryTypeOperator::Modulo => write!(f, "%"),
+            Type::Slice(elem) => elem.as_ref().contains_slice(),
+            Type::Array(_, elem) => elem.as_ref().contains_slice(),
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
+            _ => false,
         }
     }
-}
 
-impl std::fmt::Display for TypeVariableId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "_")
-    }
-}
-
-impl std::fmt::Display for TypeBinding {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn contains_slice(&self) -> bool {
         match self {
-            TypeBinding::Bound(typ) => typ.fmt(f),
-            TypeBinding::Unbound(id) => id.fmt(f),
+            Type::Slice(_) => true,
+            Type::Struct(struct_typ, generics) => {
+                let fields = struct_typ.borrow().get_fields(generics);
+                for field in fields.iter() {
+                    if field.1.contains_slice() {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Tuple(types) => {
+                for typ in types.iter() {
+                    if typ.contains_slice() {
+                        return true;
+                    }
+                }
+                false
+            }
+            _ => false,
         }
     }
-}
 
-impl std::fmt::Display for QuotedType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            QuotedType::Expr => write!(f, "Expr"),
-            QuotedType::Quoted => write!(f, "Quoted"),
-            QuotedType::TopLevelItem => write!(f, "TopLevelItem"),
-            QuotedType::Type => write!(f, "Type"),
-            QuotedType::StructDefinition => write!(f, "StructDefinition"),
-        }
-    }
-}
-
-pub struct UnificationError;
-
-impl Type {
     /// Try to bind a MaybeConstant variable to self, succeeding if self is a Constant,
     /// MaybeConstant, or type variable. If successful, the binding is placed in the
     /// given TypeBindings map rather than linked immediately.
@@ -1920,9 +1926,11 @@ impl Type {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::NamedGeneric(binding, _, _) | Type::TypeVariable(binding, _) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(binding) => binding.occurs(target_id),
+            Type::NamedGeneric(type_var, _, _) | Type::TypeVariable(type_var, _) => {
+                match &*type_var.borrow() {
+                    TypeBinding::Bound(binding) => {
+                        type_var.id() == target_id || binding.occurs(target_id)
+                    }
                     TypeBinding::Unbound(id) => *id == target_id,
                 }
             }
@@ -2007,6 +2015,83 @@ impl Type {
     pub fn from_generics(generics: &GenericTypeVars) -> Vec<Type> {
         vecmap(generics, |var| Type::TypeVariable(var.clone(), TypeVariableKind::Normal))
     }
+
+    /// Replace any `Type::NamedGeneric` in this type with a `Type::TypeVariable`
+    /// using to the same inner `TypeVariable`. This is used during monomorphization
+    /// to bind to named generics since they are unbindable during type checking.
+    pub fn replace_named_generics_with_type_variables(&mut self) {
+        match self {
+            Type::FieldElement
+            | Type::Constant(_)
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::Quoted(_) => (),
+
+            Type::Array(len, elem) => {
+                len.replace_named_generics_with_type_variables();
+                elem.replace_named_generics_with_type_variables();
+            }
+
+            Type::Slice(elem) => elem.replace_named_generics_with_type_variables(),
+            Type::String(len) => len.replace_named_generics_with_type_variables(),
+            Type::FmtString(len, captures) => {
+                len.replace_named_generics_with_type_variables();
+                captures.replace_named_generics_with_type_variables();
+            }
+            Type::Tuple(fields) => {
+                for field in fields {
+                    field.replace_named_generics_with_type_variables();
+                }
+            }
+            Type::Struct(_, generics) => {
+                for generic in generics {
+                    generic.replace_named_generics_with_type_variables();
+                }
+            }
+            Type::Alias(alias, generics) => {
+                let mut typ = alias.borrow().get_type(generics);
+                typ.replace_named_generics_with_type_variables();
+                *self = typ;
+            }
+            Type::TypeVariable(var, _) => {
+                let var = var.borrow();
+                if let TypeBinding::Bound(binding) = &*var {
+                    let mut binding = binding.clone();
+                    drop(var);
+                    binding.replace_named_generics_with_type_variables();
+                    *self = binding;
+                }
+            }
+            Type::TraitAsType(_, _, generics) => {
+                for generic in generics {
+                    generic.replace_named_generics_with_type_variables();
+                }
+            }
+            Type::NamedGeneric(var, _, _) => {
+                let type_binding = var.borrow();
+                if let TypeBinding::Bound(binding) = &*type_binding {
+                    let mut binding = binding.clone();
+                    drop(type_binding);
+                    binding.replace_named_generics_with_type_variables();
+                    *self = binding;
+                } else {
+                    drop(type_binding);
+                    *self = Type::TypeVariable(var.clone(), TypeVariableKind::Normal);
+                }
+            }
+            Type::Function(args, ret, env) => {
+                for arg in args {
+                    arg.replace_named_generics_with_type_variables();
+                }
+                ret.replace_named_generics_with_type_variables();
+                env.replace_named_generics_with_type_variables();
+            }
+            Type::MutableReference(elem) => elem.replace_named_generics_with_type_variables(),
+            Type::Forall(_, typ) => typ.replace_named_generics_with_type_variables(),
+        }
+    }
 }
 
 /// Wraps a given `expression` in `expression.as_slice()`
@@ -2033,7 +2118,8 @@ fn convert_array_expression_to_slice(
     interner.push_expr_location(argument, location.span, location.file);
 
     let arguments = vec![argument];
-    let call = HirExpression::Call(HirCallExpression { func, arguments, location });
+    let is_macro_call = false;
+    let call = HirExpression::Call(HirCallExpression { func, arguments, location, is_macro_call });
     interner.replace_expr(&expression, call);
 
     interner.push_expr_location(func, location.span, location.file);
@@ -2203,10 +2289,10 @@ impl std::fmt::Debug for Type {
             Type::Error => write!(f, "error"),
             Type::NamedGeneric(binding, name, kind) => match kind {
                 Kind::Normal => {
-                    write!(f, "{} -> {:?}", name, binding)
+                    write!(f, "{}{:?}", name, binding)
                 }
                 Kind::Numeric(typ) => {
-                    write!(f, "({} : {}) -> {:?}", name, typ, binding)
+                    write!(f, "({} : {}){:?}", name, typ, binding)
                 }
             },
             Type::Constant(x) => x.fmt(f),

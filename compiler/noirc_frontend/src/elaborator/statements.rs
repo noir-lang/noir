@@ -15,7 +15,7 @@ use crate::{
     macros_api::{
         ForLoopStatement, ForRange, HirStatement, LetStatement, Path, Statement, StatementKind,
     },
-    node_interner::{DefinitionId, DefinitionKind, GlobalId, ReferenceId, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
     Type,
 };
 
@@ -255,9 +255,8 @@ impl<'context> Elaborator<'context> {
                     typ.follow_bindings()
                 };
 
-                let referenced = ReferenceId::Local(ident.id);
-                let reference = ReferenceId::Reference(Location::new(span, self.file), false);
-                self.interner.add_reference(referenced, reference);
+                let reference_location = Location::new(span, self.file);
+                self.interner.add_local_reference(ident.id, reference_location);
 
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }
@@ -380,9 +379,8 @@ impl<'context> Elaborator<'context> {
             Type::Struct(s, args) => {
                 let s = s.borrow();
                 if let Some((field, index)) = s.get_field(field_name, args) {
-                    let referenced = ReferenceId::StructMember(s.id, index);
-                    let reference = ReferenceId::Reference(Location::new(span, self.file), false);
-                    self.interner.add_reference(referenced, reference);
+                    let reference_location = Location::new(span, self.file);
+                    self.interner.add_struct_member_reference(s.id, index, reference_location);
 
                     return Some((field, index));
                 }
@@ -447,11 +445,9 @@ impl<'context> Elaborator<'context> {
         let span = statement.span;
         let (hir_statement, _typ) = self.elaborate_statement(statement);
         self.check_and_pop_function_context();
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);
-        self.include_interpreter_errors(interpreter_errors);
 
         let location = self.interner.id_location(hir_statement);
         self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);

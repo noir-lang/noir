@@ -42,6 +42,22 @@ pub mod ir;
 mod opt;
 pub mod ssa_gen;
 
+pub struct SsaEvaluatorOptions {
+    /// Emit debug information for the intermediate SSA IR
+    pub enable_ssa_logging: bool,
+
+    pub enable_brillig_logging: bool,
+
+    /// Force Brillig output (for step debugging)
+    pub force_brillig_output: bool,
+
+    /// Pretty print benchmark times of each code generation pass
+    pub print_codegen_timings: bool,
+
+    /// Width of expressions to be used for ACIR
+    pub expression_width: ExpressionWidth,
+}
+
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
 
 /// Optimize the given program by converting it into SSA
@@ -99,7 +115,9 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
-    let artifacts = time("SSA to ACIR", options.print_codegen_timings, || ssa.into_acir(&brillig))?;
+    let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
+        ssa.into_acir(&brillig, options.expression_width)
+    })?;
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }
 
@@ -160,19 +178,6 @@ impl SsaProgramArtifact {
     }
 }
 
-pub struct SsaEvaluatorOptions {
-    /// Emit debug information for the intermediate SSA IR
-    pub enable_ssa_logging: bool,
-
-    pub enable_brillig_logging: bool,
-
-    /// Force Brillig output (for step debugging)
-    pub force_brillig_output: bool,
-
-    /// Pretty print benchmark times of each code generation pass
-    pub print_codegen_timings: bool,
-}
-
 /// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
 ///
 /// The output ACIR is backend-agnostic and so must go through a transformation pass before usage in proof generation.
@@ -190,12 +195,19 @@ pub fn create_program(
     let recursive = program.recursive;
     let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
         optimize_into_acir(program, options)?;
-    assert_eq!(
-        generated_acirs.len(),
-        func_sigs.len(),
-        "The generated ACIRs should match the supplied function signatures"
-    );
-
+    if options.force_brillig_output {
+        assert_eq!(
+            generated_acirs.len(),
+            1,
+            "Only the main ACIR is expected when forcing Brillig output"
+        );
+    } else {
+        assert_eq!(
+            generated_acirs.len(),
+            func_sigs.len(),
+            "The generated ACIRs should match the supplied function signatures"
+        );
+    }
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
 
     // Add warnings collected at the Ssa stage

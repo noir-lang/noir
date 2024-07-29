@@ -44,6 +44,13 @@ use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeV
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 
+#[derive(Debug)]
+pub struct ModuleAttributes {
+    pub name: String,
+    pub location: Location,
+    pub parent: LocalModuleId,
+}
+
 type StructAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
@@ -68,7 +75,7 @@ pub struct NodeInterner {
     function_modules: HashMap<FuncId, ModuleId>,
 
     // The location of each module
-    module_locations: HashMap<ModuleId, Location>,
+    module_attributes: HashMap<ModuleId, ModuleAttributes>,
 
     /// This graph tracks dependencies between different global definitions.
     /// This is used to ensure the absence of dependency cycles for globals and types.
@@ -219,6 +226,10 @@ pub struct NodeInterner {
 
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
+
+    // The module where each reference is
+    // (ReferenceId::Reference and ReferenceId::Local aren't included here)
+    pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -375,11 +386,6 @@ impl StmtId {
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct ExprId(Index);
 
-impl ExprId {
-    pub fn empty_block_id() -> ExprId {
-        ExprId(Index::unsafe_zeroed())
-    }
-}
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct FuncId(Index);
 
@@ -537,6 +543,7 @@ pub struct GlobalInfo {
     pub definition_id: DefinitionId,
     pub ident: Ident,
     pub local_id: LocalModuleId,
+    pub crate_id: CrateId,
     pub location: Location,
     pub let_statement: StmtId,
     pub value: Option<comptime::Value>,
@@ -547,13 +554,13 @@ pub struct QuotedTypeId(noirc_arena::Index);
 
 impl Default for NodeInterner {
     fn default() -> Self {
-        let mut interner = NodeInterner {
+        NodeInterner {
             nodes: Arena::default(),
             func_meta: HashMap::new(),
             function_definition_ids: HashMap::new(),
             function_modifiers: HashMap::new(),
             function_modules: HashMap::new(),
-            module_locations: HashMap::new(),
+            module_attributes: HashMap::new(),
             func_id_to_trait: HashMap::new(),
             dependency_graph: petgraph::graph::DiGraph::new(),
             dependency_graph_indices: HashMap::new(),
@@ -586,12 +593,8 @@ impl Default for NodeInterner {
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::new(),
-        };
-
-        // An empty block expression is used often, we add this into the `node` on startup
-        let expr_id = interner.push_expr(HirExpression::empty_block());
-        assert_eq!(expr_id, ExprId::empty_block_id());
-        interner
+            reference_modules: HashMap::new(),
+        }
     }
 }
 
@@ -754,6 +757,7 @@ impl NodeInterner {
         &mut self,
         ident: Ident,
         local_id: LocalModuleId,
+        crate_id: CrateId,
         let_statement: StmtId,
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
@@ -771,6 +775,7 @@ impl NodeInterner {
             definition_id,
             ident,
             local_id,
+            crate_id,
             let_statement,
             location,
             value: None,
@@ -784,10 +789,12 @@ impl NodeInterner {
     }
 
     /// Intern an empty global. Used for collecting globals before they're defined
+    #[allow(clippy::too_many_arguments)]
     pub fn push_empty_global(
         &mut self,
         name: Ident,
         local_id: LocalModuleId,
+        crate_id: CrateId,
         file: FileId,
         attributes: Vec<SecondaryAttribute>,
         mutable: bool,
@@ -795,7 +802,8 @@ impl NodeInterner {
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
         let span = name.span();
-        let id = self.push_global(name, local_id, statement, file, attributes, mutable, comptime);
+        let id = self
+            .push_global(name, local_id, crate_id, statement, file, attributes, mutable, comptime);
         self.push_stmt_location(statement, span, file);
         id
     }
@@ -854,7 +862,7 @@ impl NodeInterner {
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
 
         if is_local {
-            self.add_definition_location(ReferenceId::Local(id));
+            self.add_definition_location(ReferenceId::Local(id), None);
         }
 
         id
@@ -892,7 +900,7 @@ impl NodeInterner {
 
         // This needs to be done after pushing the definition since it will reference the
         // location that was stored
-        self.add_definition_location(ReferenceId::Function(id));
+        self.add_definition_location(ReferenceId::Function(id), Some(module));
         definition_id
     }
 
@@ -993,12 +1001,20 @@ impl NodeInterner {
         &self.struct_attributes[struct_id]
     }
 
-    pub fn add_module_location(&mut self, module_id: ModuleId, location: Location) {
-        self.module_locations.insert(module_id, location);
+    pub fn add_module_attributes(&mut self, module_id: ModuleId, attributes: ModuleAttributes) {
+        self.module_attributes.insert(module_id, attributes);
     }
 
-    pub fn module_location(&self, module_id: &ModuleId) -> Location {
-        self.module_locations[module_id]
+    pub fn module_attributes(&self, module_id: &ModuleId) -> &ModuleAttributes {
+        &self.module_attributes[module_id]
+    }
+
+    pub fn try_module_attributes(&self, module_id: &ModuleId) -> Option<&ModuleAttributes> {
+        self.module_attributes.get(module_id)
+    }
+
+    pub fn try_module_parent(&self, module_id: &ModuleId) -> Option<LocalModuleId> {
+        self.try_module_attributes(module_id).map(|attrs| attrs.parent)
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
@@ -1395,8 +1411,14 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         recursion_limit: u32,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
-        let make_constraint =
-            || TraitConstraint::new(object_type.clone(), trait_id, trait_generics.to_vec());
+        let make_constraint = || {
+            TraitConstraint::new(
+                object_type.clone(),
+                trait_id,
+                trait_generics.to_vec(),
+                Span::default(),
+            )
+        };
 
         // Prevent infinite recursion when looking for impls
         if recursion_limit == 0 {

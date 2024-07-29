@@ -1,9 +1,12 @@
+use super::path::path_no_turbofish;
 use super::primitives::token_kind;
 use super::{
-    expression_with_precedence, keyword, nothing, parenthesized, path, NoirParser, ParserError,
+    expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
     ParserErrorReason, Precedence,
 };
-use crate::ast::{Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression};
+use crate::ast::{
+    Expression, Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+};
 use crate::QuotedType;
 
 use crate::parser::labels::ParsingRuleLabel;
@@ -12,7 +15,7 @@ use crate::token::{Keyword, Token, TokenKind};
 use chumsky::prelude::*;
 use noirc_errors::Span;
 
-pub(super) fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
+pub fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
     recursive(parse_type_inner)
 }
 
@@ -26,6 +29,10 @@ pub(super) fn parse_type_inner<'a>(
         string_type(),
         expr_type(),
         struct_definition_type(),
+        trait_constraint_type(),
+        trait_definition_type(),
+        function_definition_type(),
+        module_type(),
         top_level_item_type(),
         type_of_quoted_types(),
         quoted_type(),
@@ -54,15 +61,7 @@ pub(super) fn parenthesized_type(
 }
 
 pub(super) fn maybe_comp_time() -> impl NoirParser<bool> {
-    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
-        if opt.is_some() {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("Comptime values"),
-                span,
-            ));
-        }
-        opt.is_some()
-    })
+    keyword(Keyword::Comptime).or_not().map(|opt| opt.is_some())
 }
 
 pub(super) fn field_type() -> impl NoirParser<UnresolvedType> {
@@ -85,6 +84,30 @@ pub(super) fn struct_definition_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::StructDefinition).map_with_span(|_, span| {
         UnresolvedTypeData::Quoted(QuotedType::StructDefinition).with_span(span)
     })
+}
+
+/// This is the type `TraitConstraint` - the type of a quoted trait constraint
+pub(super) fn trait_constraint_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TraitConstraint).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::TraitConstraint).with_span(span)
+    })
+}
+
+pub(super) fn trait_definition_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TraitDefinition).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::TraitDefinition).with_span(span)
+    })
+}
+
+pub(super) fn function_definition_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::FunctionDefinition).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::FunctionDefinition).with_span(span)
+    })
+}
+
+pub(super) fn module_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::Module)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Module).with_span(span))
 }
 
 /// This is the type `TopLevelItem` - the type of a quoted statement in the top level.
@@ -158,7 +181,7 @@ pub(super) fn int_type() -> impl NoirParser<UnresolvedType> {
 pub(super) fn named_type<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<UnresolvedType> + 'a {
-    path().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
+    path_no_turbofish().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
         UnresolvedTypeData::Named(path, args, false).with_span(span)
     })
 }
@@ -166,12 +189,21 @@ pub(super) fn named_type<'a>(
 pub(super) fn named_trait<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<UnresolvedType> + 'a {
-    keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
-        |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
-    )
+    keyword(Keyword::Impl)
+        .ignore_then(path_no_turbofish())
+        .then(generic_type_args(type_parser))
+        .map_with_span(|(path, args), span| {
+            UnresolvedTypeData::TraitAsType(path, args).with_span(span)
+        })
 }
 
 pub(super) fn generic_type_args<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
+    required_generic_type_args(type_parser).or_not().map(Option::unwrap_or_default)
+}
+
+pub(super) fn required_generic_type_args<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
     type_parser
@@ -181,14 +213,11 @@ pub(super) fn generic_type_args<'a>(
         // separator afterward. Failing early here ensures we try the `type_expression`
         // parser afterward.
         .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(type_expression()
-            .map_with_span(|expr, span| UnresolvedTypeData::Expression(expr).with_span(span)))
+        .or(type_expression_validated())
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)
         .delimited_by(just(Token::Less), just(Token::Greater))
-        .or_not()
-        .map(Option::unwrap_or_default)
 }
 
 pub(super) fn array_type<'a>(
@@ -214,7 +243,26 @@ pub(super) fn slice_type(
         })
 }
 
-pub(super) fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
+fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
+    type_expression_inner().try_map(UnresolvedTypeExpression::from_expr)
+}
+
+/// This parser is the same as `type_expression()`, however, it continues parsing and
+/// emits a parser error in the case of an invalid type expression rather than halting the parser.
+pub(super) fn type_expression_validated() -> impl NoirParser<UnresolvedType> {
+    type_expression_inner().validate(|expr, span, emit| {
+        let type_expr = UnresolvedTypeExpression::from_expr(expr, span);
+        match type_expr {
+            Ok(type_expression) => UnresolvedTypeData::Expression(type_expression).with_span(span),
+            Err(parser_error) => {
+                emit(parser_error);
+                UnresolvedType::error(span)
+            }
+        }
+    })
+}
+
+fn type_expression_inner() -> impl NoirParser<Expression> {
     recursive(|expr| {
         expression_with_precedence(
             Precedence::lowest_type_precedence(),
@@ -226,7 +274,6 @@ pub(super) fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
         )
     })
     .labelled(ParsingRuleLabel::TypeExpression)
-    .try_map(UnresolvedTypeExpression::from_expr)
 }
 
 pub(super) fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>

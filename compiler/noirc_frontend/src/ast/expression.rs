@@ -29,9 +29,7 @@ pub enum ExpressionKind {
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
     If(Box<IfExpression>),
-    // The optional vec here is the optional list of generics
-    // provided by the turbofish operator, if used
-    Variable(Path, Option<Vec<UnresolvedType>>),
+    Variable(Path),
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
@@ -118,7 +116,7 @@ impl From<Ident> for UnresolvedGeneric {
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {
         match self {
-            ExpressionKind::Variable(path, _) => Some(path),
+            ExpressionKind::Variable(path) => Some(path),
             _ => None,
         }
     }
@@ -583,14 +581,7 @@ impl Display for ExpressionKind {
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
             If(if_expr) => if_expr.fmt(f),
-            Variable(path, generics) => {
-                if let Some(generics) = generics {
-                    let generics = vecmap(generics, ToString::to_string);
-                    write!(f, "{path}::<{}>", generics.join(", "))
-                } else {
-                    path.fmt(f)
-                }
-            }
+            Variable(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {
@@ -800,12 +791,8 @@ impl FunctionDefinition {
             return_visibility: Visibility::Private,
         }
     }
-}
 
-impl Display for FunctionDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:?}", self.attributes)?;
-
+    pub fn signature(&self) -> String {
         let parameters = vecmap(&self.parameters, |Param { visibility, pattern, typ, span: _ }| {
             if *visibility == Visibility::Public {
                 format!("{pattern}: {visibility} {typ}")
@@ -827,15 +814,14 @@ impl Display for FunctionDefinition {
             format!(" -> {}", self.return_type)
         };
 
-        write!(
-            f,
-            "fn {}({}){}{} {}",
-            self.name,
-            parameters.join(", "),
-            return_type,
-            where_clause_str,
-            self.body
-        )
+        format!("fn {}({}){}{}", self.name, parameters.join(", "), return_type, where_clause_str)
+    }
+}
+
+impl Display for FunctionDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:?}", self.attributes)?;
+        write!(f, "fn {} {}", self.signature(), self.body)
     }
 }
 

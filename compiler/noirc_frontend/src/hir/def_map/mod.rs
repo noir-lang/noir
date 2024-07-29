@@ -48,10 +48,12 @@ impl ModuleId {
 }
 
 impl ModuleId {
-    pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> &ModuleData {
+    pub fn module(self, def_maps: &DefMaps) -> &ModuleData {
         &def_maps[&self.krate].modules()[self.local_id.0]
     }
 }
+
+pub type DefMaps = BTreeMap<CrateId, CrateDefMap>;
 
 /// Map of all modules and scopes defined within a crate.
 ///
@@ -73,7 +75,6 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        use_legacy: bool,
         debug_comptime_in_file: Option<&str>,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
@@ -118,12 +119,11 @@ impl CrateDefMap {
         };
 
         // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect(
+        errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             context,
             ast,
             root_file_id,
-            use_legacy,
             debug_comptime_in_file,
             macro_processors,
         ));

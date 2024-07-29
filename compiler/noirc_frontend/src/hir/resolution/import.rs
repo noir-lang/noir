@@ -6,7 +6,7 @@ use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::ReferenceId;
 use std::collections::BTreeMap;
 
-use crate::ast::{Ident, ItemVisibility, Path, PathKind};
+use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 
 use super::errors::ResolverError;
@@ -41,6 +41,8 @@ pub enum PathResolutionError {
     Unresolved(Ident),
     #[error("{0} is private and not visible from the current module")]
     Private(Ident),
+    #[error("There is no super module")]
+    NoSuper(Span),
 }
 
 #[derive(Debug)]
@@ -73,6 +75,9 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 format!("{ident} is private"),
                 ident.span(),
             ),
+            PathResolutionError::NoSuper(span) => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            }
         }
     }
 }
@@ -81,7 +86,7 @@ pub fn resolve_import(
     crate_id: CrateId,
     import_directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> Result<ResolvedImport, PathResolutionError> {
     let module_scope = import_directive.module_id;
     let NamespaceResolution {
@@ -126,7 +131,7 @@ fn resolve_path_to_ns(
     crate_id: CrateId,
     importing_crate: CrateId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> NamespaceResolutionResult {
     let import_path = &import_directive.path.segments;
     let def_map = &def_maps[&crate_id];
@@ -158,7 +163,8 @@ fn resolve_path_to_ns(
 
             let current_mod_id = ModuleId { krate: crate_id, local_id: import_directive.module_id };
             let current_mod = &def_map.modules[current_mod_id.local_id.0];
-            let first_segment = import_path.first().expect("ice: could not fetch first segment");
+            let first_segment =
+                &import_path.first().expect("ice: could not fetch first segment").ident;
             if current_mod.find_name(first_segment).is_none() {
                 // Resolve externally when first segment is unresolved
                 return resolve_external_dep(
@@ -187,6 +193,25 @@ fn resolve_path_to_ns(
             path_references,
             importing_crate,
         ),
+
+        crate::ast::PathKind::Super => {
+            if let Some(parent_module_id) =
+                def_maps[&crate_id].modules[import_directive.module_id.0].parent
+            {
+                resolve_name_in_module(
+                    crate_id,
+                    importing_crate,
+                    import_path,
+                    parent_module_id,
+                    def_maps,
+                    path_references,
+                )
+            } else {
+                let span_start = import_directive.path.span().start();
+                let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
+                Err(PathResolutionError::NoSuper(span))
+            }
+        }
     }
 }
 
@@ -194,9 +219,9 @@ fn resolve_path_from_crate_root(
     crate_id: CrateId,
     importing_crate: CrateId,
 
-    import_path: &[Ident],
+    import_path: &[PathSegment],
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> NamespaceResolutionResult {
     resolve_name_in_module(
         crate_id,
@@ -211,10 +236,10 @@ fn resolve_path_from_crate_root(
 fn resolve_name_in_module(
     krate: CrateId,
     importing_crate: CrateId,
-    import_path: &[Ident],
+    import_path: &[PathSegment],
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> NamespaceResolutionResult {
     let def_map = &def_maps[&krate];
     let mut current_mod_id = ModuleId { krate, local_id: starting_mod };
@@ -230,7 +255,7 @@ fn resolve_name_in_module(
         });
     }
 
-    let first_segment = import_path.first().expect("ice: could not fetch first segment");
+    let first_segment = &import_path.first().expect("ice: could not fetch first segment").ident;
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
@@ -238,6 +263,9 @@ fn resolve_name_in_module(
 
     let mut warning: Option<PathResolutionError> = None;
     for (last_segment, current_segment) in import_path.iter().zip(import_path.iter().skip(1)) {
+        let last_segment = &last_segment.ident;
+        let current_segment = &current_segment.ident;
+
         let (typ, visibility) = match current_ns.types {
             None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
             Some((typ, visibility, _)) => (typ, visibility),
@@ -247,7 +275,7 @@ fn resolve_name_in_module(
         current_mod_id = match typ {
             ModuleDefId::ModuleId(id) => {
                 if let Some(path_references) = path_references {
-                    path_references.push(ReferenceId::Module(id));
+                    path_references.push(Some(ReferenceId::Module(id)));
                 }
                 id
             }
@@ -255,14 +283,14 @@ fn resolve_name_in_module(
             // TODO: If impls are ever implemented, types can be used in a path
             ModuleDefId::TypeId(id) => {
                 if let Some(path_references) = path_references {
-                    path_references.push(ReferenceId::Struct(id));
+                    path_references.push(Some(ReferenceId::Struct(id)));
                 }
                 id.module_id()
             }
             ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
             ModuleDefId::TraitId(id) => {
                 if let Some(path_references) = path_references {
-                    path_references.push(ReferenceId::Trait(id));
+                    path_references.push(Some(ReferenceId::Trait(id)));
                 }
                 id.0
             }
@@ -300,7 +328,7 @@ fn resolve_name_in_module(
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
     match &import_directive.alias {
-        None => import_directive.path.segments.last().unwrap().clone(),
+        None => import_directive.path.last_ident(),
         Some(ident) => ident.clone(),
     }
 }
@@ -309,14 +337,14 @@ fn resolve_external_dep(
     current_def_map: &CrateDefMap,
     directive: &ImportDirective,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    path_references: &mut Option<&mut Vec<ReferenceId>>,
+    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
     importing_crate: CrateId,
 ) -> NamespaceResolutionResult {
     // Use extern_prelude to get the dep
     let path = &directive.path.segments;
 
     // Fetch the root module from the prelude
-    let crate_name = path.first().unwrap();
+    let crate_name = &path.first().unwrap().ident;
     let dep_module = current_def_map
         .extern_prelude
         .get(&crate_name.0.contents)
@@ -326,6 +354,11 @@ fn resolve_external_dep(
     // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module
     // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
     let path_without_crate_name = &path[1..];
+
+    // Given that we skipped the first segment, record that it doesn't refer to any module or type.
+    if let Some(path_references) = path_references {
+        path_references.push(None);
+    }
 
     let path = Path {
         segments: path_without_crate_name.to_vec(),

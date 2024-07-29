@@ -44,7 +44,7 @@ pub(crate) fn generate_ssa(
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
-    let is_return_data = matches!(program.return_visibility, Visibility::DataBus);
+    let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
 
     let return_location = program.return_location;
     let context = SharedContext::new(program);
@@ -111,7 +111,7 @@ pub(crate) fn generate_ssa(
     // to generate SSA for each function used within the program.
     while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
         let function = &context.program[src_function_id];
-        function_context.new_function(dest_id, function);
+        function_context.new_function(dest_id, function, force_brillig_runtime);
         function_context.codegen_function_body(&function.body)?;
     }
 
