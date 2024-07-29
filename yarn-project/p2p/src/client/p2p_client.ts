@@ -123,6 +123,7 @@ export class P2PClient implements P2P {
    * @param l2BlockSource - P2P client's source for fetching existing blocks.
    * @param txPool - The client's instance of a transaction pool. Defaults to in-memory implementation.
    * @param p2pService - The concrete instance of p2p networking to use.
+   * @param keepProvenTxsFor - How many blocks have to pass after a block is proven before its txs are deleted (zero to delete immediately once proven).
    * @param log - A logger.
    */
   constructor(
@@ -130,6 +131,7 @@ export class P2PClient implements P2P {
     private l2BlockSource: L2BlockSource,
     private txPool: TxPool,
     private p2pService: P2PService,
+    private keepProvenTxsFor: number,
     private log = createDebugLogger('aztec:p2p'),
   ) {
     const { p2pBlockCheckIntervalMS: checkInterval, p2pL2QueueSize } = getP2PConfigEnvVars();
@@ -340,6 +342,7 @@ export class P2PClient implements P2P {
    * @returns Empty promise.
    */
   private async deleteTxsFromBlocks(blocks: L2Block[]): Promise<void> {
+    this.log.debug(`Deleting txs from blocks ${blocks[0].number} to ${blocks[blocks.length - 1].number}`);
     for (const block of blocks) {
       const txHashes = block.body.txEffects.map(txEffect => txEffect.txHash);
       await this.txPool.deleteTxs(txHashes);
@@ -363,16 +366,28 @@ export class P2PClient implements P2P {
   }
 
   /**
-   * Handles new proven blocks by deleting the txs in them.
-   * @param blocks - A list of existing blocks with txs that the P2P client needs to ensure the tx pool is reconciled with.
+   * Handles new proven blocks by deleting the txs in them, or by deleting the txs in blocks `keepProvenTxsFor` ago.
+   * @param blocks - A list of proven L2 blocks.
    * @returns Empty promise.
    */
   private async handleProvenL2Blocks(blocks: L2Block[]): Promise<void> {
     if (!blocks.length) {
       return Promise.resolve();
     }
-    await this.deleteTxsFromBlocks(blocks);
+
+    const firstBlockNum = blocks[0].number;
     const lastBlockNum = blocks[blocks.length - 1].number;
+
+    if (this.keepProvenTxsFor === 0) {
+      await this.deleteTxsFromBlocks(blocks);
+    } else if (lastBlockNum - this.keepProvenTxsFor >= INITIAL_L2_BLOCK_NUM) {
+      const fromBlock = Math.max(INITIAL_L2_BLOCK_NUM, firstBlockNum - this.keepProvenTxsFor);
+      const toBlock = lastBlockNum - this.keepProvenTxsFor;
+      const limit = toBlock - fromBlock + 1;
+      const blocksToDeleteTxsFrom = await this.l2BlockSource.getBlocks(fromBlock, limit, true);
+      await this.deleteTxsFromBlocks(blocksToDeleteTxsFrom);
+    }
+
     await this.synchedProvenBlockNumber.set(lastBlockNum);
     this.log.debug(`Synched to proven block ${lastBlockNum}`);
     await this.startServiceIfSynched();

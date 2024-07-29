@@ -72,6 +72,11 @@ variable "P2P_ENABLED" {
   default = true
 }
 
+variable "P2P_TX_POOL_KEEP_PROVEN_FOR" {
+  type    = number
+  default = 64
+}
+
 variable "PROVING_ENABLED" {
   type    = bool
   default = false

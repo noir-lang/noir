@@ -325,6 +325,10 @@ resource "aws_ecs_task_definition" "aztec-node" {
           value = "2000"
         },
         {
+          name  = "P2P_TX_POOL_KEEP_PROVEN_FOR",
+          value = tostring(var.P2P_TX_POOL_KEEP_PROVEN_FOR)
+        },
+        {
           name  = "PROVER_AGENTS"
           value = "0"
         },

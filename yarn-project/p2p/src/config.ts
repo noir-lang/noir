@@ -88,6 +88,9 @@ export interface P2PConfig {
    * If announceUdpAddress or announceTcpAddress are not provided, query for the IP address of the machine. Default is false.
    */
   queryForIp: boolean;
+
+  /** How many blocks have to pass after a block is proven before its txs are deleted (zero to delete immediately once proven) */
+  keepProvenTxsInPoolFor: number;
 }
 
 /**
@@ -113,6 +116,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
     TX_GOSSIP_VERSION,
     P2P_TX_PROTOCOL,
     P2P_QUERY_FOR_IP,
+    P2P_TX_POOL_KEEP_PROVEN_FOR,
   } = process.env;
   // P2P listen & announce addresses passed in format: <IP_ADDRESS>:<PORT>
   // P2P announce multiaddrs passed in format: /ip4/<IP_ADDRESS>/<protocol>/<PORT>
@@ -134,6 +138,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
     dataDirectory: DATA_DIRECTORY,
     txGossipVersion: TX_GOSSIP_VERSION ? new SemVer(TX_GOSSIP_VERSION) : new SemVer('0.1.0'),
     queryForIp: P2P_QUERY_FOR_IP === 'true',
+    keepProvenTxsInPoolFor: P2P_TX_POOL_KEEP_PROVEN_FOR ? +P2P_TX_POOL_KEEP_PROVEN_FOR : 0,
   };
   return envVars;
 }

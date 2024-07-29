@@ -8,12 +8,21 @@ export class MockBlockSource implements L2BlockSource {
   private l2Blocks: L2Block[] = [];
   private txEffects: TxEffect[] = [];
 
-  constructor(private numBlocks = 100) {
-    for (let i = 0; i < this.numBlocks; i++) {
-      const block = L2Block.random(i);
+  constructor(numBlocks = 100, private provenBlockNumber?: number) {
+    this.addBlocks(numBlocks);
+  }
+
+  public addBlocks(numBlocks: number) {
+    for (let i = 0; i < numBlocks; i++) {
+      const blockNum = this.l2Blocks.length;
+      const block = L2Block.random(blockNum);
       this.l2Blocks.push(block);
       this.txEffects.push(...block.body.txEffects);
     }
+  }
+
+  public setProvenBlockNumber(provenBlockNumber: number) {
+    this.provenBlockNumber = provenBlockNumber;
   }
 
   /**
@@ -40,8 +49,8 @@ export class MockBlockSource implements L2BlockSource {
     return Promise.resolve(this.l2Blocks.length - 1);
   }
 
-  public getProvenBlockNumber(): Promise<number> {
-    return this.getBlockNumber();
+  public async getProvenBlockNumber(): Promise<number> {
+    return this.provenBlockNumber ?? (await this.getBlockNumber());
   }
 
   /**
@@ -59,8 +68,12 @@ export class MockBlockSource implements L2BlockSource {
    * @param limit - The maximum number of blocks to return.
    * @returns The requested mocked L2 blocks.
    */
-  public getBlocks(from: number, limit: number) {
-    return Promise.resolve(this.l2Blocks.slice(from, from + limit));
+  public getBlocks(from: number, limit: number, proven?: boolean) {
+    return Promise.resolve(
+      this.l2Blocks
+        .slice(from, from + limit)
+        .filter(b => !proven || this.provenBlockNumber === undefined || b.number <= this.provenBlockNumber),
+    );
   }
 
   /**

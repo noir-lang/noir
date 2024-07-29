@@ -1,4 +1,5 @@
-import { type L2BlockSource, mockTx } from '@aztec/circuit-types';
+import { mockTx } from '@aztec/circuit-types';
+import { retryUntil } from '@aztec/foundation/retry';
 import { type AztecKVStore } from '@aztec/kv-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 
@@ -18,7 +19,7 @@ type Mockify<T> = {
 
 describe('In-Memory P2P Client', () => {
   let txPool: Mockify<TxPool>;
-  let blockSource: L2BlockSource;
+  let blockSource: MockBlockSource;
   let p2pService: Mockify<P2PService>;
   let kvStore: AztecKVStore;
   let client: P2PClient;
@@ -45,8 +46,13 @@ describe('In-Memory P2P Client', () => {
     blockSource = new MockBlockSource();
 
     kvStore = openTmpStore();
-    client = new P2PClient(kvStore, blockSource, txPool, p2pService);
+    client = new P2PClient(kvStore, blockSource, txPool, p2pService, 0);
   });
+
+  const advanceToProvenBlock = async (provenBlockNum: number) => {
+    blockSource.setProvenBlockNumber(provenBlockNum);
+    await retryUntil(() => Promise.resolve(client.getSyncedProvenBlockNum() >= provenBlockNum), 'synced', 10, 0.1);
+  };
 
   it('can start & stop', async () => {
     expect(await client.isReady()).toEqual(false);
@@ -98,7 +104,34 @@ describe('In-Memory P2P Client', () => {
     await client.start();
     await client.stop();
 
-    const client2 = new P2PClient(kvStore, blockSource, txPool, p2pService);
+    const client2 = new P2PClient(kvStore, blockSource, txPool, p2pService, 0);
     expect(client2.getSyncedLatestBlockNum()).toEqual(client.getSyncedLatestBlockNum());
+  });
+
+  it('deletes txs once block is proven', async () => {
+    blockSource.setProvenBlockNumber(0);
+    await client.start();
+    expect(txPool.deleteTxs).not.toHaveBeenCalled();
+
+    await advanceToProvenBlock(5);
+    expect(txPool.deleteTxs).toHaveBeenCalledTimes(5);
+    await client.stop();
+  });
+
+  it('deletes txs after waiting the set number of blocks', async () => {
+    client = new P2PClient(kvStore, blockSource, txPool, p2pService, 10);
+    blockSource.setProvenBlockNumber(0);
+    await client.start();
+    expect(txPool.deleteTxs).not.toHaveBeenCalled();
+
+    await advanceToProvenBlock(5);
+    expect(txPool.deleteTxs).not.toHaveBeenCalled();
+
+    await advanceToProvenBlock(12);
+    expect(txPool.deleteTxs).toHaveBeenCalledTimes(2);
+
+    await advanceToProvenBlock(20);
+    expect(txPool.deleteTxs).toHaveBeenCalledTimes(10);
+    await client.stop();
   });
 });
