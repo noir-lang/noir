@@ -681,7 +681,7 @@ impl Builder {
                 let num_index = match index {
                     Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
                     _ => {
-                        let feature_name = format!("indexing array with an {:?}", index);
+                        let feature_name = format!("indexing array (get) with an {:?}", index);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 };
@@ -698,7 +698,7 @@ impl Builder {
                 let num_index = match index {
                     Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
                     _ => {
-                        let feature_name = format!("indexing array with an {:?}", index);
+                        let feature_name = format!("indexing array (set) with an {:?}", index);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 };
