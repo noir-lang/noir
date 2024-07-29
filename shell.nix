@@ -1,30 +1,20 @@
 # stanm: The single purpose of this script is to bootstrap rustup.
 {
   pkgs,
-  inputs',
+  self',
   ...
 }: let
-  frameworks = pkgs.darwin.apple_sdk.frameworks;
-  rust = with inputs'.fenix.packages;
-  with pkgs;
-  with latest;
-    combine ([
-        cargo
-        clippy
-        rust-analyzer
-        rust-src
-        rustc
-        rustfmt
-        libiconv
-        alejandra
+  inherit (pkgs) lib stdenv mkShell;
+  inherit (pkgs.darwin.apple_sdk) frameworks;
+in
+  mkShell {
+    packages =
+      [
+        pkgs.alejandra
+        self'.legacyPackages.rustToolchain
       ]
       ++ lib.optionals stdenv.isDarwin [
-        libiconv
+        pkgs.libiconv
         frameworks.CoreServices
-      ]);
-in
-  pkgs.mkShell {
-    packages = [
-      rust
-    ];
+      ];
   }
