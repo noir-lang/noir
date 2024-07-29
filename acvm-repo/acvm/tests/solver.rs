@@ -859,6 +859,12 @@ fn poseidon2_permutation_zeroes() {
     assert_eq!(result, expected_result);
 }
 
+// smoke test on zeroes
+#[test]
+fn sha256_compression_zeroes() {
+    assert!(false, "TODO");
+}
+
 // TODO: from blackbox binary op test PR
 prop_compose! {
     // Use both `u128` and hex proptest strategies
@@ -881,4 +887,11 @@ proptest! {
         let (result, expected_result) = run_both_poseidon2_permutations(inputs);
         prop_assert_eq!(result, expected_result)
     }
+
+    // test that varying one of the inputs produces a different result
+    #[test]
+    fn sha256_compression_injective() {
+        prop_assert!(false, "TODO");
+    }
+
 }
