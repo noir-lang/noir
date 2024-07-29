@@ -81,7 +81,7 @@ use dep::std::scalar_mul::fixed_base_embedded_curve;
 ```
 
 Lastly, as demonstrated in the
-[elliptic curve example](../standard_library/cryptographic_primitives/ec_primitives.md#examples), you
+[elliptic curve example](../standard_library/cryptographic_primitives/04_ec_primitives.md#examples), you
 can import multiple items in the same line by enclosing them in curly braces:
 
 ```rust

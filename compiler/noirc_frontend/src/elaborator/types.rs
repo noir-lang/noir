@@ -61,8 +61,8 @@ impl<'context> Elaborator<'context> {
         let (named_path_span, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
                 (
-                    Some(named_path.last_segment().span()),
-                    named_path.last_segment().is_self_type_name(),
+                    Some(named_path.last_ident().span()),
+                    named_path.last_ident().is_self_type_name(),
                     synthetic,
                 )
             } else {
@@ -221,7 +221,7 @@ impl<'context> Elaborator<'context> {
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if path.segments.len() == 1 {
-            let name = &path.last_segment().0.contents;
+            let name = path.last_name();
 
             if name == SELF_TYPE_NAME {
                 if let Some(self_type) = self.self_type.clone() {
@@ -352,7 +352,7 @@ impl<'context> Elaborator<'context> {
 
     pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
         if path.segments.len() == 1 {
-            let name = &path.last_segment().0.contents;
+            let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
                 let generic = generic.clone();
                 return Some(Type::NamedGeneric(generic.type_var, generic.name, generic.kind));
@@ -412,11 +412,12 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: &Path,
     ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
-        let trait_id = self.trait_id?;
+        let trait_impl = self.current_trait_impl?;
+        let trait_id = self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id;
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
-            let name = &path.segments[0].0.contents;
-            let method = &path.segments[1];
+            let name = &path.segments[0].ident.0.contents;
+            let method = &path.segments[1].ident;
 
             if name == SELF_TYPE_NAME {
                 let the_trait = self.interner.get_trait(trait_id);
@@ -449,7 +450,7 @@ impl<'context> Elaborator<'context> {
         let meta = self.interner.function_meta(&func_id);
         let trait_id = meta.trait_id?;
         let the_trait = self.interner.get_trait(trait_id);
-        let method = the_trait.find_method(&path.last_segment().0.contents)?;
+        let method = the_trait.find_method(path.last_name())?;
         let constraint = TraitConstraint {
             typ: Type::TypeVariable(the_trait.self_type_typevar.clone(), TypeVariableKind::Normal),
             trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
@@ -477,14 +478,12 @@ impl<'context> Elaborator<'context> {
         for constraint in self.trait_bounds.clone() {
             if let Type::NamedGeneric(_, name, _) = &constraint.typ {
                 // if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                if path.segments[0].0.contents != name.as_str() {
+                if path.segments[0].ident.0.contents != name.as_str() {
                     continue;
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_id);
-                if let Some(method) =
-                    the_trait.find_method(path.segments.last().unwrap().0.contents.as_str())
-                {
+                if let Some(method) = the_trait.find_method(path.last_name()) {
                     return Some((method, constraint, true));
                 }
             }
@@ -1615,6 +1614,20 @@ impl<'context> Elaborator<'context> {
         let context = self.function_context.last_mut();
         let context = context.expect("The function_context stack should always be non-empty");
         context.trait_constraints.push((constraint, expr_id));
+    }
+
+    pub fn check_unsupported_turbofish_usage(&mut self, path: &Path, exclude_last_segment: bool) {
+        for (index, segment) in path.segments.iter().enumerate() {
+            if exclude_last_segment && index == path.segments.len() - 1 {
+                continue;
+            }
+
+            if segment.generics.is_some() {
+                // From "foo::<T>", create a span for just "::<T>"
+                let span = Span::from(segment.ident.span().end()..segment.span.end());
+                self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
+            }
+        }
     }
 }
 

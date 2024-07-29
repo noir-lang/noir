@@ -2537,3 +2537,76 @@ fn trait_constraint_on_tuple_type() {
         fn main() {}"#;
     assert_no_errors(src);
 }
+
+#[test]
+fn turbofish_in_constructor_generics_mismatch() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let _ = Foo::<i32, i64> { x: 1 };
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::GenericCountMismatch { .. }),
+    ));
+}
+
+#[test]
+fn turbofish_in_constructor() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let x: Field = 0;
+        let _ = Foo::<i32> { x: x };
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ, expr_typ, ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "i32");
+    assert_eq!(expr_typ, "Field");
+}
+
+#[test]
+fn turbofish_in_middle_of_variable_unsupported_yet() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    impl <T> Foo<T> {
+        fn new(x: T) -> Self {
+            Foo { x }
+        }
+    }
+
+    fn main() {
+        let _ = Foo::<i32>::new(1);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::UnsupportedTurbofishUsage { .. }),
+    ));
+}

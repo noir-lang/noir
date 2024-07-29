@@ -1,6 +1,7 @@
+use super::path::path_no_turbofish;
 use super::primitives::token_kind;
 use super::{
-    expression_with_precedence, keyword, nothing, parenthesized, path, NoirParser, ParserError,
+    expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
     ParserErrorReason, Precedence,
 };
 use crate::ast::{
@@ -180,7 +181,7 @@ pub(super) fn int_type() -> impl NoirParser<UnresolvedType> {
 pub(super) fn named_type<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<UnresolvedType> + 'a {
-    path().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
+    path_no_turbofish().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
         UnresolvedTypeData::Named(path, args, false).with_span(span)
     })
 }
@@ -188,12 +189,21 @@ pub(super) fn named_type<'a>(
 pub(super) fn named_trait<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<UnresolvedType> + 'a {
-    keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
-        |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
-    )
+    keyword(Keyword::Impl)
+        .ignore_then(path_no_turbofish())
+        .then(generic_type_args(type_parser))
+        .map_with_span(|(path, args), span| {
+            UnresolvedTypeData::TraitAsType(path, args).with_span(span)
+        })
 }
 
 pub(super) fn generic_type_args<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
+    required_generic_type_args(type_parser).or_not().map(Option::unwrap_or_default)
+}
+
+pub(super) fn required_generic_type_args<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
     type_parser
@@ -208,8 +218,6 @@ pub(super) fn generic_type_args<'a>(
         .allow_trailing()
         .at_least(1)
         .delimited_by(just(Token::Less), just(Token::Greater))
-        .or_not()
-        .map(Option::unwrap_or_default)
 }
 
 pub(super) fn array_type<'a>(
@@ -241,7 +249,7 @@ fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
 
 /// This parser is the same as `type_expression()`, however, it continues parsing and
 /// emits a parser error in the case of an invalid type expression rather than halting the parser.
-fn type_expression_validated() -> impl NoirParser<UnresolvedType> {
+pub(super) fn type_expression_validated() -> impl NoirParser<UnresolvedType> {
     type_expression_inner().validate(|expr, span, emit| {
         let type_expr = UnresolvedTypeExpression::from_expr(expr, span);
         match type_expr {

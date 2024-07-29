@@ -46,6 +46,7 @@ use crate::ast::{
 use crate::lexer::{lexer::from_spanned_token_result, Lexer};
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Keyword, Token, TokenKind};
+use acvm::AcirField;
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
@@ -70,7 +71,7 @@ lalrpop_mod!(pub noir_parser);
 mod test_helpers;
 
 use literals::literal;
-use path::{maybe_empty_path, path};
+use path::{maybe_empty_path, path, path_no_turbofish};
 use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
 use traits::where_clause;
 
@@ -217,9 +218,8 @@ fn top_level_statement<'a>(
 ///
 /// implementation: 'impl' generics type '{' function_definition ... '}'
 fn implementation() -> impl NoirParser<TopLevelStatement> {
-    maybe_comp_time()
-        .then_ignore(keyword(Keyword::Impl))
-        .then(function::generics())
+    keyword(Keyword::Impl)
+        .ignore_then(function::generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
@@ -227,14 +227,13 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::RightBrace))
         .map(|args| {
             let ((other_args, where_clause), methods) = args;
-            let ((is_comptime, generics), (object_type, type_span)) = other_args;
+            let (generics, (object_type, type_span)) = other_args;
             TopLevelStatement::Impl(TypeImpl {
                 generics,
                 object_type,
                 type_span,
                 where_clause,
                 methods,
-                is_comptime,
             })
         })
 }
@@ -432,8 +431,8 @@ fn rename() -> impl NoirParser<Option<Ident>> {
 
 fn use_tree() -> impl NoirParser<UseTree> {
     recursive(|use_tree| {
-        let simple = path().then(rename()).map(|(mut prefix, alias)| {
-            let ident = prefix.pop();
+        let simple = path_no_turbofish().then(rename()).map(|(mut prefix, alias)| {
+            let ident = prefix.pop().ident;
             UseTree { prefix, kind: UseTreeKind::Path(ident, alias) }
         });
 
@@ -645,19 +644,28 @@ where
     })
 }
 
+fn call_data() -> impl NoirParser<Visibility> {
+    keyword(Keyword::CallData).then(parenthesized(literal())).validate(|token, span, emit| {
+        match token {
+            (_, ExpressionKind::Literal(Literal::Integer(x, _))) => {
+                let id = x.to_u128() as u32;
+                Visibility::CallData(id)
+            }
+            _ => {
+                emit(ParserError::with_reason(ParserErrorReason::InvalidCallDataIdentifier, span));
+                Visibility::CallData(0)
+            }
+        }
+    })
+}
+
 fn optional_visibility() -> impl NoirParser<Visibility> {
     keyword(Keyword::Pub)
-        .or(keyword(Keyword::CallData))
-        .or(keyword(Keyword::ReturnData))
+        .map(|_| Visibility::Public)
+        .or(call_data())
+        .or(keyword(Keyword::ReturnData).map(|_| Visibility::ReturnData))
         .or_not()
-        .map(|opt| match opt {
-            Some(Token::Keyword(Keyword::Pub)) => Visibility::Public,
-            Some(Token::Keyword(Keyword::CallData)) | Some(Token::Keyword(Keyword::ReturnData)) => {
-                Visibility::DataBus
-            }
-            None => Visibility::Private,
-            _ => unreachable!("unexpected token found"),
-        })
+        .map(|opt| opt.unwrap_or(Visibility::Private))
 }
 
 pub fn expression() -> impl ExprParser {

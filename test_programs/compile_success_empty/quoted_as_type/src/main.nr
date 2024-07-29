@@ -7,7 +7,7 @@ comptime fn macro() -> Quoted {
     quote { let foo: $typ = Foo {}; foo }
 }
 
-comptime struct Foo<T> {}
+struct Foo<T> {}
 
 // Ensure we call the Foo<Field> impl
 impl Foo<u32> {
