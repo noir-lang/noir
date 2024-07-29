@@ -6,12 +6,6 @@ All the packages that make up [Aztec](https://docs.aztec.network).
 - [**`yarn-project`**](/yarn-project): Typescript code for client and backend
 - [**`docs`**](/docs): Documentation source for the docs site
 
-## Getting Started
-
-Want to start quickly? Get started in minutes with a free Github Codespace.
-
-[![One-Click React Starter](.devcontainer/assets/react_cta_badge.svg)](https://codespaces.new/AztecProtocol/aztec-packages?devcontainer_path=.devcontainer%2Freact%2Fdevcontainer.json) [![One-Click HTML/TS Starter](.devcontainer/assets/vanilla_cta_badge.svg)](https://codespaces.new/AztecProtocol/aztec-packages?devcontainer_path=.devcontainer%2Fvanilla%2Fdevcontainer.json) [![One-Click Token Starter](.devcontainer/assets/token_cta_badge.svg)](https://codespaces.new/AztecProtocol/aztec-packages?devcontainer_path=.devcontainer%2Ftoken%2Fdevcontainer.json)
-
 ## Popular packages
 
 - [Aztec.nr](./noir-projects/aztec-nr/): A [Noir](https://noir-lang.org) framework for smart contracts on Aztec.
@@ -23,7 +17,7 @@ Want to start quickly? Get started in minutes with a free Github Codespace.
 
 ## Issues Board
 
-All issues being worked on are tracked on the [Aztec Github Project](https://github.com/orgs/AztecProtocol/projects/22). For a higher-level roadmap, check the [milestones overview](https://docs.aztec.network/misc/roadmap/main) section of our docs.
+All issues being worked on are tracked on the [Aztec Github Project](https://github.com/orgs/AztecProtocol/projects/22). For a higher-level roadmap, check the [milestones overview](https://docs.aztec.network/aztec/roadmap) section of our docs.
 
 ## Development Setup
 

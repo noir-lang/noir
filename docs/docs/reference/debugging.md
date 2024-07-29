@@ -3,20 +3,21 @@ title: Debugging
 sidebar_position: 2
 ---
 
-On this section you can learn how to debug your Aztec.nr smart contracts and common errors that you may run into.
+## Logging in Aztec.nr
 
-# Logging in Aztec.nr
+On this section you can learn how to debug your Aztec.nr smart contracts and common errors that you may run into.
 
 You can log statements from Aztec.nr contracts that will show ups in the Sandbox.
 
-**Import debug_log**
+### Import `debug_log`
+
 Import the [`debug_log`](https://github.com/AztecProtocol/aztec-packages/blob/master/noir-projects/aztec-nr/aztec/src/oracle/debug_log.nr) dependency from Aztec oracles:
 
 ```rust
 use dep::aztec::oracle::debug_log::{ debug_log };
 ```
 
-**Write log**
+### Write log
 
 Write `debug_log()` in the appropriate place in your contract.
 
@@ -44,7 +45,7 @@ debug_log_field(my_field);
 debug_log_array(my_array);
 ```
 
-**Start Sandbox in debug mode**
+### Start Sandbox in debug mode
 
 Prepend the command to start the sandbox with `DEBUG=aztec:*` to log everything or `DEBUG=aztec:simulator:oracle` to only log your `debug_log()` statements.
 

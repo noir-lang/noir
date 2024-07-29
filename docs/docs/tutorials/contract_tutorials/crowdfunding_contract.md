@@ -26,9 +26,9 @@ Along the way you will:
 
 ### Install tools
 
-Please ensure that the you already have [Installed the Sandbox](https://docs.aztec.network/developers/getting_started/quickstart#install-the-sandbox).
+Please ensure that the you already have [Installed the Sandbox](../../getting_started.md).
 
-And if using VSCode, see [here](https://docs.aztec.network/developers/contracts/main.md#install-noir-lsp-recommended) to install Noir LSP, where you'll benefit from syntax highlighting, profiling, and more.
+And if using VSCode, see [here](../../getting_started.md#install-noir-lsp-recommended) to install Noir LSP, where you'll benefit from syntax highlighting, profiling, and more.
 
 ### Create an Aztec project
 
@@ -95,10 +95,11 @@ aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_
 ```
 
 A word about versions:
+
 - Choose the aztec packages version to match your aztec sandbox version
 - Check that your `compiler_version` in Nargo.toml is satisified by your aztec compiler - `aztec-nargo -V`
 
-More about versions [here](https://docs.aztec.network/developers/versions-updating).
+More about versions [here](../../guides/local_env/versions-updating.md).
 
 Inside the Crowdfunding contract definition, use the dependency that defines the address type `AztecAddress` (same syntax as Rust)
 
@@ -108,7 +109,6 @@ use dep::aztec::protocol_types::address::AztecAddress;
 
 The `aztec::protocol_types` can be browsed [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/crates/types/src). And like rust dependencies, the relative path inside the dependency corresponds to `address::AztecAddress`.
 
-
 #### Storage
 
 To retain the initializer parameters in the contract's Storage, we'll need to declare them in a preceding `Storage` struct:
@@ -116,8 +116,6 @@ To retain the initializer parameters in the contract's Storage, we'll need to de
 #include_code storage /noir-projects/noir-contracts/contracts/crowdfunding_contract/src/main.nr rust
 
 The `ValueNote` type is in the top-level of the Aztec.nr framework, namely [noir-projects/aztec-nr](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/value-note/src/value_note.nr). Like before, you'll need to add the crate to Nargo.toml
-
-(See [here](https://docs.aztec.network/developers/contracts/resources/dependencies) for common dependencies).
 
 ---
 
@@ -137,7 +135,7 @@ You can compile the code so far with `aztec-nargo compile`.
 
 #### Checking campaign duration against the timestamp
 
-To check that the donation occurs before the campaign deadline, we must access the public `timestamp`. It is one of several [Public Global Variables](https://docs.aztec.network/developers/contracts/references/globals#public-global-variables).
+To check that the donation occurs before the campaign deadline, we must access the public `timestamp`. It is one of several [Public Global Variables](../../reference/smart_contract_reference/globals).
 
 Declare an Aztec function that is public and internal
 
@@ -153,7 +151,7 @@ Read the deadline from storage and assert that the `timestamp` from this context
 
 ---
 
-Since donations are to be private, the donate function will have the user's private context which has these [Private Global Variables](https://docs.aztec.network/developers/contracts/references/globals#private-global-variables). So from the private context there is a little extra to call the (public internal) `_check_deadline` function.
+Since donations are to be private, the donate function will have the user's private context which has these [Private Global Variables](../../reference/smart_contract_reference/globals.md). So from the private context there is a little extra to call the (public internal) `_check_deadline` function.
 
 ```rust
 #include_code call-check-deadline /noir-projects/noir-contracts/contracts/crowdfunding_contract/src/main.nr raw
@@ -169,7 +167,6 @@ Now conclude adding all dependencies to the `Crowdfunding` contract:
 
 Like before, you can find these and other `aztec::protocol_types` [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-protocol-circuits/crates/types/src).
 
-
 #### Interfacing with another contract
 
 The token being used for donations is stored simply as an `AztecAddress` (named `donation_token`). so to easily use it as a token, we let the compiler know that we want the address to have a Token interface. Here we will use a maintained example Token contract.
@@ -180,7 +177,7 @@ Add this `Token` contract to Nargo.toml:
 token = { git="https://github.com/AztecProtocol/aztec-packages/", tag="#include_aztec_version", directory="noir-projects/noir-contracts/contracts/token_contract" }
 ```
 
-With the dependency already `use`d at the start of the contract, the token contract can be called to make the transfer from msg sender to this contract. 
+With the dependency already `use`d at the start of the contract, the token contract can be called to make the transfer from msg sender to this contract.
 
 :::note
 The user must have authorised this action (concept [here](../../aztec/concepts/accounts/index.md#authorizing-actions)), example use of `createAuthWit` in 'full donor flow' test [here](../../../../yarn-project/end-to-end/src/e2e_crowdfunding_and_claim.test.ts).
@@ -195,11 +192,12 @@ The last thing to do is create a new value note and add it to the `donation_rece
 ### 3. Operator withdrawals
 
 The remaining function to implement, `withdraw`, is reasonably straight-forward:
+
 1. make sure the address calling is the operator address
 2. transfer tokens from the contract to the operator
 3. reveal that an amount has been withdrawn to the operator
 
-The last point is achieved by emitting an unencrypted event log, more [here](https://docs.aztec.network/developers/contracts/writing_contracts/events/emit_event#unencrypted-events).
+The last point is achieved by emitting an unencrypted event log, more [here](../../guides/smart_contracts/writing_contracts/how_to_emit_event.md#unencrypted-events).
 
 Copy the last function into your Crowdfunding contract:
 
