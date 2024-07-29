@@ -239,6 +239,7 @@ impl<'context> Elaborator<'context> {
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
             let type_alias = type_alias.borrow();
+            let actual_generic_count = args.len();
             let expected_generic_count = type_alias.generics.len();
             let type_alias_string = type_alias.to_string();
             let id = type_alias.id;
@@ -247,9 +248,13 @@ impl<'context> Elaborator<'context> {
                 self.resolve_type_inner(arg, &generic.kind)
             });
 
-            self.verify_generics_count(expected_generic_count, &mut args, span, || {
-                type_alias_string
-            });
+            self.verify_generics_count(
+                expected_generic_count,
+                actual_generic_count,
+                &mut args,
+                span,
+                || type_alias_string,
+            );
 
             if let Some(item) = self.current_item {
                 self.interner.add_type_alias_dependency(item, id);
@@ -279,6 +284,8 @@ impl<'context> Elaborator<'context> {
                 }
 
                 let expected_generic_count = struct_type.borrow().generics.len();
+                let actual_generic_count = args.len();
+
                 if !self.in_contract()
                     && self
                         .interner
@@ -296,9 +303,13 @@ impl<'context> Elaborator<'context> {
                         self.resolve_type_inner(arg, &generic.kind)
                     });
 
-                self.verify_generics_count(expected_generic_count, &mut args, span, || {
-                    struct_type.borrow().to_string()
-                });
+                self.verify_generics_count(
+                    expected_generic_count,
+                    actual_generic_count,
+                    &mut args,
+                    span,
+                    || struct_type.borrow().to_string(),
+                );
 
                 if let Some(current_item) = self.current_item {
                     let dependency_id = struct_type.borrow().id;
@@ -333,15 +344,16 @@ impl<'context> Elaborator<'context> {
     fn verify_generics_count(
         &mut self,
         expected_count: usize,
+        actual_count: usize,
         args: &mut Vec<Type>,
         span: Span,
         type_name: impl FnOnce() -> String,
     ) {
-        if args.len() != expected_count {
+        if actual_count != expected_count {
             self.push_err(ResolverError::IncorrectGenericCount {
                 span,
                 item_name: type_name(),
-                actual: args.len(),
+                actual: actual_count,
                 expected: expected_count,
             });
 

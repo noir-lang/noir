@@ -2610,3 +2610,55 @@ fn turbofish_in_middle_of_variable_unsupported_yet() {
         CompilationError::TypeError(TypeCheckError::UnsupportedTurbofishUsage { .. }),
     ));
 }
+
+#[test]
+fn incorrect_generic_count_on_struct_impl() {
+    let src = r#"
+    struct Foo {}
+
+    impl <T> Foo<T> {}
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
+        actual,
+        expected,
+        ..
+    }) = errors[0].0
+    else {
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(actual, 1);
+    assert_eq!(expected, 0);
+}
+
+#[test]
+fn incorrect_generic_count_on_type_alias() {
+    let src = r#"
+    struct Foo {}
+
+    type Bar = Foo<i32>;
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
+        actual,
+        expected,
+        ..
+    }) = errors[0].0
+    else {
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(actual, 1);
+    assert_eq!(expected, 0);
+}
