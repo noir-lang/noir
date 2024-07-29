@@ -1,7 +1,10 @@
 fn main() {
     let (first, rest) = split_first([1, 2, 3, 4]);
-    println(first);
-    println(rest);
+    assert_eq(first, 1);
+    assert_eq(rest, [2, 3, 4]);
+
+    // Type inference works without the type constraints from assert_eq as well
+    let _ = split_first([1, 2, 3]);
 }
 
 fn split_first<T, let N: u32>(array: [T; N]) -> (T, [T; N - 1]) {
