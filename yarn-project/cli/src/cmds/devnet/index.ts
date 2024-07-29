@@ -6,8 +6,8 @@ import { ETHEREUM_HOST, l1ChainIdOption, parseEthereumAddress, pxeOption } from 
 
 export function injectCommands(program: Command, log: LogFn, debugLogger: DebugLogger) {
   program
-    .command('bootstrap-devnet')
-    .description('Bootstrap the devnet')
+    .command('bootstrap-network')
+    .description('Bootstrap a new network')
     .addOption(pxeOption)
     .addOption(l1ChainIdOption)
     .requiredOption(

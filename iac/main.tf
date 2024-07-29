@@ -12,6 +12,11 @@ terraform {
   }
 }
 
+provider "aws" {
+  profile = "default"
+  region  = "eu-west-2"
+}
+
 data "terraform_remote_state" "setup_iac" {
   backend = "s3"
   config = {
@@ -21,9 +26,13 @@ data "terraform_remote_state" "setup_iac" {
   }
 }
 
-provider "aws" {
-  profile = "default"
-  region  = "eu-west-2"
+data "terraform_remote_state" "aztec2_iac" {
+  backend = "s3"
+  config = {
+    bucket = "aztec-terraform"
+    key    = "aztec2/iac"
+    region = "eu-west-2"
+  }
 }
 
 # Allocate Elastic IPs for each subnet
@@ -68,5 +77,51 @@ resource "aws_security_group" "security-group-p2p" {
 
   tags = {
     Name = "allow-p2p"
+  }
+}
+
+# static.aztec.network resources
+resource "aws_s3_bucket" "contract_addresses" {
+  bucket = "static.aztec.network"
+
+  website {
+    index_document = "index.html"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "addresses_public_access" {
+  bucket = aws_s3_bucket.contract_addresses.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "addresses_bucket_policy" {
+  bucket = aws_s3_bucket.contract_addresses.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "arn:aws:s3:::${aws_s3_bucket.contract_addresses.id}/*"
+      }
+    ]
+  })
+}
+
+resource "aws_route53_record" "static" {
+  zone_id = data.terraform_remote_state.aztec2_iac.outputs.aws_route53_zone_id
+  name    = "static.aztec.network"
+  type    = "A"
+
+  alias {
+    name                   = aws_s3_bucket.contract_addresses.website_domain
+    zone_id                = aws_s3_bucket.contract_addresses.hosted_zone_id
+    evaluate_target_health = true
   }
 }

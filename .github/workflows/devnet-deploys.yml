@@ -14,6 +14,7 @@ env:
   L1_CHAIN_ID: 677692
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  CONTRACT_S3_BUCKET: s3://static.aztec.network
   # TF Vars
   TF_VAR_DOCKERHUB_ACCOUNT: aztecprotocol
   TF_VAR_L1_CHAIN_ID: 677692
@@ -29,7 +30,6 @@ env:
   TF_VAR_FAUCET_ACCOUNT_INDEX: 9
   TF_VAR_BOT_API_KEY: ${{ secrets.BOT_API_KEY }}
   TF_VAR_BOT_PRIVATE_KEY: ${{ secrets.BOT_PRIVATE_KEY }}
-  CONTRACT_S3_BUCKET: s3://aztec-devnet-deployments
 
 jobs:
   setup:
@@ -127,14 +127,14 @@ jobs:
             --rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
             --l1-chain-id ${{ env.L1_CHAIN_ID }} \
             --json \
-            | tee  ./l1-contract_addresses.json
+            | tee  ./l1_contracts.json
 
           # upload contract addresses to S3
-          aws s3 cp ./l1-contract_addresses.json ${{ env.CONTRACT_S3_BUCKET }}/l1_contract_addresses.json
+          aws s3 cp ./l1_contracts.json ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/l1_contracts.json
 
           # export contract addresses so they can be used by subsequent terraform deployments
           function extract() {
-            jq -r ".$1" ./l1-contract_addresses.json
+            jq -r ".$1" ./l1_contracts.json
           }
 
           echo "TF_VAR_ROLLUP_CONTRACT_ADDRESS=$(extract rollupAddress)" >>$GITHUB_ENV
@@ -209,22 +209,22 @@ jobs:
             --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
             --l1-chain-id ${{ env.L1_CHAIN_ID }} \
             --json \
-            | tee  ./protocol-contracts.json
+            | tee  ./protocol_contracts.json
 
-          aws s3 cp ./protocol-contracts.json ${{ env.CONTRACT_S3_BUCKET }}/protocol-contracts.json
+          aws s3 cp ./protocol_contracts.json ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/protocol_contracts.json
 
-      - name: Bootstrap devnet
+      - name: Bootstrap network
         run: |
           set -e
-          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} bootstrap-devnet \
+          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} bootstrap-network \
             --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
             --l1-rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
             --l1-chain-id ${{ env.L1_CHAIN_ID }} \
             --l1-private-key ${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }} \
             --json \
-            | tee ./devnet-contracts.json
+            | tee ./basic_contracts.json
 
-          aws s3 cp ./devnet-contracts.json ${{ env.CONTRACT_S3_BUCKET }}/devnet-contracts.json
+          aws s3 cp ./basic_contracts.json ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/basic_contracts.json
 
   deploy-faucet:
     runs-on: ubuntu-latest
@@ -249,11 +249,11 @@ jobs:
       - name: Retrieve contract addresses
         run: |
           set -e
-          aws s3 cp ${{ env.CONTRACT_S3_BUCKET }}/l1_contract_addresses.json ./l1-contract_addresses.json
-          aws s3 cp ${{ env.CONTRACT_S3_BUCKET }}/devnet-contracts.json ./devnet-contracts.json
+          aws s3 cp ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/l1_contracts.json ./l1_contracts.json
+          aws s3 cp ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/basic_contracts.json ./basic_contracts.json
 
-          echo "TF_VAR_GAS_TOKEN_CONTRACT_ADDRESS=$(jq -r '.gasTokenAddress' ./l1-contract_addresses.json)" >>$GITHUB_ENV
-          echo "TF_VAR_DEV_COIN_CONTRACT_ADDRESS=$(jq -r '.devCoinL1' ./devnet-contracts.json)" >>$GITHUB_ENV
+          echo "TF_VAR_GAS_TOKEN_CONTRACT_ADDRESS=$(jq -r '.gasTokenAddress' ./l1_contracts.json)" >>$GITHUB_ENV
+          echo "TF_VAR_DEV_COIN_CONTRACT_ADDRESS=$(jq -r '.devCoinL1' ./basic_contracts.json)" >>$GITHUB_ENV
 
       - name: Deploy Faucet
         working-directory: ./yarn-project/aztec-faucet
