@@ -461,6 +461,18 @@ pub struct PathSegment {
     pub span: Span,
 }
 
+impl PathSegment {
+    /// Returns the span where turbofish happen. For example:
+    ///
+    ///    foo::<T>
+    ///       ~^^^^
+    ///
+    /// Returns an empty span at the end of `foo` if there's no turbofish.
+    pub fn turbofish_span(&self) -> Span {
+        Span::from(self.ident.span().end()..self.span.end())
+    }
+}
+
 impl From<Ident> for PathSegment {
     fn from(ident: Ident) -> PathSegment {
         let span = ident.span();
