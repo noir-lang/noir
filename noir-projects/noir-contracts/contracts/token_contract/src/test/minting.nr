@@ -88,7 +88,7 @@ unconstrained fn mint_private_success() {
     utils::check_private_balance(token_contract_address, owner, mint_amount);
 }
 
-#[test(should_fail_with="Cannot return zero notes")]
+#[test(should_fail_with="Attempted to read past end of BoundedVec")]
 unconstrained fn mint_private_failure_double_spend() {
     // Setup without account contracts. We are not using authwits here, so dummy accounts are enough
     let (env, token_contract_address, owner, recipient) = utils::setup(/* with_account_contracts */ false);

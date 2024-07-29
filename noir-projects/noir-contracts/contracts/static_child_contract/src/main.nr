@@ -73,7 +73,7 @@ contract StaticChild {
             Option::none()
         ).set_limit(1);
         let notes = storage.a_private_value.get_notes(options);
-        notes.get_unchecked(0).value
+        notes.get(0).value
     }
 
     // Increments `current_value` by `new_value`

@@ -173,7 +173,7 @@ contract TokenBlacklist {
             Option::none()
         ).set_limit(1);
         let notes = pending_shields.get_notes(options);
-        let note = notes.get_unchecked(0);
+        let note = notes.get(0);
         // Remove the note from the pending shields set
         pending_shields.remove(note);
 

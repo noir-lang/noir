@@ -30,7 +30,7 @@ describe.skip('e2e_delegate_calls', () => {
 
       await expect(
         delegatedOnContract.methods.get_private_value(sentValue, wallet.getCompleteAddress().address).simulate(),
-      ).rejects.toThrow(`Assertion failed: Cannot return zero notes 'num_notes != 0'`);
+      ).rejects.toThrow(`Assertion failed: Attempted to read past end of BoundedVec 'num_notes != 0'`);
 
       expect(delegatorValue).toEqual(sentValue);
     });

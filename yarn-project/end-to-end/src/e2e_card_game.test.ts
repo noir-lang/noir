@@ -183,7 +183,7 @@ describe('e2e_card_game', () => {
           .join_game(GAME_ID, [cardToField(firstPlayerCollection[0]), cardToField(firstPlayerCollection[1])])
           .send()
           .wait(),
-      ).rejects.toThrow(`Assertion failed: Cannot return zero notes`);
+      ).rejects.toThrow(`Card not found`);
 
       const collection = await contract.methods.view_collection_cards(firstPlayer, 0).simulate({ from: firstPlayer });
       expect(boundedVecToArray(collection)).toHaveLength(1);

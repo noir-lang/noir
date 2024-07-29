@@ -475,7 +475,7 @@ contract Test {
         let mut options = NoteGetterOptions::new();
         options = options.select(TestNote::properties().value, secret_hash, Option::none()).set_limit(1);
         let notes = notes_set.get_notes(options);
-        let note = notes.get_unchecked(0);
+        let note = notes.get(0);
         notes_set.remove(note);
     }
 

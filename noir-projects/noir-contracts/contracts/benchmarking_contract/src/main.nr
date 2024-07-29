@@ -31,7 +31,7 @@ contract Benchmarking {
         let owner_notes = storage.notes.at(owner);
         let mut getter_options = NoteGetterOptions::new();
         let notes = owner_notes.get_notes(getter_options.set_limit(1).set_offset(index));
-        let note = notes.get_unchecked(0);
+        let note = notes.get(0);
         owner_notes.remove(note);
         increment(owner_notes, note.value, owner, outgoing_viewer);
     }

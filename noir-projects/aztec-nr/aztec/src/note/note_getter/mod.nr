@@ -133,7 +133,6 @@ fn constrain_get_notes_internal<Note, let N: u32, let M: u32, FILTER_ARGS>(
     // results in reduced gate counts when setting a limit value, since we guarantee that the limit is an upper bound
     // for the runtime length, and can therefore have fewer loop iterations.
     assert(notes.len() <= options.limit, "Got more notes than limit.");
-    assert(notes.len() != 0, "Cannot return zero notes");
 
     let mut prev_fields = [0; N];
     for i in 0..options.limit {

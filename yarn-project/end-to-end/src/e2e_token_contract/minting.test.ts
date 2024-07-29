@@ -101,7 +101,7 @@ describe('e2e_token_contract minting', () => {
           'The note has been destroyed.',
         );
         await expect(asset.methods.redeem_shield(accounts[0].address, amount, secret).simulate()).rejects.toThrow(
-          `Assertion failed: Cannot return zero notes`,
+          `Assertion failed: Attempted to read past end of BoundedVec`,
         );
       });
 

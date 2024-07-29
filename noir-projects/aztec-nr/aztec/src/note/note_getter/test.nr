@@ -96,15 +96,15 @@ fn collapses_notes_at_the_beginning_of_the_array() {
     assert_equivalent_vec_and_array(returned, expected);
 }
 
-#[test(should_fail_with="Cannot return zero notes")]
-fn rejects_zero_notes() {
+fn can_return_zero_notes() {
     let mut env = setup();
     let mut context = env.private();
 
     let opt_notes: [Option<MockNote>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] = [Option::none(); MAX_NOTE_HASH_READ_REQUESTS_PER_CALL];
 
     let options = NoteGetterOptions::new();
-    let _ = constrain_get_notes_internal(&mut context, storage_slot, opt_notes, options);
+    let returned = constrain_get_notes_internal(&mut context, storage_slot, opt_notes, options);
+    assert_eq(returned.len(), 0);
 }
 
 #[test(should_fail_with="Got more notes than limit.")]
