@@ -977,17 +977,8 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::Struct(def, args) => {
-                // Even though we later call `convert_type` on `fields`, it might be the types
-                // in `args` end up not being part of fields. For example:
-                //
-                //     struct Foo<let N: u32> {}
-                //
-                //     fn main() {
-                //         let _ = Foo {};
-                //     }
-                //
-                // In the above case args is `[N]` but fields is `[]`, so T will never be checked.
-                // However, we want the above program to not compile.
+                // Not all generic arguments may be used in a struct's fields so we have to check
+                // the arguments as well as the fields in case any need to be defaulted or are unbound.
                 for arg in args {
                     if let Some(error) = Self::check_type(arg, location) {
                         return Err(error);
