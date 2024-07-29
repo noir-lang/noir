@@ -43,7 +43,6 @@ impl<let N: u32> BigUint<N> {
         res
     }
 
-
     pub fn zero() -> Self {
         Self { blocks: [0 as u32; N] }
     }
@@ -55,13 +54,12 @@ impl<let N: u32> BigUint<N> {
     }
 
     pub fn from_le_bytes(bytes: [u8]) -> Self {
-        assert(bytes.len() as u32 <= 4*N);
-        
+        assert(bytes.len() as u32 <= 4 * N);
+
         let mut res = BigUint::zero();
         for i in 0..bytes.len() {
             let block_ind = (i as u32) / (4 as u32);
             let byte_ind = (i as u32) % (4 as u32);
-
 
             res.blocks[block_ind as Field] |= (bytes[i] as u32) << (byte_ind * 8) as u8;
         }
@@ -82,7 +80,7 @@ impl<let N: u32> BigUint<N> {
     pub fn from_Secpk1Fq(num: Secpk1Fq) -> Self {
         BigUint::from_le_bytes_32(BigUint::to_u8_32(num.to_le_bytes()))
     }
-    
+
     pub fn to_le_blocks(self: Self) -> [u32; N] {
         self.blocks
     }
@@ -93,7 +91,7 @@ impl<let N: u32> BigUint<N> {
 
     pub fn to_le_bytes_32(self: Self) -> [u8; 32] {
         let mut res = [0 as u8; 32];
-        let blocks = 8;  // 32 / 4
+        let blocks = 8; // 32 / 4
 
         for i in 0..blocks {
             let block_bytes = (self.blocks[i] as Field).to_le_bytes(4 as u32);
@@ -184,15 +182,22 @@ impl<let N: u32> BigUint<N> {
         assert(n < 32 as u8);
 
         let mut res = self;
-        let rshift = 32 as u8 - n;
-        let carry = if (n == 0) { 0 } else { self.blocks[N - 1] >> rshift };
+        let rshift = 32 - n;
+        let carry = if n == 0 {
+            0
+        } else {
+            self.blocks[N - 1] >> rshift
+        };
 
         if (n > 0) {
-            res.blocks[0] = self.blocks[0] << n as u8;
+            res.blocks[0] = self.blocks[0] << n;
             for i in 1..N {
                 res.blocks[i] = (self.blocks[i] << n) | (self.blocks[i - 1] >> rshift);
             }
         }
+
+        // Otherwise nargo fmt will panick
+        let res = res;
         (res, carry)
     }
 
@@ -212,7 +217,7 @@ impl<let N: u32> BigUint<N> {
     pub fn shl(self: Self, n: u32) -> Self {
         let mut res = BigUint::zero();
 
-        if n < 32*N {
+        if n < 32 * N {
             let shift_num = n / (32);
             let rem = n % (32);
 
@@ -228,9 +233,9 @@ impl<let N: u32> BigUint<N> {
 
     fn shr1(self: Self) -> Self {
         let mut res = self;
-        let lshift = 31 as u8;  // 32-1
+        let lshift = 31 as u8; // 32-1
 
-        for i in 0..N-1 {
+        for i in 0..N - 1 {
             res.blocks[i] = (self.blocks[i] >> 1) | (self.blocks[i + 1] << lshift);
         }
         res.blocks[N - 1] = self.blocks[N - 1] >> 1;
@@ -250,7 +255,7 @@ impl<let N: u32> BigUint<N> {
             let bit_diff = self.msb() - other.msb();
             let mut c = other.shl(bit_diff as u32);
 
-            for i in 0..32*N+1 {
+            for i in 0..32 * N + 1 {
                 if i <= bit_diff as u32 {
                     if rem.lt(c) {
                         quo = quo.shl1();
@@ -278,9 +283,9 @@ impl<let N: u32> BigUint<N> {
             let mut beg = zero;
             let mut end = mid;
             let mut done = false;
-            
+
             // Max number of bits
-            for _ in 0..32*N {
+            for _ in 0..32 * N {
                 if !done {
                     // shr1 replace .div(2) operation
                     mid = beg.add(end).shr1();
@@ -288,13 +293,11 @@ impl<let N: u32> BigUint<N> {
 
                     if (!high.eq(zero) | low.gt(self)) {
                         end = mid.sub(one);
+                    } else if (low.lt(self)) {
+                        beg = mid.add(one);
                     } else {
-                        if (low.lt(self)) {
-                            beg = mid.add(one);
-                        } else {
-                            done = true;
-                            beg = mid;
-                        }
+                        done = true;
+                        beg = mid;
                     }
                 }
             }
