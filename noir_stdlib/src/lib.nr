@@ -25,6 +25,7 @@ mod default;
 mod prelude;
 mod uint128;
 mod bigint;
+mod biguint;
 mod runtime;
 mod meta;
 mod append;
