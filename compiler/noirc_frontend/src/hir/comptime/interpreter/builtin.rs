@@ -32,6 +32,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         let interner = &mut self.elaborator.interner;
         match name {
             "array_len" => array_len(interner, arguments, location),
+            "array_as_str" => array_as_str(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
@@ -123,6 +124,16 @@ pub(super) fn get_field(value: Value, location: Location) -> IResult<FieldElemen
     }
 }
 
+fn get_u8(value: Value, location: Location) -> IResult<u8> {
+    match value {
+        Value::U8(value) => Ok(value),
+        value => {
+            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+            Err(InterpreterError::TypeMismatch { expected, value, location })
+        }
+    }
+}
+
 pub(super) fn get_u32(value: Value, location: Location) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
@@ -178,6 +189,19 @@ fn array_len(
             Err(InterpreterError::TypeMismatch { expected, value, location })
         }
     }
+}
+
+fn array_as_str(
+    interner: &NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let array = get_array(interner, arguments.pop().unwrap().0, location)?.0;
+    let string_bytes = try_vecmap(array, |byte| get_u8(byte, location))?;
+    let string = String::from_utf8_lossy(&string_bytes).into_owned();
+    Ok(Value::String(Rc::new(string)))
 }
 
 fn as_slice(

@@ -158,7 +158,7 @@ impl Context {
                     | Intrinsic::SliceRemove => true,
 
                     Intrinsic::ArrayLen
-                    | Intrinsic::ArrayToStrLossy
+                    | Intrinsic::ArrayAsStr
                     | Intrinsic::AssertConstant
                     | Intrinsic::StaticAssert
                     | Intrinsic::ApplyRangeConstraint

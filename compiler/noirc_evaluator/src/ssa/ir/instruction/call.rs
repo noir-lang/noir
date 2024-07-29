@@ -85,7 +85,7 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::ArrayToStrLossy => match simplify_array_to_str_lossy(dfg, arguments[0]) {
+        Intrinsic::ArrayAsStr => match simplify_array_to_str_lossy(dfg, arguments[0]) {
             Some(string) => SimplifyResult::SimplifiedTo(string),
             None => SimplifyResult::None,
         },

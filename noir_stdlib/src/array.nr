@@ -109,10 +109,10 @@ impl<T, let N: u32> [T; N] {
 }
 
 impl<let N: u32> [u8; N] {
-    /// Convert a UTF-8 encoded sequence of bytes into a string.
-    /// Replaces any invalid UTF-8 characters with a placeholder character.
-    #[builtin(array_to_str_lossy)]
-    pub fn as_str_lossy(self) -> str<N> {}
+    /// Convert a sequence of bytes as-is into a string.
+    /// This function performs no UTF-8 validation or similar.
+    #[builtin(array_as_str)]
+    pub fn as_str(self) -> str<N> {}
 }
 
 // helper function used to look up the position of a value in an array of Field
