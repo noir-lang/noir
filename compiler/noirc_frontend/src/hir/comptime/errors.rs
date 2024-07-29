@@ -49,7 +49,7 @@ pub enum InterpreterError {
     DebugEvaluateComptime { diagnostic: CustomDiagnostic, location: Location },
     FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
     UnsupportedTopLevelItemUnquote { item: String, location: Location },
-    NonComptimeFnCallInSameCrate { function: String, location: Location },
+    ComptimeDependencyCycle { function: String, location: Location },
     NoImpl { location: Location },
     NoMatchingImplFound { error: NoMatchingImplFoundError, file: FileId },
     ImplMethodTypeMismatch { expected: Type, actual: Type, location: Location },
@@ -112,7 +112,7 @@ impl InterpreterError {
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
-            | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
+            | InterpreterError::ComptimeDependencyCycle { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::NoImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
@@ -342,10 +342,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 error.add_note(format!("Unquoted item was:\n{item}"));
                 error
             }
-            InterpreterError::NonComptimeFnCallInSameCrate { function, location } => {
-                let msg = format!("`{function}` cannot be called in a `comptime` context here");
+            InterpreterError::ComptimeDependencyCycle { function, location } => {
+                let msg = format!("Comptime dependency cycle while resolving `{function}`");
                 let secondary =
-                    "This function must be `comptime` or in a separate crate to be called".into();
+                    "This function uses comptime code internally which calls into itself".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::Unimplemented { item, location } => {

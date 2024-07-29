@@ -18,6 +18,7 @@ use crate::monomorphization::{
     undo_instantiation_bindings,
 };
 use crate::token::Tokens;
+use crate::TypeVariable;
 use crate::{
     hir_def::{
         expr::{
@@ -53,6 +54,12 @@ pub struct Interpreter<'local, 'interner> {
     in_loop: bool,
 
     current_function: Option<FuncId>,
+
+    /// Maps each bound generic to each binding it has in the current callstack.
+    /// Since the interpreter monomorphizes as it interprets, we can bind over the same generic
+    /// multiple times. Without this map, when one of these inner functions exits we would
+    /// unbind the generic completely instead of resetting it to its previous binding.
+    bound_generics: Vec<HashMap<TypeVariable, Type>>,
 }
 
 #[allow(unused)]
@@ -62,26 +69,41 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         crate_id: CrateId,
         current_function: Option<FuncId>,
     ) -> Self {
-        Self { elaborator, crate_id, current_function, in_loop: false }
+        let bound_generics = Vec::new();
+        Self { elaborator, crate_id, current_function, bound_generics, in_loop: false }
     }
 
     pub(crate) fn call_function(
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
-        instantiation_bindings: TypeBindings,
+        mut instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
         let trait_method = self.elaborator.interner.get_trait_method_id(function);
 
+        // To match the monomorphizer, we need to call follow_bindings on each of
+        // the instantiation bindings before we unbind the generics from the previous function.
+        // This is because the instantiation bindings refer to variables from the call site.
+        for (_, binding) in instantiation_bindings.values_mut() {
+            *binding = binding.follow_bindings();
+        }
+
+        self.unbind_generics_from_previous_function();
         perform_instantiation_bindings(&instantiation_bindings);
-        let impl_bindings =
+        let mut impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
+        for (_, binding) in impl_bindings.values_mut() {
+            *binding = binding.follow_bindings();
+        }
+
+        self.remember_bindings(&instantiation_bindings, &impl_bindings);
         let result = self.call_function_inner(function, arguments, location);
 
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
+        self.rebind_generics_from_previous_function();
         result
     }
 
@@ -98,14 +120,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 actual: arguments.len(),
                 location,
             });
-        }
-
-        let is_comptime = self.elaborator.interner.function_modifiers(&function).is_comptime;
-        if !is_comptime && meta.source_crate == self.crate_id {
-            // Calling non-comptime functions from within the current crate is restricted
-            // as non-comptime items will have not been elaborated yet.
-            let function = self.elaborator.interner.function_name(&function).to_owned();
-            return Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location });
         }
 
         if meta.kind != FunctionKind::Normal {
@@ -159,7 +173,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     self.get_function_body(function, location)
                 } else {
                     let function = self.elaborator.interner.function_name(&function).to_owned();
-                    Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location })
+                    Err(InterpreterError::ComptimeDependencyCycle { function, location })
                 }
             }
         }
@@ -256,6 +270,42 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
         self.elaborator.comptime_scopes.last_mut().unwrap()
+    }
+
+    fn unbind_generics_from_previous_function(&mut self) {
+        if let Some(bindings) = self.bound_generics.last() {
+            for var in bindings.keys() {
+                var.unbind(var.id());
+            }
+        }
+        // Push a new bindings list for the current function
+        self.bound_generics.push(HashMap::default());
+    }
+
+    fn rebind_generics_from_previous_function(&mut self) {
+        // Remove the currently bound generics first.
+        self.bound_generics.pop();
+
+        if let Some(bindings) = self.bound_generics.last() {
+            for (var, binding) in bindings {
+                var.force_bind(binding.clone());
+            }
+        }
+    }
+
+    fn remember_bindings(&mut self, main_bindings: &TypeBindings, impl_bindings: &TypeBindings) {
+        let bound_generics = self
+            .bound_generics
+            .last_mut()
+            .expect("remember_bindings called with no bound_generics on the stack");
+
+        for (var, binding) in main_bindings.values() {
+            bound_generics.insert(var.clone(), binding.follow_bindings());
+        }
+
+        for (var, binding) in impl_bindings.values() {
+            bound_generics.insert(var.clone(), binding.follow_bindings());
+        }
     }
 
     pub(super) fn define_pattern(
