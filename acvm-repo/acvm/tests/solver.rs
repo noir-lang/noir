@@ -798,11 +798,13 @@ fn prop_assert_associative(
     x: (FieldElement, bool),
     y: (FieldElement, bool),
     z: (FieldElement, bool),
+    use_constant_xy: bool,
+    use_constant_yz: bool,
 ) -> (FieldElement, FieldElement) {
-    let f_xy = (solve_blackbox_func_call(&op, x, y), x.1 ^ y.1);
+    let f_xy = (solve_blackbox_func_call(&op, x, y), use_constant_xy);
     let f_f_xy_z = solve_blackbox_func_call(&op, f_xy, z);
 
-    let f_yz = (solve_blackbox_func_call(&op, y, z), y.1 ^ z.1);
+    let f_yz = (solve_blackbox_func_call(&op, y, z), use_constant_yz);
     let f_x_f_yz = solve_blackbox_func_call(&op, x, f_yz);
 
     (f_f_xy_z, f_x_f_yz)
@@ -858,14 +860,14 @@ proptest! {
     }
 
     #[test]
-    fn and_associative(x in field_element(), y in field_element(), z in field_element()) {
-        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z);
+    fn and_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
+        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z, use_constant_xy, use_constant_yz);
         prop_assert_eq!(lhs, rhs);
     }
 
     #[test]
-    fn xor_associative(x in field_element(), y in field_element(), z in field_element()) {
-        let (lhs, rhs) = prop_assert_associative(xor_op, x, y, z);
+    fn xor_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
+        let (lhs, rhs) = prop_assert_associative(xor_op, x, y, z, use_constant_xy, use_constant_yz);
         prop_assert_eq!(lhs, rhs);
     }
 
