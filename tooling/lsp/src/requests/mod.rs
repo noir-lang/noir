@@ -1,8 +1,6 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    future::Future,
-};
+use std::{collections::HashMap, future::Future};
 
+use crate::insert_all_files_for_workspace_into_file_manager;
 use crate::{
     parse_diff, resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
@@ -14,14 +12,9 @@ use lsp_types::{
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
     WorkDoneProgressOptions,
 };
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
-use noirc_frontend::{
-    graph::{CrateId, Dependency},
-    hir::def_map::CrateDefMap,
-    macros_api::NodeInterner,
-};
+use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -40,9 +33,11 @@ use crate::{
 // and params passed in.
 
 mod code_lens_request;
+mod document_symbol;
 mod goto_declaration;
 mod goto_definition;
 mod hover;
+mod inlay_hint;
 mod profile_run;
 mod references;
 mod rename;
@@ -51,8 +46,9 @@ mod tests;
 
 pub(crate) use {
     code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
-    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
+    document_symbol::on_document_symbol_request, goto_declaration::on_goto_declaration_request,
+    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
+    hover::on_hover_request, inlay_hint::on_inlay_hint_request,
     profile_run::on_profile_run_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request, test_run::on_test_run_request,
     tests::on_tests_request,
@@ -60,15 +56,39 @@ pub(crate) use {
 
 /// LSP client will send initialization request after the server has started.
 /// [InitializeParams].`initialization_options` will contain the options sent from the client.
-#[derive(Debug, Deserialize, Serialize)]
-struct LspInitializationOptions {
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct LspInitializationOptions {
     /// Controls whether code lens is enabled by the server
     /// By default this will be set to true (enabled).
     #[serde(rename = "enableCodeLens", default = "default_enable_code_lens")]
-    enable_code_lens: bool,
+    pub(crate) enable_code_lens: bool,
 
     #[serde(rename = "enableParsingCache", default = "default_enable_parsing_cache")]
-    enable_parsing_cache: bool,
+    pub(crate) enable_parsing_cache: bool,
+
+    #[serde(rename = "inlayHints", default = "default_inlay_hints")]
+    pub(crate) inlay_hints: InlayHintsOptions,
+}
+
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct InlayHintsOptions {
+    #[serde(rename = "typeHints", default = "default_type_hints")]
+    pub(crate) type_hints: TypeHintsOptions,
+
+    #[serde(rename = "parameterHints", default = "default_parameter_hints")]
+    pub(crate) parameter_hints: ParameterHintsOptions,
+}
+
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct TypeHintsOptions {
+    #[serde(rename = "enabled", default = "default_type_hints_enabled")]
+    pub(crate) enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct ParameterHintsOptions {
+    #[serde(rename = "enabled", default = "default_parameter_hints_enabled")]
+    pub(crate) enabled: bool,
 }
 
 fn default_enable_code_lens() -> bool {
@@ -79,11 +99,35 @@ fn default_enable_parsing_cache() -> bool {
     true
 }
 
+fn default_inlay_hints() -> InlayHintsOptions {
+    InlayHintsOptions {
+        type_hints: default_type_hints(),
+        parameter_hints: default_parameter_hints(),
+    }
+}
+
+fn default_type_hints() -> TypeHintsOptions {
+    TypeHintsOptions { enabled: default_type_hints_enabled() }
+}
+
+fn default_type_hints_enabled() -> bool {
+    true
+}
+
+fn default_parameter_hints() -> ParameterHintsOptions {
+    ParameterHintsOptions { enabled: default_parameter_hints_enabled() }
+}
+
+fn default_parameter_hints_enabled() -> bool {
+    true
+}
+
 impl Default for LspInitializationOptions {
     fn default() -> Self {
         Self {
             enable_code_lens: default_enable_code_lens(),
             enable_parsing_cache: default_enable_parsing_cache(),
+            inlay_hints: default_inlay_hints(),
         }
     }
 }
@@ -97,7 +141,7 @@ pub(crate) fn on_initialize(
         .initialization_options
         .and_then(|value| serde_json::from_value(value).ok())
         .unwrap_or_default();
-    state.parsing_cache_enabled = initialization_options.enable_parsing_cache;
+    state.options = initialization_options;
 
     async move {
         let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
@@ -141,6 +185,20 @@ pub(crate) fn on_initialize(
                         work_done_progress: None,
                     },
                 })),
+                inlay_hint_provider: Some(lsp_types::OneOf::Right(lsp_types::InlayHintOptions {
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                    resolve_provider: None,
+                })),
+                document_symbol_provider: Some(lsp_types::OneOf::Right(
+                    lsp_types::DocumentSymbolOptions {
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        label: Some("Noir".to_string()),
+                    },
+                )),
             },
             server_info: None,
         })
@@ -285,7 +343,6 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     interners: &'a HashMap<String, NodeInterner>,
     root_crate_name: String,
     root_crate_dependencies: &'a Vec<Dependency>,
-    def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
 }
 
 pub(crate) fn process_request<F, T>(
@@ -310,7 +367,11 @@ where
     let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    insert_all_files_for_workspace_into_file_manager(
+        state,
+        &workspace,
+        &mut workspace_file_manager,
+    );
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     let (mut context, crate_id) =
@@ -321,7 +382,7 @@ where
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, false, None);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
         interner = &context.def_interner;
     }
 
@@ -340,7 +401,6 @@ where
         interners: &state.cached_definitions,
         root_crate_name: package.name.to_string(),
         root_crate_dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
-        def_maps: &context.def_maps,
     }))
 }
 pub(crate) fn find_all_references_in_workspace(

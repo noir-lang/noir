@@ -44,7 +44,7 @@ pub(crate) fn generate_ssa(
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
-    let is_return_data = matches!(program.return_visibility, Visibility::DataBus);
+    let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
 
     let return_location = program.return_location;
     let context = SharedContext::new(program);

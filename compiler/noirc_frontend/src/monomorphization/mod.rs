@@ -1598,7 +1598,7 @@ impl<'interner> Monomorphizer<'interner> {
                 self.create_zeroed_function(parameter_types, ret_type, env, location)
             }
             ast::Type::Slice(element_type) => {
-                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
+                ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral {
                     contents: vec![],
                     typ: ast::Type::Slice(element_type.clone()),
                 }))

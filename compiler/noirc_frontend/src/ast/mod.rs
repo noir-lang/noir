@@ -301,15 +301,12 @@ impl UnresolvedTypeExpression {
     // This large error size is justified because it improves parsing speeds by around 40% in
     // release mode. See `ParserError` definition for further explanation.
     #[allow(clippy::result_large_err)]
-    pub fn from_expr(
+    pub(crate) fn from_expr(
         expr: Expression,
         span: Span,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
         Self::from_expr_helper(expr).map_err(|err_expr| {
-            ParserError::with_reason(
-                ParserErrorReason::InvalidArrayLengthExpression(err_expr),
-                span,
-            )
+            ParserError::with_reason(ParserErrorReason::InvalidTypeExpression(err_expr), span)
         })
     }
 
@@ -323,14 +320,11 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int, sign)) => {
-                assert!(!sign, "Negative literal is not allowed here");
-                match int.try_to_u32() {
-                    Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
-                    None => Err(expr),
-                }
-            }
-            ExpressionKind::Variable(path, _) => Ok(UnresolvedTypeExpression::Variable(path)),
+            ExpressionKind::Literal(Literal::Integer(int, _)) => match int.try_to_u32() {
+                Some(int) => Ok(UnresolvedTypeExpression::Constant(int, expr.span)),
+                None => Err(expr),
+            },
+            ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(0, expr.span));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
@@ -396,7 +390,9 @@ pub enum Visibility {
     Private,
     /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
     /// it is useful for recursion and is handled by the proving system.
-    DataBus,
+    /// The u32 value is used to group inputs having the same value.
+    CallData(u32),
+    ReturnData,
 }
 
 impl std::fmt::Display for Visibility {
@@ -404,7 +400,8 @@ impl std::fmt::Display for Visibility {
         match self {
             Self::Public => write!(f, "pub"),
             Self::Private => write!(f, "priv"),
-            Self::DataBus => write!(f, "databus"),
+            Self::CallData(id) => write!(f, "calldata{id}"),
+            Self::ReturnData => write!(f, "returndata"),
         }
     }
 }

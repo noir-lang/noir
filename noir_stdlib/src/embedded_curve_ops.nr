@@ -97,6 +97,9 @@ pub fn multi_scalar_mul<let N: u32>(
 // docs:end:multi_scalar_mul
 {}
 
+#[foreign(multi_scalar_mul)]
+pub(crate) fn multi_scalar_mul_slice(points: [EmbeddedCurvePoint], scalars: [EmbeddedCurveScalar]) -> [Field; 3] {}
+
 // docs:start:fixed_base_scalar_mul
 pub fn fixed_base_scalar_mul(
     scalar_low: Field,

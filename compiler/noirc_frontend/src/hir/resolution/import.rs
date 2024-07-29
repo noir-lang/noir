@@ -6,7 +6,7 @@ use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::ReferenceId;
 use std::collections::BTreeMap;
 
-use crate::ast::{Ident, ItemVisibility, Path, PathKind};
+use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 
 use super::errors::ResolverError;
@@ -163,7 +163,8 @@ fn resolve_path_to_ns(
 
             let current_mod_id = ModuleId { krate: crate_id, local_id: import_directive.module_id };
             let current_mod = &def_map.modules[current_mod_id.local_id.0];
-            let first_segment = import_path.first().expect("ice: could not fetch first segment");
+            let first_segment =
+                &import_path.first().expect("ice: could not fetch first segment").ident;
             if current_mod.find_name(first_segment).is_none() {
                 // Resolve externally when first segment is unresolved
                 return resolve_external_dep(
@@ -218,7 +219,7 @@ fn resolve_path_from_crate_root(
     crate_id: CrateId,
     importing_crate: CrateId,
 
-    import_path: &[Ident],
+    import_path: &[PathSegment],
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
 ) -> NamespaceResolutionResult {
@@ -235,7 +236,7 @@ fn resolve_path_from_crate_root(
 fn resolve_name_in_module(
     krate: CrateId,
     importing_crate: CrateId,
-    import_path: &[Ident],
+    import_path: &[PathSegment],
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
@@ -254,7 +255,7 @@ fn resolve_name_in_module(
         });
     }
 
-    let first_segment = import_path.first().expect("ice: could not fetch first segment");
+    let first_segment = &import_path.first().expect("ice: could not fetch first segment").ident;
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
@@ -262,6 +263,9 @@ fn resolve_name_in_module(
 
     let mut warning: Option<PathResolutionError> = None;
     for (last_segment, current_segment) in import_path.iter().zip(import_path.iter().skip(1)) {
+        let last_segment = &last_segment.ident;
+        let current_segment = &current_segment.ident;
+
         let (typ, visibility) = match current_ns.types {
             None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
             Some((typ, visibility, _)) => (typ, visibility),
@@ -324,7 +328,7 @@ fn resolve_name_in_module(
 
 fn resolve_path_name(import_directive: &ImportDirective) -> Ident {
     match &import_directive.alias {
-        None => import_directive.path.segments.last().unwrap().clone(),
+        None => import_directive.path.last_ident(),
         Some(ident) => ident.clone(),
     }
 }
@@ -340,7 +344,7 @@ fn resolve_external_dep(
     let path = &directive.path.segments;
 
     // Fetch the root module from the prelude
-    let crate_name = path.first().unwrap();
+    let crate_name = &path.first().unwrap().ident;
     let dep_module = current_def_map
         .extern_prelude
         .get(&crate_name.0.contents)
