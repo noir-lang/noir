@@ -2729,3 +2729,23 @@ fn incorrect_generic_count_on_type_alias() {
     assert_eq!(actual, 1);
     assert_eq!(expected, 0);
 }
+
+#[test]
+fn uses_self_for_struct_function_call() {
+    let src = r#"
+    struct S { }
+
+    impl S {
+        fn one() -> Field {
+            1
+        }
+
+        fn two() -> Field {
+            Self::one() + Self::one()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
