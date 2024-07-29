@@ -1,5 +1,5 @@
 use fxhash::FxHashMap as HashMap;
-use std::{borrow::Cow, collections::VecDeque, rc::Rc};
+use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::AcirField, acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
@@ -85,10 +85,8 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::ArrayAsStr => match simplify_array_to_str_lossy(dfg, arguments[0]) {
-            Some(string) => SimplifyResult::SimplifiedTo(string),
-            None => SimplifyResult::None,
-        },
+        // Strings are already arrays of bytes in SSA
+        Intrinsic::ArrayAsStr => SimplifyResult::SimplifiedTo(arguments[0]),
         Intrinsic::AsSlice => {
             let array = dfg.get_array_constant(arguments[0]);
             if let Some((array, array_type)) = array {
@@ -321,32 +319,6 @@ pub(super) fn simplify_call(
             } else {
                 unreachable!("Derive Pedersen Generators must return an array");
             }
-        }
-    }
-}
-
-fn simplify_array_to_str_lossy(dfg: &mut DataFlowGraph, value: ValueId) -> Option<ValueId> {
-    let array = dfg.get_array_constant(value)?.0;
-    let mut bytes = Vec::with_capacity(array.len());
-
-    for value in array {
-        let value = dfg.get_numeric_constant(value)?;
-        let char: u8 = value.try_to_u32().and_then(|x| x.try_into().ok())?;
-        bytes.push(char);
-    }
-
-    // Convert the string to UTF-8. If the string converted as-is with no changes then
-    // we can reuse the original value id since strings are represented as byte arrays in SSA.
-    match String::from_utf8_lossy(&bytes) {
-        Cow::Borrowed(_) => Some(value),
-        Cow::Owned(new_bytes) => {
-            let mut new_array = im::Vector::new();
-            for byte in new_bytes.bytes() {
-                let constant = (byte as u128).into();
-                new_array.push_back(dfg.make_constant(constant, Type::char()));
-            }
-            let typ = Type::str(new_array.len());
-            Some(dfg.make_array(new_array, typ))
         }
     }
 }
