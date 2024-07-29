@@ -115,9 +115,9 @@ function updateThrottle(asset: 'eth' | AssetName, address: Hex) {
 function getFaucetAccount(): LocalAccount {
   let account: LocalAccount;
   if (FORK_MNEMONIC) {
-    const accountIndex = Number.isNaN(+FAUCET_ACCOUNT_INDEX) ? 0 : +FAUCET_ACCOUNT_INDEX;
+    const index = Number.isNaN(+FAUCET_ACCOUNT_INDEX) ? 0 : +FAUCET_ACCOUNT_INDEX;
     account = mnemonicToAccount(FORK_MNEMONIC, {
-      accountIndex,
+      addressIndex: index,
     });
   } else if (PRIVATE_KEY) {
     account = privateKeyToAccount(PRIVATE_KEY as `0x${string}`);
