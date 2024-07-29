@@ -538,6 +538,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)
+        | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error
         | Type::TraitAsType(_, _, _)

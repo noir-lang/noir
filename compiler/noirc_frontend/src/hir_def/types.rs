@@ -646,7 +646,13 @@ impl std::fmt::Display for Type {
                 write!(f, "&mut {element}")
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
-            Type::InfixExpr(lhs, op, rhs) => write!(f, "({lhs} {op} {rhs})"),
+            Type::InfixExpr(lhs, op, rhs) => {
+                if let Some(value) = self.evaluate_to_u32() {
+                    write!(f, "{value}")
+                } else {
+                    write!(f, "({lhs} {op} {rhs})")
+                }
+            }
         }
     }
 }
@@ -1564,6 +1570,18 @@ impl Type {
                 }
             }
 
+            (Constant(value), other) | (other, Constant(value)) => {
+                if let Some(other_value) = other.evaluate_to_u32() {
+                    if *value == other_value {
+                        Ok(())
+                    } else {
+                        Err(UnificationError)
+                    }
+                } else {
+                    Err(UnificationError)
+                }
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1671,6 +1689,11 @@ impl Type {
             Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(*size),
             Type::Array(len, _elem) => len.evaluate_to_u32(),
             Type::Constant(x) => Some(*x),
+            Type::InfixExpr(lhs, op, rhs) => {
+                let lhs = lhs.evaluate_to_u32()?;
+                let rhs = rhs.evaluate_to_u32()?;
+                Some(op.function(lhs, rhs))
+            }
             _ => None,
         }
     }
@@ -2179,14 +2202,14 @@ fn convert_array_expression_to_slice(
 }
 
 impl BinaryTypeOperator {
-    /// Return the actual rust numeric function associated with this operator
-    pub fn function(self) -> fn(u32, u32) -> u32 {
+    /// Perform the actual rust numeric operation associated with this operator
+    pub fn function(self, a: u32, b: u32) -> u32 {
         match self {
-            BinaryTypeOperator::Addition => |a, b| a.wrapping_add(b),
-            BinaryTypeOperator::Subtraction => |a, b| a.wrapping_sub(b),
-            BinaryTypeOperator::Multiplication => |a, b| a.wrapping_mul(b),
-            BinaryTypeOperator::Division => |a, b| a.wrapping_div(b),
-            BinaryTypeOperator::Modulo => |a, b| a.wrapping_rem(b), // % b,
+            BinaryTypeOperator::Addition => a.wrapping_add(b),
+            BinaryTypeOperator::Subtraction => a.wrapping_sub(b),
+            BinaryTypeOperator::Multiplication => a.wrapping_mul(b),
+            BinaryTypeOperator::Division => a.wrapping_div(b),
+            BinaryTypeOperator::Modulo => a.wrapping_rem(b),
         }
     }
 

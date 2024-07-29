@@ -390,7 +390,7 @@ impl<'context> Elaborator<'context> {
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs), Type::Constant(rhs)) => {
-                        Type::Constant(op.function()(lhs, rhs))
+                        Type::Constant(op.function(lhs, rhs))
                     }
                     (lhs, rhs) => Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)),
                 }
