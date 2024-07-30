@@ -13,7 +13,7 @@ fn split_first<T, let N: u32>(array: [T; N]) -> (T, [T; N - 1]) {
     std::static_assert(N != 0, "split_first called on empty array");
     let mut new_array: [T; N - 1] = std::unsafe::zeroed();
 
-    for i in 0 .. N - 1 {
+    for i in 0..N - 1 {
         new_array[i] = array[i + 1];
     }
 
@@ -24,7 +24,7 @@ fn push<let N: u32>(array: [Field; N], element: Field) -> [Field; N + 1] {
     let mut result: [_; N + 1] = std::unsafe::zeroed();
     result[array.len()] = element;
 
-    for i in 0 .. array.len() {
+    for i in 0..array.len() {
         result[i] = array[i];
     }
 
