@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::{
+    ast::TraitBound,
     hir::{def_collector::dc_crate::CompilationError, type_check::NoMatchingImplFoundError},
     parser::ParserError,
     token::Tokens,
@@ -56,6 +57,7 @@ pub enum InterpreterError {
     BreakNotInLoop { location: Location },
     ContinueNotInLoop { location: Location },
     BlackBoxError(BlackBoxResolutionError, Location),
+    FailedToResolveTraitBound { trait_bound: TraitBound, location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -119,7 +121,8 @@ impl InterpreterError {
             | InterpreterError::DebugEvaluateComptime { location, .. }
             | InterpreterError::BlackBoxError(_, location)
             | InterpreterError::BreakNotInLoop { location, .. }
-            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            | InterpreterError::ContinueNotInLoop { location, .. }
+            | InterpreterError::FailedToResolveTraitBound { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -372,6 +375,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::BlackBoxError(error, location) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), location.span)
+            }
+            InterpreterError::FailedToResolveTraitBound { trait_bound, location } => {
+                let msg = format!("Failed to resolve trait bound `{trait_bound}`");
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
             InterpreterError::Break => unreachable!("Uncaught InterpreterError::Break"),

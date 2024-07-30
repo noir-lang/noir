@@ -4,8 +4,8 @@ use std::future::{self, Future};
 use async_lsp::ResponseError;
 use fm::{FileId, FileMap, PathString};
 use lsp_types::{
-    InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position,
-    TextDocumentPositionParams,
+    InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position, Range,
+    TextDocumentPositionParams, TextEdit,
 };
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
@@ -173,7 +173,7 @@ impl<'a> InlayHintCollector<'a> {
                 self.collect_in_expression(&assign_statement.expression);
             }
             StatementKind::For(for_loop_statement) => {
-                self.collect_in_ident(&for_loop_statement.identifier);
+                self.collect_in_ident(&for_loop_statement.identifier, false);
                 self.collect_in_expression(&for_loop_statement.block);
             }
             StatementKind::Comptime(statement) => self.collect_in_statement(statement),
@@ -276,7 +276,7 @@ impl<'a> InlayHintCollector<'a> {
 
         match pattern {
             Pattern::Identifier(ident) => {
-                self.collect_in_ident(ident);
+                self.collect_in_ident(ident, true);
             }
             Pattern::Mutable(pattern, _span, _is_synthesized) => {
                 self.collect_in_pattern(pattern);
@@ -294,7 +294,7 @@ impl<'a> InlayHintCollector<'a> {
         }
     }
 
-    fn collect_in_ident(&mut self, ident: &Ident) {
+    fn collect_in_ident(&mut self, ident: &Ident, editable: bool) {
         if !self.options.type_hints.enabled {
             return;
         }
@@ -308,17 +308,17 @@ impl<'a> InlayHintCollector<'a> {
                         let global_info = self.interner.get_global(global_id);
                         let definition_id = global_info.definition_id;
                         let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ);
+                        self.push_type_hint(lsp_location, &typ, editable);
                     }
                     ReferenceId::Local(definition_id) => {
                         let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ);
+                        self.push_type_hint(lsp_location, &typ, editable);
                     }
                     ReferenceId::StructMember(struct_id, field_index) => {
                         let struct_type = self.interner.get_struct(struct_id);
                         let struct_type = struct_type.borrow();
                         let (_field_name, field_type) = struct_type.field_at(field_index);
-                        self.push_type_hint(lsp_location, field_type);
+                        self.push_type_hint(lsp_location, field_type, false);
                     }
                     ReferenceId::Module(_)
                     | ReferenceId::Struct(_)
@@ -331,7 +331,7 @@ impl<'a> InlayHintCollector<'a> {
         }
     }
 
-    fn push_type_hint(&mut self, location: lsp_types::Location, typ: &Type) {
+    fn push_type_hint(&mut self, location: lsp_types::Location, typ: &Type, editable: bool) {
         let position = location.range.end;
 
         let mut parts = Vec::new();
@@ -342,7 +342,14 @@ impl<'a> InlayHintCollector<'a> {
             position,
             label: InlayHintLabel::LabelParts(parts),
             kind: Some(InlayHintKind::TYPE),
-            text_edits: None,
+            text_edits: if editable {
+                Some(vec![TextEdit {
+                    range: Range { start: location.range.end, end: location.range.end },
+                    new_text: format!(": {}", typ),
+                }])
+            } else {
+                None
+            },
             tooltip: None,
             padding_left: None,
             padding_right: None,
@@ -756,8 +763,10 @@ mod inlay_hints_tests {
         let inlay_hints = get_inlay_hints(0, 3, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
+        let position = Position { line: 1, character: 11 };
+
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 1, character: 11 });
+        assert_eq!(inlay_hint.position, position);
 
         if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
             assert_eq!(labels.len(), 2);
@@ -770,6 +779,14 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+
+        assert_eq!(
+            inlay_hint.text_edits,
+            Some(vec![TextEdit {
+                range: Range { start: position, end: position },
+                new_text: ": Field".to_string(),
+            }])
+        );
     }
 
     #[test]
@@ -777,8 +794,10 @@ mod inlay_hints_tests {
         let inlay_hints = get_inlay_hints(12, 15, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
+        let position = Position { line: 13, character: 11 };
+
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 13, character: 11 });
+        assert_eq!(inlay_hint.position, position);
 
         if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
             assert_eq!(labels.len(), 2);
@@ -798,6 +817,34 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+
+        assert_eq!(
+            inlay_hint.text_edits,
+            Some(vec![TextEdit {
+                range: Range { start: position, end: position },
+                new_text: ": Foo".to_string(),
+            }])
+        );
+    }
+
+    #[test]
+    async fn test_type_inlay_hints_in_struct_member_pattern() {
+        let inlay_hints = get_inlay_hints(94, 96, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 95, character: 24 });
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].value, ": ");
+            assert_eq!(labels[0].location, None);
+            assert_eq!(labels[1].value, "i32");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+
+        assert_eq!(inlay_hint.text_edits, None);
     }
 
     #[test]
@@ -816,6 +863,8 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+
+        assert_eq!(inlay_hint.text_edits, None);
     }
 
     #[test]
@@ -823,8 +872,10 @@ mod inlay_hints_tests {
         let inlay_hints = get_inlay_hints(19, 21, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
+        let position = Position { line: 20, character: 10 };
+
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 20, character: 10 });
+        assert_eq!(inlay_hint.position, position);
 
         if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
             assert_eq!(labels.len(), 2);
@@ -834,6 +885,14 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+
+        assert_eq!(
+            inlay_hint.text_edits,
+            Some(vec![TextEdit {
+                range: Range { start: position, end: position },
+                new_text: ": Field".to_string(),
+            }])
+        );
     }
 
     #[test]
@@ -855,6 +914,7 @@ mod inlay_hints_tests {
 
         let inlay_hint = &inlay_hints[0];
         assert_eq!(inlay_hint.position, Position { line: 25, character: 12 });
+        assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, "one: ");
         } else {
@@ -863,6 +923,7 @@ mod inlay_hints_tests {
 
         let inlay_hint = &inlay_hints[1];
         assert_eq!(inlay_hint.position, Position { line: 25, character: 15 });
+        assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, "two: ");
         } else {
@@ -877,6 +938,7 @@ mod inlay_hints_tests {
 
         let inlay_hint = &inlay_hints[0];
         assert_eq!(inlay_hint.position, Position { line: 38, character: 18 });
+        assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, "one: ");
         } else {
