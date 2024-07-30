@@ -466,6 +466,7 @@ where
             assertion::assertion_eq(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
+            if_statement(expr_no_constructors.clone(), statement.clone()),
             block_statement(statement.clone()),
             for_loop(expr_no_constructors.clone(), statement.clone()),
             break_statement(),
@@ -930,6 +931,19 @@ where
             .map(|((condition, consequence), alternative)| {
                 ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
             })
+    })
+}
+
+fn if_statement<'a, P, S>(
+    expr_no_constructors: P,
+    statement: S,
+) -> impl NoirParser<StatementKind> + 'a
+where
+    P: ExprParser + 'a,
+    S: NoirParser<StatementKind> + 'a,
+{
+    if_expr(expr_no_constructors, statement).map_with_span(|expression_kind, span| {
+        StatementKind::Expression(Expression::new(expression_kind, span))
     })
 }
 
@@ -1645,6 +1659,18 @@ mod test {
         let src = r#"
         {
           {}
+          -1
+        }"#;
+        let (block_expr, _) = parse_recover(block(fresh_statement()), src);
+        let block_expr = block_expr.expect("Failed to parse module");
+        assert_eq!(block_expr.statements.len(), 2);
+    }
+
+    #[test]
+    fn test_parses_if_statement_not_infix_expression() {
+        let src = r#"
+        {
+          if 1 { 2 } else { 3 }
           -1
         }"#;
         let (block_expr, _) = parse_recover(block(fresh_statement()), src);
