@@ -38,15 +38,28 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         self.stop_instruction();
     }
 
-    /// This codegen will issue a loop do for (let iterator_register = 0; i < loop_bound; i += step)
+    /// This codegen will issue a loop for (let iterator_register = loop_start; i < loop_bound; i += step)
     /// The body of the loop should be issued by the caller in the on_iteration closure.
-    pub(crate) fn codegen_loop_with_bound_and_step(
+    pub(crate) fn codegen_for_loop(
         &mut self,
+        loop_start: Option<MemoryAddress>, // Defaults to zero
         loop_bound: MemoryAddress,
-        step: MemoryAddress,
+        step: Option<MemoryAddress>, // Defaults to 1
         on_iteration: impl FnOnce(&mut BrilligContext<F>, SingleAddrVariable),
     ) {
-        let iterator_register = self.make_usize_constant_instruction(0_u128.into());
+        let iterator_register = if let Some(loop_start) = loop_start {
+            let iterator_register = SingleAddrVariable::new_usize(self.allocate_register());
+            self.mov_instruction(iterator_register.address, loop_start);
+            iterator_register
+        } else {
+            self.make_usize_constant_instruction(0_usize.into())
+        };
+
+        let step_register = if let Some(step) = step {
+            step
+        } else {
+            self.make_usize_constant_instruction(1_usize.into()).address
+        };
 
         let (loop_section, loop_label) = self.reserve_next_section_label();
         self.enter_section(loop_section);
@@ -76,7 +89,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         // Add step to the iterator register
         self.memory_op_instruction(
             iterator_register.address,
-            step,
+            step_register,
             iterator_register.address,
             BrilligBinaryOp::Add,
         );
@@ -89,18 +102,20 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         // Deallocate our temporary registers
         self.deallocate_single_addr(iterator_less_than_iterations);
         self.deallocate_single_addr(iterator_register);
+        // Only deallocate step if we allocated it
+        if step.is_none() {
+            self.deallocate_register(step_register);
+        }
     }
 
-    /// This codegen will issue a loop that will iterate iteration_count times
+    /// This codegen will issue a loop that will iterate from 0 to iteration_count
     /// The body of the loop should be issued by the caller in the on_iteration closure.
     pub(crate) fn codegen_loop(
         &mut self,
         iteration_count: MemoryAddress,
         on_iteration: impl FnOnce(&mut BrilligContext<F>, SingleAddrVariable),
     ) {
-        let step = self.make_usize_constant_instruction(1_u128.into());
-        self.codegen_loop_with_bound_and_step(iteration_count, step.address, on_iteration);
-        self.deallocate_single_addr(step);
+        self.codegen_for_loop(None, iteration_count, None, on_iteration);
     }
 
     /// This codegen will issue an if-then branch that will check if the condition is true

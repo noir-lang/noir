@@ -938,7 +938,7 @@ impl<'block> BrilligBlock<'block> {
 
         if let Some((index_register, value_variable)) = opt_index_and_value {
             // Then set the value in the newly created array
-            self.store_variable_in_array(
+            self.brillig_context.codegen_store_variable_in_array(
                 destination_pointer,
                 SingleAddrVariable::new_usize(index_register),
                 value_variable,
@@ -947,47 +947,6 @@ impl<'block> BrilligBlock<'block> {
 
         self.brillig_context.deallocate_register(condition);
         source_size_as_register
-    }
-
-    pub(crate) fn store_variable_in_array_with_ctx(
-        ctx: &mut BrilligContext<FieldElement>,
-        destination_pointer: MemoryAddress,
-        index_register: SingleAddrVariable,
-        value_variable: BrilligVariable,
-    ) {
-        match value_variable {
-            BrilligVariable::SingleAddr(value_variable) => {
-                ctx.codegen_array_set(destination_pointer, index_register, value_variable.address);
-            }
-            BrilligVariable::BrilligArray(_) => {
-                let reference: MemoryAddress = ctx.allocate_register();
-                ctx.codegen_allocate_array_reference(reference);
-                ctx.codegen_store_variable(reference, value_variable);
-                ctx.codegen_array_set(destination_pointer, index_register, reference);
-                ctx.deallocate_register(reference);
-            }
-            BrilligVariable::BrilligVector(_) => {
-                let reference = ctx.allocate_register();
-                ctx.codegen_allocate_vector_reference(reference);
-                ctx.codegen_store_variable(reference, value_variable);
-                ctx.codegen_array_set(destination_pointer, index_register, reference);
-                ctx.deallocate_register(reference);
-            }
-        }
-    }
-
-    pub(crate) fn store_variable_in_array(
-        &mut self,
-        destination_pointer: MemoryAddress,
-        index_variable: SingleAddrVariable,
-        value_variable: BrilligVariable,
-    ) {
-        Self::store_variable_in_array_with_ctx(
-            self.brillig_context,
-            destination_pointer,
-            index_variable,
-            value_variable,
-        );
     }
 
     /// Convert the SSA slice operations to brillig slice operations
@@ -1748,9 +1707,18 @@ impl<'block> BrilligBlock<'block> {
             subitem_to_repeat_variables.push(self.convert_ssa_value(subitem_id, dfg));
         }
 
-        let data_length_variable = self
+        // Initialize loop bound with the array length
+        let end_pointer_variable = self
             .brillig_context
             .make_usize_constant_instruction((item_count * item_types.len()).into());
+
+        // Add the pointer to the array length
+        self.brillig_context.memory_op_instruction(
+            end_pointer_variable.address,
+            pointer,
+            end_pointer_variable.address,
+            BrilligBinaryOp::Add,
+        );
 
         // If this is an array with complex subitems, we need a custom step in the loop to write all the subitems while iterating.
         if item_types.len() > 1 {
@@ -1760,33 +1728,54 @@ impl<'block> BrilligBlock<'block> {
             let subitem_pointer =
                 SingleAddrVariable::new_usize(self.brillig_context.allocate_register());
 
-            let initializer_fn = |ctx: &mut BrilligContext<_>, iterator: SingleAddrVariable| {
-                ctx.mov_instruction(subitem_pointer.address, iterator.address);
-                for subitem in subitem_to_repeat_variables.into_iter() {
-                    Self::store_variable_in_array_with_ctx(ctx, pointer, subitem_pointer, subitem);
-                    ctx.codegen_usize_op_in_place(subitem_pointer.address, BrilligBinaryOp::Add, 1);
-                }
-            };
+            let one = self.brillig_context.make_usize_constant_instruction(1_usize.into());
 
-            self.brillig_context.codegen_loop_with_bound_and_step(
-                data_length_variable.address,
-                step_variable.address,
+            // Initializes a single subitem
+            let initializer_fn =
+                |ctx: &mut BrilligContext<_>, subitem_start_pointer: SingleAddrVariable| {
+                    ctx.mov_instruction(subitem_pointer.address, subitem_start_pointer.address);
+                    for (subitem_index, subitem) in
+                        subitem_to_repeat_variables.into_iter().enumerate()
+                    {
+                        ctx.codegen_store_variable_in_pointer(subitem_pointer.address, subitem);
+                        if subitem_index != item_types.len() - 1 {
+                            ctx.memory_op_instruction(
+                                subitem_pointer.address,
+                                one.address,
+                                subitem_pointer.address,
+                                BrilligBinaryOp::Add,
+                            );
+                        }
+                    }
+                };
+
+            // for (let subitem_start_pointer = pointer; subitem_start_pointer < pointer + data_length; subitem_start_pointer += step) { initializer_fn(iterator) }
+            self.brillig_context.codegen_for_loop(
+                Some(pointer),
+                end_pointer_variable.address,
+                Some(step_variable.address),
                 initializer_fn,
             );
 
             self.brillig_context.deallocate_single_addr(step_variable);
             self.brillig_context.deallocate_single_addr(subitem_pointer);
+            self.brillig_context.deallocate_single_addr(one);
         } else {
             let subitem = subitem_to_repeat_variables.into_iter().next().unwrap();
 
-            let initializer_fn = |ctx: &mut _, iterator_register| {
-                Self::store_variable_in_array_with_ctx(ctx, pointer, iterator_register, subitem);
+            let initializer_fn = |ctx: &mut BrilligContext<_>, item_pointer: SingleAddrVariable| {
+                ctx.codegen_store_variable_in_pointer(item_pointer.address, subitem);
             };
 
-            self.brillig_context.codegen_loop(data_length_variable.address, initializer_fn);
+            // for (let item_pointer = pointer; item_pointer < pointer + data_length; item_pointer += 1) { initializer_fn(iterator) }
+            self.brillig_context.codegen_for_loop(
+                Some(pointer),
+                end_pointer_variable.address,
+                None,
+                initializer_fn,
+            );
         }
-
-        self.brillig_context.deallocate_single_addr(data_length_variable);
+        self.brillig_context.deallocate_single_addr(end_pointer_variable);
     }
 
     fn initialize_constant_array_comptime(
@@ -1796,22 +1785,29 @@ impl<'block> BrilligBlock<'block> {
         pointer: MemoryAddress,
     ) {
         // Allocate a register for the iterator
-        let iterator_register =
-            self.brillig_context.make_usize_constant_instruction(0_usize.into());
+        let write_pointer_register = self.brillig_context.allocate_register();
+        let one = self.brillig_context.make_usize_constant_instruction(1_usize.into());
 
-        for element_id in data.iter() {
+        self.brillig_context.mov_instruction(write_pointer_register, pointer);
+
+        for (element_idx, element_id) in data.iter().enumerate() {
             let element_variable = self.convert_ssa_value(*element_id, dfg);
             // Store the item in memory
-            self.store_variable_in_array(pointer, iterator_register, element_variable);
-            // Increment the iterator
-            self.brillig_context.codegen_usize_op_in_place(
-                iterator_register.address,
-                BrilligBinaryOp::Add,
-                1,
-            );
+            self.brillig_context
+                .codegen_store_variable_in_pointer(write_pointer_register, element_variable);
+            if element_idx != data.len() - 1 {
+                // Increment the write_pointer_register
+                self.brillig_context.memory_op_instruction(
+                    write_pointer_register,
+                    one.address,
+                    write_pointer_register,
+                    BrilligBinaryOp::Add,
+                );
+            }
         }
 
-        self.brillig_context.deallocate_single_addr(iterator_register);
+        self.brillig_context.deallocate_register(write_pointer_register);
+        self.brillig_context.deallocate_single_addr(one);
     }
 
     /// Converts an SSA `ValueId` into a `MemoryAddress`. Initializes if necessary.
@@ -1896,7 +1892,7 @@ impl<'block> BrilligBlock<'block> {
                                 let inner_array = self.allocate_nested_array(element_type, None);
                                 let idx =
                                     self.brillig_context.make_usize_constant_instruction(index.into());
-                                self.store_variable_in_array(array.pointer, idx, inner_array);
+                                self.brillig_context.codegen_store_variable_in_array(array.pointer, idx, inner_array);
                             }
                             Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
                             _ => (),

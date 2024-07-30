@@ -38,7 +38,11 @@ impl<'block> BrilligBlock<'block> {
                 target_index.address,
                 BrilligBinaryOp::Add,
             );
-            self.store_variable_in_array(target_vector.pointer, target_index, *variable);
+            self.brillig_context.codegen_store_variable_in_array(
+                target_vector.pointer,
+                target_index,
+                *variable,
+            );
             self.brillig_context.deallocate_single_addr(target_index);
         }
     }
@@ -79,7 +83,11 @@ impl<'block> BrilligBlock<'block> {
         // Then we write the items to insert at the start
         for (index, variable) in variables_to_insert.iter().enumerate() {
             let target_index = self.brillig_context.make_usize_constant_instruction(index.into());
-            self.store_variable_in_array(target_vector.pointer, target_index, *variable);
+            self.brillig_context.codegen_store_variable_in_array(
+                target_vector.pointer,
+                target_index,
+                *variable,
+            );
             self.brillig_context.deallocate_single_addr(target_index);
         }
 
@@ -239,7 +247,11 @@ impl<'block> BrilligBlock<'block> {
                 target_index.address,
                 BrilligBinaryOp::Add,
             );
-            self.store_variable_in_array(target_vector.pointer, target_index, *variable);
+            self.brillig_context.codegen_store_variable_in_array(
+                target_vector.pointer,
+                target_index,
+                *variable,
+            );
             self.brillig_context.deallocate_single_addr(target_index);
         }
 
