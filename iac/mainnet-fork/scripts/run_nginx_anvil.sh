@@ -27,6 +27,10 @@ mkdir -p /data
 echo "Waiting for ethereum host at $ETHEREUM_HOST..."
 while ! curl -s $ETHEREUM_HOST >/dev/null; do sleep 1; done
 
+# Fix anvil's fork timestamp
+./foundry/bin/cast rpc --rpc-url="$ETHEREUM_HOST" evm_setNextBlockTimestamp $(date +%s | xargs printf '0x%x') > /dev/null
+./foundry/bin/cast rpc --rpc-url="$ETHEREUM_HOST" evm_mine > /dev/null
+
 echo "Starting nginx..."
 nginx &
 wait
