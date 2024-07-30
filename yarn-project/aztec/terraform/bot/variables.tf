@@ -17,3 +17,8 @@ variable "BOT_API_KEY" {
 variable "BOT_PRIVATE_KEY" {
   type = string
 }
+
+variable "LOG_LEVEL" {
+  type    = string
+  default = "verbose"
+}

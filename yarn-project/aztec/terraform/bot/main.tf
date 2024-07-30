@@ -99,6 +99,7 @@ resource "aws_ecs_task_definition" "aztec-bot" {
         { name = "BOT_NO_START", value = "true" },
         { name = "BOT_PXE_URL", value = "http://${var.DEPLOY_TAG}-aztec-pxe-1.local/${var.DEPLOY_TAG}/aztec-pxe-1/${var.API_KEY}" },
         { name = "BOT_TX_INTERVAL_SECONDS", value = 300 },
+        { name = "LOG_LEVEL", value = var.LOG_LEVEL },
         { name = "AZTEC_PORT", value = "80" },
         { name = "API_PREFIX", value = local.api_prefix },
       ]

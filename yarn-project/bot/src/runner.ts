@@ -31,7 +31,7 @@ export class BotRunner {
     await this.setup();
     if (!this.interval) {
       this.log.info(`Starting bot with interval of ${this.config.txIntervalSeconds}s`);
-      this.interval = setInterval(() => this.run(), this.config.txIntervalSeconds * 1000);
+      this.interval = setInterval(() => this.#safeRun(), this.config.txIntervalSeconds * 1000);
     }
   }
 
@@ -80,14 +80,31 @@ export class BotRunner {
    */
   public async run() {
     if (!this.bot) {
+      this.log.error(`Trying to run with uninitialized bot`);
       throw new Error(`Bot is not initialized`);
     }
-    this.log.verbose(`Manually triggered bot run`);
-    const bot = await this.bot;
-    const promise = bot.run();
-    this.running.add(promise);
-    await promise;
-    this.running.delete(promise);
+
+    let bot;
+    try {
+      bot = await this.bot;
+    } catch (err) {
+      this.log.error(`Error awaiting bot set up: ${err}`);
+      throw err;
+    }
+
+    let promise;
+    try {
+      promise = bot.run();
+      this.running.add(promise);
+      await promise;
+    } catch (err) {
+      this.log.error(`Error running bot: ${err}`);
+      throw err;
+    } finally {
+      if (promise) {
+        this.running.delete(promise);
+      }
+    }
   }
 
   /** Returns the current configuration for the bot. */
@@ -96,7 +113,20 @@ export class BotRunner {
   }
 
   async #createBot() {
-    this.bot = Bot.create(this.config, { pxe: this.pxe });
-    await this.bot;
+    try {
+      this.bot = Bot.create(this.config, { pxe: this.pxe });
+      await this.bot;
+    } catch (err) {
+      this.log.error(`Error setting up bot: ${err}`);
+      throw err;
+    }
+  }
+
+  async #safeRun() {
+    try {
+      await this.run();
+    } catch (err) {
+      // Already logged in run()
+    }
   }
 }

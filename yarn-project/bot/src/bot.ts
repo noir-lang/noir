@@ -34,12 +34,14 @@ export class Bot {
   }
 
   public async run() {
+    const logCtx = { runId: Date.now() * 1000 + Math.floor(Math.random() * 1000) };
     const { privateTransfersPerTx, publicTransfersPerTx, feePaymentMethod } = this.config;
     const { token, recipient, wallet } = this;
     const sender = wallet.getAddress();
 
     this.log.verbose(
       `Sending tx with ${feePaymentMethod} fee with ${privateTransfersPerTx} private and ${publicTransfersPerTx} public transfers`,
+      logCtx,
     );
 
     const calls: FunctionCall[] = [
@@ -52,11 +54,24 @@ export class Bot {
     const paymentMethod = feePaymentMethod === 'native' ? new NativeFeePaymentMethod(sender) : new NoFeePaymentMethod();
     const gasSettings = GasSettings.default();
     const opts: SendMethodOptions = { estimateGas: true, fee: { paymentMethod, gasSettings } };
-    const tx = new BatchCall(wallet, calls).send(opts);
-    this.log.verbose(`Sent tx ${tx.getTxHash()}`);
 
-    const receipt = await tx.wait();
-    this.log.info(`Tx ${receipt.txHash} mined in block ${receipt.blockNumber}`);
+    const batch = new BatchCall(wallet, calls);
+    this.log.verbose(`Creating batch execution request with ${calls.length} calls`, logCtx);
+    await batch.create(opts);
+
+    this.log.verbose(`Simulating transaction`, logCtx);
+    await batch.simulate();
+
+    this.log.verbose(`Proving transaction`, logCtx);
+    await batch.prove(opts);
+
+    this.log.verbose(`Sending tx`, logCtx);
+    const tx = batch.send(opts);
+
+    this.log.verbose(`Awaiting tx ${tx.getTxHash()} to be mined (timeout ${this.config.txMinedWaitSeconds}s)`, logCtx);
+    const receipt = await tx.wait({ timeout: this.config.txMinedWaitSeconds });
+
+    this.log.info(`Tx ${receipt.txHash} mined in block ${receipt.blockNumber}`, logCtx);
   }
 
   public async getBalances() {
