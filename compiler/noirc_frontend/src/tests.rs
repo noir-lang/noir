@@ -2729,3 +2729,18 @@ fn incorrect_generic_count_on_type_alias() {
     assert_eq!(actual, 1);
     assert_eq!(expected, 0);
 }
+
+#[test]
+fn do_not_eagerly_error_on_cast_on_type_variable() {
+    let src = r#"
+    pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
+        f(x)
+    }
+
+    fn main() {
+        let x: u8 = 1;
+        let _: Field = foo(x, |x| x as Field);
+    }
+    "#;
+    assert_no_errors(src);
+}
