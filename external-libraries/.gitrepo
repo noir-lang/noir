@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/noir-lang/external-libraries.git
+	branch = master
+	commit = 0041299c109c2134595a83de500e3070c68b82d2
+	parent = e59ff8c6a12978407be4f9f474d5208bdabb8c29
+	method = merge
+	cmdver = 0.4.6
