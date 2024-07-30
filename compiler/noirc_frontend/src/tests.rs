@@ -2731,7 +2731,7 @@ fn incorrect_generic_count_on_type_alias() {
 }
 
 #[test]
-fn uses_self_for_struct_function_call() {
+fn uses_self_type_for_struct_function_call() {
     let src = r#"
     struct S { }
 
@@ -2746,6 +2746,30 @@ fn uses_self_for_struct_function_call() {
     }
 
     fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn uses_self_type_inside_trait() {
+    let src = r#"
+    trait Foo {
+        fn foo() -> Self {
+            Self::bar()
+        }
+
+        fn bar() -> Self;
+    }
+
+    impl Foo for Field {
+        fn bar() -> Self {
+            1
+        }
+    }
+
+    fn main() {
+        let _: Field = Foo::foo();
+    }
     "#;
     assert_no_errors(src);
 }
