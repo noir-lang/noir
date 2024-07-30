@@ -565,7 +565,8 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 push_type_variable_parts(binding, parts, files);
             }
         }
-        Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+        Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
+        | Type::TypeVariable(binding, TypeVariableKind::IntegerOrFieldOrBool) => {
             if let TypeBinding::Unbound(_) = &*binding.borrow() {
                 parts.push(string_part("Field"));
             } else {
