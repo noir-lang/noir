@@ -401,8 +401,7 @@ fn quoted_as_trait_constraint(
     })?;
 
     let bound = interpreter
-        .elaborator
-        .elaborate_item_from_comptime(interpreter.current_function, |elaborator| {
+        .elaborate_item(interpreter.current_function, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
@@ -428,8 +427,7 @@ fn quoted_as_type(
     })?;
 
     let typ = interpreter
-        .elaborator
-        .elaborate_item_from_comptime(interpreter.current_function, |elab| elab.resolve_type(typ));
+        .elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
 
     Ok(Value::Type(typ))
 }
