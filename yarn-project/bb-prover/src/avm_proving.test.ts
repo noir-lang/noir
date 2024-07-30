@@ -149,11 +149,15 @@ describe('AVM WitGen, proof generation and verification', () => {
    * Avm Embedded Curve functions
    ************************************************************************/
   describe('AVM Embedded Curve functions', () => {
-    const avmEmbeddedCurveFunctions: string[] = ['elliptic_curve_add_and_double', 'variable_base_msm'];
+    const avmEmbeddedCurveFunctions: [string, Fr[]][] = [
+      ['elliptic_curve_add_and_double', []],
+      ['variable_base_msm', []],
+      ['pedersen_commit', [new Fr(1), new Fr(100)]],
+    ];
     it.each(avmEmbeddedCurveFunctions)(
       'Should prove %s',
-      async name => {
-        await proveAndVerifyAvmTestContract(name);
+      async (name, calldata) => {
+        await proveAndVerifyAvmTestContract(name, calldata);
       },
       TIMEOUT,
     );

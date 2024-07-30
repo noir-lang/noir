@@ -152,6 +152,11 @@ class AvmTraceBuilder {
                          uint32_t scalars_offset,
                          uint32_t output_offset,
                          uint32_t point_length_offset);
+    void op_pedersen_commit(uint8_t indirect,
+                            uint32_t output_offset,
+                            uint32_t input_offset,
+                            uint32_t input_size_offset,
+                            uint32_t gen_ctx_offset);
     // Conversions
     void op_to_radix_le(uint8_t indirect, uint32_t src_offset, uint32_t dst_offset, uint32_t radix, uint32_t num_limbs);
 

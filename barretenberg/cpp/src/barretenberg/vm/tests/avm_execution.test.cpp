@@ -1261,7 +1261,7 @@ TEST_F(AvmExecutionTests, msmOpCode)
     // Send all the input as Fields and cast them to U8 later
     std::vector<FF> calldata = { FF(a.x),  FF(a.y),     a_is_inf,    FF(b.x),     FF(b.y),
                                  b_is_inf, scalar_a_lo, scalar_a_hi, scalar_b_lo, scalar_b_hi };
-    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) + // Calldatacopy...should fix the limit on calldatacopy
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) + // Calldatacopy
                                "00"                           // Indirect flag
                                "00000000"                     // cd_offset 0
                                "0000000a"                     // copy_size (10 elements)
@@ -1306,6 +1306,69 @@ TEST_F(AvmExecutionTests, msmOpCode)
                                "00"                           // Indirect flag
                                "0000000c"                     // ret offset 12 (this overwrites)
                                "00000003";                    // ret size 3
+
+    auto bytecode = hex_to_bytes(bytecode_hex);
+    auto instructions = Deserialization::parse(bytecode);
+
+    // Assign a vector that we will mutate internally in gen_trace to store the return values;
+    std::vector<FF> returndata;
+    auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec);
+
+    EXPECT_EQ(returndata, expected_output);
+
+    validate_trace(std::move(trace), public_inputs, calldata, returndata);
+}
+
+// Positive test with pedersen commitment
+TEST_F(AvmExecutionTests, pedersenCommitmentOpcode)
+{
+    auto expected_result =
+        grumpkin::g1::affine_element(fr(uint256_t("054aa86a73cb8a34525e5bbed6e43ba1198e860f5f3950268f71df4591bde402")),
+                                     fr(uint256_t("209dcfbf2cfb57f9f6046f44d71ac6faf87254afc7407c04eb621a6287cac126")));
+    // grumpkin::g1::affine_eleelement;
+    // grumpkin::g1::affine_element b = grumpkin::g1::affine_element::one();
+
+    // Remmeber that grumpkin Fq == BN254 Fr => aka FF
+    grumpkin::g1::Fq scalar_a = grumpkin::g1::Fq::zero();
+    grumpkin::g1::Fq scalar_b = grumpkin::g1::Fq::one();
+    std::vector<FF> expected_output = { expected_result.x, expected_result.y, expected_result.is_point_at_infinity() };
+    // Send all the input as Fields and cast them to U8 later
+    std::vector<FF> calldata = { scalar_a, scalar_b };
+    std::string bytecode_hex = to_hex(OpCode::CALLDATACOPY) +       // Calldatacopy
+                               "00"                                 // Indirect flag
+                               "00000000"                           // cd_offset 0
+                               "00000002"                           // copy_size (2 elements)
+                               "00000000"                           // dst_offset 0
+                               + to_hex(OpCode::SET) +              // opcode SET for indirect input
+                               "00"                                 // Indirect flag
+                               "03"                                 // U32
+                               "00000000"                           // Input stored at memory 0
+                               "0000000b"                           // dst offset (11)
+                               + to_hex(OpCode::SET) +              // opcode SET for indirect output
+                               "00"                                 // Indirect flag
+                               "03"                                 // U32
+                               "00000020"                           // output offset
+                               "0000000d"                           // dst offset
+                               + to_hex(OpCode::SET) +              // opcode SET for input length
+                               "00"                                 // Indirect flag
+                               "03"                                 // U32
+                               "00000002"                           // scalars length (2)
+                               "00000002" +                         // dst offset (2)
+                               to_hex(OpCode::SET) +                // opcode SET for ctx index
+                               "00"                                 // Indirect flag
+                               "03"                                 // U32
+                               "00000000"                           // ctx index (0)
+                               "0000000f" +                         // dst offset
+                               to_hex(OpCode::PEDERSENCOMMITMENT) + // opcode MSM
+                               "03"                                 // Indirect flag (first 2 indirect)
+                               "0000000b"                           // inputs offset
+                               "0000000d"                           // outputs offset
+                               "00000002"                           // inputs length offset
+                               "0000000f"                           // gen ctx index offset
+                               + to_hex(OpCode::RETURN) +           // opcode RETURN
+                               "00"                                 // Indirect flag
+                               "00000020"                           // ret offset
+                               "00000003";                          // ret size 3
 
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);

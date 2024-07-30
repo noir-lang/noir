@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
@@ -3427,6 +3428,97 @@ void AvmTraceBuilder::op_variable_msm(uint8_t indirect,
         .main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
     });
 
+    pc++;
+}
+
+void AvmTraceBuilder::op_pedersen_commit(uint8_t indirect,
+                                         uint32_t input_offset,
+                                         uint32_t output_offset,
+                                         uint32_t input_size_offset,
+                                         uint32_t gen_ctx_offset)
+{
+    auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
+    auto [resolved_input_offset, resolved_output_offset, resolved_input_size_offset, resolved_gen_ctx_offset] =
+        unpack_indirects<4>(indirect, { input_offset, output_offset, input_size_offset, gen_ctx_offset });
+
+    auto input_length_read = constrained_read_from_memory(
+        call_ptr, clk, resolved_input_size_offset, AvmMemoryTag::U32, AvmMemoryTag::U0, IntermRegister::IA);
+    auto gen_ctx_read = constrained_read_from_memory(
+        call_ptr, clk, resolved_gen_ctx_offset, AvmMemoryTag::U32, AvmMemoryTag::U0, IntermRegister::IB);
+
+    main_trace.push_back(Row{
+        .main_clk = clk,
+        .main_ia = input_length_read.val,
+        .main_ib = gen_ctx_read.val,
+        .main_ind_addr_a = FF(input_length_read.indirect_address),
+        .main_ind_addr_b = FF(gen_ctx_read.indirect_address),
+        .main_internal_return_ptr = FF(internal_return_ptr),
+        .main_mem_addr_a = FF(input_length_read.direct_address),
+        .main_mem_addr_b = FF(gen_ctx_read.direct_address),
+        .main_pc = FF(pc),
+        .main_r_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U32)),
+        .main_sel_mem_op_a = FF(1),
+        .main_sel_mem_op_b = FF(1),
+        .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(input_length_read.is_indirect)),
+        .main_sel_resolve_ind_addr_b = FF(static_cast<uint32_t>(gen_ctx_read.is_indirect)),
+    });
+    clk++;
+
+    std::vector<FF> inputs;
+    auto num_rows = read_slice_to_memory<FF>(call_ptr,
+                                             clk,
+                                             resolved_input_offset,
+                                             AvmMemoryTag::FF,
+                                             AvmMemoryTag::U0,
+                                             FF(internal_return_ptr),
+                                             uint32_t(input_length_read.val),
+                                             inputs);
+    clk += num_rows;
+
+    grumpkin::g1::affine_element result =
+        crypto::pedersen_commitment::commit_native(inputs, uint32_t(gen_ctx_read.val));
+
+    auto write_x = constrained_write_to_memory(
+        call_ptr, clk, resolved_output_offset, result.x, AvmMemoryTag::U0, AvmMemoryTag::FF, IntermRegister::IA);
+
+    mem_trace_builder.write_into_memory(
+        call_ptr, clk, IntermRegister::IB, write_x.direct_address + 1, result.y, AvmMemoryTag::U0, AvmMemoryTag::FF);
+
+    main_trace.push_back(Row{
+        .main_clk = clk,
+        .main_ia = result.x,
+        .main_ib = result.y,
+        .main_ind_addr_a = FF(write_x.indirect_address),
+        .main_internal_return_ptr = FF(internal_return_ptr),
+        .main_mem_addr_a = FF(write_x.direct_address),
+        .main_mem_addr_b = FF(write_x.direct_address + 1),
+        .main_pc = FF(pc),
+        .main_rwa = FF(1),
+        .main_rwb = FF(1),
+        .main_sel_mem_op_a = FF(1),
+        .main_sel_mem_op_b = FF(1),
+        .main_sel_resolve_ind_addr_a = FF(static_cast<uint32_t>(write_x.is_indirect)),
+        .main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::FF)),
+    });
+
+    clk++;
+    mem_trace_builder.write_into_memory(call_ptr,
+                                        clk,
+                                        IntermRegister::IA,
+                                        write_x.direct_address + 2,
+                                        result.is_point_at_infinity(),
+                                        AvmMemoryTag::U0,
+                                        AvmMemoryTag::U8);
+    main_trace.push_back(Row{
+        .main_clk = clk,
+        .main_ia = static_cast<uint8_t>(result.is_point_at_infinity()),
+        .main_internal_return_ptr = FF(internal_return_ptr),
+        .main_mem_addr_a = FF(write_x.direct_address + 2),
+        .main_pc = FF(pc),
+        .main_rwa = FF(1),
+        .main_sel_mem_op_a = FF(1),
+        .main_w_in_tag = FF(static_cast<uint32_t>(AvmMemoryTag::U8)),
+    });
     pc++;
 }
 
