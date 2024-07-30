@@ -1,16 +1,8 @@
-use crate::meta::derive_via;
-
-#[derive_via(derive_eq)]
 // docs:start:eq-trait
 trait Eq {
     fn eq(self, other: Self) -> bool;
 }
 // docs:end:eq-trait
-
-comptime fn derive_eq(s: StructDefinition) -> Quoted {
-    crate::println("derive_eq called!");
-    quote {}
-}
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
