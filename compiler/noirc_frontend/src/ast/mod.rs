@@ -291,7 +291,7 @@ impl UnresolvedTypeData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
 pub enum Signedness {
     Unsigned,
     Signed,
