@@ -557,7 +557,7 @@ fn pattern() -> impl NoirParser<Pattern> {
             .separated_by(just(Token::Comma))
             .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-        let struct_pattern = path()
+        let struct_pattern = path(super::parse_type())
             .then(struct_pattern_fields)
             .map_with_span(|(typename, fields), span| Pattern::Struct(typename, fields, span));
 
@@ -1128,7 +1128,7 @@ fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> 
         .allow_trailing()
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-    path().then(args).map(ExpressionKind::constructor)
+    path(super::parse_type()).then(args).map(ExpressionKind::constructor)
 }
 
 fn constructor_field<P>(expr_parser: P) -> impl NoirParser<(Ident, Expression)>

@@ -199,6 +199,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)
+            // Ignore debugger functions
+            } else if oracle.starts_with("__debug") {
+                Ok(Value::Unit)
             } else {
                 let item = format!("Comptime evaluation for oracle functions like {oracle}");
                 Err(InterpreterError::Unimplemented { item, location })
