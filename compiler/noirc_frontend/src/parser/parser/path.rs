@@ -1,4 +1,4 @@
-use crate::ast::{Path, PathKind, PathSegment};
+use crate::ast::{Path, PathKind, PathSegment, UnresolvedType};
 use crate::parser::NoirParser;
 
 use crate::token::{Keyword, Token};
@@ -8,8 +8,10 @@ use chumsky::prelude::*;
 use super::keyword;
 use super::primitives::{path_segment, path_segment_no_turbofish};
 
-pub(super) fn path() -> impl NoirParser<Path> {
-    path_inner(path_segment())
+pub(super) fn path<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<Path> + 'a {
+    path_inner(path_segment(type_parser))
 }
 
 pub(super) fn path_no_turbofish() -> impl NoirParser<Path> {
@@ -40,13 +42,16 @@ fn empty_path() -> impl NoirParser<Path> {
 }
 
 pub(super) fn maybe_empty_path() -> impl NoirParser<Path> {
-    path().or(empty_path())
+    path_no_turbofish().or(empty_path())
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::parser::parser::test_helpers::{parse_all_failing, parse_with};
+    use crate::parser::{
+        parse_type,
+        parser::test_helpers::{parse_all_failing, parse_with},
+    };
 
     #[test]
     fn parse_path() {
@@ -59,13 +64,13 @@ mod test {
         ];
 
         for (src, expected_segments) in cases {
-            let path: Path = parse_with(path(), src).unwrap();
+            let path: Path = parse_with(path(parse_type()), src).unwrap();
             for (segment, expected) in path.segments.into_iter().zip(expected_segments) {
                 assert_eq!(segment.ident.0.contents, expected);
             }
         }
 
-        parse_all_failing(path(), vec!["std::", "::std", "std::hash::", "foo::1"]);
+        parse_all_failing(path(parse_type()), vec!["std::", "::std", "std::hash::", "foo::1"]);
     }
 
     #[test]
@@ -78,12 +83,12 @@ mod test {
         ];
 
         for (src, expected_path_kind) in cases {
-            let path = parse_with(path(), src).unwrap();
+            let path = parse_with(path(parse_type()), src).unwrap();
             assert_eq!(path.kind, expected_path_kind);
         }
 
         parse_all_failing(
-            path(),
+            path(parse_type()),
             vec!["crate", "crate::std::crate", "foo::bar::crate", "foo::dep"],
         );
     }

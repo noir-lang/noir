@@ -2610,3 +2610,122 @@ fn turbofish_in_middle_of_variable_unsupported_yet() {
         CompilationError::TypeError(TypeCheckError::UnsupportedTurbofishUsage { .. }),
     ));
 }
+
+#[test]
+fn turbofish_in_struct_pattern() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value: Field = 0;
+        let Foo::<Field> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value: Field = 0;
+        let Foo::<i32> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn turbofish_in_struct_pattern_generic_count_mismatch() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value = 0;
+        let Foo::<i32, i64> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        item,
+        expected,
+        found,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(item, "struct Foo");
+    assert_eq!(*expected, 1);
+    assert_eq!(*found, 2);
+}
+
+#[test]
+fn incorrect_generic_count_on_struct_impl() {
+    let src = r#"
+    struct Foo {}
+    impl <T> Foo<T> {}
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
+        actual,
+        expected,
+        ..
+    }) = errors[0].0
+    else {
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(actual, 1);
+    assert_eq!(expected, 0);
+}
+
+#[test]
+fn incorrect_generic_count_on_type_alias() {
+    let src = r#"
+    struct Foo {}
+    type Bar = Foo<i32>;
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
+        actual,
+        expected,
+        ..
+    }) = errors[0].0
+    else {
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(actual, 1);
+    assert_eq!(expected, 0);
+}

@@ -39,7 +39,7 @@ impl<'context> Elaborator<'context> {
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
             ExpressionKind::Block(block) => self.elaborate_block(block),
-            ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix),
+            ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix, expr.span),
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
             ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
@@ -225,8 +225,7 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
     }
 
-    fn elaborate_prefix(&mut self, prefix: PrefixExpression) -> (ExprId, Type) {
-        let span = prefix.rhs.span;
+    fn elaborate_prefix(&mut self, prefix: PrefixExpression, span: Span) -> (ExprId, Type) {
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
         let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
 
@@ -430,23 +429,14 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let struct_generics = if let Some(turbofish_generics) = &last_segment.generics {
-            if turbofish_generics.len() == struct_generics.len() {
-                let struct_type = r#type.borrow();
-                self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics.clone())
-            } else {
-                self.push_err(TypeCheckError::GenericCountMismatch {
-                    item: format!("struct {}", last_segment.ident),
-                    expected: struct_generics.len(),
-                    found: turbofish_generics.len(),
-                    span: Span::from(last_segment.ident.span().end()..last_segment.span.end()),
-                });
+        let turbofish_span = last_segment.turbofish_span();
 
-                struct_generics
-            }
-        } else {
-            struct_generics
-        };
+        let struct_generics = self.resolve_struct_turbofish_generics(
+            &r#type.borrow(),
+            struct_generics,
+            last_segment.generics,
+            turbofish_span,
+        );
 
         let struct_type = r#type.clone();
         let generics = struct_generics.clone();
