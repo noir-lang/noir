@@ -53,6 +53,9 @@ class DummyProverClient implements BlockProver {
   setBlockCompleted(): Promise<void> {
     return this.orchestrator.setBlockCompleted();
   }
+  getProverId(): Fr {
+    return this.orchestrator.proverId;
+  }
 }
 
 export class TestContext {

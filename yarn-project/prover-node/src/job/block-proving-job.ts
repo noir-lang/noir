@@ -92,7 +92,13 @@ export class BlockProvingJob {
     this.log.info(`Finalised proof for block range`, { fromBlock, toBlock });
 
     this.state = 'publishing-proof';
-    await this.publisher.submitProof(block.header, block.archive.root, aggregationObject, proof);
+    await this.publisher.submitProof(
+      block.header,
+      block.archive.root,
+      this.prover.getProverId(),
+      aggregationObject,
+      proof,
+    );
     this.log.info(`Submitted proof for block range`, { fromBlock, toBlock });
 
     this.state = 'completed';

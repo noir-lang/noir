@@ -1,4 +1,5 @@
 import { type ProverConfig } from '@aztec/circuit-types';
+import { Fr } from '@aztec/circuits.js';
 
 import { tmpdir } from 'os';
 
@@ -39,6 +40,7 @@ export function getProverEnvVars(): ProverClientConfig {
     PROVER_REAL_PROOFS = '',
     PROVER_JOB_TIMEOUT_MS = '60000',
     PROVER_JOB_POLL_INTERVAL_MS = '1000',
+    PROVER_ID,
   } = process.env;
 
   const realProofs = ['1', 'true'].includes(PROVER_REAL_PROOFS);
@@ -48,6 +50,7 @@ export function getProverEnvVars(): ProverClientConfig {
   const proverJobTimeoutMs = safeParseNumber(PROVER_JOB_TIMEOUT_MS, 60000);
   const proverJobPollIntervalMs = safeParseNumber(PROVER_JOB_POLL_INTERVAL_MS, 1000);
   const disableProver = ['1', 'true'].includes(PROVER_DISABLED);
+  const proverId = PROVER_ID ? parseProverId(PROVER_ID) : undefined;
 
   return {
     acvmWorkingDirectory: ACVM_WORKING_DIRECTORY,
@@ -62,7 +65,12 @@ export function getProverEnvVars(): ProverClientConfig {
     nodeUrl: AZTEC_NODE_URL,
     proverJobPollIntervalMs,
     proverJobTimeoutMs,
+    proverId,
   };
+}
+
+function parseProverId(str: string) {
+  return Fr.fromString(str.startsWith('0x') ? str : Buffer.from(str, 'utf8').toString('hex'));
 }
 
 function safeParseNumber(value: string, defaultValue: number): number {

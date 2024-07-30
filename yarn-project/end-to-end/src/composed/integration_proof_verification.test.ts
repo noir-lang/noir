@@ -33,6 +33,7 @@ import { getLogger, setupL1Contracts, startAnvil } from '../fixtures/utils.js';
  */
 describe('proof_verification', () => {
   let proof: Proof;
+  let proverId: Fr;
   let block: L2Block;
   let aggregationObject: Fr[];
   let anvil: Anvil | undefined;
@@ -121,6 +122,7 @@ describe('proof_verification', () => {
 
     block = L2Block.fromString(blockResult.block);
     proof = Proof.fromString(blockResult.proof);
+    proverId = Fr.ZERO;
     aggregationObject = blockResult.aggregationObject.map((x: string) => Fr.fromString(x));
   });
 
@@ -183,6 +185,7 @@ describe('proof_verification', () => {
       const args = [
         `0x${block.header.toBuffer().toString('hex')}`,
         `0x${block.archive.root.toBuffer().toString('hex')}`,
+        `0x${proverId.toBuffer().toString('hex')}`,
         `0x${serializeToBuffer(aggregationObject).toString('hex')}`,
         `0x${proof.withoutPublicInputs().toString('hex')}`,
       ] as const;

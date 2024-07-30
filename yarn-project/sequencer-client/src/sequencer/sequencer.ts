@@ -365,7 +365,13 @@ export class Sequencer {
     // This is temporary while we submit one proof per block, but will have to change once we
     // move onto proving batches of multiple blocks at a time.
     if (aggregationObject && proof && !this.skipSubmitProofs) {
-      await this.publisher.submitProof(block.header, block.archive.root, aggregationObject, proof);
+      await this.publisher.submitProof(
+        block.header,
+        block.archive.root,
+        this.prover.getProverId(),
+        aggregationObject,
+        proof,
+      );
       this.log.info(`Submitted proof for block ${block.number}`);
     }
   }

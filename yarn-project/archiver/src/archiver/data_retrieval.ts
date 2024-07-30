@@ -1,8 +1,9 @@
 import { type Body, type InboxLeaf } from '@aztec/circuit-types';
-import { type AppendOnlyTreeSnapshot, type Header } from '@aztec/circuits.js';
+import { type AppendOnlyTreeSnapshot, Fr, type Header } from '@aztec/circuits.js';
 import { type EthAddress } from '@aztec/foundation/eth-address';
+import { RollupAbi } from '@aztec/l1-artifacts';
 
-import { type PublicClient } from 'viem';
+import { type PublicClient, getAbiItem } from 'viem';
 
 import {
   getL2BlockProcessedLogs,
@@ -142,4 +143,26 @@ export async function retrieveL1ToL2Messages(
     searchStartBlock = (messageSentLogs.findLast(msgLog => !!msgLog)?.blockNumber || searchStartBlock) + 1n;
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
   return { lastProcessedL1BlockNumber: searchStartBlock - 1n, retrievedData: retrievedL1ToL2Messages };
+}
+
+/** Retrieves L2ProofVerified events from the rollup contract. */
+export async function retrieveL2ProofVerifiedEvents(
+  publicClient: PublicClient,
+  rollupAddress: EthAddress,
+  searchStartBlock: bigint,
+  searchEndBlock?: bigint,
+): Promise<{ l1BlockNumber: bigint; l2BlockNumber: bigint; proverId: Fr }[]> {
+  const logs = await publicClient.getLogs({
+    address: rollupAddress.toString(),
+    fromBlock: searchStartBlock,
+    toBlock: searchEndBlock ? searchEndBlock + 1n : undefined,
+    strict: true,
+    event: getAbiItem({ abi: RollupAbi, name: 'L2ProofVerified' }),
+  });
+
+  return logs.map(log => ({
+    l1BlockNumber: log.blockNumber,
+    l2BlockNumber: log.args.blockNumber,
+    proverId: Fr.fromString(log.args.proverId),
+  }));
 }

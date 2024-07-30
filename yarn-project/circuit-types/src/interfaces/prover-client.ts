@@ -1,4 +1,5 @@
 import { type TxHash } from '@aztec/circuit-types';
+import { type Fr } from '@aztec/circuits.js';
 
 import { type BlockProver } from './block-prover.js';
 import { type ProvingJobSource } from './proving-job.js';
@@ -21,6 +22,8 @@ export type ProverConfig = {
   proverJobTimeoutMs: number;
   /** The interval to check job health status */
   proverJobPollIntervalMs: number;
+  /** Identifier of the prover */
+  proverId?: Fr;
 };
 
 /**

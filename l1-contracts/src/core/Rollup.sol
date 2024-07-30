@@ -127,13 +127,14 @@ contract Rollup is Leonidas, IRollup {
   function submitProof(
     bytes calldata _header,
     bytes32 _archive,
+    bytes32 _proverId,
     bytes calldata _aggregationObject,
     bytes calldata _proof
   ) external override(IRollup) {
     HeaderLib.Header memory header = HeaderLib.decode(_header);
 
     bytes32[] memory publicInputs =
-      new bytes32[](3 + Constants.HEADER_LENGTH + Constants.AGGREGATION_OBJECT_LENGTH);
+      new bytes32[](4 + Constants.HEADER_LENGTH + Constants.AGGREGATION_OBJECT_LENGTH);
     // the archive tree root
     publicInputs[0] = _archive;
     // this is the _next_ available leaf in the archive tree
@@ -148,6 +149,8 @@ contract Rollup is Leonidas, IRollup {
       publicInputs[i + 3] = headerFields[i];
     }
 
+    publicInputs[headerFields.length + 3] = _proverId;
+
     // the block proof is recursive, which means it comes with an aggregation object
     // this snippet copies it into the public inputs needed for verification
     // it also guards against empty _aggregationObject used with mocked proofs
@@ -157,14 +160,14 @@ contract Rollup is Leonidas, IRollup {
       assembly {
         part := calldataload(add(_aggregationObject.offset, mul(i, 32)))
       }
-      publicInputs[i + 3 + Constants.HEADER_LENGTH] = part;
+      publicInputs[i + 4 + Constants.HEADER_LENGTH] = part;
     }
 
     if (!verifier.verify(_proof, publicInputs)) {
       revert Errors.Rollup__InvalidProof();
     }
 
-    emit L2ProofVerified(header.globalVariables.blockNumber);
+    emit L2ProofVerified(header.globalVariables.blockNumber, _proverId);
   }
 
   function _computePublicInputHash(bytes calldata _header, bytes32 _archive)

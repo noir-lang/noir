@@ -64,4 +64,7 @@ export interface BlockProver {
    * Will pad the block to it's complete size with empty transactions and prove all the way to the root rollup.
    */
   setBlockCompleted(): Promise<void>;
+
+  /** Returns an identifier for the prover or zero if not set. */
+  getProverId(): Fr;
 }

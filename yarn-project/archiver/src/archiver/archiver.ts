@@ -28,7 +28,6 @@ import { type EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
-import { RollupAbi } from '@aztec/l1-artifacts';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
 import { type TelemetryClient } from '@aztec/telemetry-client';
 import {
@@ -41,7 +40,7 @@ import {
 } from '@aztec/types/contracts';
 
 import groupBy from 'lodash.groupby';
-import { type Chain, type HttpTransport, type PublicClient, createPublicClient, getAbiItem, http } from 'viem';
+import { type Chain, type HttpTransport, type PublicClient, createPublicClient, http } from 'viem';
 
 import { type ArchiverDataStore } from './archiver_store.js';
 import { type ArchiverConfig } from './config.js';
@@ -50,6 +49,7 @@ import {
   retrieveBlockBodiesFromAvailabilityOracle,
   retrieveBlockMetadataFromRollup,
   retrieveL1ToL2Messages,
+  retrieveL2ProofVerifiedEvents,
 } from './data_retrieval.js';
 import { ArchiverInstrumentation } from './instrumentation.js';
 
@@ -307,20 +307,14 @@ export class Archiver implements ArchiveSource {
   }
 
   private async updateLastProvenL2Block(fromBlock: bigint, toBlock: bigint) {
-    const logs = await this.publicClient.getLogs({
-      address: this.rollupAddress.toString(),
-      fromBlock,
-      toBlock: toBlock + 1n, // toBlock is exclusive
-      strict: true,
-      event: getAbiItem({ abi: RollupAbi, name: 'L2ProofVerified' }),
-    });
+    const logs = await retrieveL2ProofVerifiedEvents(this.publicClient, this.rollupAddress, fromBlock, toBlock);
 
     const lastLog = logs[logs.length - 1];
     if (!lastLog) {
       return;
     }
 
-    const provenBlockNumber = lastLog.args.blockNumber;
+    const provenBlockNumber = lastLog.l2BlockNumber;
     if (!provenBlockNumber) {
       throw new Error(`Missing argument blockNumber from L2ProofVerified event`);
     }

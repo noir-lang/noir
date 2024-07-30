@@ -1,5 +1,5 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
-import { type Archiver } from '@aztec/archiver';
+import { type Archiver, retrieveL2ProofVerifiedEvents } from '@aztec/archiver';
 import {
   type AccountWalletWithSecretKey,
   type AztecAddress,
@@ -29,7 +29,7 @@ import {
 // Tests simple block building with a sequencer that does not upload proofs to L1,
 // and then follows with a prover node run (with real proofs disabled, but
 // still simulating all circuits via a prover-client), in order to test
-// the coordination between the sequencer and the prover node.
+// the coordination through L1 between the sequencer and the prover node.
 describe('e2e_prover_node', () => {
   let ctx: SubsystemsContext;
   let wallet: AccountWalletWithSecretKey;
@@ -133,15 +133,22 @@ describe('e2e_prover_node', () => {
 
     // Kick off a prover node
     await sleep(1000);
-    logger.info('Creating prover node');
+    const proverId = Fr.fromString(Buffer.from('awesome-prover', 'utf-8').toString('hex'));
+    logger.info(`Creating prover node ${proverId.toString()}`);
     // HACK: We have to use the existing archiver to fetch L2 data, since anvil's chain dump/load used by the
     // snapshot manager does not include events nor txs, so a new archiver would not "see" old blocks.
-    const proverConfig = { ...ctx.aztecNodeConfig, txProviderNodeUrl: undefined, dataDirectory: undefined };
+    const proverConfig = { ...ctx.aztecNodeConfig, txProviderNodeUrl: undefined, dataDirectory: undefined, proverId };
     const archiver = ctx.aztecNode.getBlockSource() as Archiver;
     const proverNode = await createProverNode(proverConfig, { aztecNodeTxProvider: ctx.aztecNode, archiver });
 
     // Prove the first two blocks
     await prove(proverNode, firstBlock);
     await prove(proverNode, firstBlock + 1);
+
+    // Check that the prover id made it to the emitted event
+    const { publicClient, l1ContractAddresses } = ctx.deployL1ContractsValues;
+    const logs = await retrieveL2ProofVerifiedEvents(publicClient, l1ContractAddresses.rollupAddress, 1n);
+    expect(logs[0].l2BlockNumber).toEqual(BigInt(firstBlock));
+    expect(logs[0].proverId.toString()).toEqual(proverId.toString());
   });
 });

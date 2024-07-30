@@ -224,6 +224,7 @@ export async function getRootRollupInput(
   messageTreeSnapshot: AppendOnlyTreeSnapshot,
   messageTreeRootSiblingPath: Tuple<Fr, typeof L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH>,
   db: MerkleTreeOperations,
+  proverId: Fr,
 ) {
   const previousRollupData: RootRollupInputs['previousRollupData'] = [
     getPreviousRollupDataFromPublicInputs(rollupOutputLeft, rollupProofLeft, verificationKeyLeft),
@@ -254,6 +255,7 @@ export async function getRootRollupInput(
     startL1ToL2MessageTreeSnapshot: messageTreeSnapshot,
     startArchiveSnapshot,
     newArchiveSiblingPath,
+    proverId,
   });
 }
 

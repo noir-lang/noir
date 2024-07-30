@@ -34,6 +34,8 @@ struct RootRollupInputs {
     // inputs required to add the block hash
     start_archive_snapshot : AppendOnlyTreeSnapshot,
     new_archive_sibling_path : [Field; ARCHIVE_HEIGHT],
+
+    prover_id: Field,
 }
 
 impl RootRollupInputs {
@@ -106,7 +108,7 @@ impl RootRollupInputs {
             0
         );
 
-        RootRollupPublicInputs { archive, header, vk_tree_root }
+        RootRollupPublicInputs { archive, header, vk_tree_root, prover_id: self.prover_id }
     }
 }
 
@@ -120,6 +122,7 @@ impl Empty for RootRollupInputs {
             start_l1_to_l2_message_tree_snapshot : AppendOnlyTreeSnapshot::zero(),
             start_archive_snapshot : AppendOnlyTreeSnapshot::zero(),
             new_archive_sibling_path : [0; ARCHIVE_HEIGHT],
+            prover_id: 0
         }
     }
 }

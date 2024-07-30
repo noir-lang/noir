@@ -36,10 +36,12 @@ describe('Archiver', () => {
 
   let publicClient: MockProxy<PublicClient<HttpTransport, Chain>>;
   let archiverStore: ArchiverDataStore;
+  let proverId: Fr;
 
   beforeEach(() => {
     publicClient = mock<PublicClient<HttpTransport, Chain>>();
     archiverStore = new MemoryArchiverStore(1000);
+    proverId = Fr.random();
   });
 
   it('can start, sync and stop and handle l1 to l2 messages and logs', async () => {
@@ -67,7 +69,7 @@ describe('Archiver', () => {
       messageSent: [makeMessageSentEvent(98n, 1n, 0n), makeMessageSentEvent(99n, 1n, 1n)],
       txPublished: [makeTxsPublishedEvent(101n, blocks[0].body.getTxsEffectsHash())],
       l2BlockProcessed: [makeL2BlockProcessedEvent(101n, 1n)],
-      proofVerified: [makeProofVerifiedEvent(102n, 1n)],
+      proofVerified: [makeProofVerifiedEvent(102n, 1n, proverId)],
     });
 
     mockGetLogs({
@@ -271,11 +273,12 @@ function makeMessageSentEvent(l1BlockNum: bigint, l2BlockNumber: bigint, index: 
   } as Log<bigint, number, false, undefined, true, typeof InboxAbi, 'MessageSent'>;
 }
 
-function makeProofVerifiedEvent(l1BlockNum: bigint, l2BlockNumber: bigint) {
+function makeProofVerifiedEvent(l1BlockNum: bigint, l2BlockNumber: bigint, proverId: Fr) {
   return {
     blockNumber: l1BlockNum,
     args: {
       blockNumber: l2BlockNumber,
+      proverId: proverId.toString(),
     },
   } as Log<bigint, number, false, undefined, true, typeof RollupAbi, 'L2ProofVerified'>;
 }

@@ -932,6 +932,7 @@ export function makeRootRollupInputs(seed = 0, globalVariables?: GlobalVariables
     makeAppendOnlyTreeSnapshot(seed + 0x2200),
     makeAppendOnlyTreeSnapshot(seed + 0x2200),
     makeTuple(ARCHIVE_HEIGHT, fr, 0x2400),
+    fr(0x2500),
   );
 }
 
@@ -983,6 +984,7 @@ export function makeRootRollupPublicInputs(
     archive: makeAppendOnlyTreeSnapshot(seed + 0x100),
     header: makeHeader(seed + 0x200, blockNumber),
     vkTreeRoot: fr(seed + 0x300),
+    proverId: fr(seed + 0x400),
   });
 }
 

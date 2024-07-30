@@ -97,7 +97,12 @@ export class ProvingOrchestrator {
 
   public readonly tracer: Tracer;
 
-  constructor(private db: MerkleTreeOperations, private prover: ServerCircuitProver, telemetryClient: TelemetryClient) {
+  constructor(
+    private db: MerkleTreeOperations,
+    private prover: ServerCircuitProver,
+    telemetryClient: TelemetryClient,
+    public readonly proverId: Fr = Fr.ZERO,
+  ) {
     this.tracer = telemetryClient.getTracer('ProvingOrchestrator');
   }
 
@@ -739,6 +744,7 @@ export class ProvingOrchestrator {
       provingState.messageTreeSnapshot,
       provingState.messageTreeRootSiblingPath,
       this.db,
+      this.proverId,
     );
 
     this.deferredProving(

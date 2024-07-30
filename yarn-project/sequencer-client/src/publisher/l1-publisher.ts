@@ -113,6 +113,8 @@ export type L1SubmitProofArgs = {
   header: Buffer;
   /** A root of the archive tree after the L2 block is applied. */
   archive: Buffer;
+  /** Identifier of the prover. */
+  proverId: Buffer;
   /** The proof for the block. */
   proof: Buffer;
   /** The aggregation object for the block's proof. */
@@ -238,12 +240,19 @@ export class L1Publisher implements L2BlockReceiver {
     return false;
   }
 
-  public async submitProof(header: Header, archiveRoot: Fr, aggregationObject: Fr[], proof: Proof): Promise<boolean> {
+  public async submitProof(
+    header: Header,
+    archiveRoot: Fr,
+    proverId: Fr,
+    aggregationObject: Fr[],
+    proof: Proof,
+  ): Promise<boolean> {
     const ctx = { blockNumber: header.globalVariables.blockNumber };
 
     const txArgs: L1SubmitProofArgs = {
       header: header.toBuffer(),
       archive: archiveRoot.toBuffer(),
+      proverId: proverId.toBuffer(),
       aggregationObject: serializeToBuffer(aggregationObject),
       proof: proof.withoutPublicInputs(),
     };

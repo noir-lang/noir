@@ -7,7 +7,7 @@ import {
   type ProvingTicket,
   type ServerCircuitProver,
 } from '@aztec/circuit-types/interfaces';
-import { type Fr, type GlobalVariables } from '@aztec/circuits.js';
+import { Fr, type GlobalVariables } from '@aztec/circuits.js';
 import { NativeACVMSimulator } from '@aztec/simulator';
 import { type TelemetryClient } from '@aztec/telemetry-client';
 import { type WorldStateSynchronizer } from '@aztec/world-state';
@@ -32,7 +32,16 @@ export class TxProver implements ProverClient {
     private agent?: ProverAgent,
   ) {
     this.queue = new MemoryProvingQueue(config.proverJobTimeoutMs, config.proverJobPollIntervalMs);
-    this.orchestrator = new ProvingOrchestrator(worldStateSynchronizer.getLatest(), this.queue, telemetry);
+    this.orchestrator = new ProvingOrchestrator(
+      worldStateSynchronizer.getLatest(),
+      this.queue,
+      telemetry,
+      config.proverId,
+    );
+  }
+
+  public getProverId(): Fr {
+    return this.config.proverId ?? Fr.ZERO;
   }
 
   async updateProverConfig(config: Partial<ProverClientConfig>): Promise<void> {

@@ -9,4 +9,7 @@ struct RootRollupPublicInputs {
 
     // New block header
     header: Header,
+
+    // Identifier of the prover
+    prover_id: Field,
 }
