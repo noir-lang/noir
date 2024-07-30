@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.47.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.47.0...barretenberg-v0.47.1) (2024-07-30)
+
+
+### Features
+
+* Add recursive aggregation object to proving/verification keys ([#6770](https://github.com/AztecProtocol/aztec-packages/issues/6770)) ([f48b069](https://github.com/AztecProtocol/aztec-packages/commit/f48b069181e316cb2a9d81f0acf6c00ee90e3db3))
+* Adding aggregation to honk and rollup ([#7466](https://github.com/AztecProtocol/aztec-packages/issues/7466)) ([2633aa9](https://github.com/AztecProtocol/aztec-packages/commit/2633aa91a97684f481a861aee0be8756c956135a))
+* **avm:** Pedersen commit in avm ([#7634](https://github.com/AztecProtocol/aztec-packages/issues/7634)) ([45e7867](https://github.com/AztecProtocol/aztec-packages/commit/45e7867f4b42a3392b4b95767621284ebc7378fe))
+* **avm:** Pedersen commitment sim ([#7632](https://github.com/AztecProtocol/aztec-packages/issues/7632)) ([cc420a0](https://github.com/AztecProtocol/aztec-packages/commit/cc420a081e23558b9441cbf563625002e1d45f18))
+* **sol-honk:** Integrate solidity honk verifier with bb and acir tests ([#7573](https://github.com/AztecProtocol/aztec-packages/issues/7573)) ([344ca6f](https://github.com/AztecProtocol/aztec-packages/commit/344ca6f413263a3c2c516b388f85a11fada2840f))
+* **sol-honk:** Test verifying recursive proof  ([#7576](https://github.com/AztecProtocol/aztec-packages/issues/7576)) ([26408c1](https://github.com/AztecProtocol/aztec-packages/commit/26408c197f5c6e8a300d24e441f4a4860210b5f0))
+
+
+### Bug Fixes
+
+* Bb mac build ([#7619](https://github.com/AztecProtocol/aztec-packages/issues/7619)) ([e3c5602](https://github.com/AztecProtocol/aztec-packages/commit/e3c560216e1bce7d22e30ef18d428f1ab7335a09))
+
+
+### Miscellaneous
+
+* **bb readme:** Add installation instructions and TODOs ([#7601](https://github.com/AztecProtocol/aztec-packages/issues/7601)) ([1a97698](https://github.com/AztecProtocol/aztec-packages/commit/1a97698071a667cd56510c7b7201373a9ac9c646))
+* **bb readme:** Update versioning instructions and add Honk Solidity verifier commands ([#7608](https://github.com/AztecProtocol/aztec-packages/issues/7608)) ([9dd9195](https://github.com/AztecProtocol/aztec-packages/commit/9dd9195d8da2d7e2bc85d39e53b33cc82597da1f))
+* Call requests ([#7483](https://github.com/AztecProtocol/aztec-packages/issues/7483)) ([ffedf39](https://github.com/AztecProtocol/aztec-packages/commit/ffedf39d98aee4c4149e55e4a133e878553e1e25))
+* Constant inputs for most blackboxes ([#7613](https://github.com/AztecProtocol/aztec-packages/issues/7613)) ([3247058](https://github.com/AztecProtocol/aztec-packages/commit/3247058d2e54e1fb84680ad9fcf9ece611235e96))
+* Merge Devnet back to Master ([#7611](https://github.com/AztecProtocol/aztec-packages/issues/7611)) ([112961c](https://github.com/AztecProtocol/aztec-packages/commit/112961cd9c9276e2cd95b41b6de31d27bb43bb41))
+
 ## [0.47.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.46.7...barretenberg-v0.47.0) (2024-07-24)
 
 

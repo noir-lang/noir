@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.47.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.47.0...aztec-packages-v0.47.1) (2024-07-30)
+
+
+### Features
+
+* Add recursive aggregation object to proving/verification keys ([#6770](https://github.com/AztecProtocol/aztec-packages/issues/6770)) ([f48b069](https://github.com/AztecProtocol/aztec-packages/commit/f48b069181e316cb2a9d81f0acf6c00ee90e3db3))
+* Adding aggregation to honk and rollup ([#7466](https://github.com/AztecProtocol/aztec-packages/issues/7466)) ([2633aa9](https://github.com/AztecProtocol/aztec-packages/commit/2633aa91a97684f481a861aee0be8756c956135a))
+* Allow get_notes to return zero notes ([#7621](https://github.com/AztecProtocol/aztec-packages/issues/7621)) ([e16452a](https://github.com/AztecProtocol/aztec-packages/commit/e16452ab7640169e1235b91d598e3d90ba4ce57e))
+* **avm:** Pedersen commit in avm ([#7634](https://github.com/AztecProtocol/aztec-packages/issues/7634)) ([45e7867](https://github.com/AztecProtocol/aztec-packages/commit/45e7867f4b42a3392b4b95767621284ebc7378fe))
+* **avm:** Pedersen commitment sim ([#7632](https://github.com/AztecProtocol/aztec-packages/issues/7632)) ([cc420a0](https://github.com/AztecProtocol/aztec-packages/commit/cc420a081e23558b9441cbf563625002e1d45f18))
+* Do not evict tx objects from p2p tx pool immediately ([#7652](https://github.com/AztecProtocol/aztec-packages/issues/7652)) ([96492dc](https://github.com/AztecProtocol/aztec-packages/commit/96492dccbf501eb9d05b57827c79c5977b393df7))
+* Handle L1toL2 msgs in prover-node ([#7654](https://github.com/AztecProtocol/aztec-packages/issues/7654)) ([f35bac5](https://github.com/AztecProtocol/aztec-packages/commit/f35bac5d35d22e269d8bf2ffccc4484a715d70ae))
+* Leonidas  ([#7597](https://github.com/AztecProtocol/aztec-packages/issues/7597)) ([eda498a](https://github.com/AztecProtocol/aztec-packages/commit/eda498aec6d852c8732c86564e4226f13cb4cdcd))
+* Min and max block times for sequencer ([#7630](https://github.com/AztecProtocol/aztec-packages/issues/7630)) ([2a013b8](https://github.com/AztecProtocol/aztec-packages/commit/2a013b86e554f0516dd1d086a30a4e1e4e4ec684))
+* **sol-honk:** Integrate solidity honk verifier with bb and acir tests ([#7573](https://github.com/AztecProtocol/aztec-packages/issues/7573)) ([344ca6f](https://github.com/AztecProtocol/aztec-packages/commit/344ca6f413263a3c2c516b388f85a11fada2840f))
+* **sol-honk:** Test verifying recursive proof  ([#7576](https://github.com/AztecProtocol/aztec-packages/issues/7576)) ([26408c1](https://github.com/AztecProtocol/aztec-packages/commit/26408c197f5c6e8a300d24e441f4a4860210b5f0))
+* Static.aztec.network ([#7649](https://github.com/AztecProtocol/aztec-packages/issues/7649)) ([9dffef5](https://github.com/AztecProtocol/aztec-packages/commit/9dffef598dd5adb6fe02ff697916b63f81a4b054))
+* Transaction sender bot ([#7586](https://github.com/AztecProtocol/aztec-packages/issues/7586)) ([176fd08](https://github.com/AztecProtocol/aztec-packages/commit/176fd08c7b72bce2beb405080b7992ebf4ba0a31)), closes [#7562](https://github.com/AztecProtocol/aztec-packages/issues/7562)
+
+
+### Bug Fixes
+
+* Aztec start --prover ([#7617](https://github.com/AztecProtocol/aztec-packages/issues/7617)) ([ac206a6](https://github.com/AztecProtocol/aztec-packages/commit/ac206a609b3fa6bcad5d8981de8e42967b41050b))
+* Bb mac build ([#7619](https://github.com/AztecProtocol/aztec-packages/issues/7619)) ([e3c5602](https://github.com/AztecProtocol/aztec-packages/commit/e3c560216e1bce7d22e30ef18d428f1ab7335a09))
+* Faucet correctly derives its account ([#7645](https://github.com/AztecProtocol/aztec-packages/issues/7645)) ([921773f](https://github.com/AztecProtocol/aztec-packages/commit/921773fa7fbd614948b1c76f655746483935809f))
+* Uniswap e2e test "nonce too low" ([#7633](https://github.com/AztecProtocol/aztec-packages/issues/7633)) ([e9e2318](https://github.com/AztecProtocol/aztec-packages/commit/e9e231833a50c0763164f9a502a322549ce9d05c))
+
+
+### Miscellaneous
+
+* Add tx bot to terraform ([#7609](https://github.com/AztecProtocol/aztec-packages/issues/7609)) ([6caa914](https://github.com/AztecProtocol/aztec-packages/commit/6caa914d96a13d0e50f0403c561aa72e6b455782))
+* **bb readme:** Add installation instructions and TODOs ([#7601](https://github.com/AztecProtocol/aztec-packages/issues/7601)) ([1a97698](https://github.com/AztecProtocol/aztec-packages/commit/1a97698071a667cd56510c7b7201373a9ac9c646))
+* **bb readme:** Update versioning instructions and add Honk Solidity verifier commands ([#7608](https://github.com/AztecProtocol/aztec-packages/issues/7608)) ([9dd9195](https://github.com/AztecProtocol/aztec-packages/commit/9dd9195d8da2d7e2bc85d39e53b33cc82597da1f))
+* Bench client ivc proof verification ([#7553](https://github.com/AztecProtocol/aztec-packages/issues/7553)) ([b060309](https://github.com/AztecProtocol/aztec-packages/commit/b060309540af2c4db5057ae526ee65f5f1fd6d0e))
+* Call requests ([#7483](https://github.com/AztecProtocol/aztec-packages/issues/7483)) ([ffedf39](https://github.com/AztecProtocol/aztec-packages/commit/ffedf39d98aee4c4149e55e4a133e878553e1e25))
+* Constant inputs for most blackboxes ([#7613](https://github.com/AztecProtocol/aztec-packages/issues/7613)) ([3247058](https://github.com/AztecProtocol/aztec-packages/commit/3247058d2e54e1fb84680ad9fcf9ece611235e96))
+* **docs:** Fix links ([#7602](https://github.com/AztecProtocol/aztec-packages/issues/7602)) ([f2029be](https://github.com/AztecProtocol/aztec-packages/commit/f2029be410ce2381eb4cf56fc5fcc8707492db45))
+* Merge Devnet back to Master ([#7611](https://github.com/AztecProtocol/aztec-packages/issues/7611)) ([112961c](https://github.com/AztecProtocol/aztec-packages/commit/112961cd9c9276e2cd95b41b6de31d27bb43bb41))
+* **p2p:** Tx serialization cleanup ([#7620](https://github.com/AztecProtocol/aztec-packages/issues/7620)) ([022a899](https://github.com/AztecProtocol/aztec-packages/commit/022a899bb729ec0cd8403955908f3537b108c61b))
+* Replace relative paths to noir-protocol-circuits ([ebaafc7](https://github.com/AztecProtocol/aztec-packages/commit/ebaafc7f660cd0ee915e1b6daa2d2e499d9d7280))
+* Replace relative paths to noir-protocol-circuits ([d3b818d](https://github.com/AztecProtocol/aztec-packages/commit/d3b818d8fcaffe51273b9eea91b621f62ccf8f1f))
+* Replace relative paths to noir-protocol-circuits ([4a26a19](https://github.com/AztecProtocol/aztec-packages/commit/4a26a19c4f03d2c7800cf769b46724d09dcb8b0e))
+
 ## [0.47.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.46.7...aztec-packages-v0.47.0) (2024-07-24)
 
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.47.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.47.0...aztec-package-v0.47.1) (2024-07-30)
+
+
+### Features
+
+* Do not evict tx objects from p2p tx pool immediately ([#7652](https://github.com/AztecProtocol/aztec-packages/issues/7652)) ([96492dc](https://github.com/AztecProtocol/aztec-packages/commit/96492dccbf501eb9d05b57827c79c5977b393df7))
+* Min and max block times for sequencer ([#7630](https://github.com/AztecProtocol/aztec-packages/issues/7630)) ([2a013b8](https://github.com/AztecProtocol/aztec-packages/commit/2a013b86e554f0516dd1d086a30a4e1e4e4ec684))
+* Transaction sender bot ([#7586](https://github.com/AztecProtocol/aztec-packages/issues/7586)) ([176fd08](https://github.com/AztecProtocol/aztec-packages/commit/176fd08c7b72bce2beb405080b7992ebf4ba0a31)), closes [#7562](https://github.com/AztecProtocol/aztec-packages/issues/7562)
+
+
+### Bug Fixes
+
+* Aztec start --prover ([#7617](https://github.com/AztecProtocol/aztec-packages/issues/7617)) ([ac206a6](https://github.com/AztecProtocol/aztec-packages/commit/ac206a609b3fa6bcad5d8981de8e42967b41050b))
+
+
+### Miscellaneous
+
+* Add tx bot to terraform ([#7609](https://github.com/AztecProtocol/aztec-packages/issues/7609)) ([6caa914](https://github.com/AztecProtocol/aztec-packages/commit/6caa914d96a13d0e50f0403c561aa72e6b455782))
+* Merge Devnet back to Master ([#7611](https://github.com/AztecProtocol/aztec-packages/issues/7611)) ([112961c](https://github.com/AztecProtocol/aztec-packages/commit/112961cd9c9276e2cd95b41b6de31d27bb43bb41))
+
 ## [0.47.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.46.7...aztec-package-v0.47.0) (2024-07-24)
 
 
