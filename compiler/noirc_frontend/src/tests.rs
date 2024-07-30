@@ -2773,3 +2773,39 @@ fn uses_self_type_inside_trait() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn uses_self_type_in_trait_where_clause() {
+    let src = r#"
+    trait Trait {
+        fn trait_func() -> bool;
+    }
+
+    trait Foo where Self: Trait {
+        fn foo(self) -> bool {
+            self.trait_func()
+        }
+    }
+
+    struct Bar {
+
+    }
+
+    impl Foo for Bar {
+
+    }
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall { method_name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unresolved method call error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(method_name, "trait_func");
+}
