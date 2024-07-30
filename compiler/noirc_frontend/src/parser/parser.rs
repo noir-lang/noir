@@ -466,6 +466,7 @@ where
             assertion::assertion_eq(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
+            block_statement(statement.clone()),
             for_loop(expr_no_constructors.clone(), statement.clone()),
             break_statement(),
             continue_statement(),
@@ -929,6 +930,15 @@ where
             .map(|((condition, consequence), alternative)| {
                 ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
             })
+    })
+}
+
+fn block_statement<'a, S>(statement: S) -> impl NoirParser<StatementKind> + 'a
+where
+    S: NoirParser<StatementKind> + 'a,
+{
+    block(statement).map_with_span(|block, span| {
+        StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
     })
 }
 
@@ -1628,5 +1638,17 @@ mod test {
 
         let failing = vec!["quote {}}", "quote a", "quote { { { } } } }"];
         parse_all_failing(quote(), failing);
+    }
+
+    #[test]
+    fn test_parses_block_statement_not_infix_expression() {
+        let src = r#"
+        {
+          {}
+          -1
+        }"#;
+        let (block_expr, _) = parse_recover(block(fresh_statement()), src);
+        let block_expr = block_expr.expect("Failed to parse module");
+        assert_eq!(block_expr.statements.len(), 2);
     }
 }
