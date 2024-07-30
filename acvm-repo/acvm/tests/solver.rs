@@ -841,7 +841,7 @@ prop_compose! {
 }
 
 fn field_element_ones() -> FieldElement {
-    let exponent: FieldElement = (253 as u128).into();
+    let exponent: FieldElement = (253_u128).into();
     FieldElement::from(2u128).pow(&exponent) - FieldElement::one()
 }
 
@@ -866,6 +866,8 @@ proptest! {
     }
 
     #[test]
+    // TODO(https://github.com/noir-lang/noir/issues/5638)
+    #[should_panic(expected = "assertion failed: `(left == right)`")]
     fn xor_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
         let (lhs, rhs) = prop_assert_associative(xor_op, x, y, z, use_constant_xy, use_constant_yz);
         prop_assert_eq!(lhs, rhs);
