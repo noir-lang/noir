@@ -18,7 +18,7 @@ use noirc_frontend::{
     macros_api::NodeInterner,
     node_interner::ReferenceId,
     parser::{Item, ItemKind},
-    ParsedModule, Type, TypeBinding, TypeVariable, TypeVariableKind,
+    ParsedModule, PolymorphicKind, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
 use crate::LspState;
@@ -558,15 +558,21 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
         Type::TypeVariable(var, TypeVariableKind::Normal) => {
             push_type_variable_parts(var, parts, files);
         }
-        Type::TypeVariable(binding, TypeVariableKind::Integer) => {
+        Type::TypeVariable(binding, TypeVariableKind::Polymorphic(PolymorphicKind::Integer)) => {
             if let TypeBinding::Unbound(_) = &*binding.borrow() {
                 push_type_parts(&Type::default_int_type(), parts, files);
             } else {
                 push_type_variable_parts(binding, parts, files);
             }
         }
-        Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
-        | Type::TypeVariable(binding, TypeVariableKind::IntegerOrFieldOrBool) => {
+        Type::TypeVariable(
+            binding,
+            TypeVariableKind::Polymorphic(PolymorphicKind::IntegerOrField),
+        )
+        | Type::TypeVariable(
+            binding,
+            TypeVariableKind::Polymorphic(PolymorphicKind::IntegerOrFieldOrBool),
+        ) => {
             if let TypeBinding::Unbound(_) = &*binding.borrow() {
                 parts.push(string_part("Field"));
             } else {

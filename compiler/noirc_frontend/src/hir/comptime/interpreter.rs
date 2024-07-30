@@ -18,7 +18,6 @@ use crate::monomorphization::{
     undo_instantiation_bindings,
 };
 use crate::token::Tokens;
-use crate::TypeVariable;
 use crate::{
     hir_def::{
         expr::{
@@ -36,6 +35,7 @@ use crate::{
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     Shared, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
+use crate::{PolymorphicKind, TypeVariable};
 
 use super::errors::{IResult, InterpreterError};
 use super::value::{unwrap_rc, Value};
@@ -661,9 +661,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::I64(value))
                 }
             }
-        } else if let Type::TypeVariable(variable, TypeVariableKind::IntegerOrField) = &typ {
+        } else if let Type::TypeVariable(
+            variable,
+            TypeVariableKind::Polymorphic(PolymorphicKind::IntegerOrField),
+        ) = &typ
+        {
             Ok(Value::Field(value))
-        } else if let Type::TypeVariable(variable, TypeVariableKind::Integer) = &typ {
+        } else if let Type::TypeVariable(
+            variable,
+            TypeVariableKind::Polymorphic(PolymorphicKind::Integer),
+        ) = &typ
+        {
             let value: u64 = value
                 .try_to_u64()
                 .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;

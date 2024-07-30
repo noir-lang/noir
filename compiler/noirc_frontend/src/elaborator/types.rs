@@ -783,8 +783,7 @@ impl<'context> Elaborator<'context> {
         match from.follow_bindings() {
             Type::Integer(..)
             | Type::FieldElement
-            | Type::TypeVariable(_, TypeVariableKind::IntegerOrField)
-            | Type::TypeVariable(_, TypeVariableKind::Integer)
+            | Type::TypeVariable(_, TypeVariableKind::Polymorphic(..))
             | Type::Bool => (),
 
             Type::TypeVariable(binding, TypeVariableKind::Normal) => {
