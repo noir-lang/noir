@@ -1322,20 +1322,6 @@ mod test {
     fn parse_block() {
         parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();
 
-        // Regression for #1310: this should be parsed as a block and not a function call
-        let res =
-            parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
-        match unwrap_expr(&res.statements.last().unwrap().kind) {
-            // The `if` followed by a tuple is currently creates a block around both in case
-            // there was none to start with, so there is an extra block here.
-            ExpressionKind::Block(block) => {
-                assert_eq!(block.statements.len(), 2);
-                assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
-                assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
-            }
-            _ => unreachable!(),
-        }
-
         parse_all_failing(
             block(fresh_statement()),
             vec![
@@ -1347,14 +1333,6 @@ mod test {
                 "[[0,1,2,3,4]}",
             ],
         );
-    }
-
-    /// Extract an Statement::Expression from a statement or panic
-    fn unwrap_expr(stmt: &StatementKind) -> &ExpressionKind {
-        match stmt {
-            StatementKind::Expression(expr) => &expr.kind,
-            _ => unreachable!(),
-        }
     }
 
     #[test]
@@ -1672,6 +1650,18 @@ mod test {
         {
           if 1 { 2 } else { 3 }
           -1
+        }"#;
+        let (block_expr, _) = parse_recover(block(fresh_statement()), src);
+        let block_expr = block_expr.expect("Failed to parse module");
+        assert_eq!(block_expr.statements.len(), 2);
+    }
+
+    #[test]
+    fn test_parses_if_statement_followed_by_tuple_as_two_separate_statements() {
+        // Regression for #1310: this should not be parsed as a function call
+        let src = r#"
+        {
+          if 1 { 2 } else { 3 } (1, 2)
         }"#;
         let (block_expr, _) = parse_recover(block(fresh_statement()), src);
         let block_expr = block_expr.expect("Failed to parse module");
