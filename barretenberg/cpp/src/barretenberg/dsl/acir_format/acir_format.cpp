@@ -176,7 +176,7 @@ void build_constraints(Builder& builder,
     // Add multi scalar mul constraints
     for (size_t i = 0; i < constraint_system.multi_scalar_mul_constraints.size(); ++i) {
         const auto& constraint = constraint_system.multi_scalar_mul_constraints.at(i);
-        create_multi_scalar_mul_constraint(builder, constraint);
+        create_multi_scalar_mul_constraint(builder, constraint, has_valid_witness_assignments);
         track_gate_diff(constraint_system.gates_per_opcode,
                         constraint_system.original_opcode_indices.multi_scalar_mul_constraints.at(i));
     }
