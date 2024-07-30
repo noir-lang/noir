@@ -92,3 +92,6 @@ fn call_yet_another_function() {
     yet_another_function(some_name) // Should not show parameter names ("name" is a suffix of "some_name")
 }
 
+fn struct_member_hint() {
+    let SomeStruct { one } = SomeStruct { one: 1 };
+}

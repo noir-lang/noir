@@ -7,7 +7,7 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
-    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness, TraitBound},
+    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
     hir::def_map::ModuleId,
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
@@ -48,7 +48,7 @@ pub enum Value {
     Slice(Vector<Value>, Type),
     Code(Rc<Tokens>),
     StructDefinition(StructId),
-    TraitConstraint(TraitBound),
+    TraitConstraint(TraitId, /* trait generics */ Vec<Type>),
     TraitDefinition(TraitId),
     FunctionDefinition(FuncId),
     ModuleDefinition(ModuleId),
@@ -222,7 +222,7 @@ impl Value {
             }
             Value::Pointer(..)
             | Value::StructDefinition(_)
-            | Value::TraitConstraint(_)
+            | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
@@ -342,7 +342,7 @@ impl Value {
             Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
             Value::Pointer(..)
             | Value::StructDefinition(_)
-            | Value::TraitConstraint(_)
+            | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)

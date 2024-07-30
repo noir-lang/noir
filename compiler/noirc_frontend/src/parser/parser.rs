@@ -218,9 +218,8 @@ fn top_level_statement<'a>(
 ///
 /// implementation: 'impl' generics type '{' function_definition ... '}'
 fn implementation() -> impl NoirParser<TopLevelStatement> {
-    maybe_comp_time()
-        .then_ignore(keyword(Keyword::Impl))
-        .then(function::generics())
+    keyword(Keyword::Impl)
+        .ignore_then(function::generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
         .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
@@ -228,14 +227,13 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::RightBrace))
         .map(|args| {
             let ((other_args, where_clause), methods) = args;
-            let ((is_comptime, generics), (object_type, type_span)) = other_args;
+            let (generics, (object_type, type_span)) = other_args;
             TopLevelStatement::Impl(TypeImpl {
                 generics,
                 object_type,
                 type_span,
                 where_clause,
                 methods,
-                is_comptime,
             })
         })
 }
@@ -559,7 +557,7 @@ fn pattern() -> impl NoirParser<Pattern> {
             .separated_by(just(Token::Comma))
             .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-        let struct_pattern = path()
+        let struct_pattern = path(super::parse_type())
             .then(struct_pattern_fields)
             .map_with_span(|(typename, fields), span| Pattern::Struct(typename, fields, span));
 
@@ -1130,7 +1128,7 @@ fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> 
         .allow_trailing()
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-    path().then(args).map(ExpressionKind::constructor)
+    path(super::parse_type()).then(args).map(ExpressionKind::constructor)
 }
 
 fn constructor_field<P>(expr_parser: P) -> impl NoirParser<(Ident, Expression)>
