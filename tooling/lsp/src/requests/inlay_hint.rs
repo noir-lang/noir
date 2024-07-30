@@ -258,7 +258,7 @@ impl<'a> InlayHintCollector<'a> {
                     }
                 }
 
-                self.collect_in_expression(&lambda.body)
+                self.collect_in_expression(&lambda.body);
             }
             ExpressionKind::Parenthesized(parenthesized) => {
                 self.collect_in_expression(parenthesized);
