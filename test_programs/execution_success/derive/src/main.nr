@@ -1,36 +1,40 @@
-use std::collections::umap::UHashMap;
-use std::hash::BuildHasherDefault;
-use std::hash::poseidon2::Poseidon2Hasher;
+// Put derive functions in a separate module to show that TraitConstraints
+// on an attribute can be resolved in the caller's scope
+mod derive {
+    use std::collections::umap::UHashMap;
+    use std::hash::BuildHasherDefault;
+    use std::hash::poseidon2::Poseidon2Hasher;
 
-#[my_derive(DoNothing)]
-struct MyStruct { my_field: u32 }
+    type DeriveFunction = fn(StructDefinition) -> Quoted;
 
-type DeriveFunction = fn(StructDefinition) -> Quoted;
+    comptime mut global HANDLERS: UHashMap<TraitConstraint, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
 
-comptime mut global HANDLERS: UHashMap<TraitConstraint, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
+    comptime fn my_derive(s: StructDefinition, traits: [TraitConstraint]) -> Quoted {
+        let mut result = quote {};
 
-comptime fn my_derive(s: StructDefinition, traits: [Quoted]) -> Quoted {
-    let mut result = quote {};
+        for trait_to_derive in traits {
+            let handler = HANDLERS.get(trait_to_derive);
+            assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
 
-    for trait_to_derive in traits {
-        let handler = HANDLERS.get(trait_to_derive.as_trait_constraint());
-        assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
+            let trait_impl = handler.unwrap()(s);
+            result = quote { $result $trait_impl };
+        }
 
-        let trait_impl = handler.unwrap()(s);
-        result = quote { $result $trait_impl };
+        result
     }
 
-    result
-}
-
-unconstrained comptime fn my_derive_via(t: TraitDefinition, f: Quoted) {
-    HANDLERS.insert(t.as_trait_constraint(), std::meta::unquote!(f));
+    unconstrained comptime fn my_derive_via(t: TraitDefinition, f: Quoted) {
+        HANDLERS.insert(t.as_trait_constraint(), std::meta::unquote!(f));
+    }
 }
 
 #[my_derive_via(derive_do_nothing)]
 trait DoNothing {
     fn do_nothing(self);
 }
+
+#[my_derive(DoNothing)]
+struct MyStruct { my_field: u32 }
 
 comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
     let typ = s.as_type();
