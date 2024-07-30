@@ -1,4 +1,4 @@
-import { type L2BlockSource, type ProverClient, type TxProvider } from '@aztec/circuit-types';
+import { type L1ToL2MessageSource, type L2BlockSource, type ProverClient, type TxProvider } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { type L1Publisher } from '@aztec/sequencer-client';
@@ -20,6 +20,7 @@ export class ProverNode {
     private publicProcessorFactory: PublicProcessorFactory,
     private publisher: L1Publisher,
     private l2BlockSource: L2BlockSource,
+    private l1ToL2MessageSource: L1ToL2MessageSource,
     private txProvider: TxProvider,
     private options: { pollingIntervalMs: number; disableAutomaticProving: boolean } = {
       pollingIntervalMs: 1_000,
@@ -102,6 +103,7 @@ export class ProverNode {
       this.publicProcessorFactory,
       this.publisher,
       this.l2BlockSource,
+      this.l1ToL2MessageSource,
       this.txProvider,
     );
   }

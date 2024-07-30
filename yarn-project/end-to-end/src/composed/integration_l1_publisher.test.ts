@@ -1,15 +1,6 @@
 import { type ArchiveSource } from '@aztec/archiver';
 import { getConfigEnvVars } from '@aztec/aztec-node';
-import {
-  AztecAddress,
-  Body,
-  Fr,
-  GlobalVariables,
-  L2Actor,
-  type L2Block,
-  createDebugLogger,
-  mockTx,
-} from '@aztec/aztec.js';
+import { AztecAddress, Body, Fr, GlobalVariables, type L2Block, createDebugLogger, mockTx } from '@aztec/aztec.js';
 // eslint-disable-next-line no-restricted-imports
 import {
   PROVING_STATUS,
@@ -60,6 +51,7 @@ import {
 } from 'viem';
 import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 
+import { sendL1ToL2Message } from '../fixtures/l1_to_l2_messaging.js';
 import { setupL1Contracts } from '../fixtures/utils.js';
 
 // Accounts 4 and 5 of Anvil default startup with mnemonic: 'test test test test test test test test test test test junk'
@@ -188,35 +180,11 @@ describe('L1Publisher integration', () => {
     return processedTx;
   };
 
-  const sendToL2 = async (content: Fr, recipientAddress: AztecAddress): Promise<Fr> => {
-    // @todo @LHerskind version hardcoded here (update to bigint or field)
-    const recipient = new L2Actor(recipientAddress, 1);
-    // getting the 32 byte hex string representation of the content
-    const contentString = content.toString();
-    // Using the 0 value for the secretHash.
-    const emptySecretHash = Fr.ZERO.toString();
-
-    const txHash = await inbox.write.sendL2Message(
-      [{ actor: recipient.recipient.toString(), version: BigInt(recipient.version) }, contentString, emptySecretHash],
-      {} as any,
+  const sendToL2 = (content: Fr, recipient: AztecAddress): Promise<Fr> => {
+    return sendL1ToL2Message(
+      { content, secretHash: Fr.ZERO, recipient },
+      { publicClient, walletClient, l1ContractAddresses },
     );
-
-    const txReceipt = await publicClient.waitForTransactionReceipt({
-      hash: txHash,
-    });
-
-    // Exactly 1 event should be emitted in the transaction
-    expect(txReceipt.logs.length).toBe(1);
-
-    // We decode the event log before checking it
-    const txLog = txReceipt.logs[0];
-    const topics = decodeEventLog({
-      abi: InboxAbi,
-      data: txLog.data,
-      topics: txLog.topics,
-    });
-
-    return Fr.fromString(topics.args.hash);
   };
 
   /**

@@ -17,6 +17,7 @@ import {
   deployL1Contract,
   retryUntil,
 } from '@aztec/aztec.js';
+import { type L1ContractAddresses } from '@aztec/ethereum';
 import { sha256ToField } from '@aztec/foundation/crypto';
 import {
   InboxAbi,
@@ -185,6 +186,7 @@ export class CrossChainTestHarness {
       publicClient,
       walletClient,
       owner.address,
+      l1ContractAddresses,
     );
   }
 
@@ -221,6 +223,9 @@ export class CrossChainTestHarness {
 
     /** Aztec address to use in tests. */
     public ownerAddress: AztecAddress,
+
+    /** Deployment addresses for all L1 contracts */
+    public readonly l1ContractAddresses: L1ContractAddresses,
   ) {}
 
   /**

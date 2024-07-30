@@ -1,6 +1,7 @@
 import {
   type BlockProver,
   EmptyTxValidator,
+  type L1ToL2MessageSource,
   type L2Block,
   type L2BlockSource,
   PROVING_STATUS,
@@ -9,7 +10,6 @@ import {
   type TxHash,
   type TxProvider,
 } from '@aztec/circuit-types';
-import { type Fr } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type L1Publisher } from '@aztec/sequencer-client';
 import { type PublicProcessor, type PublicProcessorFactory } from '@aztec/simulator';
@@ -28,6 +28,7 @@ export class BlockProvingJob {
     private publicProcessorFactory: PublicProcessorFactory,
     private publisher: L1Publisher,
     private l2BlockSource: L2BlockSource,
+    private l1ToL2MessageSource: L1ToL2MessageSource,
     private txProvider: TxProvider,
   ) {}
 
@@ -53,7 +54,7 @@ export class BlockProvingJob {
       const globalVariables = block.header.globalVariables;
       const txHashes = block.body.txEffects.map(tx => tx.txHash);
       const txCount = block.body.numberOfTxsIncludingPadded;
-      const l1ToL2Messages: Fr[] = []; // TODO: grab L1 to L2 messages for this block
+      const l1ToL2Messages = await this.getL1ToL2Messages(block);
 
       this.log.verbose(`Starting block processing`, {
         number: block.number,
@@ -114,6 +115,10 @@ export class BlockProvingJob {
       throw new Error(`Txs not found: ${notFound.map(([txHash]) => txHash.toString()).join(', ')}`);
     }
     return txs.map(([_, tx]) => tx!);
+  }
+
+  private getL1ToL2Messages(block: L2Block) {
+    return this.l1ToL2MessageSource.getL1ToL2Messages(BigInt(block.number));
   }
 
   private async processTxs(

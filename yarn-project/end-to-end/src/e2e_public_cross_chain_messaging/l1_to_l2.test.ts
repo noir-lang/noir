@@ -7,17 +7,15 @@ import {
   L2Actor,
   computeSecretHash,
 } from '@aztec/aztec.js';
-import { InboxAbi } from '@aztec/l1-artifacts';
 import { TestContract } from '@aztec/noir-contracts.js';
 
-import { type Hex, decodeEventLog } from 'viem';
-
+import { sendL1ToL2Message } from '../fixtures/l1_to_l2_messaging.js';
 import { PublicCrossChainMessagingContractTest } from './public_cross_chain_messaging_contract_test.js';
 
 describe('e2e_public_cross_chain_messaging l1_to_l2', () => {
   const t = new PublicCrossChainMessagingContractTest('l1_to_l2');
 
-  let { crossChainTestHarness, aztecNode, user1Wallet, inbox } = t;
+  let { crossChainTestHarness, aztecNode, user1Wallet } = t;
 
   beforeAll(async () => {
     await t.applyBaseSnapshots();
@@ -26,7 +24,6 @@ describe('e2e_public_cross_chain_messaging l1_to_l2', () => {
     ({ crossChainTestHarness, user1Wallet } = t);
 
     aztecNode = crossChainTestHarness.aztecNode;
-    inbox = crossChainTestHarness.inbox;
   }, 300_000);
 
   afterAll(async () => {
@@ -84,39 +81,7 @@ describe('e2e_public_cross_chain_messaging l1_to_l2', () => {
   );
 
   const sendL2Message = async (message: L1ToL2Message) => {
-    // We inject the message to Inbox
-    const txHash = await inbox.write.sendL2Message(
-      [
-        { actor: message.recipient.recipient.toString() as Hex, version: 1n },
-        message.content.toString() as Hex,
-        message.secretHash.toString() as Hex,
-      ] as const,
-      {} as any,
-    );
-
-    // We check that the message was correctly injected by checking the emitted event
-    const msgHash = message.hash();
-    {
-      const txReceipt = await crossChainTestHarness.publicClient.waitForTransactionReceipt({
-        hash: txHash,
-      });
-
-      // Exactly 1 event should be emitted in the transaction
-      expect(txReceipt.logs.length).toBe(1);
-
-      // We decode the event and get leaf out of it
-      const txLog = txReceipt.logs[0];
-      const topics = decodeEventLog({
-        abi: InboxAbi,
-        data: txLog.data,
-        topics: txLog.topics,
-      });
-      const receivedMsgHash = topics.args.hash;
-
-      // We check that the leaf inserted into the subtree matches the expected message hash
-      expect(receivedMsgHash).toBe(msgHash.toString());
-    }
-
+    const msgHash = await sendL1ToL2Message(message, crossChainTestHarness);
     await crossChainTestHarness.makeMessageConsumable(msgHash);
   };
 });

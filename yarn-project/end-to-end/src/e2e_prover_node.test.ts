@@ -4,16 +4,21 @@ import {
   type AccountWalletWithSecretKey,
   type AztecAddress,
   type DebugLogger,
+  EthAddress,
   type FieldsOf,
+  Fr,
+  SignerlessWallet,
   type TxReceipt,
+  computeSecretHash,
   createDebugLogger,
   retryUntil,
   sleep,
 } from '@aztec/aztec.js';
-import { StatefulTestContract } from '@aztec/noir-contracts.js';
-import { createProverNode } from '@aztec/prover-node';
+import { StatefulTestContract, TestContract } from '@aztec/noir-contracts.js';
+import { type ProverNode, createProverNode } from '@aztec/prover-node';
 import { type SequencerClientConfig } from '@aztec/sequencer-client';
 
+import { sendL1ToL2Message } from './fixtures/l1_to_l2_messaging.js';
 import {
   type ISnapshotManager,
   type SubsystemsContext,
@@ -30,16 +35,35 @@ describe('e2e_prover_node', () => {
   let wallet: AccountWalletWithSecretKey;
   let recipient: AztecAddress;
   let contract: StatefulTestContract;
+  let msgTestContract: TestContract;
   let txReceipts: FieldsOf<TxReceipt>[];
 
   let logger: DebugLogger;
-
   let snapshotManager: ISnapshotManager;
+
+  const msgContent: Fr = Fr.fromString('0xcafe');
+  const msgSecret: Fr = Fr.fromString('0xfeca');
 
   beforeAll(async () => {
     logger = createDebugLogger('aztec:e2e_prover_node');
     const config: Partial<SequencerClientConfig> = { sequencerSkipSubmitProofs: true };
     snapshotManager = createSnapshotManager(`e2e_prover_node`, process.env.E2E_DATA_PATH, config);
+
+    const testContractOpts = { contractAddressSalt: Fr.ONE, universalDeploy: true };
+    await snapshotManager.snapshot(
+      'send-l1-to-l2-msg',
+      async ctx => {
+        const testContract = TestContract.deploy(new SignerlessWallet(ctx.pxe)).getInstance(testContractOpts);
+        const msgHash = await sendL1ToL2Message(
+          { recipient: testContract.address, content: msgContent, secretHash: computeSecretHash(msgSecret) },
+          ctx.deployL1ContractsValues,
+        );
+        return { msgHash };
+      },
+      async (_data, ctx) => {
+        msgTestContract = await TestContract.deploy(new SignerlessWallet(ctx.pxe)).register(testContractOpts);
+      },
+    );
 
     await snapshotManager.snapshot('setup', addAccounts(2, logger), async ({ accountKeys }, ctx) => {
       const accountManagers = accountKeys.map(ak => getSchnorrAccount(ctx.pxe, ak[0], ak[1], 1));
@@ -64,13 +88,18 @@ describe('e2e_prover_node', () => {
 
     await snapshotManager.snapshot(
       'create-blocks',
-      async () => {
-        const txReceipt1 = await contract.methods.create_note(recipient, recipient, 10).send().wait();
-        const txReceipt2 = await contract.methods.increment_public_value(recipient, 20).send().wait();
-        return { txReceipt1, txReceipt2 };
+      async ctx => {
+        const msgSender = ctx.deployL1ContractsValues.walletClient.account.address;
+        const txReceipt1 = await msgTestContract.methods
+          .consume_message_from_arbitrary_sender_private(msgContent, msgSecret, EthAddress.fromString(msgSender))
+          .send()
+          .wait();
+        const txReceipt2 = await contract.methods.create_note(recipient, recipient, 10).send().wait();
+        const txReceipt3 = await contract.methods.increment_public_value(recipient, 20).send().wait();
+        return { txReceipts: [txReceipt1, txReceipt2, txReceipt3] };
       },
-      ({ txReceipt1, txReceipt2 }) => {
-        txReceipts = [txReceipt1, txReceipt2];
+      data => {
+        txReceipts = data.txReceipts;
         return Promise.resolve();
       },
     );
@@ -78,11 +107,21 @@ describe('e2e_prover_node', () => {
     ctx = await snapshotManager.setup();
   });
 
-  it('submits two blocks, then prover proves the first one', async () => {
+  const prove = async (proverNode: ProverNode, blockNumber: number) => {
+    logger.info(`Proving block ${blockNumber}`);
+    await proverNode.prove(blockNumber, blockNumber);
+
+    logger.info(`Proof submitted. Awaiting aztec node to sync...`);
+    await retryUntil(async () => (await ctx.aztecNode.getProvenBlockNumber()) === blockNumber, 'block-1', 10, 1);
+    expect(await ctx.aztecNode.getProvenBlockNumber()).toEqual(blockNumber);
+  };
+
+  it('submits three blocks, then prover proves the first two', async () => {
     // Check everything went well during setup and txs were mined in two different blocks
-    const [txReceipt1, txReceipt2] = txReceipts;
+    const [txReceipt1, txReceipt2, txReceipt3] = txReceipts;
     const firstBlock = txReceipt1.blockNumber!;
     expect(txReceipt2.blockNumber).toEqual(firstBlock + 1);
+    expect(txReceipt3.blockNumber).toEqual(firstBlock + 2);
     expect(await contract.methods.get_public_value(recipient).simulate()).toEqual(20n);
     expect(await contract.methods.summed_values(recipient).simulate()).toEqual(10n);
     expect(await ctx.aztecNode.getProvenBlockNumber()).toEqual(0);
@@ -101,12 +140,8 @@ describe('e2e_prover_node', () => {
     const archiver = ctx.aztecNode.getBlockSource() as Archiver;
     const proverNode = await createProverNode(proverConfig, { aztecNodeTxProvider: ctx.aztecNode, archiver });
 
-    // Prove block from first tx and block until it is proven
-    logger.info(`Proving block ${firstBlock}`);
-    await proverNode.prove(firstBlock, firstBlock);
-
-    logger.info(`Proof submitted. Awaiting aztec node to sync...`);
-    await retryUntil(async () => (await ctx.aztecNode.getProvenBlockNumber()) === firstBlock, 'proven-block', 10, 1);
-    expect(await ctx.aztecNode.getProvenBlockNumber()).toEqual(firstBlock);
+    // Prove the first two blocks
+    await prove(proverNode, firstBlock);
+    await prove(proverNode, firstBlock + 1);
   });
 });

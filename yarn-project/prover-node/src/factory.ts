@@ -52,5 +52,5 @@ export async function createProverNode(
     ? new AztecNodeTxProvider(deps.aztecNodeTxProvider)
     : createTxProvider(config);
 
-  return new ProverNode(prover!, publicProcessorFactory, publisher, archiver, txProvider);
+  return new ProverNode(prover!, publicProcessorFactory, publisher, archiver, archiver, txProvider);
 }
