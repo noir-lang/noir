@@ -84,10 +84,7 @@ fn check_package(
     check_crate_and_report_errors(
         &mut context,
         crate_id,
-        compile_options.deny_warnings,
-        compile_options.disable_macros,
-        compile_options.silence_warnings,
-        compile_options.debug_comptime_in_file.as_deref(),
+        compile_options,
     )?;
 
     if package.is_library() || package.is_contract() {
@@ -157,14 +154,11 @@ fn create_input_toml_template(
 pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
-    deny_warnings: bool,
-    disable_macros: bool,
-    silence_warnings: bool,
-    debug_comptime_in_file: Option<&str>,
+    options: &CompileOptions,
 ) -> Result<(), CompileError> {
     let result =
-        check_crate(context, crate_id, deny_warnings, disable_macros, debug_comptime_in_file);
-    report_errors(result, &context.file_manager, deny_warnings, silence_warnings)
+        check_crate(context, crate_id, options);
+    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
 }
 
 #[cfg(test)]

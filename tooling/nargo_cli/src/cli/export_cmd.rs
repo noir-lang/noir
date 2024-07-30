@@ -86,10 +86,7 @@ fn compile_exported_functions(
     check_crate_and_report_errors(
         &mut context,
         crate_id,
-        compile_options.deny_warnings,
-        compile_options.disable_macros,
-        compile_options.silence_warnings,
-        compile_options.debug_comptime_in_file.as_deref(),
+        compile_options,
     )?;
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);

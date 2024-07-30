@@ -113,6 +113,10 @@ pub struct CompileOptions {
     /// Outputs the paths to any modified artifacts
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
+
+    /// Outputs the paths to any modified artifacts
+    #[arg(long, hide = true)]
+    pub arithmetic_generics: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -262,21 +266,19 @@ pub fn add_dep(
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
-    deny_warnings: bool,
-    disable_macros: bool,
-    debug_comptime_in_file: Option<&str>,
+    options: &CompileOptions,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
-        if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
+        if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
 
     let mut errors = vec![];
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, debug_comptime_in_file, macros);
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.debug_comptime_in_file.as_deref(), options.arithmetic_generics, macros);
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
     }));
 
-    if has_errors(&errors, deny_warnings) {
+    if has_errors(&errors, options.deny_warnings) {
         Err(errors)
     } else {
         Ok(((), errors))
@@ -305,9 +307,7 @@ pub fn compile_main(
     let (_, mut warnings) = check_crate(
         context,
         crate_id,
-        options.deny_warnings,
-        options.disable_macros,
-        options.debug_comptime_in_file.as_deref(),
+        options,
     )?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
@@ -346,9 +346,7 @@ pub fn compile_contract(
     let (_, warnings) = check_crate(
         context,
         crate_id,
-        options.deny_warnings,
-        options.disable_macros,
-        options.debug_comptime_in_file.as_deref(),
+        options,
     )?;
 
     // TODO: We probably want to error if contracts is empty

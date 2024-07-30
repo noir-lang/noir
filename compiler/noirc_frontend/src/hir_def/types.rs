@@ -1627,7 +1627,7 @@ impl Type {
     /// For example:
     /// - `canonicalize[((1 + N) + M) + 2] = (M + N) + 3`
     /// - `canonicalize[A + 2 * B + 3 - 2] = A + (B * 2) + 3 - 2`
-    fn canonicalize(&self) -> Type {
+    pub fn canonicalize(&self) -> Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs) => {
                 if let Some(value) = self.evaluate_to_u32() {

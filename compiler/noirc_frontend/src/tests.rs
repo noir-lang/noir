@@ -82,8 +82,9 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            None, // No debug_comptime_in_file
-            &[],  // No macro processors
+            None,  // No debug_comptime_in_file
+            false, // Disallow arithmetic generics
+            &[],   // No macro processors
         ));
     }
     (program, context, errors)

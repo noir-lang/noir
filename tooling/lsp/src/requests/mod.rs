@@ -382,7 +382,7 @@ where
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
         interner = &context.def_interner;
     }
 

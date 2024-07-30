@@ -45,7 +45,7 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
     let mut elaborator =
-        Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None);
+        Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None, false);
     assert_eq!(elaborator.errors.len(), 0);
 
     let mut interpreter = elaborator.setup_interpreter();

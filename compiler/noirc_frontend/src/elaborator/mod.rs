@@ -176,6 +176,9 @@ pub struct Elaborator<'context> {
     /// This map is used to lazily evaluate these globals if they're encountered before
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
+
+    /// Temporary flag to enable the experimental arithmetic generics feature
+    enable_arithmetic_generics: bool,
 }
 
 #[derive(Default)]
@@ -198,6 +201,7 @@ impl<'context> Elaborator<'context> {
         def_maps: &'context mut DefMaps,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
+        enable_arithmetic_generics: bool,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -219,6 +223,7 @@ impl<'context> Elaborator<'context> {
             comptime_scopes: vec![HashMap::default()],
             debug_comptime_in_file,
             unresolved_globals: BTreeMap::new(),
+            enable_arithmetic_generics,
         }
     }
 
@@ -226,12 +231,14 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
+        enable_arithmetic_generics: bool,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
             &mut context.def_maps,
             crate_id,
             debug_comptime_in_file,
+            enable_arithmetic_generics,
         )
     }
 
@@ -240,8 +247,9 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
+        enable_arithmetic_generics: bool,
     ) -> Vec<(CompilationError, FileId)> {
-        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file).errors
+        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file, enable_arithmetic_generics).errors
     }
 
     pub fn elaborate_and_return_self(
@@ -249,8 +257,9 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
+        enable_arithmetic_generics: bool,
     ) -> Self {
-        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file);
+        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file, enable_arithmetic_generics);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this

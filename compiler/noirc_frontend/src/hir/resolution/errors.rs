@@ -116,6 +116,8 @@ pub enum ResolverError {
     NonFunctionInAnnotation { span: Span },
     #[error("Unknown annotation")]
     UnknownAnnotation { span: Span },
+    #[error("Arithmetic Generics are currently experimental")]
+    ArithmeticGenerics { span: Span },
 }
 
 impl ResolverError {
@@ -464,6 +466,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_warning(
                     "Unknown annotation".into(),
                     "No matching comptime function found in scope".into(),
+                    *span,
+                )
+            },
+            ResolverError::ArithmeticGenerics { span } => {
+                Diagnostic::simple_warning(
+                    "Arithmetic Generics are currently an experimental feature".into(),
+                    "Use --arithmetic-generics to enable this feature".into(),
                     *span,
                 )
             },
