@@ -3,7 +3,7 @@ import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { computeVarArgsHash } from '@aztec/circuits.js/hash';
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { keccak256, keccakf1600, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
+import { keccak256, keccakf1600, pedersenCommit, pedersenHash, poseidon2Hash, sha256 } from '@aztec/foundation/crypto';
 import { Fq, Fr } from '@aztec/foundation/fields';
 import { type Fieldable } from '@aztec/foundation/serialize';
 
@@ -138,6 +138,22 @@ describe('AVM simulator: transpiled Noir contracts', () => {
     const g20 = grumpkin.mul(grumpkin.generator(), new Fq(20));
     const expectedResult = grumpkin.add(g3, g20);
     expect(results.output).toEqual([expectedResult.x, expectedResult.y, Fr.ZERO]);
+  });
+
+  it('pedersen commitment operations', async () => {
+    const calldata: Fr[] = [new Fr(100), new Fr(1)];
+    const context = initContext({ env: initExecutionEnvironment({ calldata }) });
+
+    const bytecode = getAvmTestContractBytecode('pedersen_commit');
+    const results = await new AvmSimulator(context).executeBytecode(bytecode);
+
+    expect(results.reverted).toBe(false);
+    // This doesnt include infinites
+    const expectedResult = pedersenCommit([Buffer.from([100]), Buffer.from([1])]).map(f => new Fr(f));
+    // TODO: Come back to the handling of infinities when we confirm how they're handled in bb
+    const isInf = expectedResult[0] === new Fr(0) && expectedResult[1] === new Fr(0);
+    expectedResult.push(new Fr(isInf));
+    expect(results.output).toEqual(expectedResult);
   });
 
   describe('U128 addition and overflows', () => {

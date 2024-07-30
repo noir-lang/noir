@@ -24,7 +24,7 @@ contract AvmTest {
     global big_field_136_bits: Field = 0x991234567890abcdef1234567890abcdef;
 
     // Libs
-    use std::embedded_curve_ops::multi_scalar_mul;
+    use std::embedded_curve_ops::{multi_scalar_mul, EmbeddedCurvePoint};
     use dep::aztec::protocol_types::constants::CONTRACT_INSTANCE_LENGTH;
     use dep::aztec::prelude::{Map, Deserialize};
     use dep::aztec::state_vars::PublicMutable;
@@ -151,6 +151,12 @@ contract AvmTest {
         let scalar2 = Scalar { lo: 20, hi: 0 };
         let triple_g = multi_scalar_mul([g, g], [scalar, scalar2]);
         triple_g
+    }
+
+    #[aztec(public)]
+    fn pedersen_commit(x: Field, y: Field) -> EmbeddedCurvePoint {
+        let commitment = dep::std::hash::pedersen_commitment([x, y]);
+        commitment
     }
 
     /************************************************************************

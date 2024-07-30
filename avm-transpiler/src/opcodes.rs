@@ -74,6 +74,7 @@ pub enum AvmOpcode {
     PEDERSEN, // temp - may be removed, but alot of contracts rely on it
     ECADD,
     MSM,
+    PEDERSENCOMMITMENT, // temp
     // Conversions
     TORADIXLE,
     // Other
@@ -170,6 +171,7 @@ impl AvmOpcode {
             AvmOpcode::PEDERSEN => "PEDERSEN",
             AvmOpcode::ECADD => "ECADD",
             AvmOpcode::MSM => "MSM",
+            AvmOpcode::PEDERSENCOMMITMENT => "PEDERSENCOMMITMENT",
             // Conversions
             AvmOpcode::TORADIXLE => "TORADIXLE",
             // Other

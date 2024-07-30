@@ -78,6 +78,7 @@ export enum Opcode {
   PEDERSEN, // temp - may be removed, but alot of contracts rely on it
   ECADD,
   MSM,
+  PEDERSENCOMMITMENT,
   // Conversion
   TORADIXLE,
   // Future Gadgets -- pending changes in noir

@@ -888,6 +888,24 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
                 ..Default::default()
             });
         }
+        // Temporary while we dont have efficient noir implementations (again)
+        BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
+            let input_offset = inputs.pointer.0;
+            let input_size_offset = inputs.size.0;
+            let index_offset = domain_separator.0;
+            let output_offset = output.pointer.0;
+            avm_instrs.push(AvmInstruction {
+                opcode: AvmOpcode::PEDERSENCOMMITMENT,
+                indirect: Some(ZEROTH_OPERAND_INDIRECT | FIRST_OPERAND_INDIRECT),
+                operands: vec![
+                    AvmOperand::U32 { value: input_offset as u32 },
+                    AvmOperand::U32 { value: output_offset as u32 },
+                    AvmOperand::U32 { value: input_size_offset as u32 },
+                    AvmOperand::U32 { value: index_offset as u32 },
+                ],
+                ..Default::default()
+            });
+        }
         _ => panic!("Transpiler doesn't know how to process {:?}", operation),
     }
 }

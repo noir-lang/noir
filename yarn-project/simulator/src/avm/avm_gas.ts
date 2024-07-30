@@ -124,6 +124,7 @@ const BaseGasCosts: Record<Opcode, Gas> = {
   [Opcode.PEDERSEN]: DefaultBaseGasCost,
   [Opcode.ECADD]: DefaultBaseGasCost,
   [Opcode.MSM]: DefaultBaseGasCost,
+  [Opcode.PEDERSENCOMMITMENT]: DefaultBaseGasCost,
   // Conversions
   [Opcode.TORADIXLE]: DefaultBaseGasCost,
   // Other

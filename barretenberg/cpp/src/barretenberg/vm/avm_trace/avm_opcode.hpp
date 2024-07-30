@@ -106,6 +106,7 @@ enum class OpCode : uint8_t {
     PEDERSEN,
     ECADD,
     MSM,
+    PEDERSENCOMMITMENT,
     // Conversions
     TORADIXLE,
     // Future Gadgets -- pending changes in noir

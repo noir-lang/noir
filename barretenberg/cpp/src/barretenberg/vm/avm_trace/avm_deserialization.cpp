@@ -166,10 +166,11 @@ const std::unordered_map<OpCode, std::vector<OperandType>> OPCODE_WIRE_FORMAT = 
         OperandType::UINT32 } }, // dst_offset
     { OpCode::MSM,
       { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
+    { OpCode::PEDERSENCOMMITMENT,
+      { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
     // Gadget - Conversion
     { OpCode::TORADIXLE,
       { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
-
     // Gadgets - Unused for now
     { OpCode::SHA256COMPRESSION,
       { OperandType::INDIRECT, OperandType::UINT32, OperandType::UINT32, OperandType::UINT32 } },
