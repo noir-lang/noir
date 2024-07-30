@@ -251,7 +251,15 @@ impl<'a> InlayHintCollector<'a> {
                     self.collect_in_expression(expression);
                 }
             }
-            ExpressionKind::Lambda(lambda) => self.collect_in_expression(&lambda.body),
+            ExpressionKind::Lambda(lambda) => {
+                for (pattern, typ) in &lambda.parameters {
+                    if matches!(typ.typ, UnresolvedTypeData::Unspecified) {
+                        self.collect_in_pattern(pattern);
+                    }
+                }
+
+                self.collect_in_expression(&lambda.body)
+            }
             ExpressionKind::Parenthesized(parenthesized) => {
                 self.collect_in_expression(parenthesized);
             }
@@ -891,6 +899,34 @@ mod inlay_hints_tests {
             Some(vec![TextEdit {
                 range: Range { start: position, end: position },
                 new_text: ": Field".to_string(),
+            }])
+        );
+    }
+
+    #[test]
+    async fn test_type_inlay_hints_in_lambda() {
+        let inlay_hints = get_inlay_hints(102, 105, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let position = Position { line: 104, character: 35 };
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, position);
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].value, ": ");
+            assert_eq!(labels[0].location, None);
+            assert_eq!(labels[1].value, "i32");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+
+        assert_eq!(
+            inlay_hint.text_edits,
+            Some(vec![TextEdit {
+                range: Range { start: position, end: position },
+                new_text: ": i32".to_string(),
             }])
         );
     }
