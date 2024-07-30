@@ -426,8 +426,8 @@ fn quoted_as_type(
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })?;
 
-    let typ = interpreter
-        .elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
+    let typ =
+        interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
 
     Ok(Value::Type(typ))
 }
