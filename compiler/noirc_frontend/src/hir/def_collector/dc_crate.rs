@@ -388,8 +388,13 @@ impl DefCollector {
             })
         });
 
-        let mut more_errors =
-            Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file, enable_arithmetic_generics);
+        let mut more_errors = Elaborator::elaborate(
+            context,
+            crate_id,
+            def_collector.items,
+            debug_comptime_in_file,
+            enable_arithmetic_generics,
+        );
 
         errors.append(&mut more_errors);
 

@@ -83,11 +83,7 @@ fn compile_exported_functions(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(
-        &mut context,
-        crate_id,
-        compile_options,
-    )?;
+    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 

@@ -249,7 +249,14 @@ impl<'context> Elaborator<'context> {
         debug_comptime_in_file: Option<FileId>,
         enable_arithmetic_generics: bool,
     ) -> Vec<(CompilationError, FileId)> {
-        Self::elaborate_and_return_self(context, crate_id, items, debug_comptime_in_file, enable_arithmetic_generics).errors
+        Self::elaborate_and_return_self(
+            context,
+            crate_id,
+            items,
+            debug_comptime_in_file,
+            enable_arithmetic_generics,
+        )
+        .errors
     }
 
     pub fn elaborate_and_return_self(
@@ -259,7 +266,12 @@ impl<'context> Elaborator<'context> {
         debug_comptime_in_file: Option<FileId>,
         enable_arithmetic_generics: bool,
     ) -> Self {
-        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file, enable_arithmetic_generics);
+        let mut this = Self::from_context(
+            context,
+            crate_id,
+            debug_comptime_in_file,
+            enable_arithmetic_generics,
+        );
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
