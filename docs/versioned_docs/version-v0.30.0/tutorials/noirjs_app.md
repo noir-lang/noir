@@ -14,9 +14,9 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 :::note
 
-Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.27.x matches `noir_js@0.27.x`, etc.
+Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.30.x matches `noir_js@0.30.x`, etc.
 
-In this guide, we will be pinned to 0.27.0.
+In this guide, we will be pinned to 0.30.0.
 
 :::
 
@@ -124,7 +124,7 @@ export default defineConfig({
 Now that our stage is set, install the necessary NoirJS packages along with our other dependencies:
 
 ```bash
-npm install && npm install @noir-lang/backend_barretenberg@0.27.0 @noir-lang/noir_js@0.27.0
+npm install && npm install @noir-lang/backend_barretenberg@0.30.0 @noir-lang/noir_js@0.30.0
 npm install rollup-plugin-copy --save-dev
 ```
 
@@ -266,6 +266,27 @@ const backend = new BarretenbergBackend(circuit);
 const noir = new Noir(circuit, backend);
 // }
 ```
+
+You can also first resolve and load the circuit this way:
+
+First, import the necessary packages and don't forget to add:
+
+```ts
+import { readFileSync } from 'fs';
+```
+Then:
+
+```ts
+// try {
+let noir: Noir;
+const circuitFile = readFileSync(resolve(__dirname, '../target/circuit.json'), 'utf-8');
+const circuit = JSON.parse(circuitFile);
+const backend = new BarretenbergBackend(circuit);
+noir = new Noir(circuit, backend);
+// }
+```
+
+
 
 :::note
 
