@@ -677,15 +677,15 @@ impl Builder {
             }
 
             Instruction::ArrayGet { array, index } => {
-                let index = self.dfg[index].clone();
-                let result_value = match index {
+                let index_value = self.dfg[index].clone();
+                let result_value = match index_value {
                     Value::NumericConstant { constant, .. } => {
                         let num_index = constant.to_u128() as usize;
                         let (p2type, p2target) = self.get_array_element(array, num_index)?;
                         P2Value { target: p2target, typ: p2type }
                     }
                     _ => {
-                        let feature_name = format!("indexing array (get) with an {:?}", index);
+                        let feature_name = format!("indexing array (get) with an {:?}", index_value);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 };
