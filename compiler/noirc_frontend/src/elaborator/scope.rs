@@ -1,6 +1,6 @@
 use noirc_errors::{Location, Spanned};
 
-use crate::ast::ERROR_IDENT;
+use crate::ast::{PathKind, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::resolution::path_resolver::{PathResolver, StandardPathResolver};
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
@@ -43,7 +43,34 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
-        let resolver = StandardPathResolver::new(self.module_id());
+        let mut module_id = self.module_id();
+        let mut path = path;
+
+        if path.kind == PathKind::Plain && path.first_name() == SELF_TYPE_NAME {
+            if let Some(Type::Struct(struct_type, _)) = &self.self_type {
+                let struct_type = struct_type.borrow();
+                if path.segments.len() == 1 {
+                    return Ok(ModuleDefId::TypeId(struct_type.id));
+                }
+
+                module_id = struct_type.id.module_id();
+                path = Path {
+                    segments: path.segments[1..].to_vec(),
+                    kind: PathKind::Plain,
+                    span: path.span(),
+                };
+            }
+        }
+
+        self.resolve_path_in_module(path, module_id)
+    }
+
+    fn resolve_path_in_module(
+        &mut self,
+        path: Path,
+        module_id: ModuleId,
+    ) -> Result<ModuleDefId, ResolverError> {
+        let resolver = StandardPathResolver::new(module_id);
         let path_resolution;
 
         if self.interner.track_references {
