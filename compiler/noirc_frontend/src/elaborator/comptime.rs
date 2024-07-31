@@ -8,14 +8,23 @@ use noirc_errors::{Location, Span};
 use crate::{
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
-        def_collector::{dc_crate::{CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedStruct, UnresolvedTrait, UnresolvedTraitImpl}, dc_mod},
+        def_collector::{
+            dc_crate::{
+                CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedStruct,
+                UnresolvedTrait, UnresolvedTraitImpl,
+            },
+            dc_mod,
+        },
         resolution::errors::ResolverError,
     },
     hir_def::expr::HirIdent,
     lexer::Lexer,
-    macros_api::{Expression, ExpressionKind, HirExpression, SecondaryAttribute, StructId, NodeInterner},
+    macros_api::{
+        Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
+    },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{self, TopLevelStatement}, Type, TypeBindings,
+    parser::{self, TopLevelStatement},
+    Type, TypeBindings,
 };
 
 use super::{Elaborator, FunctionContext, ResolverMeta};
@@ -142,7 +151,7 @@ impl<'context> Elaborator<'context> {
 
         if value != Value::Unit {
             let items = value
-                .into_top_level_items(location)
+                .into_top_level_items(location, self.interner)
                 .map_err(|error| error.into_compilation_error_pair())?;
 
             self.add_items(items, generated_items, location);
@@ -185,11 +194,7 @@ impl<'context> Elaborator<'context> {
         // to account for N extra arguments.
         let modifiers = interpreter.elaborator.interner.function_modifiers(&function);
         let is_varargs = modifiers.attributes.is_varargs();
-        let varargs_type = if is_varargs {
-            parameters.pop()
-        } else {
-            None
-        };
+        let varargs_type = if is_varargs { parameters.pop() } else { None };
 
         let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.slice_element_type());
 

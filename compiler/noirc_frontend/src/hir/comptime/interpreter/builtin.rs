@@ -80,8 +80,7 @@ pub(super) fn check_argument_count(
 }
 
 fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IResult<T> {
-    let message = Some(Value::String(Rc::new(message.into())));
-    Err(InterpreterError::FailingConstraint { message, location })
+    Err(InterpreterError::FailingConstraint { message: Some(message.into()), location })
 }
 
 pub(super) fn get_array(
@@ -94,7 +93,8 @@ pub(super) fn get_array(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Array(type_var.clone(), type_var);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -109,7 +109,8 @@ fn get_slice(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Slice(type_var);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -118,7 +119,8 @@ pub(super) fn get_field(value: Value, location: Location) -> IResult<FieldElemen
     match value {
         Value::Field(value) => Ok(value),
         value => {
-            Err(InterpreterError::TypeMismatch { expected: Type::FieldElement, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected: Type::FieldElement, actual, location })
         }
     }
 }
@@ -128,7 +130,8 @@ pub(super) fn get_u32(value: Value, location: Location) -> IResult<u32> {
         Value::U32(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -138,7 +141,8 @@ fn get_trait_constraint(value: Value, location: Location) -> IResult<(TraitId, V
         Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
         value => {
             let expected = Type::Quoted(QuotedType::TraitConstraint);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -148,7 +152,8 @@ fn get_trait_def(value: Value, location: Location) -> IResult<TraitId> {
         Value::TraitDefinition(id) => Ok(id),
         value => {
             let expected = Type::Quoted(QuotedType::TraitDefinition);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -158,7 +163,8 @@ fn get_quoted(value: Value, location: Location) -> IResult<Rc<Tokens>> {
         Value::Code(tokens) => Ok(tokens),
         value => {
             let expected = Type::Quoted(QuotedType::Quoted);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -175,7 +181,8 @@ fn array_len(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Array(type_var.clone(), type_var);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -193,7 +200,8 @@ fn as_slice(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Array(type_var.clone(), type_var);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -223,7 +231,8 @@ fn struct_def_as_type(
         Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            return Err(InterpreterError::TypeMismatch { expected, location, value });
+            let actual = value.get_type().into_owned();
+            return Err(InterpreterError::TypeMismatch { expected, location, actual });
         }
     };
 
@@ -250,7 +259,8 @@ fn struct_def_generics(
         (Value::StructDefinition(id), location) => (id, location.span),
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            return Err(InterpreterError::TypeMismatch { expected, location, value: value.0 });
+            let actual = value.0.get_type().into_owned();
+            return Err(InterpreterError::TypeMismatch { expected, location, actual });
         }
     };
 
@@ -279,7 +289,8 @@ fn struct_def_fields(
         (Value::StructDefinition(id), location) => (id, location.span),
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            return Err(InterpreterError::TypeMismatch { expected, location, value: value.0 });
+            let actual = value.0.get_type().into_owned();
+            return Err(InterpreterError::TypeMismatch { expected, location, actual });
         }
     };
 

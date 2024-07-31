@@ -228,7 +228,9 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Type(_)
             | Value::ModuleDefinition(_) => {
-                return Err(InterpreterError::CannotInlineMacro { value: self, location })
+                let typ = self.get_type().into_owned();
+                let value = self.display(interner).to_string();
+                return Err(InterpreterError::CannotInlineMacro { typ, value, location })
             }
         };
 
@@ -348,7 +350,9 @@ impl Value {
             | Value::Zeroed(_)
             | Value::Type(_)
             | Value::ModuleDefinition(_) => {
-                return Err(InterpreterError::CannotInlineMacro { value: self, location })
+                let typ = self.get_type().into_owned();
+                let value = self.display(interner).to_string();
+                return Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
         };
 
@@ -391,11 +395,23 @@ impl Value {
     pub(crate) fn into_top_level_items(
         self,
         location: Location,
+        interner: &NodeInterner,
     ) -> IResult<Vec<TopLevelStatement>> {
         match self {
             Value::Code(tokens) => parse_tokens(tokens, parser::top_level_items(), location.file),
-            value => Err(InterpreterError::CannotInlineMacro { value, location }),
+            value => {
+                let typ = self.get_type().into_owned();
+                let value = self.display(interner).to_string();
+                Err(InterpreterError::CannotInlineMacro { value, typ, location })
+            }
         }
+    }
+
+    pub fn display<'value, 'interner>(
+        &'value self,
+        interner: &'interner NodeInterner,
+    ) -> ValuePrinter<'value, 'interner> {
+        ValuePrinter { value: self, interner }
     }
 }
 
@@ -415,9 +431,14 @@ fn parse_tokens<T>(tokens: Rc<Tokens>, parser: impl NoirParser<T>, file: fm::Fil
     }
 }
 
-impl Display for Value {
+struct ValuePrinter<'value, 'interner> {
+    value: &'value Value,
+    interner: &'interner NodeInterner,
+}
+
+impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
+        match self.value {
             Value::Unit => write!(f, "()"),
             Value::Bool(value) => {
                 let msg = if *value { "true" } else { "false" };
@@ -438,7 +459,7 @@ impl Display for Value {
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(_, _, _) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
-                let fields = vecmap(fields, ToString::to_string);
+                let fields = vecmap(fields, |field| field.display(self.interner).to_string());
                 write!(f, "({})", fields.join(", "))
             }
             Value::Struct(fields, typ) => {
@@ -446,16 +467,18 @@ impl Display for Value {
                     Type::Struct(def, _) => def.borrow().name.to_string(),
                     other => other.to_string(),
                 };
-                let fields = vecmap(fields, |(name, value)| format!("{}: {}", name, value));
+                let fields = vecmap(fields, |(name, value)| {
+                    format!("{}: {}", name, value.display(self.interner))
+                });
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
-            Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow()),
+            Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow().display(self.interner)),
             Value::Array(values, _) => {
-                let values = vecmap(values, ToString::to_string);
+                let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "[{}]", values.join(", "))
             }
             Value::Slice(values, _) => {
-                let values = vecmap(values, ToString::to_string);
+                let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "&[{}]", values.join(", "))
             }
             Value::Code(tokens) => {
@@ -465,10 +488,26 @@ impl Display for Value {
                 }
                 write!(f, " }}")
             }
-            Value::StructDefinition(_) => write!(f, "(struct definition)"),
-            Value::TraitConstraint { .. } => write!(f, "(trait constraint)"),
-            Value::TraitDefinition(_) => write!(f, "(trait definition)"),
-            Value::FunctionDefinition(_) => write!(f, "(function definition)"),
+            Value::StructDefinition(id) => {
+                let def = self.interner.get_struct(*id);
+                write!(f, "{}", def.borrow().name)
+            }
+            Value::TraitConstraint(trait_id, generics) => {
+                let trait_ = self.interner.get_trait(*trait_id);
+                let generic_string = vecmap(generics, ToString::to_string).join(", ");
+                if generics.is_empty() {
+                    write!(f, "{}", trait_.name)
+                } else {
+                    write!(f, "{}<{generic_string}>", trait_.name)
+                }
+            }
+            Value::TraitDefinition(trait_id) => {
+                let trait_ = self.interner.get_trait(*trait_id);
+                write!(f, "{}", trait_.name)
+            }
+            Value::FunctionDefinition(function_id) => {
+                write!(f, "{}", self.interner.function_name(function_id))
+            }
             Value::ModuleDefinition(_) => write!(f, "(module)"),
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
             Value::Type(typ) => write!(f, "{}", typ),
