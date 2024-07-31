@@ -15,7 +15,7 @@
 #ifndef DISABLE_AZTEC_VM
 #include "barretenberg/vm/avm_trace/avm_common.hpp"
 #include "barretenberg/vm/avm_trace/avm_execution.hpp"
-#include "barretenberg/vm/avm_trace/stats.hpp"
+#include "barretenberg/vm/stats.hpp"
 #endif
 #include "config.hpp"
 #include "get_bn254_crs.hpp"

@@ -1,4 +1,4 @@
-#include "barretenberg/vm/avm_trace/stats.hpp"
+#include "barretenberg/vm/stats.hpp"
 
 #include <chrono>
 #include <cstdint>

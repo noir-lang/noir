@@ -12,11 +12,11 @@
 #include "barretenberg/vm/avm_trace/avm_trace.hpp"
 #include "barretenberg/vm/avm_trace/aztec_constants.hpp"
 #include "barretenberg/vm/avm_trace/constants.hpp"
-#include "barretenberg/vm/avm_trace/stats.hpp"
 #include "barretenberg/vm/generated/avm_circuit_builder.hpp"
 #include "barretenberg/vm/generated/avm_composer.hpp"
 #include "barretenberg/vm/generated/avm_flavor.hpp"
 #include "barretenberg/vm/generated/avm_verifier.hpp"
+#include "barretenberg/vm/stats.hpp"
 
 #include <cassert>
 #include <cstddef>

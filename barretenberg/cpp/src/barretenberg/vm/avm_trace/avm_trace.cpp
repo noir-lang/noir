@@ -25,7 +25,7 @@
 #include "barretenberg/vm/avm_trace/fixed_gas.hpp"
 #include "barretenberg/vm/avm_trace/fixed_powers.hpp"
 #include "barretenberg/vm/avm_trace/gadgets/avm_slice_trace.hpp"
-#include "barretenberg/vm/avm_trace/stats.hpp"
+#include "barretenberg/vm/stats.hpp"
 
 namespace bb::avm_trace {
 
