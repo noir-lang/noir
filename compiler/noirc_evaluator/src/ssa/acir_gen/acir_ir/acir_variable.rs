@@ -1429,7 +1429,19 @@ impl<F: AcirField> AcirContext<F> {
             _ => (vec![], vec![]),
         };
         // Allow constant inputs only for MSM for now
-        let allow_constant_inputs = name.eq(&BlackBoxFunc::MultiScalarMul);
+        let allow_constant_inputs = matches!(
+            name,
+            BlackBoxFunc::MultiScalarMul
+                | BlackBoxFunc::Keccakf1600
+                | BlackBoxFunc::EmbeddedCurveAdd
+                | BlackBoxFunc::Poseidon2Permutation
+                | BlackBoxFunc::Sha256Compression
+                | BlackBoxFunc::Blake2s
+                | BlackBoxFunc::Blake3
+                | BlackBoxFunc::AND
+                | BlackBoxFunc::XOR
+                | BlackBoxFunc::AES128Encrypt
+        );
         // Convert `AcirVar` to `FunctionInput`
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
         // Call Black box with `FunctionInput`
