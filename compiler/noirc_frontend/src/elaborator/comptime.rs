@@ -114,7 +114,7 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
         let location = Location::new(span, self.file);
-        let Some((function, arguments)) = Self::parse_attribute(attribute) else {
+        let Some((function, arguments)) = Self::parse_attribute(attribute, self.file)? else {
             // Do not issue an error if the attribute is unknown
             return Ok(());
         };
@@ -129,12 +129,17 @@ impl<'context> Elaborator<'context> {
             _ => return Ok(()),
         };
 
-        let definition = self.interner.try_definition(definition_id);
-        let Some(DefinitionKind::Function(function)) = definition.map(|d| &d.kind) else {
+        let Some(definition) = self.interner.try_definition(definition_id) else {
+            // If there's no such function, don't return an error.
+            // This preserves backwards compatibility in allowing custom attributes that
+            // do not refer to comptime functions.
+            return Ok(());
+        };
+
+        let DefinitionKind::Function(function) = definition.kind else {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
 
-        let function = *function;
         let mut interpreter = self.setup_interpreter();
         let mut arguments =
             Self::handle_attribute_arguments(&mut interpreter, function, arguments, location)
@@ -162,19 +167,25 @@ impl<'context> Elaborator<'context> {
 
     /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
     /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
-    fn parse_attribute(annotation: &str) -> Option<(Expression, Vec<Expression>)> {
-        let (tokens, lexing_errors) = Lexer::lex(annotation);
+    #[allow(clippy::type_complexity)]
+    fn parse_attribute(
+        annotation: &str,
+        file: FileId,
+    ) -> Result<Option<(Expression, Vec<Expression>)>, (CompilationError, FileId)> {
+        let (tokens, mut lexing_errors) = Lexer::lex(annotation);
         if !lexing_errors.is_empty() {
-            return None;
+            return Err((lexing_errors.swap_remove(0).into(), file));
         }
 
-        let expression = parser::expression().parse(tokens).ok()?;
+        let expression = parser::expression()
+            .parse(tokens)
+            .map_err(|mut errors| (errors.swap_remove(0).into(), file))?;
 
-        match expression.kind {
+        Ok(match expression.kind {
             ExpressionKind::Call(call) => Some((*call.func, call.arguments)),
             ExpressionKind::Variable(_) => Some((expression, Vec::new())),
             _ => None,
-        }
+        })
     }
 
     fn handle_attribute_arguments(

@@ -1214,8 +1214,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator.interner, location)?;
-                    let expr = self.elaborate_item(self.current_function, |elab| {
-                        elab.elaborate_expression(expr).0
+                    let expr = self.elaborate_item(self.current_function, |elaborator| {
+                        elaborator.elaborate_expression(expr).0
                     });
                     result = self.evaluate(expr)?;
                 }
