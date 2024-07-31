@@ -57,6 +57,10 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
     }
 }
 fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<String> {
+    // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
+    // This is a workaround to avoid panicking in that case (which brings the LSP server down).
+    // Cases where this happens are related to generated code, so once that stops happening
+    // this won't be an issue anymore.
     let module_attributes = args.interner.try_module_attributes(&id)?;
 
     let mut string = String::new();
