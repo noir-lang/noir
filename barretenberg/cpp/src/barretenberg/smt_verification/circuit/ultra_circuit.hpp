@@ -3,6 +3,8 @@
 
 namespace smt_circuit {
 
+enum class TableType : int32_t { XOR, AND, UNKNOWN };
+
 /**
  * @brief Symbolic Circuit class for Standard Circuit Builder.
  *
@@ -22,13 +24,14 @@ class UltraCircuit : public CircuitBase {
 
     std::vector<std::vector<std::vector<bb::fr>>> lookup_tables;
     std::unordered_map<uint32_t, cvc5::Term> cached_symbolic_tables;
+    std::unordered_map<uint32_t, TableType> tables_types;
     std::unordered_map<uint64_t, cvc5::Term> cached_range_tables;
 
     explicit UltraCircuit(CircuitSchema& circuit_info,
                           Solver* solver,
                           TermType type = TermType::FFTerm,
                           const std::string& tag = "",
-                          bool optimizations = true);
+                          bool enable_optimizations = true);
     UltraCircuit(const UltraCircuit& other) = default;
     UltraCircuit(UltraCircuit&& other) = default;
     UltraCircuit& operator=(const UltraCircuit& other) = default;
@@ -42,6 +45,7 @@ class UltraCircuit : public CircuitBase {
     };
 
     bool simulate_circuit_eval(std::vector<bb::fr>& witness) const override;
+    void process_new_table(uint32_t table_idx);
 
     size_t handle_arithmetic_relation(size_t cursor, size_t idx);
     size_t handle_lookup_relation(size_t cursor, size_t idx);
@@ -57,11 +61,11 @@ class UltraCircuit : public CircuitBase {
         const std::vector<std::string>& not_equal = {},
         const std::vector<std::string>& equal_at_the_same_time = {},
         const std::vector<std::string>& not_equal_at_the_same_time = {},
-        bool optimizations = false);
+        bool enable_optimizations = false);
     static std::pair<UltraCircuit, UltraCircuit> unique_witness(CircuitSchema& circuit_info,
                                                                 Solver* s,
                                                                 TermType type,
                                                                 const std::vector<std::string>& equal = {},
-                                                                bool optimizations = false);
+                                                                bool enable_optimizations = false);
 };
 }; // namespace smt_circuit

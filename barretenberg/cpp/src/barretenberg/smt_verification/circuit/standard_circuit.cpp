@@ -10,7 +10,7 @@ namespace smt_circuit {
  * @param tag tag of the circuit. Empty by default.
  */
 StandardCircuit::StandardCircuit(
-    CircuitSchema& circuit_info, Solver* solver, TermType type, const std::string& tag, bool optimizations)
+    CircuitSchema& circuit_info, Solver* solver, TermType type, const std::string& tag, bool enable_optimizations)
     : CircuitBase(circuit_info.vars_of_interest,
                   circuit_info.variables,
                   circuit_info.public_inps,
@@ -20,7 +20,7 @@ StandardCircuit::StandardCircuit(
                   solver,
                   type,
                   tag,
-                  optimizations)
+                  enable_optimizations)
     , selectors(circuit_info.selectors[0])
     , wires_idxs(circuit_info.wires[0])
 {
@@ -46,34 +46,34 @@ StandardCircuit::StandardCircuit(
  */
 size_t StandardCircuit::prepare_gates(size_t cursor)
 {
-    if (this->type == TermType::BVTerm && this->optimizations) {
+    if (this->type == TermType::BVTerm && this->enable_optimizations) {
         size_t res = handle_logic_constraint(cursor);
         if (res != static_cast<size_t>(-1)) {
             return res;
         }
     }
 
-    if ((this->type == TermType::BVTerm || this->type == TermType::FFITerm) && this->optimizations) {
+    if ((this->type == TermType::BVTerm || this->type == TermType::FFITerm) && this->enable_optimizations) {
         size_t res = handle_range_constraint(cursor);
         if (res != static_cast<size_t>(-1)) {
             return res;
         }
     }
 
-    if ((this->type == TermType::BVTerm) && this->optimizations) {
+    if ((this->type == TermType::BVTerm) && this->enable_optimizations) {
         size_t res = handle_ror_constraint(cursor);
         if (res != static_cast<size_t>(-1)) {
             return res;
         }
     }
 
-    if ((this->type == TermType::BVTerm) && this->optimizations) {
+    if ((this->type == TermType::BVTerm) && this->enable_optimizations) {
         size_t res = handle_shl_constraint(cursor);
         if (res != static_cast<size_t>(-1)) {
             return res;
         }
     }
-    if ((this->type == TermType::BVTerm) && this->optimizations) {
+    if ((this->type == TermType::BVTerm) && this->enable_optimizations) {
         size_t res = handle_shr_constraint(cursor);
         if (res != static_cast<size_t>(-1)) {
             return res;
@@ -182,6 +182,7 @@ void StandardCircuit::handle_univariate_constraint(
     }
 }
 
+// TODO(alex): Optimized out variables should be filled with proper values...
 /**
  * @brief Relaxes logic constraints(AND/XOR).
  * @details This function is needed when we use bitwise compatible
@@ -251,6 +252,20 @@ size_t StandardCircuit::handle_logic_constraint(size_t cursor)
                 // unlikely to happen
                 xor_flag &= xor_circuit.selectors[0][j + xor_props.start_gate] == this->selectors[cursor + j];
                 and_flag &= and_circuit.selectors[0][j + and_props.start_gate] == this->selectors[cursor + j];
+
+                // Before this fix this routine simplified two consecutive n bit xors(ands) into one 2n bit xor(and)
+                // Now it checks out_accumulator_idx and new_out_accumulator_idx match
+                // 14 here is a size of one iteration of logic_gate for loop in term of gates
+                // 13 is the accumulator index relative to the beginning of the iteration
+
+                size_t single_iteration_size = 14;
+                size_t relative_acc_idx = 13;
+                xor_flag &=
+                    (j % single_iteration_size != relative_acc_idx) || (j == relative_acc_idx) ||
+                    (this->wires_idxs[j + cursor][0] == this->wires_idxs[j + cursor - single_iteration_size][2]);
+                and_flag &=
+                    (j % single_iteration_size != relative_acc_index) || (j == relative_acc_index) ||
+                    (this->wires_idxs[j + cursor][0] == this->wires_idxs[j + cursor - single_iteration_size][2]);
 
                 if (!xor_flag && !and_flag) {
                     // Won't match at any bit length
@@ -411,6 +426,10 @@ size_t StandardCircuit::handle_range_constraint(size_t cursor)
         // preserving shifted values
         // we need this because even right shifts do not create
         // any additional gates and therefore are undetectible
+
+        // TODO(alex): I think I should simulate the whole subcircuit at that point
+        // Otherwise optimized out variables are not correct in the final witness
+        // And I can't fix them by hand each time
         size_t num_accs = range_props.gate_idxs.size() - 1;
         for (size_t j = 1; j < num_accs + 1 && (this->type == TermType::BVTerm); j++) {
             size_t acc_gate = range_props.gate_idxs[j];
@@ -418,10 +437,9 @@ size_t StandardCircuit::handle_range_constraint(size_t cursor)
 
             uint32_t acc_idx = this->real_variable_index[this->wires_idxs[cursor + acc_gate][acc_gate_idx]];
 
-            // TODO(alex): Is it better? Can't come up with why not right now
-            // STerm acc = this->symbolic_vars[acc_idx];
-            // acc == (left >> static_cast<uint32_t>(2 * j));
-            this->symbolic_vars[acc_idx] = (left >> static_cast<uint32_t>(2 * j));
+            this->symbolic_vars[acc_idx] == (left >> static_cast<uint32_t>(2 * j));
+            // I think the following is worse. The name of the variable is lost after that
+            // this->symbolic_vars[acc_idx] = (left >> static_cast<uint32_t>(2 * j));
         }
 
         left <= (bb::fr(2).pow(res) - 1);
@@ -812,10 +830,10 @@ std::pair<StandardCircuit, StandardCircuit> StandardCircuit::unique_witness_ext(
     const std::vector<std::string>& not_equal,
     const std::vector<std::string>& equal_at_the_same_time,
     const std::vector<std::string>& not_equal_at_the_same_time,
-    bool optimizations)
+    bool enable_optimizations)
 {
-    StandardCircuit c1(circuit_info, s, type, "circuit1", optimizations);
-    StandardCircuit c2(circuit_info, s, type, "circuit2", optimizations);
+    StandardCircuit c1(circuit_info, s, type, "circuit1", enable_optimizations);
+    StandardCircuit c2(circuit_info, s, type, "circuit2", enable_optimizations);
 
     for (const auto& term : equal) {
         c1[term] == c2[term];
@@ -863,11 +881,14 @@ std::pair<StandardCircuit, StandardCircuit> StandardCircuit::unique_witness_ext(
  * @param equal The list of names of variables which should be equal in both circuits(each is equal)
  * @return std::pair<Circuit, Circuit>
  */
-std::pair<StandardCircuit, StandardCircuit> StandardCircuit::unique_witness(
-    CircuitSchema& circuit_info, Solver* s, TermType type, const std::vector<std::string>& equal, bool optimizations)
+std::pair<StandardCircuit, StandardCircuit> StandardCircuit::unique_witness(CircuitSchema& circuit_info,
+                                                                            Solver* s,
+                                                                            TermType type,
+                                                                            const std::vector<std::string>& equal,
+                                                                            bool enable_optimizations)
 {
-    StandardCircuit c1(circuit_info, s, type, "circuit1", optimizations);
-    StandardCircuit c2(circuit_info, s, type, "circuit2", optimizations);
+    StandardCircuit c1(circuit_info, s, type, "circuit1", enable_optimizations);
+    StandardCircuit c2(circuit_info, s, type, "circuit2", enable_optimizations);
 
     for (const auto& term : equal) {
         c1[term] == c2[term];

@@ -37,7 +37,7 @@ class CircuitBase {
     std::unordered_map<uint32_t, uint64_t> range_tags;                // ranges associated with a certain tag
     std::unordered_map<uint32_t, bool> optimized; // keeps track of the variables that were excluded from symbolic
                                                   // circuit during optimizations
-    bool optimizations;                           // flags to turn on circuit optimizations
+    bool enable_optimizations;                    // flags to turn on circuit optimizations
     std::unordered_map<SubcircuitType, std::unordered_map<size_t, CircuitProps>>
         cached_subcircuits; // caches subcircuits during optimization
                             // No need to recompute them each time
@@ -58,7 +58,7 @@ class CircuitBase {
                 Solver* solver,
                 TermType type,
                 const std::string& tag = "",
-                bool optimizations = true);
+                bool enable_optimizations = true);
 
     STerm operator[](const std::string& name);
     STerm operator[](const uint32_t& idx) { return this->symbolic_vars[this->real_variable_index[idx]]; };

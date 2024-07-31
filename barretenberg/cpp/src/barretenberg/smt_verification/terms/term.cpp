@@ -156,6 +156,7 @@ STerm STerm::operator/(const STerm& other) const
     }
     if (this->type == TermType::FFTerm || this->type == TermType::FFITerm) {
         other != bb::fr(0);
+        // Random value added to the name to prevent collisions. This value is MD5('Aztec')
         STerm res = Var("df8b586e3fa7a1224ec95a886e17a7da_div_" + static_cast<std::string>(*this) + "_" +
                             static_cast<std::string>(other),
                         this->solver,
@@ -176,6 +177,7 @@ void STerm::operator/=(const STerm& other)
     }
     if (this->type == TermType::FFTerm || this->type == TermType::FFITerm) {
         other != bb::fr(0);
+        // Random value added to the name to prevent collisions. This value is MD5('Aztec')
         STerm res = Var("df8b586e3fa7a1224ec95a886e17a7da_div_" + static_cast<std::string>(*this) + "_" +
                             static_cast<std::string>(other),
                         this->solver,

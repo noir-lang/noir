@@ -240,3 +240,65 @@ TEST(ultra_circuit, lookup_tables)
     std::string c_builder_val = STerm(c.get_value(), &s, TermType::BVTerm).term.getBitVectorValue();
     ASSERT_EQ(c_solver_val, c_builder_val);
 }
+
+TEST(ultra_circuit, xor_optimization)
+{
+    UltraCircuitBuilder builder;
+    uint_t a(witness_t(&builder, static_cast<uint32_t>(bb::fr::random_element())));
+    builder.set_variable_name(a.get_witness_index(), "a");
+    uint_t b(witness_t(&builder, static_cast<uint32_t>(bb::fr::random_element())));
+    builder.set_variable_name(b.get_witness_index(), "b");
+    uint_t c = a ^ b;
+    builder.set_variable_name(c.get_witness_index(), "c");
+
+    CircuitSchema circuit_info = unpack_from_buffer(builder.export_circuit());
+    uint32_t modulus_base = 16;
+    uint32_t bvsize = 35;
+    Solver s(circuit_info.modulus, ultra_solver_config, modulus_base, bvsize);
+
+    UltraCircuit circuit(circuit_info, &s, TermType::BVTerm);
+
+    circuit["a"] == a.get_value();
+    circuit["b"] == b.get_value();
+
+    s.print_assertions();
+
+    bool res = smt_timer(&s);
+    ASSERT_TRUE(res);
+    std::vector<cvc5::Term> to_model = { circuit["c"] };
+    std::unordered_map<std::string, std::string> model = s.model(to_model);
+
+    bb::fr c_sym = string_to_fr(model["c"], 2);
+    ASSERT_EQ(c_sym, c.get_value());
+}
+
+TEST(ultra_circuit, and_optimization)
+{
+    UltraCircuitBuilder builder;
+    uint_t a(witness_t(&builder, static_cast<uint32_t>(bb::fr::random_element())));
+    builder.set_variable_name(a.get_witness_index(), "a");
+    uint_t b(witness_t(&builder, static_cast<uint32_t>(bb::fr::random_element())));
+    builder.set_variable_name(b.get_witness_index(), "b");
+    uint_t c = a & b;
+    builder.set_variable_name(c.get_witness_index(), "c");
+
+    CircuitSchema circuit_info = unpack_from_buffer(builder.export_circuit());
+    uint32_t modulus_base = 16;
+    uint32_t bvsize = 35;
+    Solver s(circuit_info.modulus, ultra_solver_config, modulus_base, bvsize);
+
+    UltraCircuit circuit(circuit_info, &s, TermType::BVTerm);
+
+    circuit["a"] == a.get_value();
+    circuit["b"] == b.get_value();
+
+    s.print_assertions();
+
+    bool res = smt_timer(&s);
+    ASSERT_TRUE(res);
+    std::vector<cvc5::Term> to_model = { circuit["c"] };
+    std::unordered_map<std::string, std::string> model = s.model(to_model);
+
+    bb::fr c_sym = string_to_fr(model["c"], 2);
+    ASSERT_EQ(c_sym, c.get_value());
+}

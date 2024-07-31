@@ -18,7 +18,7 @@ class StandardCircuit : public CircuitBase {
                              Solver* solver,
                              TermType type = TermType::FFTerm,
                              const std::string& tag = "",
-                             bool optimizations = true);
+                             bool enable_optimizations = true);
 
     inline size_t get_num_gates() const { return selectors.size(); };
 
@@ -40,12 +40,12 @@ class StandardCircuit : public CircuitBase {
         const std::vector<std::string>& not_equal = {},
         const std::vector<std::string>& equal_at_the_same_time = {},
         const std::vector<std::string>& not_equal_at_the_same_time = {},
-        bool optimizations = false);
+        bool enable_optimizations = false);
 
     static std::pair<StandardCircuit, StandardCircuit> unique_witness(CircuitSchema& circuit_info,
                                                                       Solver* s,
                                                                       TermType type,
                                                                       const std::vector<std::string>& equal = {},
-                                                                      bool optimizations = false);
+                                                                      bool enable_optimizations = false);
 };
 }; // namespace smt_circuit

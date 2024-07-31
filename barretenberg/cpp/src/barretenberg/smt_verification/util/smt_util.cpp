@@ -1,6 +1,42 @@
 #include "smt_util.hpp"
 
 /**
+ * @brief Converts a string of an arbitrary base to fr.
+ * Note: there should be no prefix
+ *
+ * @param number string to be converted
+ * @param base base representation of the string
+ * @param step power n such that base^n <= 2^64. If base = 2, 10, 16. May remain undeclared.
+ * @return bb::fr
+ */
+bb::fr string_to_fr(const std::string& number, int base, size_t step)
+{
+    bb::fr res = 0;
+    char* ptr = nullptr;
+    if (base == 2) {
+        step = 64;
+    } else if (base == 16) {
+        step = 4;
+    } else if (base == 10) {
+        step = 19;
+    } else if (step == 0) {
+        info("Step should be non zero");
+        return 0;
+    }
+
+    size_t i = number[0] == '-' ? 1 : 0;
+    bb::fr step_power = bb::fr(base).pow(step);
+    for (; i < number.size(); i += step) {
+        std::string slice = number.substr(i, step);
+        bb::fr cur_power = i + step > number.size() ? bb::fr(base).pow(number.size() - i) : step_power;
+        res *= cur_power;
+        res += std::strtoull(slice.data(), &ptr, base);
+    }
+    res = number[0] == '-' ? -res : res;
+    return res;
+}
+
+/**
  * @brief Get pretty formatted result of the solver work
  *
  * @details Having two circuits and defined constraint system
@@ -13,11 +49,13 @@
  * @param c2 the copy of the first circuit with changed tag
  * @param s  solver
  * @param fname file to store the resulting witness if succeded
+ * @param pack flags out to pack the resulting witness using msgpack
  */
 void default_model(const std::vector<std::string>& special,
                    smt_circuit::CircuitBase& c1,
                    smt_circuit::CircuitBase& c2,
-                   const std::string& fname)
+                   const std::string& fname,
+                   bool pack)
 {
     std::vector<cvc5::Term> vterms1;
     std::vector<cvc5::Term> vterms2;
@@ -35,37 +73,41 @@ void default_model(const std::vector<std::string>& special,
     std::fstream myfile;
     myfile.open(fname, std::ios::out | std::ios::trunc | std::ios::binary);
     myfile << "w12 = {" << std::endl;
+
+    std::vector<std::vector<bb::fr>> packed_witness;
+    packed_witness.reserve(c1.get_num_vars());
+    int base = c1.type == smt_terms::TermType::BVTerm ? 2 : 10;
+
     for (uint32_t i = 0; i < c1.get_num_vars(); i++) {
         std::string vname1 = vterms1[i].toString();
         std::string vname2 = vterms2[i].toString();
-        if (c1.real_variable_index[i] == i) {
-            myfile << "{" << mmap1[vname1] << ", " << mmap2[vname2] << "}";
-            myfile << ",           // " << vname1 << ", " << vname2 << std::endl;
-            if (mmap1[vname1] != mmap2[vname2]) {
-                info(RED, "{", mmap1[vname1], ", ", mmap2[vname2], "}", ",           // ", vname1, ", ", vname2, RESET);
-            }
-        } else {
-            myfile << "{" << mmap1[vname1] << ", " + mmap2[vname2] << "}";
-            myfile << ",           // " << vname1 << " ," << vname2 << " -> " << c1.real_variable_index[i] << std::endl;
-            if (mmap1[vname1] != mmap2[vname2]) {
-                info(RED,
-                     "{",
-                     mmap1[vname1],
-                     ", ",
-                     mmap2[vname2],
-                     "}",
-                     ",           // ",
-                     vname1,
-                     ", ",
-                     vname2,
-                     " -> ",
-                     c1.real_variable_index[i],
-                     RESET);
-            }
+        std::string new_line = "{" + mmap1[vname1] + ", " + mmap2[vname2] + "},           // " + vname1 + ", " + vname2;
+
+        if (c1.real_variable_index[i] != i) {
+            new_line += " -> " + std::to_string(c1.real_variable_index[i]);
         }
+
+        if (mmap1[vname1] != mmap2[vname2]) {
+            info(RED, new_line, RESET);
+        }
+        myfile << new_line << std::endl;
+        ;
+
+        packed_witness.push_back({ string_to_fr(mmap1[vname1], base), string_to_fr(mmap2[vname2], base) });
     }
     myfile << "};";
     myfile.close();
+
+    if (pack) {
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, packed_witness);
+
+        std::fstream myfile;
+        myfile.open(fname + ".pack", std::ios::out | std::ios::trunc | std::ios::binary);
+
+        myfile.write(buffer.data(), static_cast<int64_t>(buffer.size()));
+        myfile.close();
+    }
 
     std::unordered_map<std::string, cvc5::Term> vterms;
     for (const auto& vname : special) {
@@ -91,10 +133,12 @@ void default_model(const std::vector<std::string>& special,
  * @param c first circuit
  * @param s  solver
  * @param fname file to store the resulting witness if succeded
+ * @param pack flags out to pack the resulting witness using msgpack
  */
 void default_model_single(const std::vector<std::string>& special,
                           smt_circuit::CircuitBase& c,
-                          const std::string& fname)
+                          const std::string& fname,
+                          bool pack)
 {
     std::vector<cvc5::Term> vterms;
     vterms.reserve(c.get_num_vars());
@@ -108,16 +152,33 @@ void default_model_single(const std::vector<std::string>& special,
     std::fstream myfile;
     myfile.open(fname, std::ios::out | std::ios::trunc | std::ios::binary);
     myfile << "w = {" << std::endl;
+
+    std::vector<bb::fr> packed_witness;
+    packed_witness.reserve(c.get_num_vars());
+    int base = c.type == smt_terms::TermType::BVTerm ? 2 : 10;
+
     for (size_t i = 0; i < c.get_num_vars(); i++) {
         std::string vname = vterms[i].toString();
-        if (c.real_variable_index[i] == i) {
-            myfile << mmap[vname] << ",              // " << vname << std::endl;
-        } else {
-            myfile << mmap[vname] << ",              // " << vname << " -> " << c.real_variable_index[i] << std::endl;
+        std::string new_line = mmap[vname] + ",              // " + vname;
+        if (c.real_variable_index[i] != i) {
+            new_line += " -> " + std::to_string(c.real_variable_index[i]);
         }
+        myfile << new_line << std::endl;
+        packed_witness.push_back(string_to_fr(mmap[vname], base));
     }
     myfile << "};";
     myfile.close();
+
+    if (pack) {
+        msgpack::sbuffer buffer;
+        msgpack::pack(buffer, packed_witness);
+
+        std::fstream myfile;
+        myfile.open(fname + ".pack", std::ios::out | std::ios::trunc | std::ios::binary);
+
+        myfile.write(buffer.data(), static_cast<int64_t>(buffer.size()));
+        myfile.close();
+    }
 
     std::unordered_map<std::string, cvc5::Term> vterms1;
     for (const auto& vname : special) {
@@ -128,6 +189,62 @@ void default_model_single(const std::vector<std::string>& special,
     for (const auto& vname : special) {
         info(vname, " = ", mmap1[vname]);
     }
+}
+
+/**
+ * @brief Import witness, obtained by solver, from file.
+ * @details Imports the witness, that was packed by default_model function
+ *
+ * @param fname
+ * @return std::vector<std::vector<bb::fr>>
+ */
+std::vector<std::vector<bb::fr>> import_witness(const std::string& fname)
+{
+    std::ifstream fin;
+    fin.open(fname, std::ios::ate | std::ios::binary);
+    if (!fin.is_open()) {
+        throw std::invalid_argument("file not found");
+    }
+    if (fin.tellg() == -1) {
+        throw std::invalid_argument("something went wrong");
+    }
+
+    uint64_t fsize = static_cast<uint64_t>(fin.tellg());
+    fin.seekg(0, std::ios_base::beg);
+
+    std::vector<std::vector<bb::fr>> res;
+    char* encoded_data = new char[fsize];
+    fin.read(encoded_data, static_cast<std::streamsize>(fsize));
+    msgpack::unpack(encoded_data, fsize).get().convert(res);
+    return res;
+}
+
+/**
+ * @brief Import witness, obtained by solver, from file.
+ * @details Imports the witness, that was packed by default_model_single function
+ *
+ * @param fname
+ * @return std::vector<std::vector<bb::fr>>
+ */
+std::vector<bb::fr> import_witness_single(const std::string& fname)
+{
+    std::ifstream fin;
+    fin.open(fname, std::ios::ate | std::ios::binary);
+    if (!fin.is_open()) {
+        throw std::invalid_argument("file not found");
+    }
+    if (fin.tellg() == -1) {
+        throw std::invalid_argument("something went wrong");
+    }
+
+    uint64_t fsize = static_cast<uint64_t>(fin.tellg());
+    fin.seekg(0, std::ios_base::beg);
+
+    std::vector<bb::fr> res;
+    char* encoded_data = new char[fsize];
+    fin.read(encoded_data, static_cast<std::streamsize>(fsize));
+    msgpack::unpack(encoded_data, fsize).get().convert(res);
+    return res;
 }
 
 /**

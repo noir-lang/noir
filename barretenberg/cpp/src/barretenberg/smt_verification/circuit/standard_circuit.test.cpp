@@ -356,3 +356,23 @@ TEST(standard_circuit, shr_relaxation)
         StandardCircuit circuit(circuit_info, &s, TermType::BVTerm);
     }
 }
+
+TEST(standard_circuit, check_double_xor_bug)
+{
+    StandardCircuitBuilder builder;
+    uint_ct a = witness_t(&builder, 10);
+    uint_ct b = witness_t(&builder, 10);
+
+    uint_ct c = a ^ b;
+    uint_ct d = a ^ b;
+    d = d ^ c;
+
+    c = a & b;
+    d = a & b;
+    d = d & c;
+
+    auto buf = builder.export_circuit();
+    CircuitSchema circuit_info = unpack_from_buffer(buf);
+    Solver s(circuit_info.modulus, default_solver_config, 16, 64);
+    StandardCircuit circuit(circuit_info, &s, TermType::BVTerm);
+}

@@ -11,14 +11,14 @@ CircuitBase::CircuitBase(std::unordered_map<uint32_t, std::string>& variable_nam
                          Solver* solver,
                          TermType type,
                          const std::string& tag,
-                         bool optimizations)
+                         bool enable_optimizations)
     : variables(variables)
     , public_inps(public_inps)
     , variable_names(variable_names)
     , real_variable_index(real_variable_index)
     , real_variable_tags(real_variable_tags)
     , range_tags(range_tags)
-    , optimizations(optimizations)
+    , enable_optimizations(enable_optimizations)
     , solver(solver)
     , type(type)
     , tag(tag)

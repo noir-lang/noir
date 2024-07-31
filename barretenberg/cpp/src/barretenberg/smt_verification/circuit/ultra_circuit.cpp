@@ -138,6 +138,38 @@ size_t UltraCircuit::handle_arithmetic_relation(size_t cursor, size_t idx)
     return cursor + 1;
 }
 
+void UltraCircuit::process_new_table(uint32_t table_idx)
+{
+    std::vector<std::vector<cvc5::Term>> new_table;
+    bool is_xor = true;
+    bool is_and = true;
+
+    for (auto table_entry : this->lookup_tables[table_idx]) {
+        std::vector<cvc5::Term> tmp_entry = {
+            STerm(table_entry[0], this->solver, this->type),
+            STerm(table_entry[1], this->solver, this->type),
+            STerm(table_entry[2], this->solver, this->type),
+        };
+        new_table.push_back(tmp_entry);
+
+        is_xor &= (static_cast<uint256_t>(table_entry[0]) ^ static_cast<uint256_t>(table_entry[1])) ==
+                  static_cast<uint256_t>(table_entry[2]);
+        is_and &= (static_cast<uint256_t>(table_entry[0]) & static_cast<uint256_t>(table_entry[1])) ==
+                  static_cast<uint256_t>(table_entry[2]);
+    }
+    this->cached_symbolic_tables.insert({ table_idx, this->solver->create_lookup_table(new_table) });
+    if (is_xor) {
+        this->tables_types.insert({ table_idx, TableType::XOR });
+        info("Encountered a XOR table");
+    } else if (is_and) {
+        this->tables_types.insert({ table_idx, TableType::AND });
+        info("Encountered an AND table");
+    } else {
+        this->tables_types.insert({ table_idx, TableType::UNKNOWN });
+        info("Encountered an UNKNOWN table");
+    }
+}
+
 /**
  * @brief Adds all the lookup gate constraints to the solver.
  * Relaxes constraint system for non-ff solver engines
@@ -175,31 +207,36 @@ size_t UltraCircuit::handle_lookup_relation(size_t cursor, size_t idx)
 
     auto table_idx = static_cast<uint32_t>(q_o);
     if (!this->cached_symbolic_tables.contains(table_idx)) {
-        std::vector<std::vector<cvc5::Term>> new_table;
-        for (auto table_entry : this->lookup_tables[table_idx]) {
-            std::vector<cvc5::Term> tmp_entry = {
-                STerm(table_entry[0], this->solver, this->type),
-                STerm(table_entry[1], this->solver, this->type),
-                STerm(table_entry[2], this->solver, this->type),
-            };
-            new_table.push_back(tmp_entry);
-        }
-        this->cached_symbolic_tables.insert({ table_idx, this->solver->create_lookup_table(new_table) });
-    }
-
-    // Sort of an optimization.
-    // However if we don't do this, solver will find a unique witness that corresponds to overflowed value.
-    if (this->type == TermType::BVTerm && q_r == -64 && q_m == -64 && q_c == -64) {
-        this->symbolic_vars[w_l_shift_idx] = this->symbolic_vars[w_l_idx] >> 6;
-        this->symbolic_vars[w_r_shift_idx] = this->symbolic_vars[w_r_idx] >> 6;
-        this->symbolic_vars[w_o_shift_idx] = this->symbolic_vars[w_o_idx] >> 6;
+        this->process_new_table(table_idx);
     }
 
     STerm first_entry = this->symbolic_vars[w_l_idx] + q_r * this->symbolic_vars[w_l_shift_idx];
     STerm second_entry = this->symbolic_vars[w_r_idx] + q_m * this->symbolic_vars[w_r_shift_idx];
     STerm third_entry = this->symbolic_vars[w_o_idx] + q_c * this->symbolic_vars[w_o_shift_idx];
-
     std::vector<STerm> entries = { first_entry, second_entry, third_entry };
+
+    if (this->type == TermType::BVTerm && this->enable_optimizations) {
+        // Sort of an optimization.
+        // However if we don't do this, solver will find a unique witness that corresponds to overflowed value.
+        if (q_r == -64 && q_m == -64 && q_c == -64) {
+            this->symbolic_vars[w_l_shift_idx] = this->symbolic_vars[w_l_idx] >> 6;
+            this->symbolic_vars[w_r_shift_idx] = this->symbolic_vars[w_r_idx] >> 6;
+            this->symbolic_vars[w_o_shift_idx] = this->symbolic_vars[w_o_idx] >> 6;
+        }
+        switch (this->tables_types[table_idx]) {
+        case TableType::XOR:
+            info("XOR optimization");
+            (first_entry ^ second_entry) == third_entry;
+            return cursor + 1;
+        case TableType::AND:
+            info("AND optimization");
+            (first_entry & second_entry) == third_entry;
+            return cursor + 1;
+        case TableType::UNKNOWN:
+            break;
+        }
+    }
+    info("Unknown Table");
     STerm::in_table(entries, this->cached_symbolic_tables[table_idx]);
     return cursor + 1;
 }
@@ -341,7 +378,7 @@ void UltraCircuit::handle_range_constraints()
         uint32_t tag = this->real_variable_tags[this->real_variable_index[i]];
         if (tag != 0 && this->range_tags.contains(tag)) {
             uint64_t range = this->range_tags[tag];
-            if (this->type == TermType::FFTerm || !this->optimizations) {
+            if (this->type == TermType::FFTerm || !this->enable_optimizations) {
                 if (!this->cached_range_tables.contains(range)) {
                     std::vector<cvc5::Term> new_range_table;
                     for (size_t entry = 0; entry < range; entry++) {
@@ -401,10 +438,10 @@ std::pair<UltraCircuit, UltraCircuit> UltraCircuit::unique_witness_ext(
     const std::vector<std::string>& not_equal,
     const std::vector<std::string>& equal_at_the_same_time,
     const std::vector<std::string>& not_equal_at_the_same_time,
-    bool optimizations)
+    bool enable_optimizations)
 {
-    UltraCircuit c1(circuit_info, s, type, "circuit1", optimizations);
-    UltraCircuit c2(circuit_info, s, type, "circuit2", optimizations);
+    UltraCircuit c1(circuit_info, s, type, "circuit1", enable_optimizations);
+    UltraCircuit c2(circuit_info, s, type, "circuit2", enable_optimizations);
 
     for (const auto& term : equal) {
         c1[term] == c2[term];
@@ -452,11 +489,14 @@ std::pair<UltraCircuit, UltraCircuit> UltraCircuit::unique_witness_ext(
  * @param equal The list of names of variables which should be equal in both circuits(each is equal)
  * @return std::pair<Circuit, Circuit>
  */
-std::pair<UltraCircuit, UltraCircuit> UltraCircuit::unique_witness(
-    CircuitSchema& circuit_info, Solver* s, TermType type, const std::vector<std::string>& equal, bool optimizations)
+std::pair<UltraCircuit, UltraCircuit> UltraCircuit::unique_witness(CircuitSchema& circuit_info,
+                                                                   Solver* s,
+                                                                   TermType type,
+                                                                   const std::vector<std::string>& equal,
+                                                                   bool enable_optimizations)
 {
-    UltraCircuit c1(circuit_info, s, type, "circuit1", optimizations);
-    UltraCircuit c2(circuit_info, s, type, "circuit2", optimizations);
+    UltraCircuit c1(circuit_info, s, type, "circuit1", enable_optimizations);
+    UltraCircuit c2(circuit_info, s, type, "circuit2", enable_optimizations);
 
     for (const auto& term : equal) {
         c1[term] == c2[term];
