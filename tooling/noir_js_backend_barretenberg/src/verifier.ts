@@ -59,6 +59,16 @@ export class BarretenbergVerifier {
     return await this.api.acirVerifyProof(this.acirComposer, proof);
   }
 
+  /** @description Verifies a proof */
+  async verifyUltraHonkProof(proofData: ProofData, verificationKey: Uint8Array): Promise<boolean> {
+    const { RawBuffer } = await import('@aztec/bb.js');
+
+    await this.instantiate();
+
+    const proof = reconstructProofWithPublicInputsHonk(proofData);
+    return await this.api.acirVerifyUltraHonk(proof, new RawBuffer(verificationKey));
+  }
+
   async destroy(): Promise<void> {
     if (!this.api) {
       return;
@@ -73,6 +83,24 @@ export function reconstructProofWithPublicInputs(proofData: ProofData): Uint8Arr
 
   // Concatenate publicInputs and proof
   const proofWithPublicInputs = Uint8Array.from([...publicInputsConcatenated, ...proofData.proof]);
+
+  return proofWithPublicInputs;
+}
+
+const serializedBufferSize = 4;
+const fieldByteSize = 32;
+const publicInputOffset = 3;
+const publicInputsOffsetBytes = publicInputOffset * fieldByteSize;
+
+export function reconstructProofWithPublicInputsHonk(proofData: ProofData): Uint8Array {
+  // Flatten publicInputs
+  const publicInputsConcatenated = flattenPublicInputsAsArray(proofData.publicInputs);
+
+  const proofStart = proofData.proof.slice(0, publicInputsOffsetBytes + serializedBufferSize);
+  const proofEnd = proofData.proof.slice(publicInputsOffsetBytes + serializedBufferSize);
+
+  // Concatenate publicInputs and proof
+  const proofWithPublicInputs = Uint8Array.from([...proofStart, ...publicInputsConcatenated, ...proofEnd]);
 
   return proofWithPublicInputs;
 }

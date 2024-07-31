@@ -1,4 +1,4 @@
-export { BarretenbergBackend } from './backend.js';
+export { BarretenbergBackend, UltraHonkBackend } from './backend.js';
 export { BarretenbergVerifier } from './verifier.js';
 
 // typedoc exports
