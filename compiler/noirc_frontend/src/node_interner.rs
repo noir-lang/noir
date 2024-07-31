@@ -1479,7 +1479,10 @@ impl NodeInterner {
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
-                        where_clause_errors.extend(errors);
+                        // Only keep the first errors we get from a failing where clause
+                        if where_clause_errors.is_empty() {
+                            where_clause_errors.extend(errors);
+                        }
                         continue;
                     }
                 }
