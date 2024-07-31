@@ -968,7 +968,7 @@ void avm_prove(const std::filesystem::path& bytecode_path,
 
     // Prove execution and return vk
     auto const [verification_key, proof] =
-        avm_trace::Execution::prove(bytecode, calldata, public_inputs_vec, avm_hints);
+        AVM_TRACK_TIME_V("prove/all", avm_trace::Execution::prove(bytecode, calldata, public_inputs_vec, avm_hints));
 
     // TODO(ilyas): <#4887>: Currently we only need these two parts of the vk, look into pcs_verification key reqs
     std::vector<uint64_t> vk_vector = { verification_key.circuit_size, verification_key.num_public_inputs };
@@ -989,7 +989,8 @@ void avm_prove(const std::filesystem::path& bytecode_path,
 #ifdef AVM_TRACK_STATS
     info("------- STATS -------");
     const auto& stats = avm_trace::Stats::get();
-    info(stats.to_string());
+    const int levels = std::getenv("AVM_STATS_DEPTH") != nullptr ? std::stoi(std::getenv("AVM_STATS_DEPTH")) : 2;
+    info(stats.to_string(levels));
 #endif
 }
 
@@ -1013,7 +1014,7 @@ bool avm_verify(const std::filesystem::path& proof_path, const std::filesystem::
     auto num_public_inputs = from_buffer<size_t>(vk_bytes, sizeof(size_t));
     auto vk = AvmFlavor::VerificationKey(circuit_size, num_public_inputs);
 
-    const bool verified = avm_trace::Execution::verify(vk, proof);
+    const bool verified = AVM_TRACK_TIME_V("verify/all", avm_trace::Execution::verify(vk, proof));
     vinfo("verified: ", verified);
     return verified;
 }

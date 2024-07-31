@@ -79,7 +79,7 @@ void AvmProver::execute_log_derivative_inverse_round()
     bb::constexpr_for<0, std::tuple_size_v<Flavor::LookupRelations>, 1>([&]<size_t relation_idx>() {
         using Relation = std::tuple_element_t<relation_idx, Flavor::LookupRelations>;
         tasks.push_back([&]() {
-            AVM_TRACK_TIME(Relation::NAME + std::string("_ms"),
+            AVM_TRACK_TIME(std::string("prove/execute_log_derivative_inverse_round/") + Relation::NAME,
                            (compute_logderivative_inverse<Flavor, Relation>(
                                prover_polynomials, relation_parameters, key->circuit_size)));
         });
@@ -150,22 +150,22 @@ HonkProof AvmProver::construct_proof()
     execute_preamble_round();
 
     // Compute wire commitments
-    AVM_TRACK_TIME("prove/execute_wire_commitments_round_ms", execute_wire_commitments_round());
+    AVM_TRACK_TIME("prove/execute_wire_commitments_round", execute_wire_commitments_round());
 
     // Compute sorted list accumulator
-    AVM_TRACK_TIME("prove/execute_log_derivative_inverse_round_ms", execute_log_derivative_inverse_round());
+    AVM_TRACK_TIME("prove/execute_log_derivative_inverse_round", execute_log_derivative_inverse_round());
 
     // Compute commitments to logderivative inverse polynomials
-    AVM_TRACK_TIME("prove/execute_log_derivative_inverse_commitments_round_ms",
+    AVM_TRACK_TIME("prove/execute_log_derivative_inverse_commitments_round",
                    execute_log_derivative_inverse_commitments_round());
 
     // Fiat-Shamir: alpha
     // Run sumcheck subprotocol.
-    AVM_TRACK_TIME("prove/execute_relation_check_rounds_ms", execute_relation_check_rounds());
+    AVM_TRACK_TIME("prove/execute_relation_check_rounds", execute_relation_check_rounds());
 
     // Fiat-Shamir: rho, y, x, z
     // Execute Zeromorph multilinear PCS
-    AVM_TRACK_TIME("prove/execute_pcs_rounds_ms", execute_pcs_rounds());
+    AVM_TRACK_TIME("prove/execute_pcs_rounds", execute_pcs_rounds());
 
     return export_proof();
 }

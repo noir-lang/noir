@@ -16,6 +16,7 @@
 #include "barretenberg/vm/generated/avm_circuit_builder.hpp"
 #include "barretenberg/vm/generated/avm_composer.hpp"
 #include "barretenberg/vm/generated/avm_flavor.hpp"
+#include "barretenberg/vm/generated/avm_verifier.hpp"
 
 #include <cassert>
 #include <cstddef>
@@ -132,9 +133,9 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
 
     AVM_TRACK_TIME("prove/check_circuit", circuit_builder.check_circuit());
 
-    auto composer = AvmComposer();
-    auto prover = composer.create_prover(circuit_builder);
-    auto verifier = composer.create_verifier(circuit_builder);
+    auto composer = AVM_TRACK_TIME_V("prove/create_composer", AvmComposer());
+    auto prover = AVM_TRACK_TIME_V("prove/create_prover", composer.create_prover(circuit_builder));
+    auto verifier = AVM_TRACK_TIME_V("prove/create_verifier", composer.create_verifier(circuit_builder));
 
     vinfo("------- PROVING EXECUTION -------");
     // Proof structure: public_inputs | calldata_size | calldata | returndata_size | returndata | raw proof
