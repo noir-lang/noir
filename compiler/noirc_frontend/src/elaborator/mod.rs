@@ -1,23 +1,19 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fmt::Display,
     rc::Rc,
 };
 
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::{Interpreter, InterpreterError, Value},
-        def_collector::{
-            dc_crate::{
+        comptime::Value,
+        def_collector::dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
-                UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
+                UnresolvedStruct, UnresolvedTypeAlias,
             },
-            dc_mod,
-        },
         def_map::DefMaps,
-        resolution::{errors::ResolverError, path_resolver::PathResolver},
         scope::ScopeForest as GenericScopeForest,
+        resolution::{errors::ResolverError, path_resolver::PathResolver},
         type_check::TypeCheckError,
     },
     hir_def::{
@@ -26,7 +22,6 @@ use crate::{
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
-    lexer::Lexer,
     macros_api::{
         BlockExpression, Ident, NodeInterner, NoirFunction, NoirStruct, Pattern,
         SecondaryAttribute, StructId,
@@ -35,9 +30,7 @@ use crate::{
         DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ReferenceId, TraitId,
         TypeAliasId,
     },
-    parser::TopLevelStatement,
-    token::Tokens,
-    Shared, Type, TypeBindings, TypeVariable,
+    Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{TraitBound, UnresolvedGeneric, UnresolvedGenerics},
@@ -1183,118 +1176,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn run_comptime_attributes_on_item(
-        &mut self,
-        attributes: &[SecondaryAttribute],
-        item: Value,
-        span: Span,
-        generated_items: &mut CollectedItems,
-    ) {
-        for attribute in attributes {
-            if let SecondaryAttribute::Custom(name) = attribute {
-                if let Err(error) =
-                    self.run_comptime_attribute_on_item(name, item.clone(), span, generated_items)
-                {
-                    self.errors.push(error);
-                }
-            }
-        }
-    }
-
-    fn run_comptime_attribute_on_item(
-        &mut self,
-        attribute: &str,
-        item: Value,
-        span: Span,
-        generated_items: &mut CollectedItems,
-    ) -> Result<(), (CompilationError, FileId)> {
-        let location = Location::new(span, self.file);
-        let (function_name, mut arguments) = Self::parse_attribute(attribute, location)
-            .unwrap_or_else(|| (attribute.to_string(), Vec::new()));
-
-        let Ok(id) = self.lookup_global(Path::from_single(function_name, span)) else {
-            // Do not issue an error if the attribute is unknown
-            return Ok(());
-        };
-
-        let definition = self.interner.definition(id);
-        let DefinitionKind::Function(function) = definition.kind else {
-            return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
-        };
-
-        self.handle_varargs_attribute(function, &mut arguments, location);
-        arguments.insert(0, (item, location));
-
-        let mut interpreter = self.setup_interpreter();
-
-        let value = interpreter
-            .call_function(function, arguments, TypeBindings::new(), location)
-            .map_err(|error| error.into_compilation_error_pair())?;
-
-        if value != Value::Unit {
-            let items = value
-                .into_top_level_items(location)
-                .map_err(|error| error.into_compilation_error_pair())?;
-
-            self.add_items(items, generated_items, location);
-        }
-
-        Ok(())
-    }
-
-    /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
-    /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
-    fn parse_attribute(
-        annotation: &str,
-        location: Location,
-    ) -> Option<(String, Vec<(Value, Location)>)> {
-        let (tokens, errors) = Lexer::lex(annotation);
-        if !errors.is_empty() {
-            return None;
-        }
-
-        let mut tokens = tokens.0;
-        if tokens.len() >= 4 {
-            // Remove the outer  `ident ( )` wrapping the function arguments
-            let first = tokens.remove(0).into_token();
-            let second = tokens.remove(0).into_token();
-
-            // Last token is always an EndOfInput
-            let _ = tokens.pop().unwrap().into_token();
-            let last = tokens.pop().unwrap().into_token();
-
-            use crate::lexer::token::Token::*;
-            if let (Ident(name), LeftParen, RightParen) = (first, second, last) {
-                let args = tokens.split(|token| *token.token() == Comma);
-                let args =
-                    vecmap(args, |arg| (Value::Code(Rc::new(Tokens(arg.to_vec()))), location));
-                return Some((name, args));
-            }
-        }
-
-        None
-    }
-
-    /// Checks if the given attribute function is a varargs function.
-    /// If so, we should pass its arguments in one slice rather than as separate arguments.
-    fn handle_varargs_attribute(
-        &mut self,
-        function: FuncId,
-        arguments: &mut Vec<(Value, Location)>,
-        location: Location,
-    ) {
-        let meta = self.interner.function_meta(&function);
-        let parameters = &meta.parameters.0;
-
-        // If the last parameter is a slice, this is a varargs function.
-        if parameters.last().map_or(false, |(_, typ, _)| matches!(typ, Type::Slice(_))) {
-            let typ = Type::Slice(Box::new(Type::Quoted(crate::QuotedType::Quoted)));
-            let slice_elements = arguments.drain(..).map(|(value, _)| value);
-            let slice = Value::Slice(slice_elements.collect(), typ);
-            arguments.push((slice, location));
-        }
-    }
-
     pub fn resolve_struct_fields(
         &mut self,
         unresolved: &NoirStruct,
@@ -1487,169 +1368,5 @@ impl<'context> Elaborator<'context> {
             DependencyId::Function(id) => !self.interner.function_modifiers(&id).is_unconstrained,
             _ => true,
         })
-    }
-
-    fn add_items(
-        &mut self,
-        items: Vec<TopLevelStatement>,
-        generated_items: &mut CollectedItems,
-        location: Location,
-    ) {
-        for item in items {
-            self.add_item(item, generated_items, location);
-        }
-    }
-
-    fn add_item(
-        &mut self,
-        item: TopLevelStatement,
-        generated_items: &mut CollectedItems,
-        location: Location,
-    ) {
-        match item {
-            TopLevelStatement::Function(function) => {
-                let id = self.interner.push_empty_fn();
-                let module = self.module_id();
-                self.interner.push_function(id, &function.def, module, location);
-                let functions = vec![(self.local_module, id, function)];
-                generated_items.functions.push(UnresolvedFunctions {
-                    file_id: self.file,
-                    functions,
-                    trait_id: None,
-                    self_type: None,
-                });
-            }
-            TopLevelStatement::TraitImpl(mut trait_impl) => {
-                let methods = dc_mod::collect_trait_impl_functions(
-                    self.interner,
-                    &mut trait_impl,
-                    self.crate_id,
-                    self.file,
-                    self.local_module,
-                );
-
-                generated_items.trait_impls.push(UnresolvedTraitImpl {
-                    file_id: self.file,
-                    module_id: self.local_module,
-                    trait_generics: trait_impl.trait_generics,
-                    trait_path: trait_impl.trait_name,
-                    object_type: trait_impl.object_type,
-                    methods,
-                    generics: trait_impl.impl_generics,
-                    where_clause: trait_impl.where_clause,
-
-                    // These last fields are filled in later
-                    trait_id: None,
-                    impl_id: None,
-                    resolved_object_type: None,
-                    resolved_generics: Vec::new(),
-                    resolved_trait_generics: Vec::new(),
-                });
-            }
-            TopLevelStatement::Global(global) => {
-                let (global, error) = dc_mod::collect_global(
-                    self.interner,
-                    self.def_maps.get_mut(&self.crate_id).unwrap(),
-                    global,
-                    self.file,
-                    self.local_module,
-                    self.crate_id,
-                );
-
-                generated_items.globals.push(global);
-                if let Some(error) = error {
-                    self.errors.push(error);
-                }
-            }
-            // Assume that an error has already been issued
-            TopLevelStatement::Error => (),
-
-            TopLevelStatement::Module(_)
-            | TopLevelStatement::Import(_)
-            | TopLevelStatement::Struct(_)
-            | TopLevelStatement::Trait(_)
-            | TopLevelStatement::Impl(_)
-            | TopLevelStatement::TypeAlias(_)
-            | TopLevelStatement::SubModule(_) => {
-                let item = item.to_string();
-                let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
-                self.errors.push(error.into_compilation_error_pair());
-            }
-        }
-    }
-
-    pub fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
-        let current_function = match self.current_item {
-            Some(DependencyId::Function(function)) => Some(function),
-            _ => None,
-        };
-        Interpreter::new(self, self.crate_id, current_function)
-    }
-
-    fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
-        &mut self,
-        location: Location,
-        mut expr_f: F,
-    ) {
-        if Some(location.file) == self.debug_comptime_in_file {
-            let displayed_expr = expr_f(self.interner);
-            self.errors.push((
-                InterpreterError::debug_evaluate_comptime(displayed_expr, location).into(),
-                location.file,
-            ));
-        }
-    }
-
-    /// Run all the attributes on each item. The ordering is unspecified to users but currently
-    /// we run trait attributes first to (e.g.) register derive handlers before derive is
-    /// called on structs.
-    /// Returns any new items generated by attributes.
-    fn run_attributes(
-        &mut self,
-        traits: &BTreeMap<TraitId, UnresolvedTrait>,
-        types: &BTreeMap<StructId, UnresolvedStruct>,
-        functions: &[UnresolvedFunctions],
-    ) -> CollectedItems {
-        let mut generated_items = CollectedItems::default();
-
-        for (trait_id, trait_) in traits {
-            let attributes = &trait_.trait_def.attributes;
-            let item = Value::TraitDefinition(*trait_id);
-            let span = trait_.trait_def.span;
-            self.local_module = trait_.module_id;
-            self.file = trait_.file_id;
-            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
-        }
-
-        for (struct_id, struct_def) in types {
-            let attributes = &struct_def.struct_def.attributes;
-            let item = Value::StructDefinition(*struct_id);
-            let span = struct_def.struct_def.span;
-            self.local_module = struct_def.module_id;
-            self.file = struct_def.file_id;
-            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
-        }
-
-        self.run_attributes_on_functions(functions, &mut generated_items);
-        generated_items
-    }
-
-    fn run_attributes_on_functions(
-        &mut self,
-        function_sets: &[UnresolvedFunctions],
-        generated_items: &mut CollectedItems,
-    ) {
-        for function_set in function_sets {
-            self.file = function_set.file_id;
-            self.self_type = function_set.self_type.clone();
-
-            for (local_module, function_id, function) in &function_set.functions {
-                self.local_module = *local_module;
-                let attributes = function.secondary_attributes();
-                let item = Value::FunctionDefinition(*function_id);
-                let span = function.span();
-                self.run_comptime_attributes_on_item(attributes, item, span, generated_items);
-            }
-        }
     }
 }

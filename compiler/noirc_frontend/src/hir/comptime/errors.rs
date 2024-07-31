@@ -58,6 +58,8 @@ pub enum InterpreterError {
     ContinueNotInLoop { location: Location },
     BlackBoxError(BlackBoxResolutionError, Location),
     FailedToResolveTraitBound { trait_bound: TraitBound, location: Location },
+    TraitDefinitionMustBeAPath { location: Location },
+    FailedToResolveTraitDefinition { location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -122,6 +124,8 @@ impl InterpreterError {
             | InterpreterError::BlackBoxError(_, location)
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::ContinueNotInLoop { location, .. }
+            | InterpreterError::TraitDefinitionMustBeAPath { location }
+            | InterpreterError::FailedToResolveTraitDefinition { location }
             | InterpreterError::FailedToResolveTraitBound { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
@@ -383,6 +387,14 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
             InterpreterError::Break => unreachable!("Uncaught InterpreterError::Break"),
             InterpreterError::Continue => unreachable!("Uncaught InterpreterError::Continue"),
+            InterpreterError::TraitDefinitionMustBeAPath { location } => {
+                let msg = "Trait definition arguments must be a variable or path".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::FailedToResolveTraitDefinition { location } => {
+                let msg = "Failed to resolve to a trait definition".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
         }
     }
 }

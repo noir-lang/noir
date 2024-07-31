@@ -53,6 +53,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "trait_def_as_trait_constraint" => {
                 trait_def_as_trait_constraint(interner, arguments, location)
             }
+            "trait_def_eq" => trait_def_eq(interner, arguments, location),
+            "trait_def_hash" => trait_def_hash(interner, arguments, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "zeroed" => zeroed(return_type),
@@ -426,8 +428,8 @@ fn quoted_as_type(
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })?;
 
-    let typ = interpreter
-        .elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
+    let typ =
+        interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
 
     Ok(Value::Type(typ))
 }
@@ -461,6 +463,37 @@ fn trait_constraint_eq(
     let constraint_a = get_trait_constraint(arguments.pop().unwrap().0, location)?;
 
     Ok(Value::Bool(constraint_a == constraint_b))
+}
+
+// fn trait_def_hash(def: TraitDefinition) -> Field
+fn trait_def_hash(
+    _interner: &mut NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let id = get_trait_def(arguments.pop().unwrap().0, location)?;
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    id.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    Ok(Value::Field((hash as u128).into()))
+}
+
+// fn trait_def_eq(def_a: TraitDefinition, def_b: TraitDefinition) -> bool
+fn trait_def_eq(
+    _interner: &mut NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(2, &arguments, location)?;
+
+    let id_b = get_trait_def(arguments.pop().unwrap().0, location)?;
+    let id_a = get_trait_def(arguments.pop().unwrap().0, location)?;
+
+    Ok(Value::Bool(id_a == id_b))
 }
 
 // fn zeroed<T>() -> T

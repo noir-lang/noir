@@ -179,7 +179,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn elaborate_item<T>(&mut self, function: Option<FuncId>, f: impl FnOnce(&mut Elaborator) -> T) -> T {
+    fn elaborate_item<T>(
+        &mut self,
+        function: Option<FuncId>,
+        f: impl FnOnce(&mut Elaborator) -> T,
+    ) -> T {
         self.unbind_generics_from_previous_function();
         let result = self.elaborator.elaborate_item_from_comptime(function, f);
         self.rebind_generics_from_previous_function();
@@ -1243,10 +1247,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator.interner, location)?;
-                    let expr = self
-                        .elaborate_item(self.current_function, |elab| {
-                            elab.elaborate_expression(expr).0
-                        });
+                    let expr = self.elaborate_item(self.current_function, |elab| {
+                        elab.elaborate_expression(expr).0
+                    });
                     result = self.evaluate(expr)?;
                 }
                 Ok(result)

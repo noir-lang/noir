@@ -7,9 +7,10 @@ mod derive {
 
     type DeriveFunction = fn(StructDefinition) -> Quoted;
 
-    comptime mut global HANDLERS: UHashMap<TraitConstraint, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
+    comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
 
-    comptime fn my_derive(s: StructDefinition, traits: [TraitConstraint]) -> Quoted {
+    #[varargs]
+    comptime fn my_derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted {
         let mut result = quote {};
 
         for trait_to_derive in traits {
@@ -23,17 +24,17 @@ mod derive {
         result
     }
 
-    unconstrained comptime fn my_derive_via(t: TraitDefinition, f: Quoted) {
-        HANDLERS.insert(t.as_trait_constraint(), std::meta::unquote!(f));
+    unconstrained comptime fn my_derive_via(t: TraitDefinition, f: DeriveFunction) {
+        HANDLERS.insert(t, f);
     }
 }
 
-#[my_derive_via(derive_do_nothing)]
+#[derive::my_derive_via(derive_do_nothing)]
 trait DoNothing {
     fn do_nothing(self);
 }
 
-#[my_derive(DoNothing)]
+#[derive::my_derive(DoNothing)]
 struct MyStruct { my_field: u32 }
 
 comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
