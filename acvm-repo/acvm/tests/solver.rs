@@ -806,8 +806,8 @@ prop_compose! {
     fn bigint_pair_with_modulus()(input_modulus in bigint_with_modulus())
         (ys in proptest::collection::vec(any::<(u8, bool)>(), input_modulus.1.len()), input_modulus in Just(input_modulus))
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
-        let ys = ys.into_iter().map(|(x, use_constant)| {
-            (FieldElement::from(x as u128), use_constant)
+        let ys = ys.into_iter().zip(input_modulus.1.iter()).map(|((x, use_constant), modulus_byte)| {
+            (FieldElement::from(x.clamp(0, *modulus_byte) as u128), use_constant)
         }).collect();
         (input_modulus.0, ys, input_modulus.1)
     }
@@ -817,8 +817,8 @@ prop_compose! {
     fn bigint_triple_with_modulus()(xs_ys_modulus in bigint_pair_with_modulus())
         (zs in proptest::collection::vec(any::<(u8, bool)>(), xs_ys_modulus.2.len()), xs_ys_modulus in Just(xs_ys_modulus))
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
-        let zs = zs.into_iter().map(|(x, use_constant)| {
-            (FieldElement::from(x as u128), use_constant)
+        let zs = zs.into_iter().zip(xs_ys_modulus.2.iter()).map(|((x, use_constant), modulus_byte)| {
+            (FieldElement::from(x.clamp(0, *modulus_byte) as u128), use_constant)
         }).collect();
         (xs_ys_modulus.0, xs_ys_modulus.1, zs, xs_ys_modulus.2)
     }
@@ -1342,9 +1342,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579): fails on (x=0, y=97)
     #[test]
-    #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
     fn bigint_add_sub((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let add_results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs, ys.clone());
@@ -1354,9 +1352,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579): fails on (x=0, y=97)
     #[test]
-    #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
     fn bigint_sub_add((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let sub_results = bigint_solve_binary_op(bigint_sub_op(), modulus.clone(), xs, ys.clone());
@@ -1386,4 +1382,3 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 }
-
