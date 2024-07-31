@@ -685,8 +685,20 @@ impl Builder {
                         P2Value { target: p2target, typ: p2type }
                     }
                     _ => {
-                        let feature_name = format!("indexing array (get) with an {:?}", index_value);
-                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                        let (_index_type, index_target) = self.get_integer(index)?;
+                        let (array_elem_type, array_targets) = self.get_array(array)?;
+                        let mut addends = Vec::<Target>::new();
+                        for i in 0..array_targets.len() - 1 {
+                            let c = self.asm_writer.constant(noir_to_plonky2_field(i.into()));
+                            let is_eq = self.asm_writer.is_equal(index_target, c);
+                            addends.push(
+                                self.asm_writer.mul(array_targets[i].get_target()?, is_eq.target),
+                            );
+                        }
+                        P2Value {
+                            target: P2Target::IntTarget(self.asm_writer.add_many(addends)),
+                            typ: array_elem_type,
+                        }
                     }
                 };
 
