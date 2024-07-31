@@ -162,6 +162,7 @@ impl<'context> Elaborator<'context> {
 
     /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
     /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
+    #[allow(clippy::type_complexity)]
     fn parse_attribute(
         annotation: &str,
         file: FileId,
@@ -219,11 +220,10 @@ impl<'context> Elaborator<'context> {
 
             if *param_type == Type::Quoted(crate::QuotedType::TraitDefinition) {
                 let trait_id = match arg.kind {
-                    ExpressionKind::Variable(path) => {
-                        interpreter.elaborator.resolve_trait_by_path(path).ok_or_else(|| {
-                            InterpreterError::FailedToResolveTraitDefinition { location }
-                        })
-                    }
+                    ExpressionKind::Variable(path) => interpreter
+                        .elaborator
+                        .resolve_trait_by_path(path)
+                        .ok_or(InterpreterError::FailedToResolveTraitDefinition { location }),
                     _ => Err(InterpreterError::TraitDefinitionMustBeAPath { location }),
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));
