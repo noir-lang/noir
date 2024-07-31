@@ -121,19 +121,15 @@ jobs:
 
       - name: Deploy L1 Contracts
         run: |
+          set -e
+          set -o pipefail
+
           docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}
           docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} deploy-l1-contracts \
             --private-key ${{ secrets.CONTRACT_PUBLISHER_PRIVATE_KEY }} \
             --rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
             --l1-chain-id ${{ env.L1_CHAIN_ID }} \
-            --json \
-            | tee  ./l1_contracts.json
-
-
-          if [ $? -ne 0 ]; then
-            echo "deploy-l1-contracts command failed"
-            exit 1
-          fi
+            --json | tee ./l1_contracts.json
 
           # upload contract addresses to S3
           aws s3 cp ./l1_contracts.json ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/l1_contracts.json
@@ -210,35 +206,25 @@ jobs:
       - name: Deploy protocol contracts
         run: |
           set -e
+          set -o pipefail
           docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}
           docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} deploy-protocol-contracts \
             --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
             --l1-chain-id ${{ env.L1_CHAIN_ID }} \
-            --json \
-            | tee  ./protocol_contracts.json
-
-          if [ $? -ne 0 ]; then
-            echo "deploy-protocol-contracts command failed"
-            exit 1
-          fi
+            --json | tee ./protocol_contracts.json
 
           aws s3 cp ./protocol_contracts.json ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/protocol_contracts.json
 
       - name: Bootstrap network
         run: |
           set -e
+          set -o pipefail
           docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} bootstrap-network \
             --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ secrets.FORK_API_KEY }} \
             --l1-rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ secrets.FORK_API_KEY }} \
             --l1-chain-id ${{ env.L1_CHAIN_ID }} \
             --l1-private-key ${{ secrets.CONTRACT_PUBLISHER_PRIVATE_KEY }} \
-            --json \
-            | tee ./basic_contracts.json
-
-            if [ $? -ne 0 ]; then
-              echo "bootstrap-network command failed"
-              exit 1
-            fi
+            --json | tee ./basic_contracts.json
 
           aws s3 cp ./basic_contracts.json ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/basic_contracts.json
 
