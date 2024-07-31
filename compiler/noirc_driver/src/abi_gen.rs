@@ -13,7 +13,7 @@ use noirc_frontend::{
     macros_api::{HirExpression, HirLiteral},
     node_interner::{FuncId, NodeInterner},
 };
-use noirc_frontend::{PolymorphicKind, TypeBinding, TypeVariableKind};
+use noirc_frontend::{TypeBinding, TypeVariableKind};
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
@@ -68,18 +68,13 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
 
             AbiType::Integer { sign, width: (*bit_width).into() }
         }
-        Type::TypeVariable(
-            binding,
-            TypeVariableKind::Polymorphic(PolymorphicKind::IntegerOrField),
-        )
-        | Type::TypeVariable(binding, TypeVariableKind::Polymorphic(PolymorphicKind::Integer)) => {
-            match &*binding.borrow() {
-                TypeBinding::Bound(typ) => abi_type_from_hir_type(context, typ),
-                TypeBinding::Unbound(_) => {
-                    abi_type_from_hir_type(context, &Type::default_int_or_field_type())
-                }
+        Type::TypeVariable(binding, TypeVariableKind::IntegerOrField)
+        | Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
+            TypeBinding::Bound(typ) => abi_type_from_hir_type(context, typ),
+            TypeBinding::Unbound(_) => {
+                abi_type_from_hir_type(context, &Type::default_int_or_field_type())
             }
-        }
+        },
         Type::Bool => AbiType::Boolean,
         Type::String(size) => {
             let size = size

@@ -20,7 +20,6 @@ use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::macros_api::UnaryOp;
-use crate::PolymorphicKind;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -2049,12 +2048,8 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Array(_, _) => Some(Array),
         Type::Slice(_) => Some(Slice),
         Type::Integer(_, _) => Some(FieldOrInt),
-        Type::TypeVariable(_, TypeVariableKind::Polymorphic(PolymorphicKind::IntegerOrField)) => {
-            Some(FieldOrInt)
-        }
-        Type::TypeVariable(_, TypeVariableKind::Polymorphic(PolymorphicKind::Integer)) => {
-            Some(FieldOrInt)
-        }
+        Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::Integer) => Some(FieldOrInt),
         Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::FmtString(_, _) => Some(FmtString),

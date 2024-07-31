@@ -439,8 +439,21 @@ pub enum TypeVariableKind {
     /// Can bind to any type
     Normal,
 
-    /// A polymorphic type.
-    Polymorphic(PolymorphicKind),
+    /// A generic integer or field or bool type.
+    /// This type is used in the `x as T` cast expression, where `x` is a type variable.
+    /// In this case, `x` must be an integer, field or bool for the cast to succeed.
+    IntegerOrFieldOrBool,
+
+    /// A generic integer or field type. This is a more specific kind of TypeVariable
+    /// that can only be bound to Type::Field, Type::Integer, or other polymorphic integers.
+    /// This is the type of undecorated integer literals like `46`. Typing them in this way
+    /// allows them to be polymorphic over the actual integer/field type used without requiring
+    /// type annotations on each integer literal.
+    IntegerOrField,
+
+    /// A generic integer type. This is a more specific kind of TypeVariable
+    /// that can only be bound to Type::Integer, or other polymorphic integers.
+    Integer,
 
     /// A potentially constant array size. This will only bind to itself or
     /// Type::Constant(n) with a matching size. This defaults to Type::Constant(n) if still unbound
@@ -450,31 +463,9 @@ pub enum TypeVariableKind {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum PolymorphicKind {
-    /// A generic integer type. This is a more specific kind of TypeVariable
-    /// that can only be bound to Type::Integer, or other polymorphic integers.
-    Integer,
-    /// A generic integer or field type. This is a more specific kind of TypeVariable
-    /// that can only be bound to Type::Field, Type::Integer, or other polymorphic integers.
-    /// This is the type of undecorated integer literals like `46`. Typing them in this way
-    /// allows them to be polymorphic over the actual integer/field type used without requiring
-    /// type annotations on each integer literal.
-    IntegerOrField,
-    /// A generic integer or field or bool type.
-    /// This type is used in the `x as T` cast expression, where `x` is a type variable.
-    /// In this case, `x` must be an integer, field or bool for the cast to succeed.
     IntegerOrFieldOrBool,
-}
-
-impl PolymorphicKind {
-    /// Returns the default type this polymorphic kind should be bound to if it is still unbound
-    /// during monomorphization.
-    pub(crate) fn default_type(&self) -> Option<Type> {
-        match self {
-            PolymorphicKind::Integer => Some(Type::default_int_type()),
-            PolymorphicKind::IntegerOrField => Some(Type::default_int_or_field_type()),
-            PolymorphicKind::IntegerOrFieldOrBool => None,
-        }
-    }
+    IntegerOrField,
+    Integer,
 }
 
 /// A TypeVariable is a mutable reference that is either
@@ -581,9 +572,28 @@ impl std::fmt::Display for Type {
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
             Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{}", var.borrow()),
-            Type::TypeVariable(binding, TypeVariableKind::Polymorphic(polymorphic_kind)) => {
+            Type::TypeVariable(binding, TypeVariableKind::Integer) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    polymorphic_kind.fmt(f)
+                    write!(f, "{}", Type::default_int_type())
+                } else {
+                    write!(f, "{}", binding.borrow())
+                }
+            }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
+                    // what they bind to by default anyway. It is less confusing than displaying it
+                    // as a generic.
+                    write!(f, "Field")
+                } else {
+                    write!(f, "{}", binding.borrow())
+                }
+            }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrFieldOrBool) => {
+                if let TypeBinding::Unbound(_) = &*binding.borrow() {
+                    // Show a pseudo-syntax for a union type, which might help users understand that the
+                    // type must be one of these.
+                    write!(f, "Integer | Field | bool")
                 } else {
                     write!(f, "{}", binding.borrow())
                 }
@@ -659,25 +669,6 @@ impl std::fmt::Display for Type {
     }
 }
 
-impl std::fmt::Display for PolymorphicKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PolymorphicKind::Integer => write!(f, "{}", Type::default_int_type()),
-            PolymorphicKind::IntegerOrField => {
-                // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
-                // what they bind to by default anyway. It is less confusing than displaying it
-                // as a generic.
-                write!(f, "Field")
-            }
-            PolymorphicKind::IntegerOrFieldOrBool => {
-                // Show a pseudo-syntax for a union type, which might help users understand that the
-                // type must be one of these.
-                write!(f, "Integer | Field | bool")
-            }
-        }
-    }
-}
-
 impl std::fmt::Display for BinaryTypeOperator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -746,21 +737,23 @@ impl Type {
         Type::TypeVariable(var, kind)
     }
 
-    pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
-        Type::polymorphic(interner, PolymorphicKind::Integer)
-    }
-
     pub fn polymorphic_integer_or_field(interner: &mut NodeInterner) -> Type {
-        Type::polymorphic(interner, PolymorphicKind::IntegerOrField)
+        let id = interner.next_type_variable_id();
+        let kind = TypeVariableKind::IntegerOrField;
+        let var = TypeVariable::unbound(id);
+        Type::TypeVariable(var, kind)
     }
 
     pub fn polymorphic_integer_or_field_or_bool(interner: &mut NodeInterner) -> Type {
-        Type::polymorphic(interner, PolymorphicKind::IntegerOrFieldOrBool)
+        let id = interner.next_type_variable_id();
+        let kind = TypeVariableKind::IntegerOrFieldOrBool;
+        let var = TypeVariable::unbound(id);
+        Type::TypeVariable(var, kind)
     }
 
-    fn polymorphic(interner: &mut NodeInterner, kind: PolymorphicKind) -> Type {
+    pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
         let id = interner.next_type_variable_id();
-        let kind = TypeVariableKind::Polymorphic(kind);
+        let kind = TypeVariableKind::Integer;
         let var = TypeVariable::unbound(id);
         Type::TypeVariable(var, kind)
     }
@@ -805,14 +798,7 @@ impl Type {
         use TypeVariableKind as K;
         matches!(
             self.follow_bindings(),
-            FieldElement
-                | Integer(..)
-                | Bool
-                | TypeVariable(
-                    _,
-                    K::Polymorphic(PolymorphicKind::Integer)
-                        | K::Polymorphic(PolymorphicKind::IntegerOrField)
-                )
+            FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField)
         )
     }
 
@@ -1291,7 +1277,9 @@ impl Type {
                         }
                         // *length != target_length
                         TypeVariableKind::Constant(_) => Err(UnificationError),
-                        TypeVariableKind::Polymorphic(..) => Err(UnificationError),
+                        TypeVariableKind::IntegerOrFieldOrBool => Err(UnificationError),
+                        TypeVariableKind::IntegerOrField => Err(UnificationError),
+                        TypeVariableKind::Integer => Err(UnificationError),
                     },
                 }
             }
@@ -1327,7 +1315,8 @@ impl Type {
                 bindings.insert(target_id, (var.clone(), this));
                 Ok(())
             }
-            Type::TypeVariable(self_var, TypeVariableKind::Polymorphic(..)) => {
+            Type::TypeVariable(self_var, TypeVariableKind::IntegerOrField)
+            | Type::TypeVariable(self_var, TypeVariableKind::IntegerOrFieldOrBool) => {
                 let borrow = self_var.borrow();
                 match &*borrow {
                     TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic(var, bindings, kind),
@@ -1337,14 +1326,23 @@ impl Type {
                         if matches!(kind, PolymorphicKind::Integer) {
                             // Integer is more specific than IntegerOrField so we bind the type
                             // variable to Integer instead.
-                            let clone = Type::TypeVariable(
-                                var.clone(),
-                                TypeVariableKind::Polymorphic(PolymorphicKind::Integer),
-                            );
+                            let clone = Type::TypeVariable(var.clone(), TypeVariableKind::Integer);
                             bindings.insert(*new_target_id, (self_var.clone(), clone));
                         } else {
                             bindings.insert(target_id, (var.clone(), this.clone()));
                         }
+                        Ok(())
+                    }
+                }
+            }
+            Type::TypeVariable(self_var, TypeVariableKind::Integer) => {
+                let borrow = self_var.borrow();
+                match &*borrow {
+                    TypeBinding::Bound(typ) => typ.try_bind_to_polymorphic(var, bindings, kind),
+                    // Avoid infinitely recursive bindings
+                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(_) => {
+                        bindings.insert(target_id, (var.clone(), this.clone()));
                         Ok(())
                     }
                 }
@@ -1357,8 +1355,14 @@ impl Type {
                     TypeBinding::Unbound(id) if *id == target_id => Ok(()),
                     TypeBinding::Unbound(new_target_id) => {
                         // Bind to the most specific type variable kind
-                        let clone =
-                            Type::TypeVariable(var.clone(), TypeVariableKind::Polymorphic(kind));
+                        let clone_kind = match kind {
+                            PolymorphicKind::Integer => TypeVariableKind::Integer,
+                            PolymorphicKind::IntegerOrField => TypeVariableKind::IntegerOrField,
+                            PolymorphicKind::IntegerOrFieldOrBool => {
+                                TypeVariableKind::IntegerOrFieldOrBool
+                            }
+                        };
+                        let clone = Type::TypeVariable(var.clone(), clone_kind);
                         bindings.insert(*new_target_id, (self_var.clone(), clone));
                         Ok(())
                     }
@@ -1450,32 +1454,28 @@ impl Type {
                 alias.try_unify(other, bindings)
             }
 
-            (
-                TypeVariable(var, Kind::Polymorphic(PolymorphicKind::IntegerOrFieldOrBool)),
-                other,
-            )
-            | (
-                other,
-                TypeVariable(var, Kind::Polymorphic(PolymorphicKind::IntegerOrFieldOrBool)),
-            ) => other.try_unify_to_type_variable(var, bindings, |bindings| {
-                let kind = PolymorphicKind::IntegerOrFieldOrBool;
-                other.try_bind_to_polymorphic(var, bindings, kind)
-            }),
+            (TypeVariable(var, Kind::IntegerOrFieldOrBool), other)
+            | (other, TypeVariable(var, Kind::IntegerOrFieldOrBool)) => other
+                .try_unify_to_type_variable(var, bindings, |bindings| {
+                    let kind = PolymorphicKind::IntegerOrFieldOrBool;
+                    other.try_bind_to_polymorphic(var, bindings, kind)
+                }),
 
-            (TypeVariable(var, Kind::Polymorphic(PolymorphicKind::IntegerOrField)), other)
-            | (other, TypeVariable(var, Kind::Polymorphic(PolymorphicKind::IntegerOrField))) => {
+            (TypeVariable(var, Kind::IntegerOrField), other)
+            | (other, TypeVariable(var, Kind::IntegerOrField)) => {
                 other.try_unify_to_type_variable(var, bindings, |bindings| {
                     let kind = PolymorphicKind::IntegerOrField;
                     other.try_bind_to_polymorphic(var, bindings, kind)
                 })
             }
 
-            (TypeVariable(var, Kind::Polymorphic(PolymorphicKind::Integer)), other)
-            | (other, TypeVariable(var, Kind::Polymorphic(PolymorphicKind::Integer))) => other
-                .try_unify_to_type_variable(var, bindings, |bindings| {
+            (TypeVariable(var, Kind::Integer), other)
+            | (other, TypeVariable(var, Kind::Integer)) => {
+                other.try_unify_to_type_variable(var, bindings, |bindings| {
                     let kind = PolymorphicKind::Integer;
                     other.try_bind_to_polymorphic(var, bindings, kind)
-                }),
+                })
+            }
 
             (TypeVariable(var, Kind::Normal), other) | (other, TypeVariable(var, Kind::Normal)) => {
                 other.try_unify_to_type_variable(var, bindings, |bindings| {
@@ -2184,7 +2184,9 @@ impl TypeVariableKind {
     /// during monomorphization.
     pub(crate) fn default_type(&self) -> Option<Type> {
         match self {
-            TypeVariableKind::Polymorphic(polymorphic_kind) => polymorphic_kind.default_type(),
+            TypeVariableKind::IntegerOrFieldOrBool => None,
+            TypeVariableKind::IntegerOrField => Some(Type::default_int_or_field_type()),
+            TypeVariableKind::Integer => Some(Type::default_int_type()),
             TypeVariableKind::Constant(length) => Some(Type::Constant(*length)),
             TypeVariableKind::Normal => None,
         }
@@ -2218,20 +2220,16 @@ impl From<&Type> for PrintableType {
                 }
                 Signedness::Signed => PrintableType::SignedInteger { width: (*bit_width).into() },
             },
-            Type::TypeVariable(
-                binding,
-                TypeVariableKind::Polymorphic(PolymorphicKind::Integer),
-            ) => match &*binding.borrow() {
+            Type::TypeVariable(binding, TypeVariableKind::Integer) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => typ.into(),
                 TypeBinding::Unbound(_) => Type::default_int_type().into(),
             },
-            Type::TypeVariable(
-                binding,
-                TypeVariableKind::Polymorphic(PolymorphicKind::IntegerOrField),
-            ) => match &*binding.borrow() {
-                TypeBinding::Bound(typ) => typ.into(),
-                TypeBinding::Unbound(_) => Type::default_int_or_field_type().into(),
-            },
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(typ) => typ.into(),
+                    TypeBinding::Unbound(_) => Type::default_int_or_field_type().into(),
+                }
+            }
             Type::Bool => PrintableType::Boolean,
             Type::String(size) => {
                 let size = size.evaluate_to_u32().expect("Cannot print variable sized strings");
@@ -2283,18 +2281,14 @@ impl std::fmt::Debug for Type {
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
             Type::TypeVariable(var, TypeVariableKind::Normal) => write!(f, "{:?}", var),
-            Type::TypeVariable(binding, TypeVariableKind::Polymorphic(polymorphic_kind)) => {
-                match polymorphic_kind {
-                    PolymorphicKind::Integer => {
-                        write!(f, "Int{:?}", binding)
-                    }
-                    PolymorphicKind::IntegerOrField => {
-                        write!(f, "IntOrField{:?}", binding)
-                    }
-                    PolymorphicKind::IntegerOrFieldOrBool => {
-                        write!(f, "IntOrFieldOrBool{:?}", binding)
-                    }
-                }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrFieldOrBool) => {
+                write!(f, "IntOrFieldOrBool{:?}", binding)
+            }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+                write!(f, "IntOrField{:?}", binding)
+            }
+            Type::TypeVariable(binding, TypeVariableKind::Integer) => {
+                write!(f, "Int{:?}", binding)
             }
             Type::TypeVariable(binding, TypeVariableKind::Constant(n)) => {
                 write!(f, "{}{:?}", n, binding)
