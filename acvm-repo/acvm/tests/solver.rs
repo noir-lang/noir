@@ -18,6 +18,7 @@ use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use bn254_blackbox_solver::{POSEIDON2_CONFIG, Bn254BlackBoxSolver, field_from_hex};
 use brillig_vm::brillig::HeapValueType;
 
+use proptest::arbitrary::any;
 use proptest::prelude::*;
 use proptest::result::maybe_ok;
 use zkhash::poseidon2::poseidon2_params::Poseidon2Params;
@@ -767,26 +768,24 @@ fn drop_use_constant(input: &[ConstantOrWitness]) -> Vec<FieldElement> {
 // END TODO: verbatim from BigInt PR: merge target there?
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-fn solve_poseidon2_permutation(
+fn solve_array_input_blackbox_call<F>(
     inputs: Vec<ConstantOrWitness>,
-) -> Vec<FieldElement> {
+    num_outputs: usize,
+    f: F,
+) -> Vec<FieldElement>
+where
+    F: FnOnce((Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement>,
+{
     let initial_witness_vec: Vec<_> =
         inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
-    let outputs: Vec<_> = initial_witness_vec
-        .iter()
-        .take(inputs.len())
-        .enumerate()
-        .map(|(i, _)| Witness((i + inputs.len()) as u32)) // offset past the indices of inputs
+    let outputs: Vec<_> = (0..num_outputs)
+        .into_iter()
+        .map(|i| Witness((i + inputs.len()) as u32)) // offset past the indices of inputs
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
     let inputs = constant_or_witness_to_function_inputs(inputs, 0);
-    let op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Poseidon2Permutation {
-        inputs: inputs.clone(),
-        outputs: outputs.clone(),
-        len: inputs.len() as u32,
-    });
-
+    let op = Opcode::BlackBoxFuncCall(f((inputs.clone(), outputs.clone())));
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm =
@@ -801,6 +800,150 @@ fn solve_poseidon2_permutation(
         .map(|witness| *witness_map.get(witness).expect("all witnesses to be set"))
         .collect()
 }
+
+// Solve the given BlackBoxFuncCall with witnesses: 1, 2 as x, y, resp.
+#[cfg(test)]
+fn solve_blackbox_func_call(
+    blackbox_func_call: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool), // if false, use a Witness
+    y: (FieldElement, bool), // if false, use a Witness
+) -> FieldElement {
+    let (x, x_constant) = x;
+    let (y, y_constant) = y;
+
+    let initial_witness = WitnessMap::from(BTreeMap::from_iter([(Witness(1), x), (Witness(2), y)]));
+
+    let mut lhs = None;
+    if x_constant {
+        lhs = Some(x);
+    }
+
+    let mut rhs = None;
+    if y_constant {
+        rhs = Some(y);
+    }
+
+    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs, rhs));
+    let opcodes = vec![op];
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let solver_status = acvm.solve();
+    assert_eq!(solver_status, ACVMStatus::Solved);
+    let witness_map = acvm.finalize();
+
+    witness_map[&Witness(3)]
+}
+
+// TODO: reorder to end of list
+//
+// N inputs
+// N outputs
+fn poseidon2_permutation_op(function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let function_inputs_len = function_inputs.len() as u32;
+    BlackBoxFuncCall::Poseidon2Permutation {
+        inputs: function_inputs,
+        outputs: outputs,
+        len: function_inputs_len,
+    }
+}
+
+// N inputs
+// 32 outputs
+fn sha256_op(function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    BlackBoxFuncCall::SHA256 {
+        inputs: function_inputs,
+        outputs: outputs.try_into().expect("SHA256 returns 32 outputs"),
+    }
+}
+
+// N inputs
+// 32 outputs
+fn blake2s_op(function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    BlackBoxFuncCall::Blake2s {
+        inputs: function_inputs,
+        outputs: outputs.try_into().expect("Blake2s returns 32 outputs"),
+    }
+}
+
+// N inputs
+// 32 outputs
+fn blake3_op(function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    BlackBoxFuncCall::Blake3 {
+        inputs: function_inputs,
+        outputs: outputs.try_into().expect("Blake3 returns 32 outputs"),
+    }
+}
+
+// 25 inputs
+// 25 outputs
+fn keccakf1600_op(function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    BlackBoxFuncCall::Keccakf1600 {
+        inputs: function_inputs,
+        outputs: outputs.try_into().expect("Keccakf1600 returns 25 outputs"),
+    }
+}
+
+// TODO: the following hash functions all have a "twist" on the above pattern
+//
+// /// Applies the Poseidon2 permutation function to the given state,
+// /// outputting the permuted state.
+// Poseidon2Permutation {
+//     /// Input state for the permutation of Poseidon2
+//     inputs: Vec<FunctionInput<F>>,
+//     /// Permuted state
+//     outputs: Vec<Witness>,
+//     /// State length (in number of field elements)
+//     /// It is the length of inputs and outputs vectors
+//     len: u32,
+// },
+//
+// /// Applies the SHA-256 compression function to the input message
+// ///
+// /// # Arguments
+// ///
+// /// * `inputs` - input message block
+// /// * `hash_values` - state from the previous compression
+// /// * `outputs` - result of the input compressed into 256 bits
+// Sha256Compression {
+//     /// 512 bits of the input message, represented by 16 u32s
+//     inputs: Box<[FunctionInput<F>; 16]>,
+//     /// Vector of 8 u32s used to compress the input
+//     hash_values: Box<[FunctionInput<F>; 8]>,
+//     /// Output of the compression, represented by 8 u32s
+//     outputs: Box<[Witness; 8]>,
+// },
+//
+// Keccak256 {
+//     inputs: Vec<FunctionInput<F>>,
+//     /// This is the number of bytes to take
+//     /// from the input. Note: if `var_message_size`
+//     /// is more than the number of bytes in the input,
+//     /// then an error is returned.
+//     var_message_size: FunctionInput<F>,
+//     outputs: Box<[Witness; 32]>,
+// },
+//
+// /// Applies the Poseidon2 permutation function to the given state,
+// /// outputting the permuted state.
+// Poseidon2Permutation {
+//     /// Input state for the permutation of Poseidon2
+//     inputs: Vec<FunctionInput<F>>,
+//     /// Permuted state
+//     outputs: Vec<Witness>,
+//     /// State length (in number of field elements)
+//     /// It is the length of inputs and outputs vectors
+//     len: u32,
+// },
+
 
 fn into_repr_vec<T>(xs: T) -> Vec<ark_bn254::Fr>
 where
@@ -818,7 +961,7 @@ where
 }
 
 fn run_both_poseidon2_permutations(inputs: Vec<ConstantOrWitness>) -> (Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>) {
-    let result = solve_poseidon2_permutation(inputs.clone());
+    let result = solve_array_input_blackbox_call(inputs.clone(), inputs.len(), poseidon2_permutation_op);
 
     let poseidon2_t = POSEIDON2_CONFIG.t as usize;
     let poseidon2_d = 5;
@@ -840,6 +983,87 @@ fn run_both_poseidon2_permutations(inputs: Vec<ConstantOrWitness>) -> (Vec<ark_b
 
     let expected_result = external_poseidon2.permutation(&into_repr_vec(drop_use_constant(&inputs)));
     (into_repr_vec(result), expected_result)
+}
+
+fn function_input_from_option(
+    witness: Witness,
+    opt_constant: Option<FieldElement>,
+) -> FunctionInput<FieldElement> {
+    opt_constant
+        .map(|constant| FunctionInput::constant(constant, FieldElement::max_num_bits()))
+        .unwrap_or(FunctionInput::witness(witness, FieldElement::max_num_bits()))
+}
+
+fn and_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
+    let lhs = function_input_from_option(Witness(1), x);
+    let rhs = function_input_from_option(Witness(2), y);
+    BlackBoxFuncCall::AND { lhs, rhs, output: Witness(3) }
+}
+
+fn xor_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
+    let lhs = function_input_from_option(Witness(1), x);
+    let rhs = function_input_from_option(Witness(2), y);
+    BlackBoxFuncCall::XOR { lhs, rhs, output: Witness(3) }
+}
+
+fn prop_assert_commutative(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool),
+    y: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(&op, x, y), solve_blackbox_func_call(&op, y, x))
+}
+
+fn prop_assert_associative(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool),
+    y: (FieldElement, bool),
+    z: (FieldElement, bool),
+    use_constant_xy: bool,
+    use_constant_yz: bool,
+) -> (FieldElement, FieldElement) {
+    let f_xy = (solve_blackbox_func_call(&op, x, y), use_constant_xy);
+    let f_f_xy_z = solve_blackbox_func_call(&op, f_xy, z);
+
+    let f_yz = (solve_blackbox_func_call(&op, y, z), use_constant_yz);
+    let f_x_f_yz = solve_blackbox_func_call(&op, x, f_yz);
+
+    (f_f_xy_z, f_x_f_yz)
+}
+
+fn prop_assert_identity_l(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op_identity: (FieldElement, bool),
+    x: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(op, op_identity, x), x.0)
+}
+
+fn prop_assert_zero_l(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op_zero: (FieldElement, bool),
+    x: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(op, op_zero, x), FieldElement::zero())
+}
+
+fn field_element_ones() -> FieldElement {
+    let exponent: FieldElement = (253_u128).into();
+    FieldElement::from(2u128).pow(&exponent) - FieldElement::one()
+}
+
+prop_compose! {
+    // Use both `u128` and hex proptest strategies
+    fn field_element()
+        (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"),
+         constant_input: bool)
+        -> (FieldElement, bool)
+    {
+        match u128_or_hex {
+            Ok(number) => (FieldElement::from(number), constant_input),
+            Err(hex) => (FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string"), constant_input),
+        }
+    }
 }
 
 #[test]
@@ -865,33 +1089,163 @@ fn sha256_compression_zeroes() {
     assert!(false, "TODO");
 }
 
-// TODO: from blackbox binary op test PR
-prop_compose! {
-    // Use both `u128` and hex proptest strategies
-    fn field_element()
-        (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"),
-         constant_input: bool)
-        -> (FieldElement, bool)
-    {
-        match u128_or_hex {
-            Ok(number) => (FieldElement::from(number), constant_input),
-            Err(hex) => (FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string"), constant_input),
+proptest! {
+
+    #[test]
+    fn and_commutative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_commutative(and_op, x, y);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn xor_commutative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_commutative(xor_op, x, y);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn and_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
+        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z, use_constant_xy, use_constant_yz);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    // TODO(https://github.com/noir-lang/noir/issues/5638)
+    #[should_panic(expected = "assertion failed: `(left == right)`")]
+    fn xor_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
+        let (lhs, rhs) = prop_assert_associative(xor_op, x, y, z, use_constant_xy, use_constant_yz);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    // test that AND(x, x) == x
+    #[test]
+    fn and_self_identity(x in field_element()) {
+        prop_assert_eq!(solve_blackbox_func_call(and_op, x, x), x.0);
+    }
+
+    // test that XOR(x, x) == 0
+    #[test]
+    fn xor_self_zero(x in field_element()) {
+        prop_assert_eq!(solve_blackbox_func_call(xor_op, x, x), FieldElement::zero());
+    }
+
+    #[test]
+    fn and_identity_l(x in field_element(), ones_constant: bool) {
+        let ones = (field_element_ones(), ones_constant);
+        let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x);
+        if x <= ones {
+            prop_assert_eq!(lhs, rhs);
+        } else {
+            prop_assert!(lhs != rhs);
         }
     }
-}
-// END TODO: from blackbox binary op test PR
 
-proptest! {
     #[test]
-    fn poseidon2_permutation(inputs in proptest::collection::vec(field_element(), 4)) {
+    fn xor_identity_l(x in field_element(), zero_constant: bool) {
+        let zero = (FieldElement::zero(), zero_constant);
+        let (lhs, rhs) = prop_assert_identity_l(xor_op, zero, x);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn and_zero_l(x in field_element(), ones_constant: bool) {
+        let zero = (FieldElement::zero(), ones_constant);
+        let (lhs, rhs) = prop_assert_zero_l(and_op, zero, x);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn poseidon2_permutation_matches_external_impl(inputs in proptest::collection::vec(field_element(), 4)) {
         let (result, expected_result) = run_both_poseidon2_permutations(inputs);
         prop_assert_eq!(result, expected_result)
     }
 
-    // test that varying one of the inputs produces a different result
-    #[test]
-    fn sha256_compression_injective() {
-        prop_assert!(false, "TODO");
-    }
+    // TODO
+    // // test that varying one of the inputs produces a different result
+    // #[test]
+    // fn sha256_compression_injective() {
+    //     assert!(false, "TODO");
+    // }
+
+    // // TODO: extra tests for var_message_size and Poseidon2Permutation::len
+    // Keccak256 {
+    //     inputs: Vec<FunctionInput<F>>,
+    //     /// This is the number of bytes to take
+    //     /// from the input. Note: if `var_message_size`
+    //     /// is more than the number of bytes in the input,
+    //     /// then an error is returned.
+    //     var_message_size: FunctionInput<F>,
+    //     outputs: Box<[Witness; 32]>,
+    // },
+    //
+    // /// Applies the Poseidon2 permutation function to the given state,
+    // /// outputting the permuted state.
+    // Poseidon2Permutation {
+    //     /// Input state for the permutation of Poseidon2
+    //     inputs: Vec<FunctionInput<F>>,
+    //     /// Permuted state
+    //     outputs: Vec<Witness>,
+    //     /// State length (in number of field elements)
+    //     /// It is the length of inputs and outputs vectors
+    //     len: u32,
+    // },
+
+
+    // NOTE: will be deprecated:
+    // PedersenCommitment { .. },
+    // PedersenHash { .. },
+
+    // // TODO: other crypto functions's
+    //
+    // AES128Encrypt {
+    //     inputs: Vec<FunctionInput<F>>,
+    //     iv: Box<[FunctionInput<F>; 16]>,
+    //     key: Box<[FunctionInput<F>; 16]>,
+    //     outputs: Vec<Witness>,
+    // },
+    // SchnorrVerify {
+    //     public_key_x: FunctionInput<F>,
+    //     public_key_y: FunctionInput<F>,
+    //     #[serde(
+    //         serialize_with = "serialize_big_array",
+    //         deserialize_with = "deserialize_big_array_into_box"
+    //     )]
+    //     signature: Box<[FunctionInput<F>; 64]>,
+    //     message: Vec<FunctionInput<F>>,
+    //     output: Witness,
+    // },
+    // EcdsaSecp256k1 {
+    //     public_key_x: Box<[FunctionInput<F>; 32]>,
+    //     public_key_y: Box<[FunctionInput<F>; 32]>,
+    //     #[serde(
+    //         serialize_with = "serialize_big_array",
+    //         deserialize_with = "deserialize_big_array_into_box"
+    //     )]
+    //     signature: Box<[FunctionInput<F>; 64]>,
+    //     hashed_message: Box<[FunctionInput<F>; 32]>,
+    //     output: Witness,
+    // },
+    // EcdsaSecp256r1 {
+    //     public_key_x: Box<[FunctionInput<F>; 32]>,
+    //     public_key_y: Box<[FunctionInput<F>; 32]>,
+    //     #[serde(
+    //         serialize_with = "serialize_big_array",
+    //         deserialize_with = "deserialize_big_array_into_box"
+    //     )]
+    //     signature: Box<[FunctionInput<F>; 64]>,
+    //     hashed_message: Box<[FunctionInput<F>; 32]>,
+    //     output: Witness,
+    // },
+    // MultiScalarMul {
+    //     points: Vec<FunctionInput<F>>,
+    //     scalars: Vec<FunctionInput<F>>,
+    //     outputs: (Witness, Witness, Witness),
+    // },
+    // EmbeddedCurveAdd {
+    //     input1: Box<[FunctionInput<F>; 3]>,
+    //     input2: Box<[FunctionInput<F>; 3]>,
+    //     outputs: (Witness, Witness, Witness),
+    // },
 
 }
+

@@ -263,29 +263,9 @@ impl Expression {
         arguments: Vec<Expression>,
         span: Span,
     ) -> Expression {
-        // Need to check if lhs is an if expression since users can sequence if expressions
-        // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
-        // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
-        let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
-            ExpressionKind::Block(BlockExpression {
-                statements: vec![
-                    Statement { kind: StatementKind::Expression(lhs), span },
-                    Statement {
-                        kind: StatementKind::Expression(Expression::new(
-                            ExpressionKind::Tuple(arguments),
-                            span,
-                        )),
-                        span,
-                    },
-                ],
-            })
-        } else {
-            ExpressionKind::Call(Box::new(CallExpression {
-                func: Box::new(lhs),
-                is_macro_call,
-                arguments,
-            }))
-        };
+        let func = Box::new(lhs);
+        let kind =
+            ExpressionKind::Call(Box::new(CallExpression { func, is_macro_call, arguments }));
         Expression::new(kind, span)
     }
 }

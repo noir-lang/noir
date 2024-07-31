@@ -33,18 +33,30 @@ pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint 
     pedersen_commitment_with_separator(input, 0)
 }
 
+pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {
+    __pedersen_hash_with_separator(input, separator)
+}
+
 fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
+    let value = __pedersen_commitment_with_separator(input, separator);
+    if (value[0] == 0) & (value[1] == 0) {
+        EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
+    } else {
+        EmbeddedCurvePoint { x: value[0], y: value[1], is_infinite: false }
+    }
+}
+
+fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
         // we use the unsafe version because the multi_scalar_mul will constraint the scalars.
         points[i] = from_field_unsafe(input[i]);
     }
     let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
-    let values = multi_scalar_mul(generators, points);
-    EmbeddedCurvePoint { x: values[0], y: values[1], is_infinite: values[2] as bool }
+    multi_scalar_mul(generators, points)
 }
 
-fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {
+fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> Field {
     let mut scalars: Vec<EmbeddedCurveScalar> = Vec::from_slice([EmbeddedCurveScalar { lo: 0, hi: 0 }; N].as_slice()); //Vec::new();
 
     for i in 0..N {
@@ -62,8 +74,14 @@ fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -
 pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 // docs:end:pedersen_hash
 {
-    pedersen_hash_with_separator(input, 0)
+    __pedersen_hash_with_separator(input, 0)
 }
+
+#[foreign(pedersen_hash)]
+fn __pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {}
+
+#[foreign(pedersen_commitment)]
+fn __pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> [Field; 2] {}
 
 #[field(bn254)]
 fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {

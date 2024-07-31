@@ -188,7 +188,6 @@ impl<'a> ModCollector<'a> {
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
                 trait_generics: trait_impl.trait_generics,
-                is_comptime: trait_impl.is_comptime,
 
                 // These last fields are filled later on
                 trait_id: None,

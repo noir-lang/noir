@@ -24,12 +24,13 @@ pub(crate) fn keccak256<let N: u32>(mut input: [u8; N], message_size: u32) -> [u
     let real_max_blocks = (message_size + BLOCK_SIZE) / BLOCK_SIZE;
     let real_blocks_bytes = real_max_blocks * BLOCK_SIZE;
 
-    let mut block_bytes = Vec::from_slice(input.as_slice());
-    for _i in N..N + BLOCK_SIZE {
-        block_bytes.push(0);
+    let mut block_bytes = [0; BLOCK_SIZE];
+    for i in 0..N {
+        block_bytes[i] = input[i];
     }
-    block_bytes.set(message_size, 1);
-    block_bytes.set(real_blocks_bytes - 1, 0x80);
+
+    block_bytes[message_size] = 1;
+    block_bytes[real_blocks_bytes - 1] = 0x80;
 
     // keccak lanes interpret memory as little-endian integers,
     // means we need to swap our byte ordering
@@ -37,10 +38,10 @@ pub(crate) fn keccak256<let N: u32>(mut input: [u8; N], message_size: u32) -> [u
     for i in 0..num_limbs {
         let mut temp = [0; 8];
         for j in 0..8 {
-            temp[j] = block_bytes.get(8*i+j);
+            temp[j] = block_bytes[8*i+j];
         }
         for j in 0..8 {
-            block_bytes.set(8 * i + j, temp[7 - j]);
+            block_bytes[8 * i + j] = temp[7 - j];
         }
     }
     let  byte_size = max_blocks_length;
@@ -56,7 +57,7 @@ pub(crate) fn keccak256<let N: u32>(mut input: [u8; N], message_size: u32) -> [u
             let byte_shift = (WORD_SIZE - slice_size) * 8;
             let mut v = 1;
             for k in 0..slice_size {
-                sliced += v * (block_bytes.get(i * WORD_SIZE+7-k) as Field);
+                sliced += v * (block_bytes[i * WORD_SIZE+7-k] as Field);
                 v *= 256;
             }
             let w = 1 << (byte_shift as u8);
@@ -64,7 +65,7 @@ pub(crate) fn keccak256<let N: u32>(mut input: [u8; N], message_size: u32) -> [u
         } else {
             let mut v = 1;
             for k in 0..WORD_SIZE {
-                sliced += v * (block_bytes.get(i * WORD_SIZE+7-k) as Field);
+                sliced += v * (block_bytes[i * WORD_SIZE+7-k] as Field);
                 v *= 256;
             }
         }

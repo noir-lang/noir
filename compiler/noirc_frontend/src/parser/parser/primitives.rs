@@ -33,10 +33,14 @@ pub(super) fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
     })
 }
 
-pub(super) fn path_segment() -> impl NoirParser<PathSegment> {
-    ident()
-        .then(turbofish(super::parse_type()))
-        .map_with_span(|(ident, generics), span| PathSegment { ident, generics, span })
+pub(super) fn path_segment<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<PathSegment> + 'a {
+    ident().then(turbofish(type_parser)).map_with_span(|(ident, generics), span| PathSegment {
+        ident,
+        generics,
+        span,
+    })
 }
 
 pub(super) fn path_segment_no_turbofish() -> impl NoirParser<PathSegment> {
@@ -96,7 +100,7 @@ pub(super) fn turbofish<'a>(
 }
 
 pub(super) fn variable() -> impl NoirParser<ExpressionKind> {
-    path().map(ExpressionKind::Variable)
+    path(super::parse_type()).map(ExpressionKind::Variable)
 }
 
 pub(super) fn variable_no_turbofish() -> impl NoirParser<ExpressionKind> {
