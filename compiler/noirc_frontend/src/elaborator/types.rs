@@ -779,7 +779,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn check_cast(&mut self, from: &Type, to: &Type, span: Span) -> Type {
+    pub(super) fn check_cast(&mut self, from: Type, to: &Type, span: Span) -> Type {
         match from.follow_bindings() {
             Type::Integer(..)
             | Type::FieldElement
@@ -787,15 +787,9 @@ impl<'context> Elaborator<'context> {
             | Type::TypeVariable(_, TypeVariableKind::Integer)
             | Type::Bool => (),
 
-            Type::TypeVariable(binding, TypeVariableKind::Normal) => {
-                if let TypeBinding::Bound(typ) = &*binding.borrow() {
-                    return self.check_cast(from, typ, span);
-                }
-                let expected = &&Type::polymorphic_integer_or_field_or_bool(self.interner);
-                self.unify(from, expected, || TypeCheckError::InvalidCast {
-                    from: from.clone(),
-                    span,
-                });
+            Type::TypeVariable(_, _) => {
+                self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+                return Type::Error;
             }
             Type::Error => return Type::Error,
             from => {

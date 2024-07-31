@@ -553,7 +553,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_cast(&mut self, cast: CastExpression, span: Span) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
         let r#type = self.resolve_type(cast.r#type);
-        let result = self.check_cast(&lhs_type, &r#type, span);
+        let result = self.check_cast(lhs_type, &r#type, span);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }
