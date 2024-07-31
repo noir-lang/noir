@@ -790,8 +790,8 @@ impl<'context> Elaborator<'context> {
             Type::TypeVariable(_, _) => {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
-                let expected = &&Type::polymorphic_integer_or_field(self.interner);
-                self.unify(from, expected, || TypeCheckError::InvalidCast {
+                let expected = Type::polymorphic_integer_or_field(self.interner);
+                self.unify(from, &expected, || TypeCheckError::InvalidCast {
                     from: from.clone(),
                     span,
                 });
