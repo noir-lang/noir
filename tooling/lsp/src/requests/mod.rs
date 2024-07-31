@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::{collections::HashMap, future::Future};
 
 use crate::insert_all_files_for_workspace_into_file_manager;
@@ -324,7 +325,12 @@ where
     let file_name = files.name(file_id).ok()?;
 
     let path = file_name.to_string();
-    let uri = Url::from_file_path(path).ok()?;
+
+    // `path` might be a relative path so we canonicalize it to get an absolute path
+    let path_buf = PathBuf::from(path);
+    let path_buf = path_buf.canonicalize().unwrap_or(path_buf);
+
+    let uri = Url::from_file_path(path_buf.to_str()?).ok()?;
 
     Some(Location { uri, range })
 }
