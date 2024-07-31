@@ -1,6 +1,8 @@
 #pragma once
+#include "barretenberg/dsl/acir_format/ecdsa_secp256k1.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/primitives/group/cycle_group.hpp"
 
 namespace acir_format {
 template <typename FF> struct WitnessOrConstant {
@@ -29,5 +31,12 @@ bb::stdlib::field_t<Builder> to_field_ct(const WitnessOrConstant<FF>& input, Bui
     }
     return field_ct::from_witness_index(&builder, input.index);
 }
+
+template <typename Builder, typename FF>
+bb::stdlib::cycle_group<Builder> to_grumpkin_point(const WitnessOrConstant<FF>& input_x,
+                                                   const WitnessOrConstant<FF>& input_y,
+                                                   const WitnessOrConstant<FF>& input_infinite,
+                                                   bool has_valid_witness_assignments,
+                                                   Builder& builder);
 
 } // namespace acir_format
