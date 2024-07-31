@@ -51,7 +51,7 @@ export async function produceNoteDaos(
 
   try {
     if (ivpkM) {
-      const { noteHashIndex, nonce, innerNoteHash, siloedNullifier } = await findNoteIndexAndNullifier(
+      const { noteHashIndex, nonce, slottedNoteHash, siloedNullifier } = await findNoteIndexAndNullifier(
         simulator,
         noteHashes,
         txHash,
@@ -69,7 +69,7 @@ export async function produceNoteDaos(
         payload.noteTypeId,
         txHash,
         nonce,
-        innerNoteHash,
+        slottedNoteHash,
         siloedNullifier,
         index,
         ivpkM,
@@ -108,12 +108,12 @@ export async function produceNoteDaos(
           payload.noteTypeId,
           txHash,
           incomingNote.nonce,
-          incomingNote.innerNoteHash,
+          incomingNote.slottedNoteHash,
           incomingNote.index,
           ovpkM,
         );
       } else {
-        const { noteHashIndex, nonce, innerNoteHash } = await findNoteIndexAndNullifier(
+        const { noteHashIndex, nonce, slottedNoteHash } = await findNoteIndexAndNullifier(
           simulator,
           noteHashes,
           txHash,
@@ -130,7 +130,7 @@ export async function produceNoteDaos(
           payload.noteTypeId,
           txHash,
           nonce,
-          innerNoteHash,
+          slottedNoteHash,
           index,
           ovpkM,
         );
@@ -189,7 +189,7 @@ async function findNoteIndexAndNullifier(
 ) {
   let noteHashIndex = 0;
   let nonce: Fr | undefined;
-  let innerNoteHash: Fr | undefined;
+  let slottedNoteHash: Fr | undefined;
   let siloedNoteHash: Fr | undefined;
   let innerNullifier: Fr | undefined;
   const firstNullifier = Fr.fromBuffer(txHash.toBuffer());
@@ -205,7 +205,7 @@ async function findNoteIndexAndNullifier(
     }
 
     const expectedNonce = computeNoteHashNonce(firstNullifier, noteHashIndex);
-    ({ innerNoteHash, siloedNoteHash, innerNullifier } = await simulator.computeNoteHashAndOptionallyANullifier(
+    ({ slottedNoteHash, siloedNoteHash, innerNullifier } = await simulator.computeNoteHashAndOptionallyANullifier(
       contractAddress,
       expectedNonce,
       storageSlot,
@@ -229,7 +229,7 @@ async function findNoteIndexAndNullifier(
   return {
     noteHashIndex,
     nonce,
-    innerNoteHash: innerNoteHash!,
+    slottedNoteHash: slottedNoteHash!,
     siloedNullifier: siloNullifier(contractAddress, innerNullifier!),
   };
 }

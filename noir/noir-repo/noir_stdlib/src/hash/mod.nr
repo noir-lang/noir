@@ -49,7 +49,7 @@ fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: 
 fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
-        // we use the unsafe version because the multi_scalar_mul will constraint the scalars.
+        // we use the unsafe version because the multi_scalar_mul will constrain the scalars.
         points[i] = from_field_unsafe(input[i]);
     }
     let generators = derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);

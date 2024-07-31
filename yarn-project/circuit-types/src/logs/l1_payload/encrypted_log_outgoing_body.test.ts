@@ -56,7 +56,7 @@ describe('encrypt log outgoing body', () => {
     // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
     updateInlineTestData(
       'noir-projects/aztec-nr/aztec/src/encrypted_logs/outgoing_body.nr',
-      'expected_outgoing_body_ciphertext',
+      'outgoing_body_ciphertext_from_typescript',
       byteArrayString,
     );
   });

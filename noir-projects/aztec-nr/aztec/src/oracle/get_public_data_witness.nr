@@ -16,11 +16,11 @@ struct PublicDataWitness {
 #[oracle(getPublicDataTreeWitness)]
 unconstrained fn get_public_data_witness_oracle(
     _block_number: u32,
-    _leaf_slot: Field
+    _public_data_tree_index: Field
 ) -> [Field; PUBLIC_DATA_WITNESS] {}
 
-unconstrained pub fn get_public_data_witness(block_number: u32, leaf_slot: Field) -> PublicDataWitness {
-    let fields = get_public_data_witness_oracle(block_number, leaf_slot);
+unconstrained pub fn get_public_data_witness(block_number: u32, public_data_tree_index: Field) -> PublicDataWitness {
+    let fields = get_public_data_witness_oracle(block_number, public_data_tree_index);
     PublicDataWitness {
         index: fields[0],
         leaf_preimage: PublicDataTreeLeafPreimage { slot: fields[1], value: fields[2], next_index: fields[3] as u32, next_slot: fields[4] },

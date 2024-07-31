@@ -1,11 +1,6 @@
 import { type AztecNode, CompleteAddress, Note } from '@aztec/circuit-types';
 import { GeneratorIndex, KeyValidationRequest, computeAppNullifierSecretKey, deriveKeys } from '@aztec/circuits.js';
-import {
-  computeInnerNoteHash,
-  computeNoteContentHash,
-  computeUniqueNoteHash,
-  siloNoteHash,
-} from '@aztec/circuits.js/hash';
+import { computeUniqueNoteHash, siloNoteHash } from '@aztec/circuits.js/hash';
 import { type FunctionArtifact, getFunctionArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
@@ -16,6 +11,7 @@ import { type MockProxy, mock } from 'jest-mock-extended';
 
 import { type DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
+import { computeNoteHidingPoint, computeSlottedNoteHash } from './test_utils.js';
 
 describe('Simulator', () => {
   let oracle: MockProxy<DBOracle>;
@@ -62,9 +58,9 @@ describe('Simulator', () => {
       oracle.getFunctionArtifactByName.mockResolvedValue(artifact);
 
       const note = createNote();
-      const tokenNoteHash = computeNoteContentHash(note.items);
-      const innerNoteHash = computeInnerNoteHash(storageSlot, tokenNoteHash);
-      const uniqueNoteHash = computeUniqueNoteHash(nonce, innerNoteHash);
+      const noteHidingPoint = computeNoteHidingPoint(note.items);
+      const slottedNoteHash = computeSlottedNoteHash(storageSlot, noteHidingPoint);
+      const uniqueNoteHash = computeUniqueNoteHash(nonce, slottedNoteHash);
       const siloedNoteHash = siloNoteHash(contractAddress, uniqueNoteHash);
       const innerNullifier = poseidon2Hash([siloedNoteHash, appNullifierSecretKey, GeneratorIndex.NOTE_NULLIFIER]);
 
@@ -78,7 +74,7 @@ describe('Simulator', () => {
       );
 
       expect(result).toEqual({
-        innerNoteHash,
+        slottedNoteHash,
         uniqueNoteHash,
         siloedNoteHash,
         innerNullifier,

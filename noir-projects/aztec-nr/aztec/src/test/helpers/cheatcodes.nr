@@ -95,8 +95,8 @@ unconstrained pub fn add_nullifiers(contractAddress: AztecAddress, nullifiers: [
     oracle_add_nullifiers(contractAddress, nullifiers)
 }
 
-unconstrained pub fn add_note_hashes(contractAddress: AztecAddress, inner_note_hashes: [Field]) {
-    oracle_add_note_hashes(contractAddress, inner_note_hashes)
+unconstrained pub fn add_note_hashes(contractAddress: AztecAddress, slotted_note_hashes: [Field]) {
+    oracle_add_note_hashes(contractAddress, slotted_note_hashes)
 }
 
 unconstrained pub fn get_function_selector() -> FunctionSelector {
@@ -180,7 +180,7 @@ unconstrained fn oracle_assert_private_call_fails(
 unconstrained fn oracle_add_nullifiers(contractAddress: AztecAddress, nullifiers: [Field]) {}
 
 #[oracle(addNoteHashes)]
-unconstrained fn oracle_add_note_hashes(contractAddress: AztecAddress, inner_note_hashes: [Field]) {}
+unconstrained fn oracle_add_note_hashes(contractAddress: AztecAddress, slotted_note_hashes: [Field]) {}
 
 #[oracle(getFunctionSelector)]
 unconstrained fn oracle_get_function_selector() -> FunctionSelector {}

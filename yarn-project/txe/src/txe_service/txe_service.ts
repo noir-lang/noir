@@ -442,14 +442,14 @@ export class TXEService {
     storageSlot: ForeignCallSingle,
     noteTypeId: ForeignCallSingle,
     note: ForeignCallArray,
-    innerNoteHash: ForeignCallSingle,
+    slottedNoteHash: ForeignCallSingle,
     counter: ForeignCallSingle,
   ) {
     this.typedOracle.notifyCreatedNote(
       fromSingle(storageSlot),
       NoteSelector.fromField(fromSingle(noteTypeId)),
       fromArray(note),
-      fromSingle(innerNoteHash),
+      fromSingle(slottedNoteHash),
       fromSingle(counter).toNumber(),
     );
     return toForeignCallResult([toSingle(new Fr(0))]);
@@ -457,12 +457,12 @@ export class TXEService {
 
   async notifyNullifiedNote(
     innerNullifier: ForeignCallSingle,
-    innerNoteHash: ForeignCallSingle,
+    slottedNoteHash: ForeignCallSingle,
     counter: ForeignCallSingle,
   ) {
     await this.typedOracle.notifyNullifiedNote(
       fromSingle(innerNullifier),
-      fromSingle(innerNoteHash),
+      fromSingle(slottedNoteHash),
       fromSingle(counter).toNumber(),
     );
     return toForeignCallResult([toSingle(new Fr(0))]);
@@ -511,8 +511,8 @@ export class TXEService {
     return toForeignCallResult([]);
   }
 
-  async avmOpcodeEmitNoteHash(innerNoteHash: ForeignCallSingle) {
-    await (this.typedOracle as TXE).avmOpcodeEmitNoteHash(fromSingle(innerNoteHash));
+  async avmOpcodeEmitNoteHash(slottedNoteHash: ForeignCallSingle) {
+    await (this.typedOracle as TXE).avmOpcodeEmitNoteHash(fromSingle(slottedNoteHash));
     return toForeignCallResult([]);
   }
 

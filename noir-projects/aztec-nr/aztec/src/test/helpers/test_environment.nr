@@ -14,7 +14,7 @@ use crate::hash::{hash_args, hash_args_array};
 
 use crate::note::{
     note_header::NoteHeader, note_interface::NoteInterface,
-    utils::{compute_inner_note_hash, compute_note_hash_for_consumption}
+    utils::{compute_slotted_note_hash, compute_note_hash_for_consumption}
 };
 use crate::oracle::{execution::{get_block_number, get_contract_address}, notes::notify_created_note};
 
@@ -219,14 +219,14 @@ impl TestEnvironment {
 
         let header = NoteHeader { contract_address, storage_slot, nonce: 0, note_hash_counter };
         note.set_header(header);
-        let inner_note_hash = compute_inner_note_hash(*note);
+        let slotted_note_hash = compute_slotted_note_hash(*note);
         let serialized_note = Note::serialize_content(*note);
         assert(
             notify_created_note(
             storage_slot,
             Note::get_note_type_id(),
             serialized_note,
-            inner_note_hash,
+            slotted_note_hash,
             note_hash_counter
         )
             == 0

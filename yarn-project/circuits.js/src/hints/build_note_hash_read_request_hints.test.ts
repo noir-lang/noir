@@ -39,7 +39,7 @@ describe('buildNoteHashReadRequestHints', () => {
   let numSettledReads = 0;
   let futureNoteHashes: ScopedNoteHash[];
 
-  const innerNoteHash = (index: number) => index + 9999;
+  const slottedNoteHash = (index: number) => index + 9999;
 
   const makeReadRequest = (value: number, counter = 2) =>
     new ReadRequest(new Fr(value), counter).scope(contractAddress);
@@ -49,7 +49,7 @@ describe('buildNoteHashReadRequestHints', () => {
   const readPendingNoteHash = (noteHashIndex: number) => {
     const readRequestIndex = numReadRequests;
     const hintIndex = numPendingReads;
-    noteHashReadRequests[readRequestIndex] = makeReadRequest(innerNoteHash(noteHashIndex));
+    noteHashReadRequests[readRequestIndex] = makeReadRequest(slottedNoteHash(noteHashIndex));
     expectedHints.readRequestStatuses[readRequestIndex] = ReadRequestStatus.pending(hintIndex);
     expectedHints.pendingReadHints[hintIndex] = new PendingReadHint(readRequestIndex, noteHashIndex);
     numReadRequests++;
@@ -89,7 +89,7 @@ describe('buildNoteHashReadRequestHints', () => {
 
   beforeEach(() => {
     noteHashReadRequests = makeTuple(MAX_NOTE_HASH_READ_REQUESTS_PER_TX, ScopedReadRequest.empty);
-    noteHashes = makeTuple(MAX_NOTE_HASHES_PER_TX, i => makeNoteHash(innerNoteHash(i)));
+    noteHashes = makeTuple(MAX_NOTE_HASHES_PER_TX, i => makeNoteHash(slottedNoteHash(i)));
     noteHashLeafIndexMap = new Map();
     expectedHints = NoteHashReadRequestHintsBuilder.empty(
       MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
@@ -100,7 +100,7 @@ describe('buildNoteHashReadRequestHints', () => {
     numSettledReads = 0;
     futureNoteHashes = new Array(MAX_NOTE_HASHES_PER_TX)
       .fill(null)
-      .map((_, i) => makeNoteHash(innerNoteHash(i + MAX_NOTE_HASHES_PER_TX)));
+      .map((_, i) => makeNoteHash(slottedNoteHash(i + MAX_NOTE_HASHES_PER_TX)));
   });
 
   it('builds empty hints', async () => {

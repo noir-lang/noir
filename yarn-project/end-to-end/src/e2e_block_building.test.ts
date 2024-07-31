@@ -236,7 +236,7 @@ describe('e2e_block_building', () => {
   });
 
   describe('logs in nested calls are ordered as expected', () => {
-    // This test was originally writted for e2e_nested, but it was refactored
+    // This test was originally written for e2e_nested, but it was refactored
     // to not use TestContract.
     let testContract: TestContract;
 

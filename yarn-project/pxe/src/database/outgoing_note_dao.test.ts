@@ -11,7 +11,7 @@ export const randomOutgoingNoteDao = ({
   storageSlot = Fr.random(),
   noteTypeId = NoteSelector.random(),
   nonce = Fr.random(),
-  innerNoteHash = Fr.random(),
+  slottedNoteHash = Fr.random(),
   index = Fr.random().toBigInt(),
   ovpkM = Point.random(),
 }: Partial<OutgoingNoteDao> = {}) => {
@@ -22,7 +22,7 @@ export const randomOutgoingNoteDao = ({
     noteTypeId,
     txHash,
     nonce,
-    innerNoteHash,
+    slottedNoteHash,
     index,
     ovpkM,
   );

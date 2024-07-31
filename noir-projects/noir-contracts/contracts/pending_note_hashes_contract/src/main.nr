@@ -91,7 +91,7 @@ contract PendingNoteHashes {
 
     // Nested/inner function to create and insert a note
     // TESTING: inserts a static randomness value to test notes with
-    // the same inner note hash are dealt with correctly
+    // the same slotted note hash are dealt with correctly
     #[aztec(private)]
     fn insert_note_static_randomness(
         amount: Field,

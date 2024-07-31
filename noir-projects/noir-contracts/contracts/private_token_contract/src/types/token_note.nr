@@ -1,9 +1,9 @@
 use dep::aztec::{
+    generators::{Ga1 as G_amt, Ga2 as G_npk, Ga3 as G_rnd},
     prelude::{AztecAddress, NoteHeader, NoteInterface, PrivateContext},
     protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, point::Point, scalar::Scalar, hash::poseidon2_hash},
     note::utils::compute_note_hash_for_consumption, oracle::unsafe_rand::unsafe_rand,
-    keys::getters::get_nsk_app, note::note_getter_options::PropertySelector,
-    generators::{Ga1 as G_amt, Ga2 as G_npk, Ga3 as G_rnd}
+    keys::getters::get_nsk_app, note::note_getter_options::PropertySelector
 };
 use dep::std::field::bn254::decompose;
 use dep::std::embedded_curve_ops::multi_scalar_mul;
@@ -28,7 +28,7 @@ trait PrivatelyRefundable {
         incomplete_fee_payer_point: Point,
         incomplete_user_point: Point,
         transaction_fee: Field
-    ) -> (Field, Field);
+    ) -> (Point, Point);
 }
 
 global TOKEN_NOTE_LEN: Field = 3; // 3 plus a header.
@@ -71,10 +71,10 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
 
 
 
-    fn compute_note_content_hash(self) -> Field {
+    fn compute_note_hiding_point(self) -> Point {
         let (npk_lo, npk_hi) = decompose(self.npk_m_hash);
         let (random_lo, random_hi) = decompose(self.randomness);
-        // We compute the note content hash as an x-coordinate of `G_amt * amount + G_npk * npk_m_hash + G_rnd * randomness` instead
+        // We compute the note hiding point as `G_amt * amount + G_npk * npk_m_hash + G_rnd * randomness` instead
         // of using pedersen or poseidon2 because it allows us to privately add and subtract from amount in public
         // by leveraging homomorphism.
         multi_scalar_mul(
@@ -91,7 +91,7 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
                 lo: random_lo,
                 hi: random_hi,
             }]
-        ).x
+        )
     }
 }
 
@@ -135,8 +135,7 @@ impl OwnedNote for TokenNote {
  *
  * So you can think of these (x, y) points as "partial notes": they encode part of the internals of the notes.
  *
- * This is because the compute_note_content_hash function above defines the content hash to be
- * the x-coordinate of a point defined as:
+ * This is because the compute_note_hiding_point function above defines the hiding point as:
  *
  * G_amt * amount + G_npk * npk_m_hash + G_rnd * randomness
  * 
@@ -184,7 +183,7 @@ impl OwnedNote for TokenNote {
  *             = (G_amt * funded_amount + G_npk * user_npk + G_rnd + user_randomness) - G_amt * transaction_fee =
  *             = G_amt * (funded_amount - transaction_fee) + G_npk * user_npk + G_rnd + user_randomness
  * 
- * The x-coordinate of points above identically matches the note_content_hash of (and therefore *is*) notes like:
+ * The point above matches the note_hiding_point of (and therefore *is*) notes like:
  * {
  *     amount: (funded_amount - transaction_fee),
  *     npk_m_hash: user_npk,
@@ -209,6 +208,7 @@ impl PrivatelyRefundable for TokenNote {
     fn generate_refund_points(fee_payer_npk_m_hash: Field, user_npk_m_hash: Field, funded_amount: Field, user_randomness: Field, fee_payer_randomness: Field) -> (Point, Point) {
         // 1. To be able to multiply generators with randomness and npk_m_hash using barretneberg's (BB) blackbox
         // function we first need to convert the fields to high and low limbs.
+        // TODO(#7606): replace decompose with from_field_unsafe
         let (fee_payer_randomness_lo, fee_payer_randomness_hi) = decompose(fee_payer_randomness);
         let (fee_payer_npk_m_hash_lo, fee_payer_npk_m_hash_hi) = decompose(fee_payer_npk_m_hash);
 
@@ -253,7 +253,7 @@ impl PrivatelyRefundable for TokenNote {
         (incomplete_fee_payer_point, incomplete_user_point)
     }
 
-    fn complete_refund(incomplete_fee_payer_point: Point, incomplete_user_point: Point, transaction_fee: Field) -> (Field, Field) {
+    fn complete_refund(incomplete_fee_payer_point: Point, incomplete_user_point: Point, transaction_fee: Field) -> (Point, Point) {
         // 1. We convert the transaction fee to high and low limbs to be able to use BB API.
         let (transaction_fee_lo, transaction_fee_hi) = decompose(transaction_fee);
 
@@ -273,7 +273,7 @@ impl PrivatelyRefundable for TokenNote {
 
         assert_eq(user_point.is_infinite, false);
 
-        // Finally we return the x-coordinates of the points which are the note content hashes.
-        (fee_payer_point.x, user_point.x)
+        // Finally we return the points which represent the note hiding points.
+        (fee_payer_point, user_point)
     }
 }

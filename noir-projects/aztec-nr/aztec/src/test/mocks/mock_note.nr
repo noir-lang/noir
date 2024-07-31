@@ -1,6 +1,6 @@
 use crate::{context::PrivateContext, note::{note_header::NoteHeader, note_interface::NoteInterface}};
 
-use dep::protocol_types::{address::AztecAddress, traits::Eq};
+use dep::protocol_types::{address::AztecAddress, point::Point, traits::Eq};
 
 global MOCK_NOTE_LENGTH = 1;
 // MOCK_NOTE_LENGTH * 32 + 32(storage_slot as bytes) + 32(note_type_id as bytes)
@@ -23,8 +23,9 @@ impl NoteInterface<MOCK_NOTE_LENGTH, MOCK_NOTE_BYTES_LENGTH> for MockNote {
       }
     }
 
-    fn compute_note_content_hash(_self: Self) -> Field {
-      0
+    fn compute_note_hiding_point(_self: Self) -> Point {
+      // TODO(#7636): Properly implement these functions.
+      crate::generators::Ga1
     }
 
     fn get_header(self) -> NoteHeader {

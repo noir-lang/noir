@@ -45,8 +45,8 @@ fn compute_note_hash_nonce(tx_hash: Field, note_index_in_tx: u32) -> Field {
     )
 }
 
-pub fn compute_unique_note_hash(nonce: Field, inner_note_hash: Field) -> Field {
-    let inputs = [nonce, inner_note_hash];
+pub fn compute_unique_note_hash(nonce: Field, slotted_note_hash: Field) -> Field {
+    let inputs = [nonce, slotted_note_hash];
     pedersen_hash(inputs, GENERATOR_INDEX__UNIQUE_NOTE_HASH)
 }
 

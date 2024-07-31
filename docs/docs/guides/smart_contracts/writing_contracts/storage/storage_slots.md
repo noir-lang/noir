@@ -8,7 +8,7 @@ For the case of the example, we will look at what is inserted into the note hash
 
 #include_code increase_private_balance noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
 
-This function is creating a new note and inserting it into the balance set of the recipient `to`. Recall that to ensure privacy, only the note commitment is really inserted into the note hashes tree. To share the contents of the note with `to` the contract can emit an encrypted log (which this one does), or it can require an out-of-band data transfer sharing the information. Below, we will walk through the steps of how the note commitment is computed and inserted into the tree. For this, we don't care about the encrypted log, so we are going to ignore that part of the function call for now.
+This function is creating a new note and inserting it into the balance set of the recipient `to`. Recall that to ensure privacy, only the note hash is really inserted into the note hashes tree. To share the contents of the note with `to` the contract can emit an encrypted log (which this one does), or it can require an out-of-band data transfer sharing the information. Below, we will walk through the steps of how the note hash is computed and inserted into the tree. For this, we don't care about the encrypted log, so we are going to ignore that part of the function call for now.
 
 Outlining it in more detail below as a sequence diagram, we can see how the calls make their way down the stack.
 In the end a siloed note hash is computed in the kernel.
@@ -30,24 +30,26 @@ sequenceDiagram
     BalanceSet->>Set: insert(note)
     Set->>LifeCycle: create_note(derived_slot, note)
     LifeCycle->>LifeCycle: note.header = NoteHeader { contract_address, <br> storage_slot: derived_slot, nonce: 0, note_hash_counter }
-    LifeCycle->>Utils: compute_inner_note_hash(note)
-    Utils->>TokenNote: note.compute_note_content_hash()
-    TokenNote->>Utils: note_hash = H(amount, to, randomness)
-    Utils->>NoteHash: compute_inner_hash(derived_slot, note_hash)
-    NoteHash->>LifeCycle: inner_note_hash = H(derived_slot, note_hash)
-    LifeCycle->>Context: push_note_hash(inner_note_hash)
+    LifeCycle->>Utils: compute_slotted_note_hash(note)
+    Utils->>TokenNote: note.compute_note_hiding_point()
+    TokenNote->>Utils: note_hiding_point = MSM([G_amt, G_to, G_rand], [amount, to, randomness])
+    Utils->>NoteHash: compute_slotted_note_hash(derived_slot, note_hiding_point)
+    NoteHash->>LifeCycle: slotted_note_hash = CURVE_ADD(derived_slot_point, note_hiding_point).x
+    LifeCycle->>Context: push_note_hash(slotted_note_hash)
     end
-    Context->>Kernel: siloed_note_hash = H(contract_address, inner_note_hash)
+    Context->>Kernel: siloed_note_hash = H(contract_address, slotted_note_hash)
 ```
 
-Notice the `siloed_note_hash` at the very end. It's a commitment that will be inserted into the note hashes tree. To clarify what this really is, we "unroll" the values to their simplest components. This gives us a better idea around what is actually inserted into the tree.
+Notice the `siloed_note_hash` at the very end. It's a hash that will be inserted into the note hashes tree. To clarify what this really is, we "unroll" the values to their simplest components. This gives us a better idea around what is actually inserted into the tree.
 
 ```rust
-siloed_note_hash = H(contract_address, inner_note_hash)
-siloed_note_hash = H(contract_address, H(derived_slot, note_hash))
-siloed_note_hash = H(contract_address, H(H(map_slot, to), note_hash))
-siloed_note_hash = H(contract_address, H(H(map_slot, to), H(amount, to, randomness)))
+siloed_note_hash = H(contract_address, slotted_note_hash)
+siloed_note_hash = H(contract_address, CURVE_ADD(derived_slot_point, note_hiding_point).x)
+siloed_note_hash = H(contract_address, CURVE_ADD(MSM([G_slot], [derived_slot]), note_hiding_point).x)
+siloed_note_hash = H(contract_address, CURVE_ADD(MSM([G_slot], [derived_slot]), MSM([G_amt, G_to, G_rand], [amount, to, randomness])).x)
 ```
+
+CURVE_ADD is a point addition and MSM is a multi scalar multiplication on a grumpkin curve and G_* values are generators.
 
 And `to` is the actor who receives the note, `amount` of the note and `randomness` is the randomness used to make the note hiding. Without the `randomness` the note could just as well be plaintext (computational cost of a preimage attack would be trivial in such a case).
 

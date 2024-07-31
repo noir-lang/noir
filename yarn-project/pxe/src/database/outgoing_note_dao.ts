@@ -22,10 +22,10 @@ export class OutgoingNoteDao {
     /** The nonce of the note. */
     public nonce: Fr,
     /**
-     * Inner note hash of the note. This is customizable by the app circuit.
+     * Slotted note hash of the note. This is customizable by the app circuit.
      * We can use this value to compute siloedNoteHash and uniqueSiloedNoteHash.
      */
-    public innerNoteHash: Fr,
+    public slottedNoteHash: Fr,
     /** The location of the relevant note in the note hash tree. */
     public index: bigint,
     /** The public key with which the note was encrypted. */
@@ -40,7 +40,7 @@ export class OutgoingNoteDao {
       this.noteTypeId,
       this.txHash.buffer,
       this.nonce,
-      this.innerNoteHash,
+      this.slottedNoteHash,
       this.index,
       this.ovpkM,
     ]);
@@ -54,7 +54,7 @@ export class OutgoingNoteDao {
     const noteTypeId = reader.readObject(NoteSelector);
     const txHash = new TxHash(reader.readBytes(TxHash.SIZE));
     const nonce = Fr.fromBuffer(reader);
-    const innerNoteHash = Fr.fromBuffer(reader);
+    const slottedNoteHash = Fr.fromBuffer(reader);
     const index = toBigIntBE(reader.readBytes(32));
     const publicKey = Point.fromBuffer(reader);
 
@@ -65,7 +65,7 @@ export class OutgoingNoteDao {
       noteTypeId,
       txHash,
       nonce,
-      innerNoteHash,
+      slottedNoteHash,
       index,
       publicKey,
     );

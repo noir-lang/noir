@@ -1,7 +1,7 @@
 use crate::context::{PrivateContext, PublicContext};
 use crate::note::{
     note_header::NoteHeader, note_interface::NoteInterface,
-    utils::{compute_inner_note_hash, compute_note_hash_for_consumption}, note_emission::NoteEmission
+    utils::{compute_slotted_note_hash, compute_note_hash_for_consumption}, note_emission::NoteEmission
 };
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 
@@ -15,7 +15,7 @@ pub fn create_note<Note, N, M>(
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0, note_hash_counter };
     note.set_header(header);
-    let inner_note_hash = compute_inner_note_hash(*note);
+    let slotted_note_hash = compute_slotted_note_hash(*note);
 
     let serialized_note = Note::serialize_content(*note);
     assert(
@@ -23,13 +23,13 @@ pub fn create_note<Note, N, M>(
         storage_slot,
         Note::get_note_type_id(),
         serialized_note,
-        inner_note_hash,
+        slotted_note_hash,
         note_hash_counter
     )
         == 0
     );
 
-    context.push_note_hash(inner_note_hash);
+    context.push_note_hash(slotted_note_hash);
 
     NoteEmission::new(*note)
 }
@@ -43,9 +43,9 @@ pub fn create_note_hash_from_public<Note, N, M>(
     // Public note hashes are transient, but have no side effect counters, so we just need note_hash_counter != 0
     let header = NoteHeader { contract_address, storage_slot, nonce: 0, note_hash_counter: 1 };
     note.set_header(header);
-    let inner_note_hash = compute_inner_note_hash(*note);
+    let slotted_note_hash = compute_slotted_note_hash(*note);
 
-    context.push_note_hash(inner_note_hash);
+    context.push_note_hash(slotted_note_hash);
 }
 
 pub fn destroy_note<Note, N, M>(

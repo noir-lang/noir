@@ -213,9 +213,9 @@ export class TXE implements TypedOracle {
     return Promise.resolve();
   }
 
-  async avmOpcodeEmitNoteHash(innerNoteHash: Fr) {
+  async avmOpcodeEmitNoteHash(slottedNoteHash: Fr) {
     const db = this.trees.asLatest();
-    const noteHash = siloNoteHash(this.contractAddress, innerNoteHash);
+    const noteHash = siloNoteHash(this.contractAddress, slottedNoteHash);
     await db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, [noteHash]);
     return Promise.resolve();
   }
@@ -240,9 +240,9 @@ export class TXE implements TypedOracle {
     await db.batchInsert(MerkleTreeId.NULLIFIER_TREE, siloedNullifiers, NULLIFIER_SUBTREE_HEIGHT);
   }
 
-  async addNoteHashes(contractAddress: AztecAddress, innerNoteHashes: Fr[]) {
+  async addNoteHashes(contractAddress: AztecAddress, slottedNoteHashes: Fr[]) {
     const db = this.trees.asLatest();
-    const siloedNoteHashes = innerNoteHashes.map(innerNoteHash => siloNoteHash(contractAddress, innerNoteHash));
+    const siloedNoteHashes = slottedNoteHashes.map(slottedNoteHash => siloNoteHash(contractAddress, slottedNoteHash));
     await db.appendLeaves(MerkleTreeId.NOTE_HASH_TREE, siloedNoteHashes);
   }
 
@@ -402,7 +402,7 @@ export class TXE implements TypedOracle {
     return Promise.resolve(notes);
   }
 
-  notifyCreatedNote(storageSlot: Fr, noteTypeId: NoteSelector, noteItems: Fr[], innerNoteHash: Fr, counter: number) {
+  notifyCreatedNote(storageSlot: Fr, noteTypeId: NoteSelector, noteItems: Fr[], slottedNoteHash: Fr, counter: number) {
     const note = new Note(noteItems);
     this.noteCache.addNewNote(
       {
@@ -411,15 +411,15 @@ export class TXE implements TypedOracle {
         nonce: Fr.ZERO, // Nonce cannot be known during private execution.
         note,
         siloedNullifier: undefined, // Siloed nullifier cannot be known for newly created note.
-        innerNoteHash,
+        slottedNoteHash,
       },
       counter,
     );
     return Promise.resolve();
   }
 
-  notifyNullifiedNote(innerNullifier: Fr, innerNoteHash: Fr, _counter: number) {
-    this.noteCache.nullifyNote(this.contractAddress, innerNullifier, innerNoteHash);
+  notifyNullifiedNote(innerNullifier: Fr, slottedNoteHash: Fr, _counter: number) {
+    this.noteCache.nullifyNote(this.contractAddress, innerNullifier, slottedNoteHash);
     return Promise.resolve();
   }
 

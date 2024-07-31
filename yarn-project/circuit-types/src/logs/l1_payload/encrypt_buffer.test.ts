@@ -32,7 +32,7 @@ describe('encrypt buffer', () => {
     // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
     updateInlineTestData(
       'noir-projects/aztec-nr/aztec/src/keys/point_to_symmetric_key.nr',
-      'expected_key',
+      'key_from_typescript',
       byteArrayString,
     );
   });

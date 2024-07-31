@@ -58,6 +58,10 @@ impl ValueNote {
 }
 
 impl Serialize<7> for ValueNote {
+    /// The following method needed to be implemented because the note is passed as an argument to a contract function
+    /// --> the serialize method is called by aztec-nr when computing an arguments hash.
+    /// Note that when the note is about to be encrypted and emitted as a log the to_be_bytes function auto-implemented
+    /// by aztec macros is called instead.
     fn serialize(self) -> [Field; 7] {
         let header = self.header.serialize();
 

@@ -188,7 +188,7 @@ describe('e2e_pending_note_hashes_contract', () => {
     await expectNoteLogsSquashedExcept(1);
   });
 
-  it('Squash! Aztec.nr function can "create" 2 notes with the same inner note hash and "nullify" 1 in the same TX', async () => {
+  it('Squash! Aztec.nr function can "create" 2 notes with the same slotted note hash and "nullify" 1 in the same TX', async () => {
     // Kernel will squash one noteHash and its nullifier, where two notes with the same inner hash exist.
     // The other note will become persistent!
     // Realistic way to describe this test is "Mint notes A and B, then burn note A in the same transaction"

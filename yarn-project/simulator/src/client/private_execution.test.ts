@@ -32,7 +32,12 @@ import {
   getContractInstanceFromDeployParams,
   getNonEmptyItems,
 } from '@aztec/circuits.js';
-import { computeNoteHashNonce, computeSecretHash, computeVarArgsHash } from '@aztec/circuits.js/hash';
+import {
+  computeNoteHashNonce,
+  computeSecretHash,
+  computeVarArgsHash,
+  deriveStorageSlotInMap,
+} from '@aztec/circuits.js/hash';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import {
   type FunctionArtifact,
@@ -66,10 +71,10 @@ import { toFunctionSelector } from 'viem';
 
 import { MessageLoadOracleInputs } from '../acvm/index.js';
 import { buildL1ToL2Message } from '../test/utils.js';
-import { computeSlotForMapping } from '../utils.js';
 import { type DBOracle } from './db_oracle.js';
 import { CountedPublicExecutionRequest, type ExecutionResult, collectSortedEncryptedLogs } from './execution_result.js';
 import { AcirSimulator } from './simulator.js';
+import { computeNoteHidingPoint, computeSlottedNoteHash } from './test_utils.js';
 
 jest.setTimeout(60_000);
 
@@ -316,14 +321,14 @@ describe('Private Execution test suite', () => {
       const noteHashIndex = randomInt(1); // mock index in TX's final noteHashes array
       const nonce = computeNoteHashNonce(mockFirstNullifier, noteHashIndex);
       const note = new Note([new Fr(amount), ownerNpkMHash, Fr.random()]);
-      const innerNoteHash = pedersenHash(note.items);
+      const slottedNoteHash = computeSlottedNoteHash(storageSlot, computeNoteHidingPoint(note.items));
       return {
         contractAddress,
         storageSlot,
         noteTypeId,
         nonce,
         note,
-        innerNoteHash,
+        slottedNoteHash,
         siloedNullifier: new Fr(0),
         index: currentNoteIndex++,
       };
@@ -349,13 +354,13 @@ describe('Private Execution test suite', () => {
 
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];
-      expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
+      expect(newNote.storageSlot).toEqual(deriveStorageSlotInMap(new Fr(1n), owner));
       expect(newNote.noteTypeId).toEqual(valueNoteTypeId); // ValueNote
 
       const noteHashes = getNonEmptyItems(result.callStackItem.publicInputs.noteHashes);
       expect(noteHashes).toHaveLength(1);
       expect(noteHashes[0].value).toEqual(
-        await acirSimulator.computeInnerNoteHash(
+        await acirSimulator.computeSlottedNoteHash(
           contractAddress,
           newNote.storageSlot,
           newNote.noteTypeId,
@@ -379,13 +384,13 @@ describe('Private Execution test suite', () => {
 
       expect(result.newNotes).toHaveLength(1);
       const newNote = result.newNotes[0];
-      expect(newNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
+      expect(newNote.storageSlot).toEqual(deriveStorageSlotInMap(new Fr(1n), owner));
       expect(newNote.noteTypeId).toEqual(valueNoteTypeId); // ValueNote
 
       const noteHashes = getNonEmptyItems(result.callStackItem.publicInputs.noteHashes);
       expect(noteHashes).toHaveLength(1);
       expect(noteHashes[0].value).toEqual(
-        await acirSimulator.computeInnerNoteHash(
+        await acirSimulator.computeSlottedNoteHash(
           contractAddress,
           newNote.storageSlot,
           newNote.noteTypeId,
@@ -406,8 +411,8 @@ describe('Private Execution test suite', () => {
       const amountToTransfer = 100n;
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'destroy_and_create_no_init_check');
 
-      const storageSlot = computeSlotForMapping(StatefulTestContractArtifact.storageLayout['notes'].slot, owner);
-      const recipientStorageSlot = computeSlotForMapping(
+      const storageSlot = deriveStorageSlotInMap(StatefulTestContractArtifact.storageLayout['notes'].slot, owner);
+      const recipientStorageSlot = deriveStorageSlotInMap(
         StatefulTestContractArtifact.storageLayout['notes'].slot,
         recipient,
       );
@@ -446,17 +451,17 @@ describe('Private Execution test suite', () => {
       const noteHashes = getNonEmptyItems(result.callStackItem.publicInputs.noteHashes);
       expect(noteHashes).toHaveLength(2);
       const [changeNoteHash, recipientNoteHash] = noteHashes;
-      const [recipientInnerNoteHash, changeInnerNoteHash] = [
-        await acirSimulator.computeInnerNoteHash(
+      const [recipientSlottedNoteHash, changeSlottedNoteHash] = [
+        await acirSimulator.computeSlottedNoteHash(
           contractAddress,
           recipientStorageSlot,
           valueNoteTypeId,
           recipientNote.note,
         ),
-        await acirSimulator.computeInnerNoteHash(contractAddress, storageSlot, valueNoteTypeId, changeNote.note),
+        await acirSimulator.computeSlottedNoteHash(contractAddress, storageSlot, valueNoteTypeId, changeNote.note),
       ];
-      expect(recipientNoteHash.value).toEqual(recipientInnerNoteHash);
-      expect(changeNoteHash.value).toEqual(changeInnerNoteHash);
+      expect(recipientNoteHash.value).toEqual(recipientSlottedNoteHash);
+      expect(changeNoteHash.value).toEqual(changeSlottedNoteHash);
 
       expect(recipientNote.note.items[0]).toEqual(new Fr(amountToTransfer));
       expect(changeNote.note.items[0]).toEqual(new Fr(40n));
@@ -483,7 +488,7 @@ describe('Private Execution test suite', () => {
       const balance = 160n;
       const artifact = getFunctionArtifact(StatefulTestContractArtifact, 'destroy_and_create_no_init_check');
 
-      const storageSlot = computeSlotForMapping(new Fr(1n), owner);
+      const storageSlot = deriveStorageSlotInMap(new Fr(1n), owner);
 
       const notes = [
         buildNote(
@@ -835,7 +840,7 @@ describe('Private Execution test suite', () => {
           storageSlot,
           nonce: Fr.ZERO,
           note,
-          innerNoteHash: Fr.ZERO,
+          slottedNoteHash: Fr.ZERO,
           siloedNullifier: Fr.random(),
           index: 1n,
         },
@@ -954,7 +959,7 @@ describe('Private Execution test suite', () => {
 
       expect(result.newNotes).toHaveLength(1);
       const noteAndSlot = result.newNotes[0];
-      expect(noteAndSlot.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner));
+      expect(noteAndSlot.storageSlot).toEqual(deriveStorageSlotInMap(new Fr(1n), owner));
 
       expect(noteAndSlot.note.items[0]).toEqual(new Fr(amountToTransfer));
 
@@ -962,18 +967,18 @@ describe('Private Execution test suite', () => {
       expect(noteHashes).toHaveLength(1);
 
       const noteHash = noteHashes[0].value;
-      const storageSlot = computeSlotForMapping(
+      const storageSlot = deriveStorageSlotInMap(
         PendingNoteHashesContractArtifact.storageLayout['balances'].slot,
         owner,
       );
 
-      const innerNoteHash = await acirSimulator.computeInnerNoteHash(
+      const slottedNoteHash = await acirSimulator.computeSlottedNoteHash(
         contractAddress,
         storageSlot,
         valueNoteTypeId,
         noteAndSlot.note,
       );
-      expect(noteHash).toEqual(innerNoteHash);
+      expect(noteHash).toEqual(slottedNoteHash);
 
       const newEncryptedLogs = getNonEmptyItems(result.callStackItem.publicInputs.noteEncryptedLogsHashes);
       expect(newEncryptedLogs).toHaveLength(1);
@@ -983,15 +988,15 @@ describe('Private Execution test suite', () => {
       expect(encryptedLog.noteHashCounter).toEqual(result.noteEncryptedLogs[0].noteHashCounter);
       expect(encryptedLog.value).toEqual(Fr.fromBuffer(result.noteEncryptedLogs[0].log.hash()));
 
-      // read request should match innerNoteHash for pending notes (there is no nonce, so can't compute "unique" hash)
+      // read request should match slottedNoteHash for pending notes (there is no nonce, so can't compute "unique" hash)
       const readRequest = getNonEmptyItems(result.callStackItem.publicInputs.noteHashReadRequests)[0];
-      expect(readRequest.value).toEqual(innerNoteHash);
+      expect(readRequest.value).toEqual(slottedNoteHash);
 
       expect(result.returnValues).toEqual([new Fr(amountToTransfer)]);
 
       const nullifier = result.callStackItem.publicInputs.nullifiers[0];
       const expectedNullifier = poseidon2Hash([
-        innerNoteHash,
+        slottedNoteHash,
         computeAppNullifierSecretKey(ownerNskM, contractAddress),
         GeneratorIndex.NOTE_NULLIFIER,
       ]);
@@ -1035,7 +1040,7 @@ describe('Private Execution test suite', () => {
       const execInsert = result.nestedExecutions[0];
       const execGetThenNullify = result.nestedExecutions[1];
 
-      const storageSlot = computeSlotForMapping(
+      const storageSlot = deriveStorageSlotInMap(
         PendingNoteHashesContractArtifact.storageLayout['balances'].slot,
         owner,
       );
@@ -1051,13 +1056,13 @@ describe('Private Execution test suite', () => {
       expect(noteHashes).toHaveLength(1);
 
       const noteHash = noteHashes[0].value;
-      const innerNoteHash = await acirSimulator.computeInnerNoteHash(
+      const slottedNoteHash = await acirSimulator.computeSlottedNoteHash(
         contractAddress,
         noteAndSlot.storageSlot,
         noteAndSlot.noteTypeId,
         noteAndSlot.note,
       );
-      expect(noteHash).toEqual(innerNoteHash);
+      expect(noteHash).toEqual(slottedNoteHash);
 
       const newEncryptedLogs = getNonEmptyItems(execInsert.callStackItem.publicInputs.noteEncryptedLogsHashes);
       expect(newEncryptedLogs).toHaveLength(1);
@@ -1067,15 +1072,15 @@ describe('Private Execution test suite', () => {
       expect(encryptedLog.noteHashCounter).toEqual(execInsert.noteEncryptedLogs[0].noteHashCounter);
       expect(encryptedLog.value).toEqual(Fr.fromBuffer(execInsert.noteEncryptedLogs[0].log.hash()));
 
-      // read request should match innerNoteHash for pending notes (there is no nonce, so can't compute "unique" hash)
+      // read request should match slottedNoteHash for pending notes (there is no nonce, so can't compute "unique" hash)
       const readRequest = execGetThenNullify.callStackItem.publicInputs.noteHashReadRequests[0];
-      expect(readRequest.value).toEqual(innerNoteHash);
+      expect(readRequest.value).toEqual(slottedNoteHash);
 
       expect(execGetThenNullify.returnValues).toEqual([new Fr(amountToTransfer)]);
 
       const nullifier = execGetThenNullify.callStackItem.publicInputs.nullifiers[0];
       const expectedNullifier = poseidon2Hash([
-        innerNoteHash,
+        slottedNoteHash,
         computeAppNullifierSecretKey(ownerNskM, contractAddress),
         GeneratorIndex.NOTE_NULLIFIER,
       ]);

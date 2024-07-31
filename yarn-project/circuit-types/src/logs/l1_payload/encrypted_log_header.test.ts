@@ -46,7 +46,7 @@ describe('encrypt log header', () => {
     // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
     updateInlineTestData(
       'noir-projects/aztec-nr/aztec/src/encrypted_logs/header.nr',
-      'expected_header_ciphertext',
+      'expected_header_ciphertext_from_typescript',
       byteArrayString,
     );
   });

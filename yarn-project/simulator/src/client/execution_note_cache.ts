@@ -42,20 +42,20 @@ export class ExecutionNoteCache {
    * @param contractAddress - Contract address of the note.
    * @param storageSlot - Storage slot of the note.
    * @param innerNullifier - Inner nullifier of the note.
-   * @param innerNoteHash - Inner note hash of the note. If this value equals 0, it means the
+   * @param slottedNoteHash - Slotted note hash of the note. If this value equals 0, it means the
    * note being nullified is from a previous transaction (and thus not a new note).
    */
-  public nullifyNote(contractAddress: AztecAddress, innerNullifier: Fr, innerNoteHash: Fr) {
+  public nullifyNote(contractAddress: AztecAddress, innerNullifier: Fr, slottedNoteHash: Fr) {
     const siloedNullifier = siloNullifier(contractAddress, innerNullifier);
     const nullifiers = this.getNullifiers(contractAddress);
     nullifiers.add(siloedNullifier.value);
     this.nullifiers.set(contractAddress.toBigInt(), nullifiers);
 
     let nullifiedNoteHashCounter: number | undefined = undefined;
-    // Find and remove the matching new note and log(s) if the emitted innerNoteHash is not empty.
-    if (!innerNoteHash.equals(Fr.ZERO)) {
+    // Find and remove the matching new note and log(s) if the emitted slottedNoteHash is not empty.
+    if (!slottedNoteHash.equals(Fr.ZERO)) {
       const notes = this.newNotes.get(contractAddress.toBigInt()) ?? [];
-      const noteIndexToRemove = notes.findIndex(n => n.note.innerNoteHash.equals(innerNoteHash));
+      const noteIndexToRemove = notes.findIndex(n => n.note.slottedNoteHash.equals(slottedNoteHash));
       if (noteIndexToRemove === -1) {
         throw new Error('Attempt to remove a pending note that does not exist.');
       }
@@ -81,11 +81,11 @@ export class ExecutionNoteCache {
    * Check if a note exists in the newNotes array.
    * @param contractAddress - Contract address of the note.
    * @param storageSlot - Storage slot of the note.
-   * @param innerNoteHash - Inner note hash of the note.
+   * @param slottedNoteHash - Slotted note hash of the note.
    **/
-  public checkNoteExists(contractAddress: AztecAddress, innerNoteHash: Fr) {
+  public checkNoteExists(contractAddress: AztecAddress, slottedNoteHash: Fr) {
     const notes = this.newNotes.get(contractAddress.toBigInt()) ?? [];
-    return notes.some(n => n.note.innerNoteHash.equals(innerNoteHash));
+    return notes.some(n => n.note.slottedNoteHash.equals(slottedNoteHash));
   }
 
   /**

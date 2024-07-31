@@ -267,19 +267,6 @@ export class Point {
   }
 }
 
-/**
- * Does this object look like a point?
- * @param obj - Object to test if it is a point.
- * @returns Whether it looks like a point.
- */
-export function isPoint(obj: object): obj is Point {
-  if (!obj) {
-    return false;
-  }
-  const point = obj as Point;
-  return point.kind === 'point' && point.x !== undefined && point.y !== undefined;
-}
-
 export class NotOnCurveError extends Error {
   constructor(x: Fr) {
     super('The given x-coordinate is not on the Grumpkin curve: ' + x.toString());

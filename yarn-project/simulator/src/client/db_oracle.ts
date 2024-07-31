@@ -78,8 +78,8 @@ export interface DBOracle extends CommitmentsDB {
    * The query result is paginated using 'limit' and 'offset' values.
    * Returns an object containing an array of note data.
    *
-   * @param contractAddress - The AztecAddress instance representing the contract address.
-   * @param storageSlot - The Fr instance representing the storage slot of the notes.
+   * @param contractAddress - The contract address of the notes.
+   * @param storageSlot - The storage slot of the notes.
    * @param status - The status of notes to fetch.
    * @returns A Promise that resolves to an array of note data.
    */

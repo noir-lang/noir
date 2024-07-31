@@ -44,7 +44,7 @@ export function computeNoteHashNonce(nullifierZero: Fr, noteHashIndex: number): 
  * Computes a siloed note hash, given the contract address and the note hash itself.
  * A siloed note hash effectively namespaces a note hash to a specific contract.
  * @param contract - The contract address
- * @param innerNoteHash - The note hash to silo.
+ * @param uniqueNoteHash - The unique note hash to silo.
  * @returns A siloed note hash.
  */
 export function siloNoteHash(contract: AztecAddress, uniqueNoteHash: Fr): Fr {
@@ -52,33 +52,14 @@ export function siloNoteHash(contract: AztecAddress, uniqueNoteHash: Fr): Fr {
 }
 
 /**
- * Computes a note content hash.
- * @param noteContent - The note content (e.g. note.items).
- * @returns A note content hash.
- */
-export function computeNoteContentHash(noteContent: Fr[]): Fr {
-  return pedersenHash(noteContent, GeneratorIndex.NOTE_CONTENT_HASH);
-}
-
-/**
- * Computes an inner note hash, given a storage slot and a note hash.
- * @param storageSlot - The storage slot.
- * @param noteHash - The note hash.
- * @returns An inner note hash.
- */
-export function computeInnerNoteHash(storageSlot: Fr, noteHash: Fr): Fr {
-  return pedersenHash([storageSlot, noteHash], GeneratorIndex.INNER_NOTE_HASH);
-}
-
-/**
  * Computes a unique note hash.
  * @dev Includes a nonce which contains data that guarantees the resulting note hash will be unique.
- * @param nonce - The contract address.
- * @param innerNoteHash - An inner note hash.
+ * @param nonce - A nonce (typically derived from tx hash and note hash index in the tx).
+ * @param slottedNoteHash - A slotted note hash.
  * @returns A unique note hash.
  */
-export function computeUniqueNoteHash(nonce: Fr, innerNoteHash: Fr): Fr {
-  return pedersenHash([nonce, innerNoteHash], GeneratorIndex.UNIQUE_NOTE_HASH);
+export function computeUniqueNoteHash(nonce: Fr, slottedNoteHash: Fr): Fr {
+  return pedersenHash([nonce, slottedNoteHash], GeneratorIndex.UNIQUE_NOTE_HASH);
 }
 
 /**
