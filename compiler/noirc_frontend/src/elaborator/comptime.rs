@@ -173,7 +173,7 @@ impl<'context> Elaborator<'context> {
         match expression.kind {
             ExpressionKind::Call(call) => Some((*call.func, call.arguments)),
             ExpressionKind::Variable(_) => Some((expression, Vec::new())),
-            _ => return None,
+            _ => None,
         }
     }
 
@@ -214,11 +214,10 @@ impl<'context> Elaborator<'context> {
 
             if *param_type == Type::Quoted(crate::QuotedType::TraitDefinition) {
                 let trait_id = match arg.kind {
-                    ExpressionKind::Variable(path) => {
-                        interpreter.elaborator.resolve_trait_by_path(path).ok_or_else(|| {
-                            InterpreterError::FailedToResolveTraitDefinition { location }
-                        })
-                    }
+                    ExpressionKind::Variable(path) => interpreter
+                        .elaborator
+                        .resolve_trait_by_path(path)
+                        .ok_or(InterpreterError::FailedToResolveTraitDefinition { location }),
                     _ => Err(InterpreterError::TraitDefinitionMustBeAPath { location }),
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));

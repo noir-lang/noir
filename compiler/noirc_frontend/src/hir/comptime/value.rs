@@ -230,7 +230,7 @@ impl Value {
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
-                return Err(InterpreterError::CannotInlineMacro { typ, value, location })
+                return Err(InterpreterError::CannotInlineMacro { typ, value, location });
             }
         };
 
@@ -352,7 +352,7 @@ impl Value {
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
-                return Err(InterpreterError::CannotInlineMacro { value, typ, location })
+                return Err(InterpreterError::CannotInlineMacro { value, typ, location });
             }
         };
 
@@ -399,7 +399,7 @@ impl Value {
     ) -> IResult<Vec<TopLevelStatement>> {
         match self {
             Value::Code(tokens) => parse_tokens(tokens, parser::top_level_items(), location.file),
-            value => {
+            _ => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
@@ -431,7 +431,7 @@ fn parse_tokens<T>(tokens: Rc<Tokens>, parser: impl NoirParser<T>, file: fm::Fil
     }
 }
 
-struct ValuePrinter<'value, 'interner> {
+pub struct ValuePrinter<'value, 'interner> {
     value: &'value Value,
     interner: &'interner NodeInterner,
 }
@@ -490,7 +490,8 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::StructDefinition(id) => {
                 let def = self.interner.get_struct(*id);
-                write!(f, "{}", def.borrow().name)
+                let def = def.borrow();
+                write!(f, "{}", def.name)
             }
             Value::TraitConstraint(trait_id, generics) => {
                 let trait_ = self.interner.get_trait(*trait_id);

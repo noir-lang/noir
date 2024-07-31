@@ -637,7 +637,7 @@ impl Attributes {
     }
 
     pub fn is_varargs(&self) -> bool {
-        self.secondary.iter().find(|attr| matches!(attr, SecondaryAttribute::Varargs)).is_some()
+        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
     }
 }
 
