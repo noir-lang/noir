@@ -94,7 +94,7 @@ mod references_tests {
         check_references_succeeds("rename_function", "another_function", 0, false).await;
     }
 
-    // Ignored because making this works slows down everything, so for now things will not work
+    // Ignored because making this work slows down everything, so for now things will not work
     // as ideally, but they'll be fast.
     #[ignore]
     #[test]
