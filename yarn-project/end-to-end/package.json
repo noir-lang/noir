@@ -113,7 +113,8 @@
   "jest": {
     "slowTestThreshold": 300,
     "setupFilesAfterEnv": [
-      "jest-extended/all"
+      "jest-extended/all",
+      "./shared/jest_setup.ts"
     ],
     "extensionsToTreatAsEsm": [
       ".ts"
