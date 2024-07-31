@@ -129,12 +129,17 @@ impl<'context> Elaborator<'context> {
             _ => return Ok(()),
         };
 
-        let definition = self.interner.try_definition(definition_id);
-        let Some(DefinitionKind::Function(function)) = definition.map(|d| &d.kind) else {
+        let Some(definition) = self.interner.try_definition(definition_id) else {
+            // If there's no such function, don't return an error.
+            // This preserves backwards compatibility in allowing custom attributes that
+            // do not refer to comptime functions.
+            return Ok(());
+        };
+
+        let DefinitionKind::Function(function) = definition.kind else {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
 
-        let function = *function;
         let mut interpreter = self.setup_interpreter();
         let mut arguments =
             Self::handle_attribute_arguments(&mut interpreter, function, arguments, location)
