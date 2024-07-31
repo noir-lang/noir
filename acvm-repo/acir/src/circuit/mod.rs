@@ -377,11 +377,13 @@ mod tests {
             output: Witness(3),
         })
     }
+
     fn range_opcode<F: AcirField>() -> Opcode<F> {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
             input: FunctionInput::witness(Witness(1), 8),
         })
     }
+
     fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
         let inputs: Box<[FunctionInput<F>; 25]> =
             Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 1), 8)));
@@ -389,6 +391,7 @@ mod tests {
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
     }
+
     fn schnorr_verify_opcode<F: AcirField>() -> Opcode<F> {
         let public_key_x = FunctionInput::witness(Witness(1), FieldElement::max_num_bits());
         let public_key_y = FunctionInput::witness(Witness(2), FieldElement::max_num_bits());

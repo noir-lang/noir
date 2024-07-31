@@ -12,14 +12,13 @@
 //! [acvm]: https://crates.io/crates/acvm
 
 use acir::brillig::{
-    BinaryFieldOp, BinaryIntOp, ForeignCallParam, ForeignCallResult, HeapArray, HeapValueType,
-    HeapVector, MemoryAddress, Opcode, ValueOrArray,
+    BinaryFieldOp, BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapArray,
+    HeapValueType, HeapVector, IntegerBitSize, MemoryAddress, Opcode, ValueOrArray,
 };
 use acir::AcirField;
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
 use black_box::{evaluate_black_box, BrilligBigintSolver};
-use num_bigint::BigUint;
 
 // Re-export `brillig`.
 pub use acir::brillig;
@@ -557,7 +556,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         &mut self,
         destination: MemoryAddress,
         value: &F,
-        value_bit_size: u32,
+        value_bit_size: BitSize,
     ) -> Result<(), String> {
         let memory_value = MemoryValue::new_checked(*value, value_bit_size);
 
@@ -565,7 +564,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             self.memory.write(destination, memory_value);
         } else {
             return Err(format!(
-                "Foreign call result value {} does not fit in bit size {}",
+                "Foreign call result value {} does not fit in bit size {:?}",
                 value, value_bit_size
             ));
         }
@@ -689,7 +688,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     fn process_binary_int_op(
         &mut self,
         op: BinaryIntOp,
-        bit_size: u32,
+        bit_size: IntegerBitSize,
         lhs: MemoryAddress,
         rhs: MemoryAddress,
         result: MemoryAddress,
@@ -703,18 +702,46 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     }
 
     /// Casts a value to a different bit size.
-    fn cast(&self, bit_size: u32, source_value: MemoryValue<F>) -> MemoryValue<F> {
-        let lhs_big = source_value.to_integer();
-        let mask = BigUint::from(2_u32).pow(bit_size) - 1_u32;
-        MemoryValue::new_from_integer(lhs_big & mask, bit_size)
+    fn cast(&self, target_bit_size: BitSize, source_value: MemoryValue<F>) -> MemoryValue<F> {
+        match (source_value, target_bit_size) {
+            // Field to field, no op
+            (MemoryValue::Field(_), BitSize::Field) => source_value,
+            // Field downcast to u128
+            (MemoryValue::Field(field), BitSize::Integer(IntegerBitSize::U128)) => {
+                MemoryValue::Integer(field.to_u128(), IntegerBitSize::U128)
+            }
+            // Field downcast to arbitrary bit size
+            (MemoryValue::Field(field), BitSize::Integer(target_bit_size)) => {
+                let as_u128 = field.to_u128();
+                let target_bit_size_u32: u32 = target_bit_size.into();
+                let mask = (1_u128 << target_bit_size_u32) - 1;
+                MemoryValue::Integer(as_u128 & mask, target_bit_size)
+            }
+            // Integer upcast to field
+            (MemoryValue::Integer(integer, _), BitSize::Field) => {
+                MemoryValue::new_field(integer.into())
+            }
+            // Integer upcast to integer
+            (MemoryValue::Integer(integer, source_bit_size), BitSize::Integer(target_bit_size))
+                if source_bit_size <= target_bit_size =>
+            {
+                MemoryValue::Integer(integer, target_bit_size)
+            }
+            // Integer downcast
+            (MemoryValue::Integer(integer, _), BitSize::Integer(target_bit_size)) => {
+                let target_bit_size_u32: u32 = target_bit_size.into();
+                let mask = (1_u128 << target_bit_size_u32) - 1;
+                MemoryValue::Integer(integer & mask, target_bit_size)
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::memory::MEMORY_ADDRESSING_BIT_SIZE;
     use acir::{AcirField, FieldElement};
     use acvm_blackbox_solver::StubbedBlackBoxSolver;
-    const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
     use super::*;
 
@@ -877,7 +904,7 @@ mod tests {
             Opcode::Cast {
                 destination: MemoryAddress::from(1),
                 source: MemoryAddress::from(0),
-                bit_size: 8,
+                bit_size: BitSize::Integer(IntegerBitSize::U8),
             },
             Opcode::Stop { return_data_offset: 1, return_data_size: 1 },
         ];
@@ -943,13 +970,13 @@ mod tests {
         let cast_zero = Opcode::Cast {
             destination: MemoryAddress::from(0),
             source: MemoryAddress::from(0),
-            bit_size: 1,
+            bit_size: BitSize::Integer(IntegerBitSize::U1),
         };
 
         let cast_one = Opcode::Cast {
             destination: MemoryAddress::from(1),
             source: MemoryAddress::from(1),
-            bit_size: 1,
+            bit_size: BitSize::Integer(IntegerBitSize::U1),
         };
 
         let opcodes = &[
@@ -997,7 +1024,7 @@ mod tests {
 
     #[test]
     fn cmp_binary_ops() {
-        let bit_size = BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
+        let bit_size = MEMORY_ADDRESSING_BIT_SIZE;
         let calldata: Vec<FieldElement> =
             vec![(2u128).into(), (2u128).into(), (0u128).into(), (5u128).into(), (6u128).into()];
         let calldata_size = calldata.len();
@@ -1012,7 +1039,7 @@ mod tests {
             .map(|index| Opcode::Cast {
                 destination: MemoryAddress::from(index),
                 source: MemoryAddress::from(index),
-                bit_size,
+                bit_size: BitSize::Integer(bit_size),
             })
             .collect();
 
@@ -1099,7 +1126,8 @@ mod tests {
         ///         i += 1;
         ///     }
         fn brillig_write_memory(item_count: usize) -> Vec<MemoryValue<FieldElement>> {
-            let bit_size = BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
+            let integer_bit_size = MEMORY_ADDRESSING_BIT_SIZE;
+            let bit_size = BitSize::Integer(integer_bit_size);
             let r_i = MemoryAddress::from(0);
             let r_len = MemoryAddress::from(1);
             let r_tmp = MemoryAddress::from(2);
@@ -1124,7 +1152,7 @@ mod tests {
                     lhs: r_i,
                     op: BinaryIntOp::Add,
                     rhs: r_tmp,
-                    bit_size,
+                    bit_size: integer_bit_size,
                 },
                 // pointer = pointer + 1
                 Opcode::BinaryIntOp {
@@ -1132,7 +1160,7 @@ mod tests {
                     lhs: r_pointer,
                     op: BinaryIntOp::Add,
                     rhs: r_tmp,
-                    bit_size,
+                    bit_size: integer_bit_size,
                 },
                 // tmp = i < len
                 Opcode::BinaryIntOp {
@@ -1140,7 +1168,7 @@ mod tests {
                     lhs: r_i,
                     op: BinaryIntOp::LessThan,
                     rhs: r_len,
-                    bit_size,
+                    bit_size: integer_bit_size,
                 },
                 // if tmp != 0 goto loop_body
                 Opcode::JumpIf { condition: r_tmp, location: start.len() },
@@ -1172,7 +1200,7 @@ mod tests {
         ///         i += 1;
         ///     }
         fn brillig_sum_memory(memory: Vec<FieldElement>) -> FieldElement {
-            let bit_size = 32;
+            let bit_size = IntegerBitSize::U32;
             let r_i = MemoryAddress::from(0);
             let r_len = MemoryAddress::from(1);
             let r_sum = MemoryAddress::from(2);
@@ -1181,17 +1209,25 @@ mod tests {
 
             let start: [Opcode<FieldElement>; 5] = [
                 // sum = 0
-                Opcode::Const {
-                    destination: r_sum,
-                    value: 0u128.into(),
-                    bit_size: FieldElement::max_num_bits(),
-                },
+                Opcode::Const { destination: r_sum, value: 0u128.into(), bit_size: BitSize::Field },
                 // i = 0
-                Opcode::Const { destination: r_i, value: 0u128.into(), bit_size },
+                Opcode::Const {
+                    destination: r_i,
+                    value: 0u128.into(),
+                    bit_size: BitSize::Integer(bit_size),
+                },
                 // len = array.len() (approximation)
-                Opcode::Const { destination: r_len, value: memory.len().into(), bit_size },
+                Opcode::Const {
+                    destination: r_len,
+                    value: memory.len().into(),
+                    bit_size: BitSize::Integer(bit_size),
+                },
                 // pointer = array_ptr
-                Opcode::Const { destination: r_pointer, value: 5u128.into(), bit_size },
+                Opcode::Const {
+                    destination: r_pointer,
+                    value: 5u128.into(),
+                    bit_size: BitSize::Integer(bit_size),
+                },
                 Opcode::CalldataCopy {
                     destination_address: MemoryAddress(5),
                     size: memory.len(),
@@ -1209,7 +1245,11 @@ mod tests {
                     rhs: r_tmp,
                 },
                 // tmp = 1
-                Opcode::Const { destination: r_tmp, value: 1u128.into(), bit_size },
+                Opcode::Const {
+                    destination: r_tmp,
+                    value: 1u128.into(),
+                    bit_size: BitSize::Integer(bit_size),
+                },
                 // i = i + 1 (tmp)
                 Opcode::BinaryIntOp {
                     destination: r_i,
@@ -1268,7 +1308,8 @@ mod tests {
         ///     }
         /// Note we represent a 100% in-stack optimized form in brillig
         fn brillig_recursive_write_memory<F: AcirField>(size: usize) -> Vec<MemoryValue<F>> {
-            let bit_size = BRILLIG_MEMORY_ADDRESSING_BIT_SIZE;
+            let integer_bit_size = MEMORY_ADDRESSING_BIT_SIZE;
+            let bit_size = BitSize::Integer(integer_bit_size);
             let r_i = MemoryAddress::from(0);
             let r_len = MemoryAddress::from(1);
             let r_tmp = MemoryAddress::from(2);
@@ -1296,7 +1337,7 @@ mod tests {
                     lhs: r_len,
                     op: BinaryIntOp::LessThanEquals,
                     rhs: r_i,
-                    bit_size,
+                    bit_size: integer_bit_size,
                 },
                 // if !tmp, goto end
                 Opcode::JumpIf {
@@ -1313,7 +1354,7 @@ mod tests {
                     lhs: r_i,
                     op: BinaryIntOp::Add,
                     rhs: r_tmp,
-                    bit_size,
+                    bit_size: integer_bit_size,
                 },
                 // pointer = pointer + 1
                 Opcode::BinaryIntOp {
@@ -1321,7 +1362,7 @@ mod tests {
                     lhs: r_pointer,
                     op: BinaryIntOp::Add,
                     rhs: r_tmp,
-                    bit_size,
+                    bit_size: integer_bit_size,
                 },
                 // call recursive_fn
                 Opcode::Call { location: start.len() },
@@ -1374,15 +1415,19 @@ mod tests {
             Opcode::Const {
                 destination: r_input,
                 value: (5u128).into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // Call foreign function "double" with the input address
             Opcode::ForeignCall {
                 function: "double".into(),
                 destinations: vec![ValueOrArray::MemoryAddress(r_result)],
-                destination_value_types: vec![HeapValueType::Simple(32)],
+                destination_value_types: vec![HeapValueType::Simple(BitSize::Integer(
+                    MEMORY_ADDRESSING_BIT_SIZE,
+                ))],
                 inputs: vec![ValueOrArray::MemoryAddress(r_input)],
-                input_value_types: vec![HeapValueType::Simple(32)],
+                input_value_types: vec![HeapValueType::Simple(BitSize::Integer(
+                    MEMORY_ADDRESSING_BIT_SIZE,
+                ))],
             },
         ];
 
@@ -1439,13 +1484,13 @@ mod tests {
             Opcode::Const {
                 destination: r_input,
                 value: 2_usize.into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // output = 0
             Opcode::Const {
                 destination: r_output,
                 value: 2_usize.into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
@@ -1529,25 +1574,25 @@ mod tests {
             Opcode::Const {
                 destination: r_input_pointer,
                 value: (4u128).into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // input_size = input_string.len() (constant here)
             Opcode::Const {
                 destination: r_input_size,
                 value: input_string.len().into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // output_pointer = 4 + input_size
             Opcode::Const {
                 destination: r_output_pointer,
                 value: (4 + input_string.len()).into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // output_size = input_size * 2
             Opcode::Const {
                 destination: r_output_size,
                 value: (input_string.len() * 2).into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // output_pointer[0..output_size] = string_double(input_pointer[0...input_size])
             Opcode::ForeignCall {
@@ -1627,13 +1672,13 @@ mod tests {
             Opcode::Const {
                 destination: r_input,
                 value: (2u128).into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // output = 0
             Opcode::Const {
                 destination: r_output,
                 value: (6u128).into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
@@ -1726,19 +1771,19 @@ mod tests {
             Opcode::Const {
                 destination: r_input_a,
                 value: (3u128).into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // input = 7
             Opcode::Const {
                 destination: r_input_b,
                 value: (7u128).into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // output = 0
             Opcode::Const {
                 destination: r_output,
                 value: (0u128).into(),
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+                bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
             },
             // *output = matrix_2x2_transpose(*input)
             Opcode::ForeignCall {
@@ -1853,7 +1898,7 @@ mod tests {
 
         let input_array_value_types: Vec<HeapValueType> = vec![
             HeapValueType::field(),
-            HeapValueType::Simple(64), // size of following vector
+            HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U64)), // size of following vector
             HeapValueType::Vector { value_types: vec![HeapValueType::field()] },
             HeapValueType::Array { value_types: vec![HeapValueType::field()], size: 1 },
         ];
@@ -1876,7 +1921,11 @@ mod tests {
         }))
         .chain(vec![
             // input = 0
-            Opcode::Const { destination: r_input, value: (outer_ptr).into(), bit_size: 32 },
+            Opcode::Const {
+                destination: r_input,
+                value: (outer_ptr).into(),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+            },
             // some_function(input)
             Opcode::ForeignCall {
                 function: "flat_sum".into(),

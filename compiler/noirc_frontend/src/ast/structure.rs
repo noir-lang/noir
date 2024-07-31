@@ -14,7 +14,6 @@ pub struct NoirStruct {
     pub generics: UnresolvedGenerics,
     pub fields: Vec<(Ident, UnresolvedType)>,
     pub span: Span,
-    pub is_comptime: bool,
 }
 
 impl Display for NoirStruct {

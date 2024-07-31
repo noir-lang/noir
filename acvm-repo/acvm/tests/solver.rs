@@ -18,6 +18,7 @@ use brillig_vm::brillig::HeapValueType;
 
 use proptest::arbitrary::any;
 use proptest::prelude::*;
+use proptest::result::maybe_ok;
 use proptest::sample::select;
 
 #[test]
@@ -794,8 +795,8 @@ prop_compose! {
     fn bigint_with_modulus()(modulus in select(allowed_bigint_moduli()))
         (input in proptest::collection::vec(any::<(u8, bool)>(), modulus.len()), modulus in Just(modulus))
         -> (Vec<ConstantOrWitness>, Vec<u8>) {
-        let input = input.into_iter().map(|(x, use_constant)| {
-            (FieldElement::from(x as u128), use_constant)
+        let input = input.into_iter().zip(modulus.iter()).map(|((x, use_constant), modulus_byte)| {
+            (FieldElement::from(x.clamp(0, *modulus_byte) as u128), use_constant)
         }).collect();
         (input, modulus)
     }
@@ -909,7 +910,6 @@ fn bigint_solve_binary_op_opt(
     let unconstrained_functions = vec![];
     let mut acvm =
         ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
-
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
@@ -918,6 +918,43 @@ fn bigint_solve_binary_op_opt(
         .iter()
         .map(|witness| *witness_map.get(witness).expect("all witnesses to be set"))
         .collect()
+}
+
+// Solve the given BlackBoxFuncCall with witnesses: 1, 2 as x, y, resp.
+#[cfg(test)]
+fn solve_blackbox_func_call(
+    blackbox_func_call: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool), // if false, use a Witness
+    y: (FieldElement, bool), // if false, use a Witness
+) -> FieldElement {
+    let (x, x_constant) = x;
+    let (y, y_constant) = y;
+
+    let initial_witness = WitnessMap::from(BTreeMap::from_iter([(Witness(1), x), (Witness(2), y)]));
+
+    let mut lhs = None;
+    if x_constant {
+        lhs = Some(x);
+    }
+
+    let mut rhs = None;
+    if y_constant {
+        rhs = Some(y);
+    }
+
+    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs, rhs));
+    let opcodes = vec![op];
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let solver_status = acvm.solve();
+    assert_eq!(solver_status, ACVMStatus::Solved);
+    let witness_map = acvm.finalize();
+
+    witness_map[&Witness(3)]
 }
 
 // Using the given BigInt modulus, solve the following circuit:
@@ -947,10 +984,155 @@ fn bigint_solve_from_to_le_bytes(
     bigint_solve_binary_op_opt(None, modulus, input, vec![])
 }
 
+fn function_input_from_option(
+    witness: Witness,
+    opt_constant: Option<FieldElement>,
+) -> FunctionInput<FieldElement> {
+    opt_constant
+        .map(|constant| FunctionInput::constant(constant, FieldElement::max_num_bits()))
+        .unwrap_or(FunctionInput::witness(witness, FieldElement::max_num_bits()))
+}
+
+fn and_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
+    let lhs = function_input_from_option(Witness(1), x);
+    let rhs = function_input_from_option(Witness(2), y);
+    BlackBoxFuncCall::AND { lhs, rhs, output: Witness(3) }
+}
+
+fn xor_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
+    let lhs = function_input_from_option(Witness(1), x);
+    let rhs = function_input_from_option(Witness(2), y);
+    BlackBoxFuncCall::XOR { lhs, rhs, output: Witness(3) }
+}
+
+fn prop_assert_commutative(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool),
+    y: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(&op, x, y), solve_blackbox_func_call(&op, y, x))
+}
+
+fn prop_assert_associative(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool),
+    y: (FieldElement, bool),
+    z: (FieldElement, bool),
+    use_constant_xy: bool,
+    use_constant_yz: bool,
+) -> (FieldElement, FieldElement) {
+    let f_xy = (solve_blackbox_func_call(&op, x, y), use_constant_xy);
+    let f_f_xy_z = solve_blackbox_func_call(&op, f_xy, z);
+
+    let f_yz = (solve_blackbox_func_call(&op, y, z), use_constant_yz);
+    let f_x_f_yz = solve_blackbox_func_call(&op, x, f_yz);
+
+    (f_f_xy_z, f_x_f_yz)
+}
+
+fn prop_assert_identity_l(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op_identity: (FieldElement, bool),
+    x: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(op, op_identity, x), x.0)
+}
+
+fn prop_assert_zero_l(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op_zero: (FieldElement, bool),
+    x: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(op, op_zero, x), FieldElement::zero())
+}
+
+prop_compose! {
+    // Use both `u128` and hex proptest strategies
+    fn field_element()
+        (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"),
+         constant_input: bool)
+        -> (FieldElement, bool)
+    {
+        match u128_or_hex {
+            Ok(number) => (FieldElement::from(number), constant_input),
+            Err(hex) => (FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string"), constant_input),
+        }
+    }
+}
+
+fn field_element_ones() -> FieldElement {
+    let exponent: FieldElement = (253_u128).into();
+    FieldElement::from(2u128).pow(&exponent) - FieldElement::one()
+}
+
 // NOTE: an "average" bigint is large, so consider increasing the number of proptest shrinking
 // iterations (from the default 1024) to reach a simplified case, e.g.
 // PROPTEST_MAX_SHRINK_ITERS=1024000
 proptest! {
+
+    #[test]
+    fn and_commutative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_commutative(and_op, x, y);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn xor_commutative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_commutative(xor_op, x, y);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn and_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
+        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z, use_constant_xy, use_constant_yz);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    // TODO(https://github.com/noir-lang/noir/issues/5638)
+    #[should_panic(expected = "assertion failed: `(left == right)`")]
+    fn xor_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
+        let (lhs, rhs) = prop_assert_associative(xor_op, x, y, z, use_constant_xy, use_constant_yz);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    // test that AND(x, x) == x
+    #[test]
+    fn and_self_identity(x in field_element()) {
+        prop_assert_eq!(solve_blackbox_func_call(and_op, x, x), x.0);
+    }
+
+    // test that XOR(x, x) == 0
+    #[test]
+    fn xor_self_zero(x in field_element()) {
+        prop_assert_eq!(solve_blackbox_func_call(xor_op, x, x), FieldElement::zero());
+    }
+
+    #[test]
+    fn and_identity_l(x in field_element(), ones_constant: bool) {
+        let ones = (field_element_ones(), ones_constant);
+        let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x);
+        if x <= ones {
+            prop_assert_eq!(lhs, rhs);
+        } else {
+            prop_assert!(lhs != rhs);
+        }
+    }
+
+    #[test]
+    fn xor_identity_l(x in field_element(), zero_constant: bool) {
+        let zero = (FieldElement::zero(), zero_constant);
+        let (lhs, rhs) = prop_assert_identity_l(xor_op, zero, x);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn and_zero_l(x in field_element(), ones_constant: bool) {
+        let zero = (FieldElement::zero(), ones_constant);
+        let (lhs, rhs) = prop_assert_zero_l(and_op, zero, x);
+        prop_assert_eq!(lhs, rhs);
+    }
+
     #[test]
     fn bigint_from_to_le_bytes_zero_one(modulus in select(allowed_bigint_moduli()), zero_or_ones_constant: bool, use_constant: bool) {
         let zero_function_input = if zero_or_ones_constant {
@@ -1080,9 +1262,7 @@ proptest! {
     }
 
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_add_zero_l((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results = drop_use_constant(&xs);
@@ -1099,9 +1279,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_mul_one_l((xs, modulus) in bigint_with_modulus()) {
         let one = bigint_to_one(&xs);
         let expected_results: Vec<_> = drop_use_constant(&xs);
@@ -1116,9 +1294,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_sub_zero((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results: Vec<_> = drop_use_constant(&xs);
@@ -1142,6 +1318,7 @@ proptest! {
     }
 
     #[test]
+    // TODO(https://github.com/noir-lang/noir/issues/5645)
     fn bigint_div_by_zero((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results = drop_use_constant(&zero);
@@ -1149,9 +1326,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_div_one((xs, modulus) in bigint_with_modulus()) {
         let one = bigint_to_one(&xs);
         let expected_results = drop_use_constant(&xs);
@@ -1169,7 +1344,7 @@ proptest! {
 
     // TODO(https://github.com/noir-lang/noir/issues/5579): fails on (x=0, y=97)
     #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)")]
+    #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
     fn bigint_add_sub((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let add_results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs, ys.clone());
@@ -1179,9 +1354,9 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579)
+    // TODO(https://github.com/noir-lang/noir/issues/5579): fails on (x=0, y=97)
     #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)")]
+    #[should_panic(expected = "Test failed: Cannot subtract b from a because b is larger than a..")]
     fn bigint_sub_add((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let sub_results = bigint_solve_binary_op(bigint_sub_op(), modulus.clone(), xs, ys.clone());
@@ -1191,9 +1366,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_div_mul((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let div_results = bigint_solve_binary_op(bigint_div_op(), modulus.clone(), xs, ys.clone());
@@ -1203,9 +1376,7 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5579): Fails on 49, see bigint_add_zero_l_single_case_49
     #[test]
-    #[should_panic(expected = "Test failed: assertion failed: `(left == right)`")]
     fn bigint_mul_div((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let mul_results = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs, ys.clone());
@@ -1215,3 +1386,4 @@ proptest! {
         prop_assert_eq!(results, expected_results)
     }
 }
+

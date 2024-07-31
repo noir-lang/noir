@@ -6,13 +6,13 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    ast::{IntegerBitSize, TraitBound},
+    ast::IntegerBitSize,
     hir::comptime::{errors::IResult, InterpreterError, Value},
-    macros_api::{NodeInterner, Path, Signedness, UnresolvedTypeData},
+    macros_api::{NodeInterner, Signedness},
     node_interner::TraitId,
     parser,
     token::{SpannedToken, Token, Tokens},
@@ -53,9 +53,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "trait_def_as_trait_constraint" => {
                 trait_def_as_trait_constraint(interner, arguments, location)
             }
-            "quoted_as_trait_constraint" => {
-                quoted_as_trait_constraint(interner, arguments, location)
-            }
+            "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
@@ -133,9 +131,9 @@ pub(super) fn get_u32(value: Value, location: Location) -> IResult<u32> {
     }
 }
 
-fn get_trait_constraint(value: Value, location: Location) -> IResult<TraitBound> {
+fn get_trait_constraint(value: Value, location: Location) -> IResult<(TraitId, Vec<Type>)> {
     match value {
-        Value::TraitConstraint(bound) => Ok(bound),
+        Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
         value => {
             let expected = Type::Quoted(QuotedType::TraitConstraint);
             Err(InterpreterError::TypeMismatch { expected, value, location })
@@ -387,7 +385,7 @@ fn slice_insert(
 
 // fn as_trait_constraint(quoted: Quoted) -> TraitConstraint
 fn quoted_as_trait_constraint(
-    _interner: &mut NodeInterner,
+    interpreter: &mut Interpreter,
     mut arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -402,7 +400,14 @@ fn quoted_as_trait_constraint(
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })?;
 
-    Ok(Value::TraitConstraint(trait_bound))
+    let bound = interpreter
+        .elaborator
+        .elaborate_item_from_comptime(interpreter.current_function, |elaborator| {
+            elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
+        })
+        .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
+
+    Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
 }
 
 // fn as_type(quoted: Quoted) -> Type
@@ -529,11 +534,6 @@ fn zeroed(return_type: Type) -> IResult<Value> {
             let element = zeroed(*element)?;
             Ok(Value::Pointer(Shared::new(element), false))
         }
-        Type::Quoted(QuotedType::TraitConstraint) => Ok(Value::TraitConstraint(TraitBound {
-            trait_path: Path::from_single(String::new(), Span::default()),
-            trait_id: None,
-            trait_generics: Vec::new(),
-        })),
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
@@ -618,14 +618,9 @@ fn trait_def_as_trait_constraint(
 
     let trait_id = get_trait_def(arguments.pop().unwrap().0, location)?;
     let the_trait = interner.get_trait(trait_id);
-
-    let trait_path = Path::from_ident(the_trait.name.clone());
-
     let trait_generics = vecmap(&the_trait.generics, |generic| {
-        let name = Path::from_single(generic.name.as_ref().clone(), generic.span);
-        UnresolvedTypeData::Named(name, Vec::new(), false).with_span(generic.span)
+        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), generic.kind.clone())
     });
 
-    let trait_id = Some(trait_id);
-    Ok(Value::TraitConstraint(TraitBound { trait_path, trait_id, trait_generics }))
+    Ok(Value::TraitConstraint(trait_id, trait_generics))
 }
