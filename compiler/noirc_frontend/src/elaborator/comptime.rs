@@ -8,14 +8,23 @@ use noirc_errors::{Location, Span};
 use crate::{
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
-        def_collector::{dc_crate::{CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedStruct, UnresolvedTrait, UnresolvedTraitImpl}, dc_mod},
+        def_collector::{
+            dc_crate::{
+                CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedStruct,
+                UnresolvedTrait, UnresolvedTraitImpl,
+            },
+            dc_mod,
+        },
         resolution::errors::ResolverError,
     },
     hir_def::expr::HirIdent,
     lexer::Lexer,
-    macros_api::{Expression, ExpressionKind, HirExpression, SecondaryAttribute, StructId, NodeInterner},
+    macros_api::{
+        Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
+    },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
-    parser::{self, TopLevelStatement}, Type, TypeBindings,
+    parser::{self, TopLevelStatement},
+    Type, TypeBindings,
 };
 
 use super::{Elaborator, FunctionContext, ResolverMeta};
@@ -105,7 +114,7 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
     ) -> Result<(), (CompilationError, FileId)> {
         let location = Location::new(span, self.file);
-        let Some((function, arguments)) = Self::parse_attribute(attribute) else {
+        let Some((function, arguments)) = Self::parse_attribute(attribute, self.file)? else {
             // Do not issue an error if the attribute is unknown
             return Ok(());
         };
@@ -153,19 +162,24 @@ impl<'context> Elaborator<'context> {
 
     /// Parses an attribute in the form of a function call (e.g. `#[foo(a b, c d)]`) into
     /// the function and quoted arguments called (e.g. `("foo", vec![(a b, location), (c d, location)])`)
-    fn parse_attribute(annotation: &str) -> Option<(Expression, Vec<Expression>)> {
-        let (tokens, lexing_errors) = Lexer::lex(annotation);
+    fn parse_attribute(
+        annotation: &str,
+        file: FileId,
+    ) -> Result<Option<(Expression, Vec<Expression>)>, (CompilationError, FileId)> {
+        let (tokens, mut lexing_errors) = Lexer::lex(annotation);
         if !lexing_errors.is_empty() {
-            return None;
+            return Err((lexing_errors.swap_remove(0).into(), file));
         }
 
-        let expression = parser::expression().parse(tokens).ok()?;
+        let expression = parser::expression()
+            .parse(tokens)
+            .map_err(|mut errors| (errors.swap_remove(0).into(), file))?;
 
-        match expression.kind {
+        Ok(match expression.kind {
             ExpressionKind::Call(call) => Some((*call.func, call.arguments)),
             ExpressionKind::Variable(_) => Some((expression, Vec::new())),
-            _ => return None,
-        }
+            _ => None,
+        })
     }
 
     fn handle_attribute_arguments(
@@ -185,11 +199,7 @@ impl<'context> Elaborator<'context> {
         // to account for N extra arguments.
         let modifiers = interpreter.elaborator.interner.function_modifiers(&function);
         let is_varargs = modifiers.attributes.is_varargs();
-        let varargs_type = if is_varargs {
-            parameters.pop()
-        } else {
-            None
-        };
+        let varargs_type = if is_varargs { parameters.pop() } else { None };
 
         let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.slice_element_type());
 

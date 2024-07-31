@@ -8,12 +8,12 @@ use crate::{
     hir::{
         comptime::Value,
         def_collector::dc_crate::{
-                filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
-                UnresolvedStruct, UnresolvedTypeAlias,
-            },
+            filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal, UnresolvedStruct,
+            UnresolvedTypeAlias,
+        },
         def_map::DefMaps,
-        scope::ScopeForest as GenericScopeForest,
         resolution::{errors::ResolverError, path_resolver::PathResolver},
+        scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
     },
     hir_def::{
