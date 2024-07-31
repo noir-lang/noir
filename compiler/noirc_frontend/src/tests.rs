@@ -2811,6 +2811,43 @@ fn uses_self_type_in_trait_where_clause() {
 }
 
 #[test]
+fn do_not_eagerly_error_on_cast_on_type_variable() {
+    let src = r#"
+    pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
+        f(x)
+    }
+
+    fn main() {
+        let x: u8 = 1;
+        let _: Field = foo(x, |x| x as Field);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_on_cast_over_type_variable() {
+    let src = r#"
+    pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
+        f(x)
+    }
+
+    fn main() {
+        let x = "a";
+        let _: Field = foo(x, |x| x as Field);
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
+    ));
+}
+
+#[test]
 fn trait_impl_for_a_type_that_implements_another_trait() {
     let src = r#"
     trait One {
