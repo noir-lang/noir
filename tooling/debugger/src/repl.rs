@@ -1,9 +1,11 @@
 use crate::context::{DebugCommandResult, DebugContext, DebugLocation};
 
+use acvm::acir::brillig::{BitSize, IntegerBitSize};
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
+use acvm::brillig_vm::MemoryValue;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use nargo::NargoError;
 use noirc_driver::CompiledProgram;
@@ -362,7 +364,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             return;
         };
 
-        for (index, value) in memory.iter().enumerate().filter(|(_, value)| value.bit_size() > 0) {
+        for (index, value) in memory
+            .iter()
+            .enumerate()
+            .filter(|(_, value)| !matches!(value, MemoryValue::Integer(_, IntegerBitSize::U0)))
+        {
             println!("{index} = {}", value);
         }
     }
@@ -372,6 +378,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             println!("Invalid value: {value}");
             return;
         };
+
+        let Ok(bit_size) = BitSize::try_from_u32::<FieldElement>(bit_size) else {
+            println!("Invalid bit size: {bit_size}");
+            return;
+        };
+
         if !self.context.is_executing_brillig() {
             println!("Not executing a Brillig block");
             return;

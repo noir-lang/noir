@@ -2731,6 +2731,86 @@ fn incorrect_generic_count_on_type_alias() {
 }
 
 #[test]
+fn uses_self_type_for_struct_function_call() {
+    let src = r#"
+    struct S { }
+
+    impl S {
+        fn one() -> Field {
+            1
+        }
+
+        fn two() -> Field {
+            Self::one() + Self::one()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn uses_self_type_inside_trait() {
+    let src = r#"
+    trait Foo {
+        fn foo() -> Self {
+            Self::bar()
+        }
+
+        fn bar() -> Self;
+    }
+
+    impl Foo for Field {
+        fn bar() -> Self {
+            1
+        }
+    }
+
+    fn main() {
+        let _: Field = Foo::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn uses_self_type_in_trait_where_clause() {
+    let src = r#"
+    trait Trait {
+        fn trait_func() -> bool;
+    }
+
+    trait Foo where Self: Trait {
+        fn foo(self) -> bool {
+            self.trait_func()
+        }
+    }
+
+    struct Bar {
+
+    }
+
+    impl Foo for Bar {
+
+    }
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall { method_name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unresolved method call error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(method_name, "trait_func");
+}
+
+#[test]
 fn do_not_eagerly_error_on_cast_on_type_variable() {
     let src = r#"
     pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {

@@ -264,6 +264,7 @@ fn extract_failure_payload_from_memory<F: AcirField>(
         let error_selector = ErrorSelector::new(
             revert_values_iter
                 .next()
+                .copied()
                 .expect("Incorrect revert data size")
                 .try_into()
                 .expect("Error selector is not u64"),
@@ -273,7 +274,7 @@ fn extract_failure_payload_from_memory<F: AcirField>(
             STRING_ERROR_SELECTOR => {
                 // If the error selector is 0, it means the error is a string
                 let string = revert_values_iter
-                    .map(|memory_value| {
+                    .map(|&memory_value| {
                         let as_u8: u8 = memory_value.try_into().expect("String item is not u8");
                         as_u8 as char
                     })
