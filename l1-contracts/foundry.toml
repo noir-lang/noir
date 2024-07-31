@@ -11,10 +11,10 @@ remappings = [
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
 
 fs_permissions = [
-  {access = "read", path = "./test/fixtures/mixed_block_0.json"},
   {access = "read", path = "./test/fixtures/mixed_block_1.json"},
-  {access = "read", path = "./test/fixtures/empty_block_0.json"},
+  {access = "read", path = "./test/fixtures/mixed_block_2.json"},
   {access = "read", path = "./test/fixtures/empty_block_1.json"},
+  {access = "read", path = "./test/fixtures/empty_block_2.json"},
 ]
 
 [fmt]

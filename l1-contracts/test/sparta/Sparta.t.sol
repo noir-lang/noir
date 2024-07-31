@@ -73,18 +73,18 @@ contract SpartaTest is DecoderBase {
   }
 
   function testHappyPath() public {
-    _testBlock("mixed_block_0", 0, false); // We run a block before the epoch with validators
-    _testBlock("mixed_block_1", 3, false); // We need signatures!
+    _testBlock("mixed_block_1", 0, false); // We run a block before the epoch with validators
+    _testBlock("mixed_block_2", 3, false); // We need signatures!
   }
 
   function testInvalidProposer() public {
-    _testBlock("mixed_block_0", 0, false); // We run a block before the epoch with validators
-    _testBlock("mixed_block_1", 3, true); // We need signatures!
+    _testBlock("mixed_block_1", 0, false); // We run a block before the epoch with validators
+    _testBlock("mixed_block_2", 3, true); // We need signatures!
   }
 
   function testInsufficientSigs() public {
-    _testBlock("mixed_block_0", 0, false); // We run a block before the epoch with validators
-    _testBlock("mixed_block_1", 2, false); // We need signatures!
+    _testBlock("mixed_block_1", 0, false); // We run a block before the epoch with validators
+    _testBlock("mixed_block_2", 2, false); // We need signatures!
   }
 
   struct StructToAvoidDeepStacks {

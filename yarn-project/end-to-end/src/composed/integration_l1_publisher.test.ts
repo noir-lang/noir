@@ -366,7 +366,7 @@ describe('L1Publisher integration', () => {
       // Check that we have not yet written a root to this blocknumber
       expect(BigInt(emptyRoot)).toStrictEqual(0n);
 
-      writeJson(`mixed_block_${i}`, block, l1ToL2Content, recipientAddress, deployerAccount.address);
+      writeJson(`mixed_block_${block.number}`, block, l1ToL2Content, recipientAddress, deployerAccount.address);
 
       await publisher.processL2Block(block);
 
@@ -451,7 +451,7 @@ describe('L1Publisher integration', () => {
       blockSource.getL1ToL2Messages.mockResolvedValueOnce(l1ToL2Messages);
       blockSource.getBlocks.mockResolvedValueOnce([block]);
 
-      writeJson(`empty_block_${i}`, block, [], AztecAddress.ZERO, deployerAccount.address);
+      writeJson(`empty_block_${block.number}`, block, [], AztecAddress.ZERO, deployerAccount.address);
 
       await publisher.processL2Block(block);
 

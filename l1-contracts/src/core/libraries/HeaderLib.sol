@@ -118,11 +118,11 @@ library HeaderLib {
     view
   {
     if (block.chainid != _header.globalVariables.chainId) {
-      revert Errors.Rollup__InvalidChainId(_header.globalVariables.chainId, block.chainid);
+      revert Errors.Rollup__InvalidChainId(block.chainid, _header.globalVariables.chainId);
     }
 
     if (_header.globalVariables.version != _version) {
-      revert Errors.Rollup__InvalidVersion(_header.globalVariables.version, _version);
+      revert Errors.Rollup__InvalidVersion(_version, _header.globalVariables.version);
     }
 
     // block number already constrained by archive root check

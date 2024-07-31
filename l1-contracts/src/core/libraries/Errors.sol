@@ -39,6 +39,9 @@ library Errors {
 
   // Rollup
   error Rollup__InvalidArchive(bytes32 expected, bytes32 actual); // 0xb682a40e
+  error Rollup__InvalidProposedArchive(bytes32 expected, bytes32 actual); // 0x32532e73
+  error Rollup__InvalidBlockNumber(uint256 expected, uint256 actual); // 0xe5edf847
+  error Rollup__TryingToProveNonExistingBlock(); // 0x34ef4954
   error Rollup__InvalidInHash(bytes32 expected, bytes32 actual); // 0xcd6f4233
   error Rollup__InvalidProof(); // 0xa5b2ba17
   error Rollup__InvalidChainId(uint256 expected, uint256 actual); // 0x37b5bc12
