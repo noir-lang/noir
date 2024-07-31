@@ -64,7 +64,7 @@ fn on_code_lens_request_inner(
     })?;
 
     let workspace =
-        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path).unwrap();
+        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path, false).unwrap();
 
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")

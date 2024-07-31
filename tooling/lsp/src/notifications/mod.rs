@@ -37,7 +37,11 @@ pub(super) fn on_did_open_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     let document_uri = params.text_document.uri;
-    let only_process_document_uri_package = false;
+
+    // Ideally we'd process the entire workspace (only if we don't have another open file in the workspace),
+    // but that's too slow and it makes saving and every other LSP operation take too long.
+    let only_process_document_uri_package = true;
+
     let output_diagnostics = true;
 
     match process_workspace_for_noir_document(
@@ -109,7 +113,10 @@ pub(super) fn on_did_save_text_document(
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let document_uri = params.text_document.uri;
-    let only_process_document_uri_package = false;
+
+    // Ideally we'd process the entire workspace, but that's too slow and it makes
+    // saving and every other LSP operation take too long.
+    let only_process_document_uri_package = true;
     let output_diagnotics = true;
 
     match process_workspace_for_noir_document(
@@ -136,10 +143,12 @@ pub(crate) fn process_workspace_for_noir_document(
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
     })?;
 
-    let workspace =
-        resolve_workspace_for_source_path(&file_path, &state.root_path).map_err(|lsp_error| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
-        })?;
+    let workspace = resolve_workspace_for_source_path(
+        &file_path,
+        &state.root_path,
+        !only_process_document_uri_package,
+    )
+    .map_err(|lsp_error| ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string()))?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(
