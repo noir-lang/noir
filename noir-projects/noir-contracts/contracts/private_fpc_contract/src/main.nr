@@ -3,7 +3,7 @@ mod lib;
 contract PrivateFPC {
     use dep::aztec::protocol_types::{abis::log_hash::LogHash, address::AztecAddress, hash::poseidon2_hash};
     use dep::aztec::state_vars::SharedImmutable;
-    use dep::private_token::PrivateToken;
+    use dep::token_with_refunds::TokenWithRefunds;
     use crate::lib::emit_randomness_as_unencrypted_log;
 
     #[aztec(storage)]
@@ -31,7 +31,7 @@ contract PrivateFPC {
         // We emit fee payer randomness to ensure FPC admin can reconstruct their fee note
         emit_randomness_as_unencrypted_log(&mut context, fee_payer_randomness);
 
-        PrivateToken::at(asset).setup_refund(
+        TokenWithRefunds::at(asset).setup_refund(
             storage.admin_npk_m_hash.read_private(),
             context.msg_sender(),
             amount,

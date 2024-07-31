@@ -1,5 +1,5 @@
 [package]
-name = "private_token_contract"
+name = "token_with_refunds_contract"
 authors = [""]
 compiler_version = ">=0.25.0"
 type = "contract"

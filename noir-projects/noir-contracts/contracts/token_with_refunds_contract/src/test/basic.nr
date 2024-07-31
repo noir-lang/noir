@@ -3,7 +3,7 @@ use dep::aztec::{
     test::helpers::cheatcodes, oracle::unsafe_rand::unsafe_rand, hash::compute_secret_hash,
     prelude::NoteHeader
 };
-use crate::PrivateToken;
+use crate::TokenWithRefunds;
 use crate::types::token_note::TokenNote;
 use dep::authwit::cheatcodes as authwit_cheatcodes;
 
@@ -13,7 +13,7 @@ unconstrained fn transfer_success() {
 
     let transfer_amount = 1_000;
 
-    let transfer_private_from_call_interface = PrivateToken::at(token_contract_address).transfer_from(owner, recipient, transfer_amount, 1);
+    let transfer_private_from_call_interface = TokenWithRefunds::at(token_contract_address).transfer_from(owner, recipient, transfer_amount, 1);
 
     authwit_cheatcodes::add_private_authwit_from_call_interface(owner, recipient, transfer_private_from_call_interface);
 
@@ -45,7 +45,7 @@ unconstrained fn setup_refund_success() {
     let mut context = env.private();
     let recipient_npk_m_hash = context.get_header().get_npk_m_hash(&mut context, recipient);
 
-    let setup_refund_from_call_interface = PrivateToken::at(token_contract_address).setup_refund(
+    let setup_refund_from_call_interface = TokenWithRefunds::at(token_contract_address).setup_refund(
         recipient_npk_m_hash, // fee payer
         owner, // sponsored user
         funded_amount,
@@ -75,7 +75,7 @@ unconstrained fn setup_refund_success() {
         randomness: user_randomness,
         header: NoteHeader::empty()
     },
-        PrivateToken::storage().balances.slot,
+        TokenWithRefunds::storage().balances.slot,
         token_contract_address
     );
     env.store_note_in_cache(
@@ -85,7 +85,7 @@ unconstrained fn setup_refund_success() {
         randomness: fee_payer_randomness,
         header: NoteHeader::empty()
     },
-        PrivateToken::storage().balances.slot,
+        TokenWithRefunds::storage().balances.slot,
         token_contract_address
     );
 

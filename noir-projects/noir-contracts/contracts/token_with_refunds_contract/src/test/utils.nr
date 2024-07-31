@@ -6,7 +6,7 @@ use dep::aztec::{
     context::PrivateContext
 };
 
-use crate::{types::{token_note::TokenNote}, PrivateToken};
+use crate::{types::{token_note::TokenNote}, TokenWithRefunds};
 
 pub fn setup(with_account_contracts: bool) -> (&mut TestEnvironment, AztecAddress, AztecAddress, AztecAddress) {
     // Setup env, generate keys
@@ -27,13 +27,13 @@ pub fn setup(with_account_contracts: bool) -> (&mut TestEnvironment, AztecAddres
     env.impersonate(owner);
 
     // Deploy token contract
-    let initializer_call_interface = PrivateToken::interface().constructor(
+    let initializer_call_interface = TokenWithRefunds::interface().constructor(
         owner,
         "TestToken0000000000000000000000",
         "TT00000000000000000000000000000",
         18
     );
-    let token_contract = env.deploy_self("PrivateToken").with_public_initializer(initializer_call_interface);
+    let token_contract = env.deploy_self("TokenWithRefunds").with_public_initializer(initializer_call_interface);
     let token_contract_address = token_contract.to_address();
     env.advance_block_by(6);
     (&mut env, token_contract_address, owner, recipient)
@@ -43,7 +43,7 @@ pub fn setup_and_mint(with_account_contracts: bool) -> (&mut TestEnvironment, Az
     // Setup
     let (env, token_contract_address, owner, recipient) = setup(with_account_contracts);
     let mint_amount = 10_000;
-    let mint_private_call_interface = PrivateToken::at(token_contract_address).privately_mint_private_note(mint_amount);
+    let mint_private_call_interface = TokenWithRefunds::at(token_contract_address).privately_mint_private_note(mint_amount);
     env.call_private_void(mint_private_call_interface);
     env.advance_block_by(6);
 
@@ -64,7 +64,7 @@ pub fn check_private_balance(
     let header = context.get_header();
     let owner_npk_m_hash = header.get_npk_m_hash(context, address);
 
-    let balance_of_private = PrivateToken::balance_of_unconstrained(owner_npk_m_hash);
+    let balance_of_private = TokenWithRefunds::balance_of_unconstrained(owner_npk_m_hash);
     assert(balance_of_private == address_amount, "Private balance is not correct");
     cheatcodes::set_contract_address(current_contract_address);
 }
