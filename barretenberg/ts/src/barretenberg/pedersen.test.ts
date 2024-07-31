@@ -46,7 +46,7 @@ describe('pedersen sync', () => {
   });
 
   it('pedersenCommit', () => {
-    const result = api.pedersenCommit([new Fr(4n), new Fr(8n), new Fr(12n)]);
+    const result = api.pedersenCommit([new Fr(4n), new Fr(8n), new Fr(12n)], 0);
     expect(result).toMatchSnapshot();
   });
 
@@ -55,7 +55,7 @@ describe('pedersen sync', () => {
     const fields = Array.from({ length: loops * 2 }).map(() => Fr.random());
     const t = new Timer();
     for (let i = 0; i < loops; ++i) {
-      api.pedersenCommit([fields[i * 2], fields[i * 2 + 1]]);
+      api.pedersenCommit([fields[i * 2], fields[i * 2 + 1]], 0);
     }
     console.log(t.us() / loops);
   });

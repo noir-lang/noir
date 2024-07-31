@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Run from aztec-packages/barretenberg.
 set -eu
 
 if ! dpkg -l python3-clang-18 &> /dev/null; then
@@ -6,7 +7,7 @@ if ! dpkg -l python3-clang-18 &> /dev/null; then
   exit 1
 fi
 
-#find ./cpp/src -type f -name "c_bind*.hpp" | ./scripts/decls_json.py > exports.json
+#find ./cpp/src -type f -name "c_bind*.hpp" > ./scripts/c_bind_files.txt
 cat ./scripts/c_bind_files.txt | ./scripts/decls_json.py > exports.json
 (
   cd ./ts && \

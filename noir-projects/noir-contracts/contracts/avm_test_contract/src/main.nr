@@ -155,7 +155,7 @@ contract AvmTest {
 
     #[aztec(public)]
     fn pedersen_commit(x: Field, y: Field) -> EmbeddedCurvePoint {
-        let commitment = dep::std::hash::pedersen_commitment([x, y]);
+        let commitment = dep::std::hash::pedersen_commitment_with_separator([x, y], 20);
         commitment
     }
 

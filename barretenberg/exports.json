@@ -5,6 +5,10 @@
       {
         "name": "inputs_buffer",
         "type": "fr::vec_in_buf"
+      },
+      {
+        "name": "ctx_index",
+        "type": "const uint32_t *"
       }
     ],
     "outArgs": [
@@ -544,25 +548,6 @@
       {
         "name": "acir_composer_ptr",
         "type": "in_ptr"
-      }
-    ],
-    "outArgs": [],
-    "isAsync": false
-  },
-  {
-    "functionName": "acir_create_circuit",
-    "inArgs": [
-      {
-        "name": "acir_composer_ptr",
-        "type": "in_ptr"
-      },
-      {
-        "name": "constraint_system_buf",
-        "type": "const uint8_t *"
-      },
-      {
-        "name": "size_hint",
-        "type": "const uint32_t *"
       }
     ],
     "outArgs": [],

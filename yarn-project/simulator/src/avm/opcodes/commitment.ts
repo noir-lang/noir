@@ -43,15 +43,15 @@ export class PedersenCommitment extends Instruction {
     const inputs = memory.getSlice(inputOffset, inputSize);
     memory.checkTagsRange(TypeTag.FIELD, inputOffset, inputSize);
 
-    // Generator index not used for now since we dont utilise it in the pedersenCommit function
+    const generatorIndex = memory.get(genIndexOffset).toNumber();
     memory.checkTag(TypeTag.UINT32, genIndexOffset);
 
-    const memoryOperations = { reads: inputSize + 1, writes: 3, indirect: this.indirect };
+    const memoryOperations = { reads: inputSize + 2, writes: 3, indirect: this.indirect };
     context.machineState.consumeGas(this.gasCost(memoryOperations));
 
     const inputBuffer: Buffer[] = inputs.map(input => input.toBuffer());
     // TODO: Add the generate index to the pedersenCommit function
-    const commitment = pedersenCommit(inputBuffer).map(f => new Field(f));
+    const commitment = pedersenCommit(inputBuffer, generatorIndex).map(f => new Field(f));
     // The function doesnt include a flag if the output point is infinity, come back to this
     // for now we just check if theyre zero - until we know how bb encodes them
     const isInfinity = commitment[0].equals(new Field(0)) && commitment[1].equals(new Field(0));

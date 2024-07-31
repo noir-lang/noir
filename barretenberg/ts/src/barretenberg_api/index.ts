@@ -15,8 +15,8 @@ import { Fr, Fq, Point, Buffer32, Buffer128, Ptr } from '../types/index.js';
 export class BarretenbergApi {
   constructor(protected wasm: BarretenbergWasmWorker) {}
 
-  async pedersenCommit(inputsBuffer: Fr[]): Promise<Point> {
-    const inArgs = [inputsBuffer].map(serializeBufferable);
+  async pedersenCommit(inputsBuffer: Fr[], ctxIndex: number): Promise<Point> {
+    const inArgs = [inputsBuffer, ctxIndex].map(serializeBufferable);
     const outTypes: OutputType[] = [Point];
     const result = await this.wasm.callWasmExport(
       'pedersen_commit',
@@ -367,18 +367,6 @@ export class BarretenbergApi {
     return;
   }
 
-  async acirCreateCircuit(acirComposerPtr: Ptr, constraintSystemBuf: Uint8Array, sizeHint: number): Promise<void> {
-    const inArgs = [acirComposerPtr, constraintSystemBuf, sizeHint].map(serializeBufferable);
-    const outTypes: OutputType[] = [];
-    const result = await this.wasm.callWasmExport(
-      'acir_create_circuit',
-      inArgs,
-      outTypes.map(t => t.SIZE_IN_BYTES),
-    );
-    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
-    return;
-  }
-
   async acirInitProvingKey(acirComposerPtr: Ptr, constraintSystemBuf: Uint8Array): Promise<void> {
     const inArgs = [acirComposerPtr, constraintSystemBuf].map(serializeBufferable);
     const outTypes: OutputType[] = [];
@@ -606,8 +594,8 @@ export class BarretenbergApi {
 export class BarretenbergApiSync {
   constructor(protected wasm: BarretenbergWasm) {}
 
-  pedersenCommit(inputsBuffer: Fr[]): Point {
-    const inArgs = [inputsBuffer].map(serializeBufferable);
+  pedersenCommit(inputsBuffer: Fr[], ctxIndex: number): Point {
+    const inArgs = [inputsBuffer, ctxIndex].map(serializeBufferable);
     const outTypes: OutputType[] = [Point];
     const result = this.wasm.callWasmExport(
       'pedersen_commit',
@@ -948,18 +936,6 @@ export class BarretenbergApiSync {
     const outTypes: OutputType[] = [];
     const result = this.wasm.callWasmExport(
       'acir_delete_acir_composer',
-      inArgs,
-      outTypes.map(t => t.SIZE_IN_BYTES),
-    );
-    const out = result.map((r, i) => outTypes[i].fromBuffer(r));
-    return;
-  }
-
-  acirCreateCircuit(acirComposerPtr: Ptr, constraintSystemBuf: Uint8Array, sizeHint: number): void {
-    const inArgs = [acirComposerPtr, constraintSystemBuf, sizeHint].map(serializeBufferable);
-    const outTypes: OutputType[] = [];
-    const result = this.wasm.callWasmExport(
-      'acir_create_circuit',
       inArgs,
       outTypes.map(t => t.SIZE_IN_BYTES),
     );

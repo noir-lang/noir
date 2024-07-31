@@ -149,7 +149,7 @@ describe('AVM simulator: transpiled Noir contracts', () => {
 
     expect(results.reverted).toBe(false);
     // This doesnt include infinites
-    const expectedResult = pedersenCommit([Buffer.from([100]), Buffer.from([1])]).map(f => new Fr(f));
+    const expectedResult = pedersenCommit([Buffer.from([100]), Buffer.from([1])], 20).map(f => new Fr(f));
     // TODO: Come back to the handling of infinities when we confirm how they're handled in bb
     const isInf = expectedResult[0] === new Fr(0) && expectedResult[1] === new Fr(0);
     expectedResult.push(new Fr(isInf));

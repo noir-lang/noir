@@ -7,12 +7,15 @@ import { type Fieldable, serializeToFields } from '../../serialize/serialize.js'
  * Create a pedersen commitment (point) from an array of input fields.
  * Left pads any inputs less than 32 bytes.
  */
-export function pedersenCommit(input: Buffer[]) {
+export function pedersenCommit(input: Buffer[], offset = 0) {
   if (!input.every(i => i.length <= 32)) {
     throw new Error('All Pedersen Commit input buffers must be <= 32 bytes.');
   }
   input = input.map(i => (i.length < 32 ? Buffer.concat([Buffer.alloc(32 - i.length, 0), i]) : i));
-  const point = BarretenbergSync.getSingleton().pedersenCommit(input.map(i => new FrBarretenberg(i)));
+  const point = BarretenbergSync.getSingleton().pedersenCommit(
+    input.map(i => new FrBarretenberg(i)),
+    offset,
+  );
   // toBuffer returns Uint8Arrays (browser/worker-boundary friendly).
   // TODO: rename toTypedArray()?
   return [Buffer.from(point.x.toBuffer()), Buffer.from(point.y.toBuffer())];
