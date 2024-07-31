@@ -1,59 +1,56 @@
-use dep::aztec::prelude::{
-    AztecAddress, NoteGetterOptions, NoteViewerOptions, NoteHeader, NoteInterface, PrivateContext,
-    PrivateSet, Map
-};
+use dep::aztec::prelude::{AztecAddress, NoteGetterOptions, NoteViewerOptions, NoteHeader, NoteInterface, PrivateSet, Map};
 use dep::aztec::{
-    hash::pedersen_hash, protocol_types::constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
+    context::{PrivateContext, UnconstrainedContext}, hash::pedersen_hash,
+    protocol_types::constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
     note::{
-    note_getter::view_notes, note_getter_options::{SortOrder, Comparator},
-    note_emission::OuterNoteEmission
-},
-    context::UnconstrainedContext
+    note_getter::view_notes, note_getter_options::SortOrder,
+    note_emission::{NoteEmission, OuterNoteEmission}
+}
 };
-use crate::types::token_note::{TokenNote, OwnedNote};
+use crate::types::{token_note::{TokenNote, OwnedNote}};
 
 struct BalancesMap<T, Context> {
-    map: PrivateSet<T, Context>
+    map: Map<AztecAddress, PrivateSet<T, Context>, Context>
 }
 
 impl<T, Context> BalancesMap<T, Context> {
     pub fn new(context: Context, storage_slot: Field) -> Self {
         assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
-        Self { map: PrivateSet::new(context, storage_slot) }
+        Self {
+            map: Map::new(
+                context,
+                storage_slot,
+                |context, slot| PrivateSet::new(context, slot)
+            )
+        }
     }
 }
 
 impl<T> BalancesMap<T, UnconstrainedContext> {
-    unconstrained fn balance_of<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
+    unconstrained pub fn balance_of<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
         self: Self,
-        owner_npk_m_hash: Field
+        owner: AztecAddress
     ) -> U128 where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote {
-        self.balance_of_with_offset(owner_npk_m_hash, 0)
+        self.balance_of_with_offset(owner, 0)
     }
 
-    unconstrained fn balance_of_with_offset<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
+    unconstrained pub fn balance_of_with_offset<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
         self: Self,
-        owner_npk_m_hash: Field,
+        owner: AztecAddress,
         offset: u32
     ) -> U128 where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote {
         let mut balance = U128::from_integer(0);
+        // docs:start:view_notes
         let mut options = NoteViewerOptions::new();
-
-        let notes = self.map.view_notes(
-            options.select(
-                T::get_owner_selector(),
-                owner_npk_m_hash,
-                Option::some(Comparator.EQ)
-            )
-        );
-
+        let notes = self.map.at(owner).view_notes(options.set_offset(offset));
+        // docs:end:view_notes
         for i in 0..options.limit {
             if i < notes.len() {
                 balance = balance + notes.get_unchecked(i).get_amount();
             }
         }
         if (notes.len() == options.limit) {
-            balance = balance + self.balance_of_with_offset(owner_npk_m_hash, offset + options.limit);
+            balance = balance + self.balance_of_with_offset(owner, offset + options.limit);
         }
 
         balance
@@ -61,33 +58,36 @@ impl<T> BalancesMap<T, UnconstrainedContext> {
 }
 
 impl<T> BalancesMap<T, &mut PrivateContext> {
-
-    pub fn to_unconstrained(self: Self) -> BalancesMap<T, UnconstrainedContext> {
-        BalancesMap { map: PrivateSet::new(UnconstrainedContext::new(), self.map.storage_slot) }
-    }
-
     pub fn add<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
         self: Self,
-        owner_npk_m_hash: Field,
+        owner: AztecAddress,
         addend: U128
     ) -> OuterNoteEmission<T> where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote + Eq {
-        let mut addend_note = T::new(addend, owner_npk_m_hash);
-        OuterNoteEmission::new(Option::some(self.map.insert(&mut addend_note)))
+        if addend == U128::from_integer(0) {
+            OuterNoteEmission::new(Option::none())
+        } else {
+            let context = self.map.context;
+            let header = context.get_header();
+
+            // We fetch the nullifier public key hash from the registry / from our PXE
+            let owner_npk_m_hash = header.get_npk_m_hash(context, owner);
+            let mut addend_note = T::new(addend, owner_npk_m_hash);
+
+            // docs:start:insert
+            OuterNoteEmission::new(Option::some(self.map.at(owner).insert(&mut addend_note)))
+            // docs:end:insert
+        }
     }
 
     pub fn sub<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
         self: Self,
-        owner_npk_m_hash: Field,
+        owner: AztecAddress,
         subtrahend: U128
     ) -> OuterNoteEmission<T> where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote + Eq {
-        let mut options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend);
-        let notes = self.map.get_notes(
-            options.select(
-                T::get_owner_selector(),
-                owner_npk_m_hash,
-                Option::some(Comparator.EQ)
-            )
-        );
+        // docs:start:get_notes
+        let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend);
+        let notes = self.map.at(owner).get_notes(options);
+        // docs:end:get_notes
 
         let mut minuend: U128 = U128::from_integer(0);
         for i in 0..options.limit {
@@ -99,7 +99,7 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
                 // which require knowledge of the secret key (currently the users encryption key).
                 // The contract logic must ensure that the spending key is used as well.
                 // docs:start:remove
-                self.map.remove(note);
+                self.map.at(owner).remove(note);
                 // docs:end:remove
 
                 minuend = minuend + note.get_amount();
@@ -111,7 +111,7 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
         // without the == true, it includes 'minuend.ge(subtrahend)' as part of the error.
         assert(minuend >= subtrahend, "Balance too low");
 
-        self.add(owner_npk_m_hash, minuend - subtrahend)
+        self.add(owner, minuend - subtrahend)
     }
 }
 

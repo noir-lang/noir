@@ -27,7 +27,7 @@ trait PrivatelyRefundable {
         incomplete_fee_payer_point: Point,
         incomplete_user_point: Point,
         transaction_fee: Field
-    ) -> (Point, Point);
+    ) -> (Field, Field);
 }
 
 global TOKEN_NOTE_LEN: Field = 3; // 3 plus a header.
@@ -216,7 +216,6 @@ impl PrivatelyRefundable for TokenNote {
         // 3. We do the necessary conversion for values relevant for the sponsored user point.
         // We use the unsafe version because the multi_scalar_mul will constrain the scalars.
         let funded_amount_scalar = from_field_unsafe(funded_amount);
-        // TODO(#7324), TODO(#7323): using npk_m_hash here is vulnerable in 2 ways described in the linked issues.
         let user_npk_m_hash_scalar = from_field_unsafe(user_npk_m_hash);
         let user_randomness_scalar = from_field_unsafe(user_randomness);
 
@@ -230,7 +229,7 @@ impl PrivatelyRefundable for TokenNote {
         (incomplete_fee_payer_point, incomplete_user_point)
     }
 
-    fn complete_refund(incomplete_fee_payer_point: Point, incomplete_user_point: Point, transaction_fee: Field) -> (Point, Point) {
+    fn complete_refund(incomplete_fee_payer_point: Point, incomplete_user_point: Point, transaction_fee: Field) -> (Field, Field) {
         // 1. We convert the transaction fee to high and low limbs to be able to use BB API.
         // We use the unsafe version because the multi_scalar_mul will constrain the scalars.
         let transaction_fee_scalar = from_field_unsafe(transaction_fee);
@@ -248,7 +247,12 @@ impl PrivatelyRefundable for TokenNote {
 
         assert_eq(user_point.is_infinite, false);
 
-        // Finally we return the points which represent the note hiding points.
-        (fee_payer_point, user_point)
+        // 4. We no longer need to do any elliptic curve operations with the points so we collapse them to the final
+        // note hashes.
+        let fee_payer_note_hash = fee_payer_point.x;
+        let user_note_hash = user_point.x;
+
+        // 5. Finally we return the hashes.
+        (fee_payer_note_hash, user_note_hash)
     }
 }

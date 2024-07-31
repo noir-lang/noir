@@ -261,9 +261,12 @@ export class FeesTest {
           .deployed();
 
         this.logger.info(`TokenWithRefunds deployed at ${tokenWithRefunds.address}`);
-        const adminKeyHash = this.bobWallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash();
 
-        const privateFPCSent = PrivateFPCContract.deploy(this.bobWallet, tokenWithRefunds.address, adminKeyHash).send();
+        const privateFPCSent = PrivateFPCContract.deploy(
+          this.bobWallet,
+          tokenWithRefunds.address,
+          this.bobWallet.getAddress(),
+        ).send();
         const privateFPC = await privateFPCSent.deployed();
 
         this.logger.info(`PrivateFPC deployed at ${privateFPC.address}`);

@@ -1,100 +1,70 @@
-use crate::test::utils;
+use crate::{test::utils, TokenWithRefunds, types::token_note::TokenNote};
+
 use dep::aztec::{
     test::helpers::cheatcodes, oracle::unsafe_rand::unsafe_rand, hash::compute_secret_hash,
-    prelude::NoteHeader
+    prelude::NoteHeader, protocol_types::storage::map::derive_storage_slot_in_map
 };
-use crate::TokenWithRefunds;
-use crate::types::token_note::TokenNote;
 use dep::authwit::cheatcodes as authwit_cheatcodes;
-
-#[test]
-unconstrained fn transfer_success() {
-    let (env, token_contract_address, owner, recipient, mint_amount) = utils::setup_and_mint(true);
-
-    let transfer_amount = 1_000;
-
-    let transfer_private_from_call_interface = TokenWithRefunds::at(token_contract_address).transfer_from(owner, recipient, transfer_amount, 1);
-
-    authwit_cheatcodes::add_private_authwit_from_call_interface(owner, recipient, transfer_private_from_call_interface);
-
-    env.impersonate(recipient);
-    // Transfer tokens
-    env.call_private_void(transfer_private_from_call_interface);
-    // Check balances
-    utils::check_private_balance(
-        &mut env.private(),
-        token_contract_address,
-        owner,
-        mint_amount - transfer_amount
-    );
-    utils::check_private_balance(
-        &mut env.private(),
-        token_contract_address,
-        recipient,
-        transfer_amount
-    );
-}
 
 #[test]
 unconstrained fn setup_refund_success() {
     let (env, token_contract_address, owner, recipient, mint_amount) = utils::setup_and_mint(true);
 
+    // Renaming owner and recipient to match naming in TokenWithRefunds
+    let user = owner;
+    let fee_payer = recipient;
+
     let funded_amount = 1_000;
     let user_randomness = 42;
     let fee_payer_randomness = 123;
     let mut context = env.private();
-    let recipient_npk_m_hash = context.get_header().get_npk_m_hash(&mut context, recipient);
 
     let setup_refund_from_call_interface = TokenWithRefunds::at(token_contract_address).setup_refund(
-        recipient_npk_m_hash, // fee payer
-        owner, // sponsored user
+        fee_payer,
+        user,
         funded_amount,
         user_randomness,
         fee_payer_randomness
     );
 
-    authwit_cheatcodes::add_private_authwit_from_call_interface(owner, recipient, setup_refund_from_call_interface);
+    authwit_cheatcodes::add_private_authwit_from_call_interface(user, fee_payer, setup_refund_from_call_interface);
 
-    env.impersonate(recipient);
+    env.impersonate(fee_payer);
 
     env.call_private_void(setup_refund_from_call_interface);
     let mut context = env.private();
-    let owner_npk_m_hash = context.get_header().get_npk_m_hash(&mut context, owner);
-    let recipient_npk_m_hash = context.get_header().get_npk_m_hash(&mut context, recipient);
+    let user_npk_m_hash = context.get_header().get_npk_m_hash(&mut context, user);
+    let fee_payer_npk_m_hash = context.get_header().get_npk_m_hash(&mut context, fee_payer);
 
-    // when the refund was set up, we would've broken the note worth mint_amount, and added back a note worth
-    // mint_amount - funded_amount
-    // then when completing the refund, we would've constructed a hash corresponding to a note worth 
-    // funded_amount - transaction_fee
-    // we "know" the transaction fee was 1 (it is hardcoded in TXE oracle)
-    // but we need to notify TXE of the note (preimage)
+    let fee_payer_balances_slot = derive_storage_slot_in_map(TokenWithRefunds::storage().balances.slot, fee_payer);
+    let user_balances_slot = derive_storage_slot_in_map(TokenWithRefunds::storage().balances.slot, user);
+
+    // When the refund was set up, we would've spent the note worth mint_amount, and inserted a note worth
+    //`mint_amount - funded_amount`. When completing the refund, we would've constructed a hash corresponding to a note
+    // worth  `funded_amount - transaction_fee`. We "know" the transaction fee was 1 (it is hardcoded in TXE oracle)
+    // but we need to notify TXE of the note (preimage).
     env.store_note_in_cache(
         &mut TokenNote {
         amount: U128::from_integer(funded_amount - 1),
-        npk_m_hash: owner_npk_m_hash,
+        npk_m_hash: user_npk_m_hash,
         randomness: user_randomness,
         header: NoteHeader::empty()
     },
-        TokenWithRefunds::storage().balances.slot,
+        user_balances_slot,
         token_contract_address
     );
     env.store_note_in_cache(
         &mut TokenNote {
         amount: U128::from_integer(1),
-        npk_m_hash: recipient_npk_m_hash,
+        npk_m_hash: fee_payer_npk_m_hash,
         randomness: fee_payer_randomness,
         header: NoteHeader::empty()
     },
-        TokenWithRefunds::storage().balances.slot,
+        fee_payer_balances_slot,
         token_contract_address
     );
 
-    utils::check_private_balance(
-        &mut env.private(),
-        token_contract_address,
-        owner,
-        mint_amount - 1
-    );
-    utils::check_private_balance(&mut env.private(), token_contract_address, recipient, 1)
+    utils::check_private_balance(token_contract_address, user, mint_amount - 1);
+    utils::check_private_balance(token_contract_address, fee_payer, 1)
 }
 

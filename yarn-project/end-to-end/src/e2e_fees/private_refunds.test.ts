@@ -7,6 +7,7 @@ import {
   type Wallet,
 } from '@aztec/aztec.js';
 import { Fr, type GasSettings } from '@aztec/circuits.js';
+import { deriveStorageSlotInMap } from '@aztec/circuits.js/hash';
 import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { type PrivateFPCContract, TokenWithRefundsContract } from '@aztec/noir-contracts.js';
@@ -48,13 +49,8 @@ describe('e2e_fees/private_refunds', () => {
     ]);
   });
 
-  // This will get re-enabled in a PR up the stack.
-  it.skip('can do private payments and refunds', async () => {
-    // 1. We get the hash of Bob's master nullifier public key. The corresponding nullifier secret key can later on
-    // be used to nullify/spend the note that contains the npk_m_hash.
-    // TODO(#7324): The values in complete address are currently not updated after the keys are rotated so this does
-    // not work with key rotation as the key might be the old one and then we would fetch a new one in the contract.
-    const bobNpkMHash = t.bobWallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash();
+  it('can do private payments and refunds', async () => {
+    // 1. We generate randomness for Alice and derive randomness for Bob.
     const aliceRandomness = Fr.random(); // Called user_randomness in contracts
     const bobRandomness = poseidon2Hash([aliceRandomness]); // Called fee_payer_randomness in contracts
 
@@ -70,7 +66,7 @@ describe('e2e_fees/private_refunds', () => {
             aliceWallet,
             aliceRandomness,
             bobRandomness,
-            bobNpkMHash, // We use Bob's npk_m_hash in the notes that contain the transaction fee.
+            t.bobWallet.getAddress(), // Bob is the recipient of the fee notes.
           ),
         },
       })
@@ -87,8 +83,6 @@ describe('e2e_fees/private_refunds', () => {
     // the fee limit minus the final transaction fee. The other 2 fields in the note are Alice's npk_m_hash and
     // the randomness.
     const refundNoteValue = t.gasSettings.getFeeLimit().sub(new Fr(tx.transactionFee!));
-    // TODO(#7324): The values in complete address are currently not updated after the keys are rotated so this does
-    // not work with key rotation as the key might be the old one and then we would fetch a new one in the contract.
     const aliceNpkMHash = t.aliceWallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash();
     const aliceRefundNote = new Note([refundNoteValue, aliceNpkMHash, aliceRandomness]);
 
@@ -101,16 +95,17 @@ describe('e2e_fees/private_refunds', () => {
         aliceRefundNote,
         t.aliceAddress,
         tokenWithRefunds.address,
-        TokenWithRefundsContract.storage.balances.slot,
+        deriveStorageSlotInMap(TokenWithRefundsContract.storage.balances.slot, t.aliceAddress),
         TokenWithRefundsContract.notes.TokenNote.id,
         tx.txHash,
       ),
     );
 
     // 6. Now we reconstruct the note for the final fee payment. It should contain the transaction fee, Bob's
-    // npk_m_hash (set in the paymentMethod above) and the randomness.
+    // npk_m_hash and the randomness.
     // Note that FPC emits randomness as unencrypted log and the tx fee is publicly know so Bob is able to reconstruct
     // his note just from on-chain data.
+    const bobNpkMHash = t.bobWallet.getCompleteAddress().publicKeys.masterNullifierPublicKey.hash();
     const bobFeeNote = new Note([new Fr(tx.transactionFee!), bobNpkMHash, bobRandomness]);
 
     // 7. Once again we add the note to PXE which computes the note hash and checks that it is in the note hash tree.
@@ -119,7 +114,7 @@ describe('e2e_fees/private_refunds', () => {
         bobFeeNote,
         t.bobAddress,
         tokenWithRefunds.address,
-        TokenWithRefundsContract.storage.balances.slot,
+        deriveStorageSlotInMap(TokenWithRefundsContract.storage.balances.slot, t.bobAddress),
         TokenWithRefundsContract.notes.TokenNote.id,
         tx.txHash,
       ),
@@ -165,9 +160,9 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
     private feePayerRandomness: Fr,
 
     /**
-     * The hash of the master nullifier public key that the FPC sends notes it receives to.
+     * Address that the FPC sends notes it receives to.
      */
-    private feeRecipientNpkMHash: Fr,
+    private feeRecipient: AztecAddress,
   ) {}
 
   /**
@@ -196,13 +191,13 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
       action: {
         name: 'setup_refund',
         args: [
-          this.feeRecipientNpkMHash,
+          this.feeRecipient,
           this.wallet.getCompleteAddress().address,
           maxFee,
           this.userRandomness,
           this.feePayerRandomness,
         ],
-        selector: FunctionSelector.fromSignature('setup_refund(Field,(Field),Field,Field,Field)'),
+        selector: FunctionSelector.fromSignature('setup_refund((Field),(Field),Field,Field,Field)'),
         type: FunctionType.PRIVATE,
         isStatic: false,
         to: this.asset,

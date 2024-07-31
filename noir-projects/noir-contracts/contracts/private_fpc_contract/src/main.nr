@@ -9,14 +9,14 @@ contract PrivateFPC {
     #[aztec(storage)]
     struct Storage {
         other_asset: SharedImmutable<AztecAddress>,
-        admin_npk_m_hash: SharedImmutable<Field>
+        admin: SharedImmutable<AztecAddress>,
     }
 
     #[aztec(public)]
     #[aztec(initializer)]
-    fn constructor(other_asset: AztecAddress, admin_npk_m_hash: Field) {
+    fn constructor(other_asset: AztecAddress, admin: AztecAddress) {
         storage.other_asset.initialize(other_asset);
-        storage.admin_npk_m_hash.initialize(admin_npk_m_hash);
+        storage.admin.initialize(admin);
     }
 
     #[aztec(private)]
@@ -32,7 +32,7 @@ contract PrivateFPC {
         emit_randomness_as_unencrypted_log(&mut context, fee_payer_randomness);
 
         TokenWithRefunds::at(asset).setup_refund(
-            storage.admin_npk_m_hash.read_private(),
+            storage.admin.read_private(),
             context.msg_sender(),
             amount,
             user_randomness,
