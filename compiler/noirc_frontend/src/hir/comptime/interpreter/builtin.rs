@@ -490,9 +490,7 @@ fn type_is_field(mut arguments: Vec<(Value, Location)>, location: Location) -> I
         panic!("type_is_field shold have been called with a type");
     };
 
-    let is_field = matches!(typ, Type::FieldElement);
-
-    Ok(Value::Bool(is_field))
+    Ok(Value::Bool(matches!(typ, Type::FieldElement)))
 }
 
 fn type_of(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
