@@ -294,7 +294,7 @@ jobs:
         working-directory: ./barretenberg/cpp/
         timeout-minutes: 40
         # limit our parallelism to half our cores
-        run: earthly-ci --no-output +test --hardware_concurrency=64
+        run: earthly-ci --exec-stats --no-output +test --hardware_concurrency=64
 
   bb-js-test:
     needs: [build-images, changes]
