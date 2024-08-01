@@ -258,8 +258,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
         let mut scope = Vec::new();
-        if self.elaborator.comptime_scopes.len() > 1 {
-            scope = self.elaborator.comptime_scopes.drain(1..).collect();
+        if self.elaborator.interner.comptime_scopes.len() > 1 {
+            scope = self.elaborator.interner.comptime_scopes.drain(1..).collect();
         }
         self.push_scope();
         (std::mem::take(&mut self.in_loop), scope)
@@ -269,21 +269,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.in_loop = state.0;
 
         // Keep only the global scope
-        self.elaborator.comptime_scopes.truncate(1);
-        self.elaborator.comptime_scopes.append(&mut state.1);
+        self.elaborator.interner.comptime_scopes.truncate(1);
+        self.elaborator.interner.comptime_scopes.append(&mut state.1);
     }
 
     pub(super) fn push_scope(&mut self) {
-        self.elaborator.comptime_scopes.push(HashMap::default());
+        self.elaborator.interner.comptime_scopes.push(HashMap::default());
     }
 
     pub(super) fn pop_scope(&mut self) {
-        self.elaborator.comptime_scopes.pop();
+        self.elaborator.interner.comptime_scopes.pop();
     }
 
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
-        self.elaborator.comptime_scopes.last_mut().unwrap()
+        self.elaborator.interner.comptime_scopes.last_mut().unwrap()
     }
 
     fn unbind_generics_from_previous_function(&mut self) {
@@ -403,7 +403,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return Ok(());
         }
 
-        for scope in self.elaborator.comptime_scopes.iter_mut().rev() {
+        for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 entry.insert(argument);
                 return Ok(());
@@ -417,7 +417,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
-        for scope in self.elaborator.comptime_scopes.iter().rev() {
+        for scope in self.elaborator.interner.comptime_scopes.iter().rev() {
             if let Some(value) = scope.get(&id) {
                 return Ok(value.clone());
             }

@@ -59,13 +59,11 @@ impl<'context> Elaborator<'context> {
             elaborator.introduce_generics_into_scope(meta.all_generics.clone());
         }
 
-        elaborator.comptime_scopes = std::mem::take(&mut self.comptime_scopes);
         elaborator.populate_scope_from_comptime_scopes();
 
         let result = f(&mut elaborator);
         elaborator.check_and_pop_function_context();
 
-        self.comptime_scopes = elaborator.comptime_scopes;
         self.errors.append(&mut elaborator.errors);
         result
     }
@@ -74,7 +72,7 @@ impl<'context> Elaborator<'context> {
         // Take the comptime scope to be our runtime scope.
         // Iterate from global scope to the most local scope so that the
         // later definitions will naturally shadow the former.
-        for scope in &self.comptime_scopes {
+        for scope in &self.interner.comptime_scopes {
             for definition_id in scope.keys() {
                 let definition = self.interner.definition(*definition_id);
                 let name = definition.name.clone();
