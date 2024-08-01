@@ -97,7 +97,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                             self.call_stack.push(resolved_location);
                             Some(self.call_stack.clone())
                         }
-                        OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
+                        OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. }
+                        | OpcodeResolutionError::BrilligFunctionUnsatisfiedConstrain {
+                            call_stack,
+                            ..
+                        } => {
                             let brillig_call_stack =
                                 call_stack.iter().map(|location| ResolvedOpcodeLocation {
                                     acir_function_index: self.current_function_index,
@@ -111,6 +115,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
 
                     let assertion_payload: Option<ResolvedAssertionPayload<F>> = match &error {
                         OpcodeResolutionError::BrilligFunctionFailed { payload, .. }
+                        | OpcodeResolutionError::BrilligFunctionUnsatisfiedConstrain {
+                            payload,
+                            ..
+                        }
                         | OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } => {
                             payload.clone()
                         }

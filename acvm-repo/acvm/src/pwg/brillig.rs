@@ -169,20 +169,26 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                         brillig_index: *brillig_index,
                     })
                     .collect();
-                let payload = match reason {
-                    FailureReason::RuntimeError { message } => {
-                        Some(ResolvedAssertionPayload::String(message))
-                    }
-                    FailureReason::Trap { revert_data_offset, revert_data_size } => {
-                        extract_failure_payload_from_memory(
-                            self.vm.get_memory(),
-                            revert_data_offset,
-                            revert_data_size,
-                        )
-                    }
-                };
 
-                Err(OpcodeResolutionError::BrilligFunctionFailed { payload, call_stack })
+                Err(match reason {
+                    FailureReason::RuntimeError { message } => {
+                        OpcodeResolutionError::BrilligFunctionFailed {
+                            call_stack,
+                            payload: Some(ResolvedAssertionPayload::String(message)),
+                        }
+                    }
+
+                    FailureReason::Trap { revert_data_offset, revert_data_size } => {
+                        OpcodeResolutionError::BrilligFunctionUnsatisfiedConstrain {
+                            call_stack,
+                            payload: extract_failure_payload_from_memory(
+                                self.vm.get_memory(),
+                                revert_data_offset,
+                                revert_data_size,
+                            ),
+                        }
+                    }
+                })
             }
             VMStatus::ForeignCallWait { function, inputs } => {
                 Ok(BrilligSolverStatus::ForeignCallWait(ForeignCallWaitInfo { function, inputs }))
