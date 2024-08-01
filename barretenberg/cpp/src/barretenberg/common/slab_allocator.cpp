@@ -181,7 +181,7 @@ std::shared_ptr<void> SlabAllocator::get(size_t req_size)
         return { aligned_alloc(32, req_size), aligned_free };
     }
     // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
-    return { malloc(req_size), free };
+    return { tracy_malloc(req_size), tracy_free };
 }
 
 size_t SlabAllocator::get_total_size()
@@ -208,11 +208,6 @@ void init_slab_allocator(size_t circuit_subgroup_size)
 {
     allocator.init(circuit_subgroup_size);
 }
-
-// auto init = ([]() {
-//     init_slab_allocator(524288);
-//     return 0;
-// })();
 
 std::shared_ptr<void> get_mem_slab(size_t size)
 {

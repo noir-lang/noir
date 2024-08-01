@@ -1,4 +1,5 @@
 #include "barretenberg/client_ivc/client_ivc.hpp"
+#include "tracy/Tracy.hpp"
 
 namespace bb {
 
@@ -56,6 +57,7 @@ void ClientIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verific
  */
 ClientIVC::Proof ClientIVC::prove()
 {
+    ZoneScoped;
     max_block_size_tracker.print(); // print minimum structured sizes for each block
     return { fold_output.proof, decider_prove(), goblin.prove() };
 };
@@ -85,7 +87,7 @@ bool ClientIVC::verify(const Proof& proof,
  * @param proof
  * @return bool
  */
-bool ClientIVC::verify(Proof& proof, const std::vector<std::shared_ptr<VerifierInstance>>& verifier_instances)
+bool ClientIVC::verify(Proof& proof, const std::vector<std::shared_ptr<VerifierInstance>>& verifier_instances) const
 {
     auto eccvm_vk = std::make_shared<ECCVMVerificationKey>(goblin.get_eccvm_proving_key());
     auto translator_vk = std::make_shared<TranslatorVerificationKey>(goblin.get_translator_proving_key());

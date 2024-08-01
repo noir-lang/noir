@@ -1,6 +1,6 @@
 include(ExternalProject)
 
-# External project: Download msgpack-c from GitHu
+# External project: Download msgpack-c from GitHub
 set(MSGPACK_PREFIX "${CMAKE_BINARY_DIR}/_deps/msgpack-c")
 set(MSGPACK_INCLUDE "${MSGPACK_PREFIX}/src/msgpack-c/include")
 

@@ -84,6 +84,26 @@
       }
     },
     {
+      "name": "tracy",
+      "displayName": "Release build with tracy",
+      "description": "Release build with tracy",
+      "inherits": "clang16",
+      "binaryDir": "build-tracy",
+      "cacheVariables": {
+        "ENABLE_TRACY": "ON"
+      }
+    },
+    {
+      "name": "wasm-tracy",
+      "displayName": "WASM build with tracy",
+      "description": "WASM build with tracy",
+      "inherits": "clang16",
+      "binaryDir": "build-wasm-tracy",
+      "cacheVariables": {
+        "ENABLE_TRACY": "ON"
+      }
+    },
+    {
       "name": "clang16-dbg-fast",
       "displayName": "Optimized debug build with Clang-16",
       "description": "Build with globally installed Clang-16 in optimized debug mode",
@@ -409,6 +429,11 @@
       "name": "clang16-dbg",
       "inherits": "default",
       "configurePreset": "clang16-dbg"
+    },
+    {
+      "name": "tracy",
+      "inherits": "default",
+      "configurePreset": "tracy"
     },
     {
       "name": "clang16-dbg-fast",
