@@ -451,18 +451,8 @@ fn type_as_integer(
         panic!("type_as_integer shold have been called with a type");
     };
 
-    let Type::Struct(_option_type, mut generics) = return_type.clone() else {
-        panic!("Expected return type to be an Option");
-    };
-
-    let t = generics.pop().expect("Expected Option to have a T generic type");
-
-    let is_some;
-    let value;
-
-    if let Type::Integer(sign, bits) = typ {
-        is_some = Value::Bool(true);
-        value = Value::Tuple(vec![
+    let option_value = if let Type::Integer(sign, bits) = typ {
+        Some(Value::Tuple(vec![
             Value::Bool(match sign {
                 Signedness::Unsigned => false,
                 Signedness::Signed => true,
@@ -474,16 +464,13 @@ fn type_as_integer(
                 IntegerBitSize::ThirtyTwo => 32,
                 IntegerBitSize::SixtyFour => 64,
             }),
-        ]);
+        ]))
     } else {
-        is_some = Value::Bool(false);
-        value = Value::Zeroed(t);
-    }
+        None
+    };
 
-    let mut fields = HashMap::default();
-    fields.insert(Rc::new("_is_some".to_string()), is_some);
-    fields.insert(Rc::new("_value".to_string()), value);
-    let option = Value::Struct(fields, return_type);
+    let option = Value::option(return_type, option_value);
+
     Ok(option)
 }
 
