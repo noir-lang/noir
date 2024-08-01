@@ -129,6 +129,31 @@ describe('e2e_fees/private_refunds', () => {
       [initialAliceBalance - tx.transactionFee!, initialBobBalance + tx.transactionFee!],
     );
   });
+
+  // TODO(#7694): Remove this test once the lacking feature in TXE is implemented.
+  it('insufficient funded amount is correctly handled', async () => {
+    // 1. We generate randomness for Alice and derive randomness for Bob.
+    const aliceRandomness = Fr.random(); // Called user_randomness in contracts
+    const bobRandomness = poseidon2Hash([aliceRandomness]); // Called fee_payer_randomness in contracts
+
+    // 2. We call arbitrary `private_get_name(...)` function to check that the fee refund flow works.
+    await expect(
+      tokenWithRefunds.methods.private_get_name().prove({
+        fee: {
+          gasSettings: t.gasSettings,
+          paymentMethod: new PrivateRefundPaymentMethod(
+            tokenWithRefunds.address,
+            privateFPC.address,
+            aliceWallet,
+            aliceRandomness,
+            bobRandomness,
+            t.bobWallet.getAddress(), // Bob is the recipient of the fee notes.
+            true, // We set max fee/funded amount to zero to trigger the error.
+          ),
+        },
+      }),
+    ).rejects.toThrow('tx fee is higher than funded amount');
+  });
 });
 
 class PrivateRefundPaymentMethod implements FeePaymentMethod {
@@ -163,6 +188,12 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
      * Address that the FPC sends notes it receives to.
      */
     private feeRecipient: AztecAddress,
+
+    /**
+     * If true, the max fee will be set to 0.
+     * TODO(#7694): Remove this param once the lacking feature in TXE is implemented.
+     */
+    private setMaxFeeToZero = false,
   ) {}
 
   /**
@@ -183,8 +214,9 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
    * @returns The function call to pay the fee.
    */
   async getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
-    // we assume 1:1 exchange rate between fee juice and token. But in reality you would need to convert feeLimit (maxFee) to be in token denomination
-    const maxFee = gasSettings.getFeeLimit();
+    // We assume 1:1 exchange rate between fee juice and token. But in reality you would need to convert feeLimit
+    // (maxFee) to be in token denomination.
+    const maxFee = this.setMaxFeeToZero ? Fr.ZERO : gasSettings.getFeeLimit();
 
     await this.wallet.createAuthWit({
       caller: this.paymentContract,

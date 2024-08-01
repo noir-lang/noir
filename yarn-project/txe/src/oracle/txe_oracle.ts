@@ -772,8 +772,12 @@ export class TXE implements TypedOracle {
 
     const executionResult = await this.executePublicFunction(targetContractAddress, args, callContext);
 
+    if (executionResult.reverted) {
+      throw new Error(`Execution reverted with reason: ${executionResult.revertReason}`);
+    }
+
     // Apply side effects
-    this.sideEffectsCounter = executionResult.endSideEffectCounter.toNumber();
+    this.sideEffectsCounter += executionResult.endSideEffectCounter.toNumber();
     this.setContractAddress(currentContractAddress);
     this.setMsgSender(currentMessageSender);
     this.setFunctionSelector(currentFunctionSelector);
@@ -807,6 +811,10 @@ export class TXE implements TypedOracle {
     const args = this.packedValuesCache.unpack(argsHash);
 
     const executionResult = await this.executePublicFunction(targetContractAddress, args, callContext);
+
+    if (executionResult.reverted) {
+      throw new Error(`Execution reverted with reason: ${executionResult.revertReason}`);
+    }
 
     // Apply side effects
     this.sideEffectsCounter += executionResult.endSideEffectCounter.toNumber();

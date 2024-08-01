@@ -457,7 +457,6 @@ contract TokenWithRefunds {
         let (fee_payer_point, user_point) = TokenNote::generate_refund_points(
             fee_payer_npk_m_hash,
             user_npk_m_hash,
-            funded_amount,
             user_randomness,
             fee_payer_randomness
         );
@@ -473,20 +472,25 @@ contract TokenWithRefunds {
         // function has access to the final transaction fee, which is needed to compute the actual refund amount.
         context.set_public_teardown_function(
             context.this_address(),
-            FunctionSelector::from_signature("complete_refund((Field,Field,bool),(Field,Field,bool))"),
+            FunctionSelector::from_signature("complete_refund((Field,Field,bool),(Field,Field,bool),Field)"),
             [
-            slotted_fee_payer_point.x, slotted_fee_payer_point.y, slotted_fee_payer_point.is_infinite as Field, slotted_user_point.x, slotted_user_point.y, slotted_user_point.is_infinite as Field
+            slotted_fee_payer_point.x, slotted_fee_payer_point.y, slotted_fee_payer_point.is_infinite as Field, slotted_user_point.x, slotted_user_point.y, slotted_user_point.is_infinite as Field, funded_amount
         ]
         );
     }
 
     #[aztec(public)]
     #[aztec(internal)]
-    fn complete_refund(fee_payer_point: Point, user_point: Point) {
-        // 1. We get the final note hiding points by calling a `complete_refund` function on the note.
-        // We use 1:1 exchange rate between fee juice and token. So using `tx_fee` is enough
-        let tx_fee = context.transaction_fee();
-        let (fee_payer_note_hash, user_note_hash) = TokenNote::complete_refund(fee_payer_point, user_point, tx_fee);
+    fn complete_refund(fee_payer_point: Point, user_point: Point, funded_amount: Field) {
+        // 1. We get the final note hashes by calling a `complete_refund` function on the note.
+        // We use 1:1 exchange rate between fee juice and token so just passing transaction fee and funded amount
+        // to `complete_refund(...)` function is enough.
+        let (fee_payer_note_hash, user_note_hash) = TokenNote::complete_refund(
+            fee_payer_point,
+            user_point,
+            funded_amount,
+            context.transaction_fee()
+        );
 
         // 2. At last we emit the note hashes.
         context.push_note_hash(fee_payer_note_hash);

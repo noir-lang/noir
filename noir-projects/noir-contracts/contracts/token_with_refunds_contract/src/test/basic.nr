@@ -41,8 +41,8 @@ unconstrained fn setup_refund_success() {
 
     // When the refund was set up, we would've spent the note worth mint_amount, and inserted a note worth
     //`mint_amount - funded_amount`. When completing the refund, we would've constructed a hash corresponding to a note
-    // worth  `funded_amount - transaction_fee`. We "know" the transaction fee was 1 (it is hardcoded in TXE oracle)
-    // but we need to notify TXE of the note (preimage).
+    // worth  `funded_amount - transaction_fee`. We "know" the transaction fee was 1 (it is hardcoded in
+    // `executePublicFunction` TXE oracle) but we need to notify TXE of the note (preimage).
     env.store_note_in_cache(
         &mut TokenNote {
         amount: U128::from_integer(funded_amount - 1),
@@ -68,3 +68,36 @@ unconstrained fn setup_refund_success() {
     utils::check_private_balance(token_contract_address, fee_payer, 1)
 }
 
+// TODO(#7694): Ideally we would check the error message here but it's currently not possible because TXE does not
+// support checking messages of errors thrown in a public teardown function. Once this is supported, check the message
+// here and delete the e2e test checking it.
+// #[test(should_fail_with = "tx fee is higher than funded amount")]
+#[test(should_fail)]
+unconstrained fn setup_refund_insufficient_funded_amount() {
+    let (env, token_contract_address, owner, recipient, mint_amount) = utils::setup_and_mint(true);
+
+    // Renaming owner and recipient to match naming in TokenWithRefunds
+    let user = owner;
+    let fee_payer = recipient;
+
+    // We set funded amount to 0 to make the transaction fee higher than the funded amount
+    let funded_amount = 0;
+    let user_randomness = 42;
+    let fee_payer_randomness = 123;
+    let mut context = env.private();
+
+    let setup_refund_from_call_interface = TokenWithRefunds::at(token_contract_address).setup_refund(
+        fee_payer,
+        user,
+        funded_amount,
+        user_randomness,
+        fee_payer_randomness
+    );
+
+    authwit_cheatcodes::add_private_authwit_from_call_interface(user, fee_payer, setup_refund_from_call_interface);
+
+    env.impersonate(fee_payer);
+
+    // The following should fail with "tx fee is higher than funded amount" because funded amount is 0
+    env.call_private_void(setup_refund_from_call_interface);
+}
