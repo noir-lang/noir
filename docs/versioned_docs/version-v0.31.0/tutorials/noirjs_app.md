@@ -271,7 +271,7 @@ import circuit from '../circuit/target/circuit.json';
 [Noir is backend-agnostic](../index.mdx#whats-new-about-noir). We write Noir, but we also need a proving backend. That's why we need to import and instantiate the two dependencies we installed above: `BarretenbergBackend` and `Noir`. Let's import them right below:
 
 ```js
-import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
+import { BarretenbergBackend, BarretenbergVerifier as Verifier } from '@noir-lang/backend_barretenberg';
 import { Noir } from '@noir-lang/noir_js';
 ```
 
@@ -328,6 +328,12 @@ Time to celebrate, yes! But we shouldn't trust machines so blindly. Let's add th
 ```js
 display('logs', 'Verifying proof... ⌛');
 const isValid = await backend.verifyProof(proof);
+
+// or to cache and use the verification key:
+// const verificationKey = await backend.getVerificationKey();
+// const verifier = new Verifier();
+// const isValid = await verifier.verifyProof(proof, verificationKey);
+
 if (isValid) display('logs', 'Verifying proof... ✅');
 ```
 
