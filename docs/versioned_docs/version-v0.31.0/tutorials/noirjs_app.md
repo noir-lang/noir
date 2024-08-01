@@ -31,7 +31,7 @@ curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 ```
 
 Follow the instructions on [this page](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg/cpp/src/barretenberg/bb#installation) to install `bb`. 
-Version 0.41.0 is compatible with `nargo` version 0.31.0, which you can install with `bbup -v 0.46.1` once `bbup` is installed.
+Version 0.41.0 is compatible with `nargo` version 0.31.0, which you can install with `bbup -v 0.41.0` once `bbup` is installed.
 
 Easy enough. Onwards!
 
