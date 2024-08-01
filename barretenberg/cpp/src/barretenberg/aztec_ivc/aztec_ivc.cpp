@@ -1,35 +1,42 @@
-#include "barretenberg/client_ivc/client_ivc.hpp"
+#include "barretenberg/aztec_ivc/aztec_ivc.hpp"
 
 namespace bb {
 
 /**
  * @brief Accumulate a circuit into the IVC scheme
  * @details If this is the first circuit being accumulated, initialize the prover and verifier accumulators. Otherwise,
- * fold the instance for the provided circuit into the accumulator. If a previous fold proof exists, a recursive folding
- * verification is appended to the provided circuit prior to its accumulation. Similarly, if a merge proof exists, a
- * recursive merge verifier is appended.
+ * fold the instance for the provided circuit into the accumulator. When two fold proofs have been enqueued, two
+ * recursive folding verifications are appended to the next circuit that is accumulated, which must be a kernel.
+ * Similarly, if a merge proof exists, a recursive merge verifier is appended.
  *
  * @param circuit Circuit to be accumulated/folded
  * @param precomputed_vk Optional precomputed VK (otherwise will be computed herein)
  */
-void ClientIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<VerificationKey>& precomputed_vk)
+void AztecIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<VerificationKey>& precomputed_vk)
 {
-    // If a previous fold proof exists, add a recursive folding verification to the circuit
-    if (!fold_output.proof.empty()) {
+    circuit_count++; // increment the count of circuits processed into the IVC
+
+    // When there are two fold proofs present, append two recursive verifiers to the kernel
+    if (verification_queue.size() == 2) {
         BB_OP_COUNT_TIME_NAME("construct_circuits");
-        FoldingRecursiveVerifier verifier{ &circuit, { verifier_accumulator, { instance_vk } } };
-        auto verifier_accum = verifier.verify_folding_proof(fold_output.proof);
-        verifier_accumulator = std::make_shared<VerifierInstance>(verifier_accum->get_value());
+        ASSERT(circuit_count % 2 == 0); // ensure this is a kernel
+
+        for (auto& [proof, vkey] : verification_queue) {
+            FoldingRecursiveVerifier verifier{ &circuit, { verifier_accumulator, { vkey } } };
+            auto verifier_accum = verifier.verify_folding_proof(proof);
+            verifier_accumulator = std::make_shared<VerifierInstance>(verifier_accum->get_value());
+            info("Num gates = ", circuit.get_num_gates());
+        }
+        verification_queue.clear();
     }
 
     // Construct a merge proof (and add a recursive merge verifier to the circuit if a previous merge proof exists)
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1063): update recursive merge verification to only
+    // occur in kernels, similar to folding recursive verification.
     goblin.merge(circuit);
 
     // Construct the prover instance for circuit
-    prover_instance = std::make_shared<ProverInstance>(circuit, trace_structure);
-
-    // Track the maximum size of each block for all circuits porcessed (for debugging purposes only)
-    max_block_size_tracker.update(circuit);
+    auto prover_instance = std::make_shared<ProverInstance>(circuit, trace_structure);
 
     // Set the instance verification key from precomputed if available, else compute it
     if (precomputed_vk) {
@@ -38,15 +45,20 @@ void ClientIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verific
         instance_vk = std::make_shared<VerificationKey>(prover_instance->proving_key);
     }
 
-    // If the IVC is uninitialized, simply initialize the prover and verifier accumulator instances
-    if (!initialized) {
+    // If this is the first circuit simply initialize the prover and verifier accumulator instances
+    if (circuit_count == 1) {
         fold_output.accumulator = prover_instance;
         verifier_accumulator = std::make_shared<VerifierInstance>(instance_vk);
-        initialized = true;
     } else { // Otherwise, fold the new instance into the accumulator
         FoldingProver folding_prover({ fold_output.accumulator, prover_instance });
         fold_output = folding_prover.fold_instances();
+
+        // Add fold proof and corresponding verification key to the verification queue
+        verification_queue.emplace_back(fold_output.proof, instance_vk);
     }
+
+    // Track the maximum size of each block for all circuits porcessed (for debugging purposes only)
+    max_block_size_tracker.update(circuit);
 }
 
 /**
@@ -54,27 +66,29 @@ void ClientIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verific
  *
  * @return Proof
  */
-ClientIVC::Proof ClientIVC::prove()
+AztecIVC::Proof AztecIVC::prove()
 {
-    max_block_size_tracker.print(); // print minimum structured sizes for each block
-    return { fold_output.proof, decider_prove(), goblin.prove() };
+    max_block_size_tracker.print();         // print minimum structured sizes for each block
+    ASSERT(verification_queue.size() == 1); // ensure only a single fold proof remains in the queue
+    auto& fold_proof = verification_queue[0].proof;
+    return { fold_proof, decider_prove(), goblin.prove() };
 };
 
-bool ClientIVC::verify(const Proof& proof,
-                       const std::shared_ptr<VerifierInstance>& accumulator,
-                       const std::shared_ptr<VerifierInstance>& final_verifier_instance,
-                       const std::shared_ptr<ClientIVC::ECCVMVerificationKey>& eccvm_vk,
-                       const std::shared_ptr<ClientIVC::TranslatorVerificationKey>& translator_vk)
+bool AztecIVC::verify(const Proof& proof,
+                      const std::shared_ptr<VerifierInstance>& accumulator,
+                      const std::shared_ptr<VerifierInstance>& final_verifier_instance,
+                      const std::shared_ptr<AztecIVC::ECCVMVerificationKey>& eccvm_vk,
+                      const std::shared_ptr<AztecIVC::TranslatorVerificationKey>& translator_vk)
 {
     // Goblin verification (merge, eccvm, translator)
     GoblinVerifier goblin_verifier{ eccvm_vk, translator_vk };
     bool goblin_verified = goblin_verifier.verify(proof.goblin_proof);
 
     // Decider verification
-    ClientIVC::FoldingVerifier folding_verifier({ accumulator, final_verifier_instance });
+    AztecIVC::FoldingVerifier folding_verifier({ accumulator, final_verifier_instance });
     auto verifier_accumulator = folding_verifier.verify_folding_proof(proof.folding_proof);
 
-    ClientIVC::DeciderVerifier decider_verifier(verifier_accumulator);
+    AztecIVC::DeciderVerifier decider_verifier(verifier_accumulator);
     bool decision = decider_verifier.verify_proof(proof.decider_proof);
     return goblin_verified && decision;
 }
@@ -85,7 +99,7 @@ bool ClientIVC::verify(const Proof& proof,
  * @param proof
  * @return bool
  */
-bool ClientIVC::verify(Proof& proof, const std::vector<std::shared_ptr<VerifierInstance>>& verifier_instances)
+bool AztecIVC::verify(Proof& proof, const std::vector<std::shared_ptr<VerifierInstance>>& verifier_instances)
 {
     auto eccvm_vk = std::make_shared<ECCVMVerificationKey>(goblin.get_eccvm_proving_key());
     auto translator_vk = std::make_shared<TranslatorVerificationKey>(goblin.get_translator_proving_key());
@@ -97,7 +111,7 @@ bool ClientIVC::verify(Proof& proof, const std::vector<std::shared_ptr<VerifierI
  *
  * @return HonkProof
  */
-HonkProof ClientIVC::decider_prove() const
+HonkProof AztecIVC::decider_prove() const
 {
     MegaDeciderProver decider_prover(fold_output.accumulator);
     return decider_prover.construct_proof();
@@ -113,9 +127,9 @@ HonkProof ClientIVC::decider_prove() const
  * (albeit innefficient) way of separating out the cost of computing VKs from a benchmark.
  *
  * @param circuits A copy of the circuits to be accumulated (passing by reference would alter the original circuits)
- * @return std::vector<std::shared_ptr<ClientIVC::VerificationKey>>
+ * @return std::vector<std::shared_ptr<AztecIVC::VerificationKey>>
  */
-std::vector<std::shared_ptr<ClientIVC::VerificationKey>> ClientIVC::precompute_folding_verification_keys(
+std::vector<std::shared_ptr<AztecIVC::VerificationKey>> AztecIVC::precompute_folding_verification_keys(
     std::vector<ClientCircuit> circuits)
 {
     std::vector<std::shared_ptr<VerificationKey>> vkeys;
@@ -127,7 +141,7 @@ std::vector<std::shared_ptr<ClientIVC::VerificationKey>> ClientIVC::precompute_f
 
     // Reset the scheme so it can be reused for actual accumulation, maintaining the trace structure setting as is
     TraceStructure structure = trace_structure;
-    *this = ClientIVC();
+    *this = AztecIVC();
     this->trace_structure = structure;
 
     return vkeys;
@@ -139,11 +153,12 @@ std::vector<std::shared_ptr<ClientIVC::VerificationKey>> ClientIVC::precompute_f
  * development/testing.
  *
  */
-bool ClientIVC::prove_and_verify()
+bool AztecIVC::prove_and_verify()
 {
     auto proof = prove();
 
-    auto verifier_inst = std::make_shared<VerifierInstance>(this->instance_vk);
+    ASSERT(verification_queue.size() == 1); // ensure only a single fold proof remains in the queue
+    auto verifier_inst = std::make_shared<VerifierInstance>(this->verification_queue[0].instance_vk);
     return verify(proof, { this->verifier_accumulator, verifier_inst });
 }
 

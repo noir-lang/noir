@@ -52,6 +52,7 @@ else()
     message(STATUS "Using optimized assembly for field arithmetic.")
 endif()
 
+add_subdirectory(barretenberg/aztec_ivc)
 add_subdirectory(barretenberg/bb)
 add_subdirectory(barretenberg/circuit_checker)
 add_subdirectory(barretenberg/client_ivc)

@@ -11,6 +11,7 @@ namespace bb {
  */
 template <typename FF_> class MegaArith {
 
+  public:
     /**
      * @brief Defines the circuit block types for the Mega arithmetization
      * @note Its useful to define this as a template since it is used to actually store gate data (T = MegaTraceBlock)
@@ -40,6 +41,7 @@ template <typename FF_> class MegaArith {
         bool operator==(const MegaTraceBlocks& other) const = default;
     };
 
+  private:
     // An arbitrary but small-ish structuring that can be used for generic unit testing with non-trivial circuits
     struct SmallTestStructuredBlockSizes : public MegaTraceBlocks<uint32_t> {
         SmallTestStructuredBlockSizes()
@@ -47,7 +49,7 @@ template <typename FF_> class MegaArith {
             const uint32_t FIXED_SIZE = 1 << 14;
             this->ecc_op = FIXED_SIZE;
             this->pub_inputs = FIXED_SIZE;
-            this->arithmetic = FIXED_SIZE;
+            this->arithmetic = 1 << 15;
             this->delta_range = FIXED_SIZE;
             this->elliptic = FIXED_SIZE;
             this->aux = FIXED_SIZE;
@@ -234,6 +236,8 @@ template <typename FF_> class MegaArith {
     // Note: Unused. Needed only for consistency with Ultra arith (which is used by Plonk)
     inline static const std::vector<std::string> selector_names = {};
 };
+
+using MegaArithmetization = MegaArith<bb::fr>;
 
 template <typename T>
 concept HasAdditionalSelectors = IsAnyOf<T, MegaArith<bb::fr>>;
