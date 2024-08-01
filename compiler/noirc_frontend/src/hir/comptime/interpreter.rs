@@ -328,21 +328,27 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let argument = Value::Pointer(Shared::new(argument), true);
                 self.define_pattern(pattern, typ, argument, location)
             }
-            HirPattern::Tuple(pattern_fields, _) => match (argument, typ) {
-                (Value::Tuple(fields), Type::Tuple(type_fields))
-                    if fields.len() == pattern_fields.len() =>
-                {
-                    for ((pattern, typ), argument) in
-                        pattern_fields.iter().zip(type_fields).zip(fields)
+            HirPattern::Tuple(pattern_fields, _) => {
+                let typ = &typ.follow_bindings();
+
+                match (argument, typ) {
+                    (Value::Tuple(fields), Type::Tuple(type_fields))
+                        if fields.len() == pattern_fields.len() =>
                     {
-                        self.define_pattern(pattern, typ, argument, location)?;
+                        for ((pattern, typ), argument) in
+                            pattern_fields.iter().zip(type_fields).zip(fields)
+                        {
+                            self.define_pattern(pattern, typ, argument, location)?;
+                        }
+                        Ok(())
                     }
-                    Ok(())
+                    (value, actual_type) => Err(InterpreterError::TypeMismatch {
+                        expected: typ.clone(),
+                        value,
+                        location,
+                    }),
                 }
-                (value, _) => {
-                    Err(InterpreterError::TypeMismatch { expected: typ.clone(), value, location })
-                }
-            },
+            }
             HirPattern::Struct(struct_type, pattern_fields, _) => {
                 self.push_scope();
 

@@ -55,6 +55,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             }
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
+            "type_as_integer" => type_as_integer(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
@@ -435,6 +436,54 @@ fn quoted_as_type(
         .elaborate_item_from_comptime(interpreter.current_function, |elab| elab.resolve_type(typ));
 
     Ok(Value::Type(typ))
+}
+
+fn type_as_integer(
+    mut arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let value = arguments.pop().unwrap().0;
+    let Value::Type(typ) = value else {
+        panic!("type_as_integer shold have been called with a type");
+    };
+
+    let Type::Struct(_option_type, mut generics) = return_type.clone() else {
+        panic!("Expected return type to be an Option");
+    };
+
+    let t = generics.pop().expect("Expected Option to have a T generic type");
+
+    let is_some;
+    let value;
+
+    if let Type::Integer(sign, bits) = typ {
+        is_some = Value::Bool(true);
+        value = Value::Tuple(vec![
+            Value::Bool(match sign {
+                Signedness::Unsigned => false,
+                Signedness::Signed => true,
+            }),
+            Value::U8(match bits {
+                IntegerBitSize::One => 1,
+                IntegerBitSize::Eight => 8,
+                IntegerBitSize::Sixteen => 16,
+                IntegerBitSize::ThirtyTwo => 32,
+                IntegerBitSize::SixtyFour => 64,
+            }),
+        ]);
+    } else {
+        is_some = Value::Bool(false);
+        value = Value::Zeroed(t);
+    }
+
+    let mut fields = HashMap::default();
+    fields.insert(Rc::new("_is_some".to_string()), is_some);
+    fields.insert(Rc::new("_value".to_string()), value);
+    let option = Value::Struct(fields, return_type);
+    Ok(option)
 }
 
 fn type_eq(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {

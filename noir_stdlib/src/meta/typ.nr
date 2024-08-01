@@ -1,6 +1,10 @@
 use crate::cmp::Eq;
+use crate::option::Option;
 
 impl Type {
+    #[builtin(type_as_integer)]
+    fn as_integer(self) -> Option<(bool, u8)> {}
+
     #[builtin(type_is_field)]
     fn is_field(self) -> bool {}
 }
