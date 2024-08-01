@@ -806,7 +806,7 @@ pub fn inject_note_exports(
             let global = generate_note_exports_global(
                 &note.borrow().name.0.contents,
                 &note_type_id.to_hex(),
-                context.def_interner.track_references(),
+                context.def_interner.is_in_lsp_mode(),
             )
             .map_err(|err| (err, file_id))?;
 

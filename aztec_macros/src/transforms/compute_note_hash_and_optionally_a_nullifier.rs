@@ -129,7 +129,7 @@ pub fn inject_compute_note_hash_and_optionally_a_nullifier(
         let func = generate_compute_note_hash_and_optionally_a_nullifier(
             &note_types,
             max_note_length,
-            context.def_interner.track_references(),
+            context.def_interner.is_in_lsp_mode(),
         );
 
         // And inject the newly created function into the contract.

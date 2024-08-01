@@ -69,7 +69,7 @@ fn transform(
             &file_id,
             &mut submodule.contents,
             submodule.name.0.contents.as_str(),
-            context.def_interner.track_references(),
+            context.def_interner.is_in_lsp_mode(),
         )
         .map_err(|err| (err.into(), file_id))?
         {
@@ -77,7 +77,7 @@ fn transform(
         }
     }
 
-    let empty_spans = context.def_interner.track_references();
+    let empty_spans = context.def_interner.is_in_lsp_mode();
 
     generate_event_impls(&mut ast, empty_spans).map_err(|err| (err.into(), file_id))?;
     generate_note_interface_impl(&mut ast, empty_spans).map_err(|err| (err.into(), file_id))?;
