@@ -71,8 +71,26 @@ fi
 DEST="$SCRIPT_DIR/../dest"
 mkdir -p $DEST
 
+MEGA_HONK_CIRCUIT_PATTERNS=$(jq -r '.[]' "$SCRIPT_DIR/../mega_honk_circuits.json")
+
+# Check if the target circuit is a mega honk circuit.
+ARTIFACT_FILE_NAME=$(basename -s .json "$ARTIFACT")
+
+IS_MEGA_HONK_CIRCUIT="false"
+for pattern in $MEGA_HONK_CIRCUIT_PATTERNS; do
+    if echo "$ARTIFACT_FILE_NAME" | grep -qE "$pattern"; then
+        IS_MEGA_HONK_CIRCUIT="true"
+        break
+    fi
+done
+
 # At last, generate the flamegraph.
-$PROFILER gates-flamegraph --artifact-path "${ARTIFACT}" --backend-path "$SCRIPT_DIR/../../../barretenberg/cpp/build/bin/bb"  --output "$DEST" -- -h
+# If it's a mega honk circuit, we need to set the backend_gates_command argument to "gates_mega_honk".
+if [ "$IS_MEGA_HONK_CIRCUIT" = "true" ]; then
+    $PROFILER gates-flamegraph --artifact-path "${ARTIFACT}" --backend-path "$SCRIPT_DIR/../../../barretenberg/cpp/build/bin/bb"  --output "$DEST" --backend-gates-command "gates_mega_honk" -- -h
+else
+    $PROFILER gates-flamegraph --artifact-path "${ARTIFACT}" --backend-path "$SCRIPT_DIR/../../../barretenberg/cpp/build/bin/bb"  --output "$DEST" -- -h
+fi
 
 # Serve the file over http if -s is set.
 if $SERVE; then

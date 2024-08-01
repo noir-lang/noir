@@ -15,11 +15,28 @@ echo "{\"programs\": [" > gates_report.json
 # Bound for checking where to place last parentheses
 NUM_ARTIFACTS=$(ls -1q "$PROTOCOL_CIRCUITS_DIR/target"/*.json | wc -l)
 
+MEGA_HONK_CIRCUIT_PATTERNS=$(jq -r '.[]' mega_honk_circuits.json)
+
 ITER="1"
 for pathname in "$PROTOCOL_CIRCUITS_DIR/target"/*.json; do
     ARTIFACT_NAME=$(basename -s .json "$pathname")
 
-    GATES_INFO=$($BB_BIN gates -h -b "./target/$ARTIFACT_NAME.json")
+    # Check if the current artifact is a mega honk circuit
+    IS_MEGA_HONK_CIRCUIT="false"
+    for pattern in $MEGA_HONK_CIRCUIT_PATTERNS; do
+        if echo "$ARTIFACT_NAME" | grep -qE "$pattern"; then
+            IS_MEGA_HONK_CIRCUIT="true"
+            break
+        fi
+    done
+
+    # If it's mega honk, we need to use the gates_mega_honk command    
+    if [ "$IS_MEGA_HONK_CIRCUIT" = "true" ]; then
+        GATES_INFO=$($BB_BIN gates_mega_honk -h -b "$pathname")
+    else
+        GATES_INFO=$($BB_BIN gates -h -b "$pathname")
+    fi
+    
     MAIN_FUNCTION_INFO=$(echo $GATES_INFO | jq -r '.functions[0] | .name = "main"')
     echo "{\"package_name\": \"$ARTIFACT_NAME\", \"functions\": [$MAIN_FUNCTION_INFO]" >> gates_report.json
 
