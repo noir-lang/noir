@@ -44,7 +44,7 @@ impl PrivateKernelTailToPublicCircuitPrivateInputs {
         }
 
         // Validate output.
-        if !dep::std::runtime::is_unconstrained() {
+        if dep::types::validate::should_validate_output() {
             TailToPublicOutputValidator::new(
                 output,
                 self.previous_kernel.public_inputs,

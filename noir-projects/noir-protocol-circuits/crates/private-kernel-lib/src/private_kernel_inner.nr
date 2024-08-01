@@ -58,7 +58,7 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         }
 
         // Validate output.
-        if !std::runtime::is_unconstrained() {
+        if dep::types::validate::should_validate_output() {
             PrivateKernelCircuitOutputValidator::new(output).validate_as_inner_call(
                 self.previous_kernel.public_inputs,
                 previous_kernel_array_lengths,

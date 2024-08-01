@@ -178,7 +178,7 @@ impl TailToPublicOutputValidator {
         // unencrypted_logs_hashes
         assert_split_sorted_transformed_value_arrays_asc(
             prev_data.unencrypted_logs_hashes,
-            prev_data.unencrypted_logs_hashes,
+            prev_data.unencrypted_logs_hashes.map(|log: ScopedLogHash| log.expose_to_public()),
             split_counter,
             output_non_revertible.unencrypted_logs_hashes,
             output_revertible.unencrypted_logs_hashes,

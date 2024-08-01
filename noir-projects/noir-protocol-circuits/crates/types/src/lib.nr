@@ -34,3 +34,4 @@ use abis::kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PrivateKerne
 mod recursion;
 mod data;
 mod storage;
+mod validate;

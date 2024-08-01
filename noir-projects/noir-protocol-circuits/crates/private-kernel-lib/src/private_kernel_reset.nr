@@ -61,7 +61,7 @@ impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATIO
         }.validate();
 
         // Validate output.
-        if !dep::std::runtime::is_unconstrained() {
+        if dep::types::validate::should_validate_output() {
             let transient_or_propagated_note_hash_indexes_for_logs = get_transient_or_propagated_note_hash_indexes_for_logs(
                 previous_public_inputs.end.note_encrypted_logs_hashes,
                 previous_public_inputs.end.note_hashes,
