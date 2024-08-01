@@ -6,6 +6,7 @@ import {Errors} from "../libraries/Errors.sol";
 import {EnumerableSet} from "@oz/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@oz/access/Ownable.sol";
 import {SignatureLib} from "./SignatureLib.sol";
+import {SampleLib} from "./SampleLib.sol";
 
 import {ILeonidas} from "./ILeonidas.sol";
 
@@ -16,7 +17,7 @@ import {ILeonidas} from "./ILeonidas.sol";
  *          He define the structure needed for committee and leader selection and provides logic for validating that
  *          the block and its "evidence" follows his rules.
  *
- * @dev     Leonidas is depending on Ares to select warriors competently.
+ * @dev     Leonidas is depending on Ares to add/remove warriors to/from his army competently.
  *
  * @dev     Leonidas have one thing in mind, he provide a reference of the LOGIC going on for the spartan selection.
  *          He is not concerned about gas costs, he is a king, he just throw gas in the air like no-one cares.
@@ -28,7 +29,7 @@ contract Leonidas is Ownable, ILeonidas {
   using SignatureLib for SignatureLib.Signature;
 
   /**
-   * @notice  The structure of an epoch
+   * @notice  The data structure for an epoch
    * @param committee - The validator set for the epoch
    * @param sampleSeed - The seed used to sample the validator set of the epoch
    * @param nextSeed - The seed used to influence the NEXT epoch
@@ -40,13 +41,13 @@ contract Leonidas is Ownable, ILeonidas {
   }
 
   // The size/duration of a slot in seconds, multiple of 12 to align with Ethereum blocks
-  uint256 public constant SLOT_SIZE = 12 * 5;
+  uint256 public constant SLOT_DURATION = 12 * 5;
 
   // The size/duration of an epoch in slots
-  uint256 public constant EPOCH_SIZE = 32;
+  uint256 public constant EPOCH_DURATION = 32;
 
   // The target number of validators in a committee
-  uint256 public constant TARGET_COMMITTEE_SIZE = EPOCH_SIZE;
+  uint256 public constant TARGET_COMMITTEE_SIZE = EPOCH_DURATION;
 
   // The time that the contract was deployed
   uint256 public immutable GENESIS_TIME;
@@ -157,7 +158,7 @@ contract Leonidas is Ownable, ILeonidas {
    * @return The current epoch number
    */
   function getCurrentEpoch() public view override(ILeonidas) returns (uint256) {
-    return (block.timestamp - GENESIS_TIME) / (EPOCH_SIZE * SLOT_SIZE);
+    return (block.timestamp - GENESIS_TIME) / (EPOCH_DURATION * SLOT_DURATION);
   }
 
   /**
@@ -166,7 +167,7 @@ contract Leonidas is Ownable, ILeonidas {
    * @return The current slot number
    */
   function getCurrentSlot() public view override(ILeonidas) returns (uint256) {
-    return (block.timestamp - GENESIS_TIME) / SLOT_SIZE;
+    return (block.timestamp - GENESIS_TIME) / SLOT_DURATION;
   }
 
   /**
@@ -298,18 +299,18 @@ contract Leonidas is Ownable, ILeonidas {
     }
 
     // If we have less validators than the target committee size, we just return the full set
-    if (validatorSet.length() <= TARGET_COMMITTEE_SIZE) {
+    if (validatorSetSize <= TARGET_COMMITTEE_SIZE) {
       return validatorSet.values();
     }
 
-    // @todo Issue(#7603): The sampling should be improved
+    uint256[] memory indicies =
+      SampleLib.computeCommitteeClever(TARGET_COMMITTEE_SIZE, validatorSetSize, _seed);
 
-    uint256 offset = _seed % validatorSetSize;
-    address[] memory validators = new address[](TARGET_COMMITTEE_SIZE);
+    address[] memory committee = new address[](TARGET_COMMITTEE_SIZE);
     for (uint256 i = 0; i < TARGET_COMMITTEE_SIZE; i++) {
-      validators[i] = validatorSet.at((offset + i) % validatorSetSize);
+      committee[i] = validatorSet.at(indicies[i]);
     }
-    return validators;
+    return committee;
   }
 
   /**

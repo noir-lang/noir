@@ -64,27 +64,59 @@ contract SpartaTest is DecoderBase {
     }
   }
 
-  function _testProposerForFutureEpoch() public {
-    // @todo Implement
+  function testProposerForNonSetupEpoch(uint8 _epochsToJump) public {
+    uint256 pre = rollup.getCurrentEpoch();
+    vm.warp(
+      block.timestamp + uint256(_epochsToJump) * rollup.EPOCH_DURATION() * rollup.SLOT_DURATION()
+    );
+    uint256 post = rollup.getCurrentEpoch();
+    assertEq(pre + _epochsToJump, post, "Invalid epoch");
+
+    address expectedProposer = rollup.getCurrentProposer();
+
+    // Add a validator which will also setup the epoch
+    rollup.addValidator(address(0xdead));
+
+    address actualProposer = rollup.getCurrentProposer();
+    assertEq(expectedProposer, actualProposer, "Invalid proposer");
   }
 
-  function _testValidatorSetLargerThanCommittee() public {
-    // @todo Implement
+  function testValidatorSetLargerThanCommittee(bool _insufficientSigs) public {
+    _testBlock("mixed_block_1", false, 0, false); // We run a block before the epoch with validators
+
+    // Adding more validators!
+    for (uint256 i = 5; i < 100; i++) {
+      uint256 privateKey = uint256(keccak256(abi.encode("validator", i)));
+      address validator = vm.addr(privateKey);
+      privateKeys[validator] = privateKey;
+      rollup.addValidator(validator);
+    }
+
+    assertGt(rollup.getValidators().length, rollup.TARGET_COMMITTEE_SIZE(), "Not enough validators");
+
+    uint256 committeSize = rollup.TARGET_COMMITTEE_SIZE() * 2 / 3 + (_insufficientSigs ? 0 : 1);
+    _testBlock("mixed_block_2", _insufficientSigs, committeSize, false); // We need signatures!
+
+    assertEq(
+      rollup.getEpochCommittee(rollup.getCurrentEpoch()).length,
+      rollup.TARGET_COMMITTEE_SIZE(),
+      "Invalid committee size"
+    );
   }
 
   function testHappyPath() public {
-    _testBlock("mixed_block_1", 0, false); // We run a block before the epoch with validators
-    _testBlock("mixed_block_2", 3, false); // We need signatures!
+    _testBlock("mixed_block_1", false, 0, false); // We run a block before the epoch with validators
+    _testBlock("mixed_block_2", false, 3, false); // We need signatures!
   }
 
   function testInvalidProposer() public {
-    _testBlock("mixed_block_1", 0, false); // We run a block before the epoch with validators
-    _testBlock("mixed_block_2", 3, true); // We need signatures!
+    _testBlock("mixed_block_1", false, 0, false); // We run a block before the epoch with validators
+    _testBlock("mixed_block_2", true, 3, true); // We need signatures!
   }
 
   function testInsufficientSigs() public {
-    _testBlock("mixed_block_1", 0, false); // We run a block before the epoch with validators
-    _testBlock("mixed_block_2", 2, false); // We need signatures!
+    _testBlock("mixed_block_1", false, 0, false); // We run a block before the epoch with validators
+    _testBlock("mixed_block_2", true, 2, false); // We need signatures!
   }
 
   struct StructToAvoidDeepStacks {
@@ -93,7 +125,12 @@ contract SpartaTest is DecoderBase {
     bool shouldRevert;
   }
 
-  function _testBlock(string memory _name, uint256 _signatureCount, bool _invalidaProposer) public {
+  function _testBlock(
+    string memory _name,
+    bool _expectRevert,
+    uint256 _signatureCount,
+    bool _invalidaProposer
+  ) public {
     DecoderBase.Full memory full = load(_name);
     bytes memory header = full.block.header;
     bytes32 archive = full.block.archive;
@@ -124,7 +161,7 @@ contract SpartaTest is DecoderBase {
         signatures[i] = createSignature(validators[i], archive);
       }
 
-      if (_signatureCount < ree.needed) {
+      if (_expectRevert && _signatureCount < ree.needed) {
         vm.expectRevert(
           abi.encodeWithSelector(
             Errors.Leonidas__InsufficientAttestations.selector, ree.needed, _signatureCount
@@ -133,7 +170,7 @@ contract SpartaTest is DecoderBase {
         ree.shouldRevert = true;
       }
 
-      if (_invalidaProposer) {
+      if (_expectRevert && _invalidaProposer) {
         address realProposer = ree.proposer;
         ree.proposer = address(uint160(uint256(keccak256(abi.encode("invalid", ree.proposer)))));
         vm.expectRevert(

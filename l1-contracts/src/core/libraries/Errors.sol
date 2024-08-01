@@ -68,6 +68,9 @@ library Errors {
   error SignatureLib__CannotVerifyEmpty(); // 0xc7690a37
   error SignatureLib__InvalidSignature(address expected, address recovered); // 0xd9cbae6c
 
+  // SampleLib
+  error SampleLib__IndexOutOfBounds(uint256 requested, uint256 bound); // 0xa12fc559
+
   // Sequencer Selection (Leonidas)
   error Leonidas__NotGod(); // 0xabc2f815
   error Leonidas__EpochNotSetup(); // 0xcf4e597e
