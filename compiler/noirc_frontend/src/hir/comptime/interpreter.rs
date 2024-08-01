@@ -1408,8 +1408,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&expr_id);
-        tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
-        Ok(Value::Code(Rc::new(tokens)))
+        let tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
+        Ok(Value::Quoted(Rc::new(tokens)))
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
