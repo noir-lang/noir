@@ -96,6 +96,7 @@ mod references_tests {
 
     // Ignored because making this work slows down everything, so for now things will not work
     // as ideally, but they'll be fast.
+    // See https://github.com/noir-lang/noir/issues/5460
     #[ignore]
     #[test]
     async fn test_on_references_request_works_accross_workspace_packages() {
