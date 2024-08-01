@@ -10,7 +10,6 @@ use noirc_frontend::{
         UnresolvedTypeData, UnresolvedTypeExpression, UseTree, UseTreeKind,
     },
     parser::{Item, ItemKind, ParsedSubModule, ParserError},
-    token::Tokens,
     ParsedModule,
 };
 
@@ -229,7 +228,7 @@ fn empty_constrain_statement(constrain_statement: &mut ConstrainStatement) {
     }
 }
 
-fn empty_expressions(expressions: &mut Vec<Expression>) {
+fn empty_expressions(expressions: &mut [Expression]) {
     for expression in expressions.iter_mut() {
         empty_expression(expression);
     }
@@ -284,7 +283,7 @@ fn empty_for_loop_statement(for_loop_statement: &mut ForLoopStatement) {
     empty_expression(&mut for_loop_statement.block);
 }
 
-fn empty_unresolved_types(unresolved_types: &mut Vec<UnresolvedType>) {
+fn empty_unresolved_types(unresolved_types: &mut [UnresolvedType]) {
     for unresolved_type in unresolved_types.iter_mut() {
         empty_unresolved_type(unresolved_type);
     }
@@ -375,7 +374,7 @@ fn empty_pattern(pattern: &mut Pattern) {
 }
 
 fn empty_unresolved_trait_constraints(
-    unresolved_trait_constriants: &mut Vec<UnresolvedTraitConstraint>,
+    unresolved_trait_constriants: &mut [UnresolvedTraitConstraint],
 ) {
     for trait_constraint in unresolved_trait_constriants.iter_mut() {
         empty_unresolved_trait_constraint(trait_constraint);
