@@ -1969,6 +1969,10 @@ impl NodeInterner {
         let env = Box::new(Type::Unit);
         (Type::Function(args, Box::new(ret.clone()), env), ret)
     }
+
+    pub fn track_references(&self) -> bool {
+        self.track_references
+    }
 }
 
 impl Methods {

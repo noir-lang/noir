@@ -104,11 +104,7 @@ impl<'a> InlayHintCollector<'a> {
             }
             ItemKind::Global(let_statement) => self.collect_in_let_statement(let_statement),
             ItemKind::Submodules(parsed_submodule) => {
-                // Inlay hints inside a contract might show up incorrectly because contracts can
-                // have generated code whose location overlaps with real code.
-                if !parsed_submodule.is_contract {
-                    self.collect_in_parsed_module(&parsed_submodule.contents);
-                }
+                self.collect_in_parsed_module(&parsed_submodule.contents);
             }
             ItemKind::ModuleDecl(_) => (),
             ItemKind::Import(_) => (),
