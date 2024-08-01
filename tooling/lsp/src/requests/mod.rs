@@ -364,8 +364,7 @@ where
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace =
-        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path, false).unwrap();
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
