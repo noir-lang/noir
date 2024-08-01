@@ -1,6 +1,6 @@
 import { ProofData } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
-import { flattenPublicInputsAsArray } from './public_inputs.js';
+import { flattenFieldsAsArray } from './public_inputs.js';
 import { type Barretenberg } from '@aztec/bb.js';
 
 export class BarretenbergVerifier {
@@ -69,7 +69,7 @@ export class BarretenbergVerifier {
 
 export function reconstructProofWithPublicInputs(proofData: ProofData): Uint8Array {
   // Flatten publicInputs
-  const publicInputsConcatenated = flattenPublicInputsAsArray(proofData.publicInputs);
+  const publicInputsConcatenated = flattenFieldsAsArray(proofData.publicInputs);
 
   // Concatenate publicInputs and proof
   const proofWithPublicInputs = Uint8Array.from([...publicInputsConcatenated, ...proofData.proof]);
@@ -142,7 +142,7 @@ const publicInputsOffsetBytes = publicInputOffset * fieldByteSize;
 
 export function reconstructProofWithPublicInputsHonk(proofData: ProofData): Uint8Array {
   // Flatten publicInputs
-  const publicInputsConcatenated = flattenPublicInputsAsArray(proofData.publicInputs);
+  const publicInputsConcatenated = flattenFieldsAsArray(proofData.publicInputs);
 
   const proofStart = proofData.proof.slice(0, publicInputsOffsetBytes + serializedBufferSize);
   const proofEnd = proofData.proof.slice(publicInputsOffsetBytes + serializedBufferSize);

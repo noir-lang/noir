@@ -2,7 +2,7 @@ import { decompressSync as gunzip } from 'fflate';
 import { acirToUint8Array } from './serialize.js';
 import { Backend, CompiledCircuit, ProofData, VerifierBackend } from '@noir-lang/types';
 import { BackendOptions } from './types.js';
-import { deflattenPublicInputs } from './public_inputs.js';
+import { deflattenFields } from './public_inputs.js';
 import { reconstructProofWithPublicInputs, reconstructProofWithPublicInputsHonk } from './verifier.js';
 import { type Barretenberg } from '@aztec/bb.js';
 
@@ -74,7 +74,7 @@ export class BarretenbergBackend implements Backend, VerifierBackend {
 
     const publicInputsConcatenated = proofWithPublicInputs.slice(0, splitIndex);
     const proof = proofWithPublicInputs.slice(splitIndex);
-    const publicInputs = deflattenPublicInputs(publicInputsConcatenated);
+    const publicInputs = deflattenFields(publicInputsConcatenated);
 
     return { proof, publicInputs };
   }
@@ -207,7 +207,7 @@ export class UltraHonkBackend implements Backend, VerifierBackend {
       this.acirUncompressedBytecode,
       gunzip(decompressedWitness),
     );
-    const proofAsStrings = deflattenPublicInputs(proofWithPublicInputs.slice(4));
+    const proofAsStrings = deflattenFields(proofWithPublicInputs.slice(4));
 
     const numPublicInputs = Number(proofAsStrings[1]);
 
@@ -225,7 +225,7 @@ export class UltraHonkBackend implements Backend, VerifierBackend {
       publicInputsOffset,
       publicInputsOffset + publicInputsSplitIndex,
     );
-    const publicInputs = deflattenPublicInputs(publicInputsConcatenated);
+    const publicInputs = deflattenFields(publicInputsConcatenated);
 
     return { proof, publicInputs };
   }
