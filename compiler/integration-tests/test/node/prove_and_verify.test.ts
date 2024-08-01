@@ -6,7 +6,7 @@ import {
   BarretenbergBackend as Backend,
   BarretenbergVerifier as Verifier,
   UltraHonkBackend,
-  UltraHonkVerifier
+  UltraHonkVerifier,
 } from '@noir-lang/backend_barretenberg';
 import { CompiledCircuit } from '@noir-lang/types';
 
