@@ -1,12 +1,6 @@
 import { type PrivateKernelProver, type PrivateKernelSimulateOutput } from '@aztec/circuit-types';
 import {
   Fr,
-  MAX_KEY_VALIDATION_REQUESTS_PER_TX,
-  MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
-  MAX_NOTE_HASHES_PER_TX,
-  MAX_NOTE_HASH_READ_REQUESTS_PER_TX,
-  MAX_NULLIFIERS_PER_TX,
-  MAX_NULLIFIER_READ_REQUESTS_PER_TX,
   PrivateCallData,
   PrivateKernelCircuitPublicInputs,
   PrivateKernelData,
@@ -17,7 +11,6 @@ import {
   type TxRequest,
   VK_TREE_HEIGHT,
   VerificationKeyAsFields,
-  getNonEmptyItems,
 } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { assertLength } from '@aztec/foundation/serialize';
@@ -27,11 +20,18 @@ import {
   PrivateResetTagToArtifactName,
   getVKTreeRoot,
 } from '@aztec/noir-protocol-circuits-types';
-import { type ExecutionResult, collectNoteHashLeafIndexMap, collectNullifiedNoteHashCounters } from '@aztec/simulator';
+import {
+  type ExecutionResult,
+  collectEnqueuedPublicFunctionCalls,
+  collectNoteHashLeafIndexMap,
+  collectNoteHashNullifierCounterMap,
+  collectPublicTeardownFunctionCall,
+  getFinalMinRevertibleSideEffectCounter,
+} from '@aztec/simulator';
 
 import { type WitnessMap } from '@noir-lang/types';
 
-import { buildPrivateKernelResetInputs } from './private_inputs_builders/index.js';
+import { buildPrivateKernelResetInputs, needsReset, somethingToReset } from './hints/index.js';
 import { type ProvingDataOracle } from './proving_data_oracle.js';
 
 const NULL_PROVE_OUTPUT: PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs> = {
@@ -71,18 +71,23 @@ export class KernelProver {
     let output = NULL_PROVE_OUTPUT;
 
     const noteHashLeafIndexMap = collectNoteHashLeafIndexMap(executionResult);
-    const noteHashNullifierCounterMap = collectNullifiedNoteHashCounters(executionResult);
+    const noteHashNullifierCounterMap = collectNoteHashNullifierCounterMap(executionResult);
+    const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);
+    const hasPublicCalls =
+      enqueuedPublicFunctions.length > 0 || !collectPublicTeardownFunctionCall(executionResult).isEmpty();
+    const validationRequestsSplitCounter = hasPublicCalls ? getFinalMinRevertibleSideEffectCounter(executionResult) : 0;
     // vector of gzipped bincode acirs
     const acirs: Buffer[] = [];
     const witnessStack: WitnessMap[] = [];
 
     while (executionStack.length) {
-      if (!firstIteration && this.needsReset(executionStack, output)) {
+      if (!firstIteration && needsReset(output.publicInputs, executionStack)) {
         const resetInputs = await this.getPrivateKernelResetInputs(
           executionStack,
           output,
           noteHashLeafIndexMap,
           noteHashNullifierCounterMap,
+          validationRequestsSplitCounter,
         );
         output = await this.proofCreator.simulateProofReset(resetInputs);
         // TODO(#7368) consider refactoring this redundant bytecode pushing
@@ -130,12 +135,13 @@ export class KernelProver {
       firstIteration = false;
     }
 
-    if (this.somethingToReset(output)) {
+    if (somethingToReset(output.publicInputs)) {
       const resetInputs = await this.getPrivateKernelResetInputs(
         executionStack,
         output,
         noteHashLeafIndexMap,
         noteHashNullifierCounterMap,
+        validationRequestsSplitCounter,
       );
       output = await this.proofCreator.simulateProofReset(resetInputs);
       // TODO(#7368) consider refactoring this redundant bytecode pushing
@@ -176,47 +182,12 @@ export class KernelProver {
     return tailOutput;
   }
 
-  private needsReset(
-    executionStack: ExecutionResult[],
-    output: PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs>,
-  ) {
-    const nextIteration = executionStack[executionStack.length - 1];
-    return (
-      getNonEmptyItems(nextIteration.callStackItem.publicInputs.noteHashes).length +
-        getNonEmptyItems(output.publicInputs.end.noteHashes).length >
-        MAX_NOTE_HASHES_PER_TX ||
-      getNonEmptyItems(nextIteration.callStackItem.publicInputs.nullifiers).length +
-        getNonEmptyItems(output.publicInputs.end.nullifiers).length >
-        MAX_NULLIFIERS_PER_TX ||
-      getNonEmptyItems(nextIteration.callStackItem.publicInputs.noteEncryptedLogsHashes).length +
-        getNonEmptyItems(output.publicInputs.end.noteEncryptedLogsHashes).length >
-        MAX_NOTE_ENCRYPTED_LOGS_PER_TX ||
-      getNonEmptyItems(nextIteration.callStackItem.publicInputs.noteHashReadRequests).length +
-        getNonEmptyItems(output.publicInputs.validationRequests.noteHashReadRequests).length >
-        MAX_NOTE_HASH_READ_REQUESTS_PER_TX ||
-      getNonEmptyItems(nextIteration.callStackItem.publicInputs.nullifierReadRequests).length +
-        getNonEmptyItems(output.publicInputs.validationRequests.nullifierReadRequests).length >
-        MAX_NULLIFIER_READ_REQUESTS_PER_TX ||
-      getNonEmptyItems(nextIteration.callStackItem.publicInputs.keyValidationRequestsAndGenerators).length +
-        getNonEmptyItems(output.publicInputs.validationRequests.scopedKeyValidationRequestsAndGenerators).length >
-        MAX_KEY_VALIDATION_REQUESTS_PER_TX
-    );
-  }
-
-  private somethingToReset(output: PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs>) {
-    return (
-      getNonEmptyItems(output.publicInputs.validationRequests.noteHashReadRequests).length > 0 ||
-      getNonEmptyItems(output.publicInputs.validationRequests.nullifierReadRequests).length > 0 ||
-      getNonEmptyItems(output.publicInputs.validationRequests.scopedKeyValidationRequestsAndGenerators).length > 0 ||
-      output.publicInputs.end.nullifiers.find(nullifier => !nullifier.nullifiedNoteHash.equals(Fr.zero()))
-    );
-  }
-
   private async getPrivateKernelResetInputs(
     executionStack: ExecutionResult[],
     output: PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs>,
     noteHashLeafIndexMap: Map<bigint, bigint>,
     noteHashNullifierCounterMap: Map<number, number>,
+    validationRequestsSplitCounter: number,
   ) {
     const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(output.verificationKey);
     const previousKernelData = new PrivateKernelData(
@@ -231,6 +202,7 @@ export class KernelProver {
       previousKernelData,
       noteHashLeafIndexMap,
       noteHashNullifierCounterMap,
+      validationRequestsSplitCounter,
       this.oracle,
     );
   }

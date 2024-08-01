@@ -66,6 +66,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
         public_inputs.validation_requests.note_hash_read_requests = array_to_bounded_vec(start.note_hash_read_requests);
         public_inputs.validation_requests.nullifier_read_requests = array_to_bounded_vec(start.nullifier_read_requests);
         public_inputs.validation_requests.scoped_key_validation_requests_and_generators = array_to_bounded_vec(start.scoped_key_validation_requests_and_generators);
+        public_inputs.validation_requests.split_counter = start.split_counter;
 
         let start = previous_kernel_public_inputs.end;
         public_inputs.end.note_hashes = array_to_bounded_vec(start.note_hashes);

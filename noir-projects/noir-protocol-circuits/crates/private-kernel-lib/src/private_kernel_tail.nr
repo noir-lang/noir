@@ -35,7 +35,8 @@ impl PrivateKernelTailCircuitPrivateInputs {
         let output = self.generate_output();
 
         // Validate inputs.
-        PreviousKernelValidator::new(self.previous_kernel.public_inputs).validate_for_private_tail();
+        let previous_kernel_validator = PreviousKernelValidator::new(self.previous_kernel.public_inputs);
+        previous_kernel_validator.validate_for_private_tail();
         if !std::runtime::is_unconstrained() {
             // TODO(#7410) currently stubbed out until tube vk handled
             // self.previous_kernel.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
@@ -43,7 +44,11 @@ impl PrivateKernelTailCircuitPrivateInputs {
 
         // Validate output.
         if !std::runtime::is_unconstrained() {
-            TailOutputValidator::new(output, self.previous_kernel.public_inputs).validate();
+            TailOutputValidator::new(
+                output,
+                self.previous_kernel.public_inputs,
+                previous_kernel_validator.hints
+            ).validate();
         }
 
         output
@@ -296,6 +301,13 @@ mod tests {
     fn non_empty_public_teardown_call_request_should_fail() {
         let mut builder = PrivateKernelTailInputsBuilder::new();
         builder.previous_kernel.append_public_teardown_call_request();
+        builder.failed();
+    }
+
+    #[test(should_fail_with="split_counter must be 0 for pure private tx")]
+    fn non_zero_validation_requests_split_counter_fail() {
+        let mut builder = PrivateKernelTailInputsBuilder::new();
+        builder.previous_kernel.validation_requests_split_counter = Option::some(123);
         builder.failed();
     }
 

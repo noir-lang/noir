@@ -39,6 +39,11 @@ export class PrivateKernelResetHints<
      * Contains hints for key validation request.
      */
     public keyValidationHints: Tuple<KeyValidationHint, KEY_VALIDATION_REQUESTS>,
+    /**
+     * The "final" minRevertibleSideEffectCounter of a tx, to split the data for squashing.
+     * Not the minRevertibleSideEffectCounter at the point the reset circuit is run.
+     */
+    public validationRequestsSplitCounter: number,
   ) {}
 
   toBuffer() {
@@ -48,6 +53,7 @@ export class PrivateKernelResetHints<
       this.noteHashReadRequestHints,
       this.nullifierReadRequestHints,
       this.keyValidationHints,
+      this.validationRequestsSplitCounter,
     );
   }
 
@@ -79,6 +85,7 @@ export class PrivateKernelResetHints<
         KeyValidationHint,
         NEW_KEY_VALIDATION_REQUESTS
       >,
+      this.validationRequestsSplitCounter,
     );
   }
   /**
@@ -113,6 +120,7 @@ export class PrivateKernelResetHints<
           nullifierReadRequestHintsFromBuffer(buf, numNullifierReadRequestPending, numNullifierReadRequestSettled),
       }),
       reader.readArray(numNullifierKeys, KeyValidationHint),
+      reader.readNumber(),
     );
   }
 }

@@ -52,25 +52,42 @@ fn compute_note_hash_for_read_request_from_slotted_and_nonce(slotted_note_hash: 
 pub fn compute_note_hash_for_read_request<Note, let N: u32, let M: u32>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let slotted_note_hash = compute_slotted_note_hash(note);
     let nonce = note.get_header().nonce;
+    let counter = note.get_header().note_hash_counter;
 
-    compute_note_hash_for_read_request_from_slotted_and_nonce(slotted_note_hash, nonce)
+    if counter != 0 {
+        slotted_note_hash
+    } else {
+        compute_note_hash_for_read_request_from_slotted_and_nonce(slotted_note_hash, nonce)
+    }
 }
 
 pub fn compute_note_hash_for_consumption<Note, let N: u32, let M: u32>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
-    // There are 3 cases for reading a note intended for consumption:
-    // 1. The note was inserted in this transaction, and is transient.
-    // 2. The note was inserted in a previous transaction, and was inserted in public
-    // 3. The note was inserted in a previous transaction, and was inserted in private
+    // There are 4 cases for reading a note intended for consumption:
+    // 1. The note was inserted in this transaction, is revertible, or is not nullified by a revertible nullifier in 
+    //    the same transaction: (note_hash_counter != 0) & (nonce == 0)
+    // 2. The note was inserted in this transaction, is non-revertible, and is nullified by a revertible nullifier in 
+    //    the same transaction: (note_hash_counter != 0) & (nonce != 0)
+    // 3. The note was inserted in a previous transaction, and was inserted in public: (note_hash_counter == 0) & (nonce == 0)
+    // 4. The note was inserted in a previous transaction, and was inserted in private: (note_hash_counter == 0) & (nonce != 0)
 
     let slotted_note_hash = compute_slotted_note_hash(note);
 
-    if (header.note_hash_counter != 0) {
+    if ((header.note_hash_counter != 0) & (header.nonce == 0)) {
+        // Case 1.
         // If a note is transient, we just read the slotted_note_hash (kernel will silo by contract address).
         slotted_note_hash
     } else {
-        // If a note is not transient, that means we are reading a settled note (from tree) created in a
-        // previous TX. So we need the siloed_note_hash which has already been hashed with
+        // Case 2: If a note is non-revertible, and is nullified by a revertible nullifier, we cannot squash them in the 
+        // private reset circuit. Because if the tx reverts, we will have to keep the note hash and throw away the 
+        // nullifier.
+        // And if the tx does not revert, both will be emitted. In which case, the nullifier must be created in the app
+        // from the siloed note hash.
+        // The kernel circuit will check that a nullifier with non-zero note_nonce is linked to a note hash, whose
+        // siloed note hash matches the note hash specified in the nullifier.
+
+        // Case 3 & 4: If a note is not from the current transaction, that means we are reading a settled note (from 
+        // tree) created in a previous TX. So we need the siloed_note_hash which has already been hashed with
         // nonce and then contract address. This hash will match the existing leaf in the note hash
         // tree, so the kernel can just perform a membership check directly on this hash/leaf.
         let unique_note_hash = compute_note_hash_for_read_request_from_slotted_and_nonce(slotted_note_hash, header.nonce);

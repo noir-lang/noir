@@ -10,12 +10,12 @@ use crate::{
 
 pub fn mark_as_initialized_public(context: &mut PublicContext) {
     let init_nullifier = compute_unsiloed_contract_initialization_nullifier((*context).this_address());
-    context.push_nullifier(init_nullifier, 0);
+    context.push_nullifier(init_nullifier);
 }
 
 pub fn mark_as_initialized_private(context: &mut PrivateContext) {
     let init_nullifier = compute_unsiloed_contract_initialization_nullifier((*context).this_address());
-    context.push_nullifier(init_nullifier, 0);
+    context.push_nullifier(init_nullifier);
 }
 
 pub fn assert_is_initialized_public(context: &mut PublicContext) {

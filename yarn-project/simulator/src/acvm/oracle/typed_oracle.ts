@@ -253,17 +253,6 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('callPrivateFunction');
   }
 
-  callPublicFunction(
-    _targetContractAddress: AztecAddress,
-    _functionSelector: FunctionSelector,
-    _argsHash: Fr,
-    _sideEffectCounter: number,
-    _isStaticCall: boolean,
-    _isDelegateCall: boolean,
-  ): Promise<Fr[]> {
-    throw new OracleMethodNotAvailableError('callPublicFunction');
-  }
-
   enqueuePublicFunctionCall(
     _targetContractAddress: AztecAddress,
     _functionSelector: FunctionSelector,
@@ -284,6 +273,10 @@ export abstract class TypedOracle {
     _isDelegateCall: boolean,
   ): Promise<void> {
     throw new OracleMethodNotAvailableError('setPublicTeardownFunctionCall');
+  }
+
+  notifySetMinRevertibleSideEffectCounter(_minRevertibleSideEffectCounter: number): void {
+    throw new OracleMethodNotAvailableError('notifySetMinRevertibleSideEffectCounter');
   }
 
   aes128Encrypt(_input: Buffer, _initializationVector: Buffer, _key: Buffer): Buffer {

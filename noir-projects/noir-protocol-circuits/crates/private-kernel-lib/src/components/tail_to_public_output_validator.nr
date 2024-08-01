@@ -1,42 +1,46 @@
 mod tail_to_public_output_hints;
 
 use crate::components::{
-    tail_output_validator::validate_value_transformation::{validate_transformed_values, validate_value_transformation},
+    previous_kernel_validator::previous_kernel_validator_hints::PreviousKernelValidatorHints,
+    tail_output_validator::{validate_value_transformation::{validate_transformed_values, validate_value_transformation}},
     tail_to_public_output_composer::meter_gas_used::{meter_gas_used_non_revertible, meter_gas_used_revertible},
     tail_to_public_output_validator::tail_to_public_output_hints::{generate_tail_to_public_output_hints, TailToPublicOutputHints}
 };
 use dep::types::{
     abis::{
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs},
-    log_hash::{LogHash, ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, nullifier::Nullifier,
-    public_call_request::PublicCallRequest
+    log_hash::{LogHash, ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, note_hash::NoteHash,
+    nullifier::Nullifier, public_call_request::PublicCallRequest
 },
     hash::{silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier},
     traits::{Empty, is_empty, is_empty_array},
     utils::arrays::{
-    assert_split_sorted_transformed_value_arrays_asc, assert_split_sorted_transformed_value_arrays_desc,
-    validate_array
+    array_length, assert_split_sorted_transformed_value_arrays_asc,
+    assert_split_sorted_transformed_value_arrays_desc, validate_array
 }
 };
 
 struct TailToPublicOutputValidator {
     output: PublicKernelCircuitPublicInputs,
     previous_kernel: PrivateKernelCircuitPublicInputs,
+    previous_kernel_hints: PreviousKernelValidatorHints,
+    hints: TailToPublicOutputHints,
 }
 
 impl TailToPublicOutputValidator {
     pub fn new(
         output: PublicKernelCircuitPublicInputs,
-        previous_kernel: PrivateKernelCircuitPublicInputs
+        previous_kernel: PrivateKernelCircuitPublicInputs,
+        previous_kernel_hints: PreviousKernelValidatorHints
     ) -> Self {
-        TailToPublicOutputValidator { output, previous_kernel }
+        let hints = generate_tail_to_public_output_hints(previous_kernel);
+        TailToPublicOutputValidator { output, previous_kernel, previous_kernel_hints, hints }
     }
 
     pub fn validate<N>(self) {
-        let hints = generate_tail_to_public_output_hints(self.previous_kernel);
         self.validate_empty_values();
         self.validate_propagated_values();
-        self.validate_propagated_sorted_siloed_values(hints);
+        self.validate_propagated_sorted_siloed_values();
         self.validate_gas_used();
     }
 
@@ -73,26 +77,34 @@ impl TailToPublicOutputValidator {
         );
     }
 
-    fn validate_propagated_sorted_siloed_values(self, hints: TailToPublicOutputHints) {
+    fn validate_propagated_sorted_siloed_values(self) {
         let split_counter = self.previous_kernel.min_revertible_side_effect_counter;
-        assert(split_counter != 0, "min_revertible_side_effect_counter must not be 0");
-
         let prev_data = self.previous_kernel.end;
         let output_non_revertible = self.output.end_non_revertible;
         let output_revertible = self.output.end;
+        let hints = self.hints;
+        let previous_kernel_hints = self.previous_kernel_hints;
 
         // note_hashes
-        let first_nullifier = output_non_revertible.nullifiers[0].value;
+        let siloed_note_hashes = previous_kernel_hints.siloed_note_hashes;
         let unsiloed_note_hashes = prev_data.note_hashes;
+        let tx_hash = output_non_revertible.nullifiers[0].value;
+        let sorted_split_indexes = hints.sorted_note_hash_hints.sorted_indexes;
+        let sorted_counters_gte = hints.sorted_note_hash_hints.sorted_counters_gte;
+        let num_non_revertible = array_length(output_non_revertible.note_hashes);
         for i in 0..unsiloed_note_hashes.len() {
-            let siloed_note_hash = silo_note_hash(unsiloed_note_hashes[i], first_nullifier, i);
-            assert_eq(hints.siloed_note_hashes[i].value, siloed_note_hash, "mismatch siloed note hashes");
-            assert_eq(hints.siloed_note_hashes[i].counter, 0, "cannot expose note hash counter");
+            let note_hash = unsiloed_note_hashes[i];
+            let mut index = sorted_split_indexes[i];
+            if sorted_counters_gte[index] == note_hash.counter() {
+                index += num_non_revertible;
+            }
+            let siloed_note_hash = silo_note_hash(note_hash, tx_hash, index);
+            assert_eq(siloed_note_hashes[i], siloed_note_hash, "mismatch siloed note hashes");
         }
 
         assert_split_sorted_transformed_value_arrays_asc(
             prev_data.note_hashes,
-            hints.siloed_note_hashes,
+            siloed_note_hashes.map(|value: Field| NoteHash { value, counter: 0 }),
             split_counter,
             output_non_revertible.note_hashes,
             output_revertible.note_hashes,

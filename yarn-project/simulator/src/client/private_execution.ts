@@ -68,7 +68,7 @@ export async function executePrivateFunction(
 
   const noteHashLeafIndexMap = context.getNoteHashLeafIndexMap();
   const newNotes = context.getNewNotes();
-  const nullifiedNoteHashCounters = context.getNullifiedNoteHashCounters();
+  const noteHashNullifierCounterMap = context.getNoteHashNullifierCounterMap();
   const nestedExecutions = context.getNestedExecutions();
   const enqueuedPublicFunctionCalls = context.getEnqueuedPublicFunctionCalls();
   const publicTeardownFunctionCall = context.getPublicTeardownFunctionCall();
@@ -82,7 +82,7 @@ export async function executePrivateFunction(
     returnValues: rawReturnValues,
     noteHashLeafIndexMap,
     newNotes,
-    nullifiedNoteHashCounters,
+    noteHashNullifierCounterMap,
     vk: Buffer.from(artifact.verificationKey!, 'hex'),
     nestedExecutions,
     enqueuedPublicFunctionCalls,

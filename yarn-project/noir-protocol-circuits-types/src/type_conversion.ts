@@ -61,6 +61,7 @@ import {
   type NullifierLeafPreimage,
   type NullifierNonExistentReadRequestHints,
   type NullifierReadRequestHints,
+  OptionalNumber,
   type PUBLIC_DATA_TREE_HEIGHT,
   ParityPublicInputs,
   PartialPrivateTailPublicInputsForPublic,
@@ -83,6 +84,7 @@ import {
   type PrivateKernelResetHints,
   type PrivateKernelTailCircuitPrivateInputs,
   PrivateKernelTailCircuitPublicInputs,
+  PrivateValidationRequests,
   PublicAccumulatedData,
   type PublicCallData,
   PublicCallRequest,
@@ -99,6 +101,7 @@ import {
   PublicKernelCircuitPublicInputs,
   type PublicKernelData,
   type PublicKernelTailCircuitPrivateInputs,
+  PublicValidationRequests,
   type RECURSIVE_PROOF_LENGTH,
   ReadRequest,
   type ReadRequestStatus,
@@ -121,7 +124,6 @@ import {
   StateReference,
   TxContext,
   type TxRequest,
-  ValidationRequests,
   type VerificationKeyAsFields,
 } from '@aztec/circuits.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
@@ -176,6 +178,7 @@ import type {
   NullifierNonMembershipHint as NullifierNonMembershipHintNoir,
   NullifierReadRequestHints as NullifierReadRequestHintsNoir,
   NullifierSettledReadHint as NullifierSettledReadHintNoir,
+  Option as OptionalNumberNoir,
   ParityPublicInputs as ParityPublicInputsNoir,
   RootParityInput as ParityRootParityInputNoir,
   PartialStateReference as PartialStateReferenceNoir,
@@ -195,6 +198,7 @@ import type {
   PrivateKernelResetHints as PrivateKernelResetHintsNoir,
   PrivateKernelTailCircuitPrivateInputs as PrivateKernelTailCircuitPrivateInputsNoir,
   PrivateKernelTailToPublicCircuitPrivateInputs as PrivateKernelTailToPublicCircuitPrivateInputsNoir,
+  PrivateValidationRequests as PrivateValidationRequestsNoir,
   PublicAccumulatedData as PublicAccumulatedDataNoir,
   PublicCallData as PublicCallDataNoir,
   PublicCallRequest as PublicCallRequestNoir,
@@ -211,6 +215,7 @@ import type {
   PublicKernelData as PublicKernelDataNoir,
   PublicKernelSetupCircuitPrivateInputs as PublicKernelSetupCircuitPrivateInputsNoir,
   PublicKernelTailCircuitPrivateInputs as PublicKernelTailCircuitPrivateInputsNoir,
+  PublicValidationRequests as PublicValidationRequestsNoir,
   ReadRequest as ReadRequestNoir,
   ReadRequestStatus as ReadRequestStatusNoir,
   RollupValidationRequests as RollupValidationRequestsNoir,
@@ -231,7 +236,6 @@ import type {
   StorageUpdateRequest as StorageUpdateRequestNoir,
   TxContext as TxContextNoir,
   TxRequest as TxRequestNoir,
-  ValidationRequests as ValidationRequestsNoir,
 } from './types/index.js';
 
 /* eslint-disable camelcase */
@@ -1165,25 +1169,32 @@ function mapPublicDataReadRequestHintsToNoir(hints: PublicDataReadRequestHints):
   };
 }
 
-function mapValidationRequestsToNoir(requests: ValidationRequests): ValidationRequestsNoir {
+function mapOptionalNumberToNoir(option: OptionalNumber): OptionalNumberNoir {
+  return {
+    _is_some: option.isSome,
+    _value: mapNumberToNoir(option.value),
+  };
+}
+
+function mapOptionalNumberFromNoir(option: OptionalNumberNoir) {
+  return new OptionalNumber(option._is_some, mapNumberFromNoir(option._value));
+}
+
+function mapPrivateValidationRequestsToNoir(requests: PrivateValidationRequests): PrivateValidationRequestsNoir {
   return {
     for_rollup: mapRollupValidationRequestsToNoir(requests.forRollup),
     note_hash_read_requests: mapTuple(requests.noteHashReadRequests, mapScopedReadRequestToNoir),
     nullifier_read_requests: mapTuple(requests.nullifierReadRequests, mapScopedReadRequestToNoir),
-    nullifier_non_existent_read_requests: mapTuple(
-      requests.nullifierNonExistentReadRequests,
-      mapScopedReadRequestToNoir,
-    ),
     scoped_key_validation_requests_and_generators: mapTuple(
       requests.scopedKeyValidationRequestsAndGenerators,
       mapScopedKeyValidationRequestAndGeneratorToNoir,
     ),
-    public_data_reads: mapTuple(requests.publicDataReads, mapPublicDataReadToNoir),
+    split_counter: mapOptionalNumberToNoir(requests.splitCounter),
   };
 }
 
-function mapValidationRequestsFromNoir(requests: ValidationRequestsNoir): ValidationRequests {
-  return new ValidationRequests(
+function mapPrivateValidationRequestsFromNoir(requests: PrivateValidationRequestsNoir) {
+  return new PrivateValidationRequests(
     mapRollupValidationRequestsFromNoir(requests.for_rollup),
     mapTupleFromNoir(
       requests.note_hash_read_requests,
@@ -1196,14 +1207,38 @@ function mapValidationRequestsFromNoir(requests: ValidationRequestsNoir): Valida
       mapScopedReadRequestFromNoir,
     ),
     mapTupleFromNoir(
-      requests.nullifier_non_existent_read_requests,
-      MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
-      mapScopedReadRequestFromNoir,
-    ),
-    mapTupleFromNoir(
       requests.scoped_key_validation_requests_and_generators,
       MAX_KEY_VALIDATION_REQUESTS_PER_TX,
       mapScopedKeyValidationRequestAndGeneratorFromNoir,
+    ),
+    mapOptionalNumberFromNoir(requests.split_counter),
+  );
+}
+
+function mapPublicValidationRequestsToNoir(requests: PublicValidationRequests): PublicValidationRequestsNoir {
+  return {
+    for_rollup: mapRollupValidationRequestsToNoir(requests.forRollup),
+    nullifier_read_requests: mapTuple(requests.nullifierReadRequests, mapScopedReadRequestToNoir),
+    nullifier_non_existent_read_requests: mapTuple(
+      requests.nullifierNonExistentReadRequests,
+      mapScopedReadRequestToNoir,
+    ),
+    public_data_reads: mapTuple(requests.publicDataReads, mapPublicDataReadToNoir),
+  };
+}
+
+function mapPublicValidationRequestsFromNoir(requests: PublicValidationRequestsNoir): PublicValidationRequests {
+  return new PublicValidationRequests(
+    mapRollupValidationRequestsFromNoir(requests.for_rollup),
+    mapTupleFromNoir(
+      requests.nullifier_read_requests,
+      MAX_NULLIFIER_READ_REQUESTS_PER_TX,
+      mapScopedReadRequestFromNoir,
+    ),
+    mapTupleFromNoir(
+      requests.nullifier_non_existent_read_requests,
+      MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
+      mapScopedReadRequestFromNoir,
     ),
     mapTupleFromNoir(requests.public_data_reads, MAX_PUBLIC_DATA_READS_PER_TX, mapPublicDataReadFromNoir),
   );
@@ -1434,7 +1469,7 @@ export function mapPublicKernelCircuitPublicInputsToNoir(
 ): PublicKernelCircuitPublicInputsNoir {
   return {
     constants: mapCombinedConstantDataToNoir(inputs.constants),
-    validation_requests: mapValidationRequestsToNoir(inputs.validationRequests),
+    validation_requests: mapPublicValidationRequestsToNoir(inputs.validationRequests),
     end: mapPublicAccumulatedDataToNoir(inputs.end),
     end_non_revertible: mapPublicAccumulatedDataToNoir(inputs.endNonRevertibleData),
     revert_code: mapRevertCodeToNoir(inputs.revertCode),
@@ -1502,7 +1537,7 @@ export function mapPrivateKernelCircuitPublicInputsFromNoir(
 ): PrivateKernelCircuitPublicInputs {
   return new PrivateKernelCircuitPublicInputs(
     mapFieldFromNoir(inputs.min_revertible_side_effect_counter),
-    mapValidationRequestsFromNoir(inputs.validation_requests),
+    mapPrivateValidationRequestsFromNoir(inputs.validation_requests),
     mapPrivateAccumulatedDataFromNoir(inputs.end),
     mapCombinedConstantDataFromNoir(inputs.constants),
     mapPublicCallRequestFromNoir(inputs.public_teardown_call_request),
@@ -1515,7 +1550,7 @@ export function mapPrivateKernelCircuitPublicInputsToNoir(
 ): PrivateKernelCircuitPublicInputsNoir {
   return {
     constants: mapCombinedConstantDataToNoir(inputs.constants),
-    validation_requests: mapValidationRequestsToNoir(inputs.validationRequests),
+    validation_requests: mapPrivateValidationRequestsToNoir(inputs.validationRequests),
     end: mapPrivateAccumulatedDataToNoir(inputs.end),
     min_revertible_side_effect_counter: mapFieldToNoir(inputs.minRevertibleSideEffectCounter),
     public_teardown_call_request: mapPublicCallRequestToNoir(inputs.publicTeardownCallRequest),
@@ -1557,7 +1592,7 @@ export function mapPrivateKernelTailCircuitPublicInputsForPublicFromNoir(
   inputs: PublicKernelCircuitPublicInputsNoir,
 ): PrivateKernelTailCircuitPublicInputs {
   const forPublic = new PartialPrivateTailPublicInputsForPublic(
-    mapValidationRequestsFromNoir(inputs.validation_requests),
+    mapPublicValidationRequestsFromNoir(inputs.validation_requests),
     mapPublicAccumulatedDataFromNoir(inputs.end_non_revertible),
     mapPublicAccumulatedDataFromNoir(inputs.end),
     mapPublicCallRequestFromNoir(inputs.public_teardown_call_stack[0]),
@@ -1616,6 +1651,7 @@ function mapPrivateKernelResetHintsToNoir<
       KeyValidationHintNoir,
       KEY_VALIDATION_REQUESTS
     >,
+    validation_requests_split_counter: mapNumberToNoir(inputs.validationRequestsSplitCounter),
   };
 }
 
@@ -1718,7 +1754,7 @@ export function mapPublicKernelCircuitPublicInputsFromNoir(
   inputs: PublicKernelCircuitPublicInputsNoir,
 ): PublicKernelCircuitPublicInputs {
   return new PublicKernelCircuitPublicInputs(
-    mapValidationRequestsFromNoir(inputs.validation_requests),
+    mapPublicValidationRequestsFromNoir(inputs.validation_requests),
     mapPublicAccumulatedDataFromNoir(inputs.end_non_revertible),
     mapPublicAccumulatedDataFromNoir(inputs.end),
     mapCombinedConstantDataFromNoir(inputs.constants),

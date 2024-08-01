@@ -3,13 +3,13 @@ use crate::{
     accumulated_data::{CombinedAccumulatedData, PublicAccumulatedDataBuilder},
     combined_constant_data::CombinedConstantData,
     kernel_circuit_public_inputs::{public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs},
-    public_call_request::PublicCallRequest, validation_requests::ValidationRequestsBuilder
+    public_call_request::PublicCallRequest, validation_requests::PublicValidationRequestsBuilder
 },
     address::AztecAddress, constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, traits::Empty
 };
 
 struct PublicKernelCircuitPublicInputsBuilder {
-    validation_requests: ValidationRequestsBuilder,
+    validation_requests: PublicValidationRequestsBuilder,
     end_non_revertible: PublicAccumulatedDataBuilder,
     end: PublicAccumulatedDataBuilder,
     constants: CombinedConstantData,
@@ -38,7 +38,7 @@ impl PublicKernelCircuitPublicInputsBuilder {
 impl Empty for PublicKernelCircuitPublicInputsBuilder {
     fn empty() -> Self {
         PublicKernelCircuitPublicInputsBuilder {
-            validation_requests: ValidationRequestsBuilder::empty(),
+            validation_requests: PublicValidationRequestsBuilder::empty(),
             end_non_revertible: PublicAccumulatedDataBuilder::empty(),
             end: PublicAccumulatedDataBuilder::empty(),
             constants: CombinedConstantData::empty(),

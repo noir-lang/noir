@@ -18,8 +18,8 @@ use crate::{
     public_data_update_request::PublicDataUpdateRequest, read_request::{ReadRequest, ScopedReadRequest},
     log_hash::{LogHash, NoteLogHash, ScopedLogHash, EncryptedLogHash, ScopedEncryptedLogHash},
     validation_requests::{
-    ValidationRequests, ValidationRequestsBuilder, KeyValidationRequest,
-    KeyValidationRequestAndGenerator, ScopedKeyValidationRequestAndGenerator
+    KeyValidationRequest, KeyValidationRequestAndGenerator, PrivateValidationRequests,
+    PublicValidationRequests, RollupValidationRequests, ScopedKeyValidationRequestAndGenerator
 }
 },
     address::{AztecAddress, EthAddress, SaltedInitializationHash, PublicKeysHash},
@@ -108,6 +108,7 @@ struct FixtureBuilder {
     nullifier_non_existent_read_requests: BoundedVec<ScopedReadRequest, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX>,
     scoped_key_validation_requests_and_generators: BoundedVec<ScopedKeyValidationRequestAndGenerator, MAX_KEY_VALIDATION_REQUESTS_PER_TX>,
     public_data_reads: BoundedVec<PublicDataRead, MAX_PUBLIC_DATA_READS_PER_TX>,
+    validation_requests_split_counter: Option<u32>,
 
     // Function.
     function_data: FunctionData,
@@ -377,21 +378,19 @@ impl FixtureBuilder {
         }
     }
 
-    pub fn to_validation_requests(self) -> ValidationRequests {
-        let validation_requests = ValidationRequestsBuilder {
-            max_block_number: self.max_block_number,
-            note_hash_read_requests: self.note_hash_read_requests,
-            nullifier_read_requests: self.nullifier_read_requests,
-            nullifier_non_existent_read_requests: self.nullifier_non_existent_read_requests,
-            scoped_key_validation_requests_and_generators: self.scoped_key_validation_requests_and_generators,
-            public_data_reads: self.public_data_reads
-        };
-        validation_requests.finish()
+    pub fn to_private_validation_requests(self) -> PrivateValidationRequests {
+        PrivateValidationRequests {
+            for_rollup: self.to_rollup_validation_requests(),
+            note_hash_read_requests: self.note_hash_read_requests.storage,
+            nullifier_read_requests: self.nullifier_read_requests.storage,
+            scoped_key_validation_requests_and_generators: self.scoped_key_validation_requests_and_generators.storage,
+            split_counter: self.validation_requests_split_counter
+        }
     }
 
     pub fn to_private_kernel_circuit_public_inputs(self) -> PrivateKernelCircuitPublicInputs {
         let end = self.to_private_accumulated_data();
-        let validation_requests = self.to_validation_requests();
+        let validation_requests = self.to_private_validation_requests();
         let constants = self.to_constant_data();
         let public_teardown_call_request = self.public_teardown_call_stack.get_unchecked(0);
 
@@ -410,6 +409,15 @@ impl FixtureBuilder {
         PrivateKernelData { public_inputs, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
     }
 
+    pub fn to_public_validation_requests(self) -> PublicValidationRequests {
+        PublicValidationRequests {
+            for_rollup: self.to_rollup_validation_requests(),
+            nullifier_read_requests: self.nullifier_read_requests.storage,
+            nullifier_non_existent_read_requests: self.nullifier_non_existent_read_requests.storage,
+            public_data_reads: self.public_data_reads.storage
+        }
+    }
+
     pub fn to_public_kernel_circuit_public_inputs(self, revertible: bool) -> PublicKernelCircuitPublicInputs {
         // TODO: Split the data using self.min_revertible_side_effect_counter.
         let accumulated_data = self.to_public_accumulated_data();
@@ -423,7 +431,7 @@ impl FixtureBuilder {
         } else {
             PublicAccumulatedData::empty()
         };
-        let validation_requests = self.to_validation_requests();
+        let validation_requests = self.to_public_validation_requests();
         let constants = self.to_constant_data();
 
         PublicKernelCircuitPublicInputs {
@@ -442,8 +450,12 @@ impl FixtureBuilder {
         PublicKernelData { public_inputs, proof: self.proof, vk: self.vk, vk_index: self.vk_index, vk_path: self.vk_path }
     }
 
+    pub fn to_rollup_validation_requests(self) -> RollupValidationRequests {
+        RollupValidationRequests { max_block_number: self.max_block_number }
+    }
+
     pub fn to_kernel_circuit_public_inputs(self) -> KernelCircuitPublicInputs {
-        let rollup_validation_requests = self.to_validation_requests().for_rollup;
+        let rollup_validation_requests = self.to_rollup_validation_requests();
         let end = self.to_combined_accumulated_data();
         let constants = self.to_constant_data();
 
@@ -523,6 +535,12 @@ impl FixtureBuilder {
     pub fn add_nullifier(&mut self, value: Field) {
         self.nullifiers.push(
             Nullifier { value, counter: self.next_counter(), note_hash: 0 }.scope(self.storage_contract_address)
+        );
+    }
+
+    pub fn add_nullifier_for_note_hash(&mut self, value: Field, note_hash: Field) {
+        self.nullifiers.push(
+            Nullifier { value, counter: self.next_counter(), note_hash }.scope(self.storage_contract_address)
         );
     }
 
@@ -1029,6 +1047,7 @@ impl Empty for FixtureBuilder {
             nullifier_non_existent_read_requests: BoundedVec::new(),
             scoped_key_validation_requests_and_generators: BoundedVec::new(),
             public_data_reads: BoundedVec::new(),
+            validation_requests_split_counter: Option::none(),
             function_data: FunctionData::empty(),
             args_hash: 0,
             returns_hash: 0,

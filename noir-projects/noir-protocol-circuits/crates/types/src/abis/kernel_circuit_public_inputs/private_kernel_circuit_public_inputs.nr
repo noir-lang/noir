@@ -1,6 +1,6 @@
 use crate::abis::{
     accumulated_data::PrivateAccumulatedData, combined_constant_data::CombinedConstantData,
-    public_call_request::PublicCallRequest, validation_requests::ValidationRequests
+    public_call_request::PublicCallRequest, validation_requests::PrivateValidationRequests
 };
 use crate::constants::PRIVATE_KERNEL_CIRCUIT_PUBLIC_INPUTS_LENGTH;
 use crate::traits::{Serialize, Deserialize, Eq, Empty};
@@ -73,7 +73,7 @@ impl Eq for PrivateKernelCircuitPublicInputsArrayLengths {
 
 struct PrivateKernelCircuitPublicInputs {
     min_revertible_side_effect_counter: u32,
-    validation_requests: ValidationRequests,
+    validation_requests: PrivateValidationRequests,
     end: PrivateAccumulatedData,
     constants: CombinedConstantData,
     public_teardown_call_request: PublicCallRequest,
@@ -102,7 +102,7 @@ impl Deserialize<PRIVATE_KERNEL_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateKernelC
     let mut reader = Reader::new(fields);
     let item = Self {
         min_revertible_side_effect_counter: reader.read() as u32,
-        validation_requests: reader.read_struct(ValidationRequests::deserialize),
+        validation_requests: reader.read_struct(PrivateValidationRequests::deserialize),
         end: reader.read_struct(PrivateAccumulatedData::deserialize),
         constants: reader.read_struct(CombinedConstantData::deserialize),
         public_teardown_call_request: reader.read_struct(PublicCallRequest::deserialize),
@@ -128,7 +128,7 @@ impl Empty for PrivateKernelCircuitPublicInputs {
   fn empty() -> Self {
     Self {
       min_revertible_side_effect_counter: 0,
-      validation_requests: ValidationRequests::empty(),
+      validation_requests: PrivateValidationRequests::empty(),
       end: PrivateAccumulatedData::empty(),
       constants: CombinedConstantData::empty(),
       public_teardown_call_request: PublicCallRequest::empty(),

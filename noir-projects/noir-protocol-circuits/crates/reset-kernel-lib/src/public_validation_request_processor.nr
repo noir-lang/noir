@@ -10,7 +10,7 @@ use crate::{
 use dep::types::{
     abis::{
     kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs, nullifier::Nullifier,
-    public_data_update_request::PublicDataUpdateRequest, validation_requests::ValidationRequests
+    public_data_update_request::PublicDataUpdateRequest, validation_requests::PublicValidationRequests
 },
     data::public_data_hint::PublicDataHint,
     constants::{MAX_NULLIFIERS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX},
@@ -19,7 +19,7 @@ use dep::types::{
 };
 
 struct PublicValidationRequestProcessor<N> {
-    validation_requests: ValidationRequests,
+    validation_requests: PublicValidationRequests,
     pending_nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TX],
     pending_public_data_writes: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
     nullifier_read_request_hints: NullifierReadRequestHints<MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,

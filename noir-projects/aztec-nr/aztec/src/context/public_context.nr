@@ -56,8 +56,7 @@ impl PublicContext {
             self.l1_to_l2_msg_exists(message_hash, leaf_index), "Tried to consume nonexistent L1-to-L2 message"
         );
 
-        // Push nullifier (and the "commitment" corresponding to this can be "empty")
-        self.push_nullifier(nullifier, 0);
+        self.push_nullifier(nullifier);
     }
 
     fn message_portal(_self: &mut Self, recipient: EthAddress, content: Field) {
@@ -115,8 +114,7 @@ impl PublicContext {
     fn push_note_hash(_self: &mut Self, note_hash: Field) {
         emit_note_hash(note_hash);
     }
-    fn push_nullifier(_self: &mut Self, nullifier: Field, _nullified_commitment: Field) {
-        // Cannot nullify pending commitments in AVM, so `nullified_commitment` is not used
+    fn push_nullifier(_self: &mut Self, nullifier: Field) {
         emit_nullifier(nullifier);
     }
 

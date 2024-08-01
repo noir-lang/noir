@@ -71,7 +71,7 @@ export class ClientExecutionContext extends ViewDataOracle {
    * They should act as references for the read requests output by an app circuit via public inputs.
    */
   private noteHashLeafIndexMap: Map<bigint, bigint> = new Map();
-  private nullifiedNoteHashCounters: Map<number, number> = new Map();
+  private noteHashNullifierCounterMap: Map<number, number> = new Map();
   private noteEncryptedLogs: CountedNoteLog[] = [];
   private encryptedLogs: CountedLog<EncryptedL2Log>[] = [];
   private unencryptedLogs: CountedLog<UnencryptedL2Log>[] = [];
@@ -141,8 +141,8 @@ export class ClientExecutionContext extends ViewDataOracle {
     return this.newNotes;
   }
 
-  public getNullifiedNoteHashCounters() {
-    return this.nullifiedNoteHashCounters;
+  public getNoteHashNullifierCounterMap() {
+    return this.noteHashNullifierCounterMap;
   }
 
   /**
@@ -337,7 +337,7 @@ export class ClientExecutionContext extends ViewDataOracle {
       slottedNoteHash,
     );
     if (nullifiedNoteHashCounter !== undefined) {
-      this.nullifiedNoteHashCounters.set(nullifiedNoteHashCounter, counter);
+      this.noteHashNullifierCounterMap.set(nullifiedNoteHashCounter, counter);
     }
     return Promise.resolve();
   }
@@ -643,6 +643,10 @@ export class ClientExecutionContext extends ViewDataOracle {
       isStaticCall,
       isDelegateCall,
     );
+  }
+
+  public override notifySetMinRevertibleSideEffectCounter(minRevertibleSideEffectCounter: number): void {
+    this.noteCache.setMinRevertibleSideEffectCounter(minRevertibleSideEffectCounter);
   }
 
   /**

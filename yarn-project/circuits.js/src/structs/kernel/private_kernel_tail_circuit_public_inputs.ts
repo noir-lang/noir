@@ -6,9 +6,9 @@ import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX } from '../../constants.gen.js';
 import { countAccumulatedItems, mergeAccumulatedData } from '../../utils/index.js';
 import { PartialStateReference } from '../partial_state_reference.js';
 import { PublicCallRequest } from '../public_call_request.js';
+import { PublicValidationRequests } from '../public_validation_requests.js';
 import { RevertCode } from '../revert_code.js';
 import { RollupValidationRequests } from '../rollup_validation_requests.js';
-import { ValidationRequests } from '../validation_requests.js';
 import { CombinedAccumulatedData } from './combined_accumulated_data.js';
 import { CombinedConstantData } from './combined_constant_data.js';
 import { KernelCircuitPublicInputs } from './kernel_circuit_public_inputs.js';
@@ -20,7 +20,7 @@ export class PartialPrivateTailPublicInputsForPublic {
     /**
      * Validation requests accumulated from public functions.
      */
-    public validationRequests: ValidationRequests,
+    public validationRequests: PublicValidationRequests,
     /**
      * Accumulated side effects and enqueued calls that are not revertible.
      */
@@ -59,7 +59,7 @@ export class PartialPrivateTailPublicInputsForPublic {
   static fromBuffer(buffer: Buffer | BufferReader): PartialPrivateTailPublicInputsForPublic {
     const reader = BufferReader.asReader(buffer);
     return new PartialPrivateTailPublicInputsForPublic(
-      reader.readObject(ValidationRequests),
+      reader.readObject(PublicValidationRequests),
       reader.readObject(PublicAccumulatedData),
       reader.readObject(PublicAccumulatedData),
       reader.readObject(PublicCallRequest),
@@ -77,7 +77,7 @@ export class PartialPrivateTailPublicInputsForPublic {
 
   static empty() {
     return new PartialPrivateTailPublicInputsForPublic(
-      ValidationRequests.empty(),
+      PublicValidationRequests.empty(),
       PublicAccumulatedData.empty(),
       PublicAccumulatedData.empty(),
       PublicCallRequest.empty(),

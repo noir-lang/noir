@@ -5,7 +5,7 @@ use dep::types::{
     traits::is_empty
 };
 
-pub fn verify_squashed_transient_data<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS>(
+pub fn verify_squashed_transient_data<let NUM_NOTE_HASHES: u32, let NUM_NULLIFIERS: u32, let NUM_LOGS: u32>(
     note_hashes: [ScopedNoteHash; NUM_NOTE_HASHES],
     nullifiers: [ScopedNullifier; NUM_NULLIFIERS],
     note_logs: [NoteLogHash; NUM_LOGS],
@@ -14,7 +14,8 @@ pub fn verify_squashed_transient_data<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS>
     expected_note_logs: [NoteLogHash; NUM_LOGS],
     transient_nullifier_indexes_for_note_hashes: [u32; NUM_NOTE_HASHES],
     transient_note_hash_indexes_for_nullifiers: [u32; NUM_NULLIFIERS],
-    transient_or_propagated_note_hash_indexes_for_logs: [u32; NUM_LOGS]
+    transient_or_propagated_note_hash_indexes_for_logs: [u32; NUM_LOGS],
+    split_counter: u32
 ) {
     let mut note_hashes_kept = 0;
     let mut note_hashes_removed = 0;
@@ -26,6 +27,15 @@ pub fn verify_squashed_transient_data<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS>
             note_hashes_kept += 1;
         } else {
             let nullifier = nullifiers[nullifier_index];
+            assert(
+                nullifier.counter() > note_hash.counter(), "Cannot nullify a note hash created afterwards"
+            );
+            if nullifier.counter() >= split_counter {
+                assert(
+                    note_hash.counter() >= split_counter, "Cannot squash a non-revertible note hash with a revertible nullifier"
+                );
+                // Since the nullifier counter must be larger than the note hash counter, it's not possible to squash a revertible note hash with a non-revertible nullifier.
+            }
             assert_eq(
                 note_hash.value(), nullifier.nullified_note_hash(), "Value of the hinted transient note hash does not match"
             );
@@ -107,7 +117,7 @@ mod tests {
 
     global contract_address = AztecAddress::from_field(987654);
 
-    struct TestDataBuilder<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> {
+    struct TestDataBuilder<let NUM_NOTE_HASHES: u32, let NUM_NULLIFIERS: u32, let NUM_LOGS: u32> {
         note_hashes: [ScopedNoteHash; NUM_NOTE_HASHES],
         nullifiers: [ScopedNullifier; NUM_NULLIFIERS],
         note_logs: [NoteLogHash; NUM_LOGS],
@@ -116,10 +126,11 @@ mod tests {
         expected_note_logs: [NoteLogHash; NUM_LOGS],
         transient_nullifier_indexes_for_note_hashes: [u32; NUM_NOTE_HASHES],
         transient_note_hash_indexes_for_nullifiers: [u32; NUM_NULLIFIERS],
-        transient_or_propagated_note_hash_indexes_for_logs: [u32; NUM_LOGS]
+        transient_or_propagated_note_hash_indexes_for_logs: [u32; NUM_LOGS],
+        split_counter: u32,
     }
 
-    impl<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> TestDataBuilder<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> {
+    impl<let NUM_NOTE_HASHES: u32, let NUM_NULLIFIERS: u32, let NUM_LOGS: u32> TestDataBuilder<NUM_NOTE_HASHES, NUM_NULLIFIERS, NUM_LOGS> {
         pub fn new() -> TestDataBuilder<5, 4, 3> {
             let note_hashes = [
                 NoteHash { value: 11, counter: 100 }.scope(contract_address),
@@ -162,7 +173,8 @@ mod tests {
                 expected_note_logs,
                 transient_nullifier_indexes_for_note_hashes,
                 transient_note_hash_indexes_for_nullifiers,
-                transient_or_propagated_note_hash_indexes_for_logs
+                transient_or_propagated_note_hash_indexes_for_logs,
+                split_counter: 0
             }
         }
 
@@ -204,7 +216,8 @@ mod tests {
                 expected_note_logs,
                 transient_nullifier_indexes_for_note_hashes,
                 transient_note_hash_indexes_for_nullifiers,
-                transient_or_propagated_note_hash_indexes_for_logs
+                transient_or_propagated_note_hash_indexes_for_logs,
+                split_counter: 0
             }
         }
 
@@ -245,7 +258,8 @@ mod tests {
                 expected_note_logs,
                 transient_nullifier_indexes_for_note_hashes,
                 transient_note_hash_indexes_for_nullifiers,
-                transient_or_propagated_note_hash_indexes_for_logs
+                transient_or_propagated_note_hash_indexes_for_logs,
+                split_counter: 0
             }
         }
 
@@ -259,7 +273,8 @@ mod tests {
                 self.expected_note_logs,
                 self.transient_nullifier_indexes_for_note_hashes,
                 self.transient_note_hash_indexes_for_nullifiers,
-                self.transient_or_propagated_note_hash_indexes_for_logs
+                self.transient_or_propagated_note_hash_indexes_for_logs,
+                self.split_counter
             );
         }
     }
@@ -375,6 +390,28 @@ mod tests {
         let mut builder = TestDataBuilder::new();
 
         builder.expected_nullifiers[0].nullifier.counter += 1;
+
+        builder.verify();
+    }
+
+    #[test(should_fail_with="Cannot nullify a note hash created afterwards")]
+    fn fails_nullify_note_hash_emitted_afterwards() {
+        let mut builder = TestDataBuilder::new();
+
+        // Make the nullifier at index 1 to have a smaller counter than its note hash.
+        let note_hash_counter = builder.note_hashes[builder.transient_note_hash_indexes_for_nullifiers[1]].counter();
+        builder.nullifiers[1].nullifier.counter = note_hash_counter - 1;
+
+        builder.verify();
+    }
+
+    #[test(should_fail_with="Cannot squash a non-revertible note hash with a revertible nullifier")]
+    fn fails_nullify_non_revertible_note_hash_with_revertible_nullifier() {
+        let mut builder = TestDataBuilder::new();
+
+        let note_hash_counter = builder.note_hashes[builder.transient_note_hash_indexes_for_nullifiers[1]].counter();
+        // Make the note hash non-revertible.
+        builder.split_counter = note_hash_counter + 1;
 
         builder.verify();
     }

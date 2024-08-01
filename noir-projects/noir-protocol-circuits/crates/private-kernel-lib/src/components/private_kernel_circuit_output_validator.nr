@@ -239,6 +239,10 @@ impl PrivateKernelCircuitOutputValidator {
     ) {
         assert_eq(self.output.constants, previous_kernel.constants, "mismatch constants");
 
+        assert_eq(
+            self.output.validation_requests.split_counter, previous_kernel.validation_requests.split_counter, "mismatch validation requests split counter"
+        );
+
         validate_array_prepended(
             self.output.validation_requests.note_hash_read_requests,
             previous_kernel.validation_requests.note_hash_read_requests,

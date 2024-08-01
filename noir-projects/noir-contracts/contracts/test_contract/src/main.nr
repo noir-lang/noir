@@ -248,13 +248,13 @@ contract Test {
     // Purely exists for testing
     #[aztec(public)]
     fn emit_nullifier_public(nullifier: Field) {
-        context.push_nullifier(nullifier, 0);
+        context.push_nullifier(nullifier);
     }
 
     // Forcefully emits a nullifier (for testing purposes)
     #[aztec(private)]
     fn emit_nullifier(nullifier: Field) {
-        context.push_nullifier(nullifier, 0);
+        context.push_nullifier(nullifier);
     }
 
     // For testing non-note encrypted logs

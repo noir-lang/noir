@@ -91,6 +91,7 @@ export async function buildPrivateKernelResetInputs(
   previousKernelData: PrivateKernelData,
   noteHashLeafIndexMap: Map<bigint, bigint>,
   noteHashNullifierCounterMap: Map<number, number>,
+  validationRequestsSplitCounter: number,
   oracle: ProvingDataOracle,
 ) {
   const publicInputs = previousKernelData.publicInputs;
@@ -181,6 +182,7 @@ export async function buildPrivateKernelResetInputs(
           noteHashReadRequestHints,
           nullifierReadRequestHints,
           keysHints,
+          validationRequestsSplitCounter,
         ).trimToSizes(
           hintSizes.NOTE_HASH_PENDING_AMOUNT,
           hintSizes.NOTE_HASH_SETTLED_AMOUNT,

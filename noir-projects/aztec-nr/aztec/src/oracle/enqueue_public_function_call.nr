@@ -56,3 +56,9 @@ unconstrained pub fn set_public_teardown_function_call_internal(
     );
 }
 
+#[oracle(notifySetMinRevertibleSideEffectCounter)]
+unconstrained fn notify_set_min_revertible_side_effect_counter_oracle(_counter: u32) {}
+
+unconstrained pub fn notify_set_min_revertible_side_effect_counter(counter: u32) {
+    notify_set_min_revertible_side_effect_counter_oracle(counter);
+}

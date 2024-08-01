@@ -15,7 +15,6 @@ use dep::types::{
 
 struct TailToPublicOutputHints {
     // Note hashes.
-    siloed_note_hashes: [NoteHash; MAX_NOTE_HASHES_PER_TX],
     sorted_note_hash_hints: SplitOrderHints<MAX_NOTE_HASHES_PER_TX>,
     // Nullifiers.
     siloed_nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TX],
@@ -41,13 +40,6 @@ unconstrained pub fn generate_tail_to_public_output_hints(previous_kernel: Priva
 
     // note_hashes
     let unsiloed_note_hashes = previous_kernel.end.note_hashes;
-
-    let first_nullifier = previous_kernel.end.nullifiers[0].value();
-    let mut siloed_note_hashes = [NoteHash::empty(); MAX_NOTE_HASHES_PER_TX];
-    for i in 0..unsiloed_note_hashes.len() {
-        siloed_note_hashes[i].value = silo_note_hash(unsiloed_note_hashes[i], first_nullifier, i);
-    }
-
     let sorted_note_hash_hints = sort_get_split_order_hints_asc(unsiloed_note_hashes, split_counter);
 
     // nullifiers
@@ -94,7 +86,6 @@ unconstrained pub fn generate_tail_to_public_output_hints(previous_kernel: Priva
     let sorted_public_call_request_hints = sort_get_split_order_hints_desc(previous_kernel.end.public_call_requests, split_counter);
 
     TailToPublicOutputHints {
-        siloed_note_hashes,
         sorted_note_hash_hints,
         sorted_nullifier_hints,
         siloed_nullifiers,

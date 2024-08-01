@@ -1,4 +1,7 @@
-use crate::components::tail_to_public_output_validator::TailToPublicOutputValidator;
+use crate::components::{
+    previous_kernel_validator::previous_kernel_validator_hints::generate_previous_kernel_validator_hints,
+    tail_to_public_output_validator::TailToPublicOutputValidator
+};
 use dep::types::tests::fixture_builder::FixtureBuilder;
 
 struct TailToPublicOutputValidatorBuilder {
@@ -20,7 +23,8 @@ impl TailToPublicOutputValidatorBuilder {
         let revertible = true;
         let output = self.output.to_public_kernel_circuit_public_inputs(revertible);
         let previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
-        TailToPublicOutputValidator::new(output, previous_kernel).validate();
+        let previous_kernel_hints = generate_previous_kernel_validator_hints(previous_kernel);
+        TailToPublicOutputValidator::new(output, previous_kernel, previous_kernel_hints).validate();
     }
 }
 

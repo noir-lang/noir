@@ -68,6 +68,9 @@ export class AcirSimulator {
       false,
       entryPointArtifact.isStatic,
     );
+
+    const txHash = request.toTxRequest().hash();
+
     const context = new ClientExecutionContext(
       contractAddress,
       request.firstCallArgsHash,
@@ -76,7 +79,7 @@ export class AcirSimulator {
       header,
       request.authWitnesses,
       PackedValuesCache.create(request.argsOfCalls),
-      new ExecutionNoteCache(),
+      new ExecutionNoteCache(txHash),
       this.db,
       this.node,
       startSideEffectCounter,

@@ -73,15 +73,3 @@ fn split_to_public_succeeds() {
     assert_array_eq(non_revertible.public_call_stack, [expected[0]]);
     assert_array_eq(revertible.public_call_stack, [expected[1], expected[2]]);
 }
-
-#[test(should_fail_with="min_revertible_side_effect_counter must not be 0")]
-fn split_to_public_zero_counter_fails() {
-    let mut builder = FixtureBuilder::new();
-
-    builder.append_note_hashes(1);
-
-    let _ = split_to_public(
-        builder.to_private_accumulated_data_builder(),
-        builder.min_revertible_side_effect_counter
-    );
-}

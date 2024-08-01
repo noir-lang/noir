@@ -42,7 +42,7 @@ contract ContractInstanceDeployer {
         let address = AztecAddress::compute(public_keys_hash, partial_address);
 
         // Emit the address as a nullifier to be able to prove that this instance has been (not) deployed
-        context.push_nullifier(address.to_field(), 0);
+        context.push_nullifier(address.to_field());
 
         // Broadcast the event
         let event = ContractInstanceDeployed {

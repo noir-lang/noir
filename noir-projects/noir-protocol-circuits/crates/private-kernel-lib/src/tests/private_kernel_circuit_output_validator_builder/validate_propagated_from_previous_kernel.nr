@@ -38,6 +38,40 @@ fn validate_propagated_from_previous_kernel_constants_non_empty_global_variables
 }
 
 /**
+ * validation_requests
+ */
+
+#[test]
+fn validate_propagated_from_previous_kernel_validation_requests_split_counter_succeeds() {
+    let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
+
+    builder.previous_kernel.validation_requests_split_counter = Option::some(123);
+    builder.output.validation_requests_split_counter = Option::some(123);
+
+    builder.validate_as_inner_call();
+}
+
+#[test(should_fail_with="mismatch validation requests split counter")]
+fn validate_propagated_from_previous_kernel_validation_requests_split_counter_mismatch_fails() {
+    let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
+
+    builder.previous_kernel.validation_requests_split_counter = Option::some(123);
+    builder.output.validation_requests_split_counter = Option::some(4567);
+
+    builder.validate_as_inner_call();
+}
+
+#[test(should_fail_with="mismatch validation requests split counter")]
+fn validate_propagated_from_previous_kernel_validation_requests_split_counter_unexpected_fails() {
+    let mut builder = PrivateKernelCircuitOutputValidatorBuilder::new();
+
+    builder.previous_kernel.validation_requests_split_counter = Option::none();
+    builder.output.validation_requests_split_counter = Option::some(123);
+
+    builder.validate_as_inner_call();
+}
+
+/**
  * note_hash_read_requests
  */
 

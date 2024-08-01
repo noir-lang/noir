@@ -17,7 +17,6 @@ mod get_sibling_path;
 mod unsafe_rand;
 mod enqueue_public_function_call;
 mod header;
-mod public_call;
 mod notes;
 mod storage;
 mod logs;

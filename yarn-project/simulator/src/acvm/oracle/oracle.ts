@@ -440,25 +440,6 @@ export class Oracle {
     return [endSideEffectCounter, returnsHash].map(toACVMField);
   }
 
-  async callPublicFunction(
-    [contractAddress]: ACVMField[],
-    [functionSelector]: ACVMField[],
-    [argsHash]: ACVMField[],
-    [sideEffectCounter]: ACVMField[],
-    [isStaticCall]: ACVMField[],
-    [isDelegateCall]: ACVMField[],
-  ): Promise<ACVMField[]> {
-    const returnValues = await this.typedOracle.callPublicFunction(
-      AztecAddress.fromField(fromACVMField(contractAddress)),
-      FunctionSelector.fromField(fromACVMField(functionSelector)),
-      fromACVMField(argsHash),
-      frToNumber(fromACVMField(sideEffectCounter)),
-      frToBoolean(fromACVMField(isStaticCall)),
-      frToBoolean(fromACVMField(isDelegateCall)),
-    );
-    return returnValues.map(toACVMField);
-  }
-
   async enqueuePublicFunctionCall(
     [contractAddress]: ACVMField[],
     [functionSelector]: ACVMField[],
@@ -493,6 +474,10 @@ export class Oracle {
       frToBoolean(fromACVMField(isStaticCall)),
       frToBoolean(fromACVMField(isDelegateCall)),
     );
+  }
+
+  notifySetMinRevertibleSideEffectCounter([minRevertibleSideEffectCounter]: ACVMField[]) {
+    this.typedOracle.notifySetMinRevertibleSideEffectCounter(frToNumber(fromACVMField(minRevertibleSideEffectCounter)));
   }
 
   aes128Encrypt(input: ACVMField[], initializationVector: ACVMField[], key: ACVMField[]): ACVMField[] {

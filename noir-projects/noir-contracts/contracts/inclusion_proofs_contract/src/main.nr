@@ -179,7 +179,7 @@ contract InclusionProofs {
 
     #[aztec(public)]
     fn push_nullifier_public(nullifier: Field) {
-        context.push_nullifier(nullifier, 0);
+        context.push_nullifier(nullifier);
     }
 
     // Proves nullifier existed at latest block

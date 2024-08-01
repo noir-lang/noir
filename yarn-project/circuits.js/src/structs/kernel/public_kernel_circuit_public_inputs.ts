@@ -7,8 +7,8 @@ import { inspect } from 'util';
 
 import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX } from '../../constants.gen.js';
 import { PublicCallRequest } from '../public_call_request.js';
+import { PublicValidationRequests } from '../public_validation_requests.js';
 import { RevertCode } from '../revert_code.js';
-import { ValidationRequests } from '../validation_requests.js';
 import { CombinedConstantData } from './combined_constant_data.js';
 import { PublicAccumulatedData } from './public_accumulated_data.js';
 
@@ -21,7 +21,7 @@ export class PublicKernelCircuitPublicInputs {
     /**
      * Validation requests accumulated from public functions.
      */
-    public validationRequests: ValidationRequests,
+    public validationRequests: PublicValidationRequests,
     /**
      * Accumulated side effects and enqueued calls that are not revertible.
      */
@@ -92,7 +92,7 @@ export class PublicKernelCircuitPublicInputs {
   static fromBuffer(buffer: Buffer | BufferReader): PublicKernelCircuitPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new PublicKernelCircuitPublicInputs(
-      reader.readObject(ValidationRequests),
+      reader.readObject(PublicValidationRequests),
       reader.readObject(PublicAccumulatedData),
       reader.readObject(PublicAccumulatedData),
       reader.readObject(CombinedConstantData),
@@ -104,7 +104,7 @@ export class PublicKernelCircuitPublicInputs {
 
   static empty() {
     return new PublicKernelCircuitPublicInputs(
-      ValidationRequests.empty(),
+      PublicValidationRequests.empty(),
       PublicAccumulatedData.empty(),
       PublicAccumulatedData.empty(),
       CombinedConstantData.empty(),
@@ -117,7 +117,7 @@ export class PublicKernelCircuitPublicInputs {
   static fromFields(fields: Fr[] | FieldReader): PublicKernelCircuitPublicInputs {
     const reader = FieldReader.asReader(fields);
     return new PublicKernelCircuitPublicInputs(
-      ValidationRequests.fromFields(reader),
+      PublicValidationRequests.fromFields(reader),
       PublicAccumulatedData.fromFields(reader),
       PublicAccumulatedData.fromFields(reader),
       CombinedConstantData.fromFields(reader),

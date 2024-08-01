@@ -2,8 +2,8 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { PrivateValidationRequests } from '../private_validation_requests.js';
 import { PublicCallRequest } from '../public_call_request.js';
-import { ValidationRequests } from '../validation_requests.js';
 import { CombinedConstantData } from './combined_constant_data.js';
 import { PrivateAccumulatedData } from './private_accumulated_data.js';
 
@@ -19,7 +19,7 @@ export class PrivateKernelCircuitPublicInputs {
     /**
      * Validation requests accumulated from public functions.
      */
-    public validationRequests: ValidationRequests,
+    public validationRequests: PrivateValidationRequests,
     /**
      * Data accumulated from both public and private circuits.
      */
@@ -58,7 +58,7 @@ export class PrivateKernelCircuitPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new PrivateKernelCircuitPublicInputs(
       reader.readObject(Fr),
-      reader.readObject(ValidationRequests),
+      reader.readObject(PrivateValidationRequests),
       reader.readObject(PrivateAccumulatedData),
       reader.readObject(CombinedConstantData),
       reader.readObject(PublicCallRequest),
@@ -69,7 +69,7 @@ export class PrivateKernelCircuitPublicInputs {
   static empty() {
     return new PrivateKernelCircuitPublicInputs(
       Fr.zero(),
-      ValidationRequests.empty(),
+      PrivateValidationRequests.empty(),
       PrivateAccumulatedData.empty(),
       CombinedConstantData.empty(),
       PublicCallRequest.empty(),

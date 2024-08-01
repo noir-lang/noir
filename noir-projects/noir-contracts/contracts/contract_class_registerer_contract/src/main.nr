@@ -44,7 +44,7 @@ contract ContractClassRegisterer {
 
         // Emit the contract class id as a nullifier to be able to prove that this class has been (not) registered
         let event = ContractClassRegistered { contract_class_id, version: 1, artifact_hash, private_functions_root, packed_public_bytecode };
-        context.push_nullifier(contract_class_id.to_field(), 0);
+        context.push_nullifier(contract_class_id.to_field());
 
         // Broadcast class info including public bytecode
         dep::aztec::oracle::debug_log::debug_log_format(

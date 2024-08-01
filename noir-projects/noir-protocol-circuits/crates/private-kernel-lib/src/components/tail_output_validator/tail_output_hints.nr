@@ -12,10 +12,9 @@ use dep::types::{
     utils::arrays::{OrderHint, sort_by_counters_asc, sort_get_order_hints_asc}
 };
 
-struct Hints {
+struct TailOutputHints {
     // Note hashes.
     sorted_note_hash_hints: [OrderHint; MAX_NOTE_HASHES_PER_TX],
-    siloed_note_hashes: [Field; MAX_NOTE_HASHES_PER_TX],
     // Nullifiers.
     sorted_nullifier_hints: [OrderHint; MAX_NULLIFIERS_PER_TX],
     siloed_nullifiers: [Field; MAX_NULLIFIERS_PER_TX],
@@ -35,18 +34,9 @@ struct Hints {
     sorted_unencrypted_log_hash_hints: [OrderHint; MAX_UNENCRYPTED_LOGS_PER_TX],
 }
 
-unconstrained pub fn generate_kernel_circuit_output_hints(previous_kernel: PrivateKernelCircuitPublicInputs) -> Hints {
+unconstrained pub fn generate_tail_output_hints(previous_kernel: PrivateKernelCircuitPublicInputs) -> TailOutputHints {
     // note_hashes
     let sorted_note_hash_hints = sort_get_order_hints_asc(previous_kernel.end.note_hashes);
-
-    let mut siloed_note_hashes = [0; MAX_NOTE_HASHES_PER_TX];
-
-    // First nullifier is tx hash.
-    let tx_hash = previous_kernel.end.nullifiers[0].value();
-    let unsiloed_note_hashes = previous_kernel.end.note_hashes;
-    for i in 0..unsiloed_note_hashes.len() {
-        siloed_note_hashes[i] = silo_note_hash(unsiloed_note_hashes[i], tx_hash, i);
-    }
 
     // nullifiers
     let sorted_nullifier_hints = sort_get_order_hints_asc(previous_kernel.end.nullifiers);
@@ -82,9 +72,8 @@ unconstrained pub fn generate_kernel_circuit_output_hints(previous_kernel: Priva
     let sorted_unencrypted_log_hashes = sort_by_counters_asc(previous_kernel.end.unencrypted_logs_hashes);
     let sorted_unencrypted_log_hash_hints = sort_get_order_hints_asc(previous_kernel.end.unencrypted_logs_hashes);
 
-    Hints {
+    TailOutputHints {
         sorted_note_hash_hints,
-        siloed_note_hashes,
         sorted_nullifier_hints,
         siloed_nullifiers,
         sorted_l2_to_l1_msg_hints,

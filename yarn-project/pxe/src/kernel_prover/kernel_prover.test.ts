@@ -67,7 +67,7 @@ describe('Kernel Prover', () => {
       nestedExecutions: (dependencies[fnName] || []).map(name => createExecutionResult(name)),
       vk: VerificationKey.makeFake().toBuffer(),
       newNotes: newNoteIndices.map(idx => notesAndSlots[idx]),
-      nullifiedNoteHashCounters: new Map(),
+      noteHashNullifierCounterMap: new Map(),
       noteHashLeafIndexMap: new Map(),
       returnValues: [],
       acir: Buffer.alloc(0),

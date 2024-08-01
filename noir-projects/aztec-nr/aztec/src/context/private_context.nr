@@ -6,7 +6,10 @@ use crate::{
     key_validation_request::get_key_validation_request, arguments, returns::pack_returns,
     call_private_function::call_private_function_internal, header::get_header_at,
     logs::{emit_encrypted_note_log, emit_encrypted_event_log},
-    enqueue_public_function_call::{enqueue_public_function_call_internal, set_public_teardown_function_call_internal}
+    enqueue_public_function_call::{
+    enqueue_public_function_call_internal, notify_set_min_revertible_side_effect_counter,
+    set_public_teardown_function_call_internal
+}
 }
 };
 use dep::protocol_types::{
@@ -125,9 +128,11 @@ impl PrivateContext {
         self.note_hashes.push(NoteHash { value: note_hash, counter: self.next_counter() });
     }
 
-    // TODO(#7112): This function is called with non-zero note hash only in 1 of 25 cases in aztec-packages repo
-    // - consider creating a separate function with 1 arg for the zero note hash case.
-    fn push_nullifier(&mut self, nullifier: Field, nullified_note_hash: Field) {
+    fn push_nullifier(&mut self, nullifier: Field) {
+        self.nullifiers.push(Nullifier { value: nullifier, note_hash: 0, counter: self.next_counter() });
+    }
+
+    fn push_nullifier_for_note_hash(&mut self, nullifier: Field, nullified_note_hash: Field) {
         self.nullifiers.push(Nullifier { value: nullifier, note_hash: nullified_note_hash, counter: self.next_counter() });
     }
 
@@ -186,6 +191,7 @@ impl PrivateContext {
         //     [self.side_effect_counter as Field]
         // );
         self.min_revertible_side_effect_counter = self.side_effect_counter;
+        notify_set_min_revertible_side_effect_counter(self.min_revertible_side_effect_counter);
     }
 
     // docs:start:max-block-number
@@ -254,7 +260,7 @@ impl PrivateContext {
         );
 
         // Push nullifier (and the "commitment" corresponding to this can be "empty")
-        self.push_nullifier(nullifier, 0)
+        self.push_nullifier(nullifier)
     }
     // docs:end:consume_l1_to_l2_message
 

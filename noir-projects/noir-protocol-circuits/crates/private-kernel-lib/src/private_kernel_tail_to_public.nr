@@ -36,7 +36,8 @@ impl PrivateKernelTailToPublicCircuitPrivateInputs {
         let output = self.generate_output();
 
         // Validate inputs.
-        PreviousKernelValidator::new(self.previous_kernel.public_inputs).validate_for_private_tail_to_public();
+        let previous_kernel_validator = PreviousKernelValidator::new(self.previous_kernel.public_inputs);
+        previous_kernel_validator.validate_for_private_tail_to_public();
         if !std::runtime::is_unconstrained() {
             // TODO(#7410) currently stubbed out until tube vk handled
             // self.previous_kernel.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
@@ -44,7 +45,11 @@ impl PrivateKernelTailToPublicCircuitPrivateInputs {
 
         // Validate output.
         if !dep::std::runtime::is_unconstrained() {
-            TailToPublicOutputValidator::new(output, self.previous_kernel.public_inputs).validate();
+            TailToPublicOutputValidator::new(
+                output,
+                self.previous_kernel.public_inputs,
+                previous_kernel_validator.hints
+            ).validate();
         }
 
         output
@@ -176,6 +181,16 @@ mod tests {
     fn zero_min_revertible_side_effect_counter_fails() {
         let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
         builder.previous_kernel.min_revertible_side_effect_counter = 0;
+        builder.failed();
+    }
+
+    #[test(should_fail_with="split_counter does not match min_revertible_side_effect_counter")]
+    fn mismatch_validation_requests_split_counter_fail() {
+        let mut builder = PrivateKernelTailToPublicInputsBuilder::new();
+
+        builder.previous_kernel.min_revertible_side_effect_counter = 123;
+        builder.previous_kernel.validation_requests_split_counter = Option::some(4567);
+
         builder.failed();
     }
 

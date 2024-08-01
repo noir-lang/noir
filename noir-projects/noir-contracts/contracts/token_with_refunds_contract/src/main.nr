@@ -347,7 +347,7 @@ contract TokenWithRefunds {
     fn cancel_authwit(inner_hash: Field) {
         let on_behalf_of = context.msg_sender();
         let nullifier = compute_authwit_nullifier(on_behalf_of, inner_hash);
-        context.push_nullifier(nullifier, 0);
+        context.push_nullifier(nullifier);
     }
     // docs:end:cancel_authwit
 
