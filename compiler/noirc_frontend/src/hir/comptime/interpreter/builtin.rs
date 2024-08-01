@@ -438,6 +438,7 @@ fn quoted_as_type(
     Ok(Value::Type(typ))
 }
 
+// fn as_integer(self) -> Option<(bool, u8)>
 fn type_as_integer(
     mut arguments: Vec<(Value, Location)>,
     return_type: Type,
@@ -486,6 +487,7 @@ fn type_as_integer(
     Ok(option)
 }
 
+// fn type_eq(_first: Type, _second: Type) -> bool
 fn type_eq(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(2, &arguments, location)?;
 
@@ -494,6 +496,7 @@ fn type_eq(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult
     Ok(Value::Bool(value1 == value2))
 }
 
+// fn is_field(self) -> bool
 fn type_is_field(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(1, &arguments, location)?;
 
