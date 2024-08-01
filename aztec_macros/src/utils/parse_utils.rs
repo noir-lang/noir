@@ -310,8 +310,8 @@ fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
             empty_unresolved_type_expression(unresolved_type_expression)
         }
         UnresolvedTypeData::String(_) => (),
-        UnresolvedTypeData::FormatString(unrsolved_type_expression, unresolved_type) => {
-            empty_unresolved_type_expression(unrsolved_type_expression);
+        UnresolvedTypeData::FormatString(unresolved_type_expression, unresolved_type) => {
+            empty_unresolved_type_expression(unresolved_type_expression);
             empty_unresolved_type(unresolved_type);
         }
         UnresolvedTypeData::Unit => (),
