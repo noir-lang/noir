@@ -33,7 +33,7 @@ fn main() -> Result<(), io::Error> {
     let args = Cli::parse();
 
     let file_name = args.file;
-    let name = args.name;
+    let name = args.name.unwrap();
 
     let analyzed: Analyzed<Bn254Field> = analyze_file(Path::new(&file_name));
 
@@ -46,7 +46,7 @@ fn main() -> Result<(), io::Error> {
         &extract_col_name(fixed),
         &extract_col_name(witness),
         &extract_col_name(public),
-        name,
+        &name,
     );
     Ok(())
 }

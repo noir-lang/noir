@@ -13,16 +13,16 @@
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/flavor/flavor.hpp"
 
-#include "barretenberg/vm/generated/{{snakeCase name}}_flavor_settings.hpp"
+#include "barretenberg/vm/{{snakeCase name}}/generated/flavor_settings.hpp"
 
 // Relations
 {{#each relation_file_names as |r|}}
-#include "barretenberg/relations/generated/{{snakeCase ../name}}/{{r}}.hpp"
+#include "barretenberg/vm/{{snakeCase ../name}}/generated/relations/{{r}}.hpp"
 {{/each}}
 
 // Lookup and permutation relations
 {{#each lookups as |r|}}
-#include "barretenberg/relations/generated/{{snakeCase ../name}}/{{r}}.hpp"
+#include "barretenberg/vm/{{snakeCase ../name}}/generated/relations/{{r}}.hpp"
 {{/each}}
 
 // Metaprogramming to concatenate tuple types.

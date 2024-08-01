@@ -50,11 +50,7 @@ impl CircuitBuilder for BBFiles {
 
         let circuit_hpp = handlebars.render("circuit_builder.hpp", data).unwrap();
 
-        self.write_file(
-            &self.circuit,
-            &format!("{}_circuit_builder.hpp", snake_case(name)),
-            &circuit_hpp,
-        );
+        self.write_file(None, "circuit_builder.hpp", &circuit_hpp);
     }
 
     fn create_circuit_builder_cpp(&mut self, name: &str, all_cols_without_inverses: &[String]) {
@@ -75,11 +71,7 @@ impl CircuitBuilder for BBFiles {
 
         let circuit_cpp = handlebars.render("circuit_builder.cpp", data).unwrap();
 
-        self.write_file(
-            &self.circuit,
-            &format!("{}_circuit_builder.cpp", snake_case(name)),
-            &circuit_cpp,
-        );
+        self.write_file(None, "circuit_builder.cpp", &circuit_cpp);
     }
 
     fn create_full_row_hpp(&mut self, name: &str, all_cols: &[String]) {
@@ -99,11 +91,7 @@ impl CircuitBuilder for BBFiles {
 
         let hpp = handlebars.render("full_row.hpp", data).unwrap();
 
-        self.write_file(
-            &self.circuit,
-            &format!("{}_full_row.hpp", snake_case(name)),
-            &hpp,
-        );
+        self.write_file(None, "full_row.hpp", &hpp);
     }
 
     fn create_full_row_cpp(&mut self, name: &str, all_cols: &[String]) {
@@ -123,10 +111,6 @@ impl CircuitBuilder for BBFiles {
 
         let cpp = handlebars.render("full_row.cpp", data).unwrap();
 
-        self.write_file(
-            &self.circuit,
-            &format!("{}_full_row.cpp", snake_case(name)),
-            &cpp,
-        );
+        self.write_file(None, "full_row.cpp", &cpp);
     }
 }

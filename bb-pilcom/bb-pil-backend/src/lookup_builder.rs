@@ -83,13 +83,12 @@ impl LookupBuilder for BBFiles {
             let data = create_lookup_settings_data(lookup);
             let lookup_settings = handlebars.render("lookup.hpp", &data).unwrap();
 
-            let folder = format!("{}/{}", self.rel, &snake_case(project_name));
             let file_name = format!(
                 "{}{}",
                 lookup.attribute.clone().unwrap_or("NONAME".to_owned()),
                 ".hpp".to_owned()
             );
-            self.write_file(&folder, &file_name, &lookup_settings);
+            self.write_file(Some(&self.relations), &file_name, &lookup_settings);
         }
 
         lookups

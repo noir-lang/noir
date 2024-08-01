@@ -1,4 +1,4 @@
-use crate::{file_writer::BBFiles, utils::snake_case};
+use crate::file_writer::BBFiles;
 use handlebars::{handlebars_helper, Handlebars};
 use itertools::Itertools;
 use serde_json::json;
@@ -80,11 +80,7 @@ impl FlavorBuilder for BBFiles {
 
         let flavor_hpp = handlebars.render("flavor.hpp", data).unwrap();
 
-        self.write_file(
-            &self.flavor,
-            &format!("{}_flavor.hpp", snake_case(name)),
-            &flavor_hpp,
-        );
+        self.write_file(None, "flavor.hpp", &flavor_hpp);
     }
 
     fn create_flavor_cpp(
@@ -129,11 +125,7 @@ impl FlavorBuilder for BBFiles {
 
         let flavor_cpp = handlebars.render("flavor.cpp", data).unwrap();
 
-        self.write_file(
-            &self.flavor,
-            &format!("{}_flavor.cpp", snake_case(name)),
-            &flavor_cpp,
-        );
+        self.write_file(None, "flavor.cpp", &flavor_cpp);
     }
 
     fn create_flavor_settings_hpp(&mut self, name: &str) {
@@ -153,10 +145,6 @@ impl FlavorBuilder for BBFiles {
 
         let flavor_hpp = handlebars.render("flavor_settings.hpp", data).unwrap();
 
-        self.write_file(
-            &self.flavor,
-            &format!("{}_flavor_settings.hpp", snake_case(name)),
-            &flavor_hpp,
-        );
+        self.write_file(None, "flavor_settings.hpp", &flavor_hpp);
     }
 }

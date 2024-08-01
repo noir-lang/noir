@@ -25,11 +25,7 @@ impl ProverBuilder for BBFiles {
 
         let prover_hpp = handlebars.render("prover.hpp", data).unwrap();
 
-        self.write_file(
-            &self.prover,
-            &format!("{}_prover.hpp", snake_case(name)),
-            &prover_hpp,
-        );
+        self.write_file(None, "prover.hpp", &prover_hpp);
     }
 
     fn create_prover_cpp(&mut self, name: &str, lookup_names: &[String]) {
@@ -49,10 +45,6 @@ impl ProverBuilder for BBFiles {
 
         let prover_cpp = handlebars.render("prover.cpp", data).unwrap();
 
-        self.write_file(
-            &self.prover,
-            &format!("{}_prover.cpp", snake_case(name)),
-            &prover_cpp,
-        );
+        self.write_file(None, "prover.cpp", &prover_cpp);
     }
 }

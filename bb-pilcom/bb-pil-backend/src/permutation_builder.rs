@@ -75,13 +75,12 @@ impl PermutationBuilder for BBFiles {
             let data = create_permutation_settings_data(permutation);
             let perm_settings = handlebars.render("permutation.hpp", &data).unwrap();
 
-            let folder = format!("{}/{}", self.rel, &snake_case(project_name));
             let file_name = format!(
                 "{}{}",
                 permutation.attribute.clone().unwrap_or("NONAME".to_owned()),
                 ".hpp".to_owned()
             );
-            self.write_file(&folder, &file_name, &perm_settings);
+            self.write_file(Some(&self.relations), &file_name, &perm_settings);
         }
 
         permutations

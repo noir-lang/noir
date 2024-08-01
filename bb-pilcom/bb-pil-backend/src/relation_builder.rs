@@ -150,7 +150,7 @@ impl RelationBuilder for BBFiles {
         let relation_hpp = handlebars.render("relation.hpp", data).unwrap();
 
         self.write_file(
-            &format!("{}/{}", &self.rel, snake_case(root_name)),
+            Some(&self.relations),
             &format!("{}.hpp", snake_case(name)),
             &relation_hpp,
         );

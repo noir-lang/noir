@@ -42,11 +42,7 @@ impl VerifierBuilder for BBFiles {
 
         let verifier_cpp = handlebars.render("verifier.cpp", data).unwrap();
 
-        self.write_file(
-            &self.prover,
-            &format!("{}_verifier.cpp", snake_case(name)),
-            &verifier_cpp,
-        );
+        self.write_file(None, "verifier.cpp", &verifier_cpp);
     }
 
     fn create_verifier_hpp(&mut self, name: &str, public_cols: &[(String, usize)]) {
@@ -66,10 +62,6 @@ impl VerifierBuilder for BBFiles {
 
         let verifier_hpp = handlebars.render("verifier.hpp", data).unwrap();
 
-        self.write_file(
-            &self.prover,
-            &format!("{}_verifier.hpp", snake_case(name)),
-            &verifier_hpp,
-        );
+        self.write_file(None, "verifier.hpp", &verifier_hpp);
     }
 }

@@ -1,57 +1,38 @@
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 
 pub struct BBFiles {
-    // Relative paths
-    pub file_name: String,
-    pub base: String,
-    pub rel: String,
-    pub circuit: String,
-    pub flavor: String,
-    pub composer: String,
-    pub prover: String, // path for both prover and verifier files
+    pub vm_name: String,
+    pub base_dir: String,
+    pub relations: String,
 }
 
 impl BBFiles {
-    pub fn default(file_name: String) -> Self {
-        Self::new(file_name, None, None, None, None, None, None)
+    pub fn default(vm_name: &str) -> Self {
+        Self::new(vm_name, None, None)
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        file_name: String,
-        base: Option<String>,
-        rel: Option<String>,
-        circuit: Option<String>,
-        flavor: Option<String>,
-        composer: Option<String>,
-        prover: Option<String>,
-    ) -> Self {
-        let base = base.unwrap_or("src/barretenberg".to_owned());
-        let rel = rel.unwrap_or("relations/generated".to_owned());
-        let circuit = circuit.unwrap_or("vm/generated".to_owned());
-        let flavor = flavor.unwrap_or("vm/generated".to_owned());
-        let composer = composer.unwrap_or("vm/generated".to_owned());
-        let prover = prover.unwrap_or("vm/generated".to_owned());
+    pub fn new(vm_name: &str, base_dir: Option<&str>, relations: Option<&str>) -> Self {
+        let base_dir = base_dir
+            .map(|x| x.to_owned())
+            .unwrap_or(format!("src/barretenberg/vm/{}/generated", vm_name));
+        let relations = relations.unwrap_or("relations").to_owned();
 
         Self {
-            file_name,
-
-            base,
-            rel,
-            circuit,
-            flavor,
-            composer,
-            prover,
+            vm_name: vm_name.to_owned(),
+            base_dir,
+            relations,
         }
     }
 
-    pub fn write_file(&self, folder: &str, filename: &str, contents: &String) {
+    pub fn write_file(&self, folder: Option<&str>, filename: &str, contents: &str) {
         // attempt to create dir
-        let base_path = format!("{}/{}", self.base, folder);
+        let base_path = Path::new(&self.base_dir).join(folder.unwrap_or(""));
         let _ = std::fs::create_dir_all(&base_path);
 
-        let joined = format!("{}/{}", base_path, filename);
+        let joined = base_path.join(filename);
         let mut file = File::create(joined).unwrap();
         file.write_all(contents.as_bytes()).unwrap();
     }

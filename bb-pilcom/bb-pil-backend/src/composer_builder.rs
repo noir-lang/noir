@@ -24,11 +24,7 @@ impl ComposerBuilder for BBFiles {
 
         let composer_cpp = handlebars.render("composer.cpp", data).unwrap();
 
-        self.write_file(
-            &self.composer,
-            &format!("{}_composer.cpp", snake_case(name)),
-            &composer_cpp,
-        );
+        self.write_file(None, "composer.cpp", &composer_cpp);
     }
 
     fn create_composer_hpp(&mut self, name: &str) {
@@ -47,10 +43,6 @@ impl ComposerBuilder for BBFiles {
 
         let composer_hpp = handlebars.render("composer.hpp", data).unwrap();
 
-        self.write_file(
-            &self.composer,
-            &format!("{}_composer.hpp", snake_case(name)),
-            &composer_hpp,
-        );
+        self.write_file(None, "composer.hpp", &composer_hpp);
     }
 }
