@@ -236,38 +236,14 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     }
 }
 
-pub(crate) fn resolve_workspace_for_source_path(
-    file_path: &Path,
-    root_path: &Option<PathBuf>,
-) -> Result<Workspace, LspError> {
-    // If there's a LSP root path, starting from file_path go up the directory tree
-    // searching for Nargo.toml files. The last one we find is the one we'll use
-    // (we'll assume Noir workspaces aren't nested)
-    if let Some(root_path) = root_path {
-        let mut current_path = file_path;
-        let mut current_toml_path = None;
-        while current_path.starts_with(root_path) {
-            if let Some(toml_path) = find_file_manifest(current_path) {
-                current_toml_path = Some(toml_path);
-
-                if let Some(next_path) = current_path.parent() {
-                    current_path = next_path;
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-
-        if let Some(toml_path) = current_toml_path {
-            return resolve_workspace_from_toml(
-                &toml_path,
-                PackageSelection::All,
-                Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-            )
-            .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
-        }
+pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
+    if let Some(toml_path) = find_file_manifest(file_path) {
+        return resolve_workspace_from_toml(
+            &toml_path,
+            PackageSelection::All,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        )
+        .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
     }
 
     let Some(parent_folder) = file_path
