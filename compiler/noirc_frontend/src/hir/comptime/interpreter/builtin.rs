@@ -56,6 +56,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "type_eq" => type_eq(arguments, location),
+            "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
@@ -442,6 +443,19 @@ fn type_eq(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult
     let value1 = arguments.pop().unwrap().0;
     let value2 = arguments.pop().unwrap().0;
     Ok(Value::Bool(value1 == value2))
+}
+
+fn type_is_field(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let value = arguments.pop().unwrap().0;
+    let Value::Type(typ) = value else {
+        panic!("type_is_field shold have been called with a type");
+    };
+
+    let is_field = matches!(typ, Type::FieldElement);
+
+    Ok(Value::Bool(is_field))
 }
 
 fn type_of(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {

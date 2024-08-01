@@ -12,5 +12,9 @@ fn main() {
         let i32_type = type_of(an_i32);
         assert(field_type_1 == field_type_2);
         assert(field_type_1 != i32_type);
+
+        // Check Type::is_field
+        assert(field_type_1.is_field());
+        assert(!i32_type.is_field());
     }
 }
