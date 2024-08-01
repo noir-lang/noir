@@ -216,11 +216,9 @@ fn empty_statement(statement: &mut Statement) {
         StatementKind::Expression(expression) => empty_expression(expression),
         StatementKind::Assign(assign_statement) => empty_assign_statement(assign_statement),
         StatementKind::For(for_loop_statement) => empty_for_loop_statement(for_loop_statement),
-        StatementKind::Break => (),
-        StatementKind::Continue => (),
         StatementKind::Comptime(statement) => empty_statement(statement),
         StatementKind::Semi(expression) => empty_expression(expression),
-        StatementKind::Error => (),
+        StatementKind::Break | StatementKind::Continue | StatementKind::Error => (),
     }
 }
 
@@ -264,15 +262,13 @@ fn empty_expression(expression: &mut Expression) {
         }
         ExpressionKind::Lambda(lambda) => empty_lambda(lambda),
         ExpressionKind::Parenthesized(expression) => empty_expression(expression),
-        ExpressionKind::Quote(..) => (),
         ExpressionKind::Unquote(expression) => {
             empty_expression(expression);
         }
         ExpressionKind::Comptime(block_expression, _span) => {
             empty_block_expression(block_expression);
         }
-        ExpressionKind::Resolved(_) => (),
-        ExpressionKind::Error => (),
+        ExpressionKind::Quote(..) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
     }
 }
 
@@ -298,23 +294,18 @@ fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
     unresolved_type.span = Default::default();
 
     match &mut unresolved_type.typ {
-        UnresolvedTypeData::FieldElement => (),
         UnresolvedTypeData::Array(unresolved_type_expression, unresolved_type) => {
             empty_unresolved_type_expression(unresolved_type_expression);
             empty_unresolved_type(unresolved_type);
         }
         UnresolvedTypeData::Slice(unresolved_type) => empty_unresolved_type(unresolved_type),
-        UnresolvedTypeData::Integer(_, _) => (),
-        UnresolvedTypeData::Bool => (),
         UnresolvedTypeData::Expression(unresolved_type_expression) => {
             empty_unresolved_type_expression(unresolved_type_expression)
         }
-        UnresolvedTypeData::String(_) => (),
         UnresolvedTypeData::FormatString(unresolved_type_expression, unresolved_type) => {
             empty_unresolved_type_expression(unresolved_type_expression);
             empty_unresolved_type(unresolved_type);
         }
-        UnresolvedTypeData::Unit => (),
         UnresolvedTypeData::Parenthesized(unresolved_type) => {
             empty_unresolved_type(unresolved_type)
         }
@@ -334,10 +325,15 @@ fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
             empty_unresolved_types(args);
             empty_unresolved_type(ret);
         }
-        UnresolvedTypeData::Quoted(_) => (),
-        UnresolvedTypeData::Resolved(_) => (),
-        UnresolvedTypeData::Unspecified => (),
-        UnresolvedTypeData::Error => (),
+        UnresolvedTypeData::FieldElement
+        | UnresolvedTypeData::Integer(_, _)
+        | UnresolvedTypeData::Bool
+        | UnresolvedTypeData::String(_)
+        | UnresolvedTypeData::Unit
+        | UnresolvedTypeData::Quoted(_)
+        | UnresolvedTypeData::Resolved(_)
+        | UnresolvedTypeData::Unspecified
+        | UnresolvedTypeData::Error => (),
     }
 }
 
@@ -392,8 +388,8 @@ fn empty_unresolved_trait_constraint(unresolved_trait_constraint: &mut Unresolve
 
 fn empty_function_return_type(function_return_type: &mut FunctionReturnType) {
     match function_return_type {
-        FunctionReturnType::Default(_) => (),
         FunctionReturnType::Ty(unresolved_type) => empty_unresolved_type(unresolved_type),
+        FunctionReturnType::Default(_) => (),
     }
 }
 
@@ -417,12 +413,12 @@ fn empty_literal(literal: &mut Literal) {
     match literal {
         Literal::Array(array_literal) => empty_array_literal(array_literal),
         Literal::Slice(array_literal) => empty_array_literal(array_literal),
-        Literal::Bool(_) => (),
-        Literal::Integer(_, _) => (),
-        Literal::Str(_) => (),
-        Literal::RawStr(_, _) => (),
-        Literal::FmtStr(_) => (),
-        Literal::Unit => (),
+        Literal::Bool(_)
+        | Literal::Integer(_, _)
+        | Literal::Str(_)
+        | Literal::RawStr(_, _)
+        | Literal::FmtStr(_)
+        | Literal::Unit => (),
     }
 }
 
@@ -529,10 +525,10 @@ fn empty_for_range(for_range: &mut ForRange) {
 fn empty_unresolved_type_expression(unresolved_type_expression: &mut UnresolvedTypeExpression) {
     match unresolved_type_expression {
         UnresolvedTypeExpression::Variable(path) => empty_path(path),
-        UnresolvedTypeExpression::Constant(_, _) => (),
         UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
             empty_unresolved_type_expression(lhs);
             empty_unresolved_type_expression(rhs);
         }
+        UnresolvedTypeExpression::Constant(_, _) => (),
     }
 }
