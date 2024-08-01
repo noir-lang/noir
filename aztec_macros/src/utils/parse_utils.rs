@@ -264,7 +264,7 @@ fn empty_expression(expression: &mut Expression) {
         }
         ExpressionKind::Lambda(lambda) => empty_lambda(lambda),
         ExpressionKind::Parenthesized(expression) => empty_expression(expression),
-        ExpressionKind::Quote(tokens) => empty_tokens(tokens),
+        ExpressionKind::Quote(..) => (),
         ExpressionKind::Unquote(expression) => {
             empty_expression(expression);
         }
@@ -499,10 +499,6 @@ fn empty_lambda(lambda: &mut Lambda) {
     }
     empty_unresolved_type(&mut lambda.return_type);
     empty_expression(&mut lambda.body);
-}
-
-fn empty_tokens(_tokens: &mut Tokens) {
-    // TODO
 }
 
 fn empty_lvalue(lvalue: &mut LValue) {
