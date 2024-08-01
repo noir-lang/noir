@@ -803,10 +803,11 @@ pub fn inject_note_exports(
                     file_id,
                 )),
             }?;
+            let empty_spans = context.def_interner.is_in_lsp_mode();
             let global = generate_note_exports_global(
                 &note.borrow().name.0.contents,
                 &note_type_id.to_hex(),
-                context.def_interner.is_in_lsp_mode(),
+                empty_spans,
             )
             .map_err(|err| (err, file_id))?;
 

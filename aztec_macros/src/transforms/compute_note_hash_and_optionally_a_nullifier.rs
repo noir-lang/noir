@@ -126,10 +126,11 @@ pub fn inject_compute_note_hash_and_optionally_a_nullifier(
             notes_and_lengths.iter().map(|(note_type, _)| note_type.clone()).collect::<Vec<_>>();
 
         // We can now generate a version of compute_note_hash_and_optionally_a_nullifier tailored for the contract in this crate.
+        let empty_spans = context.def_interner.is_in_lsp_mode();
         let func = generate_compute_note_hash_and_optionally_a_nullifier(
             &note_types,
             max_note_length,
-            context.def_interner.is_in_lsp_mode(),
+            empty_spans,
         );
 
         // And inject the newly created function into the contract.

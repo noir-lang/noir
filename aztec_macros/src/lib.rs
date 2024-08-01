@@ -62,6 +62,8 @@ fn transform(
     file_id: FileId,
     context: &HirContext,
 ) -> Result<SortedModule, (MacroError, FileId)> {
+    let empty_spans = context.def_interner.is_in_lsp_mode();
+
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
@@ -69,15 +71,13 @@ fn transform(
             &file_id,
             &mut submodule.contents,
             submodule.name.0.contents.as_str(),
-            context.def_interner.is_in_lsp_mode(),
+            empty_spans,
         )
         .map_err(|err| (err.into(), file_id))?
         {
             check_for_aztec_dependency(crate_id, context)?;
         }
     }
-
-    let empty_spans = context.def_interner.is_in_lsp_mode();
 
     generate_event_impls(&mut ast, empty_spans).map_err(|err| (err.into(), file_id))?;
     generate_note_interface_impl(&mut ast, empty_spans).map_err(|err| (err.into(), file_id))?;
