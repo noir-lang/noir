@@ -153,13 +153,11 @@ const publicInputsOffsetBytes = publicInputOffset * fieldByteSize;
 
 export class UltraHonkBackend implements Backend, VerifierBackend {
   // These type assertions are used so that we don't
-  // have to initialize `api` and `acirComposer` in the constructor.
+  // have to initialize `api` in the constructor.
   // These are initialized asynchronously in the `init` function,
   // constructors cannot be asynchronous which is why we do this.
 
   protected api!: Barretenberg;
-  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  protected acirComposer: any;
   protected acirUncompressedBytecode: Uint8Array;
 
   constructor(
