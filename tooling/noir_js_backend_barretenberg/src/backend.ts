@@ -246,15 +246,17 @@ export class UltraHonkBackend implements Backend, VerifierBackend {
     return await this.api.acirWriteVkUltraHonk(this.acirUncompressedBytecode);
   }
 
-  // TODO: Make this accurate to handle Honk recursive aggregation in the browser
+  // TODO(https://github.com/noir-lang/noir/issues/5661): Update this to handle Honk recursive aggregation in the browser once it is ready in the backend itself
   async generateRecursiveProofArtifacts(
     _proofData: ProofData,
     _numOfPublicInputs: number,
   ): Promise<{ proofAsFields: string[]; vkAsFields: string[]; vkHash: string }> {
     await this.instantiate();
-    // TODO: This needs to be updated to handle recursive aggregation.
+    // TODO(https://github.com/noir-lang/noir/issues/5661): This needs to be updated to handle recursive aggregation.
     // There is still a proofAsFields method but we could consider getting rid of it as the proof itself
     // is a list of field elements.
+    // UltraHonk also does not have public inputs directly prepended to the proof and they are still instead
+    // inserted at an offset.
     // const proof = reconstructProofWithPublicInputs(proofData);
     // const proofAsFields = (await this.api.acirProofAsFieldsUltraHonk(proof)).slice(numOfPublicInputs);
 
@@ -264,7 +266,7 @@ export class UltraHonkBackend implements Backend, VerifierBackend {
     const vk = await this.api.acirVkAsFieldsUltraHonk(vkBuf);
 
     return {
-      // TODO: broken
+      // TODO(https://github.com/noir-lang/noir/issues/5661)
       proofAsFields: [],
       vkAsFields: vk.map((vk) => vk.toString()),
       // We use an empty string for the vk hash here as it is unneeded as part of the recursive artifacts

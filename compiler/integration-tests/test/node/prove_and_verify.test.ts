@@ -6,6 +6,7 @@ import {
   BarretenbergBackend as Backend,
   BarretenbergVerifier as Verifier,
   UltraHonkBackend,
+  UltraHonkVerifier
 } from '@noir-lang/backend_barretenberg';
 import { CompiledCircuit } from '@noir-lang/types';
 
@@ -195,8 +196,8 @@ it('UltraHonk end-to-end proof creation and verification (outer) -- Verifier API
   const verificationKey = await honkBackend.getVerificationKey();
 
   // Proof verification
-  const verifier = new Verifier();
-  const isValid = await verifier.verifyUltraHonkProof(proof, verificationKey);
+  const verifier = new UltraHonkVerifier();
+  const isValid = await verifier.verifyProof(proof, verificationKey);
   expect(isValid).to.be.true;
 });
 
