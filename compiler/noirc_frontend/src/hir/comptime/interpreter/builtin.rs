@@ -469,9 +469,7 @@ fn type_as_integer(
         None
     };
 
-    let option = Value::option(return_type, option_value);
-
-    Ok(option)
+    Ok(Value::option(return_type, option_value))
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
