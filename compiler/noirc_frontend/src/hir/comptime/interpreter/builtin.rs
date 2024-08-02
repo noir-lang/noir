@@ -55,6 +55,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             }
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
+            "type_eq" => type_eq(arguments, location),
+            "type_of" => type_of(arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
                 let item = format!("Comptime evaluation for builtin function {name}");
@@ -431,6 +433,22 @@ fn quoted_as_type(
         .elaborator
         .elaborate_item_from_comptime(interpreter.current_function, |elab| elab.resolve_type(typ));
 
+    Ok(Value::Type(typ))
+}
+
+fn type_eq(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    check_argument_count(2, &arguments, location)?;
+
+    let value1 = arguments.pop().unwrap().0;
+    let value2 = arguments.pop().unwrap().0;
+    Ok(Value::Bool(value1 == value2))
+}
+
+fn type_of(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let value = arguments.pop().unwrap().0;
+    let typ = value.get_type().into_owned();
     Ok(Value::Type(typ))
 }
 
