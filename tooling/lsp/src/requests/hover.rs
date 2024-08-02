@@ -121,7 +121,7 @@ fn format_struct_member(
     string.push_str(&field_name.0.contents);
     string.push_str(": ");
     string.push_str(&format!("{}", field_type));
-    string.push_str(&go_to_type_links(&field_type, args.interner, args.files));
+    string.push_str(&go_to_type_links(field_type, args.interner, args.files));
     string
 }
 
