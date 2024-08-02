@@ -23,7 +23,7 @@ use noirc_frontend::monomorphization::{
 };
 use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::token::SecondaryAttribute;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 mod abi_gen;
@@ -66,9 +66,15 @@ pub struct CompileOptions {
     #[arg(long = "force")]
     pub force_compile: bool,
 
-    /// Emit debug information for the intermediate SSA IR
+    /// Emit debug information for the intermediate SSA IR to stdout
     #[arg(long, hide = true)]
     pub show_ssa: bool,
+
+    /// Emit the unoptimized SSA IR to file. 
+    /// The IR will be dumped into the workspace target directory,
+    /// under the name of the package that was compiled.
+    #[arg(long, hide = true)]
+    pub emit_ssa: bool,
 
     #[arg(long, hide = true)]
     pub show_brillig: bool,
@@ -301,6 +307,7 @@ pub fn compile_main(
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
+    emit_ssa: Option<PathBuf>,
 ) -> CompilationResult<CompiledProgram> {
     let (_, mut warnings) = check_crate(
         context,
@@ -320,7 +327,7 @@ pub fn compile_main(
     })?;
 
     let compiled_program =
-        compile_no_check(context, options, main, cached_program, options.force_compile)
+        compile_no_check(context, options, main, cached_program, options.force_compile, emit_ssa)
             .map_err(FileDiagnostic::from)?;
 
     let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
@@ -428,7 +435,7 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id, None, true) {
+        let function = match compile_no_check(context, options, function_id, None, true, None) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(FileDiagnostic::from(new_error));
@@ -534,6 +541,7 @@ pub fn compile_no_check(
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
+    emit_ssa: Option<PathBuf>,
 ) -> Result<CompiledProgram, CompileError> {
     let program = if options.instrument_debug {
         monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
@@ -567,6 +575,7 @@ pub fn compile_no_check(
         } else {
             ExpressionWidth::default()
         },
+        emit_ssa,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =

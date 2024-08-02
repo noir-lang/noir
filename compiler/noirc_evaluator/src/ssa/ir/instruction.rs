@@ -1,4 +1,5 @@
 use std::hash::{Hash, Hasher};
+use serde::{Serialize, Deserialize};
 
 use acvm::{
     acir::AcirField,
@@ -47,7 +48,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which have no function definition in the
 /// source code and must be processed by the IR. An example
 /// of this is println.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
     AsSlice,
@@ -169,13 +170,13 @@ impl Intrinsic {
 }
 
 /// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Endian {
     Big,
     Little,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
 pub(crate) enum Instruction {
@@ -753,7 +754,7 @@ pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) enum ConstrainError {
     // These are errors which have been hardcoded during SSA gen
     Intrinsic(String),
@@ -795,7 +796,7 @@ pub(crate) enum InstructionResultType {
 /// Since our IR needs to be in SSA form, it makes sense
 /// to split up instructions like this, as we are sure that these instructions
 /// will not be in the list of instructions for a basic block.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) enum TerminatorInstruction {
     /// Control flow
     ///

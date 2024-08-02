@@ -7,7 +7,7 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{collections::{BTreeMap, BTreeSet}, path::{Path, PathBuf}, fs::File, io::Write};
 
 use crate::errors::{RuntimeError, SsaReport};
 use acvm::{
@@ -56,6 +56,9 @@ pub struct SsaEvaluatorOptions {
 
     /// Width of expressions to be used for ACIR
     pub expression_width: ExpressionWidth,
+
+    /// Dump the unoptimized SSA to the supplied path if it exists
+    pub emit_ssa: Option<PathBuf>,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -76,6 +79,7 @@ pub(crate) fn optimize_into_acir(
         options.enable_ssa_logging,
         options.force_brillig_output,
         options.print_codegen_timings,
+        &options.emit_ssa,
     )?
     .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
     .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
@@ -346,8 +350,21 @@ impl SsaBuilder {
         print_ssa_passes: bool,
         force_brillig_runtime: bool,
         print_codegen_timings: bool,
+        emit_ssa: &Option<PathBuf>,
     ) -> Result<SsaBuilder, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
+        if let Some(emit_ssa) = emit_ssa {
+            dbg!(emit_ssa);
+            create_named_dir(emit_ssa.as_ref(), "target");
+            let ssa_path = emit_ssa.join("ssa-ir").with_extension("ssa").with_extension("json");
+            dbg!(ssa_path.clone());
+            let x = &serde_json::to_string(&ssa).unwrap();
+            dbg!(x);
+            write_to_file(&serde_json::to_vec(&ssa).map_err(|err| {
+                println!("{}", err.to_string());
+                err
+            }).unwrap(), &ssa_path);
+        }
         Ok(SsaBuilder { print_ssa_passes, print_codegen_timings, ssa }.print("Initial SSA:"))
     }
 
@@ -376,5 +393,26 @@ impl SsaBuilder {
             println!("{msg}\n{}", self.ssa);
         }
         self
+    }
+}
+
+fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
+    std::fs::create_dir_all(named_dir)
+        .unwrap_or_else(|_| panic!("could not create the `{name}` directory"));
+
+    PathBuf::from(named_dir)
+}
+
+fn write_to_file(bytes: &[u8], path: &Path) -> String {
+    let display = path.display();
+
+    let mut file = match File::create(path) {
+        Err(why) => panic!("couldn't create {display}: {why}"),
+        Ok(file) => file,
+    };
+
+    match file.write_all(bytes) {
+        Err(why) => panic!("couldn't write to {display}: {why}"),
+        Ok(_) => display.to_string(),
     }
 }

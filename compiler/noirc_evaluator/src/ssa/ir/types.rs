@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use serde::{Serialize, Deserialize};
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -13,7 +14,7 @@ use crate::ssa::ssa_gen::SSA_WORD_SIZE;
 ///
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -65,7 +66,7 @@ impl NumericType {
 }
 
 /// All types representable in the IR.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub(crate) enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),

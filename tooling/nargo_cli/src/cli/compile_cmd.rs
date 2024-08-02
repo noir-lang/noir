@@ -184,12 +184,18 @@ fn compile_programs(
     let program_results: Vec<CompilationResult<()>> = binary_packages
         .par_iter()
         .map(|package| {
+            let target_dir = if compile_options.emit_ssa {
+                Some(workspace.target_directory_path())
+            } else {
+                None
+            };
             let (program, warnings) = compile_program(
                 file_manager,
                 parsed_files,
                 package,
                 compile_options,
                 load_cached_program(package),
+                target_dir,
             )?;
 
             let target_width =

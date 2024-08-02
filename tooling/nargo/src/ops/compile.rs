@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use fm::FileManager;
 use noirc_driver::{
     link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
@@ -31,7 +33,14 @@ pub fn compile_workspace(
     // Compile all of the packages in parallel.
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
-        .map(|package| compile_program(file_manager, parsed_files, package, compile_options, None))
+        .map(|package| {
+            let target_dir = if compile_options.emit_ssa {
+                Some(workspace.target_directory_path())
+            } else {
+                None
+            };
+            compile_program(file_manager, parsed_files, package, compile_options, None, target_dir)
+        })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
         .par_iter()
@@ -60,6 +69,7 @@ pub fn compile_program(
     package: &Package,
     compile_options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
+    emit_ssa: Option<PathBuf>,
 ) -> CompilationResult<CompiledProgram> {
     compile_program_with_debug_instrumenter(
         file_manager,
@@ -67,6 +77,7 @@ pub fn compile_program(
         package,
         compile_options,
         cached_program,
+        emit_ssa,
         DebugInstrumenter::default(),
     )
 }
@@ -77,13 +88,14 @@ pub fn compile_program_with_debug_instrumenter(
     package: &Package,
     compile_options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
+    emit_ssa: Option<PathBuf>,
     debug_instrumenter: DebugInstrumenter,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     link_to_debug_crate(&mut context, crate_id);
     context.debug_instrumenter = debug_instrumenter;
 
-    noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)
+    noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program, emit_ssa)
 }
 
 pub fn compile_contract(

@@ -207,7 +207,7 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         use proptest::test_runner::TestRunner;
 
         let compiled_program =
-            compile_no_check(&mut context, compile_options, test_function.get_id(), None, false);
+            compile_no_check(&mut context, compile_options, test_function.get_id(), None, false, None);
         match compiled_program {
             Ok(compiled_program) => {
                 let runner = TestRunner::default();

@@ -116,10 +116,11 @@ pub(crate) fn compile_bin_package_for_debugging(
             package,
             &compile_options,
             None,
+            None,
             debug_state,
         )
     } else {
-        compile_program(&workspace_file_manager, &parsed_files, package, &compile_options, None)
+        compile_program(&workspace_file_manager, &parsed_files, package, &compile_options, None, None)
     };
 
     report_errors(

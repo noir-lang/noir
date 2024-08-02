@@ -30,7 +30,7 @@ use crate::{
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum IntegerBitSize {
     One,
     Eight,
@@ -291,7 +291,7 @@ impl UnresolvedTypeData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, Serialize, Deserialize)]
 pub enum Signedness {
     Unsigned,
     Signed,

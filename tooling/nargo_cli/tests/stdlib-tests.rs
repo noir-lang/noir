@@ -73,6 +73,7 @@ fn run_stdlib_tests() {
                     test_function.get_id(),
                     None,
                     false,
+                    None,
                 );
                 match compiled_program {
                     Ok(compiled_program) => {

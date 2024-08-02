@@ -6,6 +6,7 @@ use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
+use serde::{Serialize, Deserialize};
 
 use super::FunctionBuilder;
 
@@ -52,13 +53,13 @@ impl DataBusBuilder {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct CallData {
     pub(crate) array_id: ValueId,
     pub(crate) index_map: HashMap<ValueId, usize>,
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub(crate) struct DataBus {
     pub(crate) call_data: Vec<CallData>,
     pub(crate) return_data: Option<ValueId>,
