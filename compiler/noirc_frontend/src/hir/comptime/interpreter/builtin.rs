@@ -11,11 +11,11 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::IntegerBitSize,
-    hir::comptime::{errors::IResult, InterpreterError, Value},
+    hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     macros_api::{NodeInterner, Signedness},
     node_interner::TraitId,
     parser,
-    token::{SpannedToken, Token, Tokens},
+    token::Token,
     QuotedType, Shared, Type,
 };
 
@@ -158,9 +158,9 @@ fn get_trait_def(value: Value, location: Location) -> IResult<TraitId> {
     }
 }
 
-fn get_quoted(value: Value, location: Location) -> IResult<Rc<Tokens>> {
+fn get_quoted(value: Value, location: Location) -> IResult<Rc<Vec<Token>>> {
     match value {
-        Value::Code(tokens) => Ok(tokens),
+        Value::Quoted(tokens) => Ok(tokens),
         value => {
             let expected = Type::Quoted(QuotedType::Quoted);
             let actual = value.get_type().into_owned();
@@ -255,11 +255,11 @@ fn struct_def_generics(
 ) -> IResult<Value> {
     check_argument_count(1, &arguments, location)?;
 
-    let (struct_def, span) = match arguments.pop().unwrap() {
-        (Value::StructDefinition(id), location) => (id, location.span),
+    let struct_def = match arguments.pop().unwrap().0 {
+        Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            let actual = value.0.get_type().into_owned();
+            let actual = value.get_type().into_owned();
             return Err(InterpreterError::TypeMismatch { expected, location, actual });
         }
     };
@@ -268,8 +268,8 @@ fn struct_def_generics(
     let struct_def = struct_def.borrow();
 
     let generics = struct_def.generics.iter().map(|generic| {
-        let name = SpannedToken::new(Token::Ident(generic.type_var.borrow().to_string()), span);
-        Value::Code(Rc::new(Tokens(vec![name])))
+        let name = Token::Ident(generic.type_var.borrow().to_string());
+        Value::Quoted(Rc::new(vec![name]))
     });
 
     let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted)));
@@ -285,11 +285,11 @@ fn struct_def_fields(
 ) -> IResult<Value> {
     check_argument_count(1, &arguments, location)?;
 
-    let (struct_def, span) = match arguments.pop().unwrap() {
-        (Value::StructDefinition(id), location) => (id, location.span),
+    let struct_def = match arguments.pop().unwrap().0 {
+        Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            let actual = value.0.get_type().into_owned();
+            let actual = value.get_type().into_owned();
             return Err(InterpreterError::TypeMismatch { expected, location, actual });
         }
     };
@@ -297,13 +297,10 @@ fn struct_def_fields(
     let struct_def = interner.get_struct(struct_def);
     let struct_def = struct_def.borrow();
 
-    let make_token = |name| SpannedToken::new(Token::Ident(name), span);
-    let make_quoted = |tokens| Value::Code(Rc::new(Tokens(tokens)));
-
     let mut fields = im::Vector::new();
 
     for (name, typ) in struct_def.get_fields_as_written() {
-        let name = make_quoted(vec![make_token(name)]);
+        let name = Value::Quoted(Rc::new(vec![Token::Ident(name)]));
         let typ = Value::Type(typ);
         fields.push_back(Value::Tuple(vec![name, typ]));
     }
@@ -405,7 +402,7 @@ fn quoted_as_trait_constraint(
     check_argument_count(1, &arguments, location)?;
 
     let tokens = get_quoted(arguments.pop().unwrap().0, location)?;
-    let quoted = tokens.as_ref().clone();
+    let quoted = add_token_spans(tokens.clone(), location.span);
 
     let trait_bound = parser::trait_bound().parse(quoted).map_err(|mut errors| {
         let error = errors.swap_remove(0);
@@ -431,7 +428,7 @@ fn quoted_as_type(
     check_argument_count(1, &arguments, location)?;
 
     let tokens = get_quoted(arguments.pop().unwrap().0, location)?;
-    let quoted = tokens.as_ref().clone();
+    let quoted = add_token_spans(tokens.clone(), location.span);
 
     let typ = parser::parse_type().parse(quoted).map_err(|mut errors| {
         let error = errors.swap_remove(0);
