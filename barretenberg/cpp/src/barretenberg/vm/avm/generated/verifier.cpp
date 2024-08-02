@@ -48,7 +48,8 @@ using FF = AvmFlavor::FF;
  * @brief This function verifies an Avm Honk proof for given program settings.
  *
  */
-bool AvmVerifier::verify_proof(const HonkProof& proof, const std::vector<std::vector<FF>>& public_inputs)
+bool AvmVerifier::verify_proof(const HonkProof& proof,
+                               [[maybe_unused]] const std::vector<std::vector<FF>>& public_inputs)
 {
     using Flavor = AvmFlavor;
     using FF = Flavor::FF;

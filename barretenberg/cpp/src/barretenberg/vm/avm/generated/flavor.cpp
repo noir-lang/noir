@@ -3,7 +3,8 @@
 
 namespace bb {
 
-AvmFlavor::AllConstRefValues::AllConstRefValues(const RefArray<FF const, AvmFlavor::NUM_ALL_ENTITIES>& il)
+AvmFlavor::AllConstRefValues::AllConstRefValues(
+    const RefArray<AvmFlavor::AllConstRefValues::BaseDataType, AvmFlavor::NUM_ALL_ENTITIES>& il)
     : main_clk(il[0])
     , main_sel_first(il[1])
     , kernel_kernel_inputs(il[2])

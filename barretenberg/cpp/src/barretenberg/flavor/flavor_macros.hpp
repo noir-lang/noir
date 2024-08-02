@@ -10,11 +10,14 @@
 #include "barretenberg/common/std_array.hpp"
 #include "barretenberg/common/std_string.hpp"
 #include "barretenberg/common/std_vector.hpp"
+
 #include <array>
 #include <iostream>
 #include <sstream>
+#include <type_traits>
 
 namespace bb::detail {
+
 template <typename... Args> constexpr std::size_t _va_count(Args&&... /*unused*/)
 {
     return sizeof...(Args);
@@ -35,19 +38,21 @@ template <typename T, typename... BaseClass> auto _concatenate_base_class_get_la
 {
     return concatenate(static_cast<const BaseClass&>(arg).get_labels()...);
 }
+
 } // namespace bb::detail
 
 // Needed to force expansion of __VA_ARGS__ before converting to string.
 #define VARARGS_TO_STRING(...) #__VA_ARGS__
 
+// We use std::remove_reference to support a flavor that has references as members. This is an AVM use case.
 #define DEFINE_REF_VIEW(...)                                                                                           \
     [[nodiscard]] auto get_all()                                                                                       \
     {                                                                                                                  \
-        return RefArray{ __VA_ARGS__ };                                                                                \
+        return RefArray<std::remove_reference_t<DataType>, _members_size>{ __VA_ARGS__ };                              \
     }                                                                                                                  \
     [[nodiscard]] auto get_all() const                                                                                 \
     {                                                                                                                  \
-        return RefArray{ __VA_ARGS__ };                                                                                \
+        return RefArray<const std::remove_reference_t<DataType>, _members_size>{ __VA_ARGS__ };                        \
     }
 
 /**
@@ -58,17 +63,18 @@ template <typename T, typename... BaseClass> auto _concatenate_base_class_get_la
  * @tparam NUM_ENTITIES The size of the underlying array.
  */
 #define DEFINE_FLAVOR_MEMBERS(DataType, ...)                                                                           \
-    DataType __VA_ARGS__;                                                                                              \
+    __VA_OPT__(DataType __VA_ARGS__;)                                                                                  \
+    static constexpr size_t _members_size = std::tuple_size<decltype(std::make_tuple(__VA_ARGS__))>::value;            \
     DEFINE_REF_VIEW(__VA_ARGS__)                                                                                       \
-    const std::vector<std::string>& get_labels() const                                                                 \
+    static const std::vector<std::string>& get_labels()                                                                \
     {                                                                                                                  \
         static const std::vector<std::string> labels =                                                                 \
             bb::detail::split_and_trim(VARARGS_TO_STRING(__VA_ARGS__), ',');                                           \
         return labels;                                                                                                 \
     }                                                                                                                  \
-    constexpr std::size_t size() const                                                                                 \
+    static constexpr std::size_t size()                                                                                \
     {                                                                                                                  \
-        return bb::detail::_va_count(__VA_ARGS__);                                                                     \
+        return _members_size;                                                                                          \
     }
 
 #define DEFINE_COMPOUND_GET_ALL(...)                                                                                   \

@@ -69,7 +69,7 @@ void {{name}}Prover::execute_wire_commitments_round()
     }
 }
 
-void AvmProver::execute_log_derivative_inverse_round()
+void {{name}}Prover::execute_log_derivative_inverse_round()
 {
     auto [beta, gamm] = transcript->template get_challenges<FF>("beta", "gamma");
     relation_parameters.beta = beta;

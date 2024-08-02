@@ -35,7 +35,7 @@ template <typename... input_t> using tuple_cat_t = decltype(std::tuple_cat(std::
 #define DERIVED_WITNESS_ENTITIES {{#each lookups as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
 #define SHIFTED_ENTITIES {{#each shifted as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
 #define TO_BE_SHIFTED(e) {{#each to_be_shifted as |item|}}{{#if @index}}, {{/if}}e.{{item}}{{/each}}
-#define ALL_ENTITIES PRECOMPUTED_ENTITIES, WIRE_ENTITIES, DERIVED_WITNESS_ENTITIES, SHIFTED_ENTITIES
+#define ALL_ENTITIES {{#if (len fixed)}}PRECOMPUTED_ENTITIES{{/if}}{{#if (len witness_without_inverses)}}, WIRE_ENTITIES{{/if}}{{#if (len lookups)}}, DERIVED_WITNESS_ENTITIES{{/if}}{{#if (len shifted)}}, SHIFTED_ENTITIES{{/if}}
 // clang-format on
 
 namespace bb {
@@ -123,8 +123,8 @@ class {{name}}Flavor {
       };
 
       template <typename DataType, typename PrecomputedAndWitnessEntitiesSuperset>
-      static auto get_to_be_shifted(PrecomputedAndWitnessEntitiesSuperset& entities) {
-          return RefArray{ TO_BE_SHIFTED(entities) };
+      static auto get_to_be_shifted([[maybe_unused]] PrecomputedAndWitnessEntitiesSuperset& entities) {
+          return RefArray<DataType, std::tuple_size<decltype(std::make_tuple(TO_BE_SHIFTED(entities)))>::value>{ TO_BE_SHIFTED(entities) };
       }
 
       template <typename DataType>
@@ -154,7 +154,7 @@ class {{name}}Flavor {
       class ProvingKey : public ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
         public:
           // Expose constructors on the base class
-          using Base = ProvingKey{{name}}_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
+          using Base = ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
           using Base::Base;
 
           auto get_to_be_shifted() { 
@@ -174,7 +174,8 @@ class {{name}}Flavor {
       {{!-- Used by get_row, logderivs, etc --}}
       class AllConstRefValues {
         public:
-          using DataType = const FF&;
+          using BaseDataType = const FF;
+          using DataType = BaseDataType&;
 
           {{!-- 
           We define the flavor members here again to avoid having to make this class inherit from AllEntities.
@@ -183,7 +184,7 @@ class {{name}}Flavor {
           --}}
           DEFINE_FLAVOR_MEMBERS(DataType, ALL_ENTITIES)
 
-          AllConstRefValues(const RefArray<FF const, NUM_ALL_ENTITIES>& il);
+          AllConstRefValues(const RefArray<BaseDataType, NUM_ALL_ENTITIES>& il);
       };
 
       /**

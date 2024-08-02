@@ -252,9 +252,11 @@ class AvmFlavor {
     };
 
     template <typename DataType, typename PrecomputedAndWitnessEntitiesSuperset>
-    static auto get_to_be_shifted(PrecomputedAndWitnessEntitiesSuperset& entities)
+    static auto get_to_be_shifted([[maybe_unused]] PrecomputedAndWitnessEntitiesSuperset& entities)
     {
-        return RefArray{ TO_BE_SHIFTED(entities) };
+        return RefArray<DataType, std::tuple_size<decltype(std::make_tuple(TO_BE_SHIFTED(entities)))>::value>{
+            TO_BE_SHIFTED(entities)
+        };
     }
 
     template <typename DataType>
@@ -302,11 +304,12 @@ class AvmFlavor {
 
     class AllConstRefValues {
       public:
-        using DataType = const FF&;
+        using BaseDataType = const FF;
+        using DataType = BaseDataType&;
 
         DEFINE_FLAVOR_MEMBERS(DataType, ALL_ENTITIES)
 
-        AllConstRefValues(const RefArray<FF const, NUM_ALL_ENTITIES>& il);
+        AllConstRefValues(const RefArray<BaseDataType, NUM_ALL_ENTITIES>& il);
     };
 
     /**
