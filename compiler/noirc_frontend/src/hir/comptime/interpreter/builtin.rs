@@ -495,16 +495,13 @@ fn type_as_integer(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    let value = check_one_argument(arguments, location)?;
-    let typ = get_type(value, location)?;
-
-    let option_value = if let Type::Integer(sign, bits) = typ {
-        Some(Value::Tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
-    } else {
-        None
-    };
-
-    option(return_type, option_value)
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Integer(sign, bits) = typ {
+            Some(Value::Tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
+        } else {
+            None
+        }
+    })
 }
 
 // fn as_slice(self) -> Option<Type>
@@ -513,13 +510,13 @@ fn type_as_slice(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    let value = check_one_argument(arguments, location)?;
-    let typ = get_type(value, location)?;
-
-    let option_value =
-        if let Type::Slice(slice_type) = typ { Some(Value::Type(*slice_type)) } else { None };
-
-    option(return_type, option_value)
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Slice(slice_type) = typ {
+            Some(Value::Type(*slice_type))
+        } else {
+            None
+        }
+    })
 }
 
 // fn as_tuple(self) -> Option<[Type]>
@@ -528,20 +525,35 @@ fn type_as_tuple(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
+    type_as(arguments, return_type.clone(), location, |typ| {
+        if let Type::Tuple(types) = typ {
+            let t = extract_option_generic_type(return_type);
+
+            let Type::Slice(slice_type) = t else {
+                panic!("Expected T to be a slice");
+            };
+
+            Some(Value::Slice(types.into_iter().map(Value::Type).collect(), *slice_type))
+        } else {
+            None
+        }
+    })
+}
+
+// Helper function for implementing the `type_as_...` functions.
+fn type_as<F>(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    f: F,
+) -> IResult<Value>
+where
+    F: FnOnce(Type) -> Option<Value>,
+{
     let value = check_one_argument(arguments, location)?;
     let typ = get_type(value, location)?;
 
-    let option_value = if let Type::Tuple(types) = typ {
-        let t = extract_option_generic_type(return_type.clone());
-
-        let Type::Slice(slice_type) = t else {
-            panic!("Expected T to be a slice");
-        };
-
-        Some(Value::Slice(types.into_iter().map(Value::Type).collect(), *slice_type))
-    } else {
-        None
-    };
+    let option_value = f(typ);
 
     option(return_type, option_value)
 }
