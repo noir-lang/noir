@@ -531,13 +531,13 @@ fn type_as_tuple(
     let value = check_one_argument(arguments, location)?;
     let typ = get_type(value, location)?;
 
-    let t = extract_option_generic_type(return_type.clone());
-
-    let Type::Slice(slice_type) = t else {
-        panic!("Expected T to be a slice");
-    };
-
     let option_value = if let Type::Tuple(types) = typ {
+        let t = extract_option_generic_type(return_type.clone());
+
+        let Type::Slice(slice_type) = t else {
+            panic!("Expected T to be a slice");
+        };
+
         Some(Value::Slice(types.into_iter().map(Value::Type).collect(), *slice_type))
     } else {
         None
