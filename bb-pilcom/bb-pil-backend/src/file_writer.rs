@@ -27,6 +27,13 @@ impl BBFiles {
         }
     }
 
+    pub fn remove_generated_dir(&self) {
+        let path = Path::new(&self.base_dir);
+        if path.exists() {
+            std::fs::remove_dir_all(path).unwrap();
+        }
+    }
+
     pub fn write_file(&self, folder: Option<&str>, filename: &str, contents: &str) {
         // attempt to create dir
         let base_path = Path::new(&self.base_dir).join(folder.unwrap_or(""));

@@ -1,3 +1,6 @@
+use dialoguer::Confirm;
+
+use itertools::Itertools;
 use powdr_ast::analyzed::Analyzed;
 use powdr_number::FieldElement;
 
@@ -56,6 +59,7 @@ pub fn analyzed_to_cpp<F: FieldElement>(
     witness: &[String],
     public: &[String],
     vm_name: &str,
+    delete_dir: bool,
 ) {
     // Extract public inputs information.
     let mut public_inputs: Vec<(String, usize)> = public
@@ -70,6 +74,17 @@ pub fn analyzed_to_cpp<F: FieldElement>(
     let witness = &sort_cols(witness);
 
     let mut bb_files = BBFiles::default(&snake_case(&vm_name));
+    // Pass `-y` as parameter if you want to skip the confirmation prompt.
+    let confirmation = delete_dir
+        || Confirm::new()
+            .with_prompt(format!("Going to remove: {}. OK?", bb_files.base_dir))
+            .default(true)
+            .interact()
+            .unwrap();
+    if confirmation {
+        println!("Removing generated directory: {}", bb_files.base_dir);
+        bb_files.remove_generated_dir();
+    }
 
     // Inlining step to remove the intermediate poly definitions
     let mut analyzed_identities = analyzed.identities_with_inlined_intermediate_polynomials();
@@ -169,6 +184,8 @@ pub fn analyzed_to_cpp<F: FieldElement>(
     // ----------------------- Create the Prover files -----------------------
     bb_files.create_prover_cpp(vm_name, &inverses);
     bb_files.create_prover_hpp(vm_name);
+
+    println!("Done with generation.");
 }
 
 /// Get all col names

@@ -20,6 +20,11 @@ struct Cli {
     /// BBerg: Name of the output file for bberg
     #[arg(long)]
     name: Option<String>,
+
+    /// Delete the output directory if it already exists
+    #[arg(short, long)]
+    #[arg(default_value_t = false)]
+    yes: bool,
 }
 
 fn extract_col_name(cols: Vec<&(Symbol, Option<FunctionValueDefinition>)>) -> Vec<String> {
@@ -47,6 +52,7 @@ fn main() -> Result<(), io::Error> {
         &extract_col_name(witness),
         &extract_col_name(public),
         &name,
+        args.yes,
     );
     Ok(())
 }
