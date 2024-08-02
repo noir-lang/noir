@@ -190,7 +190,7 @@ jobs:
             cd ./yarn-project/end-to-end/
             export FORCE_COLOR=1
             export EARTHLY_BUILD_ARGS="${{ env.EARTHLY_BUILD_ARGS }}"
-            ../../scripts/earthly-ci -P --no-output +${{ matrix.test }}
+            ../../scripts/earthly-ci --exec-stats -P --no-output +${{ matrix.test }}
 
   acir-bench:
     runs-on: ubuntu-20.04
