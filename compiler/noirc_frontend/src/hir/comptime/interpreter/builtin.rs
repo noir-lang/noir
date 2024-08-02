@@ -469,7 +469,7 @@ fn type_as_integer(
         None
     };
 
-    Ok(Value::option(return_type, option_value))
+    option(return_type, option_value)
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
@@ -690,4 +690,27 @@ fn trait_def_as_trait_constraint(
     });
 
     Ok(Value::TraitConstraint(trait_id, trait_generics))
+}
+
+/// Creates a value that holds an `Option``.
+/// `option_type` must be a Type referencing the `Option` type.
+pub(crate) fn option(option_type: Type, value: Option<Value>) -> IResult<Value> {
+    let Type::Struct(shared_option_type, mut generics) = option_type.clone() else {
+        panic!("Expected type to be a struct");
+    };
+
+    let shared_option_type = shared_option_type.borrow();
+    assert_eq!(shared_option_type.name.0.contents, "Option");
+
+    let t = generics.pop().expect("Expected Option to have a T generic type");
+
+    let (is_some, value) = match value {
+        Some(value) => (Value::Bool(true), value),
+        None => (Value::Bool(false), zeroed(t)?),
+    };
+
+    let mut fields = HashMap::default();
+    fields.insert(Rc::new("_is_some".to_string()), is_some);
+    fields.insert(Rc::new("_value".to_string()), value);
+    Ok(Value::Struct(fields, option_type))
 }

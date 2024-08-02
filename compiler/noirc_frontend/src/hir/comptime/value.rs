@@ -397,29 +397,6 @@ impl Value {
             value => Err(InterpreterError::CannotInlineMacro { value, location }),
         }
     }
-
-    /// Creates a value that holds an `Option``.
-    /// `option_type` must be a Type referencing the `Option` type.
-    pub(crate) fn option(option_type: Type, value: Option<Value>) -> Value {
-        let Type::Struct(shared_option_type, mut generics) = option_type.clone() else {
-            panic!("Expected type to be a struct");
-        };
-
-        let shared_option_type = shared_option_type.borrow();
-        assert_eq!(shared_option_type.name.0.contents, "Option");
-
-        let t = generics.pop().expect("Expected Option to have a T generic type");
-
-        let (is_some, value) = match value {
-            Some(value) => (Value::Bool(true), value),
-            None => (Value::Bool(false), Value::Zeroed(t)),
-        };
-
-        let mut fields = HashMap::default();
-        fields.insert(Rc::new("_is_some".to_string()), is_some);
-        fields.insert(Rc::new("_value".to_string()), value);
-        Value::Struct(fields, option_type)
-    }
 }
 
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
