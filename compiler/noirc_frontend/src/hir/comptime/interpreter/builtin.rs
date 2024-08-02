@@ -288,13 +288,13 @@ fn struct_def_generics(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let argument = check_one_argument(arguments, location)?;
+    let (argument, argument_location) = check_one_argument(arguments, location)?;
 
     let (struct_def, span) = match argument {
-        (Value::StructDefinition(id), location) => (id, location.span),
+        Value::StructDefinition(id) => (id, argument_location.span),
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            return Err(InterpreterError::TypeMismatch { expected, location, value: value.0 });
+            return Err(InterpreterError::TypeMismatch { expected, location, value });
         }
     };
 
