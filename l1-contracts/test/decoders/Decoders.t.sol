@@ -48,6 +48,9 @@ contract DecodersTest is DecoderBase {
         assertEq(
           header.globalVariables.blockNumber, globalVariables.blockNumber, "Invalid block number"
         );
+        assertEq(
+          header.globalVariables.slotNumber, globalVariables.slotNumber, "Invalid slot number"
+        );
         assertEq(header.globalVariables.chainId, globalVariables.chainId, "Invalid chain Id");
         assertEq(header.globalVariables.timestamp, globalVariables.timestamp, "Invalid timestamp");
         assertEq(header.globalVariables.version, globalVariables.version, "Invalid version");

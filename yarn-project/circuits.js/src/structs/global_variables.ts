@@ -18,6 +18,8 @@ export class GlobalVariables {
     public version: Fr,
     /** Block number of the L2 block. */
     public blockNumber: Fr,
+    /** Slot number of the L2 block */
+    public slotNumber: Fr,
     /** Timestamp of the L2 block. */
     public timestamp: Fr,
     /** Recipient of block reward. */
@@ -37,12 +39,22 @@ export class GlobalVariables {
   }
 
   static empty(): GlobalVariables {
-    return new GlobalVariables(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, EthAddress.ZERO, AztecAddress.ZERO, GasFees.empty());
+    return new GlobalVariables(
+      Fr.ZERO,
+      Fr.ZERO,
+      Fr.ZERO,
+      Fr.ZERO,
+      Fr.ZERO,
+      EthAddress.ZERO,
+      AztecAddress.ZERO,
+      GasFees.empty(),
+    );
   }
 
   static fromBuffer(buffer: Buffer | BufferReader): GlobalVariables {
     const reader = BufferReader.asReader(buffer);
     return new GlobalVariables(
+      Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
@@ -58,6 +70,7 @@ export class GlobalVariables {
       Fr.fromString(obj.chainId),
       Fr.fromString(obj.version),
       Fr.fromString(obj.blockNumber),
+      Fr.fromString(obj.slotNumber),
       Fr.fromString(obj.timestamp),
       EthAddress.fromString(obj.coinbase),
       AztecAddress.fromString(obj.feeRecipient),
@@ -69,6 +82,7 @@ export class GlobalVariables {
     const reader = FieldReader.asReader(fields);
 
     return new GlobalVariables(
+      reader.readField(),
       reader.readField(),
       reader.readField(),
       reader.readField(),
@@ -85,6 +99,7 @@ export class GlobalVariables {
       fields.chainId,
       fields.version,
       fields.blockNumber,
+      fields.slotNumber,
       fields.timestamp,
       fields.coinbase,
       fields.feeRecipient,
@@ -111,6 +126,7 @@ export class GlobalVariables {
       chainId: this.chainId.toString(),
       version: this.version.toString(),
       blockNumber: this.blockNumber.toString(),
+      slotNumber: this.slotNumber.toString(),
       timestamp: this.timestamp.toString(),
       coinbase: this.coinbase.toString(),
       feeRecipient: this.feeRecipient.toString(),
@@ -127,6 +143,7 @@ export class GlobalVariables {
       this.chainId.isZero() &&
       this.version.isZero() &&
       this.blockNumber.isZero() &&
+      this.slotNumber.isZero() &&
       this.timestamp.isZero() &&
       this.coinbase.isZero() &&
       this.feeRecipient.isZero() &&

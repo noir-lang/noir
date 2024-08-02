@@ -62,6 +62,7 @@ contract DecoderBase is Test {
     address coinbase;
     bytes32 feeRecipient;
     GasFees gasFees;
+    uint256 slotNumber;
     uint256 timestamp;
     uint256 version;
   }

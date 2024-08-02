@@ -15,7 +15,7 @@ export class MockBlockSource implements L2BlockSource {
   public addBlocks(numBlocks: number) {
     for (let i = 0; i < numBlocks; i++) {
       const blockNum = this.l2Blocks.length;
-      const block = L2Block.random(blockNum);
+      const block = L2Block.random(blockNum, blockNum);
       this.l2Blocks.push(block);
       this.txEffects.push(...block.body.txEffects);
     }

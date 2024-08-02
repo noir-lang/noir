@@ -21,7 +21,7 @@ describe('Synchronizer', () => {
   let headerBlock3: Header;
 
   beforeEach(() => {
-    headerBlock3 = makeHeader(randomInt(1000), initialSyncBlockNumber);
+    headerBlock3 = makeHeader(randomInt(1000), initialSyncBlockNumber, initialSyncBlockNumber);
 
     aztecNode = mock<AztecNode>();
     database = new KVPxeDatabase(openTmpStore());

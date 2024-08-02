@@ -33,6 +33,12 @@ export interface L1GlobalReader {
    * @returns The warped time.
    */
   getLastWarpedBlockTs(): Promise<bigint>;
+
+  /**
+   * Gets the current slot.
+   * @returns The current slot.
+   */
+  getCurrentSlot(): Promise<bigint>;
 }
 
 /**
@@ -86,17 +92,20 @@ export class SimpleTestGlobalVariableBuilder implements GlobalVariableBuilder {
       lastTimestamp = new Fr(lastTimestamp.value + 1n);
     }
 
+    const slot = new Fr(await this.reader.getCurrentSlot());
+
     const gasFees = GasFees.default();
     const globalVariables = new GlobalVariables(
       chainId,
       version,
       blockNumber,
+      slot,
       lastTimestamp,
       coinbase,
       feeRecipient,
       gasFees,
     );
     this.log.debug(`Built global variables for block ${blockNumber}`, globalVariables.toJSON());
-    return new GlobalVariables(chainId, version, blockNumber, lastTimestamp, coinbase, feeRecipient, gasFees);
+    return new GlobalVariables(chainId, version, blockNumber, slot, lastTimestamp, coinbase, feeRecipient, gasFees);
   }
 }

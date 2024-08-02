@@ -20,6 +20,7 @@ import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 export function makeHeader(
   seed = 0,
   blockNumber: number | undefined = undefined,
+  slotNumber: number | undefined = undefined,
   txsEffectsHash: Buffer | undefined = undefined,
   inHash: Buffer | undefined = undefined,
 ): Header {
@@ -27,7 +28,7 @@ export function makeHeader(
     makeAppendOnlyTreeSnapshot(seed + 0x100),
     makeContentCommitment(seed + 0x200, txsEffectsHash, inHash),
     makeStateReference(seed + 0x600),
-    makeGlobalVariables((seed += 0x700), blockNumber),
+    makeGlobalVariables((seed += 0x700), blockNumber, slotNumber ?? blockNumber),
     fr(seed + 0x800),
   );
 }
@@ -86,25 +87,19 @@ function makePartialStateReference(seed = 0): PartialStateReference {
  * If blockNumber is undefined, it will be set to seed + 2.
  * @returns Global variables.
  */
-export function makeGlobalVariables(seed = 1, blockNumber: number | undefined = undefined): GlobalVariables {
-  if (blockNumber !== undefined) {
-    return new GlobalVariables(
-      new Fr(seed),
-      new Fr(seed + 1),
-      new Fr(blockNumber),
-      new Fr(seed + 3),
-      EthAddress.fromField(new Fr(seed + 4)),
-      AztecAddress.fromField(new Fr(seed + 5)),
-      new GasFees(new Fr(seed + 6), new Fr(seed + 7)),
-    );
-  }
+export function makeGlobalVariables(
+  seed = 1,
+  blockNumber: number | undefined = undefined,
+  slotNumber: number | undefined = undefined,
+): GlobalVariables {
   return new GlobalVariables(
     new Fr(seed),
     new Fr(seed + 1),
-    new Fr(seed + 2),
-    new Fr(seed + 3),
-    EthAddress.fromField(new Fr(seed + 4)),
-    AztecAddress.fromField(new Fr(seed + 5)),
-    new GasFees(new Fr(seed + 6), new Fr(seed + 7)),
+    new Fr(blockNumber ?? seed + 2),
+    new Fr(slotNumber ?? seed + 3),
+    new Fr(seed + 4),
+    EthAddress.fromField(new Fr(seed + 5)),
+    AztecAddress.fromField(new Fr(seed + 6)),
+    new GasFees(new Fr(seed + 7), new Fr(seed + 8)),
   );
 }

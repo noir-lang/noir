@@ -120,7 +120,7 @@ contract Rollup is Leonidas, IRollup {
 
     // Decode and validate header
     HeaderLib.Header memory header = HeaderLib.decode(_header);
-    HeaderLib.validate(header, VERSION, lastBlockTs, archive());
+    HeaderLib.validate(header, VERSION, getCurrentSlot(), lastBlockTs, archive());
 
     if (header.globalVariables.blockNumber != pendingBlockCount) {
       revert Errors.Rollup__InvalidBlockNumber(

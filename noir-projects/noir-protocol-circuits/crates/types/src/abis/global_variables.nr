@@ -9,6 +9,7 @@ struct GlobalVariables {
     chain_id : Field,
     version : Field,
     block_number : Field,
+    slot_number : Field,
     timestamp : u64,
     coinbase : EthAddress,
     fee_recipient : AztecAddress,
@@ -21,6 +22,7 @@ impl GlobalVariables {
         (self.chain_id == 0)
             & (self.version == 0)
             & (self.block_number == 0)
+            & (self.slot_number == 0)
             & (self.timestamp == 0)
             & (self.coinbase.is_zero())
             & (self.fee_recipient.is_zero())
@@ -35,6 +37,7 @@ impl Serialize<GLOBAL_VARIABLES_LENGTH> for GlobalVariables {
         serialized.push(self.chain_id);
         serialized.push(self.version);
         serialized.push(self.block_number);
+        serialized.push(self.slot_number);
         serialized.push(self.timestamp as Field);
         serialized.push(self.coinbase.to_field());
         serialized.push(self.fee_recipient.to_field());
@@ -51,6 +54,7 @@ impl Deserialize<GLOBAL_VARIABLES_LENGTH> for GlobalVariables {
             chain_id: reader.read(),
             version: reader.read(),
             block_number: reader.read(),
+            slot_number: reader.read(),
             timestamp: reader.read() as u64,
             coinbase: EthAddress::from_field(reader.read()),
             fee_recipient: AztecAddress::from_field(reader.read()),
@@ -64,6 +68,7 @@ impl Eq for GlobalVariables {
         (self.chain_id == other.chain_id) &
         (self.version == other.version) &
         (self.block_number == other.block_number) &
+        (self.slot_number == other.slot_number) &
         (self.timestamp == other.timestamp) &
         (self.coinbase == other.coinbase) &
         (self.fee_recipient == other.fee_recipient) &
@@ -77,6 +82,7 @@ impl Empty for GlobalVariables {
             chain_id: 0,
             version: 0,
             block_number: 0,
+            slot_number: 0,
             timestamp: 0,
             coinbase: EthAddress::empty(),
             fee_recipient: AztecAddress::empty(),

@@ -171,6 +171,7 @@ export const makeGlobals = (blockNumber: number) => {
     Fr.ZERO,
     Fr.ZERO,
     new Fr(blockNumber),
+    new Fr(blockNumber) /** slot number */,
     Fr.ZERO,
     EthAddress.ZERO,
     AztecAddress.ZERO,

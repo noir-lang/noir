@@ -764,33 +764,20 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
   });
 }
 
-/**
- * Makes global variables.
- * @param seed - The seed to use for generating the global variables.
- * @param blockNumber - The block number to use for generating the global variables.
- * If blockNumber is undefined, it will be set to seed + 2.
- * @returns Global variables.
- */
-export function makeGlobalVariables(seed = 1, blockNumber: number | undefined = undefined): GlobalVariables {
-  if (blockNumber !== undefined) {
-    return new GlobalVariables(
-      fr(seed),
-      fr(seed + 1),
-      fr(blockNumber),
-      fr(seed + 3),
-      EthAddress.fromField(fr(seed + 4)),
-      AztecAddress.fromField(fr(seed + 5)),
-      makeGasFees(seed + 6),
-    );
-  }
+export function makeGlobalVariables(
+  seed = 1,
+  blockNumber: number | undefined = undefined,
+  slotNumber: number | undefined = undefined,
+): GlobalVariables {
   return new GlobalVariables(
-    fr(seed),
-    fr(seed + 1),
-    fr(seed + 2),
-    fr(seed + 3),
-    EthAddress.fromField(fr(seed + 4)),
-    AztecAddress.fromField(fr(seed + 5)),
-    makeGasFees(seed + 6),
+    new Fr(seed),
+    new Fr(seed + 1),
+    new Fr(blockNumber ?? seed + 2),
+    new Fr(slotNumber ?? seed + 3),
+    new Fr(seed + 4),
+    EthAddress.fromField(new Fr(seed + 5)),
+    AztecAddress.fromField(new Fr(seed + 6)),
+    new GasFees(new Fr(seed + 7), new Fr(seed + 8)),
   );
 }
 
@@ -963,10 +950,11 @@ export function makeRootParityInputs(seed = 0): RootParityInputs {
 export function makeRootRollupPublicInputs(
   seed = 0,
   blockNumber: number | undefined = undefined,
+  slotNumber: number | undefined = undefined,
 ): RootRollupPublicInputs {
   return RootRollupPublicInputs.from({
     archive: makeAppendOnlyTreeSnapshot(seed + 0x100),
-    header: makeHeader(seed + 0x200, blockNumber),
+    header: makeHeader(seed + 0x200, blockNumber, slotNumber),
     vkTreeRoot: fr(seed + 0x300),
     proverId: fr(seed + 0x400),
   });
@@ -990,13 +978,14 @@ export function makeContentCommitment(seed = 0, txsEffectsHash: Buffer | undefin
 export function makeHeader(
   seed = 0,
   blockNumber: number | undefined = undefined,
+  slotNumber: number | undefined = undefined,
   txsEffectsHash: Buffer | undefined = undefined,
 ): Header {
   return new Header(
     makeAppendOnlyTreeSnapshot(seed + 0x100),
     makeContentCommitment(seed + 0x200, txsEffectsHash),
     makeStateReference(seed + 0x600),
-    makeGlobalVariables((seed += 0x700), blockNumber),
+    makeGlobalVariables((seed += 0x700), blockNumber, slotNumber),
     fr(seed + 0x800),
   );
 }

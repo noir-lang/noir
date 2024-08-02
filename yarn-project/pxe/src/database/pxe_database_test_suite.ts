@@ -264,7 +264,7 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
 
     describe('block header', () => {
       it('stores and retrieves the block header', async () => {
-        const header = makeHeader(randomInt(1000), INITIAL_L2_BLOCK_NUM);
+        const header = makeHeader(randomInt(1000), INITIAL_L2_BLOCK_NUM, 0 /** slot number */);
 
         await database.setHeader(header);
         expect(database.getHeader()).toEqual(header);
