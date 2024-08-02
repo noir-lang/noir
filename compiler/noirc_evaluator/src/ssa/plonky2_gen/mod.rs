@@ -720,26 +720,30 @@ impl Builder {
                 assert!(target_type == p2value.typ);
 
                 let index_value = self.dfg[index].clone();
-                let num_index = match index_value {
-                    Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
+                let new_values = match index_value {
+                    Value::NumericConstant { constant, .. } => {
+                        let num_index = constant.to_u128() as usize;
+
+                        let mut new_values = Vec::new();
+                        for i in 0..p2targets.len() {
+                            new_values
+                                .push(P2Value::create_empty(&mut self.asm_writer, target_type.clone()));
+                            if i == num_index {
+                                self.asm_writer.connect(p2value.get_target()?, new_values[i].get_target()?);
+                            } else {
+                                self.asm_writer
+                                    .connect(p2targets[i].get_target()?, new_values[i].get_target()?);
+                            }
+                        }
+        
+                        new_values
+                    }
                     _ => {
                         let feature_name =
                             format!("indexing array (set) with an {:?}", index_value);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 };
-
-                let mut new_values = Vec::new();
-                for i in 0..p2targets.len() {
-                    new_values
-                        .push(P2Value::create_empty(&mut self.asm_writer, target_type.clone()));
-                    if i == num_index {
-                        self.asm_writer.connect(p2value.get_target()?, new_values[i].get_target()?);
-                    } else {
-                        self.asm_writer
-                            .connect(p2targets[i].get_target()?, new_values[i].get_target()?);
-                    }
-                }
 
                 if mutable {
                     // It's hard to test this, so leaving it as a potential bug at the moment.
