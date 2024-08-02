@@ -32,4 +32,7 @@ fn main() {
 
     let o: MyOtherStruct<Field, u32> = MyOtherStruct::default();
     assert_eq(o, o);
+
+    let o: MyOtherStruct<u8, [str<2>]> = MyOtherStruct::default();
+    assert_eq(o, o);
 }
