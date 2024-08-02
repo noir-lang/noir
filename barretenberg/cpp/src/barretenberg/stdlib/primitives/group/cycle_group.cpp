@@ -38,6 +38,11 @@ cycle_group<Builder>::cycle_group(field_t _x, field_t _y, bool_t is_infinity)
     } else {
         context = is_infinity.get_context();
     }
+
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1067): This ASSERT is missing in the constructor but
+    // causes schnorr acir test to fail due to a bad input (a public key that has x and y coordinate set to 0).
+    // Investigate this to be able to enable the test.
+    // ASSERT(get_value().on_curve());
 }
 
 /**

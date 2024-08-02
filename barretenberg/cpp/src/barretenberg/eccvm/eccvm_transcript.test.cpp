@@ -26,12 +26,10 @@ class ECCVMTranscriptTests : public ::testing::Test {
      *
      * @return TranscriptManifest
      */
-    TranscriptManifest construct_eccvm_honk_manifest(size_t circuit_size, size_t log_ipa_poly_degree)
+    TranscriptManifest construct_eccvm_honk_manifest(size_t circuit_size)
     {
         TranscriptManifest manifest_expected;
         auto log_n = numeric::get_msb(circuit_size);
-        ASSERT(log_n == log_ipa_poly_degree);
-
         size_t MAX_PARTIAL_RELATION_LENGTH = Flavor::BATCHED_RELATION_PARTIAL_LENGTH;
         // Size of types is number of bb::frs needed to represent the type
         size_t frs_per_Fr = bb::field_conversion::calc_num_bn254_frs<FF>();
@@ -252,8 +250,7 @@ TEST_F(ECCVMTranscriptTests, ProverManifestConsistency)
     auto proof = prover.construct_proof();
 
     // Check that the prover generated manifest agrees with the manifest hard coded in this suite
-    auto manifest_expected =
-        this->construct_eccvm_honk_manifest(prover.key->circuit_size, prover.sumcheck_output.challenge.size());
+    auto manifest_expected = this->construct_eccvm_honk_manifest(prover.key->circuit_size);
     auto prover_manifest = prover.transcript->get_manifest();
     // Note: a manifest can be printed using manifest.print()
     for (size_t round = 0; round < manifest_expected.size(); ++round) {

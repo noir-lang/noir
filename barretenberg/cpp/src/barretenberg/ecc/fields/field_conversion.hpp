@@ -61,6 +61,10 @@ template <typename T> T convert_from_bn254_frs(std::span<const bb::fr> fr_vec)
         T val;
         val.x = convert_from_bn254_frs<BaseField>(fr_vec.subspan(0, BASE_FIELD_SCALAR_SIZE));
         val.y = convert_from_bn254_frs<BaseField>(fr_vec.subspan(BASE_FIELD_SCALAR_SIZE, BASE_FIELD_SCALAR_SIZE));
+        if (val.x == BaseField::zero() && val.y == BaseField::zero()) {
+            val.self_set_infinity();
+        }
+        ASSERT(val.on_curve());
         return val;
     } else {
         // Array or Univariate
@@ -95,8 +99,19 @@ template <typename T> std::vector<bb::fr> convert_to_bn254_frs(const T& val)
     } else if constexpr (IsAnyOf<T, grumpkin::fr>) {
         return convert_grumpkin_fr_to_bn254_frs(val);
     } else if constexpr (IsAnyOf<T, curve::BN254::AffineElement, curve::Grumpkin::AffineElement>) {
-        auto fr_vec_x = convert_to_bn254_frs(val.x);
-        auto fr_vec_y = convert_to_bn254_frs(val.y);
+        using BaseField = typename T::Fq;
+
+        std::vector<bb::fr> fr_vec_x;
+        std::vector<bb::fr> fr_vec_y;
+        // When encountering a point at infinity we pass a zero point in the proof to ensure that on the receiving size
+        // there are no inconsistencies whenre constructing and hashing.
+        if (val.is_point_at_infinity()) {
+            fr_vec_x = convert_to_bn254_frs(BaseField::zero());
+            fr_vec_y = convert_to_bn254_frs(BaseField::zero());
+        } else {
+            fr_vec_x = convert_to_bn254_frs(val.x);
+            fr_vec_y = convert_to_bn254_frs(val.y);
+        }
         std::vector<bb::fr> fr_vec(fr_vec_x.begin(), fr_vec_x.end());
         fr_vec.insert(fr_vec.end(), fr_vec_y.begin(), fr_vec_y.end());
         return fr_vec;

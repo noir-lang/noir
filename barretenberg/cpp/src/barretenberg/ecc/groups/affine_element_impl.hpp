@@ -82,7 +82,7 @@ constexpr uint256_t affine_element<Fq, Fr, T>::compress() const noexcept
 
 template <class Fq, class Fr, class T> affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::infinity()
 {
-    affine_element e;
+    affine_element e{};
     e.self_set_infinity();
     return e;
 }
@@ -105,6 +105,8 @@ template <class Fq, class Fr, class T> constexpr void affine_element<Fq, Fr, T>:
         x.data[3] = Fq::modulus.data[3];
 
     } else {
+        (*this).x = Fq::zero();
+        (*this).y = Fq::zero();
         x.self_set_msb();
     }
 }

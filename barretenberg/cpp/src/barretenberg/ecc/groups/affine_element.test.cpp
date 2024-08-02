@@ -149,10 +149,25 @@ template <typename G1> class TestAffineElement : public testing::Test {
             EXPECT_EQ(affine_points[i], -result[i]);
         }
     }
+
+    /**
+     * @brief Ensure that the point at inifinity has a fixed value.
+     *
+     */
+    static void test_fixed_point_at_infinity()
+    {
+        using Fq = affine_element::Fq;
+        affine_element P = affine_element::infinity();
+        affine_element Q(Fq::zero(), Fq::zero());
+        Q.x.self_set_msb();
+        affine_element R = affine_element(element::random_element());
+        EXPECT_EQ(P, Q);
+        EXPECT_NE(P, R);
+    }
 };
 
-using TestTypes = testing::Types<bb::g1>;
-// using TestTypes = testing::Types<bb::g1, grumpkin::g1, secp256k1::g1, secp256r1::g1>;
+// using TestTypes = testing::Types<bb::g1>;
+using TestTypes = testing::Types<bb::g1, grumpkin::g1, secp256k1::g1, secp256r1::g1>;
 } // namespace
 
 TYPED_TEST_SUITE(TestAffineElement, TestTypes);
@@ -173,6 +188,15 @@ TYPED_TEST(TestAffineElement, PointCompression)
         GTEST_SKIP();
     } else {
         TestFixture::test_point_compression();
+    }
+}
+
+TYPED_TEST(TestAffineElement, FixedInfinityPoint)
+{
+    if constexpr (TypeParam::Fq::modulus.data[3] >= 0x4000000000000000ULL) {
+        GTEST_SKIP();
+    } else {
+        TestFixture::test_fixed_point_at_infinity();
     }
 }
 
