@@ -114,7 +114,7 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
 
-    /// Outputs the paths to any modified artifacts
+    /// Temporary flag to enable the experimental arithmetic generics feature
     #[arg(long, hide = true)]
     pub arithmetic_generics: bool,
 }
