@@ -58,6 +58,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
+            "type_as_slice" => type_as_slice(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
@@ -502,6 +503,21 @@ fn type_as_integer(
     } else {
         None
     };
+
+    option(return_type, option_value)
+}
+
+// fn as_slice(self) -> Option<Type>
+fn type_as_slice(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_type(value, location)?;
+
+    let option_value =
+        if let Type::Slice(slice_type) = typ { Some(Value::Type(*slice_type)) } else { None };
 
     option(return_type, option_value)
 }

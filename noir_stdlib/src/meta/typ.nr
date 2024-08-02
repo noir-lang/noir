@@ -5,6 +5,9 @@ impl Type {
     #[builtin(type_as_integer)]
     fn as_integer(self) -> Option<(bool, u8)> {}
 
+    #[builtin(type_as_slice)]
+    fn as_slice(self) -> Option<Type> {}
+
     #[builtin(type_as_tuple)]
     fn as_tuple(self) -> Option<[Type]> {}
 
