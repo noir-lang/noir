@@ -147,7 +147,7 @@ impl NodeInterner {
         location: Location,
         is_self_type: bool,
     ) {
-        if !self.track_references {
+        if !self.lsp_mode {
             return;
         }
 
@@ -166,7 +166,7 @@ impl NodeInterner {
         referenced: ReferenceId,
         module_id: Option<ModuleId>,
     ) {
-        if !self.track_references {
+        if !self.lsp_mode {
             return;
         }
 
