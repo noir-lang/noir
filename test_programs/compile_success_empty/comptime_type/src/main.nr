@@ -12,5 +12,22 @@ fn main() {
         let i32_type = type_of(an_i32);
         assert(field_type_1 == field_type_2);
         assert(field_type_1 != i32_type);
+
+        // Check Type::is_field
+        assert(field_type_1.is_field());
+        assert(!i32_type.is_field());
+
+        // Check Type::as_integer
+        assert(field_type_1.as_integer().is_none());
+
+        let (signed, bits) = i32_type.as_integer().unwrap();
+        assert(signed);
+        assert_eq(bits, 32);
+
+        let a_u8: u8 = 0;
+        let u8_type = type_of(a_u8);
+        let (signed, bits) = u8_type.as_integer().unwrap();
+        assert(!signed);
+        assert_eq(bits, 8);
     }
 }
