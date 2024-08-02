@@ -556,8 +556,11 @@ pub fn compile_no_check(
 
     // If user has specified that they want to see intermediate steps printed then we should
     // force compilation even if the program hasn't changed.
-    let force_compile =
-        force_compile || options.print_acir || options.show_brillig || options.show_ssa;
+    let force_compile = force_compile
+        || options.print_acir
+        || options.show_brillig
+        || options.show_ssa
+        || emit_ssa.is_some();
 
     if !force_compile && hashes_match {
         info!("Program matches existing artifact, returning early");
