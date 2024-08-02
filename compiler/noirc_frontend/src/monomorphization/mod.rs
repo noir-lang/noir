@@ -1110,6 +1110,10 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::MutableReference(element) => Self::check_type(element, location),
+            HirType::InfixExpr(lhs, _, rhs) => {
+                Self::check_type(lhs, location)?;
+                Self::check_type(rhs, location)
+            }
         }
     }
 
