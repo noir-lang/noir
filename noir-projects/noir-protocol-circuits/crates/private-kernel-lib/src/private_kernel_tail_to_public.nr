@@ -343,7 +343,7 @@ mod tests {
         let _void = builder.previous_kernel.add_request_for_key_validation(
             Point { x: 1, y: 2, is_infinite: false },
             27,
-            GENERATOR_INDEX__TSK_M
+            GENERATOR_INDEX__TSK_M as Field
         );
         builder.failed();
     }

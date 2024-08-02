@@ -53,7 +53,7 @@ impl PublicKeys {
                 self.tpk_m.x,
                 self.tpk_m.y,
                 self.tpk_m.is_infinite as Field,
-                GENERATOR_INDEX__PUBLIC_KEYS_HASH
+                GENERATOR_INDEX__PUBLIC_KEYS_HASH as Field
             ]
             )
         }

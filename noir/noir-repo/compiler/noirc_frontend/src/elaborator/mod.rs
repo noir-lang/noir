@@ -11,10 +11,11 @@ use crate::{
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal,
-                UnresolvedStruct, UnresolvedTypeAlias,
+                UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias,
             },
             dc_mod,
         },
+        def_map::DefMaps,
         resolution::{errors::ResolverError, path_resolver::PathResolver},
         scope::ScopeForest as GenericScopeForest,
         type_check::TypeCheckError,
@@ -54,7 +55,7 @@ use crate::{
 use crate::{
     hir::{
         def_collector::dc_crate::{UnresolvedFunctions, UnresolvedTraitImpl},
-        def_map::{CrateDefMap, ModuleData},
+        def_map::ModuleData,
     },
     hir_def::traits::TraitImpl,
     macros_api::ItemVisibility,
@@ -102,7 +103,7 @@ pub struct Elaborator<'context> {
 
     pub(crate) interner: &'context mut NodeInterner,
 
-    def_maps: &'context mut BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &'context mut DefMaps,
 
     file: FileId,
 
@@ -129,8 +130,6 @@ pub struct Elaborator<'context> {
     /// If we're currently resolving methods within a trait impl, this will be set
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
-
-    trait_id: Option<TraitId>,
 
     /// In-resolution names
     ///
@@ -195,22 +194,22 @@ struct FunctionContext {
 
 impl<'context> Elaborator<'context> {
     pub fn new(
-        context: &'context mut Context,
+        interner: &'context mut NodeInterner,
+        def_maps: &'context mut DefMaps,
         crate_id: CrateId,
         debug_comptime_in_file: Option<FileId>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
             errors: Vec::new(),
-            interner: &mut context.def_interner,
-            def_maps: &mut context.def_maps,
+            interner,
+            def_maps,
             file: FileId::dummy(),
             nested_loops: 0,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
             self_type: None,
             current_item: None,
-            trait_id: None,
             local_module: LocalModuleId::dummy_id(),
             crate_id,
             resolving_ids: BTreeSet::new(),
@@ -221,6 +220,19 @@ impl<'context> Elaborator<'context> {
             debug_comptime_in_file,
             unresolved_globals: BTreeMap::new(),
         }
+    }
+
+    pub fn from_context(
+        context: &'context mut Context,
+        crate_id: CrateId,
+        debug_comptime_in_file: Option<FileId>,
+    ) -> Self {
+        Self::new(
+            &mut context.def_interner,
+            &mut context.def_maps,
+            crate_id,
+            debug_comptime_in_file,
+        )
     }
 
     pub fn elaborate(
@@ -238,16 +250,9 @@ impl<'context> Elaborator<'context> {
         items: CollectedItems,
         debug_comptime_in_file: Option<FileId>,
     ) -> Self {
-        let mut this = Self::new(context, crate_id, debug_comptime_in_file);
-
-        // Filter out comptime items to execute their functions first if needed.
-        // This step is why comptime items can only refer to other comptime items
-        // in the same crate, but can refer to any item in dependencies. Trying to
-        // run these at the same time as other items would lead to them seeing empty
-        // function bodies from functions that have yet to be elaborated.
-        let (comptime_items, runtime_items) = Self::filter_comptime_items(items);
-        this.elaborate_items(comptime_items);
-        this.elaborate_items(runtime_items);
+        let mut this = Self::from_context(context, crate_id, debug_comptime_in_file);
+        this.elaborate_items(items);
+        this.check_and_pop_function_context();
         this
     }
 
@@ -271,11 +276,11 @@ impl<'context> Elaborator<'context> {
         }
 
         // Must resolve structs before we resolve globals.
-        let mut generated_items = self.collect_struct_definitions(items.types);
+        self.collect_struct_definitions(&items.types);
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
-        self.collect_traits(items.traits, &mut generated_items);
+        self.collect_traits(&items.traits);
 
         // Before we resolve any function symbols we must go through our impls and
         // re-collect the methods within into their proper module. This cannot be
@@ -299,7 +304,7 @@ impl<'context> Elaborator<'context> {
 
         // We have to run any comptime attributes on functions before the function is elaborated
         // since the generated items are checked beforehand as well.
-        self.run_attributes_on_functions(&items.functions, &mut generated_items);
+        let generated_items = self.run_attributes(&items.traits, &items.types, &items.functions);
 
         // After everything is collected, we can elaborate our generated items.
         // It may be better to inline these within `items` entirely since elaborating them
@@ -336,17 +341,12 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
-        self.file = functions.file_id;
-        self.trait_id = functions.trait_id; // TODO: Resolve?
-        self.self_type = functions.self_type;
-
-        for (local_module, id, _) in functions.functions {
-            self.local_module = local_module;
-            self.recover_generics(|this| this.elaborate_function(id));
+        for (_, id, _) in functions.functions {
+            self.elaborate_function(id);
         }
 
+        self.generics.clear();
         self.self_type = None;
-        self.trait_id = None;
     }
 
     fn introduce_generics_into_scope(&mut self, all_generics: Vec<ResolvedGeneric>) {
@@ -364,7 +364,7 @@ impl<'context> Elaborator<'context> {
         self.generics = all_generics;
     }
 
-    fn elaborate_function(&mut self, id: FuncId) {
+    pub(crate) fn elaborate_function(&mut self, id: FuncId) {
         let func_meta = self.interner.func_meta.get_mut(&id);
         let func_meta =
             func_meta.expect("FuncMetas should be declared before a function is elaborated");
@@ -377,10 +377,20 @@ impl<'context> Elaborator<'context> {
             FunctionBody::Resolving => return,
         };
 
+        let func_meta = func_meta.clone();
+
+        assert_eq!(
+            self.crate_id, func_meta.source_crate,
+            "Functions in other crates should be already elaborated"
+        );
+
+        self.local_module = func_meta.source_module;
+        self.file = func_meta.source_file;
+        self.self_type = func_meta.self_type.clone();
+        self.current_trait_impl = func_meta.trait_impl;
+
         self.scopes.start_function();
         let old_item = std::mem::replace(&mut self.current_item, Some(DependencyId::Function(id)));
-
-        let func_meta = func_meta.clone();
 
         self.trait_bounds = func_meta.trait_constraints.clone();
         self.function_context.push(FunctionContext::default());
@@ -608,7 +618,11 @@ impl<'context> Elaborator<'context> {
         self.resolve_trait_bound(&constraint.trait_bound, typ)
     }
 
-    fn resolve_trait_bound(&mut self, bound: &TraitBound, typ: Type) -> Option<TraitConstraint> {
+    pub fn resolve_trait_bound(
+        &mut self,
+        bound: &TraitBound,
+        typ: Type,
+    ) -> Option<TraitConstraint> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
 
         let resolved_generics = &the_trait.generics.clone();
@@ -774,6 +788,8 @@ impl<'context> Elaborator<'context> {
             source_crate: self.crate_id,
             source_module: self.local_module,
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
+            self_type: self.self_type.clone(),
+            source_file: self.file,
         };
 
         self.interner.push_fn_meta(meta, func_id);
@@ -953,7 +969,16 @@ impl<'context> Elaborator<'context> {
 
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
-            let span = trait_impl.object_type.span.expect("All trait self types should have spans");
+            let span = trait_impl.object_type.span;
+
+            let span = if let Some(span) = span {
+                span
+            } else if self.interner.is_in_lsp_mode() {
+                // A span might not be set if this was generated by a macro
+                Default::default()
+            } else {
+                span.expect("All trait self types should have spans")
+            };
             self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
 
             let methods = trait_impl.methods.function_ids();
@@ -964,7 +989,7 @@ impl<'context> Elaborator<'context> {
             let trait_generics = trait_impl.resolved_trait_generics.clone();
 
             let resolved_trait_impl = Shared::new(TraitImpl {
-                ident: trait_impl.trait_path.last_segment().clone(),
+                ident: trait_impl.trait_path.last_ident(),
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics: trait_generics.clone(),
@@ -1002,10 +1027,7 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
     }
 
-    fn get_module_mut(
-        def_maps: &mut BTreeMap<CrateId, CrateDefMap>,
-        module: ModuleId,
-    ) -> &mut ModuleData {
+    fn get_module_mut(def_maps: &mut DefMaps, module: ModuleId) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
         &mut def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
     }
@@ -1102,30 +1124,20 @@ impl<'context> Elaborator<'context> {
         self.generics.clear();
     }
 
-    fn collect_struct_definitions(
-        &mut self,
-        structs: BTreeMap<StructId, UnresolvedStruct>,
-    ) -> CollectedItems {
+    fn collect_struct_definitions(&mut self, structs: &BTreeMap<StructId, UnresolvedStruct>) {
         // This is necessary to avoid cloning the entire struct map
         // when adding checks after each struct field is resolved.
         let struct_ids = structs.keys().copied().collect::<Vec<_>>();
 
-        // This will contain any additional top-level items that are generated at compile-time
-        // via macros. This often includes derived trait impls.
-        let mut generated_items = CollectedItems::default();
-
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
-        for (type_id, mut typ) in structs {
+        for (type_id, typ) in structs {
             self.file = typ.file_id;
             self.local_module = typ.module_id;
 
-            let attributes = std::mem::take(&mut typ.struct_def.attributes);
-            let span = typ.struct_def.span;
-
-            let fields = self.resolve_struct_fields(typ.struct_def, type_id);
+            let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
             let fields_len = fields.len();
-            self.interner.update_struct(type_id, |struct_def| {
+            self.interner.update_struct(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
 
                 // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this with implicit numeric generics
@@ -1152,12 +1164,11 @@ impl<'context> Elaborator<'context> {
             });
 
             for field_index in 0..fields_len {
-                self.interner
-                    .add_definition_location(ReferenceId::StructMember(type_id, field_index), None);
+                self.interner.add_definition_location(
+                    ReferenceId::StructMember(*type_id, field_index),
+                    None,
+                );
             }
-
-            let item = Value::StructDefinition(type_id);
-            self.run_comptime_attributes_on_item(&attributes, item, span, &mut generated_items);
         }
 
         // Check whether the struct fields have nested slices
@@ -1179,8 +1190,6 @@ impl<'context> Elaborator<'context> {
                 }
             }
         }
-
-        generated_items
     }
 
     fn run_comptime_attributes_on_item(
@@ -1297,7 +1306,7 @@ impl<'context> Elaborator<'context> {
 
     pub fn resolve_struct_fields(
         &mut self,
-        unresolved: NoirStruct,
+        unresolved: &NoirStruct,
         struct_id: StructId,
     ) -> Vec<(Ident, Type)> {
         self.recover_generics(|this| {
@@ -1308,7 +1317,9 @@ impl<'context> Elaborator<'context> {
             let struct_def = this.interner.get_struct(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
-            let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, this.resolve_type(typ)));
+            let fields = vecmap(&unresolved.fields, |(ident, typ)| {
+                (ident.clone(), this.resolve_type(typ.clone()))
+            });
 
             this.resolving_ids.remove(&struct_id);
 
@@ -1442,7 +1453,7 @@ impl<'context> Elaborator<'context> {
             self.generics.clear();
 
             if let Some(trait_id) = trait_id {
-                let trait_name = trait_impl.trait_path.last_segment();
+                let trait_name = trait_impl.trait_path.last_ident();
                 self.interner.add_trait_reference(
                     trait_id,
                     Location::new(trait_name.span(), trait_impl.file_id),
@@ -1485,62 +1496,6 @@ impl<'context> Elaborator<'context> {
             DependencyId::Function(id) => !self.interner.function_modifiers(&id).is_unconstrained,
             _ => true,
         })
-    }
-
-    /// Filters out comptime items from non-comptime items.
-    /// Returns a pair of (comptime items, non-comptime items)
-    fn filter_comptime_items(mut items: CollectedItems) -> (CollectedItems, CollectedItems) {
-        let mut function_sets = Vec::with_capacity(items.functions.len());
-        let mut comptime_function_sets = Vec::new();
-
-        for function_set in items.functions {
-            let mut functions = Vec::with_capacity(function_set.functions.len());
-            let mut comptime_functions = Vec::new();
-
-            for function in function_set.functions {
-                if function.2.def.is_comptime {
-                    comptime_functions.push(function);
-                } else {
-                    functions.push(function);
-                }
-            }
-
-            let file_id = function_set.file_id;
-            let self_type = function_set.self_type;
-            let trait_id = function_set.trait_id;
-
-            if !comptime_functions.is_empty() {
-                comptime_function_sets.push(UnresolvedFunctions {
-                    functions: comptime_functions,
-                    file_id,
-                    trait_id,
-                    self_type: self_type.clone(),
-                });
-            }
-
-            function_sets.push(UnresolvedFunctions { functions, file_id, trait_id, self_type });
-        }
-
-        let (comptime_trait_impls, trait_impls) =
-            items.trait_impls.into_iter().partition(|trait_impl| trait_impl.is_comptime);
-
-        let (comptime_structs, structs) =
-            items.types.into_iter().partition(|typ| typ.1.struct_def.is_comptime);
-
-        let comptime = CollectedItems {
-            functions: comptime_function_sets,
-            types: comptime_structs,
-            type_aliases: BTreeMap::new(),
-            traits: BTreeMap::new(),
-            trait_impls: comptime_trait_impls,
-            globals: Vec::new(),
-            impls: rustc_hash::FxHashMap::default(),
-        };
-
-        items.functions = function_sets;
-        items.trait_impls = trait_impls;
-        items.types = structs;
-        (comptime, items)
     }
 
     fn add_items(
@@ -1591,7 +1546,6 @@ impl<'context> Elaborator<'context> {
                     methods,
                     generics: trait_impl.impl_generics,
                     where_clause: trait_impl.where_clause,
-                    is_comptime: trait_impl.is_comptime,
 
                     // These last fields are filled in later
                     trait_id: None,
@@ -1653,6 +1607,36 @@ impl<'context> Elaborator<'context> {
                 location.file,
             ));
         }
+    }
+
+    /// Run all the attributes on each item. The ordering is unspecified to users but currently
+    /// we run trait attributes first to (e.g.) register derive handlers before derive is
+    /// called on structs.
+    /// Returns any new items generated by attributes.
+    fn run_attributes(
+        &mut self,
+        traits: &BTreeMap<TraitId, UnresolvedTrait>,
+        types: &BTreeMap<StructId, UnresolvedStruct>,
+        functions: &[UnresolvedFunctions],
+    ) -> CollectedItems {
+        let mut generated_items = CollectedItems::default();
+
+        for (trait_id, trait_) in traits {
+            let attributes = &trait_.trait_def.attributes;
+            let item = Value::TraitDefinition(*trait_id);
+            let span = trait_.trait_def.span;
+            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
+        }
+
+        for (struct_id, struct_def) in types {
+            let attributes = &struct_def.struct_def.attributes;
+            let item = Value::StructDefinition(*struct_id);
+            let span = struct_def.struct_def.span;
+            self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
+        }
+
+        self.run_attributes_on_functions(functions, &mut generated_items);
+        generated_items
     }
 
     fn run_attributes_on_functions(

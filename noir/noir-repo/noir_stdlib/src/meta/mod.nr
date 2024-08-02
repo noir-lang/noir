@@ -1,5 +1,6 @@
 mod trait_constraint;
 mod trait_def;
+mod typ;
 mod type_def;
 mod quoted;
 
@@ -9,3 +10,7 @@ mod quoted;
 pub comptime fn unquote(code: Quoted) -> Quoted {
     code
 }
+
+#[builtin(type_of)]
+pub comptime fn type_of<T>(x: T) -> Type {}
+

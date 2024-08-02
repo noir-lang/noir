@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::{
+    ast::TraitBound,
     hir::{def_collector::dc_crate::CompilationError, type_check::NoMatchingImplFoundError},
     parser::ParserError,
     token::Tokens,
@@ -49,13 +50,14 @@ pub enum InterpreterError {
     DebugEvaluateComptime { diagnostic: CustomDiagnostic, location: Location },
     FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
     UnsupportedTopLevelItemUnquote { item: String, location: Location },
-    NonComptimeFnCallInSameCrate { function: String, location: Location },
+    ComptimeDependencyCycle { function: String, location: Location },
     NoImpl { location: Location },
     NoMatchingImplFound { error: NoMatchingImplFoundError, file: FileId },
     ImplMethodTypeMismatch { expected: Type, actual: Type, location: Location },
     BreakNotInLoop { location: Location },
     ContinueNotInLoop { location: Location },
     BlackBoxError(BlackBoxResolutionError, Location),
+    FailedToResolveTraitBound { trait_bound: TraitBound, location: Location },
 
     Unimplemented { item: String, location: Location },
 
@@ -112,14 +114,15 @@ impl InterpreterError {
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
-            | InterpreterError::NonComptimeFnCallInSameCrate { location, .. }
+            | InterpreterError::ComptimeDependencyCycle { location, .. }
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::NoImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
             | InterpreterError::BlackBoxError(_, location)
             | InterpreterError::BreakNotInLoop { location, .. }
-            | InterpreterError::ContinueNotInLoop { location, .. } => *location,
+            | InterpreterError::ContinueNotInLoop { location, .. }
+            | InterpreterError::FailedToResolveTraitBound { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -207,7 +210,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::FailingConstraint { message, location } => {
                 let (primary, secondary) = match message {
-                    Some(msg) => (format!("{msg:?}"), "Assertion failed".into()),
+                    Some(msg) => (format!("{msg}"), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
                 CustomDiagnostic::simple_error(primary, secondary, location.span)
@@ -342,10 +345,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 error.add_note(format!("Unquoted item was:\n{item}"));
                 error
             }
-            InterpreterError::NonComptimeFnCallInSameCrate { function, location } => {
-                let msg = format!("`{function}` cannot be called in a `comptime` context here");
+            InterpreterError::ComptimeDependencyCycle { function, location } => {
+                let msg = format!("Comptime dependency cycle while resolving `{function}`");
                 let secondary =
-                    "This function must be `comptime` or in a separate crate to be called".into();
+                    "This function uses comptime code internally which calls into itself".into();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::Unimplemented { item, location } => {
@@ -372,6 +375,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::BlackBoxError(error, location) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), location.span)
+            }
+            InterpreterError::FailedToResolveTraitBound { trait_bound, location } => {
+                let msg = format!("Failed to resolve trait bound `{trait_bound}`");
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
             InterpreterError::Break => unreachable!("Uncaught InterpreterError::Break"),

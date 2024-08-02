@@ -48,10 +48,12 @@ impl ModuleId {
 }
 
 impl ModuleId {
-    pub fn module(self, def_maps: &BTreeMap<CrateId, CrateDefMap>) -> &ModuleData {
+    pub fn module(self, def_maps: &DefMaps) -> &ModuleData {
         &def_maps[&self.krate].modules()[self.local_id.0]
     }
 }
+
+pub type DefMaps = BTreeMap<CrateId, CrateDefMap>;
 
 /// Map of all modules and scopes defined within a crate.
 ///

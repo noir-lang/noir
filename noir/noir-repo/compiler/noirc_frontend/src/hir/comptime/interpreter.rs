@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::{acir::AcirField, FieldElement};
@@ -10,12 +11,14 @@ use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir_def::expr::ImplKind;
+use crate::hir_def::function::FunctionBody;
 use crate::macros_api::UnaryOp;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
     undo_instantiation_bindings,
 };
 use crate::token::Tokens;
+use crate::TypeVariable;
 use crate::{
     hir_def::{
         expr::{
@@ -51,6 +54,12 @@ pub struct Interpreter<'local, 'interner> {
     in_loop: bool,
 
     current_function: Option<FuncId>,
+
+    /// Maps each bound generic to each binding it has in the current callstack.
+    /// Since the interpreter monomorphizes as it interprets, we can bind over the same generic
+    /// multiple times. Without this map, when one of these inner functions exits we would
+    /// unbind the generic completely instead of resetting it to its previous binding.
+    bound_generics: Vec<HashMap<TypeVariable, Type>>,
 }
 
 #[allow(unused)]
@@ -60,28 +69,41 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         crate_id: CrateId,
         current_function: Option<FuncId>,
     ) -> Self {
-        Self { elaborator, crate_id, current_function, in_loop: false }
+        let bound_generics = Vec::new();
+        Self { elaborator, crate_id, current_function, bound_generics, in_loop: false }
     }
 
     pub(crate) fn call_function(
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
-        instantiation_bindings: TypeBindings,
+        mut instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
         let trait_method = self.elaborator.interner.get_trait_method_id(function);
 
-        perform_instantiation_bindings(&instantiation_bindings);
-        let impl_bindings =
-            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
-        let old_function = self.current_function.replace(function);
+        // To match the monomorphizer, we need to call follow_bindings on each of
+        // the instantiation bindings before we unbind the generics from the previous function.
+        // This is because the instantiation bindings refer to variables from the call site.
+        for (_, binding) in instantiation_bindings.values_mut() {
+            *binding = binding.follow_bindings();
+        }
 
+        self.unbind_generics_from_previous_function();
+        perform_instantiation_bindings(&instantiation_bindings);
+        let mut impl_bindings =
+            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
+
+        for (_, binding) in impl_bindings.values_mut() {
+            *binding = binding.follow_bindings();
+        }
+
+        self.remember_bindings(&instantiation_bindings, &impl_bindings);
         let result = self.call_function_inner(function, arguments, location);
 
-        self.current_function = old_function;
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
+        self.rebind_generics_from_previous_function();
         result
     }
 
@@ -100,19 +122,27 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             });
         }
 
-        let is_comptime = self.elaborator.interner.function_modifiers(&function).is_comptime;
-        if !is_comptime && meta.source_crate == self.crate_id {
-            // Calling non-comptime functions from within the current crate is restricted
-            // as non-comptime items will have not been elaborated yet.
-            let function = self.elaborator.interner.function_name(&function).to_owned();
-            return Err(InterpreterError::NonComptimeFnCallInSameCrate { function, location });
-        }
-
         if meta.kind != FunctionKind::Normal {
             let return_type = meta.return_type().follow_bindings();
-            return self.call_builtin(function, arguments, return_type, location);
+            return self.call_special(function, arguments, return_type, location);
         }
 
+        // Wait until after call_special to set the current function so that builtin functions like
+        // `.as_type()` still call the resolver in the caller's scope.
+        let old_function = self.current_function.replace(function);
+        let result = self.call_user_defined_function(function, arguments, location);
+        self.current_function = old_function;
+        result
+    }
+
+    /// Call a non-builtin function
+    fn call_user_defined_function(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        location: Location,
+    ) -> IResult<Value> {
+        let meta = self.elaborator.interner.function_meta(&function);
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
@@ -120,19 +150,36 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             self.define_pattern(parameter, typ, argument, arg_location)?;
         }
 
-        let function_body =
-            self.elaborator.interner.function(&function).try_as_expr().ok_or_else(|| {
-                let function = self.elaborator.interner.function_name(&function).to_owned();
-                InterpreterError::NonComptimeFnCallInSameCrate { function, location }
-            })?;
-
+        let function_body = self.get_function_body(function, location)?;
         let result = self.evaluate(function_body)?;
-
         self.exit_function(previous_state);
         Ok(result)
     }
 
-    fn call_builtin(
+    /// Try to retrieve a function's body.
+    /// If the function has not yet been resolved this will attempt to lazily resolve it.
+    /// Afterwards, if the function's body is still not known or the function is still
+    /// in a Resolving state we issue an error.
+    fn get_function_body(&mut self, function: FuncId, location: Location) -> IResult<ExprId> {
+        let meta = self.elaborator.interner.function_meta(&function);
+        match self.elaborator.interner.function(&function).try_as_expr() {
+            Some(body) => Ok(body),
+            None => {
+                if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
+                    self.elaborator.elaborate_item_from_comptime(None, |elaborator| {
+                        elaborator.elaborate_function(function);
+                    });
+
+                    self.get_function_body(function, location)
+                } else {
+                    let function = self.elaborator.interner.function_name(&function).to_owned();
+                    Err(InterpreterError::ComptimeDependencyCycle { function, location })
+                }
+            }
+        }
+    }
+
+    fn call_special(
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
@@ -145,19 +192,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         if let Some(builtin) = func_attrs.builtin() {
             let builtin = builtin.clone();
-            builtin::call_builtin(
-                self.elaborator.interner,
-                &builtin,
-                arguments,
-                return_type,
-                location,
-            )
+            self.call_builtin(&builtin, arguments, return_type, location)
         } else if let Some(foreign) = func_attrs.foreign() {
             let foreign = foreign.clone();
             foreign::call_foreign(self.elaborator.interner, &foreign, arguments, location)
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)
+            // Ignore debugger functions
+            } else if oracle.starts_with("__debug") {
+                Ok(Value::Unit)
             } else {
                 let item = format!("Comptime evaluation for oracle functions like {oracle}");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -229,6 +273,42 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
         self.elaborator.comptime_scopes.last_mut().unwrap()
+    }
+
+    fn unbind_generics_from_previous_function(&mut self) {
+        if let Some(bindings) = self.bound_generics.last() {
+            for var in bindings.keys() {
+                var.unbind(var.id());
+            }
+        }
+        // Push a new bindings list for the current function
+        self.bound_generics.push(HashMap::default());
+    }
+
+    fn rebind_generics_from_previous_function(&mut self) {
+        // Remove the currently bound generics first.
+        self.bound_generics.pop();
+
+        if let Some(bindings) = self.bound_generics.last() {
+            for (var, binding) in bindings {
+                var.force_bind(binding.clone());
+            }
+        }
+    }
+
+    fn remember_bindings(&mut self, main_bindings: &TypeBindings, impl_bindings: &TypeBindings) {
+        let bound_generics = self
+            .bound_generics
+            .last_mut()
+            .expect("remember_bindings called with no bound_generics on the stack");
+
+        for (var, binding) in main_bindings.values() {
+            bound_generics.insert(var.clone(), binding.follow_bindings());
+        }
+
+        for (var, binding) in impl_bindings.values() {
+            bound_generics.insert(var.clone(), binding.follow_bindings());
+        }
     }
 
     pub(super) fn define_pattern(
@@ -449,14 +529,48 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 self.evaluate_integer(value, is_negative, id)
             }
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
-            HirLiteral::FmtStr(_, _) => {
-                let item = "format strings in a comptime context".into();
-                let location = self.elaborator.interner.expr_location(&id);
-                Err(InterpreterError::Unimplemented { item, location })
+            HirLiteral::FmtStr(string, captures) => {
+                self.evaluate_format_string(string, captures, id)
             }
             HirLiteral::Array(array) => self.evaluate_array(array, id),
             HirLiteral::Slice(array) => self.evaluate_slice(array, id),
         }
+    }
+
+    fn evaluate_format_string(
+        &mut self,
+        string: String,
+        captures: Vec<ExprId>,
+        id: ExprId,
+    ) -> IResult<Value> {
+        let mut result = String::new();
+        let mut escaped = false;
+        let mut consuming = false;
+
+        let mut values: VecDeque<_> =
+            captures.into_iter().map(|capture| self.evaluate(capture)).collect::<Result<_, _>>()?;
+
+        for character in string.chars() {
+            match character {
+                '\\' => escaped = true,
+                '{' if !escaped => consuming = true,
+                '}' if !escaped && consuming => {
+                    consuming = false;
+
+                    if let Some(value) = values.pop_front() {
+                        result.push_str(&value.to_string());
+                    }
+                }
+                other if !consuming => {
+                    escaped = false;
+                    result.push(other);
+                }
+                _ => (),
+            }
+        }
+
+        let typ = self.elaborator.interner.id_type(id);
+        Ok(Value::FormatString(Rc::new(result), typ))
     }
 
     fn evaluate_integer(
@@ -1124,7 +1238,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let expr = result.into_expression(self.elaborator.interner, location)?;
                     let expr = self
                         .elaborator
-                        .elaborate_expression_from_comptime(expr, self.current_function);
+                        .elaborate_item_from_comptime(self.current_function, |elab| {
+                            elab.elaborate_expression(expr).0
+                        });
                     result = self.evaluate(expr)?;
                 }
                 Ok(result)

@@ -120,8 +120,11 @@ impl super::FmtVisitor<'_> {
 
             let visibility = match func.def.return_visibility {
                 Visibility::Public => "pub",
-                Visibility::DataBus => "return_data",
+                Visibility::ReturnData => "return_data",
                 Visibility::Private => "",
+                Visibility::CallData(_) => {
+                    unreachable!("call_data cannot be used for return value")
+                }
             };
             result.push_str(&append_space_if_nonempty(visibility.into()));
 

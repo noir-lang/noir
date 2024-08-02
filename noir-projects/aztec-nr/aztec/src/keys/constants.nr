@@ -12,8 +12,8 @@ global TAGGING_INDEX = 3;
 global NUM_KEY_TYPES = 4;
 
 global sk_generators = [
-    GENERATOR_INDEX__NSK_M,
-    GENERATOR_INDEX__IVSK_M,
-    GENERATOR_INDEX__OVSK_M,
-    GENERATOR_INDEX__TSK_M
+    GENERATOR_INDEX__NSK_M as Field,
+    GENERATOR_INDEX__IVSK_M as Field,
+    GENERATOR_INDEX__OVSK_M as Field,
+    GENERATOR_INDEX__TSK_M as Field
 ];

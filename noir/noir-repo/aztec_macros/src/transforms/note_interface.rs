@@ -6,7 +6,6 @@ use noirc_frontend::ast::{
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{FileId, HirContext, HirExpression, HirLiteral, HirStatement},
-    parse_program,
     parser::SortedModule,
     Type,
 };
@@ -16,11 +15,13 @@ use regex::Regex;
 // TODO(#7165): nuke the following dependency from here and Cargo.toml
 use tiny_keccak::{Hasher, Keccak};
 
+use crate::utils::parse_utils::parse_program;
 use crate::{
     chained_dep,
     utils::{
         ast_utils::{
             check_trait_method_implemented, ident, ident_path, is_custom_attribute, make_type,
+            path_segment,
         },
         errors::AztecMacroError,
         hir_utils::{fetch_notes, get_contract_module_data, inject_global},
@@ -29,7 +30,10 @@ use crate::{
 
 // Automatic implementation of most of the methods in the NoteInterface trait, guiding the user with meaningful error messages in case some
 // methods must be implemented manually.
-pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), AztecMacroError> {
+pub fn generate_note_interface_impl(
+    module: &mut SortedModule,
+    empty_spans: bool,
+) -> Result<(), AztecMacroError> {
     // Find structs annotated with #[aztec(note)]
     let annotated_note_structs = module
         .types
@@ -45,8 +49,8 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
             .iter_mut()
             .find(|trait_impl| {
                 if let UnresolvedTypeData::Named(struct_path, _, _) = &trait_impl.object_type.typ {
-                    struct_path.last_segment() == note_struct.name
-                        && trait_impl.trait_name.last_segment().0.contents == "NoteInterface"
+                    struct_path.last_ident() == note_struct.name
+                        && trait_impl.trait_name.last_name() == "NoteInterface"
                 } else {
                     false
                 }
@@ -58,10 +62,11 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                     note_struct.name.0.contents
                 )),
             })?;
-        let note_interface_impl_span: Option<Span> = trait_impl.object_type.span;
+        let note_interface_impl_span: Option<Span> =
+            if empty_spans { None } else { trait_impl.object_type.span };
         // Look for the note struct implementation, generate a default one if it doesn't exist (in order to append methods to it)
         let existing_impl = module.impls.iter_mut().find(|r#impl| match &r#impl.object_type.typ {
-            UnresolvedTypeData::Named(path, _, _) => path.last_segment().eq(&note_struct.name),
+            UnresolvedTypeData::Named(path, _, _) => path.last_ident().eq(&note_struct.name),
             _ => false,
         });
         let note_impl = if let Some(note_impl) = existing_impl {
@@ -73,7 +78,6 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 generics: vec![],
                 methods: vec![],
                 where_clause: vec![],
-                is_comptime: false,
             };
             module.impls.push(default_impl.clone());
             module.impls.last_mut().unwrap()
@@ -85,9 +89,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
             .trait_generics
             .iter()
             .map(|gen| match gen.typ.clone() {
-                UnresolvedTypeData::Named(path, _, _) => {
-                    Ok(path.last_segment().0.contents.to_string())
-                }
+                UnresolvedTypeData::Named(path, _, _) => Ok(path.last_name().to_string()),
                 UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(val, _)) => {
                     Ok(val.to_string())
                 }
@@ -108,9 +110,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
         // Automatically inject the header field if it's not present
         let (header_field_name, _) = if let Some(existing_header) =
             note_struct.fields.iter().find(|(_, field_type)| match &field_type.typ {
-                UnresolvedTypeData::Named(path, _, _) => {
-                    path.last_segment().0.contents == "NoteHeader"
-                }
+                UnresolvedTypeData::Named(path, _, _) => path.last_name() == "NoteHeader",
                 _ => false,
             }) {
             existing_header.clone()
@@ -144,6 +144,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 &note_serialized_len,
                 &header_field_name.0.contents,
                 note_interface_impl_span,
+                empty_spans,
             )?;
             trait_impl.items.push(TraitImplItem::Function(note_serialize_content_fn));
 
@@ -153,6 +154,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 &note_serialized_len,
                 &header_field_name.0.contents,
                 note_interface_impl_span,
+                empty_spans,
             )?;
             trait_impl.items.push(TraitImplItem::Function(note_deserialize_content_fn));
 
@@ -161,6 +163,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 &note_fields,
                 &header_field_name.0.contents,
                 note_interface_impl_span,
+                empty_spans,
             )?;
             structs_to_inject.push(note_properties_struct);
             let note_properties_fn = generate_note_properties_fn(
@@ -168,6 +171,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 &note_fields,
                 &header_field_name.0.contents,
                 note_interface_impl_span,
+                empty_spans,
             )?;
             note_impl.methods.push((note_properties_fn, note_impl.type_span));
         }
@@ -177,6 +181,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 &note_type,
                 &header_field_name.0.contents,
                 note_interface_impl_span,
+                empty_spans,
             )?;
             trait_impl.items.push(TraitImplItem::Function(get_header_fn));
         }
@@ -185,6 +190,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 &note_type,
                 &header_field_name.0.contents,
                 note_interface_impl_span,
+                empty_spans,
             )?;
             trait_impl.items.push(TraitImplItem::Function(set_header_fn));
         }
@@ -192,13 +198,16 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
         if !check_trait_method_implemented(trait_impl, "get_note_type_id") {
             let note_type_id = compute_note_type_id(&note_type);
             let get_note_type_id_fn =
-                generate_get_note_type_id(note_type_id, note_interface_impl_span)?;
+                generate_get_note_type_id(note_type_id, note_interface_impl_span, empty_spans)?;
             trait_impl.items.push(TraitImplItem::Function(get_note_type_id_fn));
         }
 
         if !check_trait_method_implemented(trait_impl, "compute_note_hiding_point") {
-            let compute_note_hiding_point_fn =
-                generate_compute_note_hiding_point(&note_type, note_interface_impl_span)?;
+            let compute_note_hiding_point_fn = generate_compute_note_hiding_point(
+                &note_type,
+                note_interface_impl_span,
+                empty_spans,
+            )?;
             trait_impl.items.push(TraitImplItem::Function(compute_note_hiding_point_fn));
         }
 
@@ -208,6 +217,7 @@ pub fn generate_note_interface_impl(module: &mut SortedModule) -> Result<(), Azt
                 note_bytes_len.as_str(),
                 note_serialized_len.as_str(),
                 note_interface_impl_span,
+                empty_spans,
             )?;
             trait_impl.items.push(TraitImplItem::Function(to_be_bytes_fn));
         }
@@ -222,6 +232,7 @@ fn generate_note_to_be_bytes(
     byte_length: &str,
     serialized_length: &str,
     impl_span: Option<Span>,
+    empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
         "
@@ -252,7 +263,7 @@ fn generate_note_to_be_bytes(
     )
     .to_string();
 
-    let (function_ast, errors) = parse_program(&function_source);
+    let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
@@ -263,7 +274,7 @@ fn generate_note_to_be_bytes(
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap();
+    noir_fn.def.span = impl_span.unwrap_or_default();
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -272,6 +283,7 @@ fn generate_note_get_header(
     note_type: &String,
     note_header_field_name: &String,
     impl_span: Option<Span>,
+    empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
         "
@@ -283,7 +295,7 @@ fn generate_note_get_header(
     )
     .to_string();
 
-    let (function_ast, errors) = parse_program(&function_source);
+    let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
@@ -294,7 +306,7 @@ fn generate_note_get_header(
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap();
+    noir_fn.def.span = impl_span.unwrap_or_default();
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -303,6 +315,7 @@ fn generate_note_set_header(
     note_type: &String,
     note_header_field_name: &String,
     impl_span: Option<Span>,
+    empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
         "
@@ -313,7 +326,7 @@ fn generate_note_set_header(
         note_type, note_header_field_name
     );
 
-    let (function_ast, errors) = parse_program(&function_source);
+    let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface  {
@@ -324,7 +337,7 @@ fn generate_note_set_header(
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap();
+    noir_fn.def.span = impl_span.unwrap_or_default();
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -334,6 +347,7 @@ fn generate_note_set_header(
 fn generate_get_note_type_id(
     note_type_id: u32,
     impl_span: Option<Span>,
+    empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     // TODO(#7165): replace {} with dep::aztec::protocol_types::abis::note_selector::compute_note_selector(\"{}\") in the function source below
     let function_source = format!(
@@ -346,7 +360,7 @@ fn generate_get_note_type_id(
     )
     .to_string();
 
-    let (function_ast, errors) = parse_program(&function_source);
+    let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
@@ -357,7 +371,7 @@ fn generate_get_note_type_id(
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap();
+    noir_fn.def.span = impl_span.unwrap_or_default();
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -376,11 +390,12 @@ fn generate_note_properties_struct(
     note_fields: &[(String, String)],
     note_header_field_name: &String,
     impl_span: Option<Span>,
+    empty_spans: bool,
 ) -> Result<NoirStruct, AztecMacroError> {
     let struct_source =
         generate_note_properties_struct_source(note_type, note_fields, note_header_field_name);
 
-    let (struct_ast, errors) = parse_program(&struct_source);
+    let (struct_ast, errors) = parse_program(&struct_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
@@ -409,6 +424,7 @@ fn generate_note_deserialize_content(
     note_serialize_len: &String,
     note_header_field_name: &String,
     impl_span: Option<Span>,
+    empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = generate_note_deserialize_content_source(
         note_type,
@@ -417,7 +433,7 @@ fn generate_note_deserialize_content(
         note_header_field_name,
     );
 
-    let (function_ast, errors) = parse_program(&function_source);
+    let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
@@ -428,7 +444,7 @@ fn generate_note_deserialize_content(
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap();
+    noir_fn.def.span = impl_span.unwrap_or_default();
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -446,6 +462,7 @@ fn generate_note_serialize_content(
     note_serialize_len: &String,
     note_header_field_name: &String,
     impl_span: Option<Span>,
+    empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = generate_note_serialize_content_source(
         note_type,
@@ -454,7 +471,7 @@ fn generate_note_serialize_content(
         note_header_field_name,
     );
 
-    let (function_ast, errors) = parse_program(&function_source);
+    let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
@@ -465,7 +482,7 @@ fn generate_note_serialize_content(
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap();
+    noir_fn.def.span = impl_span.unwrap_or_default();
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -476,10 +493,11 @@ fn generate_note_properties_fn(
     note_fields: &[(String, String)],
     note_header_field_name: &String,
     impl_span: Option<Span>,
+    empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source =
         generate_note_properties_fn_source(note_type, note_fields, note_header_field_name);
-    let (function_ast, errors) = parse_program(&function_source);
+    let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
@@ -489,7 +507,7 @@ fn generate_note_properties_fn(
     }
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap();
+    noir_fn.def.span = impl_span.unwrap_or_default();
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -502,6 +520,7 @@ fn generate_note_properties_fn(
 fn generate_compute_note_hiding_point(
     note_type: &String,
     impl_span: Option<Span>,
+    empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
         "
@@ -511,7 +530,7 @@ fn generate_compute_note_hiding_point(
         ",
         note_type
     );
-    let (function_ast, errors) = parse_program(&function_source);
+    let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
@@ -521,7 +540,7 @@ fn generate_compute_note_hiding_point(
     }
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap();
+    noir_fn.def.span = impl_span.unwrap_or_default();
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -529,6 +548,7 @@ fn generate_compute_note_hiding_point(
 fn generate_note_exports_global(
     note_type: &str,
     note_type_id: &str,
+    empty_spans: bool,
 ) -> Result<LetStatement, AztecMacroError> {
     let struct_source = format!(
         "
@@ -541,7 +561,7 @@ fn generate_note_exports_global(
     )
     .to_string();
 
-    let (global_ast, errors) = parse_program(&struct_source);
+    let (global_ast, errors) = parse_program(&struct_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
@@ -783,9 +803,11 @@ pub fn inject_note_exports(
                     file_id,
                 )),
             }?;
+            let empty_spans = context.def_interner.is_in_lsp_mode();
             let global = generate_note_exports_global(
                 &note.borrow().name.0.contents,
                 &note_type_id.to_hex(),
+                empty_spans,
             )
             .map_err(|err| (err, file_id))?;
 
