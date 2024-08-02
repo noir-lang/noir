@@ -86,20 +86,20 @@ pub(super) fn check_argument_count(
 pub(super) fn check_one_argument(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> IResult<(Value, Location)> {
+) -> IResult<Value> {
     check_argument_count(1, &arguments, location)?;
 
-    Ok(arguments.pop().unwrap())
+    Ok(arguments.pop().unwrap().0)
 }
 
 pub(super) fn check_two_arguments(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> IResult<((Value, Location), (Value, Location))> {
+) -> IResult<(Value, Value)> {
     check_argument_count(2, &arguments, location)?;
 
-    let argument2 = arguments.pop().unwrap();
-    let argument1 = arguments.pop().unwrap();
+    let argument2 = arguments.pop().unwrap().0;
+    let argument1 = arguments.pop().unwrap().0;
 
     Ok((argument1, argument2))
 }
@@ -107,12 +107,12 @@ pub(super) fn check_two_arguments(
 pub(super) fn check_three_arguments(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> IResult<((Value, Location), (Value, Location), (Value, Location))> {
+) -> IResult<(Value, Value, Value)> {
     check_argument_count(3, &arguments, location)?;
 
-    let argument3 = arguments.pop().unwrap();
-    let argument2 = arguments.pop().unwrap();
-    let argument1 = arguments.pop().unwrap();
+    let argument3 = arguments.pop().unwrap().0;
+    let argument2 = arguments.pop().unwrap().0;
+    let argument1 = arguments.pop().unwrap().0;
 
     Ok((argument1, argument2, argument3))
 }
@@ -223,7 +223,7 @@ fn array_len(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     match argument {
         Value::Array(values, _) | Value::Slice(values, _) => Ok(Value::U32(values.len() as u32)),
@@ -241,7 +241,7 @@ fn as_slice(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (array, _) = check_one_argument(arguments, location)?;
+    let array = check_one_argument(arguments, location)?;
 
     match array {
         Value::Array(values, Type::Array(_, typ)) => Ok(Value::Slice(values, Type::Slice(typ))),
@@ -259,7 +259,7 @@ fn slice_push_back(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let ((slice, _), (element, _)) = check_two_arguments(arguments, location)?;
+    let (slice, element) = check_two_arguments(arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, slice, location)?;
     values.push_back(element);
@@ -272,7 +272,7 @@ fn struct_def_as_type(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     let struct_def = match argument {
         Value::StructDefinition(id) => id,
@@ -300,7 +300,7 @@ fn struct_def_generics(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     let struct_def = match argument {
         Value::StructDefinition(id) => id,
@@ -330,7 +330,7 @@ fn struct_def_fields(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     let struct_def = match argument {
         Value::StructDefinition(id) => id,
@@ -364,7 +364,7 @@ fn slice_remove(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let ((slice, _), (index, _)) = check_two_arguments(arguments, location)?;
+    let (slice, index) = check_two_arguments(arguments, location)?;
 
     let index = get_u32(index, location)? as usize;
     let (mut values, typ) = get_slice(interner, slice, location)?;
@@ -390,7 +390,7 @@ fn slice_push_front(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let ((slice, _), (element, _)) = check_two_arguments(arguments, location)?;
+    let (slice, element) = check_two_arguments(arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, slice, location)?;
     values.push_front(element);
@@ -402,7 +402,7 @@ fn slice_pop_front(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, argument, location)?;
     match values.pop_front() {
@@ -416,7 +416,7 @@ fn slice_pop_back(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, argument, location)?;
     match values.pop_back() {
@@ -430,7 +430,7 @@ fn slice_insert(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let ((slice, _), (index, _), (element, _)) = check_three_arguments(arguments, location)?;
+    let (slice, index, element) = check_three_arguments(arguments, location)?;
 
     let index = get_u32(index, location)? as usize;
     let (mut values, typ) = get_slice(interner, slice, location)?;
@@ -444,7 +444,7 @@ fn quoted_as_trait_constraint(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     let tokens = get_quoted(argument, location)?;
     let quoted = add_token_spans(tokens.clone(), location.span);
@@ -470,7 +470,7 @@ fn quoted_as_type(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     let tokens = get_quoted(argument, location)?;
     let quoted = add_token_spans(tokens.clone(), location.span);
@@ -493,7 +493,7 @@ fn type_as_integer(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    let (value, _) = check_one_argument(arguments, location)?;
+    let value = check_one_argument(arguments, location)?;
     let typ = get_type(value, location)?;
 
     let option_value = if let Type::Integer(sign, bits) = typ {
@@ -507,14 +507,14 @@ fn type_as_integer(
 
 // fn type_eq(_first: Type, _second: Type) -> bool
 fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let ((self_type, _), (other_type, _)) = check_two_arguments(arguments, location)?;
+    let (self_type, other_type) = check_two_arguments(arguments, location)?;
 
     Ok(Value::Bool(self_type == other_type))
 }
 
 // fn is_field(self) -> bool
 fn type_is_field(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (value, _) = check_one_argument(arguments, location)?;
+    let value = check_one_argument(arguments, location)?;
     let typ = get_type(value, location)?;
 
     Ok(Value::Bool(matches!(typ, Type::FieldElement)))
@@ -522,7 +522,7 @@ fn type_is_field(arguments: Vec<(Value, Location)>, location: Location) -> IResu
 
 // fn type_of<T>(x: T) -> Type
 fn type_of(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (value, _) = check_one_argument(arguments, location)?;
+    let value = check_one_argument(arguments, location)?;
     let typ = value.get_type().into_owned();
     Ok(Value::Type(typ))
 }
@@ -533,7 +533,7 @@ fn trait_constraint_hash(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     let bound = get_trait_constraint(argument, location)?;
 
@@ -550,7 +550,7 @@ fn trait_constraint_eq(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let ((value_a, _), (value_b, _)) = check_two_arguments(arguments, location)?;
+    let (value_a, value_b) = check_two_arguments(arguments, location)?;
 
     let constraint_a = get_trait_constraint(value_a, location)?;
     let constraint_b = get_trait_constraint(value_b, location)?;
@@ -738,7 +738,7 @@ fn trait_def_as_trait_constraint(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> Result<Value, InterpreterError> {
-    let (argument, _) = check_one_argument(arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
     let trait_id = get_trait_def(argument, location)?;
     let the_trait = interner.get_trait(trait_id);
