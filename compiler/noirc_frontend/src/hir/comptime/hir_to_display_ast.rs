@@ -358,6 +358,13 @@ impl Type {
             Type::Constant(_) => panic!("Type::Constant where a type was expected: {self:?}"),
             Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
             Type::Error => UnresolvedTypeData::Error,
+            Type::InfixExpr(lhs, op, rhs) => {
+                let lhs = Box::new(lhs.to_type_expression());
+                let rhs = Box::new(rhs.to_type_expression());
+                let span = Span::default();
+                let expr = UnresolvedTypeExpression::BinaryOperation(lhs, *op, rhs, span);
+                UnresolvedTypeData::Expression(expr)
+            }
         };
 
         UnresolvedType { typ, span: None }

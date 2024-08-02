@@ -40,6 +40,18 @@ pub enum IntegerBitSize {
 }
 
 impl IntegerBitSize {
+    pub fn bit_size(&self) -> u8 {
+        match self {
+            IntegerBitSize::One => 1,
+            IntegerBitSize::Eight => 8,
+            IntegerBitSize::Sixteen => 16,
+            IntegerBitSize::ThirtyTwo => 32,
+            IntegerBitSize::SixtyFour => 64,
+        }
+    }
+}
+
+impl IntegerBitSize {
     pub fn allowed_sizes() -> Vec<Self> {
         vec![Self::One, Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
     }
@@ -291,10 +303,19 @@ impl UnresolvedTypeData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
 pub enum Signedness {
     Unsigned,
     Signed,
+}
+
+impl Signedness {
+    pub fn is_signed(&self) -> bool {
+        match self {
+            Signedness::Unsigned => false,
+            Signedness::Signed => true,
+        }
+    }
 }
 
 impl UnresolvedTypeExpression {

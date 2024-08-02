@@ -497,7 +497,12 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Quoted(tokens) => {
                 write!(f, "quote {{")?;
                 for token in tokens.iter() {
-                    write!(f, " {token}")?;
+                    match token {
+                        Token::QuotedType(id) => {
+                            write!(f, " {}", self.interner.get_quoted_type(*id))?;
+                        }
+                        other => write!(f, " {other}")?,
+                    }
                 }
                 write!(f, " }}")
             }
