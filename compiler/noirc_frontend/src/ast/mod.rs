@@ -310,7 +310,7 @@ pub enum Signedness {
 }
 
 impl Signedness {
-    pub fn to_bool(&self) -> bool {
+    pub fn is_signed(&self) -> bool {
         match self {
             Signedness::Unsigned => false,
             Signedness::Signed => true,

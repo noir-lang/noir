@@ -497,7 +497,7 @@ fn type_as_integer(
     let typ = get_type(value, location)?;
 
     let option_value = if let Type::Integer(sign, bits) = typ {
-        Some(Value::Tuple(vec![Value::Bool(sign.to_bool()), Value::U8(bits.bit_size())]))
+        Some(Value::Tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
     } else {
         None
     };
