@@ -45,6 +45,8 @@ class AvmMemTraceBuilder {
         bool m_tag_err_count_relevant = false;
         bool m_sel_op_slice = false;
 
+        bool poseidon_mem_op = false;
+
         /**
          * @brief A comparator on MemoryTraceEntry to be used by sorting algorithm. We sort first by
          *        ascending address (m_addr), then by clock (m_clk) and finally sub-clock (m_sub_clk).
@@ -64,6 +66,13 @@ class AvmMemTraceBuilder {
         FF val{};
     };
 
+    // Enum to define which subtable triggered and manages (via perm) the memory operation.
+    enum MemOpOwner {
+        MAIN,
+        SLICE,
+        POSEIDON2,
+    };
+
     AvmMemTraceBuilder();
 
     void reset();
@@ -80,7 +89,8 @@ class AvmMemTraceBuilder {
                                       IntermRegister interm_reg,
                                       uint32_t addr,
                                       AvmMemoryTag r_in_tag,
-                                      AvmMemoryTag w_in_tag);
+                                      AvmMemoryTag w_in_tag,
+                                      MemOpOwner mem_op_owner = MAIN);
     MemRead indirect_read_and_load_from_memory(uint8_t space_id, uint32_t clk, IndirectRegister ind_reg, uint32_t addr);
     void write_into_memory(uint8_t space_id,
                            uint32_t clk,
@@ -88,7 +98,8 @@ class AvmMemTraceBuilder {
                            uint32_t addr,
                            FF const& val,
                            AvmMemoryTag r_in_tag,
-                           AvmMemoryTag w_in_tag);
+                           AvmMemoryTag w_in_tag,
+                           MemOpOwner mem_op_owner = MAIN);
     void write_calldata_copy(std::vector<FF> const& calldata,
                              uint32_t clk,
                              uint8_t space_id,
@@ -112,7 +123,7 @@ class AvmMemTraceBuilder {
                              AvmMemoryTag r_in_tag,
                              AvmMemoryTag w_in_tag,
                              bool m_rw,
-                             bool m_sel_op_slice = false);
+                             MemOpOwner mem_op_owner);
 
     void load_mismatch_tag_in_mem_trace(uint8_t space_id,
                                         uint32_t m_clk,
@@ -129,14 +140,16 @@ class AvmMemTraceBuilder {
                              uint32_t addr,
                              FF const& val,
                              AvmMemoryTag r_in_tag,
-                             AvmMemoryTag w_in_tag);
+                             AvmMemoryTag w_in_tag,
+                             MemOpOwner mem_op_owner = MAIN);
     void store_in_mem_trace(uint8_t space_id,
                             uint32_t clk,
                             IntermRegister interm_reg,
                             uint32_t addr,
                             FF const& val,
                             AvmMemoryTag r_in_tag,
-                            AvmMemoryTag w_in_tag);
+                            AvmMemoryTag w_in_tag,
+                            MemOpOwner mem_op_owner = MAIN);
     void write_in_simulated_mem_table(uint8_t space_id, uint32_t addr, FF const& val, AvmMemoryTag w_in_tag);
 };
 } // namespace bb::avm_trace

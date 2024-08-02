@@ -26,6 +26,25 @@ namespace mem(256);
     pol commit sel_op_c;
     pol commit sel_op_d;
 
+    // We add a set of selectors for the gadgets, TODO: boolean check
+    // TODO: Can we have a single set of sels for each gadget if we instead have a defined, homogenous MEMORY BUS that gadgets connect to
+    pol commit sel_op_poseidon_read_a;
+    pol commit sel_op_poseidon_read_b;
+    pol commit sel_op_poseidon_read_c;
+    pol commit sel_op_poseidon_read_d;
+
+    pol commit sel_op_poseidon_write_a;
+    pol commit sel_op_poseidon_write_b;
+    pol commit sel_op_poseidon_write_c;
+    pol commit sel_op_poseidon_write_d;
+
+    // For simplicity we group these as part of the SEL_DIRECT_MEM_OP_X
+    // These values will be mutually exclusive and enforced by the bytecode/instruction decomposition step
+    pol SEL_DIRECT_MEM_OP_A = sel_op_a + sel_op_poseidon_read_a + sel_op_poseidon_write_a;
+    pol SEL_DIRECT_MEM_OP_B = sel_op_b + sel_op_poseidon_read_b + sel_op_poseidon_write_b;
+    pol SEL_DIRECT_MEM_OP_C = sel_op_c + sel_op_poseidon_read_c + sel_op_poseidon_write_c;
+    pol SEL_DIRECT_MEM_OP_D = sel_op_d + sel_op_poseidon_read_d + sel_op_poseidon_write_d;
+
     // Indicator of the indirect register pertaining to the memory operation (foreign key to main.sel_resolve_ind_addr_XXX)
     pol commit sel_resolve_ind_addr_a;
     pol commit sel_resolve_ind_addr_b;
@@ -70,9 +89,10 @@ namespace mem(256);
     //        2) Ensure that tag, r_in_tag, w_in_tag are properly constrained by the main trace and/or bytecode decomposition
 
     // Definition of sel_mem
-    sel_mem = sel_op_a + sel_op_b + sel_op_c + sel_op_d
-            + sel_resolve_ind_addr_a + sel_resolve_ind_addr_b + sel_resolve_ind_addr_c + sel_resolve_ind_addr_d
-            + sel_op_slice;
+    sel_mem = SEL_DIRECT_MEM_OP_A + SEL_DIRECT_MEM_OP_B + SEL_DIRECT_MEM_OP_C + SEL_DIRECT_MEM_OP_D +
+              sel_resolve_ind_addr_a + sel_resolve_ind_addr_b + sel_resolve_ind_addr_c + sel_resolve_ind_addr_d
+              + sel_op_slice;
+              
     // Maximum one memory operation enabled per row
     sel_mem * (sel_mem - 1) = 0; // TODO: might be infered by the main trace
 
@@ -101,7 +121,7 @@ namespace mem(256);
 
     pol NUM_SUB_CLK = 12;
     pol IND_OP = sel_resolve_ind_addr_a + sel_resolve_ind_addr_b + sel_resolve_ind_addr_c + sel_resolve_ind_addr_d;
-    pol SUB_CLK = sel_mem * (sel_resolve_ind_addr_b + sel_op_b + 2 * (sel_resolve_ind_addr_c + sel_op_c) + 3 * (sel_resolve_ind_addr_d + sel_op_d) + 4 * (1 - IND_OP + rw));
+    pol SUB_CLK = sel_mem * (sel_resolve_ind_addr_b + SEL_DIRECT_MEM_OP_B + 2 * (sel_resolve_ind_addr_c + SEL_DIRECT_MEM_OP_C) + 3 * (sel_resolve_ind_addr_d + SEL_DIRECT_MEM_OP_D) + 4 * (1 - IND_OP + rw));
     // We need the sel_mem factor as the right factor is not zero when all columns are zero.
 
     // Calldata_copy memory slice operations will have a sub_clk value of 8 as rw == 1 which is outside of the range of
@@ -222,6 +242,17 @@ namespace mem(256);
     //====== CALLDATACOPY/RETURN specific constraints ==================================
     sel_op_slice * (w_in_tag - 6) = 0; // Only write elements of type FF
     sel_op_slice * (r_in_tag - 6) = 0; // Only read elements of type FF
+
+    //====== POSEIDON2 specific constraints ==================================
+    sel_op_poseidon_read_a * (w_in_tag - 6) = 0; // Only read elements of type FF
+    sel_op_poseidon_read_b * (w_in_tag - 6) = 0; // Only read elements of type FF
+    sel_op_poseidon_read_c * (w_in_tag - 6) = 0; // Only read elements of type FF
+    sel_op_poseidon_read_d * (w_in_tag - 6) = 0; // Only read elements of type FF
+
+    sel_op_poseidon_write_a * (r_in_tag - 6) = 0; // Only write elements of type FF
+    sel_op_poseidon_write_b * (r_in_tag - 6) = 0; // Only write elements of type FF
+    sel_op_poseidon_write_c * (r_in_tag - 6) = 0; // Only write elements of type FF
+    sel_op_poseidon_write_d * (r_in_tag - 6) = 0; // Only write elements of type FF
 
     //====== MOV/CMOV Opcode Tag Constraint =====================================
     // The following constraint ensures that the r_in_tag is set to tag for

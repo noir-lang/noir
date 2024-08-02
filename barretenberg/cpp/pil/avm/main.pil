@@ -18,6 +18,7 @@ namespace main(256);
     pol constant clk(i) { i };
     pol constant sel_first = [1] + [0]*; // Used mostly to toggle off the first row consisting
                                          // only in first element of shifted polynomials.
+    pol constant zeroes = [0]*; // Helper for if we need to use a constant zero column
 
     //===== PUBLIC COLUMNS=========================================================
     pol public calldata;
@@ -726,10 +727,12 @@ namespace main(256);
     // is
     // sha256.sel_sha256_compression {sha256.clk, sha256.state, sha256.input, sha256.output};
 
+    // Mem_addr_a points to the start of the input array of length 4
+    // Mem_addr_b points to the start of the output array of length 4
     #[PERM_MAIN_POS2_PERM]
-    sel_op_poseidon2 {clk, ia, ib}
+    sel_op_poseidon2 {clk, mem_addr_a, mem_addr_b}
     is
-    poseidon2.sel_poseidon_perm {poseidon2.clk, poseidon2.input, poseidon2.output};
+    poseidon2.sel_poseidon_perm {poseidon2.clk, poseidon2.input_addr, poseidon2.output_addr};
 
     // This will be enabled when we migrate just to keccakf1600, as getting keccak to work with it is tricky.
     // #[PERM_MAIN_KECCAK]

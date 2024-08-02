@@ -28,6 +28,9 @@ enum class AddressingMode {
 struct AddressWithMode {
     AddressingMode mode;
     uint32_t offset;
+
+    // Dont mutate
+    AddressWithMode operator+(uint val) { return { mode, offset + val }; }
 };
 
 // This is the internal context that we keep along the lifecycle of bytecode execution
@@ -242,14 +245,16 @@ class AvmTraceBuilder {
                                        AddressWithMode addr,
                                        AvmMemoryTag read_tag,
                                        AvmMemoryTag write_tag,
-                                       IntermRegister reg);
+                                       IntermRegister reg,
+                                       AvmMemTraceBuilder::MemOpOwner mem_op_owner = AvmMemTraceBuilder::MAIN);
     MemOp constrained_write_to_memory(uint8_t space_id,
                                       uint32_t clk,
                                       AddressWithMode addr,
                                       FF const& value,
                                       AvmMemoryTag read_tag,
                                       AvmMemoryTag write_tag,
-                                      IntermRegister reg);
+                                      IntermRegister reg,
+                                      AvmMemTraceBuilder::MemOpOwner mem_op_owner = AvmMemTraceBuilder::MAIN);
 
     // TODO(ilyas: #6383): Temporary way to bulk read slices
     template <typename MEM>

@@ -1,11 +1,1820 @@
+// Implementation based on https://eprint.iacr.org/2023/323.pdf
+include "poseidon2_params.pil";
+
 namespace poseidon2(256);
 
     pol commit clk;
 
-    // Selector for Radix Operation
+    // Selector for poseidon2 operation
     pol commit sel_poseidon_perm;
+    // Selector is boolean
     sel_poseidon_perm * (1 - sel_poseidon_perm) = 0;
 
-    // These will all be arrays, but we just store the first element for permutation to the main trace for now
-    pol commit input;
-    pol commit output;
+    // The initial mem address for inputs or output
+    pol commit input_addr;
+    pol commit output_addr;
+
+    // Address that is loaded by the gadget memory operations
+    pol commit mem_addr_read_a;
+    pol commit mem_addr_read_b;
+    pol commit mem_addr_read_c;
+    pol commit mem_addr_read_d;
+    // Address that is written by the gadget memory operations
+    pol commit mem_addr_write_a;
+    pol commit mem_addr_write_b;
+    pol commit mem_addr_write_c;
+    pol commit mem_addr_write_d;
+
+    // Accessed read / write addresses are contiguous blocks
+    sel_poseidon_perm * (mem_addr_read_a - input_addr) = 0;
+    sel_poseidon_perm * (mem_addr_read_b - (input_addr + 1)) = 0;
+    sel_poseidon_perm * (mem_addr_read_c - (input_addr + 2)) = 0;
+    sel_poseidon_perm * (mem_addr_read_d - (input_addr + 3)) = 0;
+
+    sel_poseidon_perm * (mem_addr_write_a - output_addr) = 0;
+    sel_poseidon_perm * (mem_addr_write_b - (output_addr + 1)) = 0;
+    sel_poseidon_perm * (mem_addr_write_c - (output_addr + 2)) = 0;
+    sel_poseidon_perm * (mem_addr_write_d - (output_addr + 3)) = 0;
+
+    // The input values are represented by a_0, a_1, a_2, a_3
+    pol commit a_0;
+    pol commit a_1;
+    pol commit a_2;
+    pol commit a_3;
+
+    // Output values represented by b_0, b_1, b_2, b_3
+    pol commit b_0;
+    pol commit b_1;
+    pol commit b_2;
+    pol commit b_3;
+
+    // ==== READ MEM OPS =====
+    #[PERM_POS_MEM_READ_A]
+    sel_poseidon_perm {clk, main.space_id, mem_addr_read_a, a_0, main.zeroes}
+    is
+    mem.sel_op_poseidon_read_a {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw};
+
+    #[PERM_POS_MEM_READ_B]
+    sel_poseidon_perm {clk, main.space_id, mem_addr_read_b, a_1, main.zeroes}
+    is
+    mem.sel_op_poseidon_read_b {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw};
+
+    #[PERM_POS_MEM_READ_C]
+    sel_poseidon_perm {clk, main.space_id, mem_addr_read_c, a_2, main.zeroes}
+    is
+    mem.sel_op_poseidon_read_c {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw};
+
+    #[PERM_POS_MEM_READ_D]
+    sel_poseidon_perm {clk, main.space_id, mem_addr_read_d, a_3, main.zeroes}
+    is
+    mem.sel_op_poseidon_read_d {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw};
+
+    //// ==== WRITE MEM OPS =====
+    #[PERM_POS_MEM_WRITE_A]
+    sel_poseidon_perm {clk, main.space_id, mem_addr_write_a, b_0, sel_poseidon_perm}
+    is
+    mem.sel_op_poseidon_write_a {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw};
+
+    #[PERM_POS_MEM_WRITE_B]
+    sel_poseidon_perm {clk, main.space_id, mem_addr_write_b, b_1, sel_poseidon_perm}
+    is
+    mem.sel_op_poseidon_write_b {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw};
+
+    #[PERM_POS_MEM_WRITE_C]
+    sel_poseidon_perm {clk, main.space_id, mem_addr_write_c, b_2, sel_poseidon_perm}
+    is
+    mem.sel_op_poseidon_write_c {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw};
+
+    #[PERM_POS_MEM_WRITE_D]
+    sel_poseidon_perm {clk, main.space_id, mem_addr_write_d, b_3, sel_poseidon_perm}
+    is
+    mem.sel_op_poseidon_write_d {mem.clk, mem.space_id, mem.addr, mem.val, mem.rw};
+
+    // Intermediate helper values denoted by T_{id} - based on Appendix B of https://eprint.iacr.org/2023/323.pdf;
+    // T_0 = a_0 + a_1;
+    // T_1 = a_2 + a_3;
+    // T_2 = 2 * a_1 + T_0;
+    // T_3 = 2 * a_3 + T_0;
+    // T_4 = 4 * T_1 + T_3;
+    // T_5 = 4 * T_0 + T_2;
+    // T_6 = T_3 + T_5;
+    // T_7 = T_2 + T_4;
+
+    // We additionally include the round identifier in the naming
+    // <STEP>_<ROUND>_<INPUT>
+    // e.g. ARK_0_2 -> Add Round Constant, round 0, input 2
+
+
+    // FIRST EXTERNAL MATRIX LAYER
+    pol commit EXT_LAYER_4;
+    pol commit EXT_LAYER_5;
+    pol commit EXT_LAYER_6;
+    pol commit EXT_LAYER_7;
+    pol EXT_LAYER_0 = a_0 + a_1;
+    pol EXT_LAYER_1 = a_2 + a_3;
+    pol EXT_LAYER_2 = 2 * a_1 + EXT_LAYER_1;
+    pol EXT_LAYER_3 = 2 * a_3 + EXT_LAYER_0;
+    sel_poseidon_perm * (EXT_LAYER_4 - (4 * EXT_LAYER_1 + EXT_LAYER_3)) = 0;
+    sel_poseidon_perm * (EXT_LAYER_5 - (4 * EXT_LAYER_0 + EXT_LAYER_2)) = 0;
+    sel_poseidon_perm * (EXT_LAYER_6 - (EXT_LAYER_3 + EXT_LAYER_5)) = 0;
+    sel_poseidon_perm * (EXT_LAYER_7 - (EXT_LAYER_2 + EXT_LAYER_4)) = 0;
+    
+
+    /////////////////////////////////////////////////////
+    // START FULL ROUNDS (4 ROUNDS)
+    /////////////////////////////////////////////////////
+    // Round 1 (Full Round)
+    // ARK (Add Round Constant)
+    pol ARK_0_0 = EXT_LAYER_6 + poseidon2_params.C_0_0;
+    pol ARK_0_1 = EXT_LAYER_5 + poseidon2_params.C_0_1;
+    pol ARK_0_2 = EXT_LAYER_7 + poseidon2_params.C_0_2;
+    pol ARK_0_3 = EXT_LAYER_4 + poseidon2_params.C_0_3;
+
+    // S-BOX (In full round all inputs are exponentiated)
+    pol A_0_0 = ARK_0_0 * ARK_0_0 * ARK_0_0 * ARK_0_0 * ARK_0_0;
+    pol A_0_1 = ARK_0_1 * ARK_0_1 * ARK_0_1 * ARK_0_1 * ARK_0_1;
+    pol A_0_2 = ARK_0_2 * ARK_0_2 * ARK_0_2 * ARK_0_2 * ARK_0_2;
+    pol A_0_3 = ARK_0_3 * ARK_0_3 * ARK_0_3 * ARK_0_3 * ARK_0_3;
+
+    // MATRIX (Full round uses the external matrix)
+    pol commit T_0_4;
+    pol commit T_0_5;
+    pol commit T_0_6;
+    pol commit T_0_7;
+
+    pol T_0_0 = A_0_0 + A_0_1;
+    pol T_0_1 = A_0_2 + A_0_3;
+    pol T_0_2 = 2 * A_0_1 + T_0_1;
+    pol T_0_3 = 2 * A_0_3 + T_0_0;
+    sel_poseidon_perm * (T_0_4 - (4 * T_0_1 + T_0_3)) = 0;
+    sel_poseidon_perm * (T_0_5 - (4 * T_0_0 + T_0_2)) = 0;
+    sel_poseidon_perm * (T_0_6 - (T_0_3 + T_0_5)) = 0;
+    sel_poseidon_perm * (T_0_7 - (T_0_2 + T_0_4)) = 0;
+
+    // Round 2 (Full Round)
+    // ARK (Add Round Constant)
+    pol ARK_1_0 = T_0_6 + poseidon2_params.C_1_0;
+    pol ARK_1_1 = T_0_5 + poseidon2_params.C_1_1;
+    pol ARK_1_2 = T_0_7 + poseidon2_params.C_1_2;
+    pol ARK_1_3 = T_0_4 + poseidon2_params.C_1_3;
+
+    // S-BOX (In full round all inputs are exponentiated)
+    pol A_1_0 = ARK_1_0 * ARK_1_0 * ARK_1_0 * ARK_1_0 * ARK_1_0;
+    pol A_1_1 = ARK_1_1 * ARK_1_1 * ARK_1_1 * ARK_1_1 * ARK_1_1;
+    pol A_1_2 = ARK_1_2 * ARK_1_2 * ARK_1_2 * ARK_1_2 * ARK_1_2;
+    pol A_1_3 = ARK_1_3 * ARK_1_3 * ARK_1_3 * ARK_1_3 * ARK_1_3;
+
+    // MATRIX (Full round uses the external matrix)
+    pol commit T_1_4;
+    pol commit T_1_5;
+    pol commit T_1_6;
+    pol commit T_1_7;
+
+    pol T_1_0 = A_1_0 + A_1_1;
+    pol T_1_1 = A_1_2 + A_1_3;
+    pol T_1_2 = 2 * A_1_1 + T_1_1;
+    pol T_1_3 = 2 * A_1_3 + T_1_0;
+    sel_poseidon_perm * (T_1_4 - (4 * T_1_1 + T_1_3)) = 0;
+    sel_poseidon_perm * (T_1_5 - (4 * T_1_0 + T_1_2)) = 0;
+    sel_poseidon_perm * (T_1_6 - (T_1_3 + T_1_5)) = 0;
+    sel_poseidon_perm * (T_1_7 - (T_1_2 + T_1_4)) = 0;
+    
+    // Round 3 (Full Round)
+    // ARK (Add Round Constant)
+    pol ARK_2_0 = T_1_6 + poseidon2_params.C_2_0;
+    pol ARK_2_1 = T_1_5 + poseidon2_params.C_2_1;
+    pol ARK_2_2 = T_1_7 + poseidon2_params.C_2_2;
+    pol ARK_2_3 = T_1_4 + poseidon2_params.C_2_3;
+
+    // S-BOX (In full round all inputs are exponentiated)
+    pol A_2_0 = ARK_2_0 * ARK_2_0 * ARK_2_0 * ARK_2_0 * ARK_2_0;
+    pol A_2_1 = ARK_2_1 * ARK_2_1 * ARK_2_1 * ARK_2_1 * ARK_2_1;
+    pol A_2_2 = ARK_2_2 * ARK_2_2 * ARK_2_2 * ARK_2_2 * ARK_2_2;
+    pol A_2_3 = ARK_2_3 * ARK_2_3 * ARK_2_3 * ARK_2_3 * ARK_2_3;
+
+    // MATRIX (Full round uses the external matrix)
+    pol commit T_2_4;
+    pol commit T_2_5;
+    pol commit T_2_6;
+    pol commit T_2_7;
+
+    pol T_2_0 = A_2_0 + A_2_1;
+    pol T_2_1 = A_2_2 + A_2_3;
+    pol T_2_2 = 2 * A_2_1 + T_2_1;
+    pol T_2_3 = 2 * A_2_3 + T_2_0;
+    sel_poseidon_perm * (T_2_4 - (4 * T_2_1 + T_2_3)) = 0;
+    sel_poseidon_perm * (T_2_5 - (4 * T_2_0 + T_2_2)) = 0;
+    sel_poseidon_perm * (T_2_6 - (T_2_3 + T_2_5)) = 0;
+    sel_poseidon_perm * (T_2_7 - (T_2_2 + T_2_4)) = 0;
+    
+    // Round 4 (Full Round)
+    // ARK (Add Round Constant)
+    pol ARK_3_0 = T_2_6 + poseidon2_params.C_3_0;
+    pol ARK_3_1 = T_2_5 + poseidon2_params.C_3_1;
+    pol ARK_3_2 = T_2_7 + poseidon2_params.C_3_2;
+    pol ARK_3_3 = T_2_4 + poseidon2_params.C_3_3;
+
+    // S-BOX (In full round all inputs are exponentiated)
+    pol A_3_0 = ARK_3_0 * ARK_3_0 * ARK_3_0 * ARK_3_0 * ARK_3_0;
+    pol A_3_1 = ARK_3_1 * ARK_3_1 * ARK_3_1 * ARK_3_1 * ARK_3_1;
+    pol A_3_2 = ARK_3_2 * ARK_3_2 * ARK_3_2 * ARK_3_2 * ARK_3_2;
+    pol A_3_3 = ARK_3_3 * ARK_3_3 * ARK_3_3 * ARK_3_3 * ARK_3_3;
+
+    // MATRIX (Full round uses the external matrix)
+    pol commit T_3_4;
+    pol commit T_3_5;
+    pol commit T_3_6;
+    pol commit T_3_7;
+
+    pol T_3_0 = A_3_0 + A_3_1;
+    pol T_3_1 = A_3_2 + A_3_3;
+    pol T_3_2 = 2 * A_3_1 + T_3_1;
+    pol T_3_3 = 2 * A_3_3 + T_3_0;
+    sel_poseidon_perm * (T_3_4 - (4 * T_3_1 + T_3_3)) = 0;
+    sel_poseidon_perm * (T_3_5 - (4 * T_3_0 + T_3_2)) = 0;
+    sel_poseidon_perm * (T_3_6 - (T_3_3 + T_3_5)) = 0;
+    sel_poseidon_perm * (T_3_7 - (T_3_2 + T_3_4)) = 0;
+    
+    /////////////////////////////////////////////////////
+    // PARTIAL ROUNDS (56 ROUNDS)
+    /////////////////////////////////////////////////////
+
+    // Round 5 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_4_0 = T_3_6 + poseidon2_params.C_4_0;
+    pol ARK_4_1 = T_3_5 + poseidon2_params.C_4_1;
+    pol ARK_4_2 = T_3_7 + poseidon2_params.C_4_2;
+    pol ARK_4_3 = T_3_4 + poseidon2_params.C_4_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_4_0 = ARK_4_0 * ARK_4_0 * ARK_4_0 * ARK_4_0 * ARK_4_0;
+    pol A_4_1 = ARK_4_1;
+    pol A_4_2 = ARK_4_2;
+    pol A_4_3 = ARK_4_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_4_0;
+    pol commit B_4_1;
+    pol commit B_4_2;
+    pol commit B_4_3;
+
+    pol SUM_4 = A_4_0 + A_4_1 + A_4_2 + A_4_3;
+
+    sel_poseidon_perm * (B_4_0 - (poseidon2_params.MU_0 * A_4_0 + SUM_4)) = 0;
+    sel_poseidon_perm * (B_4_1 - (poseidon2_params.MU_1 * A_4_1 + SUM_4)) = 0;
+    sel_poseidon_perm * (B_4_2 - (poseidon2_params.MU_2 * A_4_2 + SUM_4)) = 0;
+    sel_poseidon_perm * (B_4_3 - (poseidon2_params.MU_3 * A_4_3 + SUM_4)) = 0;
+
+    // Round 6 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_5_0 = B_4_0 + poseidon2_params.C_5_0;
+    pol ARK_5_1 = B_4_1 + poseidon2_params.C_5_1;
+    pol ARK_5_2 = B_4_2 + poseidon2_params.C_5_2;
+    pol ARK_5_3 = B_4_3 + poseidon2_params.C_5_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_5_0 = ARK_5_0 * ARK_5_0 * ARK_5_0 * ARK_5_0 * ARK_5_0;
+    pol A_5_1 = ARK_5_1;
+    pol A_5_2 = ARK_5_2;
+    pol A_5_3 = ARK_5_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_5_0;
+    pol commit B_5_1;
+    pol commit B_5_2;
+    pol commit B_5_3;
+
+    pol SUM_5 = A_5_0 + A_5_1 + A_5_2 + A_5_3;
+
+    sel_poseidon_perm * (B_5_0 - (poseidon2_params.MU_0 * A_5_0 + SUM_5)) = 0;
+    sel_poseidon_perm * (B_5_1 - (poseidon2_params.MU_1 * A_5_1 + SUM_5)) = 0;
+    sel_poseidon_perm * (B_5_2 - (poseidon2_params.MU_2 * A_5_2 + SUM_5)) = 0;
+    sel_poseidon_perm * (B_5_3 - (poseidon2_params.MU_3 * A_5_3 + SUM_5)) = 0;
+
+    // Round 7 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_6_0 = B_5_0 + poseidon2_params.C_6_0;
+    pol ARK_6_1 = B_5_1 + poseidon2_params.C_6_1;
+    pol ARK_6_2 = B_5_2 + poseidon2_params.C_6_2;
+    pol ARK_6_3 = B_5_3 + poseidon2_params.C_6_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_6_0 = ARK_6_0 * ARK_6_0 * ARK_6_0 * ARK_6_0 * ARK_6_0;
+    pol A_6_1 = ARK_6_1;
+    pol A_6_2 = ARK_6_2;
+    pol A_6_3 = ARK_6_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_6_0;
+    pol commit B_6_1;
+    pol commit B_6_2;
+    pol commit B_6_3;
+
+    pol SUM_6 = A_6_0 + A_6_1 + A_6_2 + A_6_3;
+
+    sel_poseidon_perm * (B_6_0 - (poseidon2_params.MU_0 * A_6_0 + SUM_6)) = 0;
+    sel_poseidon_perm * (B_6_1 - (poseidon2_params.MU_1 * A_6_1 + SUM_6)) = 0;
+    sel_poseidon_perm * (B_6_2 - (poseidon2_params.MU_2 * A_6_2 + SUM_6)) = 0;
+    sel_poseidon_perm * (B_6_3 - (poseidon2_params.MU_3 * A_6_3 + SUM_6)) = 0;
+
+    // Round 8 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_7_0 = B_6_0 + poseidon2_params.C_7_0;
+    pol ARK_7_1 = B_6_1 + poseidon2_params.C_7_1;
+    pol ARK_7_2 = B_6_2 + poseidon2_params.C_7_2;
+    pol ARK_7_3 = B_6_3 + poseidon2_params.C_7_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_7_0 = ARK_7_0 * ARK_7_0 * ARK_7_0 * ARK_7_0 * ARK_7_0;
+    pol A_7_1 = ARK_7_1;
+    pol A_7_2 = ARK_7_2;
+    pol A_7_3 = ARK_7_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_7_0;
+    pol commit B_7_1;
+    pol commit B_7_2;
+    pol commit B_7_3;
+
+    pol SUM_7 = A_7_0 + A_7_1 + A_7_2 + A_7_3;
+
+    sel_poseidon_perm * (B_7_0 - (poseidon2_params.MU_0 * A_7_0 + SUM_7)) = 0;
+    sel_poseidon_perm * (B_7_1 - (poseidon2_params.MU_1 * A_7_1 + SUM_7)) = 0;
+    sel_poseidon_perm * (B_7_2 - (poseidon2_params.MU_2 * A_7_2 + SUM_7)) = 0;
+    sel_poseidon_perm * (B_7_3 - (poseidon2_params.MU_3 * A_7_3 + SUM_7)) = 0;
+
+    // Round 9 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_8_0 = B_7_0 + poseidon2_params.C_8_0;
+    pol ARK_8_1 = B_7_1 + poseidon2_params.C_8_1;
+    pol ARK_8_2 = B_7_2 + poseidon2_params.C_8_2;
+    pol ARK_8_3 = B_7_3 + poseidon2_params.C_8_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_8_0 = ARK_8_0 * ARK_8_0 * ARK_8_0 * ARK_8_0 * ARK_8_0;
+    pol A_8_1 = ARK_8_1;
+    pol A_8_2 = ARK_8_2;
+    pol A_8_3 = ARK_8_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_8_0;
+    pol commit B_8_1;
+    pol commit B_8_2;
+    pol commit B_8_3;
+
+    pol SUM_8 = A_8_0 + A_8_1 + A_8_2 + A_8_3;
+
+    sel_poseidon_perm * (B_8_0 - (poseidon2_params.MU_0 * A_8_0 + SUM_8)) = 0;
+    sel_poseidon_perm * (B_8_1 - (poseidon2_params.MU_1 * A_8_1 + SUM_8)) = 0;
+    sel_poseidon_perm * (B_8_2 - (poseidon2_params.MU_2 * A_8_2 + SUM_8)) = 0;
+    sel_poseidon_perm * (B_8_3 - (poseidon2_params.MU_3 * A_8_3 + SUM_8)) = 0;
+
+    // Round 10 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_9_0 = B_8_0 + poseidon2_params.C_9_0;
+    pol ARK_9_1 = B_8_1 + poseidon2_params.C_9_1;
+    pol ARK_9_2 = B_8_2 + poseidon2_params.C_9_2;
+    pol ARK_9_3 = B_8_3 + poseidon2_params.C_9_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_9_0 = ARK_9_0 * ARK_9_0 * ARK_9_0 * ARK_9_0 * ARK_9_0;
+    pol A_9_1 = ARK_9_1;
+    pol A_9_2 = ARK_9_2;
+    pol A_9_3 = ARK_9_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_9_0;
+    pol commit B_9_1;
+    pol commit B_9_2;
+    pol commit B_9_3;
+
+    pol SUM_9 = A_9_0 + A_9_1 + A_9_2 + A_9_3;
+
+    sel_poseidon_perm * (B_9_0 - (poseidon2_params.MU_0 * A_9_0 + SUM_9)) = 0;
+    sel_poseidon_perm * (B_9_1 - (poseidon2_params.MU_1 * A_9_1 + SUM_9)) = 0;
+    sel_poseidon_perm * (B_9_2 - (poseidon2_params.MU_2 * A_9_2 + SUM_9)) = 0;
+    sel_poseidon_perm * (B_9_3 - (poseidon2_params.MU_3 * A_9_3 + SUM_9)) = 0;
+
+    // Round 11 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_10_0 = B_9_0 + poseidon2_params.C_10_0;
+    pol ARK_10_1 = B_9_1 + poseidon2_params.C_10_1;
+    pol ARK_10_2 = B_9_2 + poseidon2_params.C_10_2;
+    pol ARK_10_3 = B_9_3 + poseidon2_params.C_10_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_10_0 = ARK_10_0 * ARK_10_0 * ARK_10_0 * ARK_10_0 * ARK_10_0;
+    pol A_10_1 = ARK_10_1;
+    pol A_10_2 = ARK_10_2;
+    pol A_10_3 = ARK_10_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_10_0;
+    pol commit B_10_1;
+    pol commit B_10_2;
+    pol commit B_10_3;
+
+    pol SUM_10 = A_10_0 + A_10_1 + A_10_2 + A_10_3;
+
+    sel_poseidon_perm * (B_10_0 - (poseidon2_params.MU_0 * A_10_0 + SUM_10)) = 0;
+    sel_poseidon_perm * (B_10_1 - (poseidon2_params.MU_1 * A_10_1 + SUM_10)) = 0;
+    sel_poseidon_perm * (B_10_2 - (poseidon2_params.MU_2 * A_10_2 + SUM_10)) = 0;
+    sel_poseidon_perm * (B_10_3 - (poseidon2_params.MU_3 * A_10_3 + SUM_10)) = 0;
+
+    // Round 12 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_11_0 = B_10_0 + poseidon2_params.C_11_0;
+    pol ARK_11_1 = B_10_1 + poseidon2_params.C_11_1;
+    pol ARK_11_2 = B_10_2 + poseidon2_params.C_11_2;
+    pol ARK_11_3 = B_10_3 + poseidon2_params.C_11_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_11_0 = ARK_11_0 * ARK_11_0 * ARK_11_0 * ARK_11_0 * ARK_11_0;
+    pol A_11_1 = ARK_11_1;
+    pol A_11_2 = ARK_11_2;
+    pol A_11_3 = ARK_11_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_11_0;
+    pol commit B_11_1;
+    pol commit B_11_2;
+    pol commit B_11_3;
+
+    pol SUM_11 = A_11_0 + A_11_1 + A_11_2 + A_11_3;
+
+    sel_poseidon_perm * (B_11_0 - (poseidon2_params.MU_0 * A_11_0 + SUM_11)) = 0;
+    sel_poseidon_perm * (B_11_1 - (poseidon2_params.MU_1 * A_11_1 + SUM_11)) = 0;
+    sel_poseidon_perm * (B_11_2 - (poseidon2_params.MU_2 * A_11_2 + SUM_11)) = 0;
+    sel_poseidon_perm * (B_11_3 - (poseidon2_params.MU_3 * A_11_3 + SUM_11)) = 0;
+
+    // Round 13 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_12_0 = B_11_0 + poseidon2_params.C_12_0;
+    pol ARK_12_1 = B_11_1 + poseidon2_params.C_12_1;
+    pol ARK_12_2 = B_11_2 + poseidon2_params.C_12_2;
+    pol ARK_12_3 = B_11_3 + poseidon2_params.C_12_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_12_0 = ARK_12_0 * ARK_12_0 * ARK_12_0 * ARK_12_0 * ARK_12_0;
+    pol A_12_1 = ARK_12_1;
+    pol A_12_2 = ARK_12_2;
+    pol A_12_3 = ARK_12_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_12_0;
+    pol commit B_12_1;
+    pol commit B_12_2;
+    pol commit B_12_3;
+
+    pol SUM_12 = A_12_0 + A_12_1 + A_12_2 + A_12_3;
+
+    sel_poseidon_perm * (B_12_0 - (poseidon2_params.MU_0 * A_12_0 + SUM_12)) = 0;
+    sel_poseidon_perm * (B_12_1 - (poseidon2_params.MU_1 * A_12_1 + SUM_12)) = 0;
+    sel_poseidon_perm * (B_12_2 - (poseidon2_params.MU_2 * A_12_2 + SUM_12)) = 0;
+    sel_poseidon_perm * (B_12_3 - (poseidon2_params.MU_3 * A_12_3 + SUM_12)) = 0;
+
+    // Round 14 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_13_0 = B_12_0 + poseidon2_params.C_13_0;
+    pol ARK_13_1 = B_12_1 + poseidon2_params.C_13_1;
+    pol ARK_13_2 = B_12_2 + poseidon2_params.C_13_2;
+    pol ARK_13_3 = B_12_3 + poseidon2_params.C_13_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_13_0 = ARK_13_0 * ARK_13_0 * ARK_13_0 * ARK_13_0 * ARK_13_0;
+    pol A_13_1 = ARK_13_1;
+    pol A_13_2 = ARK_13_2;
+    pol A_13_3 = ARK_13_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_13_0;
+    pol commit B_13_1;
+    pol commit B_13_2;
+    pol commit B_13_3;
+
+    pol SUM_13 = A_13_0 + A_13_1 + A_13_2 + A_13_3;
+
+    sel_poseidon_perm * (B_13_0 - (poseidon2_params.MU_0 * A_13_0 + SUM_13)) = 0;
+    sel_poseidon_perm * (B_13_1 - (poseidon2_params.MU_1 * A_13_1 + SUM_13)) = 0;
+    sel_poseidon_perm * (B_13_2 - (poseidon2_params.MU_2 * A_13_2 + SUM_13)) = 0;
+    sel_poseidon_perm * (B_13_3 - (poseidon2_params.MU_3 * A_13_3 + SUM_13)) = 0;
+
+    // Round 15 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_14_0 = B_13_0 + poseidon2_params.C_14_0;
+    pol ARK_14_1 = B_13_1 + poseidon2_params.C_14_1;
+    pol ARK_14_2 = B_13_2 + poseidon2_params.C_14_2;
+    pol ARK_14_3 = B_13_3 + poseidon2_params.C_14_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_14_0 = ARK_14_0 * ARK_14_0 * ARK_14_0 * ARK_14_0 * ARK_14_0;
+    pol A_14_1 = ARK_14_1;
+    pol A_14_2 = ARK_14_2;
+    pol A_14_3 = ARK_14_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_14_0;
+    pol commit B_14_1;
+    pol commit B_14_2;
+    pol commit B_14_3;
+
+    pol SUM_14 = A_14_0 + A_14_1 + A_14_2 + A_14_3;
+
+    sel_poseidon_perm * (B_14_0 - (poseidon2_params.MU_0 * A_14_0 + SUM_14)) = 0;
+    sel_poseidon_perm * (B_14_1 - (poseidon2_params.MU_1 * A_14_1 + SUM_14)) = 0;
+    sel_poseidon_perm * (B_14_2 - (poseidon2_params.MU_2 * A_14_2 + SUM_14)) = 0;
+    sel_poseidon_perm * (B_14_3 - (poseidon2_params.MU_3 * A_14_3 + SUM_14)) = 0;
+
+    // Round 16 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_15_0 = B_14_0 + poseidon2_params.C_15_0;
+    pol ARK_15_1 = B_14_1 + poseidon2_params.C_15_1;
+    pol ARK_15_2 = B_14_2 + poseidon2_params.C_15_2;
+    pol ARK_15_3 = B_14_3 + poseidon2_params.C_15_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_15_0 = ARK_15_0 * ARK_15_0 * ARK_15_0 * ARK_15_0 * ARK_15_0;
+    pol A_15_1 = ARK_15_1;
+    pol A_15_2 = ARK_15_2;
+    pol A_15_3 = ARK_15_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_15_0;
+    pol commit B_15_1;
+    pol commit B_15_2;
+    pol commit B_15_3;
+
+    pol SUM_15 = A_15_0 + A_15_1 + A_15_2 + A_15_3;
+
+    sel_poseidon_perm * (B_15_0 - (poseidon2_params.MU_0 * A_15_0 + SUM_15)) = 0;
+    sel_poseidon_perm * (B_15_1 - (poseidon2_params.MU_1 * A_15_1 + SUM_15)) = 0;
+    sel_poseidon_perm * (B_15_2 - (poseidon2_params.MU_2 * A_15_2 + SUM_15)) = 0;
+    sel_poseidon_perm * (B_15_3 - (poseidon2_params.MU_3 * A_15_3 + SUM_15)) = 0;
+
+    // Round 17 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_16_0 = B_15_0 + poseidon2_params.C_16_0;
+    pol ARK_16_1 = B_15_1 + poseidon2_params.C_16_1;
+    pol ARK_16_2 = B_15_2 + poseidon2_params.C_16_2;
+    pol ARK_16_3 = B_15_3 + poseidon2_params.C_16_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_16_0 = ARK_16_0 * ARK_16_0 * ARK_16_0 * ARK_16_0 * ARK_16_0;
+    pol A_16_1 = ARK_16_1;
+    pol A_16_2 = ARK_16_2;
+    pol A_16_3 = ARK_16_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_16_0;
+    pol commit B_16_1;
+    pol commit B_16_2;
+    pol commit B_16_3;
+
+    pol SUM_16 = A_16_0 + A_16_1 + A_16_2 + A_16_3;
+
+    sel_poseidon_perm * (B_16_0 - (poseidon2_params.MU_0 * A_16_0 + SUM_16)) = 0;
+    sel_poseidon_perm * (B_16_1 - (poseidon2_params.MU_1 * A_16_1 + SUM_16)) = 0;
+    sel_poseidon_perm * (B_16_2 - (poseidon2_params.MU_2 * A_16_2 + SUM_16)) = 0;
+    sel_poseidon_perm * (B_16_3 - (poseidon2_params.MU_3 * A_16_3 + SUM_16)) = 0;
+
+    // Round 18 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_17_0 = B_16_0 + poseidon2_params.C_17_0;
+    pol ARK_17_1 = B_16_1 + poseidon2_params.C_17_1;
+    pol ARK_17_2 = B_16_2 + poseidon2_params.C_17_2;
+    pol ARK_17_3 = B_16_3 + poseidon2_params.C_17_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_17_0 = ARK_17_0 * ARK_17_0 * ARK_17_0 * ARK_17_0 * ARK_17_0;
+    pol A_17_1 = ARK_17_1;
+    pol A_17_2 = ARK_17_2;
+    pol A_17_3 = ARK_17_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_17_0;
+    pol commit B_17_1;
+    pol commit B_17_2;
+    pol commit B_17_3;
+
+    pol SUM_17 = A_17_0 + A_17_1 + A_17_2 + A_17_3;
+
+    sel_poseidon_perm * (B_17_0 - (poseidon2_params.MU_0 * A_17_0 + SUM_17)) = 0;
+    sel_poseidon_perm * (B_17_1 - (poseidon2_params.MU_1 * A_17_1 + SUM_17)) = 0;
+    sel_poseidon_perm * (B_17_2 - (poseidon2_params.MU_2 * A_17_2 + SUM_17)) = 0;
+    sel_poseidon_perm * (B_17_3 - (poseidon2_params.MU_3 * A_17_3 + SUM_17)) = 0;
+
+    // Round 19 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_18_0 = B_17_0 + poseidon2_params.C_18_0;
+    pol ARK_18_1 = B_17_1 + poseidon2_params.C_18_1;
+    pol ARK_18_2 = B_17_2 + poseidon2_params.C_18_2;
+    pol ARK_18_3 = B_17_3 + poseidon2_params.C_18_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_18_0 = ARK_18_0 * ARK_18_0 * ARK_18_0 * ARK_18_0 * ARK_18_0;
+    pol A_18_1 = ARK_18_1;
+    pol A_18_2 = ARK_18_2;
+    pol A_18_3 = ARK_18_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_18_0;
+    pol commit B_18_1;
+    pol commit B_18_2;
+    pol commit B_18_3;
+
+    pol SUM_18 = A_18_0 + A_18_1 + A_18_2 + A_18_3;
+
+    sel_poseidon_perm * (B_18_0 - (poseidon2_params.MU_0 * A_18_0 + SUM_18)) = 0;
+    sel_poseidon_perm * (B_18_1 - (poseidon2_params.MU_1 * A_18_1 + SUM_18)) = 0;
+    sel_poseidon_perm * (B_18_2 - (poseidon2_params.MU_2 * A_18_2 + SUM_18)) = 0;
+    sel_poseidon_perm * (B_18_3 - (poseidon2_params.MU_3 * A_18_3 + SUM_18)) = 0;
+
+    // Round 20 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_19_0 = B_18_0 + poseidon2_params.C_19_0;
+    pol ARK_19_1 = B_18_1 + poseidon2_params.C_19_1;
+    pol ARK_19_2 = B_18_2 + poseidon2_params.C_19_2;
+    pol ARK_19_3 = B_18_3 + poseidon2_params.C_19_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_19_0 = ARK_19_0 * ARK_19_0 * ARK_19_0 * ARK_19_0 * ARK_19_0;
+    pol A_19_1 = ARK_19_1;
+    pol A_19_2 = ARK_19_2;
+    pol A_19_3 = ARK_19_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_19_0;
+    pol commit B_19_1;
+    pol commit B_19_2;
+    pol commit B_19_3;
+
+    pol SUM_19 = A_19_0 + A_19_1 + A_19_2 + A_19_3;
+
+    sel_poseidon_perm * (B_19_0 - (poseidon2_params.MU_0 * A_19_0 + SUM_19)) = 0;
+    sel_poseidon_perm * (B_19_1 - (poseidon2_params.MU_1 * A_19_1 + SUM_19)) = 0;
+    sel_poseidon_perm * (B_19_2 - (poseidon2_params.MU_2 * A_19_2 + SUM_19)) = 0;
+    sel_poseidon_perm * (B_19_3 - (poseidon2_params.MU_3 * A_19_3 + SUM_19)) = 0;
+
+    // Round 21 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_20_0 = B_19_0 + poseidon2_params.C_20_0;
+    pol ARK_20_1 = B_19_1 + poseidon2_params.C_20_1;
+    pol ARK_20_2 = B_19_2 + poseidon2_params.C_20_2;
+    pol ARK_20_3 = B_19_3 + poseidon2_params.C_20_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_20_0 = ARK_20_0 * ARK_20_0 * ARK_20_0 * ARK_20_0 * ARK_20_0;
+    pol A_20_1 = ARK_20_1;
+    pol A_20_2 = ARK_20_2;
+    pol A_20_3 = ARK_20_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_20_0;
+    pol commit B_20_1;
+    pol commit B_20_2;
+    pol commit B_20_3;
+
+    pol SUM_20 = A_20_0 + A_20_1 + A_20_2 + A_20_3;
+
+    sel_poseidon_perm * (B_20_0 - (poseidon2_params.MU_0 * A_20_0 + SUM_20)) = 0;
+    sel_poseidon_perm * (B_20_1 - (poseidon2_params.MU_1 * A_20_1 + SUM_20)) = 0;
+    sel_poseidon_perm * (B_20_2 - (poseidon2_params.MU_2 * A_20_2 + SUM_20)) = 0;
+    sel_poseidon_perm * (B_20_3 - (poseidon2_params.MU_3 * A_20_3 + SUM_20)) = 0;
+
+    // Round 22 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_21_0 = B_20_0 + poseidon2_params.C_21_0;
+    pol ARK_21_1 = B_20_1 + poseidon2_params.C_21_1;
+    pol ARK_21_2 = B_20_2 + poseidon2_params.C_21_2;
+    pol ARK_21_3 = B_20_3 + poseidon2_params.C_21_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_21_0 = ARK_21_0 * ARK_21_0 * ARK_21_0 * ARK_21_0 * ARK_21_0;
+    pol A_21_1 = ARK_21_1;
+    pol A_21_2 = ARK_21_2;
+    pol A_21_3 = ARK_21_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_21_0;
+    pol commit B_21_1;
+    pol commit B_21_2;
+    pol commit B_21_3;
+
+    pol SUM_21 = A_21_0 + A_21_1 + A_21_2 + A_21_3;
+
+    sel_poseidon_perm * (B_21_0 - (poseidon2_params.MU_0 * A_21_0 + SUM_21)) = 0;
+    sel_poseidon_perm * (B_21_1 - (poseidon2_params.MU_1 * A_21_1 + SUM_21)) = 0;
+    sel_poseidon_perm * (B_21_2 - (poseidon2_params.MU_2 * A_21_2 + SUM_21)) = 0;
+    sel_poseidon_perm * (B_21_3 - (poseidon2_params.MU_3 * A_21_3 + SUM_21)) = 0;
+
+    // Round 23 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_22_0 = B_21_0 + poseidon2_params.C_22_0;
+    pol ARK_22_1 = B_21_1 + poseidon2_params.C_22_1;
+    pol ARK_22_2 = B_21_2 + poseidon2_params.C_22_2;
+    pol ARK_22_3 = B_21_3 + poseidon2_params.C_22_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_22_0 = ARK_22_0 * ARK_22_0 * ARK_22_0 * ARK_22_0 * ARK_22_0;
+    pol A_22_1 = ARK_22_1;
+    pol A_22_2 = ARK_22_2;
+    pol A_22_3 = ARK_22_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_22_0;
+    pol commit B_22_1;
+    pol commit B_22_2;
+    pol commit B_22_3;
+
+    pol SUM_22 = A_22_0 + A_22_1 + A_22_2 + A_22_3;
+
+    sel_poseidon_perm * (B_22_0 - (poseidon2_params.MU_0 * A_22_0 + SUM_22)) = 0;
+    sel_poseidon_perm * (B_22_1 - (poseidon2_params.MU_1 * A_22_1 + SUM_22)) = 0;
+    sel_poseidon_perm * (B_22_2 - (poseidon2_params.MU_2 * A_22_2 + SUM_22)) = 0;
+    sel_poseidon_perm * (B_22_3 - (poseidon2_params.MU_3 * A_22_3 + SUM_22)) = 0;
+
+    // Round 24 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_23_0 = B_22_0 + poseidon2_params.C_23_0;
+    pol ARK_23_1 = B_22_1 + poseidon2_params.C_23_1;
+    pol ARK_23_2 = B_22_2 + poseidon2_params.C_23_2;
+    pol ARK_23_3 = B_22_3 + poseidon2_params.C_23_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_23_0 = ARK_23_0 * ARK_23_0 * ARK_23_0 * ARK_23_0 * ARK_23_0;
+    pol A_23_1 = ARK_23_1;
+    pol A_23_2 = ARK_23_2;
+    pol A_23_3 = ARK_23_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_23_0;
+    pol commit B_23_1;
+    pol commit B_23_2;
+    pol commit B_23_3;
+
+    pol SUM_23 = A_23_0 + A_23_1 + A_23_2 + A_23_3;
+
+    sel_poseidon_perm * (B_23_0 - (poseidon2_params.MU_0 * A_23_0 + SUM_23)) = 0;
+    sel_poseidon_perm * (B_23_1 - (poseidon2_params.MU_1 * A_23_1 + SUM_23)) = 0;
+    sel_poseidon_perm * (B_23_2 - (poseidon2_params.MU_2 * A_23_2 + SUM_23)) = 0;
+    sel_poseidon_perm * (B_23_3 - (poseidon2_params.MU_3 * A_23_3 + SUM_23)) = 0;
+
+    // Round 25 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_24_0 = B_23_0 + poseidon2_params.C_24_0;
+    pol ARK_24_1 = B_23_1 + poseidon2_params.C_24_1;
+    pol ARK_24_2 = B_23_2 + poseidon2_params.C_24_2;
+    pol ARK_24_3 = B_23_3 + poseidon2_params.C_24_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_24_0 = ARK_24_0 * ARK_24_0 * ARK_24_0 * ARK_24_0 * ARK_24_0;
+    pol A_24_1 = ARK_24_1;
+    pol A_24_2 = ARK_24_2;
+    pol A_24_3 = ARK_24_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_24_0;
+    pol commit B_24_1;
+    pol commit B_24_2;
+    pol commit B_24_3;
+
+    pol SUM_24 = A_24_0 + A_24_1 + A_24_2 + A_24_3;
+
+    sel_poseidon_perm * (B_24_0 - (poseidon2_params.MU_0 * A_24_0 + SUM_24)) = 0;
+    sel_poseidon_perm * (B_24_1 - (poseidon2_params.MU_1 * A_24_1 + SUM_24)) = 0;
+    sel_poseidon_perm * (B_24_2 - (poseidon2_params.MU_2 * A_24_2 + SUM_24)) = 0;
+    sel_poseidon_perm * (B_24_3 - (poseidon2_params.MU_3 * A_24_3 + SUM_24)) = 0;
+
+    // Round 26 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_25_0 = B_24_0 + poseidon2_params.C_25_0;
+    pol ARK_25_1 = B_24_1 + poseidon2_params.C_25_1;
+    pol ARK_25_2 = B_24_2 + poseidon2_params.C_25_2;
+    pol ARK_25_3 = B_24_3 + poseidon2_params.C_25_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_25_0 = ARK_25_0 * ARK_25_0 * ARK_25_0 * ARK_25_0 * ARK_25_0;
+    pol A_25_1 = ARK_25_1;
+    pol A_25_2 = ARK_25_2;
+    pol A_25_3 = ARK_25_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_25_0;
+    pol commit B_25_1;
+    pol commit B_25_2;
+    pol commit B_25_3;
+
+    pol SUM_25 = A_25_0 + A_25_1 + A_25_2 + A_25_3;
+
+    sel_poseidon_perm * (B_25_0 - (poseidon2_params.MU_0 * A_25_0 + SUM_25)) = 0;
+    sel_poseidon_perm * (B_25_1 - (poseidon2_params.MU_1 * A_25_1 + SUM_25)) = 0;
+    sel_poseidon_perm * (B_25_2 - (poseidon2_params.MU_2 * A_25_2 + SUM_25)) = 0;
+    sel_poseidon_perm * (B_25_3 - (poseidon2_params.MU_3 * A_25_3 + SUM_25)) = 0;
+
+    // Round 27 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_26_0 = B_25_0 + poseidon2_params.C_26_0;
+    pol ARK_26_1 = B_25_1 + poseidon2_params.C_26_1;
+    pol ARK_26_2 = B_25_2 + poseidon2_params.C_26_2;
+    pol ARK_26_3 = B_25_3 + poseidon2_params.C_26_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_26_0 = ARK_26_0 * ARK_26_0 * ARK_26_0 * ARK_26_0 * ARK_26_0;
+    pol A_26_1 = ARK_26_1;
+    pol A_26_2 = ARK_26_2;
+    pol A_26_3 = ARK_26_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_26_0;
+    pol commit B_26_1;
+    pol commit B_26_2;
+    pol commit B_26_3;
+
+    pol SUM_26 = A_26_0 + A_26_1 + A_26_2 + A_26_3;
+
+    sel_poseidon_perm * (B_26_0 - (poseidon2_params.MU_0 * A_26_0 + SUM_26)) = 0;
+    sel_poseidon_perm * (B_26_1 - (poseidon2_params.MU_1 * A_26_1 + SUM_26)) = 0;
+    sel_poseidon_perm * (B_26_2 - (poseidon2_params.MU_2 * A_26_2 + SUM_26)) = 0;
+    sel_poseidon_perm * (B_26_3 - (poseidon2_params.MU_3 * A_26_3 + SUM_26)) = 0;
+
+    // Round 28 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_27_0 = B_26_0 + poseidon2_params.C_27_0;
+    pol ARK_27_1 = B_26_1 + poseidon2_params.C_27_1;
+    pol ARK_27_2 = B_26_2 + poseidon2_params.C_27_2;
+    pol ARK_27_3 = B_26_3 + poseidon2_params.C_27_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_27_0 = ARK_27_0 * ARK_27_0 * ARK_27_0 * ARK_27_0 * ARK_27_0;
+    pol A_27_1 = ARK_27_1;
+    pol A_27_2 = ARK_27_2;
+    pol A_27_3 = ARK_27_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_27_0;
+    pol commit B_27_1;
+    pol commit B_27_2;
+    pol commit B_27_3;
+
+    pol SUM_27 = A_27_0 + A_27_1 + A_27_2 + A_27_3;
+
+    sel_poseidon_perm * (B_27_0 - (poseidon2_params.MU_0 * A_27_0 + SUM_27)) = 0;
+    sel_poseidon_perm * (B_27_1 - (poseidon2_params.MU_1 * A_27_1 + SUM_27)) = 0;
+    sel_poseidon_perm * (B_27_2 - (poseidon2_params.MU_2 * A_27_2 + SUM_27)) = 0;
+    sel_poseidon_perm * (B_27_3 - (poseidon2_params.MU_3 * A_27_3 + SUM_27)) = 0;
+
+    // Round 29 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_28_0 = B_27_0 + poseidon2_params.C_28_0;
+    pol ARK_28_1 = B_27_1 + poseidon2_params.C_28_1;
+    pol ARK_28_2 = B_27_2 + poseidon2_params.C_28_2;
+    pol ARK_28_3 = B_27_3 + poseidon2_params.C_28_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_28_0 = ARK_28_0 * ARK_28_0 * ARK_28_0 * ARK_28_0 * ARK_28_0;
+    pol A_28_1 = ARK_28_1;
+    pol A_28_2 = ARK_28_2;
+    pol A_28_3 = ARK_28_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_28_0;
+    pol commit B_28_1;
+    pol commit B_28_2;
+    pol commit B_28_3;
+
+    pol SUM_28 = A_28_0 + A_28_1 + A_28_2 + A_28_3;
+
+    sel_poseidon_perm * (B_28_0 - (poseidon2_params.MU_0 * A_28_0 + SUM_28)) = 0;
+    sel_poseidon_perm * (B_28_1 - (poseidon2_params.MU_1 * A_28_1 + SUM_28)) = 0;
+    sel_poseidon_perm * (B_28_2 - (poseidon2_params.MU_2 * A_28_2 + SUM_28)) = 0;
+    sel_poseidon_perm * (B_28_3 - (poseidon2_params.MU_3 * A_28_3 + SUM_28)) = 0;
+
+    // Round 30 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_29_0 = B_28_0 + poseidon2_params.C_29_0;
+    pol ARK_29_1 = B_28_1 + poseidon2_params.C_29_1;
+    pol ARK_29_2 = B_28_2 + poseidon2_params.C_29_2;
+    pol ARK_29_3 = B_28_3 + poseidon2_params.C_29_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_29_0 = ARK_29_0 * ARK_29_0 * ARK_29_0 * ARK_29_0 * ARK_29_0;
+    pol A_29_1 = ARK_29_1;
+    pol A_29_2 = ARK_29_2;
+    pol A_29_3 = ARK_29_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_29_0;
+    pol commit B_29_1;
+    pol commit B_29_2;
+    pol commit B_29_3;
+
+    pol SUM_29 = A_29_0 + A_29_1 + A_29_2 + A_29_3;
+
+    sel_poseidon_perm * (B_29_0 - (poseidon2_params.MU_0 * A_29_0 + SUM_29)) = 0;
+    sel_poseidon_perm * (B_29_1 - (poseidon2_params.MU_1 * A_29_1 + SUM_29)) = 0;
+    sel_poseidon_perm * (B_29_2 - (poseidon2_params.MU_2 * A_29_2 + SUM_29)) = 0;
+    sel_poseidon_perm * (B_29_3 - (poseidon2_params.MU_3 * A_29_3 + SUM_29)) = 0;
+
+    // Round 31 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_30_0 = B_29_0 + poseidon2_params.C_30_0;
+    pol ARK_30_1 = B_29_1 + poseidon2_params.C_30_1;
+    pol ARK_30_2 = B_29_2 + poseidon2_params.C_30_2;
+    pol ARK_30_3 = B_29_3 + poseidon2_params.C_30_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_30_0 = ARK_30_0 * ARK_30_0 * ARK_30_0 * ARK_30_0 * ARK_30_0;
+    pol A_30_1 = ARK_30_1;
+    pol A_30_2 = ARK_30_2;
+    pol A_30_3 = ARK_30_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_30_0;
+    pol commit B_30_1;
+    pol commit B_30_2;
+    pol commit B_30_3;
+
+    pol SUM_30 = A_30_0 + A_30_1 + A_30_2 + A_30_3;
+
+    sel_poseidon_perm * (B_30_0 - (poseidon2_params.MU_0 * A_30_0 + SUM_30)) = 0;
+    sel_poseidon_perm * (B_30_1 - (poseidon2_params.MU_1 * A_30_1 + SUM_30)) = 0;
+    sel_poseidon_perm * (B_30_2 - (poseidon2_params.MU_2 * A_30_2 + SUM_30)) = 0;
+    sel_poseidon_perm * (B_30_3 - (poseidon2_params.MU_3 * A_30_3 + SUM_30)) = 0;
+
+    // Round 32 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_31_0 = B_30_0 + poseidon2_params.C_31_0;
+    pol ARK_31_1 = B_30_1 + poseidon2_params.C_31_1;
+    pol ARK_31_2 = B_30_2 + poseidon2_params.C_31_2;
+    pol ARK_31_3 = B_30_3 + poseidon2_params.C_31_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_31_0 = ARK_31_0 * ARK_31_0 * ARK_31_0 * ARK_31_0 * ARK_31_0;
+    pol A_31_1 = ARK_31_1;
+    pol A_31_2 = ARK_31_2;
+    pol A_31_3 = ARK_31_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_31_0;
+    pol commit B_31_1;
+    pol commit B_31_2;
+    pol commit B_31_3;
+
+    pol SUM_31 = A_31_0 + A_31_1 + A_31_2 + A_31_3;
+
+    sel_poseidon_perm * (B_31_0 - (poseidon2_params.MU_0 * A_31_0 + SUM_31)) = 0;
+    sel_poseidon_perm * (B_31_1 - (poseidon2_params.MU_1 * A_31_1 + SUM_31)) = 0;
+    sel_poseidon_perm * (B_31_2 - (poseidon2_params.MU_2 * A_31_2 + SUM_31)) = 0;
+    sel_poseidon_perm * (B_31_3 - (poseidon2_params.MU_3 * A_31_3 + SUM_31)) = 0;
+
+    // Round 33 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_32_0 = B_31_0 + poseidon2_params.C_32_0;
+    pol ARK_32_1 = B_31_1 + poseidon2_params.C_32_1;
+    pol ARK_32_2 = B_31_2 + poseidon2_params.C_32_2;
+    pol ARK_32_3 = B_31_3 + poseidon2_params.C_32_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_32_0 = ARK_32_0 * ARK_32_0 * ARK_32_0 * ARK_32_0 * ARK_32_0;
+    pol A_32_1 = ARK_32_1;
+    pol A_32_2 = ARK_32_2;
+    pol A_32_3 = ARK_32_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_32_0;
+    pol commit B_32_1;
+    pol commit B_32_2;
+    pol commit B_32_3;
+
+    pol SUM_32 = A_32_0 + A_32_1 + A_32_2 + A_32_3;
+
+    sel_poseidon_perm * (B_32_0 - (poseidon2_params.MU_0 * A_32_0 + SUM_32)) = 0;
+    sel_poseidon_perm * (B_32_1 - (poseidon2_params.MU_1 * A_32_1 + SUM_32)) = 0;
+    sel_poseidon_perm * (B_32_2 - (poseidon2_params.MU_2 * A_32_2 + SUM_32)) = 0;
+    sel_poseidon_perm * (B_32_3 - (poseidon2_params.MU_3 * A_32_3 + SUM_32)) = 0;
+
+    // Round 34 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_33_0 = B_32_0 + poseidon2_params.C_33_0;
+    pol ARK_33_1 = B_32_1 + poseidon2_params.C_33_1;
+    pol ARK_33_2 = B_32_2 + poseidon2_params.C_33_2;
+    pol ARK_33_3 = B_32_3 + poseidon2_params.C_33_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_33_0 = ARK_33_0 * ARK_33_0 * ARK_33_0 * ARK_33_0 * ARK_33_0;
+    pol A_33_1 = ARK_33_1;
+    pol A_33_2 = ARK_33_2;
+    pol A_33_3 = ARK_33_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_33_0;
+    pol commit B_33_1;
+    pol commit B_33_2;
+    pol commit B_33_3;
+
+    pol SUM_33 = A_33_0 + A_33_1 + A_33_2 + A_33_3;
+
+    sel_poseidon_perm * (B_33_0 - (poseidon2_params.MU_0 * A_33_0 + SUM_33)) = 0;
+    sel_poseidon_perm * (B_33_1 - (poseidon2_params.MU_1 * A_33_1 + SUM_33)) = 0;
+    sel_poseidon_perm * (B_33_2 - (poseidon2_params.MU_2 * A_33_2 + SUM_33)) = 0;
+    sel_poseidon_perm * (B_33_3 - (poseidon2_params.MU_3 * A_33_3 + SUM_33)) = 0;
+
+    // Round 35 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_34_0 = B_33_0 + poseidon2_params.C_34_0;
+    pol ARK_34_1 = B_33_1 + poseidon2_params.C_34_1;
+    pol ARK_34_2 = B_33_2 + poseidon2_params.C_34_2;
+    pol ARK_34_3 = B_33_3 + poseidon2_params.C_34_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_34_0 = ARK_34_0 * ARK_34_0 * ARK_34_0 * ARK_34_0 * ARK_34_0;
+    pol A_34_1 = ARK_34_1;
+    pol A_34_2 = ARK_34_2;
+    pol A_34_3 = ARK_34_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_34_0;
+    pol commit B_34_1;
+    pol commit B_34_2;
+    pol commit B_34_3;
+
+    pol SUM_34 = A_34_0 + A_34_1 + A_34_2 + A_34_3;
+
+    sel_poseidon_perm * (B_34_0 - (poseidon2_params.MU_0 * A_34_0 + SUM_34)) = 0;
+    sel_poseidon_perm * (B_34_1 - (poseidon2_params.MU_1 * A_34_1 + SUM_34)) = 0;
+    sel_poseidon_perm * (B_34_2 - (poseidon2_params.MU_2 * A_34_2 + SUM_34)) = 0;
+    sel_poseidon_perm * (B_34_3 - (poseidon2_params.MU_3 * A_34_3 + SUM_34)) = 0;
+
+    // Round 36 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_35_0 = B_34_0 + poseidon2_params.C_35_0;
+    pol ARK_35_1 = B_34_1 + poseidon2_params.C_35_1;
+    pol ARK_35_2 = B_34_2 + poseidon2_params.C_35_2;
+    pol ARK_35_3 = B_34_3 + poseidon2_params.C_35_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_35_0 = ARK_35_0 * ARK_35_0 * ARK_35_0 * ARK_35_0 * ARK_35_0;
+    pol A_35_1 = ARK_35_1;
+    pol A_35_2 = ARK_35_2;
+    pol A_35_3 = ARK_35_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_35_0;
+    pol commit B_35_1;
+    pol commit B_35_2;
+    pol commit B_35_3;
+
+    pol SUM_35 = A_35_0 + A_35_1 + A_35_2 + A_35_3;
+
+    sel_poseidon_perm * (B_35_0 - (poseidon2_params.MU_0 * A_35_0 + SUM_35)) = 0;
+    sel_poseidon_perm * (B_35_1 - (poseidon2_params.MU_1 * A_35_1 + SUM_35)) = 0;
+    sel_poseidon_perm * (B_35_2 - (poseidon2_params.MU_2 * A_35_2 + SUM_35)) = 0;
+    sel_poseidon_perm * (B_35_3 - (poseidon2_params.MU_3 * A_35_3 + SUM_35)) = 0;
+
+    // Round 37 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_36_0 = B_35_0 + poseidon2_params.C_36_0;
+    pol ARK_36_1 = B_35_1 + poseidon2_params.C_36_1;
+    pol ARK_36_2 = B_35_2 + poseidon2_params.C_36_2;
+    pol ARK_36_3 = B_35_3 + poseidon2_params.C_36_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_36_0 = ARK_36_0 * ARK_36_0 * ARK_36_0 * ARK_36_0 * ARK_36_0;
+    pol A_36_1 = ARK_36_1;
+    pol A_36_2 = ARK_36_2;
+    pol A_36_3 = ARK_36_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_36_0;
+    pol commit B_36_1;
+    pol commit B_36_2;
+    pol commit B_36_3;
+
+    pol SUM_36 = A_36_0 + A_36_1 + A_36_2 + A_36_3;
+
+    sel_poseidon_perm * (B_36_0 - (poseidon2_params.MU_0 * A_36_0 + SUM_36)) = 0;
+    sel_poseidon_perm * (B_36_1 - (poseidon2_params.MU_1 * A_36_1 + SUM_36)) = 0;
+    sel_poseidon_perm * (B_36_2 - (poseidon2_params.MU_2 * A_36_2 + SUM_36)) = 0;
+    sel_poseidon_perm * (B_36_3 - (poseidon2_params.MU_3 * A_36_3 + SUM_36)) = 0;
+
+    // Round 38 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_37_0 = B_36_0 + poseidon2_params.C_37_0;
+    pol ARK_37_1 = B_36_1 + poseidon2_params.C_37_1;
+    pol ARK_37_2 = B_36_2 + poseidon2_params.C_37_2;
+    pol ARK_37_3 = B_36_3 + poseidon2_params.C_37_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_37_0 = ARK_37_0 * ARK_37_0 * ARK_37_0 * ARK_37_0 * ARK_37_0;
+    pol A_37_1 = ARK_37_1;
+    pol A_37_2 = ARK_37_2;
+    pol A_37_3 = ARK_37_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_37_0;
+    pol commit B_37_1;
+    pol commit B_37_2;
+    pol commit B_37_3;
+
+    pol SUM_37 = A_37_0 + A_37_1 + A_37_2 + A_37_3;
+
+    sel_poseidon_perm * (B_37_0 - (poseidon2_params.MU_0 * A_37_0 + SUM_37)) = 0;
+    sel_poseidon_perm * (B_37_1 - (poseidon2_params.MU_1 * A_37_1 + SUM_37)) = 0;
+    sel_poseidon_perm * (B_37_2 - (poseidon2_params.MU_2 * A_37_2 + SUM_37)) = 0;
+    sel_poseidon_perm * (B_37_3 - (poseidon2_params.MU_3 * A_37_3 + SUM_37)) = 0;
+
+    // Round 39 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_38_0 = B_37_0 + poseidon2_params.C_38_0;
+    pol ARK_38_1 = B_37_1 + poseidon2_params.C_38_1;
+    pol ARK_38_2 = B_37_2 + poseidon2_params.C_38_2;
+    pol ARK_38_3 = B_37_3 + poseidon2_params.C_38_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_38_0 = ARK_38_0 * ARK_38_0 * ARK_38_0 * ARK_38_0 * ARK_38_0;
+    pol A_38_1 = ARK_38_1;
+    pol A_38_2 = ARK_38_2;
+    pol A_38_3 = ARK_38_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_38_0;
+    pol commit B_38_1;
+    pol commit B_38_2;
+    pol commit B_38_3;
+
+    pol SUM_38 = A_38_0 + A_38_1 + A_38_2 + A_38_3;
+
+    sel_poseidon_perm * (B_38_0 - (poseidon2_params.MU_0 * A_38_0 + SUM_38)) = 0;
+    sel_poseidon_perm * (B_38_1 - (poseidon2_params.MU_1 * A_38_1 + SUM_38)) = 0;
+    sel_poseidon_perm * (B_38_2 - (poseidon2_params.MU_2 * A_38_2 + SUM_38)) = 0;
+    sel_poseidon_perm * (B_38_3 - (poseidon2_params.MU_3 * A_38_3 + SUM_38)) = 0;
+
+    // Round 40 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_39_0 = B_38_0 + poseidon2_params.C_39_0;
+    pol ARK_39_1 = B_38_1 + poseidon2_params.C_39_1;
+    pol ARK_39_2 = B_38_2 + poseidon2_params.C_39_2;
+    pol ARK_39_3 = B_38_3 + poseidon2_params.C_39_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_39_0 = ARK_39_0 * ARK_39_0 * ARK_39_0 * ARK_39_0 * ARK_39_0;
+    pol A_39_1 = ARK_39_1;
+    pol A_39_2 = ARK_39_2;
+    pol A_39_3 = ARK_39_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_39_0;
+    pol commit B_39_1;
+    pol commit B_39_2;
+    pol commit B_39_3;
+
+    pol SUM_39 = A_39_0 + A_39_1 + A_39_2 + A_39_3;
+
+    sel_poseidon_perm * (B_39_0 - (poseidon2_params.MU_0 * A_39_0 + SUM_39)) = 0;
+    sel_poseidon_perm * (B_39_1 - (poseidon2_params.MU_1 * A_39_1 + SUM_39)) = 0;
+    sel_poseidon_perm * (B_39_2 - (poseidon2_params.MU_2 * A_39_2 + SUM_39)) = 0;
+    sel_poseidon_perm * (B_39_3 - (poseidon2_params.MU_3 * A_39_3 + SUM_39)) = 0;
+
+    // Round 41 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_40_0 = B_39_0 + poseidon2_params.C_40_0;
+    pol ARK_40_1 = B_39_1 + poseidon2_params.C_40_1;
+    pol ARK_40_2 = B_39_2 + poseidon2_params.C_40_2;
+    pol ARK_40_3 = B_39_3 + poseidon2_params.C_40_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_40_0 = ARK_40_0 * ARK_40_0 * ARK_40_0 * ARK_40_0 * ARK_40_0;
+    pol A_40_1 = ARK_40_1;
+    pol A_40_2 = ARK_40_2;
+    pol A_40_3 = ARK_40_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_40_0;
+    pol commit B_40_1;
+    pol commit B_40_2;
+    pol commit B_40_3;
+
+    pol SUM_40 = A_40_0 + A_40_1 + A_40_2 + A_40_3;
+
+    sel_poseidon_perm * (B_40_0 - (poseidon2_params.MU_0 * A_40_0 + SUM_40)) = 0;
+    sel_poseidon_perm * (B_40_1 - (poseidon2_params.MU_1 * A_40_1 + SUM_40)) = 0;
+    sel_poseidon_perm * (B_40_2 - (poseidon2_params.MU_2 * A_40_2 + SUM_40)) = 0;
+    sel_poseidon_perm * (B_40_3 - (poseidon2_params.MU_3 * A_40_3 + SUM_40)) = 0;
+
+    // Round 42 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_41_0 = B_40_0 + poseidon2_params.C_41_0;
+    pol ARK_41_1 = B_40_1 + poseidon2_params.C_41_1;
+    pol ARK_41_2 = B_40_2 + poseidon2_params.C_41_2;
+    pol ARK_41_3 = B_40_3 + poseidon2_params.C_41_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_41_0 = ARK_41_0 * ARK_41_0 * ARK_41_0 * ARK_41_0 * ARK_41_0;
+    pol A_41_1 = ARK_41_1;
+    pol A_41_2 = ARK_41_2;
+    pol A_41_3 = ARK_41_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_41_0;
+    pol commit B_41_1;
+    pol commit B_41_2;
+    pol commit B_41_3;
+
+    pol SUM_41 = A_41_0 + A_41_1 + A_41_2 + A_41_3;
+
+    sel_poseidon_perm * (B_41_0 - (poseidon2_params.MU_0 * A_41_0 + SUM_41)) = 0;
+    sel_poseidon_perm * (B_41_1 - (poseidon2_params.MU_1 * A_41_1 + SUM_41)) = 0;
+    sel_poseidon_perm * (B_41_2 - (poseidon2_params.MU_2 * A_41_2 + SUM_41)) = 0;
+    sel_poseidon_perm * (B_41_3 - (poseidon2_params.MU_3 * A_41_3 + SUM_41)) = 0;
+
+    // Round 43 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_42_0 = B_41_0 + poseidon2_params.C_42_0;
+    pol ARK_42_1 = B_41_1 + poseidon2_params.C_42_1;
+    pol ARK_42_2 = B_41_2 + poseidon2_params.C_42_2;
+    pol ARK_42_3 = B_41_3 + poseidon2_params.C_42_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_42_0 = ARK_42_0 * ARK_42_0 * ARK_42_0 * ARK_42_0 * ARK_42_0;
+    pol A_42_1 = ARK_42_1;
+    pol A_42_2 = ARK_42_2;
+    pol A_42_3 = ARK_42_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_42_0;
+    pol commit B_42_1;
+    pol commit B_42_2;
+    pol commit B_42_3;
+
+    pol SUM_42 = A_42_0 + A_42_1 + A_42_2 + A_42_3;
+
+    sel_poseidon_perm * (B_42_0 - (poseidon2_params.MU_0 * A_42_0 + SUM_42)) = 0;
+    sel_poseidon_perm * (B_42_1 - (poseidon2_params.MU_1 * A_42_1 + SUM_42)) = 0;
+    sel_poseidon_perm * (B_42_2 - (poseidon2_params.MU_2 * A_42_2 + SUM_42)) = 0;
+    sel_poseidon_perm * (B_42_3 - (poseidon2_params.MU_3 * A_42_3 + SUM_42)) = 0;
+
+    // Round 44 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_43_0 = B_42_0 + poseidon2_params.C_43_0;
+    pol ARK_43_1 = B_42_1 + poseidon2_params.C_43_1;
+    pol ARK_43_2 = B_42_2 + poseidon2_params.C_43_2;
+    pol ARK_43_3 = B_42_3 + poseidon2_params.C_43_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_43_0 = ARK_43_0 * ARK_43_0 * ARK_43_0 * ARK_43_0 * ARK_43_0;
+    pol A_43_1 = ARK_43_1;
+    pol A_43_2 = ARK_43_2;
+    pol A_43_3 = ARK_43_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_43_0;
+    pol commit B_43_1;
+    pol commit B_43_2;
+    pol commit B_43_3;
+
+    pol SUM_43 = A_43_0 + A_43_1 + A_43_2 + A_43_3;
+
+    sel_poseidon_perm * (B_43_0 - (poseidon2_params.MU_0 * A_43_0 + SUM_43)) = 0;
+    sel_poseidon_perm * (B_43_1 - (poseidon2_params.MU_1 * A_43_1 + SUM_43)) = 0;
+    sel_poseidon_perm * (B_43_2 - (poseidon2_params.MU_2 * A_43_2 + SUM_43)) = 0;
+    sel_poseidon_perm * (B_43_3 - (poseidon2_params.MU_3 * A_43_3 + SUM_43)) = 0;
+
+    // Round 45 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_44_0 = B_43_0 + poseidon2_params.C_44_0;
+    pol ARK_44_1 = B_43_1 + poseidon2_params.C_44_1;
+    pol ARK_44_2 = B_43_2 + poseidon2_params.C_44_2;
+    pol ARK_44_3 = B_43_3 + poseidon2_params.C_44_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_44_0 = ARK_44_0 * ARK_44_0 * ARK_44_0 * ARK_44_0 * ARK_44_0;
+    pol A_44_1 = ARK_44_1;
+    pol A_44_2 = ARK_44_2;
+    pol A_44_3 = ARK_44_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_44_0;
+    pol commit B_44_1;
+    pol commit B_44_2;
+    pol commit B_44_3;
+
+    pol SUM_44 = A_44_0 + A_44_1 + A_44_2 + A_44_3;
+
+    sel_poseidon_perm * (B_44_0 - (poseidon2_params.MU_0 * A_44_0 + SUM_44)) = 0;
+    sel_poseidon_perm * (B_44_1 - (poseidon2_params.MU_1 * A_44_1 + SUM_44)) = 0;
+    sel_poseidon_perm * (B_44_2 - (poseidon2_params.MU_2 * A_44_2 + SUM_44)) = 0;
+    sel_poseidon_perm * (B_44_3 - (poseidon2_params.MU_3 * A_44_3 + SUM_44)) = 0;
+
+    // Round 46 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_45_0 = B_44_0 + poseidon2_params.C_45_0;
+    pol ARK_45_1 = B_44_1 + poseidon2_params.C_45_1;
+    pol ARK_45_2 = B_44_2 + poseidon2_params.C_45_2;
+    pol ARK_45_3 = B_44_3 + poseidon2_params.C_45_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_45_0 = ARK_45_0 * ARK_45_0 * ARK_45_0 * ARK_45_0 * ARK_45_0;
+    pol A_45_1 = ARK_45_1;
+    pol A_45_2 = ARK_45_2;
+    pol A_45_3 = ARK_45_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_45_0;
+    pol commit B_45_1;
+    pol commit B_45_2;
+    pol commit B_45_3;
+
+    pol SUM_45 = A_45_0 + A_45_1 + A_45_2 + A_45_3;
+
+    sel_poseidon_perm * (B_45_0 - (poseidon2_params.MU_0 * A_45_0 + SUM_45)) = 0;
+    sel_poseidon_perm * (B_45_1 - (poseidon2_params.MU_1 * A_45_1 + SUM_45)) = 0;
+    sel_poseidon_perm * (B_45_2 - (poseidon2_params.MU_2 * A_45_2 + SUM_45)) = 0;
+    sel_poseidon_perm * (B_45_3 - (poseidon2_params.MU_3 * A_45_3 + SUM_45)) = 0;
+
+    // Round 47 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_46_0 = B_45_0 + poseidon2_params.C_46_0;
+    pol ARK_46_1 = B_45_1 + poseidon2_params.C_46_1;
+    pol ARK_46_2 = B_45_2 + poseidon2_params.C_46_2;
+    pol ARK_46_3 = B_45_3 + poseidon2_params.C_46_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_46_0 = ARK_46_0 * ARK_46_0 * ARK_46_0 * ARK_46_0 * ARK_46_0;
+    pol A_46_1 = ARK_46_1;
+    pol A_46_2 = ARK_46_2;
+    pol A_46_3 = ARK_46_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_46_0;
+    pol commit B_46_1;
+    pol commit B_46_2;
+    pol commit B_46_3;
+
+    pol SUM_46 = A_46_0 + A_46_1 + A_46_2 + A_46_3;
+
+    sel_poseidon_perm * (B_46_0 - (poseidon2_params.MU_0 * A_46_0 + SUM_46)) = 0;
+    sel_poseidon_perm * (B_46_1 - (poseidon2_params.MU_1 * A_46_1 + SUM_46)) = 0;
+    sel_poseidon_perm * (B_46_2 - (poseidon2_params.MU_2 * A_46_2 + SUM_46)) = 0;
+    sel_poseidon_perm * (B_46_3 - (poseidon2_params.MU_3 * A_46_3 + SUM_46)) = 0;
+
+    // Round 48 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_47_0 = B_46_0 + poseidon2_params.C_47_0;
+    pol ARK_47_1 = B_46_1 + poseidon2_params.C_47_1;
+    pol ARK_47_2 = B_46_2 + poseidon2_params.C_47_2;
+    pol ARK_47_3 = B_46_3 + poseidon2_params.C_47_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_47_0 = ARK_47_0 * ARK_47_0 * ARK_47_0 * ARK_47_0 * ARK_47_0;
+    pol A_47_1 = ARK_47_1;
+    pol A_47_2 = ARK_47_2;
+    pol A_47_3 = ARK_47_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_47_0;
+    pol commit B_47_1;
+    pol commit B_47_2;
+    pol commit B_47_3;
+
+    pol SUM_47 = A_47_0 + A_47_1 + A_47_2 + A_47_3;
+
+    sel_poseidon_perm * (B_47_0 - (poseidon2_params.MU_0 * A_47_0 + SUM_47)) = 0;
+    sel_poseidon_perm * (B_47_1 - (poseidon2_params.MU_1 * A_47_1 + SUM_47)) = 0;
+    sel_poseidon_perm * (B_47_2 - (poseidon2_params.MU_2 * A_47_2 + SUM_47)) = 0;
+    sel_poseidon_perm * (B_47_3 - (poseidon2_params.MU_3 * A_47_3 + SUM_47)) = 0;
+
+    // Round 49 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_48_0 = B_47_0 + poseidon2_params.C_48_0;
+    pol ARK_48_1 = B_47_1 + poseidon2_params.C_48_1;
+    pol ARK_48_2 = B_47_2 + poseidon2_params.C_48_2;
+    pol ARK_48_3 = B_47_3 + poseidon2_params.C_48_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_48_0 = ARK_48_0 * ARK_48_0 * ARK_48_0 * ARK_48_0 * ARK_48_0;
+    pol A_48_1 = ARK_48_1;
+    pol A_48_2 = ARK_48_2;
+    pol A_48_3 = ARK_48_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_48_0;
+    pol commit B_48_1;
+    pol commit B_48_2;
+    pol commit B_48_3;
+
+    pol SUM_48 = A_48_0 + A_48_1 + A_48_2 + A_48_3;
+
+    sel_poseidon_perm * (B_48_0 - (poseidon2_params.MU_0 * A_48_0 + SUM_48)) = 0;
+    sel_poseidon_perm * (B_48_1 - (poseidon2_params.MU_1 * A_48_1 + SUM_48)) = 0;
+    sel_poseidon_perm * (B_48_2 - (poseidon2_params.MU_2 * A_48_2 + SUM_48)) = 0;
+    sel_poseidon_perm * (B_48_3 - (poseidon2_params.MU_3 * A_48_3 + SUM_48)) = 0;
+
+    // Round 50 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_49_0 = B_48_0 + poseidon2_params.C_49_0;
+    pol ARK_49_1 = B_48_1 + poseidon2_params.C_49_1;
+    pol ARK_49_2 = B_48_2 + poseidon2_params.C_49_2;
+    pol ARK_49_3 = B_48_3 + poseidon2_params.C_49_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_49_0 = ARK_49_0 * ARK_49_0 * ARK_49_0 * ARK_49_0 * ARK_49_0;
+    pol A_49_1 = ARK_49_1;
+    pol A_49_2 = ARK_49_2;
+    pol A_49_3 = ARK_49_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_49_0;
+    pol commit B_49_1;
+    pol commit B_49_2;
+    pol commit B_49_3;
+
+    pol SUM_49 = A_49_0 + A_49_1 + A_49_2 + A_49_3;
+
+    sel_poseidon_perm * (B_49_0 - (poseidon2_params.MU_0 * A_49_0 + SUM_49)) = 0;
+    sel_poseidon_perm * (B_49_1 - (poseidon2_params.MU_1 * A_49_1 + SUM_49)) = 0;
+    sel_poseidon_perm * (B_49_2 - (poseidon2_params.MU_2 * A_49_2 + SUM_49)) = 0;
+    sel_poseidon_perm * (B_49_3 - (poseidon2_params.MU_3 * A_49_3 + SUM_49)) = 0;
+
+    // Round 51 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_50_0 = B_49_0 + poseidon2_params.C_50_0;
+    pol ARK_50_1 = B_49_1 + poseidon2_params.C_50_1;
+    pol ARK_50_2 = B_49_2 + poseidon2_params.C_50_2;
+    pol ARK_50_3 = B_49_3 + poseidon2_params.C_50_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_50_0 = ARK_50_0 * ARK_50_0 * ARK_50_0 * ARK_50_0 * ARK_50_0;
+    pol A_50_1 = ARK_50_1;
+    pol A_50_2 = ARK_50_2;
+    pol A_50_3 = ARK_50_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_50_0;
+    pol commit B_50_1;
+    pol commit B_50_2;
+    pol commit B_50_3;
+
+    pol SUM_50 = A_50_0 + A_50_1 + A_50_2 + A_50_3;
+
+    sel_poseidon_perm * (B_50_0 - (poseidon2_params.MU_0 * A_50_0 + SUM_50)) = 0;
+    sel_poseidon_perm * (B_50_1 - (poseidon2_params.MU_1 * A_50_1 + SUM_50)) = 0;
+    sel_poseidon_perm * (B_50_2 - (poseidon2_params.MU_2 * A_50_2 + SUM_50)) = 0;
+    sel_poseidon_perm * (B_50_3 - (poseidon2_params.MU_3 * A_50_3 + SUM_50)) = 0;
+
+    // Round 52 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_51_0 = B_50_0 + poseidon2_params.C_51_0;
+    pol ARK_51_1 = B_50_1 + poseidon2_params.C_51_1;
+    pol ARK_51_2 = B_50_2 + poseidon2_params.C_51_2;
+    pol ARK_51_3 = B_50_3 + poseidon2_params.C_51_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_51_0 = ARK_51_0 * ARK_51_0 * ARK_51_0 * ARK_51_0 * ARK_51_0;
+    pol A_51_1 = ARK_51_1;
+    pol A_51_2 = ARK_51_2;
+    pol A_51_3 = ARK_51_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_51_0;
+    pol commit B_51_1;
+    pol commit B_51_2;
+    pol commit B_51_3;
+
+    pol SUM_51 = A_51_0 + A_51_1 + A_51_2 + A_51_3;
+
+    sel_poseidon_perm * (B_51_0 - (poseidon2_params.MU_0 * A_51_0 + SUM_51)) = 0;
+    sel_poseidon_perm * (B_51_1 - (poseidon2_params.MU_1 * A_51_1 + SUM_51)) = 0;
+    sel_poseidon_perm * (B_51_2 - (poseidon2_params.MU_2 * A_51_2 + SUM_51)) = 0;
+    sel_poseidon_perm * (B_51_3 - (poseidon2_params.MU_3 * A_51_3 + SUM_51)) = 0;
+
+    // Round 53 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_52_0 = B_51_0 + poseidon2_params.C_52_0;
+    pol ARK_52_1 = B_51_1 + poseidon2_params.C_52_1;
+    pol ARK_52_2 = B_51_2 + poseidon2_params.C_52_2;
+    pol ARK_52_3 = B_51_3 + poseidon2_params.C_52_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_52_0 = ARK_52_0 * ARK_52_0 * ARK_52_0 * ARK_52_0 * ARK_52_0;
+    pol A_52_1 = ARK_52_1;
+    pol A_52_2 = ARK_52_2;
+    pol A_52_3 = ARK_52_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_52_0;
+    pol commit B_52_1;
+    pol commit B_52_2;
+    pol commit B_52_3;
+
+    pol SUM_52 = A_52_0 + A_52_1 + A_52_2 + A_52_3;
+
+    sel_poseidon_perm * (B_52_0 - (poseidon2_params.MU_0 * A_52_0 + SUM_52)) = 0;
+    sel_poseidon_perm * (B_52_1 - (poseidon2_params.MU_1 * A_52_1 + SUM_52)) = 0;
+    sel_poseidon_perm * (B_52_2 - (poseidon2_params.MU_2 * A_52_2 + SUM_52)) = 0;
+    sel_poseidon_perm * (B_52_3 - (poseidon2_params.MU_3 * A_52_3 + SUM_52)) = 0;
+
+    // Round 54 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_53_0 = B_52_0 + poseidon2_params.C_53_0;
+    pol ARK_53_1 = B_52_1 + poseidon2_params.C_53_1;
+    pol ARK_53_2 = B_52_2 + poseidon2_params.C_53_2;
+    pol ARK_53_3 = B_52_3 + poseidon2_params.C_53_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_53_0 = ARK_53_0 * ARK_53_0 * ARK_53_0 * ARK_53_0 * ARK_53_0;
+    pol A_53_1 = ARK_53_1;
+    pol A_53_2 = ARK_53_2;
+    pol A_53_3 = ARK_53_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_53_0;
+    pol commit B_53_1;
+    pol commit B_53_2;
+    pol commit B_53_3;
+
+    pol SUM_53 = A_53_0 + A_53_1 + A_53_2 + A_53_3;
+
+    sel_poseidon_perm * (B_53_0 - (poseidon2_params.MU_0 * A_53_0 + SUM_53)) = 0;
+    sel_poseidon_perm * (B_53_1 - (poseidon2_params.MU_1 * A_53_1 + SUM_53)) = 0;
+    sel_poseidon_perm * (B_53_2 - (poseidon2_params.MU_2 * A_53_2 + SUM_53)) = 0;
+    sel_poseidon_perm * (B_53_3 - (poseidon2_params.MU_3 * A_53_3 + SUM_53)) = 0;
+
+    // Round 55 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_54_0 = B_53_0 + poseidon2_params.C_54_0;
+    pol ARK_54_1 = B_53_1 + poseidon2_params.C_54_1;
+    pol ARK_54_2 = B_53_2 + poseidon2_params.C_54_2;
+    pol ARK_54_3 = B_53_3 + poseidon2_params.C_54_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_54_0 = ARK_54_0 * ARK_54_0 * ARK_54_0 * ARK_54_0 * ARK_54_0;
+    pol A_54_1 = ARK_54_1;
+    pol A_54_2 = ARK_54_2;
+    pol A_54_3 = ARK_54_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_54_0;
+    pol commit B_54_1;
+    pol commit B_54_2;
+    pol commit B_54_3;
+
+    pol SUM_54 = A_54_0 + A_54_1 + A_54_2 + A_54_3;
+
+    sel_poseidon_perm * (B_54_0 - (poseidon2_params.MU_0 * A_54_0 + SUM_54)) = 0;
+    sel_poseidon_perm * (B_54_1 - (poseidon2_params.MU_1 * A_54_1 + SUM_54)) = 0;
+    sel_poseidon_perm * (B_54_2 - (poseidon2_params.MU_2 * A_54_2 + SUM_54)) = 0;
+    sel_poseidon_perm * (B_54_3 - (poseidon2_params.MU_3 * A_54_3 + SUM_54)) = 0;
+
+    // Round 56 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_55_0 = B_54_0 + poseidon2_params.C_55_0;
+    pol ARK_55_1 = B_54_1 + poseidon2_params.C_55_1;
+    pol ARK_55_2 = B_54_2 + poseidon2_params.C_55_2;
+    pol ARK_55_3 = B_54_3 + poseidon2_params.C_55_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_55_0 = ARK_55_0 * ARK_55_0 * ARK_55_0 * ARK_55_0 * ARK_55_0;
+    pol A_55_1 = ARK_55_1;
+    pol A_55_2 = ARK_55_2;
+    pol A_55_3 = ARK_55_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_55_0;
+    pol commit B_55_1;
+    pol commit B_55_2;
+    pol commit B_55_3;
+
+    pol SUM_55 = A_55_0 + A_55_1 + A_55_2 + A_55_3;
+
+    sel_poseidon_perm * (B_55_0 - (poseidon2_params.MU_0 * A_55_0 + SUM_55)) = 0;
+    sel_poseidon_perm * (B_55_1 - (poseidon2_params.MU_1 * A_55_1 + SUM_55)) = 0;
+    sel_poseidon_perm * (B_55_2 - (poseidon2_params.MU_2 * A_55_2 + SUM_55)) = 0;
+    sel_poseidon_perm * (B_55_3 - (poseidon2_params.MU_3 * A_55_3 + SUM_55)) = 0;
+
+    // Round 57 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_56_0 = B_55_0 + poseidon2_params.C_56_0;
+    pol ARK_56_1 = B_55_1 + poseidon2_params.C_56_1;
+    pol ARK_56_2 = B_55_2 + poseidon2_params.C_56_2;
+    pol ARK_56_3 = B_55_3 + poseidon2_params.C_56_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_56_0 = ARK_56_0 * ARK_56_0 * ARK_56_0 * ARK_56_0 * ARK_56_0;
+    pol A_56_1 = ARK_56_1;
+    pol A_56_2 = ARK_56_2;
+    pol A_56_3 = ARK_56_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_56_0;
+    pol commit B_56_1;
+    pol commit B_56_2;
+    pol commit B_56_3;
+
+    pol SUM_56 = A_56_0 + A_56_1 + A_56_2 + A_56_3;
+
+    sel_poseidon_perm * (B_56_0 - (poseidon2_params.MU_0 * A_56_0 + SUM_56)) = 0;
+    sel_poseidon_perm * (B_56_1 - (poseidon2_params.MU_1 * A_56_1 + SUM_56)) = 0;
+    sel_poseidon_perm * (B_56_2 - (poseidon2_params.MU_2 * A_56_2 + SUM_56)) = 0;
+    sel_poseidon_perm * (B_56_3 - (poseidon2_params.MU_3 * A_56_3 + SUM_56)) = 0;
+
+    // Round 58 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_57_0 = B_56_0 + poseidon2_params.C_57_0;
+    pol ARK_57_1 = B_56_1 + poseidon2_params.C_57_1;
+    pol ARK_57_2 = B_56_2 + poseidon2_params.C_57_2;
+    pol ARK_57_3 = B_56_3 + poseidon2_params.C_57_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_57_0 = ARK_57_0 * ARK_57_0 * ARK_57_0 * ARK_57_0 * ARK_57_0;
+    pol A_57_1 = ARK_57_1;
+    pol A_57_2 = ARK_57_2;
+    pol A_57_3 = ARK_57_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_57_0;
+    pol commit B_57_1;
+    pol commit B_57_2;
+    pol commit B_57_3;
+
+    pol SUM_57 = A_57_0 + A_57_1 + A_57_2 + A_57_3;
+
+    sel_poseidon_perm * (B_57_0 - (poseidon2_params.MU_0 * A_57_0 + SUM_57)) = 0;
+    sel_poseidon_perm * (B_57_1 - (poseidon2_params.MU_1 * A_57_1 + SUM_57)) = 0;
+    sel_poseidon_perm * (B_57_2 - (poseidon2_params.MU_2 * A_57_2 + SUM_57)) = 0;
+    sel_poseidon_perm * (B_57_3 - (poseidon2_params.MU_3 * A_57_3 + SUM_57)) = 0;
+
+    // Round 59 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_58_0 = B_57_0 + poseidon2_params.C_58_0;
+    pol ARK_58_1 = B_57_1 + poseidon2_params.C_58_1;
+    pol ARK_58_2 = B_57_2 + poseidon2_params.C_58_2;
+    pol ARK_58_3 = B_57_3 + poseidon2_params.C_58_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_58_0 = ARK_58_0 * ARK_58_0 * ARK_58_0 * ARK_58_0 * ARK_58_0;
+    pol A_58_1 = ARK_58_1;
+    pol A_58_2 = ARK_58_2;
+    pol A_58_3 = ARK_58_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_58_0;
+    pol commit B_58_1;
+    pol commit B_58_2;
+    pol commit B_58_3;
+
+    pol SUM_58 = A_58_0 + A_58_1 + A_58_2 + A_58_3;
+
+    sel_poseidon_perm * (B_58_0 - (poseidon2_params.MU_0 * A_58_0 + SUM_58)) = 0;
+    sel_poseidon_perm * (B_58_1 - (poseidon2_params.MU_1 * A_58_1 + SUM_58)) = 0;
+    sel_poseidon_perm * (B_58_2 - (poseidon2_params.MU_2 * A_58_2 + SUM_58)) = 0;
+    sel_poseidon_perm * (B_58_3 - (poseidon2_params.MU_3 * A_58_3 + SUM_58)) = 0;
+
+    // Round 60 (Partial Round)
+    // ARK (Add Round Constant)
+    pol ARK_59_0 = B_58_0 + poseidon2_params.C_59_0;
+    pol ARK_59_1 = B_58_1 + poseidon2_params.C_59_1;
+    pol ARK_59_2 = B_58_2 + poseidon2_params.C_59_2;
+    pol ARK_59_3 = B_58_3 + poseidon2_params.C_59_3;
+
+    // S-BOX (In partial round only first input is exponentiated)
+    pol A_59_0 = ARK_59_0 * ARK_59_0 * ARK_59_0 * ARK_59_0 * ARK_59_0;
+    pol A_59_1 = ARK_59_1;
+    pol A_59_2 = ARK_59_2;
+    pol A_59_3 = ARK_59_3;
+
+    // MATRIX (Partial round uses the external matrix)
+    pol commit B_59_0;
+    pol commit B_59_1;
+    pol commit B_59_2;
+    pol commit B_59_3;
+
+    pol SUM_59 = A_59_0 + A_59_1 + A_59_2 + A_59_3;
+
+    sel_poseidon_perm * (B_59_0 - (poseidon2_params.MU_0 * A_59_0 + SUM_59)) = 0;
+    sel_poseidon_perm * (B_59_1 - (poseidon2_params.MU_1 * A_59_1 + SUM_59)) = 0;
+    sel_poseidon_perm * (B_59_2 - (poseidon2_params.MU_2 * A_59_2 + SUM_59)) = 0;
+    sel_poseidon_perm * (B_59_3 - (poseidon2_params.MU_3 * A_59_3 + SUM_59)) = 0;
+
+    /////////////////////////////////////////////////////
+    // FINAL FULL ROUNDS (4 ROUNDS)
+    /////////////////////////////////////////////////////
+    // Round 61 (Full Round)
+    // ARK (Add Round Constant)
+    pol ARK_60_0 = B_59_0 + poseidon2_params.C_60_0;
+    pol ARK_60_1 = B_59_1 + poseidon2_params.C_60_1;
+    pol ARK_60_2 = B_59_2 + poseidon2_params.C_60_2;
+    pol ARK_60_3 = B_59_3 + poseidon2_params.C_60_3;
+
+    // S-BOX (In full round all inputs are exponentiated)
+    pol A_60_0 = ARK_60_0 * ARK_60_0 * ARK_60_0 * ARK_60_0 * ARK_60_0;
+    pol A_60_1 = ARK_60_1 * ARK_60_1 * ARK_60_1 * ARK_60_1 * ARK_60_1;
+    pol A_60_2 = ARK_60_2 * ARK_60_2 * ARK_60_2 * ARK_60_2 * ARK_60_2;
+    pol A_60_3 = ARK_60_3 * ARK_60_3 * ARK_60_3 * ARK_60_3 * ARK_60_3;
+
+    // MATRIX (Full round uses the external matrix)
+    pol commit T_60_4;
+    pol commit T_60_5;
+    pol commit T_60_6;
+    pol commit T_60_7;
+
+    pol T_60_0 = A_60_0 + A_60_1;
+    pol T_60_1 = A_60_2 + A_60_3;
+    pol T_60_2 = 2 * A_60_1 + T_60_1;
+    pol T_60_3 = 2 * A_60_3 + T_60_0;
+    sel_poseidon_perm * (T_60_4 - (4 * T_60_1 + T_60_3)) = 0;
+    sel_poseidon_perm * (T_60_5 - (4 * T_60_0 + T_60_2)) = 0;
+    sel_poseidon_perm * (T_60_6 - (T_60_3 + T_60_5)) = 0;
+    sel_poseidon_perm * (T_60_7 - (T_60_2 + T_60_4)) = 0;
+
+    // Round 62 (Full Round)
+    // ARK (Add Round Constant)
+    pol ARK_61_0 = T_60_6 + poseidon2_params.C_61_0;
+    pol ARK_61_1 = T_60_5 + poseidon2_params.C_61_1;
+    pol ARK_61_2 = T_60_7 + poseidon2_params.C_61_2;
+    pol ARK_61_3 = T_60_4 + poseidon2_params.C_61_3;
+
+    // S-BOX (In full round all inputs are exponentiated)
+    pol A_61_0 = ARK_61_0 * ARK_61_0 * ARK_61_0 * ARK_61_0 * ARK_61_0;
+    pol A_61_1 = ARK_61_1 * ARK_61_1 * ARK_61_1 * ARK_61_1 * ARK_61_1;
+    pol A_61_2 = ARK_61_2 * ARK_61_2 * ARK_61_2 * ARK_61_2 * ARK_61_2;
+    pol A_61_3 = ARK_61_3 * ARK_61_3 * ARK_61_3 * ARK_61_3 * ARK_61_3;
+
+    // MATRIX (Full round uses the external matrix)
+    pol commit T_61_4;
+    pol commit T_61_5;
+    pol commit T_61_6;
+    pol commit T_61_7;
+
+    pol T_61_0 = A_61_0 + A_61_1;
+    pol T_61_1 = A_61_2 + A_61_3;
+    pol T_61_2 = 2 * A_61_1 + T_61_1;
+    pol T_61_3 = 2 * A_61_3 + T_61_0;
+    sel_poseidon_perm * (T_61_4 - (4 * T_61_1 + T_61_3)) = 0;
+    sel_poseidon_perm * (T_61_5 - (4 * T_61_0 + T_61_2)) = 0;
+    sel_poseidon_perm * (T_61_6 - (T_61_3 + T_61_5)) = 0;
+    sel_poseidon_perm * (T_61_7 - (T_61_2 + T_61_4)) = 0;
+
+    // Round 63 (Full Round)
+    // ARK (Add Round Constant)
+    pol ARK_62_0 = T_61_6 + poseidon2_params.C_62_0;
+    pol ARK_62_1 = T_61_5 + poseidon2_params.C_62_1;
+    pol ARK_62_2 = T_61_7 + poseidon2_params.C_62_2;
+    pol ARK_62_3 = T_61_4 + poseidon2_params.C_62_3;
+
+    // S-BOX (In full round all inputs are exponentiated)
+    pol A_62_0 = ARK_62_0 * ARK_62_0 * ARK_62_0 * ARK_62_0 * ARK_62_0;
+    pol A_62_1 = ARK_62_1 * ARK_62_1 * ARK_62_1 * ARK_62_1 * ARK_62_1;
+    pol A_62_2 = ARK_62_2 * ARK_62_2 * ARK_62_2 * ARK_62_2 * ARK_62_2;
+    pol A_62_3 = ARK_62_3 * ARK_62_3 * ARK_62_3 * ARK_62_3 * ARK_62_3;
+
+    // MATRIX (Full round uses the external matrix)
+    pol commit T_62_4;
+    pol commit T_62_5;
+    pol commit T_62_6;
+    pol commit T_62_7;
+
+    pol T_62_0 = A_62_0 + A_62_1;
+    pol T_62_1 = A_62_2 + A_62_3;
+    pol T_62_2 = 2 * A_62_1 + T_62_1;
+    pol T_62_3 = 2 * A_62_3 + T_62_0;
+    sel_poseidon_perm * (T_62_4 - (4 * T_62_1 + T_62_3)) = 0;
+    sel_poseidon_perm * (T_62_5 - (4 * T_62_0 + T_62_2)) = 0;
+    sel_poseidon_perm * (T_62_6 - (T_62_3 + T_62_5)) = 0;
+    sel_poseidon_perm * (T_62_7 - (T_62_2 + T_62_4)) = 0;
+
+    // Round 64 (Full Round)
+    // ARK (Add Round Constant)
+    pol ARK_63_0 = T_62_6 + poseidon2_params.C_63_0;
+    pol ARK_63_1 = T_62_5 + poseidon2_params.C_63_1;
+    pol ARK_63_2 = T_62_7 + poseidon2_params.C_63_2;
+    pol ARK_63_3 = T_62_4 + poseidon2_params.C_63_3;
+
+    // S-BOX (In full round all inputs are exponentiated)
+    pol A_63_0 = ARK_63_0 * ARK_63_0 * ARK_63_0 * ARK_63_0 * ARK_63_0;
+    pol A_63_1 = ARK_63_1 * ARK_63_1 * ARK_63_1 * ARK_63_1 * ARK_63_1;
+    pol A_63_2 = ARK_63_2 * ARK_63_2 * ARK_63_2 * ARK_63_2 * ARK_63_2;
+    pol A_63_3 = ARK_63_3 * ARK_63_3 * ARK_63_3 * ARK_63_3 * ARK_63_3;
+
+    // MATRIX (Full round uses the external matrix)
+    pol commit T_63_4;
+    pol commit T_63_5;
+    pol commit T_63_6;
+    pol commit T_63_7;
+
+    pol T_63_0 = A_63_0 + A_63_1;
+    pol T_63_1 = A_63_2 + A_63_3;
+    pol T_63_2 = 2 * A_63_1 + T_63_1;
+    pol T_63_3 = 2 * A_63_3 + T_63_0;
+    sel_poseidon_perm * (T_63_4 - (4 * T_63_1 + T_63_3)) = 0;
+    sel_poseidon_perm * (T_63_5 - (4 * T_63_0 + T_63_2)) = 0;
+    sel_poseidon_perm * (T_63_6 - (T_63_3 + T_63_5)) = 0;
+    sel_poseidon_perm * (T_63_7 - (T_63_2 + T_63_4)) = 0;
+
+    /////////////////////////////////////////////////////
+    // PERMUTATION END
+    /////////////////////////////////////////////////////
+    // Check output against claimed output
+    sel_poseidon_perm * (b_0 - T_63_6) = 0;
+    sel_poseidon_perm * (b_1 - T_63_5) = 0;
+    sel_poseidon_perm * (b_2 - T_63_7) = 0;
+    sel_poseidon_perm * (b_3 - T_63_4) = 0;
