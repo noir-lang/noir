@@ -452,19 +452,7 @@ fn type_as_integer(
     };
 
     let option_value = if let Type::Integer(sign, bits) = typ {
-        Some(Value::Tuple(vec![
-            Value::Bool(match sign {
-                Signedness::Unsigned => false,
-                Signedness::Signed => true,
-            }),
-            Value::U8(match bits {
-                IntegerBitSize::One => 1,
-                IntegerBitSize::Eight => 8,
-                IntegerBitSize::Sixteen => 16,
-                IntegerBitSize::ThirtyTwo => 32,
-                IntegerBitSize::SixtyFour => 64,
-            }),
-        ]))
+        Some(Value::Tuple(vec![Value::Bool(sign.to_bool()), Value::U8(bits.bit_size())]))
     } else {
         None
     };
