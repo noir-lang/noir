@@ -90,6 +90,18 @@ pub(super) fn check_one_argument(
     Ok(arguments.pop().unwrap())
 }
 
+pub(super) fn check_two_arguments(
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<((Value, Location), (Value, Location))> {
+    check_argument_count(2, &arguments, location)?;
+
+    let argument2 = arguments.pop().unwrap();
+    let argument1 = arguments.pop().unwrap();
+
+    Ok((argument1, argument2))
+}
+
 fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IResult<T> {
     let message = Some(Value::String(Rc::new(message.into())));
     Err(InterpreterError::FailingConstraint { message, location })
@@ -220,13 +232,12 @@ fn as_slice(
 
 fn slice_push_back(
     interner: &NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let ((slice, _), (element, _)) = check_two_arguments(arguments, location)?;
 
-    let (element, _) = arguments.pop().unwrap();
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
+    let (mut values, typ) = get_slice(interner, slice, location)?;
     values.push_back(element);
     Ok(Value::Slice(values, typ))
 }
@@ -326,13 +337,13 @@ fn struct_def_fields(
 
 fn slice_remove(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let ((slice, _), (index, _)) = check_two_arguments(arguments, location)?;
 
-    let index = get_u32(arguments.pop().unwrap().0, location)? as usize;
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
+    let index = get_u32(index, location)? as usize;
+    let (mut values, typ) = get_slice(interner, slice, location)?;
 
     if values.is_empty() {
         return failing_constraint("slice_remove called on empty slice", location);
@@ -352,13 +363,12 @@ fn slice_remove(
 
 fn slice_push_front(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let ((slice, _), (element, _)) = check_two_arguments(arguments, location)?;
 
-    let (element, _) = arguments.pop().unwrap();
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
+    let (mut values, typ) = get_slice(interner, slice, location)?;
     values.push_front(element);
     Ok(Value::Slice(values, typ))
 }
@@ -475,12 +485,10 @@ fn type_as_integer(
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
-fn type_eq(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let ((self_type, _), (other_type, _)) = check_two_arguments(arguments, location)?;
 
-    let value1 = arguments.pop().unwrap().0;
-    let value2 = arguments.pop().unwrap().0;
-    Ok(Value::Bool(value1 == value2))
+    Ok(Value::Bool(self_type == other_type))
 }
 
 // fn is_field(self) -> bool
@@ -518,13 +526,13 @@ fn trait_constraint_hash(
 // fn constraint_eq(constraint_a: TraitConstraint, constraint_b: TraitConstraint) -> bool
 fn trait_constraint_eq(
     _interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let ((value_a, _), (value_b, _)) = check_two_arguments(arguments, location)?;
 
-    let constraint_b = get_trait_constraint(arguments.pop().unwrap().0, location)?;
-    let constraint_a = get_trait_constraint(arguments.pop().unwrap().0, location)?;
+    let constraint_a = get_trait_constraint(value_a, location)?;
+    let constraint_b = get_trait_constraint(value_b, location)?;
 
     Ok(Value::Bool(constraint_a == constraint_b))
 }
