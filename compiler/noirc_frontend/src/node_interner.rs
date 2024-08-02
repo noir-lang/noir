@@ -200,8 +200,8 @@ pub struct NodeInterner {
     /// the actual type since types do not implement Send or Sync.
     quoted_types: noirc_arena::Arena<Type>,
 
-    /// Whether to track references. In regular compilations this is false, but tools set it to true.
-    pub(crate) track_references: bool,
+    /// Determins whether to run in LSP mode. In LSP mode references are tracked.
+    pub(crate) lsp_mode: bool,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -597,7 +597,7 @@ impl Default for NodeInterner {
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
-            track_references: false,
+            lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -1446,6 +1446,8 @@ impl NodeInterner {
 
         let mut matching_impls = Vec::new();
 
+        let mut where_clause_errors = Vec::new();
+
         for (existing_object_type2, impl_kind) in impls {
             // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
@@ -1480,14 +1482,17 @@ impl NodeInterner {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
 
-                    if let Err(mut errors) = self.validate_where_clause(
+                    if let Err(errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
                         &mut fresh_bindings,
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
-                        errors.push(make_constraint());
-                        return Err(errors);
+                        // Only keep the first errors we get from a failing where clause
+                        if where_clause_errors.is_empty() {
+                            where_clause_errors.extend(errors);
+                        }
+                        continue;
                     }
                 }
 
@@ -1500,7 +1505,8 @@ impl NodeInterner {
             *type_bindings = fresh_bindings;
             Ok(impl_)
         } else if matching_impls.is_empty() {
-            Err(vec![make_constraint()])
+            where_clause_errors.push(make_constraint());
+            Err(where_clause_errors)
         } else {
             // multiple matching impls, type annotations needed
             Err(vec![])
@@ -1977,6 +1983,10 @@ impl NodeInterner {
         let ret = self.id_type(operator_expr);
         let env = Box::new(Type::Unit);
         (Type::Function(args, Box::new(ret.clone()), env), ret)
+    }
+
+    pub fn is_in_lsp_mode(&self) -> bool {
+        self.lsp_mode
     }
 }
 

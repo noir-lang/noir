@@ -1,5 +1,5 @@
 use acvm::{
-    acir::AcirField,
+    acir::{brillig::BitSize, AcirField},
     brillig_vm::brillig::{HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray},
     FieldElement,
 };
@@ -126,9 +126,9 @@ impl BrilligVariable {
 
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
-        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
-            HeapValueType::Simple(get_bit_size_from_ssa_type(typ))
-        }
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple(
+            BitSize::try_from_u32::<FieldElement>(get_bit_size_from_ssa_type(typ)).unwrap(),
+        ),
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
             size: typ.element_size() * size,

@@ -5,6 +5,7 @@ use crate::hash::poseidon2::Poseidon2Hasher;
 mod struct_def;
 mod trait_constraint;
 mod trait_def;
+mod typ;
 mod quoted;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
@@ -13,6 +14,10 @@ mod quoted;
 pub comptime fn unquote(code: Quoted) -> Quoted {
     code
 }
+
+/// Returns the type of any value
+#[builtin(type_of)]
+pub comptime fn type_of<T>(x: T) -> Type {}
 
 type DeriveFunction = fn(StructDefinition) -> Quoted;
 
