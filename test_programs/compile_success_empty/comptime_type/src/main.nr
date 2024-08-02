@@ -47,5 +47,13 @@ fn main() {
         let slice_type = type_of(slice);
         let slice_type_element_type = slice_type.as_slice().unwrap();
         assert_eq(slice_type_element_type, field_type_1);
+
+        // Check Type::as_array
+        assert(u8_type.as_array().is_none());
+
+        let array = [1, 2, 3];
+        let array_type = type_of(array);
+        let (array_type_element_type , _array_length) = array_type.as_array().unwrap();
+        assert_eq(array_type_element_type, field_type_1);
     }
 }

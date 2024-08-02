@@ -2,6 +2,9 @@ use crate::cmp::Eq;
 use crate::option::Option;
 
 impl Type {
+    #[builtin(type_as_array)]
+    fn as_array(self) -> Option<(Type, Type)> {}
+
     #[builtin(type_as_integer)]
     fn as_integer(self) -> Option<(bool, u8)> {}
 

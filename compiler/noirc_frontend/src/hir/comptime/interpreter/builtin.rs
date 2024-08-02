@@ -57,6 +57,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "trait_def_hash" => trait_def_hash(interner, arguments, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
+            "type_as_array" => type_as_array(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
             "type_as_slice" => type_as_slice(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
@@ -487,6 +488,21 @@ fn quoted_as_type(
         interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
 
     Ok(Value::Type(typ))
+}
+
+// fn as_array(self) -> Option<(Type, Type)>
+fn type_as_array(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Array(length, array_type) = typ {
+            Some(Value::Tuple(vec![Value::Type(*array_type), Value::Type(*length)]))
+        } else {
+            None
+        }
+    })
 }
 
 // fn as_integer(self) -> Option<(bool, u8)>
