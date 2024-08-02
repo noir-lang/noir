@@ -2291,6 +2291,13 @@ impl Type {
             }
         }
     }
+
+    pub fn slice_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Slice(element) => Some(element),
+            _ => None,
+        }
+    }
 }
 
 /// Wraps a given `expression` in `expression.as_slice()`

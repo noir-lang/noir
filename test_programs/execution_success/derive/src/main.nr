@@ -1,0 +1,35 @@
+#[derive_via(derive_do_nothing)]
+trait DoNothing {
+    fn do_nothing(self);
+}
+
+#[derive(DoNothing)]
+struct MyStruct { my_field: u32 }
+
+comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
+    let typ = s.as_type();
+    let generics = s.generics().join(quote {,});
+    quote {
+        impl<$generics> DoNothing for $typ {
+            fn do_nothing(_self: Self) {
+                // Traits can't tell us what to do
+                println("something");
+            }
+        }
+    }
+}
+
+// Test stdlib derive fns & multiple traits
+#[derive(Eq, Default)]
+struct MyOtherStruct {
+    field1: u32,
+    field2: u64,
+}
+
+fn main() {
+    let s = MyStruct { my_field: 1 };
+    s.do_nothing();
+
+    let o = MyOtherStruct::default();
+    assert_eq(o, o);
+}

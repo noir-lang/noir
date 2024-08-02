@@ -466,6 +466,8 @@ where
             assertion::assertion_eq(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
+            if_statement(expr_no_constructors.clone(), statement.clone()),
+            block_statement(statement.clone()),
             for_loop(expr_no_constructors.clone(), statement.clone()),
             break_statement(),
             continue_statement(),
@@ -557,7 +559,7 @@ fn pattern() -> impl NoirParser<Pattern> {
             .separated_by(just(Token::Comma))
             .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-        let struct_pattern = path()
+        let struct_pattern = path(super::parse_type())
             .then(struct_pattern_fields)
             .map_with_span(|(typename, fields), span| Pattern::Struct(typename, fields, span));
 
@@ -932,6 +934,28 @@ where
     })
 }
 
+fn if_statement<'a, P, S>(
+    expr_no_constructors: P,
+    statement: S,
+) -> impl NoirParser<StatementKind> + 'a
+where
+    P: ExprParser + 'a,
+    S: NoirParser<StatementKind> + 'a,
+{
+    if_expr(expr_no_constructors, statement).map_with_span(|expression_kind, span| {
+        StatementKind::Expression(Expression::new(expression_kind, span))
+    })
+}
+
+fn block_statement<'a, S>(statement: S) -> impl NoirParser<StatementKind> + 'a
+where
+    S: NoirParser<StatementKind> + 'a,
+{
+    block(statement).map_with_span(|block, span| {
+        StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
+    })
+}
+
 fn for_loop<'a, P, S>(expr_no_constructors: P, statement: S) -> impl NoirParser<StatementKind> + 'a
 where
     P: ExprParser + 'a,
@@ -1128,7 +1152,7 @@ fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> 
         .allow_trailing()
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-    path().then(args).map(ExpressionKind::constructor)
+    path(super::parse_type()).then(args).map(ExpressionKind::constructor)
 }
 
 fn constructor_field<P>(expr_parser: P) -> impl NoirParser<(Ident, Expression)>
@@ -1298,20 +1322,6 @@ mod test {
     fn parse_block() {
         parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();
 
-        // Regression for #1310: this should be parsed as a block and not a function call
-        let res =
-            parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
-        match unwrap_expr(&res.statements.last().unwrap().kind) {
-            // The `if` followed by a tuple is currently creates a block around both in case
-            // there was none to start with, so there is an extra block here.
-            ExpressionKind::Block(block) => {
-                assert_eq!(block.statements.len(), 2);
-                assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
-                assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
-            }
-            _ => unreachable!(),
-        }
-
         parse_all_failing(
             block(fresh_statement()),
             vec![
@@ -1323,14 +1333,6 @@ mod test {
                 "[[0,1,2,3,4]}",
             ],
         );
-    }
-
-    /// Extract an Statement::Expression from a statement or panic
-    fn unwrap_expr(stmt: &StatementKind) -> &ExpressionKind {
-        match stmt {
-            StatementKind::Expression(expr) => &expr.kind,
-            _ => unreachable!(),
-        }
     }
 
     #[test]
@@ -1628,5 +1630,41 @@ mod test {
 
         let failing = vec!["quote {}}", "quote a", "quote { { { } } } }"];
         parse_all_failing(quote(), failing);
+    }
+
+    #[test]
+    fn test_parses_block_statement_not_infix_expression() {
+        let src = r#"
+        {
+          {}
+          -1
+        }"#;
+        let (block_expr, _) = parse_recover(block(fresh_statement()), src);
+        let block_expr = block_expr.expect("Failed to parse module");
+        assert_eq!(block_expr.statements.len(), 2);
+    }
+
+    #[test]
+    fn test_parses_if_statement_not_infix_expression() {
+        let src = r#"
+        {
+          if 1 { 2 } else { 3 }
+          -1
+        }"#;
+        let (block_expr, _) = parse_recover(block(fresh_statement()), src);
+        let block_expr = block_expr.expect("Failed to parse module");
+        assert_eq!(block_expr.statements.len(), 2);
+    }
+
+    #[test]
+    fn test_parses_if_statement_followed_by_tuple_as_two_separate_statements() {
+        // Regression for #1310: this should not be parsed as a function call
+        let src = r#"
+        {
+          if 1 { 2 } else { 3 } (1, 2)
+        }"#;
+        let (block_expr, _) = parse_recover(block(fresh_statement()), src);
+        let block_expr = block_expr.expect("Failed to parse module");
+        assert_eq!(block_expr.statements.len(), 2);
     }
 }

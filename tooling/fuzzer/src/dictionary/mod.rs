@@ -113,14 +113,18 @@ fn build_dictionary_from_unconstrained_function<F: AcirField>(
     for opcode in &function.bytecode {
         match opcode {
             BrilligOpcode::Cast { bit_size, .. } => {
-                let field = 1u128.wrapping_shl(*bit_size);
+                let bit_size = bit_size.to_u32::<F>();
+
+                let field = 1u128.wrapping_shl(bit_size);
                 constants.insert(F::from(field));
                 constants.insert(F::from(field - 1));
             }
             BrilligOpcode::Const { bit_size, value, .. } => {
+                let bit_size = bit_size.to_u32::<F>();
+
                 constants.insert(*value);
 
-                let field = 1u128.wrapping_shl(*bit_size);
+                let field = 1u128.wrapping_shl(bit_size);
                 constants.insert(F::from(field));
                 constants.insert(F::from(field - 1));
             }

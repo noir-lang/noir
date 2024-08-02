@@ -1,3 +1,4 @@
+use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::parser::ParserError;
 use crate::parser::ParserErrorReason;
 use crate::token::SpannedToken;
@@ -39,6 +40,12 @@ impl From<LexerErrorKind> for ParserError {
     fn from(value: LexerErrorKind) -> Self {
         let span = value.span();
         ParserError::with_reason(ParserErrorReason::Lexer(value), span)
+    }
+}
+
+impl From<LexerErrorKind> for CompilationError {
+    fn from(error: LexerErrorKind) -> Self {
+        ParserError::from(error).into()
     }
 }
 

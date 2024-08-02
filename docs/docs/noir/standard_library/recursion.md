@@ -49,16 +49,16 @@ fn main(
     proof_b : [Field; 93],
 ) {
     std::verify_proof(
-        verification_key.as_slice(),
-        proof.as_slice(),
-        public_inputs.as_slice(),
+        verification_key,
+        proof,
+        public_inputs,
         key_hash
     );
 
     std::verify_proof(
-        verification_key.as_slice(),
-        proof_b.as_slice(),
-        public_inputs.as_slice(),
+        verification_key,
+        proof_b,
+        public_inputs,
         key_hash
     );
 }

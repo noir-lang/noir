@@ -23,39 +23,45 @@ pub(crate) fn on_hover_request(
     params: HoverParams,
 ) -> impl Future<Output = Result<Option<Hover>, ResponseError>> {
     let result = process_request(state, params.text_document_position_params, |args| {
-        args.interner.reference_at_location(args.location).map(|reference| {
+        args.interner.reference_at_location(args.location).and_then(|reference| {
             let location = args.interner.reference_location(reference);
             let lsp_location = to_lsp_location(args.files, location.file, location.span);
-            Hover {
+            format_reference(reference, &args).map(|formatted| Hover {
                 range: lsp_location.map(|location| location.range),
                 contents: HoverContents::Markup(MarkupContent {
                     kind: MarkupKind::Markdown,
-                    value: format_reference(reference, &args),
+                    value: formatted,
                 }),
-            }
+            })
         })
     });
 
     future::ready(result)
 }
 
-fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -> String {
+fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -> Option<String> {
     match reference {
         ReferenceId::Module(id) => format_module(id, args),
-        ReferenceId::Struct(id) => format_struct(id, args),
-        ReferenceId::StructMember(id, field_index) => format_struct_member(id, field_index, args),
-        ReferenceId::Trait(id) => format_trait(id, args),
-        ReferenceId::Global(id) => format_global(id, args),
-        ReferenceId::Function(id) => format_function(id, args),
-        ReferenceId::Alias(id) => format_alias(id, args),
-        ReferenceId::Local(id) => format_local(id, args),
+        ReferenceId::Struct(id) => Some(format_struct(id, args)),
+        ReferenceId::StructMember(id, field_index) => {
+            Some(format_struct_member(id, field_index, args))
+        }
+        ReferenceId::Trait(id) => Some(format_trait(id, args)),
+        ReferenceId::Global(id) => Some(format_global(id, args)),
+        ReferenceId::Function(id) => Some(format_function(id, args)),
+        ReferenceId::Alias(id) => Some(format_alias(id, args)),
+        ReferenceId::Local(id) => Some(format_local(id, args)),
         ReferenceId::Reference(location, _) => {
             format_reference(args.interner.find_referenced(location).unwrap(), args)
         }
     }
 }
-fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> String {
-    let module_attributes = args.interner.module_attributes(&id);
+fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<String> {
+    // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
+    // This is a workaround to avoid panicking in that case (which brings the LSP server down).
+    // Cases where this happens are related to generated code, so once that stops happening
+    // this won't be an issue anymore.
+    let module_attributes = args.interner.try_module_attributes(&id)?;
 
     let mut string = String::new();
     if format_parent_module_from_module_id(
@@ -68,7 +74,7 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("    ");
     string.push_str("mod ");
     string.push_str(&module_attributes.name);
-    string
+    Some(string)
 }
 
 fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {

@@ -166,7 +166,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                    self.elaborator.elaborate_item_from_comptime(None, |elaborator| {
+                    self.elaborate_item(None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
 
@@ -177,6 +177,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
             }
         }
+    }
+
+    fn elaborate_item<T>(
+        &mut self,
+        function: Option<FuncId>,
+        f: impl FnOnce(&mut Elaborator) -> T,
+    ) -> T {
+        self.unbind_generics_from_previous_function();
+        let result = self.elaborator.elaborate_item_from_comptime(function, f);
+        self.rebind_generics_from_previous_function();
+        result
     }
 
     fn call_special(
@@ -199,6 +210,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)
+            // Ignore debugger functions
+            } else if oracle.starts_with("__debug") {
+                Ok(Value::Unit)
             } else {
                 let item = format!("Comptime evaluation for oracle functions like {oracle}");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -244,8 +258,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub(super) fn enter_function(&mut self) -> (bool, Vec<HashMap<DefinitionId, Value>>) {
         // Drain every scope except the global scope
         let mut scope = Vec::new();
-        if self.elaborator.comptime_scopes.len() > 1 {
-            scope = self.elaborator.comptime_scopes.drain(1..).collect();
+        if self.elaborator.interner.comptime_scopes.len() > 1 {
+            scope = self.elaborator.interner.comptime_scopes.drain(1..).collect();
         }
         self.push_scope();
         (std::mem::take(&mut self.in_loop), scope)
@@ -255,21 +269,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.in_loop = state.0;
 
         // Keep only the global scope
-        self.elaborator.comptime_scopes.truncate(1);
-        self.elaborator.comptime_scopes.append(&mut state.1);
+        self.elaborator.interner.comptime_scopes.truncate(1);
+        self.elaborator.interner.comptime_scopes.append(&mut state.1);
     }
 
     pub(super) fn push_scope(&mut self) {
-        self.elaborator.comptime_scopes.push(HashMap::default());
+        self.elaborator.interner.comptime_scopes.push(HashMap::default());
     }
 
     pub(super) fn pop_scope(&mut self) {
-        self.elaborator.comptime_scopes.pop();
+        self.elaborator.interner.comptime_scopes.pop();
     }
 
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
-        self.elaborator.comptime_scopes.last_mut().unwrap()
+        self.elaborator.interner.comptime_scopes.last_mut().unwrap()
     }
 
     fn unbind_generics_from_previous_function(&mut self) {
@@ -325,21 +339,30 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let argument = Value::Pointer(Shared::new(argument), true);
                 self.define_pattern(pattern, typ, argument, location)
             }
-            HirPattern::Tuple(pattern_fields, _) => match (argument, typ) {
-                (Value::Tuple(fields), Type::Tuple(type_fields))
-                    if fields.len() == pattern_fields.len() =>
-                {
-                    for ((pattern, typ), argument) in
-                        pattern_fields.iter().zip(type_fields).zip(fields)
+            HirPattern::Tuple(pattern_fields, _) => {
+                let typ = &typ.follow_bindings();
+
+                match (argument, typ) {
+                    (Value::Tuple(fields), Type::Tuple(type_fields))
+                        if fields.len() == pattern_fields.len() =>
                     {
-                        self.define_pattern(pattern, typ, argument, location)?;
+                        for ((pattern, typ), argument) in
+                            pattern_fields.iter().zip(type_fields).zip(fields)
+                        {
+                            self.define_pattern(pattern, typ, argument, location)?;
+                        }
+                        Ok(())
                     }
-                    Ok(())
+                    (value, _) => {
+                        let actual = value.get_type().into_owned();
+                        Err(InterpreterError::TypeMismatch {
+                            expected: typ.clone(),
+                            actual,
+                            location,
+                        })
+                    }
                 }
-                (value, _) => {
-                    Err(InterpreterError::TypeMismatch { expected: typ.clone(), value, location })
-                }
-            },
+            }
             HirPattern::Struct(struct_type, pattern_fields, _) => {
                 self.push_scope();
 
@@ -348,7 +371,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         for (field_name, field_pattern) in pattern_fields {
                             let field = fields.get(&field_name.0.contents).ok_or_else(|| {
                                 InterpreterError::ExpectedStructToHaveField {
-                                    value: Value::Struct(fields.clone(), struct_type.clone()),
+                                    typ: struct_type.clone(),
                                     field_name: field_name.0.contents.clone(),
                                     location,
                                 }
@@ -366,7 +389,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     }
                     value => Err(InterpreterError::TypeMismatch {
                         expected: typ.clone(),
-                        value,
+                        actual: value.get_type().into_owned(),
                         location,
                     }),
                 };
@@ -388,7 +411,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return Ok(());
         }
 
-        for scope in self.elaborator.comptime_scopes.iter_mut().rev() {
+        for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 entry.insert(argument);
                 return Ok(());
@@ -402,7 +425,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     pub fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
-        for scope in self.elaborator.comptime_scopes.iter().rev() {
+        for scope in self.elaborator.interner.comptime_scopes.iter().rev() {
             if let Some(value) = scope.get(&id) {
                 return Ok(value.clone());
             }
@@ -555,7 +578,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     consuming = false;
 
                     if let Some(value) = values.pop_front() {
-                        result.push_str(&value.to_string());
+                        result.push_str(&value.display(self.elaborator.interner).to_string());
                     }
                 }
                 other if !consuming => {
@@ -755,7 +778,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 value => {
                     let location = self.elaborator.interner.expr_location(&id);
                     let operator = "minus";
-                    Err(InterpreterError::InvalidValueForUnary { value, location, operator })
+                    let typ = value.get_type().into_owned();
+                    Err(InterpreterError::InvalidValueForUnary { typ, location, operator })
                 }
             },
             UnaryOp::Not => match rhs {
@@ -770,7 +794,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Value::U64(value) => Ok(Value::U64(!value)),
                 value => {
                     let location = self.elaborator.interner.expr_location(&id);
-                    Err(InterpreterError::InvalidValueForUnary { value, location, operator: "not" })
+                    let typ = value.get_type().into_owned();
+                    Err(InterpreterError::InvalidValueForUnary { typ, location, operator: "not" })
                 }
             },
             UnaryOp::MutableReference => {
@@ -786,7 +811,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Value::Pointer(element, _) => Ok(element.borrow().clone()),
                 value => {
                     let location = self.elaborator.interner.expr_location(&id);
-                    Err(InterpreterError::NonPointerDereferenced { value, location })
+                    let typ = value.get_type().into_owned();
+                    Err(InterpreterError::NonPointerDereferenced { typ, location })
                 }
             },
         }
@@ -800,6 +826,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return self.evaluate_overloaded_infix(infix, lhs, rhs, id);
         }
 
+        let make_error = |this: &mut Self, lhs: Value, rhs: Value, operator| {
+            let location = this.elaborator.interner.expr_location(&id);
+            let lhs = lhs.get_type().into_owned();
+            let rhs = rhs.get_type().into_owned();
+            Err(InvalidValuesForBinary { lhs, rhs, location, operator })
+        };
+
         use InterpreterError::InvalidValuesForBinary;
         match infix.operator.kind {
             BinaryOpKind::Add => match (lhs, rhs) {
@@ -812,10 +845,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs + rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs + rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs + rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "+" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "+"),
             },
             BinaryOpKind::Subtract => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs - rhs)),
@@ -827,10 +857,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs - rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs - rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs - rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "-" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "-"),
             },
             BinaryOpKind::Multiply => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs * rhs)),
@@ -842,10 +869,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs * rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs * rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs * rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "*" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "*"),
             },
             BinaryOpKind::Divide => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Field(lhs / rhs)),
@@ -857,10 +881,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs / rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs / rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs / rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "/" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "/"),
             },
             BinaryOpKind::Equal => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs == rhs)),
@@ -872,10 +893,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs == rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "==" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "=="),
             },
             BinaryOpKind::NotEqual => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs != rhs)),
@@ -887,10 +905,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs != rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "!=" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "!="),
             },
             BinaryOpKind::Less => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs < rhs)),
@@ -902,10 +917,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs < rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs < rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "<"),
             },
             BinaryOpKind::LessEqual => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs <= rhs)),
@@ -917,10 +929,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs <= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs <= rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<=" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "<="),
             },
             BinaryOpKind::Greater => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs > rhs)),
@@ -932,10 +941,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs > rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs > rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, ">"),
             },
             BinaryOpKind::GreaterEqual => match (lhs, rhs) {
                 (Value::Field(lhs), Value::Field(rhs)) => Ok(Value::Bool(lhs >= rhs)),
@@ -947,10 +953,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs >= rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs >= rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">=" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, ">="),
             },
             BinaryOpKind::And => match (lhs, rhs) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs & rhs)),
@@ -962,10 +965,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs & rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs & rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs & rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "&" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "&"),
             },
             BinaryOpKind::Or => match (lhs, rhs) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs | rhs)),
@@ -977,10 +977,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs | rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs | rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs | rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "|" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "|"),
             },
             BinaryOpKind::Xor => match (lhs, rhs) {
                 (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs ^ rhs)),
@@ -992,10 +989,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs ^ rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs ^ rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs ^ rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "^" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "^"),
             },
             BinaryOpKind::ShiftRight => match (lhs, rhs) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs >> rhs)),
@@ -1006,10 +1000,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs >> rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs >> rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs >> rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: ">>" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, ">>"),
             },
             BinaryOpKind::ShiftLeft => match (lhs, rhs) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs << rhs)),
@@ -1020,10 +1011,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs << rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs << rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs << rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "<<" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "<<"),
             },
             BinaryOpKind::Modulo => match (lhs, rhs) {
                 (Value::I8(lhs), Value::I8(rhs)) => Ok(Value::I8(lhs % rhs)),
@@ -1034,10 +1022,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::U16(lhs % rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::U32(lhs % rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::U64(lhs % rhs)),
-                (lhs, rhs) => {
-                    let location = self.elaborator.interner.expr_location(&id);
-                    Err(InvalidValuesForBinary { lhs, rhs, location, operator: "%" })
-                }
+                (lhs, rhs) => make_error(self, lhs, rhs, "%"),
             },
         }
     }
@@ -1141,7 +1126,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Array(array, _) => array,
             Value::Slice(array, _) => array,
             value => {
-                return Err(InterpreterError::NonArrayIndexed { value, location });
+                let typ = value.get_type().into_owned();
+                return Err(InterpreterError::NonArrayIndexed { typ, location });
             }
         };
 
@@ -1161,7 +1147,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::U32(value) => value as usize,
             Value::U64(value) => value as usize,
             value => {
-                return Err(InterpreterError::NonIntegerUsedAsIndex { value, location });
+                let typ = value.get_type().into_owned();
+                return Err(InterpreterError::NonIntegerUsedAsIndex { typ, location });
             }
         };
 
@@ -1208,7 +1195,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             value => {
                 let location = self.elaborator.interner.expr_location(&id);
-                return Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location });
+                let typ = value.get_type().into_owned();
+                return Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location });
             }
         };
 
@@ -1216,7 +1204,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let location = self.elaborator.interner.expr_location(&id);
             let value = Value::Struct(fields, struct_type);
             let field_name = access.rhs.0.contents;
-            InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+            let typ = value.get_type().into_owned();
+            InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
         })
     }
 
@@ -1233,17 +1222,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator.interner, location)?;
-                    let expr = self
-                        .elaborator
-                        .elaborate_item_from_comptime(self.current_function, |elab| {
-                            elab.elaborate_expression(expr).0
-                        });
+                    let expr = self.elaborate_item(self.current_function, |elaborator| {
+                        elaborator.elaborate_expression(expr).0
+                    });
                     result = self.evaluate(expr)?;
                 }
                 Ok(result)
             }
             Value::Closure(closure, env, _) => self.call_closure(closure, env, arguments, location),
-            value => Err(InterpreterError::NonFunctionCalled { value, location }),
+            value => {
+                let typ = value.get_type().into_owned();
+                Err(InterpreterError::NonFunctionCalled { typ, location })
+            }
         }
     }
 
@@ -1319,7 +1309,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             value => {
                 let location = interner.expr_location(&id);
-                return Err(InterpreterError::NonNumericCasted { value, location });
+                let typ = value.get_type().into_owned();
+                return Err(InterpreterError::NonNumericCasted { typ, location });
             }
         };
 
@@ -1384,7 +1375,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Bool(value) => value,
             value => {
                 let location = self.elaborator.interner.expr_location(&id);
-                return Err(InterpreterError::NonBoolUsedInIf { value, location });
+                let typ = value.get_type().into_owned();
+                return Err(InterpreterError::NonBoolUsedInIf { typ, location });
             }
         };
 
@@ -1424,8 +1416,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&expr_id);
-        tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
-        Ok(Value::Code(Rc::new(tokens)))
+        let tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
+        Ok(Value::Quoted(Rc::new(tokens)))
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
@@ -1462,11 +1454,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Bool(false) => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
+                let message =
+                    message.map(|value| value.display(self.elaborator.interner).to_string());
                 Err(InterpreterError::FailingConstraint { location, message })
             }
             value => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
-                Err(InterpreterError::NonBoolUsedInConstrain { value, location })
+                let typ = value.get_type().into_owned();
+                Err(InterpreterError::NonBoolUsedInConstrain { typ, location })
             }
         }
     }
@@ -1486,7 +1481,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         *value.borrow_mut() = rhs;
                         Ok(())
                     }
-                    value => Err(InterpreterError::NonPointerDereferenced { value, location }),
+                    value => {
+                        let typ = value.get_type().into_owned();
+                        Err(InterpreterError::NonPointerDereferenced { typ, location })
+                    }
                 }
             }
             HirLValue::MemberAccess { object, field_name, field_index, typ: _, location } => {
@@ -1495,7 +1493,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let index = field_index.ok_or_else(|| {
                     let value = object_value.clone();
                     let field_name = field_name.to_string();
-                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                    let typ = value.get_type().into_owned();
+                    InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
                 })?;
 
                 match object_value {
@@ -1508,7 +1507,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
-                        Err(InterpreterError::NonTupleOrStructInMemberAccess { value, location })
+                        let typ = value.get_type().into_owned();
+                        Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location })
                     }
                 }
             }
@@ -1540,7 +1540,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 match self.evaluate_lvalue(lvalue)? {
                     Value::Pointer(value, _) => Ok(value.borrow().clone()),
                     value => {
-                        Err(InterpreterError::NonPointerDereferenced { value, location: *location })
+                        let typ = value.get_type().into_owned();
+                        Err(InterpreterError::NonPointerDereferenced { typ, location: *location })
                     }
                 }
             }
@@ -1551,14 +1552,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let value = object_value.clone();
                     let field_name = field_name.to_string();
                     let location = *location;
-                    InterpreterError::ExpectedStructToHaveField { value, field_name, location }
+                    let typ = value.get_type().into_owned();
+                    InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
                 })?;
 
                 match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
                     Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
-                        value,
+                        typ: value.get_type().into_owned(),
                         location: *location,
                     }),
                 }
@@ -1586,7 +1588,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Value::U64(value) => Ok((value as i128, |i| Value::U64(i as u64))),
                 value => {
                     let location = this.elaborator.interner.expr_location(&expr);
-                    Err(InterpreterError::NonIntegerUsedInLoop { value, location })
+                    let typ = value.get_type().into_owned();
+                    Err(InterpreterError::NonIntegerUsedInLoop { typ, location })
                 }
             }
         };
@@ -1640,9 +1643,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         if print_newline {
-            println!("{}", arguments[1].0);
+            println!("{}", arguments[1].0.display(self.elaborator.interner));
         } else {
-            print!("{}", arguments[1].0);
+            print!("{}", arguments[1].0.display(self.elaborator.interner));
         }
 
         Ok(Value::Unit)
