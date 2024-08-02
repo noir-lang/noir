@@ -1300,6 +1300,11 @@ impl<'context> Elaborator<'context> {
             self.add_generics(&trait_impl.generics);
             trait_impl.resolved_generics = self.generics.clone();
 
+            for (_, _, method) in trait_impl.methods.functions.iter_mut() {
+                // Attach any trait constraints on the impl to the function
+                method.def.where_clause.append(&mut trait_impl.where_clause.clone());
+            }
+
             // Fetch trait constraints here
             let trait_generics = trait_impl
                 .trait_id
