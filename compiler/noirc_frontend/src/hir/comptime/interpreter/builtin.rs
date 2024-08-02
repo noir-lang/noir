@@ -102,6 +102,19 @@ pub(super) fn check_two_arguments(
     Ok((argument1, argument2))
 }
 
+pub(super) fn check_three_arguments(
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<((Value, Location), (Value, Location), (Value, Location))> {
+    check_argument_count(3, &arguments, location)?;
+
+    let argument3 = arguments.pop().unwrap();
+    let argument2 = arguments.pop().unwrap();
+    let argument1 = arguments.pop().unwrap();
+
+    Ok((argument1, argument2, argument3))
+}
+
 fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IResult<T> {
     let message = Some(Value::String(Rc::new(message.into())));
     Err(InterpreterError::FailingConstraint { message, location })
@@ -403,15 +416,14 @@ fn slice_pop_back(
 
 fn slice_insert(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(3, &arguments, location)?;
+    let ((slice, _), (index, _), (element, _)) = check_three_arguments(arguments, location)?;
 
-    let (element, _) = arguments.pop().unwrap();
-    let index = get_u32(arguments.pop().unwrap().0, location)?;
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
-    values.insert(index as usize, element);
+    let index = get_u32(index, location)? as usize;
+    let (mut values, typ) = get_slice(interner, slice, location)?;
+    values.insert(index, element);
     Ok(Value::Slice(values, typ))
 }
 
