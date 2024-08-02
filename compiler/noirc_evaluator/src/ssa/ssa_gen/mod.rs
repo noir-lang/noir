@@ -415,11 +415,14 @@ impl<'a> FunctionContext<'a> {
             let array_type = &self.builder.type_of_value(array);
             match array_type {
                 Type::Slice(_) => {
-                    self.codegen_slice_access_check(index, length);
+                    self.codegen_slice_access_check(
+                        index,
+                        length.expect("Expected a slice length"),
+                    );
                 }
                 Type::Array(_, length) => {
                     let length = &self.builder.numeric_constant(*length, Type::unsigned(32));
-                    self.codegen_slice_access_check(index, Some(*length));
+                    self.codegen_slice_access_check(index, *length);
                 }
                 _ => unreachable!("must have array or slice but got {array_type}"),
             }
@@ -439,12 +442,11 @@ impl<'a> FunctionContext<'a> {
     fn codegen_slice_access_check(
         &mut self,
         index: super::ir::value::ValueId,
-        length: Option<super::ir::value::ValueId>,
+        length: super::ir::value::ValueId,
     ) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
-        let array_len = self
-            .make_array_index(length.expect("ICE: a length must be supplied for indexing slices"));
+        let array_len = self.make_array_index(length);
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, Type::bool());
@@ -639,10 +641,10 @@ impl<'a> FunctionContext<'a> {
                     // can be converted to a slice push back
                     let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
 
-                    self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
+                    self.codegen_slice_access_check(arguments[2], len_plus_one);
                 }
                 Intrinsic::SliceRemove => {
-                    self.codegen_slice_access_check(arguments[2], Some(arguments[0]));
+                    self.codegen_slice_access_check(arguments[2], arguments[0]);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks

@@ -773,10 +773,10 @@ impl<'a> FunctionContext<'a> {
                 location,
             };
 
-            let length = Some(array_values[0]);
+            let length = array_values[0];
             self.codegen_slice_access_check(index, length);
 
-            (array_values[1], index, slice_lvalue, length)
+            (array_values[1], index, slice_lvalue, Some(length))
         } else {
             let array_type = &self.builder.type_of_value(array_values[0]);
             let Type::Array(_, length) = array_type else {
@@ -784,7 +784,7 @@ impl<'a> FunctionContext<'a> {
             };
 
             let length = &self.builder.numeric_constant(*length, Type::unsigned(32));
-            self.codegen_slice_access_check(index, Some(*length));
+            self.codegen_slice_access_check(index, *length);
 
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
