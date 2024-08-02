@@ -1,7 +1,6 @@
 include "fixed/byte_lookup.pil";
 
 namespace binary(256);
-
     pol commit clk;
 
     // Selector for Binary Operation

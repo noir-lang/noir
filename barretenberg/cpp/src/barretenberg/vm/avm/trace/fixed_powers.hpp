@@ -4,14 +4,15 @@
 #include <vector>
 
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/vm/avm/generated/relations/powers.hpp"
 #include "barretenberg/vm/avm/trace/common.hpp"
 
 namespace bb::avm_trace {
 
 class FixedPowersTable {
   public:
-    using PowersRow = bb::Avm_vm::PowersRow<FF>;
+    struct PowersRow {
+        FF powers_power_of_2;
+    };
 
     static const FixedPowersTable& get();
 

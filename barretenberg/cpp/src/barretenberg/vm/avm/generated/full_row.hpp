@@ -10,9 +10,20 @@
 namespace bb {
 
 template <typename FF> struct AvmFullRow {
+    FF byte_lookup_sel_bin{};
+    FF byte_lookup_table_byte_lengths{};
+    FF byte_lookup_table_in_tags{};
+    FF byte_lookup_table_input_a{};
+    FF byte_lookup_table_input_b{};
+    FF byte_lookup_table_op_id{};
+    FF byte_lookup_table_output{};
+    FF gas_da_gas_fixed_table{};
+    FF gas_l2_gas_fixed_table{};
+    FF gas_sel_gas_cost{};
     FF main_clk{};
     FF main_sel_first{};
     FF main_zeroes{};
+    FF powers_power_of_2{};
     FF kernel_kernel_inputs{};
     FF kernel_kernel_value_out{};
     FF kernel_kernel_side_effect_out{};
@@ -115,21 +126,11 @@ template <typename FF> struct AvmFullRow {
     FF binary_op_id{};
     FF binary_sel_bin{};
     FF binary_start{};
-    FF byte_lookup_sel_bin{};
-    FF byte_lookup_table_byte_lengths{};
-    FF byte_lookup_table_in_tags{};
-    FF byte_lookup_table_input_a{};
-    FF byte_lookup_table_input_b{};
-    FF byte_lookup_table_op_id{};
-    FF byte_lookup_table_output{};
     FF conversion_clk{};
     FF conversion_input{};
     FF conversion_num_limbs{};
     FF conversion_radix{};
     FF conversion_sel_to_radix_le{};
-    FF gas_da_gas_fixed_table{};
-    FF gas_l2_gas_fixed_table{};
-    FF gas_sel_gas_cost{};
     FF keccakf1600_clk{};
     FF keccakf1600_input{};
     FF keccakf1600_output{};
@@ -588,7 +589,6 @@ template <typename FF> struct AvmFullRow {
     FF poseidon2_mem_addr_write_d{};
     FF poseidon2_output_addr{};
     FF poseidon2_sel_poseidon_perm{};
-    FF powers_power_of_2{};
     FF sha256_clk{};
     FF sha256_input{};
     FF sha256_output{};

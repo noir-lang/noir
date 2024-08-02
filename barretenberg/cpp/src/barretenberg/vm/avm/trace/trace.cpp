@@ -54,12 +54,12 @@ uint32_t finalize_bin_trace_lookup_for_testing(std::vector<Row>& main_trace, Avm
         }
         if (clk > (main_trace.size() - 1)) {
             main_trace.push_back(Row{
-                .main_clk = FF(clk),
                 .byte_lookup_sel_bin = FF(1),
                 .byte_lookup_table_input_a = a,
                 .byte_lookup_table_input_b = b,
                 .byte_lookup_table_op_id = op_id,
                 .byte_lookup_table_output = bit_op,
+                .main_clk = FF(clk),
                 .lookup_byte_operations_counts = count,
             });
         } else {
@@ -4398,7 +4398,6 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
 
     // Assume that gas_trace entries are ordered by a strictly increasing clk sequence.
     for (auto const& gas_entry : gas_trace) {
-
         // Filling potential gap between two gas_trace entries
         // Remaining gas values remain unchanged.
         while (gas_entry.clk > current_clk) {

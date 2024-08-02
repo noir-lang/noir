@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/vm/avm/generated/relations/gas.hpp"
 #include "barretenberg/vm/avm/trace/common.hpp"
 #include "barretenberg/vm/avm/trace/opcode.hpp"
 
@@ -12,7 +11,11 @@ namespace bb::avm_trace {
 
 class FixedGasTable {
   public:
-    using GasRow = bb::Avm_vm::GasRow<FF>;
+    struct GasRow {
+        FF gas_sel_gas_cost;
+        FF gas_l2_gas_fixed_table;
+        FF gas_da_gas_fixed_table;
+    };
 
     static const FixedGasTable& get();
 

@@ -24,9 +24,20 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
     }
 
     for (size_t i = 0; i < rows.size(); i++) {
+        polys.byte_lookup_sel_bin[i] = rows[i].byte_lookup_sel_bin;
+        polys.byte_lookup_table_byte_lengths[i] = rows[i].byte_lookup_table_byte_lengths;
+        polys.byte_lookup_table_in_tags[i] = rows[i].byte_lookup_table_in_tags;
+        polys.byte_lookup_table_input_a[i] = rows[i].byte_lookup_table_input_a;
+        polys.byte_lookup_table_input_b[i] = rows[i].byte_lookup_table_input_b;
+        polys.byte_lookup_table_op_id[i] = rows[i].byte_lookup_table_op_id;
+        polys.byte_lookup_table_output[i] = rows[i].byte_lookup_table_output;
+        polys.gas_da_gas_fixed_table[i] = rows[i].gas_da_gas_fixed_table;
+        polys.gas_l2_gas_fixed_table[i] = rows[i].gas_l2_gas_fixed_table;
+        polys.gas_sel_gas_cost[i] = rows[i].gas_sel_gas_cost;
         polys.main_clk[i] = rows[i].main_clk;
         polys.main_sel_first[i] = rows[i].main_sel_first;
         polys.main_zeroes[i] = rows[i].main_zeroes;
+        polys.powers_power_of_2[i] = rows[i].powers_power_of_2;
         polys.kernel_kernel_inputs[i] = rows[i].kernel_kernel_inputs;
         polys.kernel_kernel_value_out[i] = rows[i].kernel_kernel_value_out;
         polys.kernel_kernel_side_effect_out[i] = rows[i].kernel_kernel_side_effect_out;
@@ -129,21 +140,11 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.binary_op_id[i] = rows[i].binary_op_id;
         polys.binary_sel_bin[i] = rows[i].binary_sel_bin;
         polys.binary_start[i] = rows[i].binary_start;
-        polys.byte_lookup_sel_bin[i] = rows[i].byte_lookup_sel_bin;
-        polys.byte_lookup_table_byte_lengths[i] = rows[i].byte_lookup_table_byte_lengths;
-        polys.byte_lookup_table_in_tags[i] = rows[i].byte_lookup_table_in_tags;
-        polys.byte_lookup_table_input_a[i] = rows[i].byte_lookup_table_input_a;
-        polys.byte_lookup_table_input_b[i] = rows[i].byte_lookup_table_input_b;
-        polys.byte_lookup_table_op_id[i] = rows[i].byte_lookup_table_op_id;
-        polys.byte_lookup_table_output[i] = rows[i].byte_lookup_table_output;
         polys.conversion_clk[i] = rows[i].conversion_clk;
         polys.conversion_input[i] = rows[i].conversion_input;
         polys.conversion_num_limbs[i] = rows[i].conversion_num_limbs;
         polys.conversion_radix[i] = rows[i].conversion_radix;
         polys.conversion_sel_to_radix_le[i] = rows[i].conversion_sel_to_radix_le;
-        polys.gas_da_gas_fixed_table[i] = rows[i].gas_da_gas_fixed_table;
-        polys.gas_l2_gas_fixed_table[i] = rows[i].gas_l2_gas_fixed_table;
-        polys.gas_sel_gas_cost[i] = rows[i].gas_sel_gas_cost;
         polys.keccakf1600_clk[i] = rows[i].keccakf1600_clk;
         polys.keccakf1600_input[i] = rows[i].keccakf1600_input;
         polys.keccakf1600_output[i] = rows[i].keccakf1600_output;
@@ -602,7 +603,6 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.poseidon2_mem_addr_write_d[i] = rows[i].poseidon2_mem_addr_write_d;
         polys.poseidon2_output_addr[i] = rows[i].poseidon2_output_addr;
         polys.poseidon2_sel_poseidon_perm[i] = rows[i].poseidon2_sel_poseidon_perm;
-        polys.powers_power_of_2[i] = rows[i].powers_power_of_2;
         polys.sha256_clk[i] = rows[i].sha256_clk;
         polys.sha256_input[i] = rows[i].sha256_input;
         polys.sha256_output[i] = rows[i].sha256_output;
