@@ -772,8 +772,20 @@ impl<'a> FunctionContext<'a> {
                 slice_lvalue: array_lvalue,
                 location,
             };
-            (array_values[1], index, slice_lvalue, Some(array_values[0]))
+
+            let length = Some(array_values[0]);
+            self.codegen_slice_access_check(index, length);
+
+            (array_values[1], index, slice_lvalue, length)
         } else {
+            let array_type = &self.builder.type_of_value(array_values[0]);
+            let Type::Array(_, length) = array_type else {
+                panic!("Expected array type");
+            };
+
+            let length = &self.builder.numeric_constant(*length, Type::unsigned(32));
+            self.codegen_slice_access_check(index, Some(*length));
+
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
             (array_values[0], index, array_lvalue, None)
@@ -859,19 +871,6 @@ impl<'a> FunctionContext<'a> {
         index: ValueId,
         location: Location,
     ) -> ValueId {
-        let array_type = &self.builder.type_of_value(array);
-        match array_type {
-            Type::Slice(_) => {
-                // TODO
-                // self.codegen_slice_access_check(index, length);
-            }
-            Type::Array(_, length) => {
-                let length = &self.builder.numeric_constant(*length, Type::unsigned(32));
-                self.codegen_slice_access_check(index, Some(*length));
-            }
-            _ => unreachable!("must have array or slice but got {array_type}"),
-        }
-
         let index = self.make_array_index(index);
         let element_size =
             self.builder.numeric_constant(self.element_size(array), Type::unsigned(SSA_WORD_SIZE));
