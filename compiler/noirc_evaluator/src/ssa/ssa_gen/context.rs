@@ -747,7 +747,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref, length) where the lvalue_ref records the
+    /// This will return a tuple of four elements, (array, index, lvalue_ref, length), where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
     fn index_lvalue(
         &mut self,
@@ -761,33 +761,17 @@ impl<'a> FunctionContext<'a> {
         let array_values = old_array.clone().into_value_list(self);
 
         let location = *location;
-        // A slice is represented as a tuple (length, slice contents).
-        // We need to fetch the second value.
-        Ok(if array_values.len() > 1 {
-            let slice_lvalue = LValue::SliceIndex {
-                old_slice: old_array,
-                index,
-                slice_lvalue: array_lvalue,
-                location,
-            };
+        let (array_or_slice, length) = self.extract_indexable_type_length(&array_values);
 
-            let length = array_values[0];
-            self.codegen_slice_access_check(index, length);
+        self.codegen_slice_access_check(index, length);
 
-            (array_values[1], index, slice_lvalue, length)
+        let lvalue_ref = if array_values.len() > 1 {
+            LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue, location }
         } else {
-            let array_type = &self.builder.type_of_value(array_values[0]);
-            let Type::Array(_, length) = array_type else {
-                panic!("Expected array type");
-            };
+            LValue::Index { old_array: array_or_slice, index, array_lvalue, location }
+        };
 
-            let length = self.builder.numeric_constant(*length, Type::unsigned(32));
-            self.codegen_slice_access_check(index, length);
-
-            let array_lvalue =
-                LValue::Index { old_array: array_values[0], index, array_lvalue, location };
-            (array_values[0], index, array_lvalue, length)
-        })
+        Ok((array_or_slice, index, lvalue_ref, length))
     }
 
     fn extract_current_value_recursive(

@@ -368,21 +368,15 @@ impl<'a> FunctionContext<'a> {
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
         let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
-        // Slices are represented as a tuple in the form: (length, slice contents).
-        // Thus, slices require two value ids for their representation.
-        let (array, length) = if array_or_slice.len() > 1 {
-            (array_or_slice[1], array_or_slice[0])
-        } else {
-            let array_type = &self.builder.type_of_value(array_or_slice[0]);
-            let Type::Array(_, length) = array_type else {
-                panic!("Expected array type");
-            };
+        let (array_or_slice, length) = self.extract_indexable_type_length(&array_or_slice);
 
-            let length = self.builder.numeric_constant(*length, Type::unsigned(32));
-            (array_or_slice[0], length)
-        };
-
-        self.codegen_array_index(array, index_value, &index.element_type, index.location, length)
+        self.codegen_array_index(
+            array_or_slice,
+            index_value,
+            &index.element_type,
+            index.location,
+            length,
+        )
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -738,5 +732,24 @@ impl<'a> FunctionContext<'a> {
         let new_loop_index = self.make_offset(loop_.loop_index, 1);
         self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
         Self::unit_value()
+    }
+
+    // Given an indexable type (array or slice) that can either be a single value (an array) or two values (a slice),
+    // returns two values where the first one is the array or the slice, and the second one is the
+    // length.
+    fn extract_indexable_type_length(&mut self, array_or_slice: &[ValueId]) -> (ValueId, ValueId) {
+        // Slices are represented as a tuple in the form: (length, slice contents).
+        // Thus, slices require two value ids for their representation.
+        if array_or_slice.len() > 1 {
+            (array_or_slice[1], array_or_slice[0])
+        } else {
+            let array_type = &self.builder.type_of_value(array_or_slice[0]);
+            let Type::Array(_, length) = array_type else {
+                panic!("Expected array type when array is just a single value");
+            };
+
+            let length = self.builder.numeric_constant(*length, Type::unsigned(32));
+            (array_or_slice[0], length)
+        }
     }
 }
