@@ -1,5 +1,5 @@
 import { type FunctionAbi, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -91,6 +91,6 @@ export class FunctionData {
   }
 
   hash(): Fr {
-    return pedersenHash(this.toFields(), GeneratorIndex.FUNCTION_DATA);
+    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.FUNCTION_DATA);
   }
 }

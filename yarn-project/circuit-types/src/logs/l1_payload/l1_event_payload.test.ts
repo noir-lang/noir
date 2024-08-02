@@ -1,6 +1,6 @@
 import { AztecAddress, KeyValidationRequest, computeOvskApp, derivePublicKeyFromSecretKey } from '@aztec/circuits.js';
 import { EventSelector } from '@aztec/foundation/abi';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 
 import { EncryptedL2Log } from '../encrypted_l2_log.js';
@@ -28,7 +28,7 @@ describe('L1 Event Payload', () => {
     beforeAll(() => {
       contractAddress = AztecAddress.random();
       randomness = Fr.random();
-      maskedContractAddress = pedersenHash([contractAddress, randomness], 0);
+      maskedContractAddress = poseidon2HashWithSeparator([contractAddress, randomness], 0);
 
       payload = new L1EventPayload(Event.random(), contractAddress, randomness, EventSelector.random());
 

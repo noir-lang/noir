@@ -14,7 +14,7 @@ use dep::protocol_types::{
 use crate::oracle::logs_traits::{LensForEncryptedLog, ToBytesForUnencryptedLog};
 
 pub fn compute_secret_hash(secret: Field) -> Field {
-    pedersen_hash([secret], GENERATOR_INDEX__SECRET_HASH)
+    poseidon2_hash_with_separator([secret], GENERATOR_INDEX__SECRET_HASH)
 }
 
 pub fn compute_unencrypted_log_hash<T, let N: u32, let M: u32>(
@@ -72,7 +72,7 @@ pub fn compute_message_hash(
 // The nullifier of a l1 to l2 message is the hash of the message salted with the secret and index of the message hash
 // in the L1 to L2 message tree
 pub fn compute_message_nullifier(message_hash: Field, secret: Field, leaf_index: Field) -> Field {
-    pedersen_hash(
+    poseidon2_hash_with_separator(
         [message_hash, secret, leaf_index],
         GENERATOR_INDEX__MESSAGE_NULLIFIER
     )

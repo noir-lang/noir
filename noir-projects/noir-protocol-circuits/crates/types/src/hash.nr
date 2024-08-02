@@ -35,7 +35,7 @@ pub fn private_functions_root_from_siblings(
 
 fn compute_note_hash_nonce(tx_hash: Field, note_index_in_tx: u32) -> Field {
     // Hashing tx hash with note index in tx is guaranteed to be unique
-    pedersen_hash(
+    poseidon2_hash_with_separator(
         [
         tx_hash,
         note_index_in_tx as Field
@@ -46,11 +46,11 @@ fn compute_note_hash_nonce(tx_hash: Field, note_index_in_tx: u32) -> Field {
 
 pub fn compute_unique_note_hash(nonce: Field, slotted_note_hash: Field) -> Field {
     let inputs = [nonce, slotted_note_hash];
-    pedersen_hash(inputs, GENERATOR_INDEX__UNIQUE_NOTE_HASH)
+    poseidon2_hash_with_separator(inputs, GENERATOR_INDEX__UNIQUE_NOTE_HASH)
 }
 
 pub fn compute_siloed_note_hash(app: AztecAddress, unique_note_hash: Field) -> Field {
-    pedersen_hash(
+    poseidon2_hash_with_separator(
         [
         app.to_field(),
         unique_note_hash
@@ -70,7 +70,7 @@ pub fn silo_note_hash(note_hash: ScopedNoteHash, tx_hash: Field, note_index_in_t
 }
 
 pub fn compute_siloed_nullifier(app: AztecAddress, nullifier: Field) -> Field {
-    pedersen_hash(
+    poseidon2_hash_with_separator(
         [
         app.to_field(),
         nullifier
@@ -90,7 +90,7 @@ pub fn silo_nullifier(nullifier: ScopedNullifier) -> Field {
 pub fn compute_siloed_encrypted_log_hash(address: AztecAddress, randomness: Field, log_hash: Field) -> Field {
     // TODO: Using 0 GENERATOR_INDEX here as interim before we move to posiedon
     // NB: A unique separator will be needed for masked_contract_address
-    let mut masked_contract_address = pedersen_hash([address.to_field(), randomness], 0);
+    let mut masked_contract_address = poseidon2_hash_with_separator([address.to_field(), randomness], 0);
     if randomness == 0 {
         // In some cases, we actually want to reveal the contract address we are siloing with:
         // e.g. 'handshaking' contract w/ known address

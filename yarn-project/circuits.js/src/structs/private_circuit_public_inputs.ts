@@ -1,5 +1,5 @@
 import { makeTuple } from '@aztec/foundation/array';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import {
   BufferReader,
@@ -324,6 +324,6 @@ export class PrivateCircuitPublicInputs {
   }
 
   hash(): Fr {
-    return pedersenHash(this.toFields(), GeneratorIndex.PRIVATE_CIRCUIT_PUBLIC_INPUTS);
+    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.PRIVATE_CIRCUIT_PUBLIC_INPUTS);
   }
 }

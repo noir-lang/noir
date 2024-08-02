@@ -1,5 +1,5 @@
 use crate::{
-    constants::{GENERATOR_INDEX__TX_CONTEXT, TX_CONTEXT_LENGTH}, hash::pedersen_hash,
+    constants::{GENERATOR_INDEX__TX_CONTEXT, TX_CONTEXT_LENGTH}, hash::poseidon2_hash_with_separator,
     traits::{Deserialize, Hash, Serialize, Empty}, utils::reader::Reader,
     abis::gas_settings::GasSettings
 };
@@ -68,7 +68,7 @@ impl Deserialize<TX_CONTEXT_LENGTH> for TxContext {
 
 impl Hash for TxContext {
     fn hash(self) -> Field {
-        pedersen_hash(self.serialize(), GENERATOR_INDEX__TX_CONTEXT)
+        poseidon2_hash_with_separator(self.serialize(), GENERATOR_INDEX__TX_CONTEXT)
     }
 }
 
@@ -86,6 +86,6 @@ fn empty_hash() {
     let hash = context.hash();
 
     // Value from tx_context.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x17e4357684c5a4349b4587c95b0b6161dcb4a3c5b02d4eb2ecc3b02c80193261;
+    let test_data_empty_hash = 0x0b81be18198d45a61eba2c59db95ebdac35d57c9d8ab524e52f0f39417aba5fe;
     assert_eq(hash, test_data_empty_hash);
 }

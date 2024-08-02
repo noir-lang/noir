@@ -1,5 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { type Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
@@ -89,6 +89,6 @@ export class PrivateCallStackItem {
    * @returns Hash.
    */
   public hash(): Fr {
-    return pedersenHash(this.toFields(), GeneratorIndex.CALL_STACK_ITEM);
+    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.CALL_STACK_ITEM);
   }
 }

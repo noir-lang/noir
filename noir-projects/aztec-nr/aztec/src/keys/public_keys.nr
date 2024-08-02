@@ -1,6 +1,6 @@
 use dep::protocol_types::{
-    address::PublicKeysHash, constants::GENERATOR_INDEX__PUBLIC_KEYS_HASH, hash::poseidon2_hash,
-    point::Point, traits::{Deserialize, Serialize, Empty, is_empty}
+    address::PublicKeysHash, constants::GENERATOR_INDEX__PUBLIC_KEYS_HASH,
+    hash::poseidon2_hash_with_separator, point::Point, traits::{Deserialize, Serialize, Empty, is_empty}
 };
 use crate::keys::constants::{NUM_KEY_TYPES, NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX};
 
@@ -39,7 +39,7 @@ impl PublicKeys {
             if is_empty(self) {
             0
         } else {
-            poseidon2_hash(
+            poseidon2_hash_with_separator(
                 [
                 self.npk_m.x,
                 self.npk_m.y,
@@ -52,9 +52,9 @@ impl PublicKeys {
                 self.ovpk_m.is_infinite as Field,
                 self.tpk_m.x,
                 self.tpk_m.y,
-                self.tpk_m.is_infinite as Field,
+                self.tpk_m.is_infinite as Field
+            ],
                 GENERATOR_INDEX__PUBLIC_KEYS_HASH as Field
-            ]
             )
         }
         )
@@ -114,7 +114,7 @@ fn compute_public_keys_hash() {
     };
 
     let actual = keys.hash();
-    let expected_public_keys_hash = 0x146f68c0e0ba4067d61a3304bbfdec0797d5df1357db6c01247c48bfb345c7d7;
+    let expected_public_keys_hash = 0x0fecd9a32db731fec1fded1b9ff957a1625c069245a3613a2538bd527068b0ad;
 
     assert(actual.to_field() == expected_public_keys_hash);
 }

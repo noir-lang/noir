@@ -18,7 +18,7 @@ import {
   derivePublicKeyFromSecretKey,
 } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/hash';
-import { poseidon2Hash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { TestContract } from '@aztec/noir-contracts.js';
 
 import { jest } from '@jest/globals';
@@ -96,7 +96,7 @@ describe('Key Registry', () => {
       );
       // 3. Derive all the possible nullifiers using nskApp
       const derivedNullifiers = noteHashes.map(noteHash => {
-        const innerNullifier = poseidon2Hash([noteHash, nskApp, GeneratorIndex.NOTE_NULLIFIER]);
+        const innerNullifier = poseidon2HashWithSeparator([noteHash, nskApp], GeneratorIndex.NOTE_NULLIFIER);
         return siloNullifier(contractAddress, innerNullifier);
       });
       // 4. Count the number of derived nullifiers that are in the nullifiers array

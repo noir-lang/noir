@@ -4,7 +4,7 @@ use dep::aztec::protocol_types::{
     GENERATOR_INDEX__AUTHWIT_INNER, GENERATOR_INDEX__AUTHWIT_OUTER, GENERATOR_INDEX__AUTHWIT_NULLIFIER,
     CANONICAL_AUTH_REGISTRY_ADDRESS
 },
-    hash::pedersen_hash
+    hash::poseidon2_hash_with_separator
 };
 use dep::aztec::{prelude::Deserialize, context::{PrivateContext, PublicContext, gas::GasOpts}, hash::hash_args_array};
 
@@ -308,7 +308,7 @@ pub fn compute_authwit_message_hash_from_call<let N: u32>(
  * @param args The arguments to hash
  */
 pub fn compute_inner_authwit_hash<let N: u32>(args: [Field; N]) -> Field {
-    pedersen_hash(args, GENERATOR_INDEX__AUTHWIT_INNER)
+    poseidon2_hash_with_separator(args, GENERATOR_INDEX__AUTHWIT_INNER)
 }
 
 /** 
@@ -320,7 +320,7 @@ pub fn compute_inner_authwit_hash<let N: u32>(args: [Field; N]) -> Field {
  * @param inner_hash The hash of the message to authorize
  */
 pub fn compute_authwit_nullifier(on_behalf_of: AztecAddress, inner_hash: Field) -> Field {
-    pedersen_hash(
+    poseidon2_hash_with_separator(
         [on_behalf_of.to_field(), inner_hash],
         GENERATOR_INDEX__AUTHWIT_NULLIFIER
     )
@@ -335,7 +335,7 @@ pub fn compute_authwit_nullifier(on_behalf_of: AztecAddress, inner_hash: Field) 
  * @param inner_hash The hash of the "inner" message that is being consumed
  */
 pub fn compute_authwit_message_hash(consumer: AztecAddress, chain_id: Field, version: Field, inner_hash: Field) -> Field {
-    pedersen_hash(
+    poseidon2_hash_with_separator(
         [
         consumer.to_field(),
         chain_id,

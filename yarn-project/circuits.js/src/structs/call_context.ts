@@ -1,6 +1,6 @@
 import { FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { type Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
@@ -124,6 +124,6 @@ export class CallContext {
   }
 
   hash(): Fr {
-    return pedersenHash(this.toFields(), GeneratorIndex.CALL_CONTEXT);
+    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.CALL_CONTEXT);
   }
 }

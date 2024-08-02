@@ -16,7 +16,7 @@ import {
   deriveKeys,
   derivePublicKeyFromSecretKey,
 } from '@aztec/circuits.js';
-import { poseidon2Hash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { type Bufferable, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
 
@@ -231,7 +231,10 @@ export class KeyStore {
     const masterIncomingViewingSecretKey = GrumpkinScalar.fromBuffer(masterIncomingViewingSecretKeyBuffer);
 
     return Promise.resolve(
-      poseidon2Hash([masterIncomingViewingSecretKey.hi, masterIncomingViewingSecretKey.lo, app, GeneratorIndex.IVSK_M]),
+      poseidon2HashWithSeparator(
+        [masterIncomingViewingSecretKey.hi, masterIncomingViewingSecretKey.lo, app],
+        GeneratorIndex.IVSK_M,
+      ),
     );
   }
 
@@ -252,7 +255,10 @@ export class KeyStore {
     const masterOutgoingViewingSecretKey = GrumpkinScalar.fromBuffer(masterOutgoingViewingSecretKeyBuffer);
 
     return Promise.resolve(
-      poseidon2Hash([masterOutgoingViewingSecretKey.hi, masterOutgoingViewingSecretKey.lo, app, GeneratorIndex.OVSK_M]),
+      poseidon2HashWithSeparator(
+        [masterOutgoingViewingSecretKey.hi, masterOutgoingViewingSecretKey.lo, app],
+        GeneratorIndex.OVSK_M,
+      ),
     );
   }
 

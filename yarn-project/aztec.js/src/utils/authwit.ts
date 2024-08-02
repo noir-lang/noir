@@ -1,6 +1,6 @@
 import { type FunctionCall, PackedValues } from '@aztec/circuit-types';
 import { type AztecAddress, Fr, GeneratorIndex } from '@aztec/circuits.js';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 
 import { ContractFunctionInteraction } from '../contract/contract_function_interaction.js';
 
@@ -81,7 +81,7 @@ export const computeInnerAuthWitHashFromAction = (caller: AztecAddress, action: 
  * @returns The inner hash for the witness
  */
 export const computeInnerAuthWitHash = (args: Fr[]) => {
-  return pedersenHash(args, GeneratorIndex.AUTHWIT_INNER);
+  return poseidon2HashWithSeparator(args, GeneratorIndex.AUTHWIT_INNER);
 };
 
 /**
@@ -99,5 +99,5 @@ export const computeInnerAuthWitHash = (args: Fr[]) => {
  * @returns The outer hash for the witness
  */
 const computeOuterAuthWitHash = (consumer: AztecAddress, chainId: Fr, version: Fr, innerHash: Fr) => {
-  return pedersenHash([consumer.toField(), chainId, version, innerHash], GeneratorIndex.AUTHWIT_OUTER);
+  return poseidon2HashWithSeparator([consumer.toField(), chainId, version, innerHash], GeneratorIndex.AUTHWIT_OUTER);
 };

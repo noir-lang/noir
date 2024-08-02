@@ -2,7 +2,7 @@
 use dep::aztec::{
     note::{note_getter_options::PropertySelector, utils::compute_note_hash_for_consumption},
     prelude::{NoteHeader, NoteInterface, PrivateContext},
-    protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash}
+    protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash_with_separator}
 };
 
 global TRANSPARENT_NOTE_LEN: Field = 2;
@@ -55,10 +55,7 @@ impl NoteInterface<TRANSPARENT_NOTE_LEN, TRANSPARENT_NOTE_BYTES_LEN> for Transpa
     // This achieves that the note can only be spent by the party that knows the secret.
     fn compute_note_hash_and_nullifier_without_context(self) -> (Field, Field) {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
-        let nullifier = poseidon2_hash([
-            note_hash_for_nullify,
-            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        ]);
+        let nullifier = poseidon2_hash_with_separator([note_hash_for_nullify], GENERATOR_INDEX__NOTE_NULLIFIER);
         (note_hash_for_nullify, nullifier)
     }
 }

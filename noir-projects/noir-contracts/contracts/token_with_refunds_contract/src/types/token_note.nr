@@ -1,7 +1,10 @@
 use dep::aztec::{
     generators::{Ga1 as G_amt, Ga2 as G_npk, Ga3 as G_rnd},
     prelude::{NoteHeader, NoteInterface, PrivateContext},
-    protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, point::Point, scalar::Scalar, hash::poseidon2_hash},
+    protocol_types::{
+    constants::GENERATOR_INDEX__NOTE_NULLIFIER, point::Point, scalar::Scalar,
+    hash::poseidon2_hash_with_separator
+},
     note::utils::compute_note_hash_for_consumption, oracle::unsafe_rand::unsafe_rand,
     keys::getters::get_nsk_app, note::note_getter_options::PropertySelector
 };
@@ -48,11 +51,7 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
     fn compute_note_hash_and_nullifier(self, context: &mut PrivateContext) -> ( Field, Field ) {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = context.request_nsk_app(self.npk_m_hash);
-        let nullifier = poseidon2_hash([
-            note_hash_for_nullify,
-            secret,
-            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        ]);
+        let nullifier = poseidon2_hash_with_separator([note_hash_for_nullify, secret], GENERATOR_INDEX__NOTE_NULLIFIER);
         (note_hash_for_nullify, nullifier)
     }
     // docs:end:nullifier
@@ -60,15 +59,9 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
     fn compute_note_hash_and_nullifier_without_context(self) -> ( Field, Field ) {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = get_nsk_app(self.npk_m_hash);
-        let nullifier = poseidon2_hash([
-            note_hash_for_nullify,
-            secret,
-            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        ]);
+        let nullifier = poseidon2_hash_with_separator([note_hash_for_nullify,secret,],GENERATOR_INDEX__NOTE_NULLIFIER);
         (note_hash_for_nullify, nullifier)
     }
-
-
 
     fn compute_note_hiding_point(self) -> Point {
         // We use the unsafe version because the multi_scalar_mul will constrain the scalars.

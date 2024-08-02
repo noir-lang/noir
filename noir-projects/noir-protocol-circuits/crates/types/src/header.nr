@@ -4,8 +4,9 @@ use crate::{
     global_variables::{GlobalVariables, GLOBAL_VARIABLES_LENGTH}
 },
     constants::{GENERATOR_INDEX__BLOCK_HASH, HEADER_LENGTH, STATE_REFERENCE_LENGTH, CONTENT_COMMITMENT_LENGTH},
-    hash::pedersen_hash, state_reference::StateReference, traits::{Deserialize, Empty, Hash, Serialize},
-    utils::arr_copy_slice, content_commitment::ContentCommitment
+    hash::poseidon2_hash_with_separator, state_reference::StateReference,
+    traits::{Deserialize, Empty, Hash, Serialize}, utils::arr_copy_slice,
+    content_commitment::ContentCommitment
 };
 
 // docs:start:header
@@ -84,7 +85,7 @@ impl Empty for Header {
 
 impl Hash for Header {
     fn hash(self) -> Field {
-        pedersen_hash(self.serialize(), GENERATOR_INDEX__BLOCK_HASH)
+        poseidon2_hash_with_separator(self.serialize(), GENERATOR_INDEX__BLOCK_HASH)
     }
 }
 
@@ -108,6 +109,6 @@ fn empty_hash_is_zero() {
     let hash = header.hash();
 
     // Value from new_contract_data.test.ts "computes empty hash" test
-    let test_data_empty_hash = 0x2080fad33d703007c3c08f3c0b17cda1550e9d706cb4fdb031f2312d8a50fa8b;
+    let test_data_empty_hash = 0x1c97ed6fbc35f8b400d31bd38ce5cc938921e0cf2e20159d316f8c7011f9f42c;
     assert_eq(hash, test_data_empty_hash);
 }

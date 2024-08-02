@@ -1,5 +1,8 @@
 use dep::aztec::prelude::PrivateContext;
-use dep::aztec::protocol_types::{constants::GENERATOR_INDEX__FEE_PAYLOAD, hash::pedersen_hash, traits::{Hash, Serialize}};
+use dep::aztec::protocol_types::{
+    constants::GENERATOR_INDEX__FEE_PAYLOAD, hash::poseidon2_hash_with_separator,
+    traits::{Hash, Serialize}
+};
 use crate::entrypoint::function_call::FunctionCall;
 
 // 2 * 5 (FUNCTION_CALL_SIZE) + 2
@@ -33,7 +36,7 @@ impl Serialize<FEE_PAYLOAD_SIZE> for FeePayload {
 
 impl Hash for FeePayload {
   fn hash(self) -> Field {
-    pedersen_hash(
+    poseidon2_hash_with_separator(
       self.serialize(),
       GENERATOR_INDEX__FEE_PAYLOAD
     )

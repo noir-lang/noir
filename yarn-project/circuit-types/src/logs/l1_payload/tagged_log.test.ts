@@ -1,6 +1,6 @@
 import { AztecAddress, KeyValidationRequest, computeOvskApp, derivePublicKeyFromSecretKey } from '@aztec/circuits.js';
 import { EventSelector, NoteSelector } from '@aztec/foundation/abi';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 import { updateInlineTestData } from '@aztec/foundation/testing';
 
@@ -83,7 +83,7 @@ describe('L1 Note Payload', () => {
     const encrypted = taggedLog.encrypt(ephSk, recipientAddress, ivpk, ovKeys).toString('hex');
 
     expect(encrypted).toMatchInlineSnapshot(
-      `"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008d460c0e434d846ec1ea286e4090eb56376ff27bddc1aacae1d856549f701fa77e4f33ba2f47fdac6370f13bc5f16bbae857bbe6ab3ee4ea2a339192eef22a47ce0df4426fc314cb6294ccf291b79c1d8d362cdcc223e51020ccd3318e7052ca74f1fe922ad914bd46e4b6abcd681b63ab1c5bf4151e82f00548ae7c61c59df8cccb8cabb59882a9b32934ad2d2bc60198489ef90b2909a0304e7b84cb8cd70d16c958ff8b9a4c143f867d6cefd03f3b21758be1b80040991583cc6f29541790def5c80cea0b300add14fc267a28f942f8c5c6d14f143b42c5d7101291e4ef7c51436731c43ae4c340c7f3b870ad1dc4d74dd9555295714cc95d5f94255fdee9d29601b61c843b949c8124e637c79524cd67d43c978d0a97de97b42b5b94c96ea50aee2086eb63d8c8b61f169c12d1deacefc1d456633e46b62daff15bcab3e1630196e802fc14533184a25d74d45747d33a9fa328fd1f03c0300ec95018879acf3a8c801d65cfbdb6bf47d240ac83532ee813d8b76cea11683c71e791c39d18"`,
+      `"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008d460c0e434d846ec1ea286e4090eb56376ff27bddc1aacae1d856549f701fa77e4f33ba2f47fdac6370f13bc5f16bbae857bbe6ab3ee4ea2a339192eef22a47ce0df4426fc314cb6294ccf291b79c1d8d362cdcc223e51020ccd3318e7052ca74f1fe922ad914bd46e4b6abcd681b63ab1c5bf4151e82f00548ae7c61c59df8c117c14c2e8d9046d32d43a7da818c68be296ef9d1446a87a450eb3f6550200d2663915b0bad97e7f7419975e5a740efb67eeb5304a90808a004ebfc156054a1459191d7fea175f6c64159b3c25a13790cca7250c30e3c80698e64565a6c9ddb16ac1479c3199fec02464b2a252202119514b02012cc387579220f03587b40444ae93f3b83dec2c0a76ed90a804981accd67d43c978d0a97de97b42b5b94c96ea50aee2086eb63d8c8b61f169c12d1deacefc1d456633e46b62daff15bcab3e1630196e802fc14533184a25d74d45747d33a9fa328fd1f03c0300ec95018879acf3a8c801d65cfbdb6bf47d240ac83532ee813d8b76cea11683c71e791c39d18"`,
     );
 
     const byteArrayString = `[${encrypted.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))}]`;
@@ -126,7 +126,7 @@ describe('L1 Event Payload', () => {
     beforeAll(() => {
       contractAddress = AztecAddress.random();
       randomness = Fr.random();
-      maskedContractAddress = pedersenHash([contractAddress, randomness], 0);
+      maskedContractAddress = poseidon2HashWithSeparator([contractAddress, randomness], 0);
 
       const payload = new L1EventPayload(Event.random(), contractAddress, randomness, EventSelector.random());
 

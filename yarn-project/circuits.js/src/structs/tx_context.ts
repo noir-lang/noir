@@ -1,4 +1,4 @@
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
@@ -91,6 +91,6 @@ export class TxContext {
   }
 
   hash(): Fr {
-    return pedersenHash(this.toFields(), GeneratorIndex.TX_CONTEXT);
+    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.TX_CONTEXT);
   }
 }

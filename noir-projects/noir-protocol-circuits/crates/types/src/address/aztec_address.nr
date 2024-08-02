@@ -1,7 +1,7 @@
 use crate::{
     crate::address::{eth_address::EthAddress, partial_address::PartialAddress, public_keys_hash::PublicKeysHash},
     constants::{AZTEC_ADDRESS_LENGTH, GENERATOR_INDEX__CONTRACT_ADDRESS_V1},
-    contract_class_id::ContractClassId, hash::poseidon2_hash,
+    contract_class_id::ContractClassId, hash::poseidon2_hash_with_separator,
     traits::{Empty, FromField, ToField, Serialize, Deserialize}, utils
 };
 
@@ -55,10 +55,9 @@ impl AztecAddress {
 
     pub fn compute(pub_keys_hash: PublicKeysHash, partial_address: PartialAddress) -> AztecAddress {
         AztecAddress::from_field(
-            poseidon2_hash(
-                [
-            pub_keys_hash.to_field(), partial_address.to_field(), GENERATOR_INDEX__CONTRACT_ADDRESS_V1 as Field
-        ]
+            poseidon2_hash_with_separator(
+                [pub_keys_hash.to_field(), partial_address.to_field()],
+                GENERATOR_INDEX__CONTRACT_ADDRESS_V1
             )
         )
     }
@@ -83,7 +82,7 @@ fn compute_address_from_partial_and_pub_keys_hash() {
     let partial_address = PartialAddress::from_field(2);
 
     let address = AztecAddress::compute(pub_keys_hash, partial_address);
-    let expected_computed_address_from_partial_and_pubkey = 0x1b6ead051e7b42665064ca6cf1ec77da0a36d86e00d1ff6e44077966c0c3a9fa;
+    let expected_computed_address_from_partial_and_pubkey = 0x23ce9be3fa3c846b0f9245cc796902e731d04f086e8a42473bb29e405fc98075;
     assert(address.to_field() == expected_computed_address_from_partial_and_pubkey);
 }
 

@@ -1,6 +1,6 @@
 import { type FunctionAbi, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstance } from '@aztec/types/contracts';
 
@@ -43,7 +43,10 @@ export function computePartialAddress(
       ? instance.saltedInitializationHash
       : computeSaltedInitializationHash(instance);
 
-  return pedersenHash([instance.contractClassId, saltedInitializationHash], GeneratorIndex.PARTIAL_ADDRESS);
+  return poseidon2HashWithSeparator(
+    [instance.contractClassId, saltedInitializationHash],
+    GeneratorIndex.PARTIAL_ADDRESS,
+  );
 }
 
 /**
@@ -53,7 +56,10 @@ export function computePartialAddress(
 export function computeSaltedInitializationHash(
   instance: Pick<ContractInstance, 'initializationHash' | 'salt' | 'deployer'>,
 ): Fr {
-  return pedersenHash([instance.salt, instance.initializationHash, instance.deployer], GeneratorIndex.PARTIAL_ADDRESS);
+  return poseidon2HashWithSeparator(
+    [instance.salt, instance.initializationHash, instance.deployer],
+    GeneratorIndex.PARTIAL_ADDRESS,
+  );
 }
 
 /**
@@ -79,5 +85,5 @@ export function computeInitializationHash(initFn: FunctionAbi | undefined, args:
  */
 export function computeInitializationHashFromEncodedArgs(initFn: FunctionSelector, encodedArgs: Fr[]): Fr {
   const argsHash = computeVarArgsHash(encodedArgs);
-  return pedersenHash([initFn, argsHash], GeneratorIndex.CONSTRUCTOR);
+  return poseidon2HashWithSeparator([initFn, argsHash], GeneratorIndex.CONSTRUCTOR);
 }

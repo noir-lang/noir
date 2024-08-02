@@ -13,7 +13,7 @@ use crate::{
     GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS, MAX_ENCRYPTED_LOGS_PER_CALL,
     MAX_UNENCRYPTED_LOGS_PER_CALL, MAX_NOTE_ENCRYPTED_LOGS_PER_CALL
 },
-    header::Header, hash::pedersen_hash, messaging::l2_to_l1_message::L2ToL1Message,
+    header::Header, hash::poseidon2_hash_with_separator, messaging::l2_to_l1_message::L2ToL1Message,
     traits::{Deserialize, Hash, Serialize, Empty}, utils::reader::Reader,
     transaction::tx_context::TxContext, utils::arrays::validate_array
 };
@@ -206,7 +206,7 @@ impl Deserialize<PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PrivateCircuitPublicI
 
 impl Hash for PrivateCircuitPublicInputs {
     fn hash(self) -> Field {
-        pedersen_hash(self.serialize(), GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)
+        poseidon2_hash_with_separator(self.serialize(), GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)
     }
 }
 
@@ -253,6 +253,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from private_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x0104a7f82b1f6346a5ba95eafd44f2f851097d8abd793d8b16e8744d11a76d03;
+    let test_data_empty_hash = 0x29f35524edb1bed6c1eded107142d65ca80f46656c1c7ded71c46dbda14feec5;
     assert_eq(hash, test_data_empty_hash);
 }

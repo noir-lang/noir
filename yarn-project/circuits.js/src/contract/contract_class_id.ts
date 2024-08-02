@@ -1,4 +1,4 @@
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { type ContractClass } from '@aztec/types/contracts';
 
@@ -35,7 +35,7 @@ export function computeContractClassIdWithPreimage(
     'publicBytecodeCommitment' in contractClass
       ? contractClass.publicBytecodeCommitment
       : computePublicBytecodeCommitment(contractClass.packedBytecode);
-  const id = pedersenHash(
+  const id = poseidon2HashWithSeparator(
     [artifactHash, privateFunctionsRoot, publicBytecodeCommitment],
     GeneratorIndex.CONTRACT_LEAF, // TODO(@spalladino): Review all generator indices in this file
   );

@@ -1,5 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
@@ -63,7 +63,7 @@ export class TxRequest {
   }
 
   hash() {
-    return pedersenHash(this.toFields(), GeneratorIndex.TX_REQUEST);
+    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.TX_REQUEST);
   }
 
   static empty() {

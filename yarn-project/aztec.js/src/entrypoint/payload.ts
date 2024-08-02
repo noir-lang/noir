@@ -2,7 +2,7 @@ import { FunctionCall, PackedValues } from '@aztec/circuit-types';
 import { type AztecAddress, Fr, type GasSettings, GeneratorIndex } from '@aztec/circuits.js';
 import { FunctionType } from '@aztec/foundation/abi';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { type Tuple } from '@aztec/foundation/serialize';
 
 import { type FeePaymentMethod } from '../fee/fee_payment_method.js';
@@ -100,7 +100,7 @@ export abstract class EntrypointPayload {
    * @returns The hash of the payload
    */
   hash() {
-    return pedersenHash(this.toFields(), this.#generatorIndex);
+    return poseidon2HashWithSeparator(this.toFields(), this.#generatorIndex);
   }
 
   /** Serializes the function calls to an array of fields. */

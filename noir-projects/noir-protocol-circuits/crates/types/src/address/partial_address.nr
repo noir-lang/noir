@@ -4,7 +4,7 @@ use crate::{
     aztec_address::AztecAddress
 },
     constants::GENERATOR_INDEX__PARTIAL_ADDRESS, contract_class_id::ContractClassId,
-    hash::pedersen_hash, traits::{ToField, FromField, Serialize, Deserialize}
+    hash::poseidon2_hash_with_separator, traits::{ToField, FromField, Serialize, Deserialize}
 };
 
 global PARTIAL_ADDRESS_LENGTH = 1;
@@ -54,7 +54,7 @@ impl PartialAddress {
         salted_initialization_hash: SaltedInitializationHash
     ) -> Self {
         PartialAddress::from_field(
-            pedersen_hash(
+            poseidon2_hash_with_separator(
                 [
             contract_class_id.to_field(),
             salted_initialization_hash.to_field()

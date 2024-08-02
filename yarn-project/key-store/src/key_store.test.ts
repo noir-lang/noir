@@ -24,7 +24,7 @@ describe('KeyStore', () => {
 
     const { address: accountAddress } = await keyStore.addAccount(sk, partialAddress);
     expect(accountAddress.toString()).toMatchInlineSnapshot(
-      `"0x23a1f3daede8d7ff24ccd0354b114c38c11a1512434a2529cf404f74a8f0ab6c"`,
+      `"0x2321fcb3bd7447b178138746ee78f6fbb1e2a2aa8ff542f51420b884bab641cc"`,
     );
 
     const { pkM: masterNullifierPublicKey } = await keyStore.getKeyValidationRequest(
@@ -56,24 +56,24 @@ describe('KeyStore', () => {
     const { pkM: obtainedMasterNullifierPublicKey, skApp: appNullifierSecretKey } =
       await keyStore.getKeyValidationRequest(computedMasterNullifierPublicKeyHash, appAddress);
     expect(appNullifierSecretKey.toString()).toMatchInlineSnapshot(
-      `"0x0084c92262407236c992dcea10cf3406a642074cad6c6034d2990ffb073207a7"`,
+      `"0x0030e54eefa97f61f384e112dcf7859583494e0e1823a272d18ea93eb110c0a7"`,
     );
     expect(obtainedMasterNullifierPublicKey).toEqual(masterNullifierPublicKey);
 
     const appIncomingViewingSecretKey = await keyStore.getAppIncomingViewingSecretKey(accountAddress, appAddress);
     expect(appIncomingViewingSecretKey.toString()).toMatchInlineSnapshot(
-      `"0x2639b26510f9d30b7e173d301b263b246b7a576186be1f44cd7c86bc06773f8a"`,
+      `"0x0247d73d16cf0939cc783b3cee140b37b294b6cbc1c0295d530f3f637c9b8034"`,
     );
 
     const appOutgoingViewingSecretKey = await keyStore.getAppOutgoingViewingSecretKey(accountAddress, appAddress);
     expect(appOutgoingViewingSecretKey.toString()).toMatchInlineSnapshot(
-      `"0x13b400d2fccab28a04a4df9fe541d242e6b518d03137ef0ffa57c3d98cc56e67"`,
+      `"0x296c9931262d8b95b4cbbcc66ac4c97d2cc3fab4da5eedc08fcff80f1ce37e34"`,
     );
 
     // Returned accounts are as expected
     const accounts = await keyStore.getAccounts();
     expect(accounts.toString()).toMatchInlineSnapshot(
-      `"0x23a1f3daede8d7ff24ccd0354b114c38c11a1512434a2529cf404f74a8f0ab6c"`,
+      `"0x2321fcb3bd7447b178138746ee78f6fbb1e2a2aa8ff542f51420b884bab641cc"`,
     );
 
     // Manages to find master nullifer secret key for pub key
@@ -98,7 +98,7 @@ describe('KeyStore', () => {
 
     const { address: accountAddress } = await keyStore.addAccount(sk, partialAddress);
     expect(accountAddress.toString()).toMatchInlineSnapshot(
-      `"0x23a1f3daede8d7ff24ccd0354b114c38c11a1512434a2529cf404f74a8f0ab6c"`,
+      `"0x2321fcb3bd7447b178138746ee78f6fbb1e2a2aa8ff542f51420b884bab641cc"`,
     );
 
     // Arbitrary fixed values
@@ -146,21 +146,21 @@ describe('KeyStore', () => {
       appAddress,
     );
     expect(appNullifierSecretKey0.toString()).toMatchInlineSnapshot(
-      `"0x21e3ca4bc7ae2b5e9fe343f4eec5c0aa7391857333821a4b0a1c7d4cb0055bf0"`,
+      `"0x0d03293ba35ee33ac093be75119d9819da11631b3739b0f12788ef66b28834d5"`,
     );
     const { skApp: appNullifierSecretKey1 } = await keyStore.getKeyValidationRequest(
       newComputedMasterNullifierPublicKeyHashes[1],
       appAddress,
     );
     expect(appNullifierSecretKey1.toString()).toMatchInlineSnapshot(
-      `"0x0900aea4825d057e5bc916063a535520a7c6283740eaf218cd6961b10cba46fd"`,
+      `"0x01baec4d9f3d4b98fa883e256917e91e913490d92cd01763dea49337c9d364af"`,
     );
     const { skApp: appNullifierSecretKey2 } = await keyStore.getKeyValidationRequest(
       newComputedMasterNullifierPublicKeyHashes[2],
       appAddress,
     );
     expect(appNullifierSecretKey2.toString()).toMatchInlineSnapshot(
-      `"0x27ccbe41ff5f33fa78348533da9d4a79e8fea8805771e61748ea42be4202f168"`,
+      `"0x0d1ff3fde73bc14ea0cfa704aed68d72c27bf58e6159e381f23d2951ce3566ec"`,
     );
 
     expect(appNullifierSecretKey0).toEqual(computeAppNullifierSecretKey(newMasterNullifierSecretKeys[0], appAddress));

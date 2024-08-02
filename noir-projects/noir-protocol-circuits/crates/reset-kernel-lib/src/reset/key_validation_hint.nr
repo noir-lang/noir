@@ -1,6 +1,6 @@
 use dep::types::{
     traits::{Empty, is_empty}, abis::{validation_requests::ScopedKeyValidationRequestAndGenerator},
-    constants::MAX_KEY_VALIDATION_REQUESTS_PER_TX, scalar::Scalar, hash::poseidon2_hash,
+    constants::MAX_KEY_VALIDATION_REQUESTS_PER_TX, scalar::Scalar, hash::poseidon2_hash_with_separator,
     utils::arrays::filter_array_to_bounded_vec
 };
 use std::embedded_curve_ops::fixed_base_scalar_mul as derive_public_key;
@@ -52,7 +52,10 @@ pub fn reset_key_validation_requests<N>(
 
             // Then we check that siloing the master secret key with the contract address gives the app secret key
 
-            let sk_app = poseidon2_hash([sk_m.hi, sk_m.lo, contract_address.to_field(), sk_app_generator]);
+            let sk_app = poseidon2_hash_with_separator(
+                [sk_m.hi, sk_m.lo, contract_address.to_field()],
+                sk_app_generator
+            );
             assert(
                 sk_app.eq(request.sk_app), "Failed to derive matching app secret key from the secret key."
             );

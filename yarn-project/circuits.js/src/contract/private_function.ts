@@ -1,4 +1,4 @@
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { pedersenHash, poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { type PrivateFunction } from '@aztec/types/contracts';
 
@@ -27,7 +27,7 @@ function computePrivateFunctionLeaves(fns: PrivateFunction[]): Buffer[] {
 
 /** Returns the leaf for a given private function. */
 export function computePrivateFunctionLeaf(fn: PrivateFunction): Buffer {
-  return pedersenHash([fn.selector, fn.vkHash], GeneratorIndex.FUNCTION_LEAF).toBuffer();
+  return poseidon2HashWithSeparator([fn.selector, fn.vkHash], GeneratorIndex.FUNCTION_LEAF).toBuffer();
 }
 
 function getPrivateFunctionTreeCalculator(): MerkleTreeCalculator {

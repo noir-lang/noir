@@ -56,7 +56,7 @@ impl Empty for PublicDataUpdateRequest {
 
 impl Hash for PublicDataUpdateRequest {
     fn hash(self) -> Field {
-        std::hash::pedersen_hash_with_separator([
+        crate::hash::poseidon2_hash_with_separator([
             self.leaf_slot,
             self.new_value
         ], GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST)

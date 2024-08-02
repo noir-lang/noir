@@ -1,5 +1,5 @@
 use dep::protocol_types::{
-    address::AztecAddress, hash::{compute_siloed_nullifier, pedersen_hash},
+    address::AztecAddress, hash::{compute_siloed_nullifier, poseidon2_hash_with_separator},
     constants::GENERATOR_INDEX__CONSTRUCTOR, abis::function_selector::FunctionSelector
 };
 
@@ -61,7 +61,7 @@ pub fn assert_initialization_matches_address_preimage_private(context: PrivateCo
 }
 
 pub fn compute_initialization_hash(init_selector: FunctionSelector, init_args_hash: Field) -> Field {
-    pedersen_hash(
+    poseidon2_hash_with_separator(
         [init_selector.to_field(), init_args_hash],
         GENERATOR_INDEX__CONSTRUCTOR
     )

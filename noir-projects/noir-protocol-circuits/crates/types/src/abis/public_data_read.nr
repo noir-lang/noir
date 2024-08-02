@@ -38,7 +38,7 @@ impl Empty for PublicDataRead {
 
 impl Hash for PublicDataRead {
     fn hash(self) -> Field {
-        std::hash::pedersen_hash_with_separator([
+        crate::hash::poseidon2_hash_with_separator([
             self.leaf_slot,
             self.value,
         ], GENERATOR_INDEX__PUBLIC_DATA_READ)

@@ -1,6 +1,6 @@
 use crate::{
     constants::{CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH, GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST},
-    hash::pedersen_hash, traits::{Deserialize, Hash, Empty, Serialize}
+    hash::poseidon2_hash_with_separator, traits::{Deserialize, Hash, Empty, Serialize}
 };
 
 struct StorageUpdateRequest {
@@ -28,7 +28,7 @@ impl Empty for StorageUpdateRequest {
 
 impl Hash for StorageUpdateRequest {
     fn hash(self) -> Field {
-        pedersen_hash(self.serialize(), GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST)
+        poseidon2_hash_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST)
     }
 }
 

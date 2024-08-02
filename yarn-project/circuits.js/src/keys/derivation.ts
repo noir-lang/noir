@@ -1,5 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { poseidon2Hash, sha512ToGrumpkinScalar } from '@aztec/foundation/crypto';
+import { poseidon2HashWithSeparator, sha512ToGrumpkinScalar } from '@aztec/foundation/crypto';
 import { type Fq, type Fr, GrumpkinScalar } from '@aztec/foundation/fields';
 
 import { Grumpkin } from '../barretenberg/crypto/grumpkin/index.js';
@@ -14,7 +14,7 @@ export function computeAppNullifierSecretKey(masterNullifierSecretKey: GrumpkinS
 
 export function computeAppSecretKey(skM: GrumpkinScalar, app: AztecAddress, keyPrefix: KeyPrefix): Fr {
   const generator = getKeyGenerator(keyPrefix);
-  return poseidon2Hash([skM.hi, skM.lo, app, generator]);
+  return poseidon2HashWithSeparator([skM.hi, skM.lo, app], generator);
 }
 
 export function computeOvskApp(ovsk: GrumpkinScalar, app: AztecAddress) {
@@ -42,7 +42,7 @@ export function deriveSigningKey(secretKey: Fr): GrumpkinScalar {
 }
 
 export function computeAddress(publicKeysHash: Fr, partialAddress: Fr) {
-  const addressFr = poseidon2Hash([publicKeysHash, partialAddress, GeneratorIndex.CONTRACT_ADDRESS_V1]);
+  const addressFr = poseidon2HashWithSeparator([publicKeysHash, partialAddress], GeneratorIndex.CONTRACT_ADDRESS_V1);
   return AztecAddress.fromField(addressFr);
 }
 

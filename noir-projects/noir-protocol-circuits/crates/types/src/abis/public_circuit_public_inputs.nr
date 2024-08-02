@@ -14,7 +14,7 @@ use crate::{
     PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH, MAX_UNENCRYPTED_LOGS_PER_CALL
 },
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
-    hash::pedersen_hash, header::Header, messaging::l2_to_l1_message::L2ToL1Message,
+    hash::poseidon2_hash_with_separator, header::Header, messaging::l2_to_l1_message::L2ToL1Message,
     traits::{Hash, Serialize, Deserialize, Empty}, utils::reader::Reader
 };
 
@@ -155,7 +155,7 @@ impl Deserialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInp
 
 impl Hash for PublicCircuitPublicInputs {
     fn hash(self) -> Field {
-        pedersen_hash(self.serialize(), GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)
+        poseidon2_hash_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)
     }
 }
 
@@ -203,6 +203,6 @@ fn empty_hash() {
     let hash = inputs.hash();
 
     // Value from public_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x21be4398b9e455b4afd91304dcc40210c2f94477d5f58b32f79fd21bf9008618;
+    let test_data_empty_hash = 0x0ce92e52cdf4f36c4734556eca0cc66f264ac7548ab7556227bca067fc7b5e84;
     assert_eq(hash, test_data_empty_hash);
 }

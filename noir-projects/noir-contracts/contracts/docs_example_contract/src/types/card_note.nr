@@ -1,7 +1,10 @@
 use dep::aztec::prelude::{AztecAddress, NoteInterface, NoteHeader, PrivateContext};
 use dep::aztec::{
     note::{utils::compute_note_hash_for_consumption}, keys::getters::get_nsk_app,
-    protocol_types::{traits::{Empty, Eq, Serialize}, constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash}
+    protocol_types::{
+    traits::{Empty, Eq, Serialize}, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
+    hash::poseidon2_hash_with_separator
+}
 };
 
 // Shows how to create a custom note
@@ -30,22 +33,24 @@ impl NoteInterface<CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN> for CardNote {
     fn compute_note_hash_and_nullifier(self, context: &mut PrivateContext) -> (Field, Field) {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = context.request_nsk_app(self.npk_m_hash);
-        let nullifier = poseidon2_hash([
+        let nullifier = poseidon2_hash_with_separator([
             note_hash_for_nullify,
             secret,
+        ],
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        ]);
+        );
         (note_hash_for_nullify, nullifier)
     }
 
     fn compute_note_hash_and_nullifier_without_context(self) -> (Field, Field) {
         let note_hash_for_nullify = compute_note_hash_for_consumption(self);
         let secret = get_nsk_app(self.npk_m_hash);
-        let nullifier = poseidon2_hash([
+        let nullifier = poseidon2_hash_with_separator([
             note_hash_for_nullify,
             secret,
+        ],
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        ]);
+        );
         (note_hash_for_nullify, nullifier)
     }
 }
