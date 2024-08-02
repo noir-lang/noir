@@ -22,6 +22,26 @@ export function poseidon2Hash(input: Fieldable[]): Fr {
 }
 
 /**
+ * Create a poseidon hash (field) from an array of input fields and a domain separator.
+ * @param input - The input fields to hash.
+ * @param separator - The domain separator.
+ * @returns The poseidon hash.
+ */
+export function poseidon2HashWithSeparator(input: Fieldable[], separator: number): Fr {
+  const inputFields = serializeToFields(input);
+  inputFields.unshift(new Fr(separator));
+  return Fr.fromBuffer(
+    Buffer.from(
+      BarretenbergSync.getSingleton()
+        .poseidon2Hash(
+          inputFields.map(i => new FrBarretenberg(i.toBuffer())), // TODO(#4189): remove this stupid conversion
+        )
+        .toBuffer(),
+    ),
+  );
+}
+
+/**
  * Runs a Poseidon2 permutation.
  * @param input the input state. Expected to be of size 4.
  * @returns the output state, size 4.

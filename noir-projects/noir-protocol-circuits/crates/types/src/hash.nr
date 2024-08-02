@@ -11,7 +11,7 @@ use crate::{
     MAX_ENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX
 },
     merkle_tree::root::root_from_sibling_path, messaging::l2_to_l1_message::ScopedL2ToL1Message,
-    recursion::verification_key::VerificationKey, traits::is_empty,
+    recursion::verification_key::VerificationKey, traits::{is_empty, ToField},
     utils::field::field_from_bytes_32_trunc, point::Point
 };
 
@@ -253,6 +253,22 @@ pub fn pedersen_hash<let N: u32>(inputs: [Field; N], hash_index: u32) -> Field {
 
 pub fn poseidon2_hash<let N: u32>(inputs: [Field; N]) -> Field {
     std::hash::poseidon2::Poseidon2::hash(inputs, N)
+}
+
+#[no_predicates]
+pub fn poseidon2_hash_with_separator<N, T>(inputs: [Field; N], separator: T) -> Field where T: ToField {
+    // We manually hash the inputs here, since we cannot express with the type system a constant size inputs array of N + 1
+    let in_len = N + 1;
+    let two_pow_64 = 18446744073709551616;
+    let iv : Field = (in_len as Field) * two_pow_64;
+    let mut sponge = std::hash::poseidon2::Poseidon2::new(iv);
+    sponge.absorb(separator.to_field());
+
+    for i in 0..inputs.len() {
+        sponge.absorb(inputs[i]);
+    }
+
+    sponge.squeeze()
 }
 
 pub fn pedersen_commitment<let N: u32>(inputs: [Field; N], hash_index: u32) -> Point {

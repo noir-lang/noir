@@ -1,6 +1,6 @@
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { pedersenHash, pedersenHashBuffer } from '@aztec/foundation/crypto';
+import { pedersenHash, pedersenHashBuffer, poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/foundation/serialize';
 
@@ -107,18 +107,18 @@ export function computeVarArgsHash(args: Fr[]) {
     throw new Error(`Hashing ${args.length} args exceeds max of ${MAX_ARGS_LENGTH}`);
   }
 
-  let chunksHashes = chunk(args, ARGS_HASH_CHUNK_LENGTH).map(c => {
+  let chunksHashes = chunk(args, ARGS_HASH_CHUNK_LENGTH).map((c: Fr[]) => {
     if (c.length < ARGS_HASH_CHUNK_LENGTH) {
       c = padArrayEnd(c, Fr.ZERO, ARGS_HASH_CHUNK_LENGTH);
     }
-    return pedersenHash(c, GeneratorIndex.FUNCTION_ARGS);
+    return poseidon2HashWithSeparator(c, GeneratorIndex.FUNCTION_ARGS);
   });
 
   if (chunksHashes.length < ARGS_HASH_CHUNK_COUNT) {
     chunksHashes = padArrayEnd(chunksHashes, Fr.ZERO, ARGS_HASH_CHUNK_COUNT);
   }
 
-  return pedersenHash(chunksHashes, GeneratorIndex.FUNCTION_ARGS);
+  return poseidon2HashWithSeparator(chunksHashes, GeneratorIndex.FUNCTION_ARGS);
 }
 
 /**
