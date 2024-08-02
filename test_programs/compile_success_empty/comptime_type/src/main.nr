@@ -59,5 +59,12 @@ fn main() {
         // Check Type::as_constant
         assert(u8_type.as_constant().is_none());
         assert_eq(array_length.as_constant().unwrap(), 3);
+
+        // Check Type::is_bool
+        assert(!u8_type.is_bool());
+
+        let yes = true;
+        let bool_type = type_of(yes);
+        assert(bool_type.is_bool());
     }
 }

@@ -63,6 +63,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_as_slice" => type_as_slice(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
+            "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
             "zeroed" => zeroed(return_type),
@@ -595,6 +596,14 @@ fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
     let (self_type, other_type) = check_two_arguments(arguments, location)?;
 
     Ok(Value::Bool(self_type == other_type))
+}
+
+// fn is_bool(self) -> bool
+fn type_is_bool(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_type(value, location)?;
+
+    Ok(Value::Bool(matches!(typ, Type::Bool)))
 }
 
 // fn is_field(self) -> bool

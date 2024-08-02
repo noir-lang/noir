@@ -17,6 +17,9 @@ impl Type {
     #[builtin(type_as_tuple)]
     fn as_tuple(self) -> Option<[Type]> {}
 
+    #[builtin(type_is_bool)]
+    fn is_bool(self) -> bool {}
+
     #[builtin(type_is_field)]
     fn is_field(self) -> bool {}
 }
