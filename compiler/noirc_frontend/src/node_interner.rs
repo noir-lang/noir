@@ -1437,6 +1437,8 @@ impl NodeInterner {
 
         let mut matching_impls = Vec::new();
 
+        let mut where_clause_errors = Vec::new();
+
         for (existing_object_type2, impl_kind) in impls {
             // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
@@ -1471,14 +1473,17 @@ impl NodeInterner {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
 
-                    if let Err(mut errors) = self.validate_where_clause(
+                    if let Err(errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
                         &mut fresh_bindings,
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
-                        errors.push(make_constraint());
-                        return Err(errors);
+                        // Only keep the first errors we get from a failing where clause
+                        if where_clause_errors.is_empty() {
+                            where_clause_errors.extend(errors);
+                        }
+                        continue;
                     }
                 }
 
@@ -1491,7 +1496,8 @@ impl NodeInterner {
             *type_bindings = fresh_bindings;
             Ok(impl_)
         } else if matching_impls.is_empty() {
-            Err(vec![make_constraint()])
+            where_clause_errors.push(make_constraint());
+            Err(where_clause_errors)
         } else {
             // multiple matching impls, type annotations needed
             Err(vec![])
