@@ -688,7 +688,7 @@ impl Builder {
                         let (_index_type, index_target) = self.get_integer(index)?;
                         let (array_elem_type, array_targets) = self.get_array(array)?;
                         let mut addends = Vec::<Target>::new();
-                        for i in 0..array_targets.len() - 1 {
+                        for i in 0..array_targets.len() {
                             let c = self.asm_writer.constant(noir_to_plonky2_field(i.into()));
                             let is_eq = self.asm_writer.is_equal(index_target, c);
                             addends.push(
