@@ -1,8 +1,8 @@
 import { type AztecAddress, type Fr, type NoteSelector } from '@aztec/aztec.js';
+import { createCompatibleClient } from '@aztec/aztec.js';
 import { ExtendedNote, Note, type TxHash } from '@aztec/circuit-types';
 import { type DebugLogger } from '@aztec/foundation/log';
 
-import { createCompatibleClient } from '../../client.js';
 import { parseFields } from '../../utils/commands.js';
 
 export async function addNote(

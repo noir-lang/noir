@@ -1,14 +1,15 @@
-import { type DeployAccountOptions } from '@aztec/aztec.js';
+import { getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { type DeployAccountOptions, createCompatibleClient } from '@aztec/aztec.js';
 import { deriveSigningKey } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
-import { createCompatibleClient } from '../../client.js';
-import { type IFeeOpts, printGasEstimates } from '../../fees.js';
+import { type IFeeOpts, printGasEstimates } from '../utils/fees.js';
 
 export async function createAccount(
   rpcUrl: string,
   privateKey: Fr | undefined,
+  alias: string | undefined,
   registerOnly: boolean,
   publicDeploy: boolean,
   skipInitialization: boolean,
@@ -20,8 +21,8 @@ export async function createAccount(
   const client = await createCompatibleClient(rpcUrl, debugLogger);
   const printPK = typeof privateKey === 'undefined';
   privateKey ??= Fr.random();
+
   const salt = Fr.ZERO;
-  const { getSchnorrAccount } = await import('@aztec/accounts/schnorr');
 
   const account = getSchnorrAccount(client, privateKey, deriveSigningKey(privateKey), salt);
   const { address, publicKeys, partialAddress } = account.getCompleteAddress();
@@ -69,4 +70,6 @@ export async function createAccount(
   if (txReceipt) {
     log(`Deploy tx fee:   ${txReceipt.transactionFee}`);
   }
+
+  return { alias, address, privateKey, salt };
 }

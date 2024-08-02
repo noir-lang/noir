@@ -72,6 +72,8 @@ jobs:
         run: |
           earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }}
           earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ github.sha }}
+          earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ env.DEPLOY_TAG }}
+          earthly-ci --no-output --push ./yarn-project+export-cli-wallet-arch --DIST_TAG=${{ github.sha }}
 
       - name: Check if mainnet fork needs deployment
         id: check_fork_changes

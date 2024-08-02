@@ -37,6 +37,9 @@
       "path": "../cli"
     },
     {
+      "path": "../cli-wallet"
+    },
+    {
       "path": "../entrypoints"
     },
     {

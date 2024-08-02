@@ -1,5 +1,5 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
-import { BatchCall, type PXE, type Wallet } from '@aztec/aztec.js';
+import { BatchCall, type PXE, type Wallet, createCompatibleClient } from '@aztec/aztec.js';
 import { type AztecAddress, type EthAddress, Fq, Fr } from '@aztec/circuits.js';
 import {
   type ContractArtifacts,
@@ -13,8 +13,6 @@ import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecod
 
 import { getContract } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-
-import { createCompatibleClient } from '../../client.js';
 
 export async function bootstrapDevnet(
   pxeUrl: string,

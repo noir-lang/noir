@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+if [ "$(uname)" == "Darwin" ]; then
+  shopt -s expand_aliases
+  alias clang-format-16="clang-format"
+fi
+
 if [ "$1" == "staged" ]; then
   echo Formatting barretenberg staged files...
   for FILE in $(git diff-index --diff-filter=d --relative --cached --name-only HEAD | grep -e '\.\(cpp\|hpp\|tcc\)$'); do

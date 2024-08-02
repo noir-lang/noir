@@ -1,11 +1,10 @@
+import { createCompatibleClient } from '@aztec/aztec.js';
 import { createEthereumChain } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { RollupAbi } from '@aztec/l1-artifacts';
 
 import { createPublicClient, createWalletClient, getContract, http } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
-
-import { createCompatibleClient } from '../../client.js';
 
 export async function sequencers(opts: {
   command: 'list' | 'add' | 'remove' | 'who-next';

@@ -1,7 +1,6 @@
 // import CopyWebpackPlugin from 'copy-webpack-plugin';
 import { createRequire } from 'module';
 import { dirname, resolve } from 'path';
-import path from 'path';
 import ResolveTypeScriptPlugin from 'resolve-typescript-plugin';
 import { fileURLToPath } from 'url';
 import webpack from 'webpack';

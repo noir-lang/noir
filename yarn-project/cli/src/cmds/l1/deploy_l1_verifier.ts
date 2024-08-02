@@ -1,3 +1,4 @@
+import { createCompatibleClient } from '@aztec/aztec.js';
 import { createL1Clients, deployL1Contract } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
@@ -6,8 +7,6 @@ import { InvalidOptionArgumentError } from 'commander';
 import solc from 'solc';
 import { getContract } from 'viem';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
-
-import { createCompatibleClient } from '../../client.js';
 
 export async function deployUltraVerifier(
   ethRpcUrl: string,

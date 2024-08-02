@@ -55,7 +55,7 @@ export {
 } from './utils/index.js';
 export { NoteSelector } from '@aztec/foundation/abi';
 
-export { createPXEClient } from './rpc_clients/index.js';
+export { createPXEClient, createCompatibleClient } from './rpc_clients/index.js';
 
 export { AuthWitnessProvider } from './account/index.js';
 

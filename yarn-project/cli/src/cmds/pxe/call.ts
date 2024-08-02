@@ -1,10 +1,10 @@
 import { type AztecAddress, ContractFunctionInteraction, SignerlessWallet } from '@aztec/aztec.js';
+import { createCompatibleClient } from '@aztec/aztec.js';
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { format } from 'util';
 
-import { createCompatibleClient } from '../../client.js';
 import { getFunctionArtifact, prepTx } from '../../utils/aztec.js';
 import { getTxSender } from '../../utils/commands.js';
 

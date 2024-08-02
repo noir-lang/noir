@@ -45,7 +45,7 @@ RUN mkdir -p $BB_WORKING_DIRECTORY $ACVM_WORKING_DIRECTORY && \
   node bb-prover/dest/bb/index.js write-contract -c RootRollupArtifact -n UltraVerifier.sol || \
   echo "Skipping VK generation arch=$(arch)"
 
-RUN yarn workspaces focus @aztec/aztec @aztec/builder @aztec/cli --production && yarn cache clean
+RUN yarn workspaces focus @aztec/aztec @aztec/cli-wallet --production && yarn cache clean
 
 # TODO: Use release-please to update package.json directly, and remove this!
 # It's here to ensure the image rebuilds if the commit tag changes (as the content hash won't).

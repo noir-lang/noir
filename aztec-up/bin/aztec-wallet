@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export SKIP_NET=1
+export SKIP_PORT_ASSIGNMENT=1
+export WALLET_DATA_DIRECTORY=$(dirname $0)/wallet-data
+export ENV_VARS_TO_INJECT=WALLET_DATA_DIRECTORY
+
+mkdir -p $WALLET_DATA_DIRECTORY
+
+$(dirname $0)/.aztec-run aztecprotocol/cli-wallet $@

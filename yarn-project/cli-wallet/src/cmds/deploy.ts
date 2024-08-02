@@ -1,22 +1,19 @@
-import { ContractDeployer, type DeployMethod, Fr } from '@aztec/aztec.js';
-import { type PublicKeys, deriveSigningKey } from '@aztec/circuits.js';
+import { type AccountWalletWithSecretKey, ContractDeployer, type DeployMethod, Fr, type PXE } from '@aztec/aztec.js';
+import { type PublicKeys } from '@aztec/circuits.js';
+import { GITHUB_TAG_PREFIX, encodeArgs, getContractArtifact } from '@aztec/cli/utils';
 import { getInitializer } from '@aztec/foundation/abi';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
-import { createCompatibleClient } from '../../client.js';
-import { encodeArgs } from '../../encoding.js';
-import { type IFeeOpts, printGasEstimates } from '../../fees.js';
-import { GITHUB_TAG_PREFIX } from '../../github.js';
-import { getContractArtifact } from '../../utils/aztec.js';
+import { type IFeeOpts, printGasEstimates } from '../utils/fees.js';
 
 export async function deploy(
+  client: PXE,
+  wallet: AccountWalletWithSecretKey,
   artifactPath: string,
   json: boolean,
-  rpcUrl: string,
   publicKeys: PublicKeys | undefined,
   rawArgs: any[],
   salt: Fr | undefined,
-  privateKey: Fr,
   initializer: string | undefined,
   skipPublicDeployment: boolean,
   skipClassRegistration: boolean,
@@ -32,7 +29,6 @@ export async function deploy(
   const contractArtifact = await getContractArtifact(artifactPath, log);
   const constructorArtifact = getInitializer(contractArtifact, initializer);
 
-  const client = await createCompatibleClient(rpcUrl, debugLogger);
   const nodeInfo = await client.getNodeInfo();
   const expectedAztecNrVersion = `${GITHUB_TAG_PREFIX}-v${nodeInfo.nodeVersion}`;
   if (contractArtifact.aztecNrVersion && contractArtifact.aztecNrVersion !== expectedAztecNrVersion) {
@@ -40,9 +36,7 @@ export async function deploy(
       `\nWarning: Contract was compiled with a different version of Aztec.nr: ${contractArtifact.aztecNrVersion}. Consider updating Aztec.nr to ${expectedAztecNrVersion}\n`,
     );
   }
-  const { getSchnorrAccount } = await import('@aztec/accounts/schnorr');
 
-  const wallet = await getSchnorrAccount(client, privateKey, deriveSigningKey(privateKey), Fr.ZERO).getWallet();
   const deployer = new ContractDeployer(contractArtifact, wallet, publicKeys?.hash() ?? Fr.ZERO, initializer);
 
   let args = [];

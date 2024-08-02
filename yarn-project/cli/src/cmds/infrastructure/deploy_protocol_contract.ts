@@ -6,7 +6,7 @@ import {
   deployCanonicalAuthRegistry,
   deployCanonicalKeyRegistry,
   deployCanonicalL2GasToken,
-} from '../utils/deploy_contracts.js';
+} from '../misc/deploy_contracts.js';
 
 const waitOpts: WaitOpts = {
   timeout: 180,

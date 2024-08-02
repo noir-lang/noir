@@ -9,11 +9,10 @@ import {
   type SendMethodOptions,
 } from '@aztec/aztec.js';
 import { AztecAddress, Fr, Gas, GasFees, GasSettings } from '@aztec/circuits.js';
+import { parseBigint } from '@aztec/cli/utils';
 import { type LogFn } from '@aztec/foundation/log';
 
 import { Option } from 'commander';
-
-import { parseBigint } from './utils/commands.js';
 
 export type CliFeeArgs = {
   estimateGasOnly: boolean;

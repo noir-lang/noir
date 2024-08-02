@@ -79,6 +79,7 @@
     "@aztec/foundation": "workspace:^",
     "@aztec/protocol-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
+    "axios": "^1.7.2",
     "tslib": "^2.4.0"
   },
   "devDependencies": {

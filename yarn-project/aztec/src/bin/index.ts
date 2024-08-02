@@ -1,11 +1,12 @@
 import { fileURLToPath } from '@aztec/aztec.js';
 import { injectCommands as injectBuilderCommands } from '@aztec/builder';
+import { injectCommands as injectWalletCommands } from '@aztec/cli-wallet';
 import { injectCommands as injectContractCommands } from '@aztec/cli/contracts';
 import { injectCommands as injectDevnetCommands } from '@aztec/cli/devnet';
 import { injectCommands as injectInfrastructureCommands } from '@aztec/cli/infrastructure';
 import { injectCommands as injectL1Commands } from '@aztec/cli/l1';
+import { injectCommands as injectMiscCommands } from '@aztec/cli/misc';
 import { injectCommands as injectPXECommands } from '@aztec/cli/pxe';
-import { injectCommands as injectUtilsCommands } from '@aztec/cli/utils';
 import { createConsoleLogger, createDebugLogger } from '@aztec/foundation/log';
 
 import { Command } from 'commander';
@@ -29,8 +30,9 @@ async function main() {
   program = injectInfrastructureCommands(program, userLog, debugLogger);
   program = injectL1Commands(program, userLog, debugLogger);
   program = injectPXECommands(program, userLog, debugLogger);
-  program = injectUtilsCommands(program, userLog);
+  program = injectMiscCommands(program, userLog);
   program = injectDevnetCommands(program, userLog, debugLogger);
+  program = injectWalletCommands(program, userLog, debugLogger);
 
   await program.parseAsync(process.argv);
 }

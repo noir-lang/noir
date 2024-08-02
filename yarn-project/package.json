@@ -33,6 +33,7 @@
     "circuits.js",
     "circuit-types",
     "cli",
+    "cli-wallet",
     "docs",
     "end-to-end",
     "entrypoints",

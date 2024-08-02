@@ -1,34 +1,21 @@
-import { type AztecAddress, Contract, Fr } from '@aztec/aztec.js';
-import { deriveSigningKey } from '@aztec/circuits.js';
-import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
+import { type AccountWalletWithSecretKey, type AztecAddress, Contract } from '@aztec/aztec.js';
+import { prepTx } from '@aztec/cli/utils';
+import { type LogFn } from '@aztec/foundation/log';
 
-import { createCompatibleClient } from '../../client.js';
-import { type IFeeOpts, printGasEstimates } from '../../fees.js';
-import { prepTx } from '../../utils/aztec.js';
+import { type IFeeOpts, printGasEstimates } from '../utils/fees.js';
 
 export async function send(
+  wallet: AccountWalletWithSecretKey,
   functionName: string,
   functionArgsIn: any[],
   contractArtifactPath: string,
   contractAddress: AztecAddress,
-  encryptionPrivateKey: Fr,
-  rpcUrl: string,
   wait: boolean,
   feeOpts: IFeeOpts,
-  debugLogger: DebugLogger,
   log: LogFn,
 ) {
   const { functionArgs, contractArtifact } = await prepTx(contractArtifactPath, functionName, functionArgsIn, log);
 
-  const client = await createCompatibleClient(rpcUrl, debugLogger);
-  const { getSchnorrAccount } = await import('@aztec/accounts/schnorr');
-
-  const wallet = await getSchnorrAccount(
-    client,
-    encryptionPrivateKey,
-    deriveSigningKey(encryptionPrivateKey),
-    Fr.ZERO,
-  ).getWallet();
   const contract = await Contract.at(contractAddress, contractArtifact, wallet);
   const call = contract.methods[functionName](...functionArgs);
 

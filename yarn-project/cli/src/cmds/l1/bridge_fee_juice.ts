@@ -1,8 +1,8 @@
+import { createCompatibleClient } from '@aztec/aztec.js';
 import { type AztecAddress } from '@aztec/circuits.js';
 import { createEthereumChain, createL1Clients } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
-import { createCompatibleClient } from '../../client.js';
 import { FeeJuicePortalManager } from '../../portal_manager.js';
 
 export async function bridgeL1Gas(

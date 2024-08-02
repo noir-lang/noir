@@ -3,7 +3,7 @@ import { type AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec
 import { SignerlessWallet } from '@aztec/aztec.js';
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { type AztecNode } from '@aztec/circuit-types';
-import { deployCanonicalAuthRegistry, deployCanonicalKeyRegistry, deployCanonicalL2GasToken } from '@aztec/cli/utils';
+import { deployCanonicalAuthRegistry, deployCanonicalKeyRegistry, deployCanonicalL2GasToken } from '@aztec/cli/misc';
 import {
   type DeployL1Contracts,
   type L1ContractArtifactsForDeployment,

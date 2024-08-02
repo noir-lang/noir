@@ -220,9 +220,9 @@ aztec:
     - yarn-project
   multiarch: buildx
 
-aztec-builder:
+cli-wallet:
   buildDir: yarn-project
-  projectDir: yarn-project/builder
+  projectDir: yarn-project/cli-wallet
   dependencies:
     - yarn-project
   multiarch: buildx

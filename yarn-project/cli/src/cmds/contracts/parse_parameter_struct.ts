@@ -2,8 +2,8 @@ import { type StructType } from '@aztec/foundation/abi';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { type LogFn } from '@aztec/foundation/log';
 
-import { parseStructString } from '../../encoding.js';
 import { getContractArtifact } from '../../utils/aztec.js';
+import { parseStructString } from '../../utils/encoding.js';
 
 export async function parseParameterStruct(
   encodedString: string,

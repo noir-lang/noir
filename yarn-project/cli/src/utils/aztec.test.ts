@@ -3,9 +3,9 @@ import { type PXE } from '@aztec/circuit-types';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
-import { checkServerVersion } from './client.js';
+import { checkServerVersion } from './aztec.js';
 
-describe('client', () => {
+describe('aztec utils', () => {
   describe('checkServerVersion', () => {
     let pxe: MockProxy<PXE>;
 

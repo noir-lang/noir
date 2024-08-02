@@ -48,7 +48,7 @@ export function injectCommands(program: Command, log: LogFn) {
     .option('--contract [paths...]', 'Paths to contracts to update dependencies', [])
     .option('--aztec-version <semver>', 'The version to update Aztec packages to. Defaults to latest', 'latest')
     .action(async (projectPath: string, options) => {
-      const { updateProject } = await import('../utils/update.js');
+      const { updateProject } = await import('./update.js');
       const { contract, aztecVersion } = options;
       await updateProject(projectPath, contract, aztecVersion, log);
     });

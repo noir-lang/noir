@@ -43,6 +43,7 @@ function title() {
   echo -e "  ${bold}${g}aztec${r}         - a collection of tools to launch subsystems and interact with the aztec network."
   echo -e "  ${bold}${g}aztec-nargo${r}   - aztec's build of nargo, the noir compiler toolchain."
   echo -e "  ${bold}${g}aztec-up${r}      - a tool to upgrade the aztec toolchain to the latest, or specific versions."
+  echo -e "  ${bold}${g}aztec-wallet${r}  - our minimalistic CLI wallet"
   echo
   read -p "Do you wish to continue? (y/n)" -n 1 -r
   echo
@@ -105,6 +106,7 @@ if [ -z "${SKIP_PULL:-}" ]; then
   info "Pulling aztec version $VERSION..."
   pull_container aztec-nargo
   pull_container aztec
+  pull_container cli-wallet
 fi
 
 # Download the Docker Compose file. Used by aztec.
@@ -123,6 +125,7 @@ install_bin .aztec-run
 install_bin aztec
 install_bin aztec-up
 install_bin aztec-nargo
+install_bin aztec-wallet
 
 function update_path_env_var {
   TARGET_DIR="${1}"
