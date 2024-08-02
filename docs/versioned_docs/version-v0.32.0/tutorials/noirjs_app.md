@@ -14,13 +14,13 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 :::note
 
-Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.27.x matches `noir_js@0.27.x`, etc.
+Feel free to use whatever versions, just keep in mind that Nargo and the NoirJS packages are meant to be in sync. For example, Nargo 0.31.x matches `noir_js@0.31.x`, etc.
 
-In this guide, we will be pinned to 0.27.0.
+In this guide, we will be pinned to 0.31.0.
 
 :::
 
-Before we start, we want to make sure we have Node and Nargo installed.
+Before we start, we want to make sure we have Node, Nargo and the Barretenberg proving system (`bb`) installed.
 
 We start by opening a terminal and executing `node --version`. If we don't get an output like `v20.10.0`, that means node is not installed. Let's do that by following the handy [nvm guide](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script).
 
@@ -29,6 +29,9 @@ As for `Nargo`, we can follow the [Nargo guide](../getting_started/installation/
 ```sh
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
 ```
+
+Follow the instructions on [this page](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg/cpp/src/barretenberg/bb#installation) to install `bb`. 
+Version 0.41.0 is compatible with `nargo` version 0.31.0, which you can install with `bbup -v 0.41.0` once `bbup` is installed.
 
 Easy enough. Onwards!
 
@@ -42,13 +45,17 @@ In fact, it's so simple that it comes nicely packaged in `nargo`. Let's do that!
 
 Run:
 
-`nargo new circuit`
+```bash
+nargo new circuit
+```
 
 And... That's about it. Your program is ready to be compiled and run.
 
 To compile, let's `cd` into the `circuit` folder to enter our project, and call:
 
-`nargo compile`
+```bash
+nargo compile
+```
 
 This compiles our circuit into `json` format and add it to a new `target` folder.
 
@@ -92,30 +99,53 @@ Before we proceed with any coding, let's get our environment tailored for Noir. 
 In your freshly minted `vite-project` folder, create a new file named `vite.config.js` and open it in your code editor. Paste the following to set the stage:
 
 ```javascript
-import { defineConfig } from "vite";
-import copy from "rollup-plugin-copy";
+import { defineConfig } from 'vite';
+import copy from 'rollup-plugin-copy';
+import fs from 'fs';
+import path from 'path';
 
-export default defineConfig({
-  esbuild: {
-    target: "esnext",
+const wasmContentTypePlugin = {
+  name: 'wasm-content-type-plugin',
+  configureServer(server) {
+    server.middlewares.use(async (req, res, next) => {
+      if (req.url.endsWith('.wasm')) {
+        res.setHeader('Content-Type', 'application/wasm');
+        const newPath = req.url.replace('deps', 'dist');
+        const targetPath = path.join(__dirname, newPath);
+        const wasmContent = fs.readFileSync(targetPath);
+        return res.end(wasmContent);
+      }
+      next();
+    });
   },
-  optimizeDeps: {
-    esbuildOptions: {
-      target: "esnext",
-    },
-  },
-  plugins: [
-    copy({
-      targets: [
-        { src: "node_modules/**/*.wasm", dest: "node_modules/.vite/dist" },
+};
+
+export default defineConfig(({ command }) => {
+  if (command === 'serve') {
+    return {
+      build: {
+        target: 'esnext',
+        rollupOptions: {
+          external: ['@aztec/bb.js']
+        }
+      },
+      optimizeDeps: {
+        esbuildOptions: {
+          target: 'esnext'
+        }
+      },
+      plugins: [
+        copy({
+          targets: [{ src: 'node_modules/**/*.wasm', dest: 'node_modules/.vite/dist' }],
+          copySync: true,
+          hook: 'buildStart',
+        }),
+        command === 'serve' ? wasmContentTypePlugin : [],
       ],
-      copySync: true,
-      hook: "buildStart",
-    }),
-  ],
-  server: {
-    port: 3000,
-  },
+    };
+  }
+
+  return {};
 });
 ```
 
@@ -124,7 +154,7 @@ export default defineConfig({
 Now that our stage is set, install the necessary NoirJS packages along with our other dependencies:
 
 ```bash
-npm install && npm install @noir-lang/backend_barretenberg@0.27.0 @noir-lang/noir_js@0.27.0
+npm install && npm install @noir-lang/backend_barretenberg@0.31.0 @noir-lang/noir_js@0.31.0
 npm install rollup-plugin-copy --save-dev
 ```
 
@@ -193,17 +223,6 @@ Our love for Noir needs undivided attention, so let's just open `main.js` and de
 Start by pasting in this boilerplate code:
 
 ```js
-const setup = async () => {
-  await Promise.all([
-    import('@noir-lang/noirc_abi').then((module) =>
-      module.default(new URL('@noir-lang/noirc_abi/web/noirc_abi_wasm_bg.wasm', import.meta.url).toString()),
-    ),
-    import('@noir-lang/acvm_js').then((module) =>
-      module.default(new URL('@noir-lang/acvm_js/web/acvm_js_bg.wasm', import.meta.url).toString()),
-    ),
-  ]);
-};
-
 function display(container, msg) {
   const c = document.getElementById(container);
   const p = document.createElement('p');
@@ -221,8 +240,6 @@ document.getElementById('submitGuess').addEventListener('click', async () => {
 ```
 
 The display function doesn't do much. We're simply manipulating our website to see stuff happening. For example, if the proof fails, it will simply log a broken heart 😢
-
-As for the `setup` function, it's just a sad reminder that dealing with `wasm` on the browser is not as easy as it should. Just copy, paste, and forget.
 
 :::info
 
@@ -310,9 +327,13 @@ Time to celebrate, yes! But we shouldn't trust machines so blindly. Let's add th
 
 ```js
 display('logs', 'Verifying proof... ⌛');
-const verificationKey = await backend.getVerificationKey();
-const verifier = new Verifier();
-const isValid = await verifier.verifyProof(proof, verificationKey);
+const isValid = await backend.verifyProof(proof);
+
+// or to cache and use the verification key:
+// const verificationKey = await backend.getVerificationKey();
+// const verifier = new Verifier();
+// const isValid = await verifier.verifyProof(proof, verificationKey);
+
 if (isValid) display('logs', 'Verifying proof... ✅');
 ```
 
