@@ -29,5 +29,15 @@ fn main() {
         let (signed, bits) = u8_type.as_integer().unwrap();
         assert(!signed);
         assert_eq(bits, 8);
+
+        // Check Type::as_tuple
+        assert(u8_type.as_tuple().is_none());
+
+        let tuple = (an_i32, a_u8);
+        let tuple_type = type_of(tuple);
+        let tuple_types = tuple_type.as_tuple().unwrap();
+        assert_eq(tuple_types.len(), 2);
+        assert_eq(tuple_types[0], i32_type);
+        assert_eq(tuple_types[1], u8_type);
     }
 }

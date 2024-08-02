@@ -58,6 +58,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
+            "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
@@ -505,6 +506,30 @@ fn type_as_integer(
     option(return_type, option_value)
 }
 
+// fn as_tuple(self) -> Option<[Type]>
+fn type_as_tuple(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_type(value, location)?;
+
+    let t = extract_option_generic_type(return_type.clone());
+
+    let Type::Slice(slice_type) = t else {
+        panic!("Expected T to be a slice");
+    };
+
+    let option_value = if let Type::Tuple(types) = typ {
+        Some(Value::Slice(types.into_iter().map(Value::Type).collect(), *slice_type))
+    } else {
+        None
+    };
+
+    option(return_type, option_value)
+}
+
 // fn type_eq(_first: Type, _second: Type) -> bool
 fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (self_type, other_type) = check_two_arguments(arguments, location)?;
@@ -752,14 +777,7 @@ fn trait_def_as_trait_constraint(
 /// Creates a value that holds an `Option`.
 /// `option_type` must be a Type referencing the `Option` type.
 pub(crate) fn option(option_type: Type, value: Option<Value>) -> IResult<Value> {
-    let Type::Struct(shared_option_type, mut generics) = option_type.clone() else {
-        panic!("Expected type to be a struct");
-    };
-
-    let shared_option_type = shared_option_type.borrow();
-    assert_eq!(shared_option_type.name.0.contents, "Option");
-
-    let t = generics.pop().expect("Expected Option to have a T generic type");
+    let t = extract_option_generic_type(option_type.clone());
 
     let (is_some, value) = match value {
         Some(value) => (Value::Bool(true), value),
@@ -770,4 +788,16 @@ pub(crate) fn option(option_type: Type, value: Option<Value>) -> IResult<Value> 
     fields.insert(Rc::new("_is_some".to_string()), is_some);
     fields.insert(Rc::new("_value".to_string()), value);
     Ok(Value::Struct(fields, option_type))
+}
+
+/// Given a type, assert that it's an Option<T> and return the Type for T
+pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
+    let Type::Struct(struct_type, mut generics) = typ else {
+        panic!("Expected type to be a struct");
+    };
+
+    let struct_type = struct_type.borrow();
+    assert_eq!(struct_type.name.0.contents, "Option");
+
+    generics.pop().expect("Expected Option to have a T generic type")
 }
