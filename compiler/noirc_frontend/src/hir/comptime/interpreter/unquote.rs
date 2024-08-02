@@ -15,20 +15,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         &mut self,
         tokens: Tokens,
         location: Location,
-    ) -> IResult<Tokens> {
+    ) -> IResult<Vec<Token>> {
         let mut new_tokens = Vec::with_capacity(tokens.0.len());
 
         for token in tokens.0 {
-            match token.token() {
+            match token.into_token() {
                 Token::UnquoteMarker(id) => {
-                    let value = self.evaluate(*id)?;
+                    let value = self.evaluate(id)?;
                     let tokens = value.into_tokens(self.elaborator.interner, location)?;
-                    new_tokens.extend(tokens.0);
+                    new_tokens.extend(tokens);
                 }
-                _ => new_tokens.push(token),
+                token => new_tokens.push(token),
             }
         }
 
-        Ok(Tokens(new_tokens))
+        Ok(new_tokens)
     }
 }

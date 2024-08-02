@@ -4,7 +4,7 @@ use acvm::{AcirField, FieldElement};
 use chumsky::Parser;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
@@ -46,7 +46,10 @@ pub enum Value {
     Pointer(Shared<Value>, /* auto_deref */ bool),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
-    Code(Rc<Tokens>),
+    /// Quoted tokens don't have spans because otherwise inserting them in the middle of other
+    /// tokens can cause larger spans to be before lesser spans, causing an assert. They may also
+    /// be inserted into separate files entirely.
+    Quoted(Rc<Vec<Token>>),
     StructDefinition(StructId),
     TraitConstraint(TraitId, /* trait generics */ Vec<Type>),
     TraitDefinition(TraitId),
@@ -84,7 +87,7 @@ impl Value {
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
-            Value::Code(_) => Type::Quoted(QuotedType::Quoted),
+            Value::Quoted(_) => Type::Quoted(QuotedType::Quoted),
             Value::StructDefinition(_) => Type::Quoted(QuotedType::StructDefinition),
             Value::Pointer(element, auto_deref) => {
                 if *auto_deref {
@@ -204,9 +207,9 @@ impl Value {
                     try_vecmap(elements, |element| element.into_expression(interner, location))?;
                 ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(elements)))
             }
-            Value::Code(tokens) => {
+            Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
-                let mut tokens_to_parse = tokens.as_ref().clone();
+                let mut tokens_to_parse = add_token_spans(tokens.clone(), location.span);
                 tokens_to_parse.0.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
                 tokens_to_parse.0.push(SpannedToken::new(Token::RightBrace, location.span));
 
@@ -341,7 +344,7 @@ impl Value {
                 })?;
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
-            Value::Code(block) => HirExpression::Unquote(unwrap_rc(block)),
+            Value::Quoted(tokens) => HirExpression::Unquote(add_token_spans(tokens, location.span)),
             Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
@@ -366,13 +369,13 @@ impl Value {
         self,
         interner: &mut NodeInterner,
         location: Location,
-    ) -> IResult<Tokens> {
+    ) -> IResult<Vec<Token>> {
         let token = match self {
-            Value::Code(tokens) => return Ok(unwrap_rc(tokens)),
+            Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
             Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
             other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
         };
-        Ok(Tokens(vec![SpannedToken::new(token, location.span)]))
+        Ok(vec![token])
     }
 
     /// Converts any unsigned `Value` into a `u128`.
@@ -398,7 +401,7 @@ impl Value {
         interner: &NodeInterner,
     ) -> IResult<Vec<TopLevelStatement>> {
         match self {
-            Value::Code(tokens) => parse_tokens(tokens, parser::top_level_items(), location.file),
+            Value::Quoted(tokens) => parse_tokens(tokens, parser::top_level_items(), location),
             _ => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
@@ -420,15 +423,25 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
     Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
 }
 
-fn parse_tokens<T>(tokens: Rc<Tokens>, parser: impl NoirParser<T>, file: fm::FileId) -> IResult<T> {
-    match parser.parse(tokens.as_ref().clone()) {
+fn parse_tokens<T>(
+    tokens: Rc<Vec<Token>>,
+    parser: impl NoirParser<T>,
+    location: Location,
+) -> IResult<T> {
+    match parser.parse(add_token_spans(tokens.clone(), location.span)) {
         Ok(expr) => Ok(expr),
         Err(mut errors) => {
             let error = errors.swap_remove(0);
             let rule = "an expression";
+            let file = location.file;
             Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
         }
     }
+}
+
+pub(crate) fn add_token_spans(tokens: Rc<Vec<Token>>, span: Span) -> Tokens {
+    let tokens = unwrap_rc(tokens);
+    Tokens(vecmap(tokens, |token| SpannedToken::new(token, span)))
 }
 
 pub struct ValuePrinter<'value, 'interner> {
@@ -481,9 +494,9 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "&[{}]", values.join(", "))
             }
-            Value::Code(tokens) => {
+            Value::Quoted(tokens) => {
                 write!(f, "quote {{")?;
-                for token in tokens.0.iter() {
+                for token in tokens.iter() {
                     write!(f, " {token}")?;
                 }
                 write!(f, " }}")

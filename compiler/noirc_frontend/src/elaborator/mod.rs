@@ -6,7 +6,6 @@ use std::{
 use crate::{
     ast::{FunctionKind, UnresolvedTraitConstraint},
     hir::{
-        comptime::Value,
         def_collector::dc_crate::{
             filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal, UnresolvedStruct,
             UnresolvedTypeAlias,
@@ -27,8 +26,7 @@ use crate::{
         SecondaryAttribute, StructId,
     },
     node_interner::{
-        DefinitionId, DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ReferenceId, TraitId,
-        TypeAliasId,
+        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
     },
     Shared, Type, TypeVariable,
 };
@@ -68,7 +66,6 @@ mod unquote;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
-use rustc_hash::FxHashMap as HashMap;
 
 use self::traits::check_trait_impl_method_matches_declaration;
 
@@ -157,11 +154,6 @@ pub struct Elaborator<'context> {
 
     crate_id: CrateId,
 
-    /// Each value currently in scope in the comptime interpreter.
-    /// Each element of the Vec represents a scope with every scope together making
-    /// up all currently visible definitions. The first scope is always the global scope.
-    pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, Value>>,
-
     /// The scope of --debug-comptime, or None if unset
     debug_comptime_in_file: Option<FileId>,
 
@@ -209,7 +201,6 @@ impl<'context> Elaborator<'context> {
             trait_bounds: Vec::new(),
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
-            comptime_scopes: vec![HashMap::default()],
             debug_comptime_in_file,
             unresolved_globals: BTreeMap::new(),
         }

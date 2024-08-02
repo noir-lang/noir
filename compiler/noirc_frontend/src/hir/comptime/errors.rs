@@ -5,7 +5,7 @@ use crate::{
     ast::TraitBound,
     hir::{def_collector::dc_crate::CompilationError, type_check::NoMatchingImplFoundError},
     parser::ParserError,
-    token::Tokens,
+    token::Token,
     Type,
 };
 use acvm::{acir::AcirField, BlackBoxResolutionError, FieldElement};
@@ -16,50 +16,180 @@ use noirc_errors::{CustomDiagnostic, Location};
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InterpreterError {
-    ArgumentCountMismatch { expected: usize, actual: usize, location: Location },
-    TypeMismatch { expected: Type, actual: Type, location: Location },
-    NonComptimeVarReferenced { name: String, location: Location },
-    VariableNotInScope { location: Location },
-    IntegerOutOfRangeForType { value: FieldElement, typ: Type, location: Location },
-    ErrorNodeEncountered { location: Location },
-    NonFunctionCalled { typ: Type, location: Location },
-    NonBoolUsedInIf { typ: Type, location: Location },
-    NonBoolUsedInConstrain { typ: Type, location: Location },
-    FailingConstraint { message: Option<String>, location: Location },
-    NoMethodFound { name: String, typ: Type, location: Location },
-    NonIntegerUsedInLoop { typ: Type, location: Location },
-    NonPointerDereferenced { typ: Type, location: Location },
-    NonTupleOrStructInMemberAccess { typ: Type, location: Location },
-    NonArrayIndexed { typ: Type, location: Location },
-    NonIntegerUsedAsIndex { typ: Type, location: Location },
-    NonIntegerIntegerLiteral { typ: Type, location: Location },
-    NonIntegerArrayLength { typ: Type, location: Location },
-    NonNumericCasted { typ: Type, location: Location },
-    IndexOutOfBounds { index: usize, length: usize, location: Location },
-    ExpectedStructToHaveField { typ: Type, field_name: String, location: Location },
-    TypeUnsupported { typ: Type, location: Location },
-    InvalidValueForUnary { typ: Type, operator: &'static str, location: Location },
-    InvalidValuesForBinary { lhs: Type, rhs: Type, operator: &'static str, location: Location },
-    CastToNonNumericType { typ: Type, location: Location },
-    QuoteInRuntimeCode { location: Location },
-    NonStructInConstructor { typ: Type, location: Location },
-    CannotInlineMacro { value: String, typ: Type, location: Location },
-    UnquoteFoundDuringEvaluation { location: Location },
-    DebugEvaluateComptime { diagnostic: CustomDiagnostic, location: Location },
-    FailedToParseMacro { error: ParserError, tokens: Rc<Tokens>, rule: &'static str, file: FileId },
-    UnsupportedTopLevelItemUnquote { item: String, location: Location },
-    ComptimeDependencyCycle { function: String, location: Location },
-    NoImpl { location: Location },
-    NoMatchingImplFound { error: NoMatchingImplFoundError, file: FileId },
-    ImplMethodTypeMismatch { expected: Type, actual: Type, location: Location },
-    BreakNotInLoop { location: Location },
-    ContinueNotInLoop { location: Location },
+    ArgumentCountMismatch {
+        expected: usize,
+        actual: usize,
+        location: Location,
+    },
+    TypeMismatch {
+        expected: Type,
+        actual: Type,
+        location: Location,
+    },
+    NonComptimeVarReferenced {
+        name: String,
+        location: Location,
+    },
+    VariableNotInScope {
+        location: Location,
+    },
+    IntegerOutOfRangeForType {
+        value: FieldElement,
+        typ: Type,
+        location: Location,
+    },
+    ErrorNodeEncountered {
+        location: Location,
+    },
+    NonFunctionCalled {
+        typ: Type,
+        location: Location,
+    },
+    NonBoolUsedInIf {
+        typ: Type,
+        location: Location,
+    },
+    NonBoolUsedInConstrain {
+        typ: Type,
+        location: Location,
+    },
+    FailingConstraint {
+        message: Option<String>,
+        location: Location,
+    },
+    NoMethodFound {
+        name: String,
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerUsedInLoop {
+        typ: Type,
+        location: Location,
+    },
+    NonPointerDereferenced {
+        typ: Type,
+        location: Location,
+    },
+    NonTupleOrStructInMemberAccess {
+        typ: Type,
+        location: Location,
+    },
+    NonArrayIndexed {
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerUsedAsIndex {
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerIntegerLiteral {
+        typ: Type,
+        location: Location,
+    },
+    NonIntegerArrayLength {
+        typ: Type,
+        location: Location,
+    },
+    NonNumericCasted {
+        typ: Type,
+        location: Location,
+    },
+    IndexOutOfBounds {
+        index: usize,
+        length: usize,
+        location: Location,
+    },
+    ExpectedStructToHaveField {
+        typ: Type,
+        field_name: String,
+        location: Location,
+    },
+    TypeUnsupported {
+        typ: Type,
+        location: Location,
+    },
+    InvalidValueForUnary {
+        typ: Type,
+        operator: &'static str,
+        location: Location,
+    },
+    InvalidValuesForBinary {
+        lhs: Type,
+        rhs: Type,
+        operator: &'static str,
+        location: Location,
+    },
+    CastToNonNumericType {
+        typ: Type,
+        location: Location,
+    },
+    QuoteInRuntimeCode {
+        location: Location,
+    },
+    NonStructInConstructor {
+        typ: Type,
+        location: Location,
+    },
+    CannotInlineMacro {
+        value: String,
+        typ: Type,
+        location: Location,
+    },
+    UnquoteFoundDuringEvaluation {
+        location: Location,
+    },
+    DebugEvaluateComptime {
+        diagnostic: CustomDiagnostic,
+        location: Location,
+    },
+    FailedToParseMacro {
+        error: ParserError,
+        tokens: Rc<Vec<Token>>,
+        rule: &'static str,
+        file: FileId,
+    },
+    UnsupportedTopLevelItemUnquote {
+        item: String,
+        location: Location,
+    },
+    ComptimeDependencyCycle {
+        function: String,
+        location: Location,
+    },
+    NoImpl {
+        location: Location,
+    },
+    NoMatchingImplFound {
+        error: NoMatchingImplFoundError,
+        file: FileId,
+    },
+    ImplMethodTypeMismatch {
+        expected: Type,
+        actual: Type,
+        location: Location,
+    },
+    BreakNotInLoop {
+        location: Location,
+    },
+    ContinueNotInLoop {
+        location: Location,
+    },
     BlackBoxError(BlackBoxResolutionError, Location),
-    FailedToResolveTraitBound { trait_bound: TraitBound, location: Location },
-    TraitDefinitionMustBeAPath { location: Location },
-    FailedToResolveTraitDefinition { location: Location },
+    FailedToResolveTraitBound {
+        trait_bound: TraitBound,
+        location: Location,
+    },
+    TraitDefinitionMustBeAPath {
+        location: Location,
+    },
+    FailedToResolveTraitDefinition {
+        location: Location,
+    },
 
-    Unimplemented { item: String, location: Location },
+    Unimplemented {
+        item: String,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -309,7 +439,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
             InterpreterError::FailedToParseMacro { error, tokens, rule, file: _ } => {
                 let message = format!("Failed to parse macro's token stream into {rule}");
-                let tokens = vecmap(&tokens.0, ToString::to_string).join(" ");
+                let tokens = vecmap(tokens.iter(), ToString::to_string).join(" ");
 
                 // 10 is an aribtrary number of tokens here chosen to fit roughly onto one line
                 let token_stream = if tokens.len() > 10 {
