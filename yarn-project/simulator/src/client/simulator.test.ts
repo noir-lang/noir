@@ -5,7 +5,7 @@ import { type FunctionArtifact, getFunctionArtifact } from '@aztec/foundation/ab
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { Fr, type Point } from '@aztec/foundation/fields';
-import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
+import { TokenBlacklistContractArtifact } from '@aztec/noir-contracts.js';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
@@ -47,10 +47,13 @@ describe('Simulator', () => {
   });
 
   describe('computeNoteHashAndOptionallyANullifier', () => {
-    const artifact = getFunctionArtifact(TokenContractArtifact, 'compute_note_hash_and_optionally_a_nullifier');
+    const artifact = getFunctionArtifact(
+      TokenBlacklistContractArtifact,
+      'compute_note_hash_and_optionally_a_nullifier',
+    );
     const nonce = Fr.random();
-    const storageSlot = TokenContractArtifact.storageLayout['balances'].slot;
-    const noteTypeId = TokenContractArtifact.notes['TokenNote'].id;
+    const storageSlot = TokenBlacklistContractArtifact.storageLayout['balances'].slot;
+    const noteTypeId = TokenBlacklistContractArtifact.notes['TokenNote'].id;
 
     const createNote = (amount = 123n) => new Note([new Fr(amount), ownerMasterNullifierPublicKey.hash(), Fr.random()]);
 

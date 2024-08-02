@@ -1,6 +1,6 @@
 import { Fq, Fr, GeneratorIndex, Point } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { pedersenHash } from '@aztec/foundation/crypto';
+import { pedersenCommit } from '@aztec/foundation/crypto';
 
 // Copied over from `noir-projects/aztec-nr/aztec/src/generators.nr`
 const G_SLOT = new Point(
@@ -15,10 +15,11 @@ const G_SLOT = new Point(
  * @returns A note hiding point.
  */
 export function computeNoteHidingPoint(noteContent: Fr[]): Point {
-  // TODO(#7551): how this is computed will need to be updated
-  const h = pedersenHash(noteContent, GeneratorIndex.NOTE_HIDING_POINT);
-  const grumpkin = new Grumpkin();
-  return grumpkin.mul(G_SLOT, new Fq(h.toBigInt()));
+  const c = pedersenCommit(
+    noteContent.map(f => f.toBuffer()),
+    GeneratorIndex.NOTE_HIDING_POINT,
+  );
+  return new Point(new Fr(c[0]), new Fr(c[1]), false);
 }
 
 /**
