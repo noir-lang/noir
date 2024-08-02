@@ -709,15 +709,6 @@ impl Builder {
             }
 
             Instruction::ArraySet { array, index, value, mutable } => {
-                let index_value = self.dfg[index].clone();
-                let num_index = match index_value {
-                    Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
-                    _ => {
-                        let feature_name =
-                            format!("indexing array (set) with an {:?}", index_value);
-                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
-                    }
-                };
                 let (target_type, p2targets) = self.get_array(array)?;
                 let p2value = match self.get(value) {
                     Some(p2value) => p2value.clone()?,
@@ -727,6 +718,16 @@ impl Builder {
                     }
                 };
                 assert!(target_type == p2value.typ);
+
+                let index_value = self.dfg[index].clone();
+                let num_index = match index_value {
+                    Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
+                    _ => {
+                        let feature_name =
+                            format!("indexing array (set) with an {:?}", index_value);
+                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                    }
+                };
 
                 let mut new_values = Vec::new();
                 for i in 0..p2targets.len() {
