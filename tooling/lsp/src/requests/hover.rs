@@ -439,6 +439,10 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(env);
             }
             Type::MutableReference(typ) => self.gather_type_links(typ),
+            Type::InfixExpr(lhs, _, rhs) => {
+                self.gather_type_links(lhs);
+                self.gather_type_links(rhs);
+            }
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
