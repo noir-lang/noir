@@ -715,7 +715,12 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, location, .. } => {
-                self.index_lvalue(array, index, location)?.2
+                let (_array_or_slice, index, lvalue_ref, length) =
+                    self.index_lvalue(array, index, location)?;
+
+                self.codegen_slice_access_check(index, length);
+
+                lvalue_ref
             }
             ast::LValue::MemberAccess { object, field_index } => {
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
@@ -762,8 +767,6 @@ impl<'a> FunctionContext<'a> {
 
         let location = *location;
         let (array_or_slice, length) = self.extract_indexable_type_length(&array_values);
-
-        self.codegen_slice_access_check(index, length);
 
         let lvalue_ref = if array_values.len() > 1 {
             LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue, location }
