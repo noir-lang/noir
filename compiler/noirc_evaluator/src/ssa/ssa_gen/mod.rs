@@ -418,7 +418,7 @@ impl<'a> FunctionContext<'a> {
                     self.codegen_slice_access_check(index, length);
                 }
                 Type::Array(_, length) => {
-                    let length = &self.builder.numeric_constant(*length, Type::field());
+                    let length = &self.builder.numeric_constant(*length, Type::unsigned(32));
                     self.codegen_slice_access_check(index, Some(*length));
                 }
                 _ => unreachable!("must have array or slice but got {array_type}"),
