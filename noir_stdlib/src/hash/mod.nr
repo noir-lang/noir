@@ -91,6 +91,7 @@ fn __pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator
 #[field(bn254)]
 fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
+    // TODO(https://github.com/noir-lang/noir/issues/5672): Add back assert_constant on starting_index
     __derive_generators(domain_separator_bytes, starting_index)
 }
 
