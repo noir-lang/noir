@@ -709,11 +709,11 @@ impl Builder {
             }
 
             Instruction::ArraySet { array, index, value, mutable } => {
-                let index = self.dfg[index].clone();
-                let num_index = match index {
+                let index_value = self.dfg[index].clone();
+                let num_index = match index_value {
                     Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
                     _ => {
-                        let feature_name = format!("indexing array (set) with an {:?}", index);
+                        let feature_name = format!("indexing array (set) with an {:?}", index_value);
                         return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
                     }
                 };
