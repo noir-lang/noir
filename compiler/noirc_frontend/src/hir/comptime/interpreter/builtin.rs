@@ -155,6 +155,16 @@ fn get_trait_def(value: Value, location: Location) -> IResult<TraitId> {
     }
 }
 
+fn get_type(value: Value, location: Location) -> IResult<Type> {
+    match value {
+        Value::Type(typ) => Ok(typ),
+        value => {
+            let expected = Type::Quoted(QuotedType::Type);
+            Err(InterpreterError::TypeMismatch { expected, value, location })
+        }
+    }
+}
+
 fn get_quoted(value: Value, location: Location) -> IResult<Rc<Tokens>> {
     match value {
         Value::Code(tokens) => Ok(tokens),
@@ -447,9 +457,7 @@ fn type_as_integer(
     check_argument_count(1, &arguments, location)?;
 
     let value = arguments.pop().unwrap().0;
-    let Value::Type(typ) = value else {
-        panic!("type_as_integer shold have been called with a type");
-    };
+    let typ = get_type(value, location)?;
 
     let option_value = if let Type::Integer(sign, bits) = typ {
         Some(Value::Tuple(vec![Value::Bool(sign.to_bool()), Value::U8(bits.bit_size())]))
@@ -474,9 +482,7 @@ fn type_is_field(mut arguments: Vec<(Value, Location)>, location: Location) -> I
     check_argument_count(1, &arguments, location)?;
 
     let value = arguments.pop().unwrap().0;
-    let Value::Type(typ) = value else {
-        panic!("type_is_field shold have been called with a type");
-    };
+    let typ = get_type(value, location)?;
 
     Ok(Value::Bool(matches!(typ, Type::FieldElement)))
 }
