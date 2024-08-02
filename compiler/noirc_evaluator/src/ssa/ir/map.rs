@@ -18,7 +18,8 @@ use thiserror::Error;
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Id<T> {
     index: usize,
-    // #[serde(skip)]
+    // If we do not skip this field it will serialize simply as `"_marker":null` which is useless extra data
+    #[serde(skip)]
     _marker: std::marker::PhantomData<T>,
 }
 
@@ -147,18 +148,6 @@ impl FromStr for Id<super::function::Function> {
 impl FromStr for Id<super::instruction::Instruction> {
     type Err = IdDisplayFromStrErr;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // if s.len() < 2 {
-        //     return Err(IdDisplayFromStrErr::InvalidId(s.to_string()));
-        // }
-
-        // let index = &s[1..];
-        // let index = index.parse().map_err(|_| IdDisplayFromStrErr::InvalidId(s.to_string()))?;
-
-        // if s.chars().nth(0).unwrap() == 'i' {
-        //     Ok(Id::<super::instruction::Instruction>::new(index))
-        // } else {
-        //     Err(IdDisplayFromStrErr::InvalidId(s.to_string()))
-        // }
         id_from_str_helper::<super::instruction::Instruction>(s, 'i')
     }
 }
@@ -171,7 +160,7 @@ fn id_from_str_helper<T>(s: &str, value_prefix: char) -> Result<Id<T>, IdDisplay
     let index = &s[1..];
     let index = index.parse().map_err(|_| IdDisplayFromStrErr::InvalidId(s.to_string()))?;
 
-    if s.chars().nth(0).unwrap() == value_prefix {
+    if s.chars().next().unwrap() == value_prefix {
         Ok(Id::<T>::new(index))
     } else {
         Err(IdDisplayFromStrErr::InvalidId(s.to_string()))

@@ -3,7 +3,6 @@ use std::collections::BTreeSet;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;

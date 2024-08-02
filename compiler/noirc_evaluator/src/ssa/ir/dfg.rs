@@ -41,8 +41,6 @@ pub(crate) struct DataFlowGraph {
     /// Currently, we need to define them in a better way
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
-    // #[serde_as(as = "Vec<(_, _)>")]
-    // #[serde(skip)]
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     results: HashMap<InstructionId, Vec<ValueId>>,
 
