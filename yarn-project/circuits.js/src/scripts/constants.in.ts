@@ -229,7 +229,7 @@ function generateCppConstants({ constants }: ParsedContent, targetPath: string) 
 #pragma once
 
 ${processConstantsCpp(constants)}
-\n`;
+`;
 
   fs.writeFileSync(targetPath, resultCpp);
 }
@@ -322,6 +322,9 @@ function evaluateExpressions(expressions: [string, string][]): { [key: string]: 
   const prelude = expressions
     .map(([name, rhs]) => {
       const guardedRhs = rhs
+        // Remove 'as u8' and 'as u32' castings
+        .replaceAll(' as u8', '')
+        .replaceAll(' as u32', '')
         // We make some space around the parentheses, so that constant numbers are still split.
         .replace(/\(/g, '( ')
         .replace(/\)/g, ' )')

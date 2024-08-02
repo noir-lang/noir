@@ -45,6 +45,7 @@ export class SentTx {
    * The function internally awaits for the 'txHashPromise' to resolve, and then returns the resolved transaction hash.
    *
    * @returns A promise that resolves to the transaction hash of the SentTx instance.
+   * TODO(#7717): Don't throw here.
    */
   public getTxHash(): Promise<TxHash> {
     return this.txHashPromise;

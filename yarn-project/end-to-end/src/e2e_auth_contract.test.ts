@@ -51,10 +51,10 @@ describe('e2e_auth_contract', () => {
     expect(await contract.methods.get_authorized().simulate()).toEqual(AztecAddress.ZERO);
   });
 
-  it('non-admin canoot set authorized', async () => {
-    await expect(
-      contract.withWallet(other).methods.set_authorized(authorized.getAddress()).send().wait(),
-    ).rejects.toThrow('caller is not admin');
+  it('non-admin cannot set authorized', async () => {
+    await expect(contract.withWallet(other).methods.set_authorized(authorized.getAddress()).prove()).rejects.toThrow(
+      'caller is not admin',
+    );
   });
 
   it('admin sets authorized', async () => {

@@ -350,7 +350,7 @@ export class FeesTest {
     await this.snapshotManager.snapshot(
       'fund_alice',
       async () => {
-        await this.mintPrivateBananas(BigInt(this.ALICE_INITIAL_BANANAS), this.aliceAddress);
+        await this.mintPrivateBananas(this.ALICE_INITIAL_BANANAS, this.aliceAddress);
         await this.bananaCoin.methods.mint_public(this.aliceAddress, this.ALICE_INITIAL_BANANAS).send().wait();
       },
       () => Promise.resolve(),
@@ -361,7 +361,7 @@ export class FeesTest {
     await this.snapshotManager.snapshot(
       'fund_alice_with_tokens',
       async () => {
-        await this.mintTokenWithRefunds(BigInt(this.ALICE_INITIAL_BANANAS));
+        await this.mintTokenWithRefunds(this.ALICE_INITIAL_BANANAS);
       },
       () => Promise.resolve(),
     );
