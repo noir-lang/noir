@@ -249,7 +249,7 @@ fn struct_def_as_type(
     Ok(Value::Type(Type::Struct(struct_def_rc, generics)))
 }
 
-/// fn generics(self) -> [Quoted]
+/// fn generics(self) -> [Type]
 fn struct_def_generics(
     interner: &NodeInterner,
     mut arguments: Vec<(Value, Location)>,
@@ -269,12 +269,10 @@ fn struct_def_generics(
     let struct_def = interner.get_struct(struct_def);
     let struct_def = struct_def.borrow();
 
-    let generics = struct_def.generics.iter().map(|generic| {
-        let name = Token::Ident(generic.type_var.borrow().to_string());
-        Value::Quoted(Rc::new(vec![name]))
-    });
+    let generics =
+        struct_def.generics.iter().map(|generic| Value::Type(generic.clone().as_named_generic()));
 
-    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted)));
+    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Type)));
     Ok(Value::Slice(generics.collect(), typ))
 }
 

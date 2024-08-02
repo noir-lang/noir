@@ -191,6 +191,12 @@ pub struct ResolvedGeneric {
     pub span: Span,
 }
 
+impl ResolvedGeneric {
+    pub fn as_named_generic(self) -> Type {
+        Type::NamedGeneric(self.type_var, self.name, self.kind)
+    }
+}
+
 impl std::hash::Hash for StructType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);

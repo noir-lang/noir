@@ -114,6 +114,8 @@ pub enum ResolverError {
     MacroIsNotComptime { span: Span },
     #[error("Annotation name must refer to a comptime function")]
     NonFunctionInAnnotation { span: Span },
+    #[error("Type `{typ}` was inserted into the generics list from a macro, but is not a generic")]
+    MacroResultInGenericsListNotAGeneric { span: Span, typ: Type },
 }
 
 impl ResolverError {
@@ -458,6 +460,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
+            ResolverError::MacroResultInGenericsListNotAGeneric { span, typ } => {
+                Diagnostic::simple_error(
+                    format!("Type `{typ}` was inserted into a generics list from a macro, but it is not a generic"),
+                    format!("Type `{typ}` is not a generic"),
+                    *span,
+                )
+            }
         }
     }
 }

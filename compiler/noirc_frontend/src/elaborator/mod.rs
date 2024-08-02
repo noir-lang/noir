@@ -502,33 +502,70 @@ impl<'context> Elaborator<'context> {
     /// Each generic will have a fresh Shared<TypeBinding> associated with it.
     pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
         vecmap(generics, |generic| {
-            // Map the generic to a fresh type variable
-            let id = self.interner.next_type_variable_id();
-            let typevar = TypeVariable::unbound(id);
-            let ident = generic.ident();
-            let span = ident.0.span();
+            let mut is_error = false;
+            let (type_var, name, kind) = match self.resolve_generic(generic) {
+                Ok(values) => values,
+                Err(error) => {
+                    self.push_err(error);
+                    is_error = true;
+                    let id = self.interner.next_type_variable_id();
+                    (TypeVariable::unbound(id), Rc::new("(error)".into()), Kind::Normal)
+                }
+            };
 
-            // Resolve the generic's kind
-            let kind = self.resolve_generic_kind(generic);
+            let span = generic.span();
+            let name_owned = name.as_ref().clone();
+            let resolved_generic = ResolvedGeneric { name, type_var, kind, span };
 
             // Check for name collisions of this generic
-            let name = Rc::new(ident.0.contents.clone());
-
-            let resolved_generic =
-                ResolvedGeneric { name: name.clone(), type_var: typevar.clone(), kind, span };
-
-            if let Some(generic) = self.find_generic(&name) {
-                self.push_err(ResolverError::DuplicateDefinition {
-                    name: ident.0.contents.clone(),
-                    first_span: generic.span,
-                    second_span: span,
-                });
-            } else {
-                self.generics.push(resolved_generic.clone());
+            // Checking `is_error` here prevents DuplicateDefinition errors when
+            // we have multiple generics from macros which fail to resolve and
+            // are all given the same default name "(error)".
+            if !is_error {
+                if let Some(generic) = self.find_generic(&name_owned) {
+                    self.push_err(ResolverError::DuplicateDefinition {
+                        name: name_owned,
+                        first_span: generic.span,
+                        second_span: span,
+                    });
+                } else {
+                    self.generics.push(resolved_generic.clone());
+                }
             }
 
             resolved_generic
         })
+    }
+
+    fn resolve_generic(
+        &mut self,
+        generic: &UnresolvedGeneric,
+    ) -> Result<(TypeVariable, Rc<String>, Kind), ResolverError> {
+        // Map the generic to a fresh type variable
+        match generic {
+            UnresolvedGeneric::Variable(_) | UnresolvedGeneric::Numeric { .. } => {
+                let id = self.interner.next_type_variable_id();
+                let typevar = TypeVariable::unbound(id);
+                let ident = generic.ident();
+
+                let kind = self.resolve_generic_kind(generic);
+                let name = Rc::new(ident.0.contents.clone());
+                Ok((typevar, name, kind))
+            }
+            // An already-resolved generic is only possible if it is the result of a
+            // previous macro call being inserted into a generics list.
+            UnresolvedGeneric::Resolved(id, span) => {
+                match self.interner.get_quoted_type(*id).follow_bindings() {
+                    Type::NamedGeneric(type_variable, name, kind) => {
+                        Ok((type_variable, name, kind))
+                    }
+                    other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
+                        span: *span,
+                        typ: other.clone(),
+                    }),
+                }
+            }
+        }
     }
 
     /// Return the kind of an unresolved generic.

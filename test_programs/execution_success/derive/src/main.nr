@@ -8,7 +8,7 @@ struct MyStruct { my_field: u32 }
 
 comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
     let typ = s.as_type();
-    let generics = s.generics().join(quote {,});
+    let generics = s.generics().map(|g| quote { $g }).join(quote {,});
     quote {
         impl<$generics> DoNothing for $typ {
             fn do_nothing(_self: Self) {
@@ -21,15 +21,15 @@ comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
 
 // Test stdlib derive fns & multiple traits
 #[derive(Eq, Default)]
-struct MyOtherStruct {
-    field1: u32,
-    field2: u64,
+struct MyOtherStruct<A, B> {
+    field1: A,
+    field2: B,
 }
 
 fn main() {
     let s = MyStruct { my_field: 1 };
     s.do_nothing();
 
-    let o = MyOtherStruct::default();
+    let o: MyOtherStruct<Field, u32> = MyOtherStruct::default();
     assert_eq(o, o);
 }

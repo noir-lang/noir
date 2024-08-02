@@ -10,7 +10,9 @@ trait Default {
 comptime fn derive_default(s: StructDefinition) -> Quoted {
     let typ = s.as_type();
 
-    let impl_generics = s.generics().join(quote {,});
+    let impl_generics = s.generics()
+        .map(|g| quote { $g })
+        .join(quote {,});
 
     let where_clause = s.generics().map(|name| quote { $name: Default }).join(quote {,});
 
