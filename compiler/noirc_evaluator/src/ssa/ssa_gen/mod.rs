@@ -417,8 +417,9 @@ impl<'a> FunctionContext<'a> {
                 Type::Slice(_) => {
                     self.codegen_slice_access_check(index, length);
                 }
-                Type::Array(..) => {
-                    // Nothing needs to done to prepare an array access on an array
+                Type::Array(_, length) => {
+                    let length = &self.builder.numeric_constant(*length, Type::field());
+                    self.codegen_slice_access_check(index, Some(*length));
                 }
                 _ => unreachable!("must have array or slice but got {array_type}"),
             }
