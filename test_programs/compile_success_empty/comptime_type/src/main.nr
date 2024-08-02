@@ -24,8 +24,8 @@ fn main() {
         assert(signed);
         assert_eq(bits, 32);
 
-        let an_u8: u8 = 0;
-        let u8_type = type_of(an_u8);
+        let a_u8: u8 = 0;
+        let u8_type = type_of(a_u8);
         let (signed, bits) = u8_type.as_integer().unwrap();
         assert(!signed);
         assert_eq(bits, 8);
