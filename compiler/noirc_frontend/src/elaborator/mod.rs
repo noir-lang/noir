@@ -1625,6 +1625,8 @@ impl<'context> Elaborator<'context> {
             let attributes = &trait_.trait_def.attributes;
             let item = Value::TraitDefinition(*trait_id);
             let span = trait_.trait_def.span;
+            self.local_module = trait_.module_id;
+            self.file = trait_.file_id;
             self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
         }
 
@@ -1632,6 +1634,8 @@ impl<'context> Elaborator<'context> {
             let attributes = &struct_def.struct_def.attributes;
             let item = Value::StructDefinition(*struct_id);
             let span = struct_def.struct_def.span;
+            self.local_module = struct_def.module_id;
+            self.file = struct_def.file_id;
             self.run_comptime_attributes_on_item(attributes, item, span, &mut generated_items);
         }
 
