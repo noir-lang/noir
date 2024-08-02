@@ -53,7 +53,11 @@ fn main() {
 
         let array = [1, 2, 3];
         let array_type = type_of(array);
-        let (array_type_element_type , _array_length) = array_type.as_array().unwrap();
+        let (array_type_element_type , array_length) = array_type.as_array().unwrap();
         assert_eq(array_type_element_type, field_type_1);
+
+        // Check Type::as_constant
+        assert(u8_type.as_constant().is_none());
+        assert_eq(array_length.as_constant().unwrap(), 3);
     }
 }

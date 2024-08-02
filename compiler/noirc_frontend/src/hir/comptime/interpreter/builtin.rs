@@ -58,6 +58,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "type_as_array" => type_as_array(arguments, return_type, location),
+            "type_as_constant" => type_as_constant(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
             "type_as_slice" => type_as_slice(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
@@ -499,6 +500,21 @@ fn type_as_array(
     type_as(arguments, return_type, location, |typ| {
         if let Type::Array(length, array_type) = typ {
             Some(Value::Tuple(vec![Value::Type(*array_type), Value::Type(*length)]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_constant(self) -> Option<u32>
+fn type_as_constant(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Constant(n) = typ {
+            Some(Value::U32(n))
         } else {
             None
         }
