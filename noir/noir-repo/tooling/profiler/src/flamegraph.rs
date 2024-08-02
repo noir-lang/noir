@@ -1,7 +1,8 @@
 use std::path::Path;
 use std::{collections::BTreeMap, io::BufWriter};
 
-use acir::circuit::{Opcode, OpcodeLocation};
+use acir::circuit::OpcodeLocation;
+use acir::AcirField;
 use color_eyre::eyre::{self};
 use fm::codespan_files::Files;
 use inferno::flamegraph::{from_lines, Options, TextTruncateDirection};
@@ -9,7 +10,16 @@ use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
 use noirc_errors::Location;
 
+use crate::opcode_formatter::AcirOrBrilligOpcode;
+
 use super::opcode_formatter::format_opcode;
+
+#[derive(Debug)]
+pub(crate) struct Sample<F: AcirField> {
+    pub(crate) opcode: AcirOrBrilligOpcode<F>,
+    pub(crate) call_stack: Vec<OpcodeLocation>,
+    pub(crate) count: usize,
+}
 
 #[derive(Debug, Default)]
 pub(crate) struct FoldedStackItem {
@@ -19,10 +29,9 @@ pub(crate) struct FoldedStackItem {
 
 pub(crate) trait FlamegraphGenerator {
     #[allow(clippy::too_many_arguments)]
-    fn generate_flamegraph<'files, F>(
+    fn generate_flamegraph<'files, F: AcirField>(
         &self,
-        samples_per_opcode: Vec<usize>,
-        opcodes: Vec<Opcode<F>>,
+        samples: Vec<Sample<F>>,
         debug_symbols: &DebugInfo,
         files: &'files impl Files<'files, FileId = fm::FileId>,
         artifact_name: &str,
@@ -36,19 +45,16 @@ pub(crate) struct InfernoFlamegraphGenerator {
 }
 
 impl FlamegraphGenerator for InfernoFlamegraphGenerator {
-    fn generate_flamegraph<'files, F>(
+    fn generate_flamegraph<'files, F: AcirField>(
         &self,
-        samples_per_opcode: Vec<usize>,
-        opcodes: Vec<Opcode<F>>,
+        samples: Vec<Sample<F>>,
         debug_symbols: &DebugInfo,
         files: &'files impl Files<'files, FileId = fm::FileId>,
         artifact_name: &str,
         function_name: &str,
         output_path: &Path,
     ) -> eyre::Result<()> {
-        let folded_lines =
-            generate_folded_sorted_lines(samples_per_opcode, opcodes, debug_symbols, files);
-
+        let folded_lines = generate_folded_sorted_lines(samples, debug_symbols, files);
         let flamegraph_file = std::fs::File::create(output_path)?;
         let flamegraph_writer = BufWriter::new(flamegraph_file);
 
@@ -72,28 +78,29 @@ impl FlamegraphGenerator for InfernoFlamegraphGenerator {
     }
 }
 
-fn generate_folded_sorted_lines<'files, F>(
-    samples_per_opcode: Vec<usize>,
-    opcodes: Vec<Opcode<F>>,
+fn generate_folded_sorted_lines<'files, F: AcirField>(
+    samples: Vec<Sample<F>>,
     debug_symbols: &DebugInfo,
     files: &'files impl Files<'files, FileId = fm::FileId>,
 ) -> Vec<String> {
     // Create a nested hashmap with the stack items, folding the gates for all the callsites that are equal
     let mut folded_stack_items = BTreeMap::new();
 
-    samples_per_opcode.into_iter().enumerate().for_each(|(opcode_index, gates)| {
-        let call_stack = debug_symbols.locations.get(&OpcodeLocation::Acir(opcode_index));
-        let location_names = if let Some(call_stack) = call_stack {
-            call_stack
-                .iter()
-                .map(|location| location_to_callsite_label(*location, files))
-                .chain(std::iter::once(format_opcode(&opcodes[opcode_index])))
-                .collect::<Vec<String>>()
-        } else {
-            vec!["unknown".to_string()]
-        };
+    samples.into_iter().for_each(|sample| {
+        let mut location_names: Vec<String> = sample
+            .call_stack
+            .into_iter()
+            .flat_map(|opcode_location| debug_symbols.locations.get(&opcode_location))
+            .flatten()
+            .map(|location| location_to_callsite_label(*location, files))
+            .collect();
 
-        add_locations_to_folded_stack_items(&mut folded_stack_items, location_names, gates);
+        if location_names.is_empty() {
+            location_names.push("unknown".to_string());
+        }
+        location_names.push(format_opcode(&sample.opcode));
+
+        add_locations_to_folded_stack_items(&mut folded_stack_items, location_names, sample.count);
     });
 
     to_folded_sorted_lines(&folded_stack_items, Default::default())
@@ -129,7 +136,7 @@ fn location_to_callsite_label<'files>(
 fn add_locations_to_folded_stack_items(
     stack_items: &mut BTreeMap<String, FoldedStackItem>,
     locations: Vec<String>,
-    gates: usize,
+    count: usize,
 ) {
     let mut child_map = stack_items;
     for (index, location) in locations.iter().enumerate() {
@@ -138,7 +145,7 @@ fn add_locations_to_folded_stack_items(
         child_map = &mut current_item.nested_items;
 
         if index == locations.len() - 1 {
-            current_item.total_samples += gates;
+            current_item.total_samples += count;
         }
     }
 }
@@ -180,13 +187,15 @@ fn to_folded_sorted_lines(
 #[cfg(test)]
 mod tests {
     use acir::{
-        circuit::{opcodes::BlockId, Opcode, OpcodeLocation},
+        circuit::{opcodes::BlockId, Opcode as AcirOpcode, OpcodeLocation},
         native_types::Expression,
         FieldElement,
     };
     use fm::FileManager;
     use noirc_errors::{debug_info::DebugInfo, Location, Span};
     use std::{collections::BTreeMap, path::Path};
+
+    use crate::{flamegraph::Sample, opcode_formatter::AcirOrBrilligOpcode};
 
     use super::generate_folded_sorted_lines;
 
@@ -271,30 +280,36 @@ mod tests {
             BTreeMap::default(),
         );
 
-        let samples_per_opcode = vec![10, 20, 30];
-
-        let expected_folded_sorted_lines = vec![
-            "main.nr:2:9::fn main();main.nr:3:13::foo();main.nr:8:13::baz();main.nr:14:13::whatever();opcode::arithmetic 10".to_string(),
-            "main.nr:2:9::fn main();main.nr:4:13::bar();main.nr:11:13::whatever();opcode::arithmetic 20".to_string(),
-            "main.nr:2:9::fn main();main.nr:5:13::whatever();opcode::memory::init 30".to_string(),
-        ];
-
-        let opcodes: Vec<Opcode<FieldElement>> = vec![
-            Opcode::AssertZero(Expression::default()),
-            Opcode::AssertZero(Expression::default()),
-            Opcode::MemoryInit {
-                block_id: BlockId(0),
-                init: vec![],
-                block_type: acir::circuit::opcodes::BlockType::Memory,
+        let samples: Vec<Sample<FieldElement>> = vec![
+            Sample {
+                opcode: AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(Expression::default())),
+                call_stack: vec![OpcodeLocation::Acir(0)],
+                count: 10,
+            },
+            Sample {
+                opcode: AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(Expression::default())),
+                call_stack: vec![OpcodeLocation::Acir(1)],
+                count: 20,
+            },
+            Sample {
+                opcode: AcirOrBrilligOpcode::Acir(AcirOpcode::MemoryInit {
+                    block_id: BlockId(0),
+                    init: vec![],
+                    block_type: acir::circuit::opcodes::BlockType::Memory,
+                }),
+                call_stack: vec![OpcodeLocation::Acir(2)],
+                count: 30,
             },
         ];
 
-        let actual_folded_sorted_lines = generate_folded_sorted_lines(
-            samples_per_opcode,
-            opcodes,
-            &debug_info,
-            fm.as_file_map(),
-        );
+        let expected_folded_sorted_lines = vec![
+            "main.nr:2:9::fn main();main.nr:3:13::foo();main.nr:8:13::baz();main.nr:14:13::whatever();acir::arithmetic 10".to_string(),
+            "main.nr:2:9::fn main();main.nr:4:13::bar();main.nr:11:13::whatever();acir::arithmetic 20".to_string(),
+            "main.nr:2:9::fn main();main.nr:5:13::whatever();acir::memory::init 30".to_string(),
+        ];
+
+        let actual_folded_sorted_lines =
+            generate_folded_sorted_lines(samples, &debug_info, fm.as_file_map());
 
         assert_eq!(expected_folded_sorted_lines, actual_folded_sorted_lines);
     }
