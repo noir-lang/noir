@@ -747,16 +747,14 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref, Option<length>) where the lvalue_ref records the
+    /// This will return a triple of (array, index, lvalue_ref, length) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
-    /// The optional length is for indexing slices rather than arrays since slices
-    /// are represented as a tuple in the form: (length, slice contents).
     fn index_lvalue(
         &mut self,
         array: &ast::LValue,
         index: &ast::Expression,
         location: &Location,
-    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
+    ) -> Result<(ValueId, ValueId, LValue, ValueId), RuntimeError> {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
         let index = self.codegen_non_tuple_expression(index)?;
         let array_lvalue = Box::new(array_lvalue);
@@ -776,19 +774,19 @@ impl<'a> FunctionContext<'a> {
             let length = array_values[0];
             self.codegen_slice_access_check(index, length);
 
-            (array_values[1], index, slice_lvalue, Some(length))
+            (array_values[1], index, slice_lvalue, length)
         } else {
             let array_type = &self.builder.type_of_value(array_values[0]);
             let Type::Array(_, length) = array_type else {
                 panic!("Expected array type");
             };
 
-            let length = &self.builder.numeric_constant(*length, Type::unsigned(32));
-            self.codegen_slice_access_check(index, *length);
+            let length = self.builder.numeric_constant(*length, Type::unsigned(32));
+            self.codegen_slice_access_check(index, length);
 
             let array_lvalue =
                 LValue::Index { old_array: array_values[0], index, array_lvalue, location };
-            (array_values[0], index, array_lvalue, None)
+            (array_values[0], index, array_lvalue, length)
         })
     }
 

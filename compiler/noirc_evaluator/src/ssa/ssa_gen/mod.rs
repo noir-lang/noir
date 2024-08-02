@@ -370,19 +370,19 @@ impl<'a> FunctionContext<'a> {
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
         // Slices are represented as a tuple in the form: (length, slice contents).
         // Thus, slices require two value ids for their representation.
-        let (array, slice_length) = if array_or_slice.len() > 1 {
-            (array_or_slice[1], Some(array_or_slice[0]))
+        let (array, length) = if array_or_slice.len() > 1 {
+            (array_or_slice[1], array_or_slice[0])
         } else {
-            (array_or_slice[0], None)
+            let array_type = &self.builder.type_of_value(array_or_slice[0]);
+            let Type::Array(_, length) = array_type else {
+                panic!("Expected array type");
+            };
+
+            let length = self.builder.numeric_constant(*length, Type::unsigned(32));
+            (array_or_slice[0], length)
         };
 
-        self.codegen_array_index(
-            array,
-            index_value,
-            &index.element_type,
-            index.location,
-            slice_length,
-        )
+        self.codegen_array_index(array, index_value, &index.element_type, index.location, length)
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -397,7 +397,7 @@ impl<'a> FunctionContext<'a> {
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
         location: Location,
-        length: Option<super::ir::value::ValueId>,
+        length: super::ir::value::ValueId,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
@@ -412,20 +412,7 @@ impl<'a> FunctionContext<'a> {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
 
-            let array_type = &self.builder.type_of_value(array);
-            match array_type {
-                Type::Slice(_) => {
-                    self.codegen_slice_access_check(
-                        index,
-                        length.expect("Expected a slice length"),
-                    );
-                }
-                Type::Array(_, length) => {
-                    let length = &self.builder.numeric_constant(*length, Type::unsigned(32));
-                    self.codegen_slice_access_check(index, *length);
-                }
-                _ => unreachable!("must have array or slice but got {array_type}"),
-            }
+            self.codegen_slice_access_check(index, length);
 
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
