@@ -859,6 +859,19 @@ impl<'a> FunctionContext<'a> {
         index: ValueId,
         location: Location,
     ) -> ValueId {
+        let array_type = &self.builder.type_of_value(array);
+        match array_type {
+            Type::Slice(_) => {
+                // TODO
+                // self.codegen_slice_access_check(index, length);
+            }
+            Type::Array(_, length) => {
+                let length = &self.builder.numeric_constant(*length, Type::unsigned(32));
+                self.codegen_slice_access_check(index, Some(*length));
+            }
+            _ => unreachable!("must have array or slice but got {array_type}"),
+        }
+
         let index = self.make_array_index(index);
         let element_size =
             self.builder.numeric_constant(self.element_size(array), Type::unsigned(SSA_WORD_SIZE));
