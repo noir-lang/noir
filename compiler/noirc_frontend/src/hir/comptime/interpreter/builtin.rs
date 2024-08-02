@@ -11,11 +11,11 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::IntegerBitSize,
-    hir::comptime::{errors::IResult, InterpreterError, Value},
+    hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     macros_api::{NodeInterner, Signedness},
     node_interner::TraitId,
     parser,
-    token::{SpannedToken, Token, Tokens},
+    token::Token,
     QuotedType, Shared, Type,
 };
 
@@ -53,6 +53,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "trait_def_as_trait_constraint" => {
                 trait_def_as_trait_constraint(interner, arguments, location)
             }
+            "trait_def_eq" => trait_def_eq(interner, arguments, location),
+            "trait_def_hash" => trait_def_hash(interner, arguments, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
@@ -116,8 +118,7 @@ pub(super) fn check_three_arguments(
 }
 
 fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IResult<T> {
-    let message = Some(Value::String(Rc::new(message.into())));
-    Err(InterpreterError::FailingConstraint { message, location })
+    Err(InterpreterError::FailingConstraint { message: Some(message.into()), location })
 }
 
 pub(super) fn get_array(
@@ -130,7 +131,8 @@ pub(super) fn get_array(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Array(type_var.clone(), type_var);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -145,7 +147,8 @@ fn get_slice(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Slice(type_var);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -154,7 +157,8 @@ pub(super) fn get_field(value: Value, location: Location) -> IResult<FieldElemen
     match value {
         Value::Field(value) => Ok(value),
         value => {
-            Err(InterpreterError::TypeMismatch { expected: Type::FieldElement, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected: Type::FieldElement, actual, location })
         }
     }
 }
@@ -164,7 +168,8 @@ pub(super) fn get_u32(value: Value, location: Location) -> IResult<u32> {
         Value::U32(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -174,7 +179,8 @@ fn get_trait_constraint(value: Value, location: Location) -> IResult<(TraitId, V
         Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
         value => {
             let expected = Type::Quoted(QuotedType::TraitConstraint);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -184,7 +190,8 @@ fn get_trait_def(value: Value, location: Location) -> IResult<TraitId> {
         Value::TraitDefinition(id) => Ok(id),
         value => {
             let expected = Type::Quoted(QuotedType::TraitDefinition);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -194,17 +201,19 @@ fn get_type(value: Value, location: Location) -> IResult<Type> {
         Value::Type(typ) => Ok(typ),
         value => {
             let expected = Type::Quoted(QuotedType::Type);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
 
-fn get_quoted(value: Value, location: Location) -> IResult<Rc<Tokens>> {
+fn get_quoted(value: Value, location: Location) -> IResult<Rc<Vec<Token>>> {
     match value {
-        Value::Code(tokens) => Ok(tokens),
+        Value::Quoted(tokens) => Ok(tokens),
         value => {
             let expected = Type::Quoted(QuotedType::Quoted);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -221,7 +230,8 @@ fn array_len(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Array(type_var.clone(), type_var);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -238,7 +248,8 @@ fn as_slice(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Array(type_var.clone(), type_var);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
@@ -267,7 +278,8 @@ fn struct_def_as_type(
         Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            return Err(InterpreterError::TypeMismatch { expected, location, value });
+            let actual = value.get_type().into_owned();
+            return Err(InterpreterError::TypeMismatch { expected, location, actual });
         }
     };
 
@@ -288,13 +300,14 @@ fn struct_def_generics(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (argument, argument_location) = check_one_argument(arguments, location)?;
+    let (argument, _) = check_one_argument(arguments, location)?;
 
-    let (struct_def, span) = match argument {
-        Value::StructDefinition(id) => (id, argument_location.span),
+    let struct_def = match argument {
+        Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            return Err(InterpreterError::TypeMismatch { expected, location, value });
+            let actual = value.get_type().into_owned();
+            return Err(InterpreterError::TypeMismatch { expected, location, actual });
         }
     };
 
@@ -302,8 +315,8 @@ fn struct_def_generics(
     let struct_def = struct_def.borrow();
 
     let generics = struct_def.generics.iter().map(|generic| {
-        let name = SpannedToken::new(Token::Ident(generic.type_var.borrow().to_string()), span);
-        Value::Code(Rc::new(Tokens(vec![name])))
+        let name = Token::Ident(generic.type_var.borrow().to_string());
+        Value::Quoted(Rc::new(vec![name]))
     });
 
     let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Quoted)));
@@ -317,26 +330,24 @@ fn struct_def_fields(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let argument = check_one_argument(arguments, location)?;
+    let (argument, _) = check_one_argument(arguments, location)?;
 
-    let (struct_def, span) = match argument {
-        (Value::StructDefinition(id), location) => (id, location.span),
+    let struct_def = match argument {
+        Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
-            return Err(InterpreterError::TypeMismatch { expected, location, value: value.0 });
+            let actual = value.get_type().into_owned();
+            return Err(InterpreterError::TypeMismatch { expected, location, actual });
         }
     };
 
     let struct_def = interner.get_struct(struct_def);
     let struct_def = struct_def.borrow();
 
-    let make_token = |name| SpannedToken::new(Token::Ident(name), span);
-    let make_quoted = |tokens| Value::Code(Rc::new(Tokens(tokens)));
-
     let mut fields = im::Vector::new();
 
     for (name, typ) in struct_def.get_fields_as_written() {
-        let name = make_quoted(vec![make_token(name)]);
+        let name = Value::Quoted(Rc::new(vec![Token::Ident(name)]));
         let typ = Value::Type(typ);
         fields.push_back(Value::Tuple(vec![name, typ]));
     }
@@ -436,7 +447,7 @@ fn quoted_as_trait_constraint(
     let (argument, _) = check_one_argument(arguments, location)?;
 
     let tokens = get_quoted(argument, location)?;
-    let quoted = tokens.as_ref().clone();
+    let quoted = add_token_spans(tokens.clone(), location.span);
 
     let trait_bound = parser::trait_bound().parse(quoted).map_err(|mut errors| {
         let error = errors.swap_remove(0);
@@ -445,8 +456,7 @@ fn quoted_as_trait_constraint(
     })?;
 
     let bound = interpreter
-        .elaborator
-        .elaborate_item_from_comptime(interpreter.current_function, |elaborator| {
+        .elaborate_item(interpreter.current_function, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
@@ -463,7 +473,7 @@ fn quoted_as_type(
     let (argument, _) = check_one_argument(arguments, location)?;
 
     let tokens = get_quoted(argument, location)?;
-    let quoted = tokens.as_ref().clone();
+    let quoted = add_token_spans(tokens.clone(), location.span);
 
     let typ = parser::parse_type().parse(quoted).map_err(|mut errors| {
         let error = errors.swap_remove(0);
@@ -471,9 +481,8 @@ fn quoted_as_type(
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })?;
 
-    let typ = interpreter
-        .elaborator
-        .elaborate_item_from_comptime(interpreter.current_function, |elab| elab.resolve_type(typ));
+    let typ =
+        interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
 
     Ok(Value::Type(typ))
 }
@@ -547,6 +556,37 @@ fn trait_constraint_eq(
     let constraint_b = get_trait_constraint(value_b, location)?;
 
     Ok(Value::Bool(constraint_a == constraint_b))
+}
+
+// fn trait_def_hash(def: TraitDefinition) -> Field
+fn trait_def_hash(
+    _interner: &mut NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let id = get_trait_def(arguments.pop().unwrap().0, location)?;
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    id.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    Ok(Value::Field((hash as u128).into()))
+}
+
+// fn trait_def_eq(def_a: TraitDefinition, def_b: TraitDefinition) -> bool
+fn trait_def_eq(
+    _interner: &mut NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(2, &arguments, location)?;
+
+    let id_b = get_trait_def(arguments.pop().unwrap().0, location)?;
+    let id_a = get_trait_def(arguments.pop().unwrap().0, location)?;
+
+    Ok(Value::Bool(id_a == id_b))
 }
 
 // fn zeroed<T>() -> T

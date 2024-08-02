@@ -289,7 +289,7 @@ pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
     package: &Package,
 ) -> (Context<'file_manager, 'parsed_files>, CrateId) {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    context.track_references();
+    context.activate_lsp_mode();
     (context, crate_id)
 }
 
@@ -310,7 +310,7 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
     let parsed_files = parse_diff(&file_manager, state);
 
     let mut context = Context::new(file_manager, parsed_files);
-    context.track_references();
+    context.activate_lsp_mode();
 
     let root_crate_id = prepare_crate(&mut context, file_name);
 

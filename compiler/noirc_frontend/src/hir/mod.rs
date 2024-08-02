@@ -291,8 +291,8 @@ impl Context<'_, '_> {
         })
     }
 
-    // Enables reference tracking (useful for tools like LSP).
-    pub fn track_references(&mut self) {
-        self.def_interner.track_references = true;
+    /// Activates LSP mode, which will track references for all definitions.
+    pub fn activate_lsp_mode(&mut self) {
+        self.def_interner.lsp_mode = true;
     }
 }
