@@ -744,9 +744,30 @@ impl Builder {
                         new_values
                     }
                     _ => {
-                        let feature_name =
-                            format!("indexing array (set) with an {:?}", index_value);
-                        return Err(Plonky2GenError::UnsupportedFeature { name: feature_name });
+                        let (_index_type, index_target) = self.get_integer(index)?;
+
+                        let mut new_values = Vec::new();
+                        for i in 0..p2targets.len() {
+                            new_values.push(P2Value::create_empty(
+                                &mut self.asm_writer,
+                                target_type.clone(),
+                            ));
+
+                            let c = self.asm_writer.constant(noir_to_plonky2_field(i.into()));
+                            let is_eq = self.asm_writer.is_equal(index_target, c);
+                            let is_neq = self.asm_writer.not(is_eq);
+                            let maybe_old_array_item_value =
+                                self.asm_writer.mul(p2targets[i].get_target()?, is_neq.target);
+                            let maybe_new_array_item_value =
+                                self.asm_writer.mul(p2value.get_target()?, is_eq.target);
+                            let new_array_item_value = self
+                                .asm_writer
+                                .add(maybe_old_array_item_value, maybe_new_array_item_value);
+                            self.asm_writer
+                                .connect(new_array_item_value, new_values[i].get_target()?);
+                        }
+
+                        new_values
                     }
                 };
 
