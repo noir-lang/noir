@@ -24,6 +24,12 @@ comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
 struct MyOtherStruct<A, B> {
     field1: A,
     field2: B,
+    field3: MyOtherOtherStruct<B>,
+}
+
+#[derive(Eq, Default)]
+struct MyOtherOtherStruct<T> {
+    x: T,
 }
 
 fn main() {
