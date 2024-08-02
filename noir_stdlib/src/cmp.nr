@@ -10,9 +10,7 @@ trait Eq {
 comptime fn derive_eq(s: StructDefinition) -> Quoted {
     let typ = s.as_type();
 
-    let impl_generics = s.generics()
-        .map(|g| quote { $g })
-        .join(quote {,});
+    let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
 
     let where_clause = s.generics().map(|name| quote { $name: Eq }).join(quote {,});
 
