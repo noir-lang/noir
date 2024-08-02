@@ -338,4 +338,4 @@ const backend = new UltraHonkBackend(circuit);
 ```
 Then all the commands to prove and verify your circuit will be same.
 
-The only thing currently unsupported with UltraHonk are [recursive proofs](../explainers/explainer-recursion.md).
+The only feature currently unsupported with UltraHonk are [recursive proofs](../explainers/explainer-recursion.md).
