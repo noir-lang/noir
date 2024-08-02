@@ -70,7 +70,7 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_ssa: bool,
 
-    /// Emit the unoptimized SSA IR to file. 
+    /// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
     /// under the name of the package that was compiled.
     #[arg(long, hide = true)]

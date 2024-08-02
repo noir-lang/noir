@@ -4,7 +4,7 @@ use super::{
     map::Id,
     value::ValueId,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// A Basic block is a maximal collection of instructions
 /// such that there are only jumps at the end of block

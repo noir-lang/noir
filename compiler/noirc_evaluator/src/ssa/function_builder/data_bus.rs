@@ -6,7 +6,7 @@ use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::ast;
 use noirc_frontend::hir_def::function::FunctionSignature;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;
 

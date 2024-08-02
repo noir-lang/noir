@@ -116,10 +116,7 @@ mod test {
     use crate::ssa::ssa_gen::Ssa;
     use crate::ssa::{
         function_builder::FunctionBuilder,
-        ir::{
-            instruction::BinaryOp,
-            types::Type,
-        },
+        ir::{instruction::BinaryOp, types::Type},
     };
 
     #[test]
@@ -131,18 +128,18 @@ mod test {
         //     return v2
         // }
         let main_id = Id::test_new(0);
-    
+
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
-    
+
         let one = builder.field_constant(1u128);
         let three = builder.field_constant(3u128);
-    
+
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
         let v2 = builder.insert_binary(v1, BinaryOp::Mul, three);
         builder.terminate_with_return(vec![v2]);
-    
+
         let ssa = builder.finish();
         let expected_string = format!("{}", ssa);
 

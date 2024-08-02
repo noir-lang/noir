@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::rc::Rc;
-use serde::{Serialize, Deserialize};
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;

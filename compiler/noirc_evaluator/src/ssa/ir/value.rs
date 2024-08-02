@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::ssa::ir::basic_block::BasicBlockId;
 

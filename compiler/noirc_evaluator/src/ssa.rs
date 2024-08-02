@@ -7,7 +7,12 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::{collections::{BTreeMap, BTreeSet}, path::{Path, PathBuf}, fs::File, io::Write};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use crate::errors::{RuntimeError, SsaReport};
 use acvm::{
@@ -360,10 +365,15 @@ impl SsaBuilder {
             dbg!(ssa_path.clone());
             let x = &serde_json::to_string(&ssa).unwrap();
             dbg!(x);
-            write_to_file(&serde_json::to_vec(&ssa).map_err(|err| {
-                println!("{}", err.to_string());
-                err
-            }).unwrap(), &ssa_path);
+            write_to_file(
+                &serde_json::to_vec(&ssa)
+                    .map_err(|err| {
+                        println!("{}", err.to_string());
+                        err
+                    })
+                    .unwrap(),
+                &ssa_path,
+            );
         }
         Ok(SsaBuilder { print_ssa_passes, print_codegen_timings, ssa }.print("Initial SSA:"))
     }

@@ -10,7 +10,7 @@ use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     token::{Attributes, FunctionAttribute},
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::HirType;
 

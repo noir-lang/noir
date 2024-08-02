@@ -1,9 +1,11 @@
 use fxhash::FxHashMap as HashMap;
+use serde::{Deserialize, Serialize};
 use std::{
-    hash::Hash, str::FromStr, sync::atomic::{AtomicUsize, Ordering}
+    hash::Hash,
+    str::FromStr,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
 
 /// A unique ID corresponding to a value of type T.
 /// This type can be used to retrieve a value of type T from
@@ -13,7 +15,7 @@ use serde::{Serialize, Deserialize};
 /// DenseMap or SparseMap. If an Id was created to correspond to one
 /// particular map type, users need to take care not to use it with
 /// another map where it will likely be invalid.
-#[derive(Serialize,  Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub(crate) struct Id<T> {
     index: usize,
     // #[serde(skip)]
@@ -113,13 +115,11 @@ impl std::fmt::Display for Id<super::instruction::Instruction> {
     }
 }
 
-
 #[derive(Error, Debug)]
 pub(crate) enum IdDisplayFromStrErr {
     #[error("Invalid id when deserializing SSA: {0}")]
     InvalidId(String),
 }
-
 
 /// The implementation of display and FromStr allows serializing and deserializing an Id<T> to a string.
 /// This is useful when used as key in a map that has to be serialized to JSON/TOML.

@@ -1,10 +1,10 @@
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     cell::RefCell,
     collections::{BTreeSet, HashMap},
     rc::Rc,
 };
-use serde::{Serialize, Deserialize};
 
 use crate::{
     ast::IntegerBitSize,
