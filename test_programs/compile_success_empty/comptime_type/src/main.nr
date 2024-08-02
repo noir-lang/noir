@@ -29,5 +29,42 @@ fn main() {
         let (signed, bits) = u8_type.as_integer().unwrap();
         assert(!signed);
         assert_eq(bits, 8);
+
+        // Check Type::as_tuple
+        assert(u8_type.as_tuple().is_none());
+
+        let tuple = (an_i32, a_u8);
+        let tuple_type = type_of(tuple);
+        let tuple_types = tuple_type.as_tuple().unwrap();
+        assert_eq(tuple_types.len(), 2);
+        assert_eq(tuple_types[0], i32_type);
+        assert_eq(tuple_types[1], u8_type);
+
+        // Check Type::as_slice
+        assert(u8_type.as_slice().is_none());
+
+        let slice = &[1];
+        let slice_type = type_of(slice);
+        let slice_type_element_type = slice_type.as_slice().unwrap();
+        assert_eq(slice_type_element_type, field_type_1);
+
+        // Check Type::as_array
+        assert(u8_type.as_array().is_none());
+
+        let array = [1, 2, 3];
+        let array_type = type_of(array);
+        let (array_type_element_type , array_length) = array_type.as_array().unwrap();
+        assert_eq(array_type_element_type, field_type_1);
+
+        // Check Type::as_constant
+        assert(u8_type.as_constant().is_none());
+        assert_eq(array_length.as_constant().unwrap(), 3);
+
+        // Check Type::is_bool
+        assert(!u8_type.is_bool());
+
+        let yes = true;
+        let bool_type = type_of(yes);
+        assert(bool_type.is_bool());
     }
 }
