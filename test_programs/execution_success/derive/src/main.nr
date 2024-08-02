@@ -19,7 +19,17 @@ comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
     }
 }
 
+// Test stdlib derive fns & multiple traits
+#[derive(Eq, Default)]
+struct MyOtherStruct {
+    field1: u32,
+    field2: u64,
+}
+
 fn main() {
     let s = MyStruct { my_field: 1 };
     s.do_nothing();
+
+    let o = MyOtherStruct::default();
+    assert_eq(o, o);
 }
