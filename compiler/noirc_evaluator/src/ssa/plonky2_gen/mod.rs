@@ -726,16 +726,21 @@ impl Builder {
 
                         let mut new_values = Vec::new();
                         for i in 0..p2targets.len() {
-                            new_values
-                                .push(P2Value::create_empty(&mut self.asm_writer, target_type.clone()));
+                            new_values.push(P2Value::create_empty(
+                                &mut self.asm_writer,
+                                target_type.clone(),
+                            ));
                             if i == num_index {
-                                self.asm_writer.connect(p2value.get_target()?, new_values[i].get_target()?);
-                            } else {
                                 self.asm_writer
-                                    .connect(p2targets[i].get_target()?, new_values[i].get_target()?);
+                                    .connect(p2value.get_target()?, new_values[i].get_target()?);
+                            } else {
+                                self.asm_writer.connect(
+                                    p2targets[i].get_target()?,
+                                    new_values[i].get_target()?,
+                                );
                             }
                         }
-        
+
                         new_values
                     }
                     _ => {
