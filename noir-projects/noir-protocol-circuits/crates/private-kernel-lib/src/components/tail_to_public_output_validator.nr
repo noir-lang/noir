@@ -12,6 +12,7 @@ use dep::types::{
     log_hash::{LogHash, ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, note_hash::NoteHash,
     nullifier::Nullifier, public_call_request::PublicCallRequest
 },
+    address::AztecAddress,
     hash::{silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier},
     traits::{Empty, is_empty, is_empty_array},
     utils::arrays::{
@@ -104,7 +105,7 @@ impl TailToPublicOutputValidator {
 
         assert_split_sorted_transformed_value_arrays_asc(
             prev_data.note_hashes,
-            siloed_note_hashes.map(|value: Field| NoteHash { value, counter: 0 }),
+            siloed_note_hashes.map(|value: Field| NoteHash { value, counter: 0 }.scope(AztecAddress::zero())),
             split_counter,
             output_non_revertible.note_hashes,
             output_revertible.note_hashes,

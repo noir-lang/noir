@@ -40,7 +40,6 @@ impl NoteInterface<TRANSPARENT_NOTE_LEN, TRANSPARENT_NOTE_BYTES_LEN> for Transpa
         }
     }
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): Ensure nullifier collisions are prevented
     fn compute_note_hash_and_nullifier(self, _context: &mut PrivateContext) -> (Field, Field) {
         self.compute_note_hash_and_nullifier_without_context()
     }

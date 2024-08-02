@@ -17,7 +17,7 @@ import {
 } from '../../constants.gen.js';
 import { Gas } from '../gas.js';
 import { LogHash, ScopedLogHash } from '../log_hash.js';
-import { NoteHash } from '../note_hash.js';
+import { ScopedNoteHash } from '../note_hash.js';
 import { Nullifier } from '../nullifier.js';
 import { PublicCallRequest } from '../public_call_request.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
@@ -27,7 +27,7 @@ export class PublicAccumulatedData {
     /**
      * The new note hashes made in this transaction.
      */
-    public readonly noteHashes: Tuple<NoteHash, typeof MAX_NOTE_HASHES_PER_TX>,
+    public readonly noteHashes: Tuple<ScopedNoteHash, typeof MAX_NOTE_HASHES_PER_TX>,
     /**
      * The new nullifiers made in this transaction.
      */
@@ -160,7 +160,7 @@ export class PublicAccumulatedData {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new this(
-      reader.readArray(MAX_NOTE_HASHES_PER_TX, NoteHash),
+      reader.readArray(MAX_NOTE_HASHES_PER_TX, ScopedNoteHash),
       reader.readArray(MAX_NULLIFIERS_PER_TX, Nullifier),
       reader.readArray(MAX_L2_TO_L1_MSGS_PER_TX, Fr),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash),
@@ -175,7 +175,7 @@ export class PublicAccumulatedData {
   static fromFields(fields: Fr[] | FieldReader) {
     const reader = FieldReader.asReader(fields);
     return new this(
-      reader.readArray(MAX_NOTE_HASHES_PER_TX, NoteHash),
+      reader.readArray(MAX_NOTE_HASHES_PER_TX, ScopedNoteHash),
       reader.readArray(MAX_NULLIFIERS_PER_TX, Nullifier),
       reader.readFieldArray(MAX_L2_TO_L1_MSGS_PER_TX),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash),
@@ -198,7 +198,7 @@ export class PublicAccumulatedData {
 
   static empty() {
     return new this(
-      makeTuple(MAX_NOTE_HASHES_PER_TX, NoteHash.empty),
+      makeTuple(MAX_NOTE_HASHES_PER_TX, ScopedNoteHash.empty),
       makeTuple(MAX_NULLIFIERS_PER_TX, Nullifier.empty),
       makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, Fr.zero),
       makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash.empty),

@@ -450,24 +450,6 @@ export class PXEService implements PXE {
     }
 
     const nonces: Fr[] = [];
-
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
-    // Remove this once notes added from public also include nonces.
-    {
-      const publicNoteNonce = Fr.ZERO;
-      const { siloedNoteHash } = await this.simulator.computeNoteHashAndOptionallyANullifier(
-        note.contractAddress,
-        publicNoteNonce,
-        note.storageSlot,
-        note.noteTypeId,
-        false,
-        note.note,
-      );
-      if (tx.noteHashes.some(hash => hash.equals(siloedNoteHash))) {
-        nonces.push(publicNoteNonce);
-      }
-    }
-
     const firstNullifier = tx.nullifiers[0];
     const hashes = tx.noteHashes;
     for (let i = 0; i < hashes.length; ++i) {

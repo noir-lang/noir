@@ -39,16 +39,6 @@ pub fn compute_siloed_nullifier<Note, let N: u32, let M: u32>(
     compute_siloed_nullifier_from_preimage(header.contract_address, inner_nullifier)
 }
 
-fn compute_note_hash_for_read_request_from_slotted_and_nonce(slotted_note_hash: Field, nonce: Field) -> Field {
-    // TODO(#1386): This if-else can be nuked once we have nonces injected from public
-    if (nonce == 0) {
-        // If nonce is zero, that means we are reading a public note.
-        slotted_note_hash
-    } else {
-        compute_unique_note_hash(nonce, slotted_note_hash)
-    }
-}
-
 pub fn compute_note_hash_for_read_request<Note, let N: u32, let M: u32>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let slotted_note_hash = compute_slotted_note_hash(note);
     let nonce = note.get_header().nonce;
@@ -57,23 +47,22 @@ pub fn compute_note_hash_for_read_request<Note, let N: u32, let M: u32>(note: No
     if counter != 0 {
         slotted_note_hash
     } else {
-        compute_note_hash_for_read_request_from_slotted_and_nonce(slotted_note_hash, nonce)
+        compute_unique_note_hash(nonce, slotted_note_hash)
     }
 }
 
 pub fn compute_note_hash_for_consumption<Note, let N: u32, let M: u32>(note: Note) -> Field where Note: NoteInterface<N, M> {
     let header = note.get_header();
-    // There are 4 cases for reading a note intended for consumption:
+    // There are 3 cases for reading a note intended for consumption:
     // 1. The note was inserted in this transaction, is revertible, or is not nullified by a revertible nullifier in 
     //    the same transaction: (note_hash_counter != 0) & (nonce == 0)
     // 2. The note was inserted in this transaction, is non-revertible, and is nullified by a revertible nullifier in 
     //    the same transaction: (note_hash_counter != 0) & (nonce != 0)
-    // 3. The note was inserted in a previous transaction, and was inserted in public: (note_hash_counter == 0) & (nonce == 0)
-    // 4. The note was inserted in a previous transaction, and was inserted in private: (note_hash_counter == 0) & (nonce != 0)
+    // 3. The note was inserted in a previous transaction: (note_hash_counter == 0) & (nonce != 0)
 
     let slotted_note_hash = compute_slotted_note_hash(note);
 
-    if ((header.note_hash_counter != 0) & (header.nonce == 0)) {
+    if header.nonce == 0 {
         // Case 1.
         // If a note is transient, we just read the slotted_note_hash (kernel will silo by contract address).
         slotted_note_hash
@@ -86,11 +75,11 @@ pub fn compute_note_hash_for_consumption<Note, let N: u32, let M: u32>(note: Not
         // The kernel circuit will check that a nullifier with non-zero note_nonce is linked to a note hash, whose
         // siloed note hash matches the note hash specified in the nullifier.
 
-        // Case 3 & 4: If a note is not from the current transaction, that means we are reading a settled note (from 
+        // Case 3: If a note is not from the current transaction, that means we are reading a settled note (from 
         // tree) created in a previous TX. So we need the siloed_note_hash which has already been hashed with
         // nonce and then contract address. This hash will match the existing leaf in the note hash
         // tree, so the kernel can just perform a membership check directly on this hash/leaf.
-        let unique_note_hash = compute_note_hash_for_read_request_from_slotted_and_nonce(slotted_note_hash, header.nonce);
+        let unique_note_hash = compute_unique_note_hash(header.nonce, slotted_note_hash);
         compute_siloed_note_hash(header.contract_address, unique_note_hash)
         // IMPORTANT NOTE ON REDUNDANT SILOING BY CONTRACT ADDRESS: The note hash computed above is
         // "siloed" by contract address. When a note hash is computed solely for the purpose of
@@ -113,7 +102,7 @@ pub fn compute_note_hash_and_optionally_a_nullifier<T, let N: u32, let M: u32, l
     note.set_header(note_header);
 
     let slotted_note_hash = compute_slotted_note_hash(note);
-    let unique_note_hash = compute_note_hash_for_read_request_from_slotted_and_nonce(slotted_note_hash, note_header.nonce);
+    let unique_note_hash = compute_unique_note_hash(note_header.nonce, slotted_note_hash);
     let siloed_note_hash = compute_siloed_note_hash(note_header.contract_address, unique_note_hash);
 
     let inner_nullifier = if compute_nullifier {

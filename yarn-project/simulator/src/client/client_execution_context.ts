@@ -276,12 +276,9 @@ export class ClientExecutionContext extends ViewDataOracle {
 
     notes.forEach(n => {
       if (n.index !== undefined) {
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
-        // Should always call computeUniqueNoteHash when publicly created notes include nonces.
-        const uniqueNoteHash = n.nonce.isZero() ? n.slottedNoteHash : computeUniqueNoteHash(n.nonce, n.slottedNoteHash);
+        const uniqueNoteHash = computeUniqueNoteHash(n.nonce, n.slottedNoteHash);
         const siloedNoteHash = siloNoteHash(n.contractAddress, uniqueNoteHash);
-        const noteHashForReadRequest = siloedNoteHash;
-        this.noteHashLeafIndexMap.set(noteHashForReadRequest.toBigInt(), n.index);
+        this.noteHashLeafIndexMap.set(siloedNoteHash.toBigInt(), n.index);
       }
     });
 

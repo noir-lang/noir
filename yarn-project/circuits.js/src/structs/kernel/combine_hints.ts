@@ -18,13 +18,13 @@ import {
   sortByPositionThenCounterGetSortedHints,
 } from '../../utils/index.js';
 import { ScopedLogHash } from '../log_hash.js';
-import { NoteHash } from '../note_hash.js';
+import { ScopedNoteHash } from '../note_hash.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
 import { type PublicAccumulatedData } from './public_accumulated_data.js';
 
 export class CombineHints {
   constructor(
-    public readonly sortedNoteHashes: Tuple<NoteHash, typeof MAX_NOTE_HASHES_PER_TX>,
+    public readonly sortedNoteHashes: Tuple<ScopedNoteHash, typeof MAX_NOTE_HASHES_PER_TX>,
     public readonly sortedNoteHashesIndexes: Tuple<number, typeof MAX_NOTE_HASHES_PER_TX>,
     public readonly sortedUnencryptedLogsHashes: Tuple<ScopedLogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     public readonly sortedUnencryptedLogsHashesIndexes: Tuple<number, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
@@ -64,7 +64,7 @@ export class CombineHints {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new CombineHints(
-      reader.readArray(MAX_NOTE_HASHES_PER_TX, NoteHash),
+      reader.readArray(MAX_NOTE_HASHES_PER_TX, ScopedNoteHash),
       reader.readNumbers(MAX_NOTE_HASHES_PER_TX),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       reader.readNumbers(MAX_UNENCRYPTED_LOGS_PER_TX),

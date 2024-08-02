@@ -115,7 +115,7 @@ mod tests {
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, public_kernel_data::PublicKernelData,
         nullifier::ScopedNullifier, nullifier_leaf_preimage::NullifierLeafPreimage,
         accumulated_data::{CombinedAccumulatedData, CombineHints},
-        public_data_update_request::PublicDataUpdateRequest, note_hash::NoteHash,
+        public_data_update_request::PublicDataUpdateRequest, note_hash::ScopedNoteHash,
         log_hash::{ScopedLogHash, LogHash}
     },
         address::AztecAddress,
@@ -319,7 +319,10 @@ mod tests {
                 previous_kernel.public_inputs.end_non_revertible.note_hashes,
                 previous_kernel.public_inputs.end.note_hashes
             );
-            let sorted = sort_get_sorted_hints(merged, |a: NoteHash, b: NoteHash| a.counter() < b.counter());
+            let sorted = sort_get_sorted_hints(
+                merged,
+                |a: ScopedNoteHash, b: ScopedNoteHash| a.counter() < b.counter()
+            );
             let sorted_note_hashes = sorted.sorted_array;
             let sorted_note_hashes_indexes = sorted.sorted_index_hints;
 

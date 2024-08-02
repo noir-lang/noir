@@ -114,7 +114,7 @@ mod tests {
         read_request::ReadRequest
     },
         address::{AztecAddress, EthAddress}, contract_class_id::ContractClassId,
-        hash::{compute_l2_to_l1_hash, compute_siloed_note_hash, compute_siloed_nullifier},
+        hash::{compute_l2_to_l1_hash, compute_siloed_nullifier},
         messaging::l2_to_l1_message::L2ToL1Message,
         tests::{
         fixture_builder::FixtureBuilder, public_call_data_builder::PublicCallDataBuilder,
@@ -236,19 +236,17 @@ mod tests {
         let contract_address = builder.public_call.contract_address;
         // Setup 2 new note hashes and logs on the previous kernel.
         builder.previous_kernel.append_note_hashes_with_logs(2);
-        let previous = builder.previous_kernel.note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash);
+        let previous = builder.previous_kernel.note_hashes.storage;
         let prev_data = builder.previous_kernel.to_public_accumulated_data();
         let prev_note_logs = prev_data.note_encrypted_logs_hashes;
         // Setup 2 new note hashes on the current public inputs.
         let current = [
-            NoteHash { value: previous[1].value + 1, counter: 5 },
-            NoteHash { value: previous[1].value + 2, counter: 6 }
+            NoteHash { value: previous[1].value() + 1, counter: 5 },
+            NoteHash { value: previous[1].value() + 2, counter: 6 }
         ];
         builder.public_call.public_inputs.note_hashes.extend_from_array(current);
-        let siloed = current.map(|c: NoteHash| compute_siloed_note_hash(contract_address, c.value));
-        let note_hashes = [
-            previous[0], previous[1], NoteHash { value: siloed[0], counter: 5 }, NoteHash { value: siloed[1], counter: 6 }
-        ];
+        let current = current.map(|n: NoteHash| n.scope(contract_address));
+        let note_hashes = [previous[0], previous[1], current[0], current[1]];
 
         let public_inputs = builder.execute();
 

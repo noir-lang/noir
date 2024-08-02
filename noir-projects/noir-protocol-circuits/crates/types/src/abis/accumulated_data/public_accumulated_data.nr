@@ -1,6 +1,6 @@
 use crate::{
     abis::{
-    public_data_update_request::PublicDataUpdateRequest, gas::Gas, note_hash::NoteHash,
+    public_data_update_request::PublicDataUpdateRequest, gas::Gas, note_hash::ScopedNoteHash,
     nullifier::Nullifier, log_hash::{LogHash, ScopedLogHash, NoteLogHash},
     public_call_request::PublicCallRequest
 },
@@ -13,7 +13,7 @@ use crate::{
 };
 
 struct PublicAccumulatedData {
-    note_hashes: [NoteHash; MAX_NOTE_HASHES_PER_TX],
+    note_hashes: [ScopedNoteHash; MAX_NOTE_HASHES_PER_TX],
     nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TX],
     l2_to_l1_msgs: [Field; MAX_L2_TO_L1_MSGS_PER_TX],
 
@@ -31,7 +31,7 @@ struct PublicAccumulatedData {
 impl Empty for PublicAccumulatedData {
     fn empty() -> Self {
         PublicAccumulatedData {
-            note_hashes: [NoteHash::empty(); MAX_NOTE_HASHES_PER_TX],
+            note_hashes: [ScopedNoteHash::empty(); MAX_NOTE_HASHES_PER_TX],
             nullifiers: [Nullifier::empty(); MAX_NULLIFIERS_PER_TX],
             l2_to_l1_msgs: [0; MAX_L2_TO_L1_MSGS_PER_TX],
             note_encrypted_logs_hashes: [LogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
@@ -91,7 +91,7 @@ impl Deserialize<PUBLIC_ACCUMULATED_DATA_LENGTH> for PublicAccumulatedData {
     let mut reader = Reader::new(fields);
 
     let item = PublicAccumulatedData {
-        note_hashes: reader.read_struct_array(NoteHash::deserialize, [NoteHash::empty(); MAX_NOTE_HASHES_PER_TX]),
+        note_hashes: reader.read_struct_array(ScopedNoteHash::deserialize, [ScopedNoteHash::empty(); MAX_NOTE_HASHES_PER_TX]),
         nullifiers: reader.read_struct_array(Nullifier::deserialize, [Nullifier::empty(); MAX_NULLIFIERS_PER_TX]),
         l2_to_l1_msgs: reader.read_array([0; MAX_L2_TO_L1_MSGS_PER_TX]),
         note_encrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_TX]),

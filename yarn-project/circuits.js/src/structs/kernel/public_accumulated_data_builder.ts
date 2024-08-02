@@ -13,7 +13,7 @@ import {
 } from '../../constants.gen.js';
 import { Gas } from '../gas.js';
 import { LogHash, ScopedLogHash } from '../log_hash.js';
-import { NoteHash } from '../note_hash.js';
+import { ScopedNoteHash } from '../note_hash.js';
 import { Nullifier } from '../nullifier.js';
 import { PublicCallRequest } from '../public_call_request.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
@@ -26,7 +26,7 @@ import { PublicAccumulatedData } from './public_accumulated_data.js';
  *
  */
 export class PublicAccumulatedDataBuilder {
-  private noteHashes: NoteHash[] = [];
+  private noteHashes: ScopedNoteHash[] = [];
   private nullifiers: Nullifier[] = [];
   private l2ToL1Msgs: Fr[] = [];
   private noteEncryptedLogsHashes: LogHash[] = [];
@@ -36,12 +36,12 @@ export class PublicAccumulatedDataBuilder {
   private publicCallStack: PublicCallRequest[] = [];
   private gasUsed: Gas = Gas.empty();
 
-  pushNoteHash(newNoteHash: NoteHash) {
+  pushNoteHash(newNoteHash: ScopedNoteHash) {
     this.noteHashes.push(newNoteHash);
     return this;
   }
 
-  withNoteHashes(noteHashes: NoteHash[]) {
+  withNoteHashes(noteHashes: ScopedNoteHash[]) {
     this.noteHashes = noteHashes;
     return this;
   }
@@ -123,7 +123,7 @@ export class PublicAccumulatedDataBuilder {
 
   build(): PublicAccumulatedData {
     return new PublicAccumulatedData(
-      padArrayEnd(this.noteHashes, NoteHash.empty(), MAX_NOTE_HASHES_PER_TX),
+      padArrayEnd(this.noteHashes, ScopedNoteHash.empty(), MAX_NOTE_HASHES_PER_TX),
       padArrayEnd(this.nullifiers, Nullifier.empty(), MAX_NULLIFIERS_PER_TX),
       padArrayEnd(this.l2ToL1Msgs, Fr.ZERO, MAX_L2_TO_L1_MSGS_PER_TX),
       padArrayEnd(this.noteEncryptedLogsHashes, LogHash.empty(), MAX_NOTE_ENCRYPTED_LOGS_PER_TX),

@@ -6,8 +6,6 @@ struct NoteHeader {
     contract_address: AztecAddress,
     nonce: Field,
     storage_slot: Field,
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386)
-    // Check the nonce to see whether a note is transient or not.
     note_hash_counter: u32, // a note_hash_counter of 0 means non-transient
 }
 

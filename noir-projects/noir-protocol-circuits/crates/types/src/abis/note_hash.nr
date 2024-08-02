@@ -127,9 +127,9 @@ impl Readable for ScopedNoteHash {
 }
 
 impl ScopedNoteHash {
-    pub fn expose_to_public(self) -> NoteHash {
+    pub fn expose_to_public(self) -> ScopedNoteHash {
         // Hide the actual counter when exposing it to the public kernel.
-        NoteHash { value: self.note_hash.value, counter: 0 }
+        NoteHash { value: self.note_hash.value, counter: 0 }.scope(AztecAddress::zero())
     }
 }
 

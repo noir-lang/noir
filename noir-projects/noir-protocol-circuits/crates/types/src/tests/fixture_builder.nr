@@ -316,7 +316,6 @@ impl FixtureBuilder {
     }
 
     pub fn to_public_accumulated_data_builder(self) -> PublicAccumulatedDataBuilder {
-        let note_hashes = BoundedVec { storage: self.note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash), len: self.note_hashes.len() };
         let nullifiers = BoundedVec { storage: self.nullifiers.storage.map(|n: ScopedNullifier| n.nullifier), len: self.nullifiers.len() };
         let l2_to_l1_msgs = BoundedVec {
             storage: self.l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content),
@@ -332,7 +331,7 @@ impl FixtureBuilder {
         };
 
         PublicAccumulatedDataBuilder {
-            note_hashes,
+            note_hashes: self.note_hashes,
             nullifiers,
             l2_to_l1_msgs,
             note_encrypted_logs_hashes,
