@@ -2,13 +2,16 @@
 include "poseidon2_params.pil";
 
 namespace poseidon2(256);
-
     pol commit clk;
 
     // Selector for poseidon2 operation
     pol commit sel_poseidon_perm;
     // Selector is boolean
     sel_poseidon_perm * (1 - sel_poseidon_perm) = 0;
+
+    // No relations will be checked if this identity is satisfied.
+    #[skippable_if]
+    sel_poseidon_perm = 0;
 
     // The initial mem address for inputs or output
     pol commit input_addr;

@@ -701,11 +701,10 @@ bool AvmCircuitBuilder::check_circuit() const
             for (auto& r : result) {
                 r = 0;
             }
-            constexpr size_t NUM_SUBRELATIONS = result.size();
 
             for (size_t r = 0; r < num_rows; ++r) {
                 Relation::accumulate(result, polys.get_row(r), {}, 1);
-                for (size_t j = 0; j < NUM_SUBRELATIONS; ++j) {
+                for (size_t j = 0; j < result.size(); ++j) {
                     if (result[j] != 0) {
                         signal_error(format("Relation ",
                                             Relation::NAME,

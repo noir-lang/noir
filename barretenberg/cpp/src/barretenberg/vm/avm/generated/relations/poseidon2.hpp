@@ -303,6 +303,12 @@ template <typename FF_> class poseidon2Impl {
         8, 7, 7, 7, 8, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 3, 3, 3, 3
     };
 
+    template <typename AllEntities> inline static bool skip(const AllEntities& in)
+    {
+        const auto& new_term = in;
+        return (new_term.poseidon2_sel_poseidon_perm).is_zero();
+    }
+
     template <typename ContainerOverSubrelations, typename AllEntities>
     void static accumulate(ContainerOverSubrelations& evals,
                            const AllEntities& new_term,

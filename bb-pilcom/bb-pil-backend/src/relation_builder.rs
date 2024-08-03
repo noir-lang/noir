@@ -30,7 +30,12 @@ pub struct RelationOutput {
 
 /// Each created bb Identity is passed around with its degree so as needs to be manually
 /// provided for sumcheck
-type BBIdentity = (DegreeType, String);
+#[derive(Debug)]
+pub struct BBIdentity {
+    pub degree: DegreeType,
+    pub identity: String,
+    pub label: Option<String>,
+}
 
 pub trait RelationBuilder {
     /// Create Relations
@@ -61,8 +66,8 @@ pub trait RelationBuilder {
         root_name: &str,
         name: &str,
         identities: &[BBIdentity],
+        skippable_if: &Option<BBIdentity>,
         all_cols: &[String],
-        labels: &HashMap<usize, String>,
     );
 }
 
@@ -85,9 +90,9 @@ impl RelationBuilder for BBFiles {
         for (relation_name, analyzed_idents) in grouped_relations.iter() {
             let IdentitiesOutput {
                 identities,
+                skippable_if,
                 collected_cols,
                 collected_shifts,
-                expression_labels,
             } = create_identities(file_name, analyzed_idents);
 
             // Aggregate all shifted polys
@@ -97,8 +102,8 @@ impl RelationBuilder for BBFiles {
                 file_name,
                 relation_name,
                 &identities,
+                &skippable_if,
                 &collected_cols,
-                &expression_labels,
             );
         }
 
@@ -116,25 +121,28 @@ impl RelationBuilder for BBFiles {
         root_name: &str,
         name: &str,
         identities: &[BBIdentity],
+        skippable_if: &Option<BBIdentity>,
         all_cols: &[String],
-        labels: &HashMap<usize, String>,
     ) {
         let mut handlebars = Handlebars::new();
-        let degrees: Vec<_> = identities.iter().map(|(d, _)| d + 1).collect();
-        let sorted_labels = labels
+        let degrees: Vec<_> = identities.iter().map(|id| id.degree + 1).collect();
+        let sorted_labels = identities
             .iter()
-            .sorted_by_key(|(idx, _)| *idx)
-            .collect::<Vec<_>>();
+            .enumerate()
+            .filter(|(_, id)| id.label.is_some())
+            .map(|(idx, id)| (idx, id.label.clone().unwrap()))
+            .collect_vec();
 
         let data = &json!({
             "root_name": root_name,
             "name": name,
-            "identities": identities.iter().map(|(d, id)| {
+            "identities": identities.iter().map(|id| {
                 json!({
-                    "degree": d,
-                    "identity": id,
+                    "degree": id.degree,
+                    "identity": id.identity,
                 })
-            }).collect::<Vec<_>>(),
+            }).collect_vec(),
+            "skippable_if": skippable_if.as_ref().map(|id| id.identity.clone()),
             "degrees": degrees,
             "all_cols": all_cols,
             "labels": sorted_labels,
@@ -196,13 +204,17 @@ fn create_identity<T: FieldElement>(
     expression: &SelectedExpressions<Expression<T>>,
     collected_cols: &mut HashSet<String>,
     collected_public_identities: &mut HashSet<String>,
+    label: &Option<String>,
 ) -> Option<BBIdentity> {
     // We want to read the types of operators and then create the appropiate code
-
     if let Some(expr) = &expression.selector {
-        let x = craft_expression(expr, collected_cols, collected_public_identities);
-        log::trace!("expression {:?}", x);
-        Some(x)
+        let (degree, id) = craft_expression(expr, collected_cols, collected_public_identities);
+        log::trace!("expression {:?}, {:?}", degree, id);
+        Some(BBIdentity {
+            degree: degree,
+            identity: id,
+            label: label.clone(),
+        })
     } else {
         None
     }
@@ -213,7 +225,7 @@ fn craft_expression<T: FieldElement>(
     // TODO: maybe make state?
     collected_cols: &mut HashSet<String>,
     collected_public_identities: &mut HashSet<String>,
-) -> BBIdentity {
+) -> (u64, String) {
     let var_name = match expr {
         Expression::Number(n) => {
             let number: BigUint = n.to_arbitrary_integer();
@@ -319,9 +331,9 @@ fn craft_expression<T: FieldElement>(
 
 pub struct IdentitiesOutput {
     identities: Vec<BBIdentity>,
+    skippable_if: Option<BBIdentity>,
     collected_cols: Vec<String>,
     collected_shifts: Vec<String>,
-    expression_labels: HashMap<usize, String>,
 }
 
 pub(crate) fn create_identities<F: FieldElement>(
@@ -336,28 +348,25 @@ pub(crate) fn create_identities<F: FieldElement>(
         .collect::<Vec<_>>();
 
     let mut identities = Vec::new();
-    let mut expression_labels: HashMap<usize, String> = HashMap::new(); // Each relation can be given a label, this label can be assigned here
+    let mut skippable_if_identity = None;
     let mut collected_cols: HashSet<String> = HashSet::new();
     let mut collected_public_identities: HashSet<String> = HashSet::new();
 
-    // Collect labels for each identity
-    // TODO: shite
-    for (i, id) in ids.iter().enumerate() {
-        if let Some(label) = &id.attribute {
-            expression_labels.insert(i, label.clone());
-        }
-    }
-
-    let expressions = ids.iter().map(|id| id.left.clone()).collect::<Vec<_>>();
-    for (i, expression) in expressions.iter().enumerate() {
-        // TODO: collected pattern is shit
-        let mut identity = create_identity(
-            expression,
+    for (i, expression) in ids.iter().enumerate() {
+        let identity = create_identity(
+            &expression.left,
             &mut collected_cols,
             &mut collected_public_identities,
+            &expression.attribute,
         )
         .unwrap();
-        identities.push(identity);
+
+        if identity.label.clone().is_some_and(|l| l == "skippable_if") {
+            assert!(skippable_if_identity.is_none());
+            skippable_if_identity = Some(identity);
+        } else {
+            identities.push(identity);
+        }
     }
 
     // Print a warning to the user about usage of public identities
@@ -386,8 +395,8 @@ pub(crate) fn create_identities<F: FieldElement>(
 
     IdentitiesOutput {
         identities,
+        skippable_if: skippable_if_identity,
         collected_cols,
         collected_shifts,
-        expression_labels,
     }
 }

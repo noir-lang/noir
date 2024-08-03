@@ -19,7 +19,15 @@ template <typename FF_> class {{name}}Impl {
         static constexpr std::array<size_t, {{len degrees}}> SUBRELATION_PARTIAL_LENGTHS = {
             {{#each degrees as |degree|}}{{degree}}{{#unless @last}},{{/unless}}{{/each}}
         };
-        
+
+        {{#if skippable_if}}        
+        template <typename AllEntities> inline static bool skip(const AllEntities& in)
+        {
+            const auto& new_term = in;
+            return ({{skippable_if}}).is_zero();
+        }
+        {{/if}}
+
         template <typename ContainerOverSubrelations, typename AllEntities>
         void static accumulate(
             ContainerOverSubrelations& evals,
