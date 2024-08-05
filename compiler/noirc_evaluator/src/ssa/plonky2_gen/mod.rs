@@ -923,6 +923,11 @@ impl Builder {
             Value::Array { array, typ } => {
                 assert!(array.len() > 0, "empty array literal");
                 let element_type = P2Type::from_noir_type(typ)?;
+                let element_type = if let P2Type::Array(array_elem_type, _) = element_type {
+                    *array_elem_type
+                } else {
+                    element_type
+                };
                 let mut targets = Vec::new();
                 for element in array {
                     let p2value: P2Value;

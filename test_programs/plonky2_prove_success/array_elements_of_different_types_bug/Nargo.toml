@@ -1,0 +1,7 @@
+[package]
+name = "array_elements_of_different_types_bug"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]
