@@ -599,6 +599,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
         | Type::NamedGeneric(..)
         | Type::Forall(..)
         | Type::Constant(..)
+        | Type::InfixExpr(..)
         | Type::Quoted(..)
         | Type::Error => {
             parts.push(string_part(typ.to_string()));

@@ -364,8 +364,7 @@ where
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace =
-        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path).unwrap();
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
@@ -388,7 +387,7 @@ where
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
         interner = &context.def_interner;
     }
 
