@@ -188,6 +188,9 @@ impl HasItem for UnresolvedGeneric {
                 result.push_str(&typ);
                 result
             }
+            UnresolvedGeneric::Resolved(..) => {
+                unreachable!("Found macro result UnresolvedGeneric::Resolved in formatter")
+            }
         }
     }
 }

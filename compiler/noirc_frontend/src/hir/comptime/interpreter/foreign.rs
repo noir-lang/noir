@@ -8,7 +8,7 @@ use crate::{
     macros_api::NodeInterner,
 };
 
-use super::builtin::{check_argument_count, get_array, get_u32};
+use super::builtin::{check_two_arguments, get_array, get_u32};
 
 pub(super) fn call_foreign(
     interner: &mut NodeInterner,
@@ -28,13 +28,13 @@ pub(super) fn call_foreign(
 // poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]
 fn poseidon2_permutation(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let (input, state_length) = check_two_arguments(arguments, location)?;
 
-    let state_length = get_u32(arguments.pop().unwrap().0, location)?;
-    let (input, typ) = get_array(interner, arguments.pop().unwrap().0, location)?;
+    let (input, typ) = get_array(interner, input, location)?;
+    let state_length = get_u32(state_length, location)?;
 
     let input = try_vecmap(input, |integer| get_field(integer, location))?;
 

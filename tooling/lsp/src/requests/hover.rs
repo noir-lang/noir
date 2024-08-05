@@ -1,17 +1,18 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
+use fm::FileMap;
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
 use noirc_frontend::{
     ast::Visibility,
     graph::CrateId,
     hir::def_map::ModuleId,
-    hir_def::stmt::HirPattern,
+    hir_def::{stmt::HirPattern, traits::Trait},
     macros_api::{NodeInterner, StructId},
     node_interner::{
         DefinitionId, DefinitionKind, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId,
     },
-    Generics, Type,
+    Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
 };
 
 use crate::LspState;
@@ -120,6 +121,7 @@ fn format_struct_member(
     string.push_str(&field_name.0.contents);
     string.push_str(": ");
     string.push_str(&format!("{}", field_type));
+    string.push_str(&go_to_type_links(field_type, args.interner, args.files));
     string
 }
 
@@ -151,6 +153,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&global_info.ident.0.contents);
     string.push_str(": ");
     string.push_str(&format!("{}", typ));
+    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
     string
 }
 
@@ -206,6 +209,8 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         }
     }
 
+    string.push_str(&go_to_type_links(return_type, args.interner, args.files));
+
     string
 }
 
@@ -250,6 +255,9 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str(": ");
         string.push_str(&format!("{}", typ));
     }
+
+    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+
     string
 }
 
@@ -359,6 +367,148 @@ fn format_parent_module_from_module_id(
     string.push_str(&module_attributes.name);
 
     true
+}
+
+fn go_to_type_links(typ: &Type, interner: &NodeInterner, files: &FileMap) -> String {
+    let mut gatherer = TypeLinksGatherer { interner, files, links: Vec::new() };
+    gatherer.gather_type_links(typ);
+
+    let links = gatherer.links;
+    if links.is_empty() {
+        "".to_string()
+    } else {
+        let mut string = String::new();
+        string.push_str("\n\n");
+        string.push_str("Go to ");
+        for (index, link) in links.iter().enumerate() {
+            if index > 0 {
+                string.push_str(" | ");
+            }
+            string.push_str(link);
+        }
+        string
+    }
+}
+
+struct TypeLinksGatherer<'a> {
+    interner: &'a NodeInterner,
+    files: &'a FileMap,
+    links: Vec<String>,
+}
+
+impl<'a> TypeLinksGatherer<'a> {
+    fn gather_type_links(&mut self, typ: &Type) {
+        match typ {
+            Type::Array(typ, _) => self.gather_type_links(typ),
+            Type::Slice(typ) => self.gather_type_links(typ),
+            Type::Tuple(types) => {
+                for typ in types {
+                    self.gather_type_links(typ);
+                }
+            }
+            Type::Struct(struct_type, generics) => {
+                self.gather_struct_type_links(struct_type);
+                for generic in generics {
+                    self.gather_type_links(generic);
+                }
+            }
+            Type::Alias(type_alias, generics) => {
+                self.gather_type_alias_links(type_alias);
+                for generic in generics {
+                    self.gather_type_links(generic);
+                }
+            }
+            Type::TypeVariable(var, _) => {
+                self.gather_type_variable_links(var);
+            }
+            Type::TraitAsType(trait_id, _, generics) => {
+                let some_trait = self.interner.get_trait(*trait_id);
+                self.gather_trait_links(some_trait);
+                for generic in generics {
+                    self.gather_type_links(generic);
+                }
+            }
+            Type::NamedGeneric(var, _, _) => {
+                self.gather_type_variable_links(var);
+            }
+            Type::Function(args, return_type, env) => {
+                for arg in args {
+                    self.gather_type_links(arg);
+                }
+                self.gather_type_links(return_type);
+                self.gather_type_links(env);
+            }
+            Type::MutableReference(typ) => self.gather_type_links(typ),
+            Type::InfixExpr(lhs, _, rhs) => {
+                self.gather_type_links(lhs);
+                self.gather_type_links(rhs);
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Forall(_, _)
+            | Type::Constant(_)
+            | Type::Quoted(_)
+            | Type::Error => (),
+        }
+    }
+
+    fn gather_struct_type_links(&mut self, struct_type: &Shared<StructType>) {
+        let struct_type = struct_type.borrow();
+        if let Some(lsp_location) =
+            to_lsp_location(self.files, struct_type.location.file, struct_type.name.span())
+        {
+            self.push_link(format_link(struct_type.name.to_string(), lsp_location));
+        }
+    }
+
+    fn gather_type_alias_links(&mut self, type_alias: &Shared<TypeAlias>) {
+        let type_alias = type_alias.borrow();
+        if let Some(lsp_location) =
+            to_lsp_location(self.files, type_alias.location.file, type_alias.name.span())
+        {
+            self.push_link(format_link(type_alias.name.to_string(), lsp_location));
+        }
+    }
+
+    fn gather_trait_links(&mut self, some_trait: &Trait) {
+        if let Some(lsp_location) =
+            to_lsp_location(self.files, some_trait.location.file, some_trait.name.span())
+        {
+            self.push_link(format_link(some_trait.name.to_string(), lsp_location));
+        }
+    }
+
+    fn gather_type_variable_links(&mut self, var: &TypeVariable) {
+        let var = &*var.borrow();
+        match var {
+            TypeBinding::Bound(typ) => {
+                self.gather_type_links(typ);
+            }
+            TypeBinding::Unbound(..) => (),
+        }
+    }
+
+    fn push_link(&mut self, link: String) {
+        if !self.links.contains(&link) {
+            self.links.push(link);
+        }
+    }
+}
+
+fn format_link(name: String, location: lsp_types::Location) -> String {
+    format!(
+        "[{}]({}#L{},{}-{},{})",
+        name,
+        location.uri,
+        location.range.start.line + 1,
+        location.range.start.character + 1,
+        location.range.end.line + 1,
+        location.range.end.character + 1
+    )
 }
 
 #[cfg(test)]
@@ -531,6 +681,24 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 27, character: 4 },
             "    let mut mutable_var: Field",
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_local_var_whose_type_you_can_navigate_to() {
+        let workspace_on_src_lib_path = std::env::current_dir()
+            .unwrap()
+            .join("test_programs/workspace/one/src/lib.nr")
+            .canonicalize()
+            .expect("Could not resolve root path");
+        let workspace_on_src_lib_path = workspace_on_src_lib_path.to_string_lossy();
+
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 51, character: 8 },
+            &format!("    let x: BoundedVec<SubOneStruct, 3>\n\nGo to [SubOneStruct](file://{}#L4,12-4,24)", workspace_on_src_lib_path),
         )
         .await;
     }
