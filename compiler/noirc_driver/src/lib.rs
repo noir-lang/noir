@@ -575,11 +575,7 @@ pub fn compile_no_check(
         } else {
             ExpressionWidth::default()
         },
-        emit_ssa: if options.emit_ssa {
-            Some(context.package_build_path.clone())
-        } else {
-            None
-        },
+        emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =

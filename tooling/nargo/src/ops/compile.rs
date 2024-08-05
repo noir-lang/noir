@@ -32,11 +32,6 @@ pub fn compile_workspace(
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
         .map(|package| {
-            let target_dir = if compile_options.emit_ssa {
-                Some(workspace.target_directory_path())
-            } else {
-                None
-            };
             compile_program(file_manager, parsed_files, workspace, package, compile_options, None)
         })
         .collect();
