@@ -6,8 +6,8 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     check_argument_count, check_one_argument, check_three_arguments, check_two_arguments,
-    get_function_def, get_quoted, get_slice, get_trait_constraint, get_trait_def, get_type,
-    get_u32, hir_pattern_to_tokens,
+    get_function_def, get_module, get_quoted, get_slice, get_trait_constraint, get_trait_def,
+    get_type, get_u32, hir_pattern_to_tokens,
 };
 use chumsky::Parser;
 use iter_extended::{try_vecmap, vecmap};
@@ -16,6 +16,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::IntegerBitSize,
+    elaborator,
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     macros_api::{NodeInterner, Signedness},
     parser,
@@ -42,6 +43,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
+            "module_is_contract" => module_is_contract(self, arguments, location),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
             "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
@@ -717,6 +719,17 @@ fn function_def_return_type(
     let func_meta = interner.function_meta(&func_id);
 
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
+}
+
+// fn is_contract(self) -> bool
+fn module_is_contract(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument, location)?;
+    Ok(Value::Bool(interpreter.elaborator.module_is_contract(module_id)))
 }
 
 fn modulus_be_bits(

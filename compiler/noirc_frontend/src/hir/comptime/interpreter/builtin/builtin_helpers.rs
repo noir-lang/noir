@@ -5,7 +5,10 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{IntegerBitSize, Signedness},
-    hir::comptime::{errors::IResult, InterpreterError, Value},
+    hir::{
+        comptime::{errors::IResult, InterpreterError, Value},
+        def_map::ModuleId,
+    },
     hir_def::stmt::HirPattern,
     macros_api::NodeInterner,
     node_interner::{FuncId, TraitId},
@@ -118,6 +121,17 @@ pub(crate) fn get_function_def(value: Value, location: Location) -> IResult<Func
         Value::FunctionDefinition(id) => Ok(id),
         value => {
             let expected = Type::Quoted(QuotedType::FunctionDefinition);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
+pub(crate) fn get_module(value: Value, location: Location) -> IResult<ModuleId> {
+    match value {
+        Value::ModuleDefinition(module_id) => Ok(module_id),
+        value => {
+            let expected = Type::Quoted(QuotedType::Module);
             let actual = value.get_type().into_owned();
             Err(InterpreterError::TypeMismatch { expected, actual, location })
         }

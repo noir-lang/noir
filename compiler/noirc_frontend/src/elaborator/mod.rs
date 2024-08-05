@@ -885,7 +885,11 @@ impl<'context> Elaborator<'context> {
     /// Since they should be within a child module, they should be elaborated as if
     /// `in_contract` is `false` so we can still resolve them in the parent module without them being in a contract.
     fn in_contract(&self) -> bool {
-        self.module_id().module(self.def_maps).is_contract
+        self.module_is_contract(self.module_id())
+    }
+
+    pub(crate) fn module_is_contract(&self, module_id: ModuleId) -> bool {
+        module_id.module(self.def_maps).is_contract
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction, in_contract: bool) -> bool {
