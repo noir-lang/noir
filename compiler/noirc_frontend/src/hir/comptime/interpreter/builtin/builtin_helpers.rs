@@ -205,7 +205,7 @@ fn gather_hir_pattern_tokens(
             tokens.push(Token::RightParen);
         }
         HirPattern::Struct(typ, fields, _) => {
-            let Type::Struct(struct_type, _) = typ else {
+            let Type::Struct(struct_type, _) = typ.follow_bindings() else {
                 panic!("Expected type to be a struct");
             };
 
