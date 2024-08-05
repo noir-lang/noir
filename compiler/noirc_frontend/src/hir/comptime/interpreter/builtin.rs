@@ -561,7 +561,7 @@ fn type_as_struct(
         if let Type::Struct(struct_type, generics) = typ {
             Some(Value::Tuple(vec![
                 Value::StructDefinition(struct_type.borrow().id),
-                Value::Array(
+                Value::Slice(
                     generics.into_iter().map(Value::Type).collect(),
                     Type::Quoted(QuotedType::Type),
                 ),
