@@ -72,7 +72,7 @@ pub struct CompileOptions {
 
     /// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
-    /// under the name of the package that was compiled.
+    /// under `[compiled-package].ssa.json`.
     #[arg(long, hide = true)]
     pub emit_ssa: bool,
 

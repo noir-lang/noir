@@ -45,7 +45,7 @@ pub(crate) struct CompileCommand {
     watch: bool,
 }
 
-pub(crate) fn run(mut args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -57,20 +57,17 @@ pub(crate) fn run(mut args: CompileCommand, config: NargoConfig) -> Result<(), C
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
     )?;
 
-    // let compile_options = args.compile_options;
-    // if args.compile_options.emit_ssa {
-    // }
     if args.watch {
-        watch_workspace(&workspace, &args.compile_options)
+        watch_workspace(&workspace, args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
-        compile_workspace_full(&workspace, &args.compile_options)?;
+        compile_workspace_full(&workspace, args.compile_options)?;
     }
 
     Ok(())
 }
 
-fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> notify::Result<()> {
+fn watch_workspace(workspace: &Workspace, compile_options: CompileOptions) -> notify::Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
 
     // No specific tickrate, max debounce time 1 seconds
@@ -83,7 +80,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     let mut screen = std::io::stdout();
     write!(screen, "{}", termion::cursor::Save).unwrap();
     screen.flush().unwrap();
-    let _ = compile_workspace_full(workspace, compile_options);
+    let _ = compile_workspace_full(workspace, compile_options.clone());
     for res in rx {
         let debounced_events = res.map_err(|mut err| err.remove(0))?;
 
@@ -104,7 +101,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         if noir_files_modified {
             write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
             screen.flush().unwrap();
-            let _ = compile_workspace_full(workspace, compile_options);
+            let _ = compile_workspace_full(workspace, compile_options.clone());
         }
     }
 
@@ -115,14 +112,14 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 
 pub(super) fn compile_workspace_full(
     workspace: &Workspace,
-    compile_options: &CompileOptions,
+    compile_options: CompileOptions,
 ) -> Result<(), CliError> {
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
     let compiled_workspace =
-        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, &compile_options);
 
     report_errors(
         compiled_workspace,
@@ -148,12 +145,12 @@ fn compile_workspace(
 
     // Compile all of the packages in parallel.
     let program_warnings_or_errors: CompilationResult<()> =
-        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options);
+        compile_programs(file_manager, parsed_files, workspace, &binary_packages, &compile_options);
     let contract_warnings_or_errors: CompilationResult<()> = compiled_contracts(
         file_manager,
         parsed_files,
         &contract_packages,
-        compile_options,
+        &compile_options,
         &workspace.target_directory_path(),
     );
 
@@ -188,7 +185,7 @@ fn compile_programs(
         .par_iter()
         .map(|package| {
             let target_dir = if compile_options.emit_ssa {
-                Some(workspace.target_directory_path())
+                Some(workspace.package_build_path(package))
             } else {
                 None
             };
@@ -196,7 +193,7 @@ fn compile_programs(
                 file_manager,
                 parsed_files,
                 package,
-                compile_options,
+                &compile_options,
                 load_cached_program(package),
                 target_dir,
             )?;

@@ -60,7 +60,7 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
     let target_dir = &workspace.target_directory_path();
 
     // Compile the full workspace in order to generate any build artifacts.
-    compile_workspace_full(&workspace, &args.compile_options)?;
+    compile_workspace_full(&workspace, args.compile_options)?;
 
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
