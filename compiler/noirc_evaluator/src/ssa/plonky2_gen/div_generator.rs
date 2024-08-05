@@ -76,8 +76,12 @@ impl SimpleGenerator<P2Field, 2> for VariableIntDivGenerator {
         let numerator = witness.get_target(self.numerator).to_canonical_u64();
         let denominator = witness.get_target(self.denominator).to_canonical_u64();
 
-        let quotient = numerator / denominator;
-        let remainder = numerator % denominator;
+        let mut quotient: u64 = 0;
+        let mut remainder: u64 = 0;
+        if denominator != 0 {
+            quotient = numerator / denominator;
+            remainder = numerator % denominator;
+        }
 
         out_buffer.set_target(self.quotient, P2Field::from_canonical_u64(quotient));
         out_buffer.set_target(self.remainder, P2Field::from_canonical_u64(remainder));
