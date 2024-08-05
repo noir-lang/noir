@@ -4,10 +4,5 @@ fn main(
     public_inputs: [Field; 1],
     key_hash: Field
 ) {
-    std::verify_proof(
-        verification_key.as_slice(),
-        proof.as_slice(),
-        public_inputs.as_slice(),
-        key_hash
-    )
+    std::verify_proof(verification_key, proof, public_inputs, key_hash)
 }

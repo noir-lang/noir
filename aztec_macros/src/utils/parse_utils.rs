@@ -349,6 +349,7 @@ fn empty_unresolved_generic(unresolved_generic: &mut UnresolvedGeneric) {
             empty_ident(ident);
             empty_unresolved_type(typ);
         }
+        UnresolvedGeneric::Resolved(..) => (),
     }
 }
 

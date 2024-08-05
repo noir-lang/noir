@@ -1026,7 +1026,10 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
+            HirType::Forall(_, _)
+            | HirType::Constant(_)
+            | HirType::InfixExpr(..)
+            | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
             HirType::Quoted(_) => unreachable!("Tried to translate Code type into runtime code"),
@@ -1107,6 +1110,10 @@ impl<'interner> Monomorphizer<'interner> {
             }
 
             HirType::MutableReference(element) => Self::check_type(element, location),
+            HirType::InfixExpr(lhs, _, rhs) => {
+                Self::check_type(lhs, location)?;
+                Self::check_type(rhs, location)
+            }
         }
     }
 
