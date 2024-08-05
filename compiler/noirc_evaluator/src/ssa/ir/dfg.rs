@@ -77,7 +77,6 @@ pub(crate) struct DataFlowGraph {
     /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
     /// for that of another. This information is purely used for printing the SSA, and has no
     /// material effect on the SSA itself.
-    // #[serde_as(as = "Vec<(_, _)>")]
     #[serde(skip)]
     replaced_value_ids: HashMap<ValueId, ValueId>,
 
