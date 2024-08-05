@@ -135,12 +135,16 @@ mod test {
         builder.terminate_with_return(vec![v2]);
 
         let ssa = builder.finish();
-
         let serialized_ssa = &serde_json::to_string(&ssa).unwrap();
         let deserialized_ssa: Ssa = serde_json::from_str(serialized_ssa).unwrap();
         let actual_string = format!("{}", deserialized_ssa);
 
-        let expected_string = "acir(inline) fn main f0 {\n  b0(v0: Field):\n    v3 = add v0, Field 1\n    v4 = mul v3, Field 3\n    return v4\n}\n";
+        let expected_string = "acir(inline) fn main f0 {\n  \
+        b0(v0: Field):\n    \
+            v3 = add v0, Field 1\n    \
+            v4 = mul v3, Field 3\n    \
+            return v4\n\
+        }\n";
         assert_eq!(actual_string, expected_string);
     }
 }
