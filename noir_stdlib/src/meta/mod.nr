@@ -60,20 +60,20 @@ pub comptime fn make_impl<Env1, Env2>(
     function_signature: Quoted,
     for_each_field: fn[Env1](Quoted) -> Quoted,
     join_fields_with: Quoted,
-    body: fn[Env2](Quoted) -> Quoted,
+    body: fn[Env2](Quoted) -> Quoted
 ) -> Quoted {
     let typ = s.as_type();
-
     let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
-
     let where_clause = s.generics().map(|name| quote { $name: $trait_name }).join(quote {,});
 
     // `for_each_field(field1) $join_fields_with for_each_field(field2) $join_fields_with ...`
-    let equalities = s.fields().map(|f: (Quoted, Type)| {
+    let fields = s.fields().map(
+        |f: (Quoted, Type)| {
         let name = f.0;
         for_each_field(name)
-    });
-    let body = body(equalities.join(join_fields_with));
+    }
+    );
+    let body = body(fields.join(join_fields_with));
 
     quote {
         impl<$impl_generics> $trait_name for $typ where $where_clause {

@@ -8,11 +8,14 @@ trait Eq {
 // docs:end:eq-trait
 
 comptime fn derive_eq(s: StructDefinition) -> Quoted {
-    let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
-    let for_each_field = |name| quote { (_self.$name == _other.$name) };
-    let join_fields_with = quote { & };
-    let body = |fields| fields;
-    crate::meta::make_impl(s, quote { Eq }, signature, for_each_field, join_fields_with, body)
+    crate::meta::make_impl(
+        s,
+        quote { Eq },
+        quote { fn eq(_self: Self, _other: Self) -> bool },
+        |name| quote { (_self.$name == _other.$name) },
+        quote { & },
+        |fields| fields,
+    )
 }
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
@@ -118,19 +121,24 @@ trait Ord {
 // docs:end:ord-trait
 
 comptime fn derive_ord(s: StructDefinition) -> Quoted {
-    let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };
     let for_each_field = |name| quote {
         if result == std::cmp::Ordering::equal() {
             result = _self.$name.cmp(_other.$name);
         }
     };
-    let join_fields_with = quote {};
     let body = |fields| quote {
         let mut result = std::cmp::Ordering::equal();
         $fields
         result
     };
-    crate::meta::make_impl(s, quote { Ord }, signature, for_each_field, join_fields_with, body)
+    crate::meta::make_impl(
+        s,
+        quote { Ord },
+        quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering },
+        for_each_field,
+        quote {},
+        body
+    )
 }
 
 // Note: Field deliberately does not implement Ord

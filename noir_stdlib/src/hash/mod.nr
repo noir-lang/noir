@@ -148,11 +148,14 @@ trait Hash {
 }
 
 comptime fn derive_hash(s: StructDefinition) -> Quoted {
-    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher };
-    let for_each_field = |name| quote { _self.$name.hash(_state); };
-    let join_fields_with = quote {};
-    let body = |fields| fields;
-    crate::meta::make_impl(s, quote { Hash }, signature, for_each_field, join_fields_with, body)
+    crate::meta::make_impl(
+        s,
+        quote { Hash },
+        quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher },
+        |name| quote { _self.$name.hash(_state); },
+        quote {},
+        |fields| fields,
+    )
 }
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
