@@ -8,10 +8,11 @@ trait Eq {
 // docs:end:eq-trait
 
 comptime fn derive_eq(s: StructDefinition) -> Quoted {
-    let signature = quote { fn eq(self, other: Self) -> bool };
-    let for_each_field = |name| quote { (self.$name == other.$name) };
+    let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
+    let for_each_field = |name| quote { (_self.$name == _other.$name) };
     let join_fields_with = quote { & };
-    crate::meta::make_impl(s, quote { Eq }, signature, for_each_field, join_fields_with)
+    let body = |fields| fields;
+    crate::meta::make_impl(s, quote { Eq }, signature, for_each_field, join_fields_with, body)
 }
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
@@ -109,46 +110,28 @@ impl Ordering {
     }
 }
 
-// #[derive_via(derive_ord)]
+#[derive_via(derive_ord)]
 // docs:start:ord-trait
 trait Ord {
     fn cmp(self, other: Self) -> Ordering;
 }
 // docs:end:ord-trait
 
-// comptime fn derive_ord(s: StructDefinition) -> Quoted {
-//     let typ = s.as_type();
-// 
-//     let impl_generics = s.generics().join(quote {,});
-// 
-//     let where_clause = s.generics().map(|name| quote { $name: Ord }).join(quote {,});
-// 
-//     // For each field:
-//     // if result == Ordering::equal() {
-//     //     result = self.$field.cmp(other.$field);
-//     // }
-//     let body = s.fields().map(
-//         |f: (Quoted, Type)| {
-//         let name = f.0;
-//         quote {
-//             if result == Ordering::equal() {
-//                 result = self.$name.cmp(other.$name);
-//             }
-//         }
-//     }
-//     );
-//     let body = equalities.join(quote{});
-// 
-//     quote {
-//         impl<$impl_generics> Eq for $typ where $where_clause {
-//             fn cmp(self, other: Self) -> Ordering {
-//                 let mut result = Ordering::equal();
-//                 $body
-//                 result
-//             }
-//         }
-//     }
-// }
+comptime fn derive_ord(s: StructDefinition) -> Quoted {
+    let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };
+    let for_each_field = |name| quote {
+        if result == std::cmp::Ordering::equal() {
+            result = _self.$name.cmp(_other.$name);
+        }
+    };
+    let join_fields_with = quote {};
+    let body = |fields| quote {
+        let mut result = std::cmp::Ordering::equal();
+        $fields
+        result
+    };
+    crate::meta::make_impl(s, quote { Ord }, signature, for_each_field, join_fields_with, body)
+}
 
 // Note: Field deliberately does not implement Ord
 

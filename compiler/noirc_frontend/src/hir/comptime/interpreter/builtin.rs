@@ -57,7 +57,15 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "trait_def_hash" => trait_def_hash(interner, arguments, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
+            "type_as_array" => type_as_array(arguments, return_type, location),
+            "type_as_constant" => type_as_constant(arguments, return_type, location),
+            "type_as_integer" => type_as_integer(arguments, return_type, location),
+            "type_as_slice" => type_as_slice(arguments, return_type, location),
+            "type_as_struct" => type_as_struct(arguments, return_type, location),
+            "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
+            "type_is_bool" => type_is_bool(arguments, location),
+            "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
@@ -79,6 +87,40 @@ pub(super) fn check_argument_count(
         let actual = arguments.len();
         Err(InterpreterError::ArgumentCountMismatch { expected, actual, location })
     }
+}
+
+pub(super) fn check_one_argument(
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    Ok(arguments.pop().unwrap().0)
+}
+
+pub(super) fn check_two_arguments(
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<(Value, Value)> {
+    check_argument_count(2, &arguments, location)?;
+
+    let argument2 = arguments.pop().unwrap().0;
+    let argument1 = arguments.pop().unwrap().0;
+
+    Ok((argument1, argument2))
+}
+
+pub(super) fn check_three_arguments(
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<(Value, Value, Value)> {
+    check_argument_count(3, &arguments, location)?;
+
+    let argument3 = arguments.pop().unwrap().0;
+    let argument2 = arguments.pop().unwrap().0;
+    let argument1 = arguments.pop().unwrap().0;
+
+    Ok((argument1, argument2, argument3))
 }
 
 fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IResult<T> {
@@ -160,6 +202,17 @@ fn get_trait_def(value: Value, location: Location) -> IResult<TraitId> {
     }
 }
 
+fn get_type(value: Value, location: Location) -> IResult<Type> {
+    match value {
+        Value::Type(typ) => Ok(typ),
+        value => {
+            let expected = Type::Quoted(QuotedType::Type);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
 fn get_quoted(value: Value, location: Location) -> IResult<Rc<Vec<Token>>> {
     match value {
         Value::Quoted(tokens) => Ok(tokens),
@@ -173,12 +226,12 @@ fn get_quoted(value: Value, location: Location) -> IResult<Rc<Vec<Token>>> {
 
 fn array_len(
     interner: &NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    match arguments.pop().unwrap().0 {
+    match argument {
         Value::Array(values, _) | Value::Slice(values, _) => Ok(Value::U32(values.len() as u32)),
         value => {
             let type_var = Box::new(interner.next_type_variable());
@@ -191,12 +244,11 @@ fn array_len(
 
 fn as_slice(
     interner: &NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let array = check_one_argument(arguments, location)?;
 
-    let (array, _) = arguments.pop().unwrap();
     match array {
         Value::Array(values, Type::Array(_, typ)) => Ok(Value::Slice(values, Type::Slice(typ))),
         value => {
@@ -210,13 +262,12 @@ fn as_slice(
 
 fn slice_push_back(
     interner: &NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let (slice, element) = check_two_arguments(arguments, location)?;
 
-    let (element, _) = arguments.pop().unwrap();
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
+    let (mut values, typ) = get_slice(interner, slice, location)?;
     values.push_back(element);
     Ok(Value::Slice(values, typ))
 }
@@ -224,12 +275,12 @@ fn slice_push_back(
 /// fn as_type(self) -> Type
 fn struct_def_as_type(
     interner: &NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    let struct_def = match arguments.pop().unwrap().0 {
+    let struct_def = match argument {
         Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
@@ -252,12 +303,12 @@ fn struct_def_as_type(
 /// fn generics(self) -> [Type]
 fn struct_def_generics(
     interner: &NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    let struct_def = match arguments.pop().unwrap().0 {
+    let struct_def = match argument {
         Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
@@ -280,12 +331,12 @@ fn struct_def_generics(
 /// Returns (name, type) pairs of each field of this StructDefinition
 fn struct_def_fields(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    let struct_def = match arguments.pop().unwrap().0 {
+    let struct_def = match argument {
         Value::StructDefinition(id) => id,
         value => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
@@ -314,13 +365,13 @@ fn struct_def_fields(
 
 fn slice_remove(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let (slice, index) = check_two_arguments(arguments, location)?;
 
-    let index = get_u32(arguments.pop().unwrap().0, location)? as usize;
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
+    let index = get_u32(index, location)? as usize;
+    let (mut values, typ) = get_slice(interner, slice, location)?;
 
     if values.is_empty() {
         return failing_constraint("slice_remove called on empty slice", location);
@@ -340,25 +391,24 @@ fn slice_remove(
 
 fn slice_push_front(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let (slice, element) = check_two_arguments(arguments, location)?;
 
-    let (element, _) = arguments.pop().unwrap();
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
+    let (mut values, typ) = get_slice(interner, slice, location)?;
     values.push_front(element);
     Ok(Value::Slice(values, typ))
 }
 
 fn slice_pop_front(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
+    let (mut values, typ) = get_slice(interner, argument, location)?;
     match values.pop_front() {
         Some(element) => Ok(Value::Tuple(vec![element, Value::Slice(values, typ)])),
         None => failing_constraint("slice_pop_front called on empty slice", location),
@@ -367,12 +417,12 @@ fn slice_pop_front(
 
 fn slice_pop_back(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
+    let (mut values, typ) = get_slice(interner, argument, location)?;
     match values.pop_back() {
         Some(element) => Ok(Value::Tuple(vec![Value::Slice(values, typ), element])),
         None => failing_constraint("slice_pop_back called on empty slice", location),
@@ -381,27 +431,26 @@ fn slice_pop_back(
 
 fn slice_insert(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(3, &arguments, location)?;
+    let (slice, index, element) = check_three_arguments(arguments, location)?;
 
-    let (element, _) = arguments.pop().unwrap();
-    let index = get_u32(arguments.pop().unwrap().0, location)?;
-    let (mut values, typ) = get_slice(interner, arguments.pop().unwrap().0, location)?;
-    values.insert(index as usize, element);
+    let index = get_u32(index, location)? as usize;
+    let (mut values, typ) = get_slice(interner, slice, location)?;
+    values.insert(index, element);
     Ok(Value::Slice(values, typ))
 }
 
 // fn as_trait_constraint(quoted: Quoted) -> TraitConstraint
 fn quoted_as_trait_constraint(
     interpreter: &mut Interpreter,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    let tokens = get_quoted(arguments.pop().unwrap().0, location)?;
+    let tokens = get_quoted(argument, location)?;
     let quoted = add_token_spans(tokens.clone(), location.span);
 
     let trait_bound = parser::trait_bound().parse(quoted).map_err(|mut errors| {
@@ -422,12 +471,12 @@ fn quoted_as_trait_constraint(
 // fn as_type(quoted: Quoted) -> Type
 fn quoted_as_type(
     interpreter: &mut Interpreter,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    let tokens = get_quoted(arguments.pop().unwrap().0, location)?;
+    let tokens = get_quoted(argument, location)?;
     let quoted = add_token_spans(tokens.clone(), location.span);
 
     let typ = parser::parse_type().parse(quoted).map_err(|mut errors| {
@@ -442,18 +491,152 @@ fn quoted_as_type(
     Ok(Value::Type(typ))
 }
 
-fn type_eq(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
-
-    let value1 = arguments.pop().unwrap().0;
-    let value2 = arguments.pop().unwrap().0;
-    Ok(Value::Bool(value1 == value2))
+// fn as_array(self) -> Option<(Type, Type)>
+fn type_as_array(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Array(length, array_type) = typ {
+            Some(Value::Tuple(vec![Value::Type(*array_type), Value::Type(*length)]))
+        } else {
+            None
+        }
+    })
 }
 
-fn type_of(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+// fn as_constant(self) -> Option<u32>
+fn type_as_constant(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Constant(n) = typ {
+            Some(Value::U32(n))
+        } else {
+            None
+        }
+    })
+}
 
-    let value = arguments.pop().unwrap().0;
+// fn as_integer(self) -> Option<(bool, u8)>
+fn type_as_integer(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Integer(sign, bits) = typ {
+            Some(Value::Tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_slice(self) -> Option<Type>
+fn type_as_slice(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Slice(slice_type) = typ {
+            Some(Value::Type(*slice_type))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_struct(self) -> Option<(StructDefinition, [Type])>
+fn type_as_struct(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Struct(struct_type, generics) = typ {
+            Some(Value::Tuple(vec![
+                Value::StructDefinition(struct_type.borrow().id),
+                Value::Slice(
+                    generics.into_iter().map(Value::Type).collect(),
+                    Type::Slice(Box::new(Type::Quoted(QuotedType::Type))),
+                ),
+            ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_tuple(self) -> Option<[Type]>
+fn type_as_tuple(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type.clone(), location, |typ| {
+        if let Type::Tuple(types) = typ {
+            let t = extract_option_generic_type(return_type);
+
+            let Type::Slice(slice_type) = t else {
+                panic!("Expected T to be a slice");
+            };
+
+            Some(Value::Slice(types.into_iter().map(Value::Type).collect(), *slice_type))
+        } else {
+            None
+        }
+    })
+}
+
+// Helper function for implementing the `type_as_...` functions.
+fn type_as<F>(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    f: F,
+) -> IResult<Value>
+where
+    F: FnOnce(Type) -> Option<Value>,
+{
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_type(value, location)?;
+
+    let option_value = f(typ);
+
+    option(return_type, option_value)
+}
+
+// fn type_eq(_first: Type, _second: Type) -> bool
+fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (self_type, other_type) = check_two_arguments(arguments, location)?;
+
+    Ok(Value::Bool(self_type == other_type))
+}
+
+// fn is_bool(self) -> bool
+fn type_is_bool(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_type(value, location)?;
+
+    Ok(Value::Bool(matches!(typ, Type::Bool)))
+}
+
+// fn is_field(self) -> bool
+fn type_is_field(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_type(value, location)?;
+
+    Ok(Value::Bool(matches!(typ, Type::FieldElement)))
+}
+
+// fn type_of<T>(x: T) -> Type
+fn type_of(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
     let typ = value.get_type().into_owned();
     Ok(Value::Type(typ))
 }
@@ -461,12 +644,12 @@ fn type_of(mut arguments: Vec<(Value, Location)>, location: Location) -> IResult
 // fn constraint_hash(constraint: TraitConstraint) -> Field
 fn trait_constraint_hash(
     _interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    let bound = get_trait_constraint(arguments.pop().unwrap().0, location)?;
+    let bound = get_trait_constraint(argument, location)?;
 
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     bound.hash(&mut hasher);
@@ -478,13 +661,13 @@ fn trait_constraint_hash(
 // fn constraint_eq(constraint_a: TraitConstraint, constraint_b: TraitConstraint) -> bool
 fn trait_constraint_eq(
     _interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let (value_a, value_b) = check_two_arguments(arguments, location)?;
 
-    let constraint_b = get_trait_constraint(arguments.pop().unwrap().0, location)?;
-    let constraint_a = get_trait_constraint(arguments.pop().unwrap().0, location)?;
+    let constraint_a = get_trait_constraint(value_a, location)?;
+    let constraint_b = get_trait_constraint(value_b, location)?;
 
     Ok(Value::Bool(constraint_a == constraint_b))
 }
@@ -593,6 +776,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         Type::TypeVariable(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)
+        | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error
         | Type::TraitAsType(_, _, _)
@@ -666,16 +850,44 @@ fn modulus_num_bits(
 
 fn trait_def_as_trait_constraint(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> Result<Value, InterpreterError> {
-    check_argument_count(1, &arguments, location)?;
+    let argument = check_one_argument(arguments, location)?;
 
-    let trait_id = get_trait_def(arguments.pop().unwrap().0, location)?;
+    let trait_id = get_trait_def(argument, location)?;
     let the_trait = interner.get_trait(trait_id);
     let trait_generics = vecmap(&the_trait.generics, |generic| {
         Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), generic.kind.clone())
     });
 
     Ok(Value::TraitConstraint(trait_id, trait_generics))
+}
+
+/// Creates a value that holds an `Option`.
+/// `option_type` must be a Type referencing the `Option` type.
+pub(crate) fn option(option_type: Type, value: Option<Value>) -> IResult<Value> {
+    let t = extract_option_generic_type(option_type.clone());
+
+    let (is_some, value) = match value {
+        Some(value) => (Value::Bool(true), value),
+        None => (Value::Bool(false), zeroed(t)?),
+    };
+
+    let mut fields = HashMap::default();
+    fields.insert(Rc::new("_is_some".to_string()), is_some);
+    fields.insert(Rc::new("_value".to_string()), value);
+    Ok(Value::Struct(fields, option_type))
+}
+
+/// Given a type, assert that it's an Option<T> and return the Type for T
+pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
+    let Type::Struct(struct_type, mut generics) = typ else {
+        panic!("Expected type to be a struct");
+    };
+
+    let struct_type = struct_type.borrow();
+    assert_eq!(struct_type.name.0.contents, "Option");
+
+    generics.pop().expect("Expected Option to have a T generic type")
 }

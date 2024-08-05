@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 #[derive_via(derive_do_nothing)]
 trait DoNothing {
     fn do_nothing(self);
@@ -20,14 +22,15 @@ comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
 }
 
 // Test stdlib derive fns & multiple traits
-#[derive(Eq, Default)]
+// - We can derive Ord and Hash even though std::cmp::Ordering and std::hash::Hasher aren't imported
+#[derive(Eq, Default, Hash, Ord)]
 struct MyOtherStruct<A, B> {
     field1: A,
     field2: B,
     field3: MyOtherOtherStruct<B>,
 }
 
-#[derive(Eq, Default)]
+#[derive(Eq, Default, Hash, Ord)]
 struct MyOtherOtherStruct<T> {
     x: T,
 }
@@ -41,4 +44,30 @@ fn main() {
 
     let o: MyOtherStruct<u8, [str<2>]> = MyOtherStruct::default();
     assert_eq(o, o);
+
+    // Field & str<2> above don't implement Ord
+    let o = MyOtherStruct {
+        field1: 12 as u32,
+        field2: 24 as i8,
+        field3: MyOtherOtherStruct { x: 54 as i8 },
+    };
+    assert_eq(o.cmp(o), std::cmp::Ordering::equal());
+
+    let mut hasher = TestHasher { result: 0 };
+    o.hash(&mut hasher);
+    assert(hasher.finish() != 0);
+}
+
+struct TestHasher {
+    result: Field,
+}
+
+impl std::hash::Hasher for TestHasher {
+    fn finish(self) -> Field {
+        self.result
+    }
+    
+    fn write(&mut self, input: Field) {
+        self.result += input;
+    }
 }

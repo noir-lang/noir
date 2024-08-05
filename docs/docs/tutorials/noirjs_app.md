@@ -346,3 +346,17 @@ You have successfully generated a client-side Noir web app!
 You can see how noirjs is used in a full stack Next.js hardhat application in the [noir-starter repo here](https://github.com/noir-lang/noir-starter/tree/main/vite-hardhat). The example shows how to calculate a proof in the browser and verify it with a deployed Solidity verifier contract from noirjs.
 
 You should also check out the more advanced examples in the [noir-examples repo](https://github.com/noir-lang/noir-examples), where you'll find reference usage for some cool apps.
+
+## UltraHonk Backend
+
+Barretenberg has recently exposed a new UltraHonk backend. We can use UltraHonk in NoirJS after version 0.33.0. Everything will be the same as the tutorial above, except that the class we need to import will change:
+```js
+import { UltraHonkBackend, UltraHonkVerifier as Verifier } from '@noir-lang/backend_barretenberg';
+```
+The backend will then be instantiated as such:
+```js
+const backend = new UltraHonkBackend(circuit);
+```
+Then all the commands to prove and verify your circuit will be same.
+
+The only feature currently unsupported with UltraHonk are [recursive proofs](../explainers/explainer-recursion.md).

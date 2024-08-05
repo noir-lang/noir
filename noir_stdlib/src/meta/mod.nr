@@ -50,15 +50,17 @@ unconstrained pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) 
 /// While these assumptions are met, `make_impl` will create an impl from a StructDefinition,
 /// automatically filling in the required generics from the struct, along with the where clause.
 /// The function body is created by mapping each field with `for_each_field` and joining the
-/// results with `join_fields_with`.
+/// results with `join_fields_with`. The result of this is passed to the `body` function for
+/// any final processing - e.g. wrapping each field in a `StructConstructor { .. }` expression.
 ///
 /// See `derive_eq` and `derive_default` for example usage.
-pub comptime fn make_impl<Env>(
+pub comptime fn make_impl<Env1, Env2>(
     s: StructDefinition,
     trait_name: Quoted,
     function_signature: Quoted,
-    for_each_field: fn[Env](Quoted) -> Quoted,
+    for_each_field: fn[Env1](Quoted) -> Quoted,
     join_fields_with: Quoted,
+    body: fn[Env2](Quoted) -> Quoted,
 ) -> Quoted {
     let typ = s.as_type();
 
@@ -71,7 +73,7 @@ pub comptime fn make_impl<Env>(
         let name = f.0;
         for_each_field(name)
     });
-    let body = equalities.join(join_fields_with);
+    let body = body(equalities.join(join_fields_with));
 
     quote {
         impl<$impl_generics> $trait_name for $typ where $where_clause {

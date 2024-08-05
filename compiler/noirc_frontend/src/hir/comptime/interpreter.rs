@@ -226,8 +226,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn call_closure(
         &mut self,
         closure: HirLambda,
-        // TODO: How to define environment here?
-        _environment: Vec<Value>,
+        environment: Vec<Value>,
         arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
@@ -244,6 +243,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let parameters = closure.parameters.iter().zip(arguments);
         for ((parameter, typ), (argument, arg_location)) in parameters {
             self.define_pattern(parameter, typ, argument, arg_location)?;
+        }
+
+        for (param, arg) in closure.captures.into_iter().zip(environment) {
+            self.define(param.ident.id, arg);
         }
 
         let result = self.evaluate(closure.body)?;
@@ -339,22 +342,30 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let argument = Value::Pointer(Shared::new(argument), true);
                 self.define_pattern(pattern, typ, argument, location)
             }
-            HirPattern::Tuple(pattern_fields, _) => match (argument, typ) {
-                (Value::Tuple(fields), Type::Tuple(type_fields))
-                    if fields.len() == pattern_fields.len() =>
-                {
-                    for ((pattern, typ), argument) in
-                        pattern_fields.iter().zip(type_fields).zip(fields)
+            HirPattern::Tuple(pattern_fields, _) => {
+                let typ = &typ.follow_bindings();
+
+                match (argument, typ) {
+                    (Value::Tuple(fields), Type::Tuple(type_fields))
+                        if fields.len() == pattern_fields.len() =>
                     {
-                        self.define_pattern(pattern, typ, argument, location)?;
+                        for ((pattern, typ), argument) in
+                            pattern_fields.iter().zip(type_fields).zip(fields)
+                        {
+                            self.define_pattern(pattern, typ, argument, location)?;
+                        }
+                        Ok(())
                     }
-                    Ok(())
+                    (value, _) => {
+                        let actual = value.get_type().into_owned();
+                        Err(InterpreterError::TypeMismatch {
+                            expected: typ.clone(),
+                            actual,
+                            location,
+                        })
+                    }
                 }
-                (value, _) => {
-                    let actual = value.get_type().into_owned();
-                    Err(InterpreterError::TypeMismatch { expected: typ.clone(), actual, location })
-                }
-            },
+            }
             HirPattern::Struct(struct_type, pattern_fields, _) => {
                 self.push_scope();
 

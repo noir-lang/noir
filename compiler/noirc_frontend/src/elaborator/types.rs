@@ -403,13 +403,16 @@ impl<'context> Elaborator<'context> {
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs), Type::Constant(rhs)) => {
-                        Type::Constant(op.function()(lhs, rhs))
+                        Type::Constant(op.function(lhs, rhs))
                     }
-                    (lhs, _) => {
-                        let span =
-                            if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                        self.push_err(ResolverError::InvalidArrayLengthExpr { span });
-                        Type::Constant(0)
+                    (lhs, rhs) => {
+                        if !self.enable_arithmetic_generics {
+                            let span =
+                                if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                            self.push_err(ResolverError::InvalidArrayLengthExpr { span });
+                        }
+
+                        Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize()
                     }
                 }
             }
@@ -1613,6 +1616,10 @@ impl<'context> Elaborator<'context> {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(fields, found);
+            }
+            Type::InfixExpr(lhs, _op, rhs) => {
+                Self::find_numeric_generics_in_type(lhs, found);
+                Self::find_numeric_generics_in_type(rhs, found);
             }
         }
     }
