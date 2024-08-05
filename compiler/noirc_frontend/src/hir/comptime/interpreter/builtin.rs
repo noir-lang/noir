@@ -41,6 +41,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
             "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
+            "quoted_eq" => quoted_eq(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
             "slice_pop_back" => slice_pop_back(interner, arguments, location),
             "slice_pop_front" => slice_pop_front(interner, arguments, location),
@@ -864,6 +865,13 @@ fn modulus_num_bits(
     check_argument_count(0, &arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
     Ok(Value::U64(bits))
+}
+
+// fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
+fn quoted_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (self_value, other_value) = check_two_arguments(arguments, location)?;
+
+    Ok(Value::Bool(self_value == other_value))
 }
 
 fn trait_def_as_trait_constraint(
