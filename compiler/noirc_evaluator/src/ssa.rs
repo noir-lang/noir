@@ -360,7 +360,7 @@ impl SsaBuilder {
         let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
         if let Some(emit_ssa) = emit_ssa {
             create_named_dir(emit_ssa.as_ref(), "target");
-            let ssa_path = emit_ssa.join("ssa-ir").with_extension("ssa").with_extension("json");
+            let ssa_path = emit_ssa.with_extension("ssa").with_extension("json");
 
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
@@ -402,7 +402,7 @@ fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
     PathBuf::from(named_dir)
 }
 
-fn write_to_file(bytes: &[u8], path: &Path) -> String {
+fn write_to_file(bytes: &[u8], path: &Path) {
     let display = path.display();
 
     let mut file = match File::create(path) {
@@ -412,6 +412,6 @@ fn write_to_file(bytes: &[u8], path: &Path) -> String {
 
     match file.write_all(bytes) {
         Err(why) => panic!("couldn't write to {display}: {why}"),
-        Ok(_) => display.to_string(),
+        Ok(_) => {},
     }
 }

@@ -45,7 +45,7 @@ pub(crate) struct CompileCommand {
     watch: bool,
 }
 
-pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run(mut args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
@@ -57,6 +57,9 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
     )?;
 
+    // let compile_options = args.compile_options;
+    // if args.compile_options.emit_ssa {
+    // }
     if args.watch {
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
