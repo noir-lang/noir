@@ -458,6 +458,9 @@ where
 fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (self_type, other_type) = check_two_arguments(arguments, location)?;
 
+    let self_type = get_type(self_type, location)?;
+    let other_type = get_type(other_type, location)?;
+
     Ok(Value::Bool(self_type == other_type))
 }
 
@@ -736,7 +739,10 @@ fn modulus_num_bits(
 fn quoted_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (self_value, other_value) = check_two_arguments(arguments, location)?;
 
-    Ok(Value::Bool(self_value == other_value))
+    let self_quoted = get_quoted(self_value, location)?;
+    let other_quoted = get_quoted(other_value, location)?;
+
+    Ok(Value::Bool(self_quoted == other_quoted))
 }
 
 fn trait_def_as_trait_constraint(
