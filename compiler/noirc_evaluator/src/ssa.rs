@@ -413,8 +413,7 @@ fn write_to_file(bytes: &[u8], path: &Path) {
         Ok(file) => file,
     };
 
-    match file.write_all(bytes) {
-        Err(why) => panic!("couldn't write to {display}: {why}"),
-        Ok(_) => {}
+    if let Err(why) = file.write_all(bytes) {
+        panic!("couldn't write to {display}: {why}");
     }
 }

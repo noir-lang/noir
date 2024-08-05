@@ -145,12 +145,12 @@ fn compile_workspace(
 
     // Compile all of the packages in parallel.
     let program_warnings_or_errors: CompilationResult<()> =
-        compile_programs(file_manager, parsed_files, workspace, &binary_packages, &compile_options);
+        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options);
     let contract_warnings_or_errors: CompilationResult<()> = compiled_contracts(
         file_manager,
         parsed_files,
         &contract_packages,
-        &compile_options,
+        compile_options,
         &workspace.target_directory_path(),
     );
 
@@ -193,7 +193,7 @@ fn compile_programs(
                 file_manager,
                 parsed_files,
                 package,
-                &compile_options,
+                compile_options,
                 load_cached_program(package),
                 target_dir,
             )?;
