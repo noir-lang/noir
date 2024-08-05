@@ -18,7 +18,7 @@ use thiserror::Error;
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Id<T> {
     index: usize,
-    // If we do not skip this field it will serialize simply as `"_marker":null` which is useless extra data
+    // If we do not skip this field it will simply serialize as `"_marker":null` which is useless extra data
     #[serde(skip)]
     _marker: std::marker::PhantomData<T>,
 }
