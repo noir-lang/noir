@@ -1,5 +1,9 @@
 use std::meta::type_of;
 
+struct Foo<T> {
+    x: T
+}
+
 fn main() {
     comptime
     {
@@ -66,5 +70,17 @@ fn main() {
         let yes = true;
         let bool_type = type_of(yes);
         assert(bool_type.is_bool());
+
+        // Check Type::as_struct
+        assert(u8_type.as_struct().is_none());
+
+        let foo = Foo { x: 0 };
+        let foo_type = type_of(foo);
+        let (struct_definition, generics) = foo_type.as_struct().unwrap();
+        let fields = struct_definition.fields();
+        assert_eq(fields.len(), 1);
+
+        assert_eq(generics.len(), 1);
+        assert_eq(generics[0], field_type_1);
     }
 }
