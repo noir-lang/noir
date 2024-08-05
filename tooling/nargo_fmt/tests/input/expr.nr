@@ -147,7 +147,7 @@ fn return_if_expr() {
 }
 
 fn if_if() {
-if cond { some(); } else { none(); }
+(if cond { some(); } else { none(); })
         .bar()
         .baz();
 }

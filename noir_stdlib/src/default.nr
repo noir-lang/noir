@@ -1,8 +1,36 @@
+use crate::meta::derive_via;
+
+#[derive_via(derive_default)]
 // docs:start:default-trait
 trait Default {
     fn default() -> Self;
 }
 // docs:end:default-trait
+
+comptime fn derive_default(s: StructDefinition) -> Quoted {
+    let typ = s.as_type();
+
+    let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
+
+    let where_clause = s.generics().map(|name| quote { $name: Default }).join(quote {,});
+
+    // `foo: Default::default(), bar: Default::default(), ...`
+    let fields = s.fields().map(
+        |f: (Quoted, Type)| {
+        let name = f.0;
+        quote { $name: Default::default() }
+    }
+    );
+    let fields = fields.join(quote {,});
+
+    quote {
+        impl<$impl_generics> Default for $typ where $where_clause {
+            fn default() -> Self {
+                Self { $fields }
+            }
+        }
+    }
+}
 
 impl Default for Field { fn default() -> Field { 0 } }
 

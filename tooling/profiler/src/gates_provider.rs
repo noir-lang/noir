@@ -10,12 +10,20 @@ pub(crate) trait GatesProvider {
 
 pub(crate) struct BackendGatesProvider {
     pub(crate) backend_path: PathBuf,
+    pub(crate) extra_args: Vec<String>,
 }
 
 impl GatesProvider for BackendGatesProvider {
     fn get_gates(&self, artifact_path: &Path) -> eyre::Result<BackendGatesResponse> {
-        let backend_gates_response =
-            Command::new(&self.backend_path).arg("gates").arg("-b").arg(artifact_path).output()?;
+        let mut backend_gates_cmd = Command::new(&self.backend_path);
+
+        backend_gates_cmd.arg("gates").arg("-b").arg(artifact_path);
+
+        for arg in &self.extra_args {
+            backend_gates_cmd.arg(arg);
+        }
+
+        let backend_gates_response = backend_gates_cmd.output()?;
 
         // Parse the backend gates command stdout as json
         let backend_gates_response: BackendGatesResponse =

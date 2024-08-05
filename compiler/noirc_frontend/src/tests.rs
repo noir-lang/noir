@@ -82,8 +82,9 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            None, // No debug_comptime_in_file
-            &[],  // No macro processors
+            None,  // No debug_comptime_in_file
+            false, // Disallow arithmetic generics
+            &[],   // No macro processors
         ));
     }
     (program, context, errors)
@@ -2609,4 +2610,312 @@ fn turbofish_in_middle_of_variable_unsupported_yet() {
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::UnsupportedTurbofishUsage { .. }),
     ));
+}
+
+#[test]
+fn turbofish_in_struct_pattern() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value: Field = 0;
+        let Foo::<Field> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value: Field = 0;
+        let Foo::<i32> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn turbofish_in_struct_pattern_generic_count_mismatch() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value = 0;
+        let Foo::<i32, i64> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        item,
+        expected,
+        found,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(item, "struct Foo");
+    assert_eq!(*expected, 1);
+    assert_eq!(*found, 2);
+}
+
+#[test]
+fn incorrect_generic_count_on_struct_impl() {
+    let src = r#"
+    struct Foo {}
+    impl <T> Foo<T> {}
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
+        actual,
+        expected,
+        ..
+    }) = errors[0].0
+    else {
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(actual, 1);
+    assert_eq!(expected, 0);
+}
+
+#[test]
+fn incorrect_generic_count_on_type_alias() {
+    let src = r#"
+    struct Foo {}
+    type Bar = Foo<i32>;
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
+        actual,
+        expected,
+        ..
+    }) = errors[0].0
+    else {
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(actual, 1);
+    assert_eq!(expected, 0);
+}
+
+#[test]
+fn uses_self_type_for_struct_function_call() {
+    let src = r#"
+    struct S { }
+
+    impl S {
+        fn one() -> Field {
+            1
+        }
+
+        fn two() -> Field {
+            Self::one() + Self::one()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn uses_self_type_inside_trait() {
+    let src = r#"
+    trait Foo {
+        fn foo() -> Self {
+            Self::bar()
+        }
+
+        fn bar() -> Self;
+    }
+
+    impl Foo for Field {
+        fn bar() -> Self {
+            1
+        }
+    }
+
+    fn main() {
+        let _: Field = Foo::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn uses_self_type_in_trait_where_clause() {
+    let src = r#"
+    trait Trait {
+        fn trait_func() -> bool;
+    }
+
+    trait Foo where Self: Trait {
+        fn foo(self) -> bool {
+            self.trait_func()
+        }
+    }
+
+    struct Bar {
+
+    }
+
+    impl Foo for Bar {
+
+    }
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall { method_name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unresolved method call error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(method_name, "trait_func");
+}
+
+#[test]
+fn do_not_eagerly_error_on_cast_on_type_variable() {
+    let src = r#"
+    pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
+        f(x)
+    }
+
+    fn main() {
+        let x: u8 = 1;
+        let _: Field = foo(x, |x| x as Field);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_on_cast_over_type_variable() {
+    let src = r#"
+    pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
+        f(x)
+    }
+
+    fn main() {
+        let x = "a";
+        let _: Field = foo(x, |x| x as Field);
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
+    ));
+}
+
+#[test]
+fn trait_impl_for_a_type_that_implements_another_trait() {
+    let src = r#"
+    trait One {
+        fn one(self) -> i32;
+    }
+
+    impl One for i32 {
+        fn one(self) -> i32 {
+            self
+        }
+    }
+
+    trait Two {
+        fn two(self) -> i32;
+    }
+
+    impl<T> Two for T where T: One {
+        fn two(self) -> i32 {
+            self.one() + 1
+        }
+    }
+
+    fn use_it<T>(t: T) -> i32 where T: Two {
+        Two::two(t)
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() {
+    let src = r#"
+    trait One {
+        fn one(self) -> i32;
+    }
+
+    impl One for i32 {
+        fn one(self) -> i32 {
+            let _ = self;
+            1
+        }
+    }
+
+    trait Two {
+        fn two(self) -> i32;
+    }
+
+    impl<T> Two for T where T: One {
+        fn two(self) -> i32 {
+            self.one() + 1
+        }
+    }
+
+    impl Two for u32 {
+        fn two(self) -> i32 {
+            let _ = self;
+            0
+        }
+    }
+
+    fn use_it(t: u32) -> i32 {
+        Two::two(t)
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
 }

@@ -133,7 +133,7 @@ fn quoted_type() -> impl NoirParser<UnresolvedType> {
 /// This is the type of an already resolved type.
 /// The only way this can appear in the token input is if an already resolved `Type` object
 /// was spliced into a macro's token stream via the `$` operator.
-fn resolved_type() -> impl NoirParser<UnresolvedType> {
+pub(super) fn resolved_type() -> impl NoirParser<UnresolvedType> {
     token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
         Token::QuotedType(id) => UnresolvedTypeData::Resolved(id).with_span(span),
         _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),

@@ -7,7 +7,7 @@ use crate::ast::{
 };
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::macros_api::StructId;
-use crate::node_interner::ExprId;
+use crate::node_interner::{ExprId, QuotedTypeId};
 use crate::token::{Attributes, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
@@ -51,7 +51,16 @@ pub type UnresolvedGenerics = Vec<UnresolvedGeneric>;
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedGeneric {
     Variable(Ident),
-    Numeric { ident: Ident, typ: UnresolvedType },
+    Numeric {
+        ident: Ident,
+        typ: UnresolvedType,
+    },
+
+    /// Already-resolved generics can be parsed as generics when a macro
+    /// splices existing types into a generic list. In this case we have
+    /// to validate the type refers to a named generic and treat that
+    /// as a ResolvedGeneric when this is resolved.
+    Resolved(QuotedTypeId, Span),
 }
 
 impl UnresolvedGeneric {
@@ -61,6 +70,7 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Numeric { ident, typ } => {
                 ident.0.span().merge(typ.span.unwrap_or_default())
             }
+            UnresolvedGeneric::Resolved(_, span) => *span,
         }
     }
 
@@ -70,6 +80,9 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Numeric { typ, .. } => {
                 let typ = self.resolve_numeric_kind_type(typ)?;
                 Ok(Kind::Numeric(Box::new(typ)))
+            }
+            UnresolvedGeneric::Resolved(..) => {
+                panic!("Don't know the kind of a resolved generic here")
             }
         }
     }
@@ -94,6 +107,7 @@ impl UnresolvedGeneric {
     pub(crate) fn ident(&self) -> &Ident {
         match self {
             UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
+            UnresolvedGeneric::Resolved(..) => panic!("UnresolvedGeneric::Resolved no ident"),
         }
     }
 }
@@ -103,6 +117,7 @@ impl Display for UnresolvedGeneric {
         match self {
             UnresolvedGeneric::Variable(ident) => write!(f, "{ident}"),
             UnresolvedGeneric::Numeric { ident, typ } => write!(f, "let {ident}: {typ}"),
+            UnresolvedGeneric::Resolved(..) => write!(f, "(resolved)"),
         }
     }
 }
@@ -263,29 +278,9 @@ impl Expression {
         arguments: Vec<Expression>,
         span: Span,
     ) -> Expression {
-        // Need to check if lhs is an if expression since users can sequence if expressions
-        // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
-        // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
-        let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
-            ExpressionKind::Block(BlockExpression {
-                statements: vec![
-                    Statement { kind: StatementKind::Expression(lhs), span },
-                    Statement {
-                        kind: StatementKind::Expression(Expression::new(
-                            ExpressionKind::Tuple(arguments),
-                            span,
-                        )),
-                        span,
-                    },
-                ],
-            })
-        } else {
-            ExpressionKind::Call(Box::new(CallExpression {
-                func: Box::new(lhs),
-                is_macro_call,
-                arguments,
-            }))
-        };
+        let func = Box::new(lhs);
+        let kind =
+            ExpressionKind::Call(Box::new(CallExpression { func, is_macro_call, arguments }));
         Expression::new(kind, span)
     }
 }

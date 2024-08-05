@@ -5,6 +5,724 @@
 
 namespace Program {
 
+    struct BinaryFieldOp {
+
+        struct Add {
+            friend bool operator==(const Add&, const Add&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Add bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Sub {
+            friend bool operator==(const Sub&, const Sub&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Sub bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Mul {
+            friend bool operator==(const Mul&, const Mul&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Mul bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Div {
+            friend bool operator==(const Div&, const Div&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Div bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct IntegerDiv {
+            friend bool operator==(const IntegerDiv&, const IntegerDiv&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static IntegerDiv bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Equals {
+            friend bool operator==(const Equals&, const Equals&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Equals bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct LessThan {
+            friend bool operator==(const LessThan&, const LessThan&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static LessThan bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct LessThanEquals {
+            friend bool operator==(const LessThanEquals&, const LessThanEquals&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Add, Sub, Mul, Div, IntegerDiv, Equals, LessThan, LessThanEquals> value;
+
+        friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BinaryIntOp {
+
+        struct Add {
+            friend bool operator==(const Add&, const Add&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Add bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Sub {
+            friend bool operator==(const Sub&, const Sub&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Sub bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Mul {
+            friend bool operator==(const Mul&, const Mul&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Mul bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Div {
+            friend bool operator==(const Div&, const Div&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Div bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Equals {
+            friend bool operator==(const Equals&, const Equals&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Equals bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct LessThan {
+            friend bool operator==(const LessThan&, const LessThan&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static LessThan bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct LessThanEquals {
+            friend bool operator==(const LessThanEquals&, const LessThanEquals&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct And {
+            friend bool operator==(const And&, const And&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static And bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Or {
+            friend bool operator==(const Or&, const Or&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Or bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Xor {
+            friend bool operator==(const Xor&, const Xor&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Xor bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Shl {
+            friend bool operator==(const Shl&, const Shl&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Shl bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Shr {
+            friend bool operator==(const Shr&, const Shr&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Shr bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Add, Sub, Mul, Div, Equals, LessThan, LessThanEquals, And, Or, Xor, Shl, Shr> value;
+
+        friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct IntegerBitSize {
+
+        struct U0 {
+            friend bool operator==(const U0&, const U0&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U0 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U1 {
+            friend bool operator==(const U1&, const U1&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U1 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U8 {
+            friend bool operator==(const U8&, const U8&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U8 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U16 {
+            friend bool operator==(const U16&, const U16&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U16 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U32 {
+            friend bool operator==(const U32&, const U32&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U32 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U64 {
+            friend bool operator==(const U64&, const U64&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U64 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U128 {
+            friend bool operator==(const U128&, const U128&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U128 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<U0, U1, U8, U16, U32, U64, U128> value;
+
+        friend bool operator==(const IntegerBitSize&, const IntegerBitSize&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static IntegerBitSize bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BitSize {
+
+        struct Field {
+            friend bool operator==(const Field&, const Field&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Field bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Integer {
+            Program::IntegerBitSize value;
+
+            friend bool operator==(const Integer&, const Integer&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Integer bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Field, Integer> value;
+
+        friend bool operator==(const BitSize&, const BitSize&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BitSize bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct MemoryAddress {
+        uint64_t value;
+
+        friend bool operator==(const MemoryAddress&, const MemoryAddress&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct HeapArray {
+        Program::MemoryAddress pointer;
+        uint64_t size;
+
+        friend bool operator==(const HeapArray&, const HeapArray&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static HeapArray bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct HeapVector {
+        Program::MemoryAddress pointer;
+        Program::MemoryAddress size;
+
+        friend bool operator==(const HeapVector&, const HeapVector&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static HeapVector bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BlackBoxOp {
+
+        struct AES128Encrypt {
+            Program::HeapVector inputs;
+            Program::HeapArray iv;
+            Program::HeapArray key;
+            Program::HeapVector outputs;
+
+            friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Sha256 {
+            Program::HeapVector message;
+            Program::HeapArray output;
+
+            friend bool operator==(const Sha256&, const Sha256&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Sha256 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Blake2s {
+            Program::HeapVector message;
+            Program::HeapArray output;
+
+            friend bool operator==(const Blake2s&, const Blake2s&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Blake2s bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Blake3 {
+            Program::HeapVector message;
+            Program::HeapArray output;
+
+            friend bool operator==(const Blake3&, const Blake3&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Blake3 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Keccak256 {
+            Program::HeapVector message;
+            Program::HeapArray output;
+
+            friend bool operator==(const Keccak256&, const Keccak256&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Keccak256 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Keccakf1600 {
+            Program::HeapVector message;
+            Program::HeapArray output;
+
+            friend bool operator==(const Keccakf1600&, const Keccakf1600&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct EcdsaSecp256k1 {
+            Program::HeapVector hashed_msg;
+            Program::HeapArray public_key_x;
+            Program::HeapArray public_key_y;
+            Program::HeapArray signature;
+            Program::MemoryAddress result;
+
+            friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct EcdsaSecp256r1 {
+            Program::HeapVector hashed_msg;
+            Program::HeapArray public_key_x;
+            Program::HeapArray public_key_y;
+            Program::HeapArray signature;
+            Program::MemoryAddress result;
+
+            friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct SchnorrVerify {
+            Program::MemoryAddress public_key_x;
+            Program::MemoryAddress public_key_y;
+            Program::HeapVector message;
+            Program::HeapVector signature;
+            Program::MemoryAddress result;
+
+            friend bool operator==(const SchnorrVerify&, const SchnorrVerify&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static SchnorrVerify bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct PedersenCommitment {
+            Program::HeapVector inputs;
+            Program::MemoryAddress domain_separator;
+            Program::HeapArray output;
+
+            friend bool operator==(const PedersenCommitment&, const PedersenCommitment&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static PedersenCommitment bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct PedersenHash {
+            Program::HeapVector inputs;
+            Program::MemoryAddress domain_separator;
+            Program::MemoryAddress output;
+
+            friend bool operator==(const PedersenHash&, const PedersenHash&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static PedersenHash bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct MultiScalarMul {
+            Program::HeapVector points;
+            Program::HeapVector scalars;
+            Program::HeapArray outputs;
+
+            friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct EmbeddedCurveAdd {
+            Program::MemoryAddress input1_x;
+            Program::MemoryAddress input1_y;
+            Program::MemoryAddress input1_infinite;
+            Program::MemoryAddress input2_x;
+            Program::MemoryAddress input2_y;
+            Program::MemoryAddress input2_infinite;
+            Program::HeapArray result;
+
+            friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntAdd {
+            Program::MemoryAddress lhs;
+            Program::MemoryAddress rhs;
+            Program::MemoryAddress output;
+
+            friend bool operator==(const BigIntAdd&, const BigIntAdd&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntAdd bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntSub {
+            Program::MemoryAddress lhs;
+            Program::MemoryAddress rhs;
+            Program::MemoryAddress output;
+
+            friend bool operator==(const BigIntSub&, const BigIntSub&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntSub bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntMul {
+            Program::MemoryAddress lhs;
+            Program::MemoryAddress rhs;
+            Program::MemoryAddress output;
+
+            friend bool operator==(const BigIntMul&, const BigIntMul&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntMul bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntDiv {
+            Program::MemoryAddress lhs;
+            Program::MemoryAddress rhs;
+            Program::MemoryAddress output;
+
+            friend bool operator==(const BigIntDiv&, const BigIntDiv&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntDiv bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntFromLeBytes {
+            Program::HeapVector inputs;
+            Program::HeapVector modulus;
+            Program::MemoryAddress output;
+
+            friend bool operator==(const BigIntFromLeBytes&, const BigIntFromLeBytes&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntFromLeBytes bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntToLeBytes {
+            Program::MemoryAddress input;
+            Program::HeapVector output;
+
+            friend bool operator==(const BigIntToLeBytes&, const BigIntToLeBytes&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntToLeBytes bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Poseidon2Permutation {
+            Program::HeapVector message;
+            Program::HeapArray output;
+            Program::MemoryAddress len;
+
+            friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Sha256Compression {
+            Program::HeapVector input;
+            Program::HeapVector hash_values;
+            Program::HeapArray output;
+
+            friend bool operator==(const Sha256Compression&, const Sha256Compression&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct ToRadix {
+            Program::MemoryAddress input;
+            uint32_t radix;
+            Program::HeapArray output;
+
+            friend bool operator==(const ToRadix&, const ToRadix&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static ToRadix bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<AES128Encrypt, Sha256, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, MultiScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression, ToRadix> value;
+
+        friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BlackBoxOp bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct HeapValueType;
+
+    struct HeapValueType {
+
+        struct Simple {
+            Program::BitSize value;
+
+            friend bool operator==(const Simple&, const Simple&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Simple bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Array {
+            std::vector<Program::HeapValueType> value_types;
+            uint64_t size;
+
+            friend bool operator==(const Array&, const Array&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Array bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Vector {
+            std::vector<Program::HeapValueType> value_types;
+
+            friend bool operator==(const Vector&, const Vector&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Vector bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Simple, Array, Vector> value;
+
+        friend bool operator==(const HeapValueType&, const HeapValueType&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static HeapValueType bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct ValueOrArray {
+
+        struct MemoryAddress {
+            Program::MemoryAddress value;
+
+            friend bool operator==(const MemoryAddress&, const MemoryAddress&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct HeapArray {
+            Program::HeapArray value;
+
+            friend bool operator==(const HeapArray&, const HeapArray&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static HeapArray bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct HeapVector {
+            Program::HeapVector value;
+
+            friend bool operator==(const HeapVector&, const HeapVector&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static HeapVector bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<MemoryAddress, HeapArray, HeapVector> value;
+
+        friend bool operator==(const ValueOrArray&, const ValueOrArray&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static ValueOrArray bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BrilligOpcode {
+
+        struct BinaryFieldOp {
+            Program::MemoryAddress destination;
+            Program::BinaryFieldOp op;
+            Program::MemoryAddress lhs;
+            Program::MemoryAddress rhs;
+
+            friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BinaryIntOp {
+            Program::MemoryAddress destination;
+            Program::BinaryIntOp op;
+            Program::IntegerBitSize bit_size;
+            Program::MemoryAddress lhs;
+            Program::MemoryAddress rhs;
+
+            friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Cast {
+            Program::MemoryAddress destination;
+            Program::MemoryAddress source;
+            Program::BitSize bit_size;
+
+            friend bool operator==(const Cast&, const Cast&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Cast bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct JumpIfNot {
+            Program::MemoryAddress condition;
+            uint64_t location;
+
+            friend bool operator==(const JumpIfNot&, const JumpIfNot&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static JumpIfNot bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct JumpIf {
+            Program::MemoryAddress condition;
+            uint64_t location;
+
+            friend bool operator==(const JumpIf&, const JumpIf&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static JumpIf bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Jump {
+            uint64_t location;
+
+            friend bool operator==(const Jump&, const Jump&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Jump bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct CalldataCopy {
+            Program::MemoryAddress destination_address;
+            uint64_t size;
+            uint64_t offset;
+
+            friend bool operator==(const CalldataCopy&, const CalldataCopy&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static CalldataCopy bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Call {
+            uint64_t location;
+
+            friend bool operator==(const Call&, const Call&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Call bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Const {
+            Program::MemoryAddress destination;
+            Program::BitSize bit_size;
+            std::string value;
+
+            friend bool operator==(const Const&, const Const&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Const bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Return {
+            friend bool operator==(const Return&, const Return&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Return bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct ForeignCall {
+            std::string function;
+            std::vector<Program::ValueOrArray> destinations;
+            std::vector<Program::HeapValueType> destination_value_types;
+            std::vector<Program::ValueOrArray> inputs;
+            std::vector<Program::HeapValueType> input_value_types;
+
+            friend bool operator==(const ForeignCall&, const ForeignCall&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static ForeignCall bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Mov {
+            Program::MemoryAddress destination;
+            Program::MemoryAddress source;
+
+            friend bool operator==(const Mov&, const Mov&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Mov bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct ConditionalMov {
+            Program::MemoryAddress destination;
+            Program::MemoryAddress source_a;
+            Program::MemoryAddress source_b;
+            Program::MemoryAddress condition;
+
+            friend bool operator==(const ConditionalMov&, const ConditionalMov&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static ConditionalMov bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Load {
+            Program::MemoryAddress destination;
+            Program::MemoryAddress source_pointer;
+
+            friend bool operator==(const Load&, const Load&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Load bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Store {
+            Program::MemoryAddress destination_pointer;
+            Program::MemoryAddress source;
+
+            friend bool operator==(const Store&, const Store&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Store bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BlackBox {
+            Program::BlackBoxOp value;
+
+            friend bool operator==(const BlackBox&, const BlackBox&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BlackBox bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Trap {
+            Program::HeapArray revert_data;
+
+            friend bool operator==(const Trap&, const Trap&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Trap bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Stop {
+            uint64_t return_data_offset;
+            uint64_t return_data_size;
+
+            friend bool operator==(const Stop&, const Stop&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Stop bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<BinaryFieldOp, BinaryIntOp, Cast, JumpIfNot, JumpIf, Jump, CalldataCopy, Call, Const, Return, ForeignCall, Mov, ConditionalMov, Load, Store, BlackBox, Trap, Stop> value;
+
+        friend bool operator==(const BrilligOpcode&, const BrilligOpcode&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BrilligOpcode bincodeDeserialize(std::vector<uint8_t>);
+    };
+
     struct Witness {
         uint32_t value;
 
@@ -512,650 +1230,6 @@ namespace Program {
         friend bool operator==(const Opcode&, const Opcode&);
         std::vector<uint8_t> bincodeSerialize() const;
         static Opcode bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct BinaryFieldOp {
-
-        struct Add {
-            friend bool operator==(const Add&, const Add&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Add bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Sub {
-            friend bool operator==(const Sub&, const Sub&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sub bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Mul {
-            friend bool operator==(const Mul&, const Mul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Mul bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Div {
-            friend bool operator==(const Div&, const Div&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Div bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct IntegerDiv {
-            friend bool operator==(const IntegerDiv&, const IntegerDiv&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static IntegerDiv bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Equals {
-            friend bool operator==(const Equals&, const Equals&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Equals bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct LessThan {
-            friend bool operator==(const LessThan&, const LessThan&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static LessThan bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct LessThanEquals {
-            friend bool operator==(const LessThanEquals&, const LessThanEquals&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<Add, Sub, Mul, Div, IntegerDiv, Equals, LessThan, LessThanEquals> value;
-
-        friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct BinaryIntOp {
-
-        struct Add {
-            friend bool operator==(const Add&, const Add&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Add bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Sub {
-            friend bool operator==(const Sub&, const Sub&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sub bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Mul {
-            friend bool operator==(const Mul&, const Mul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Mul bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Div {
-            friend bool operator==(const Div&, const Div&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Div bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Equals {
-            friend bool operator==(const Equals&, const Equals&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Equals bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct LessThan {
-            friend bool operator==(const LessThan&, const LessThan&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static LessThan bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct LessThanEquals {
-            friend bool operator==(const LessThanEquals&, const LessThanEquals&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct And {
-            friend bool operator==(const And&, const And&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static And bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Or {
-            friend bool operator==(const Or&, const Or&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Or bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Xor {
-            friend bool operator==(const Xor&, const Xor&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Xor bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Shl {
-            friend bool operator==(const Shl&, const Shl&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Shl bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Shr {
-            friend bool operator==(const Shr&, const Shr&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Shr bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<Add, Sub, Mul, Div, Equals, LessThan, LessThanEquals, And, Or, Xor, Shl, Shr> value;
-
-        friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct MemoryAddress {
-        uint64_t value;
-
-        friend bool operator==(const MemoryAddress&, const MemoryAddress&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct HeapArray {
-        Program::MemoryAddress pointer;
-        uint64_t size;
-
-        friend bool operator==(const HeapArray&, const HeapArray&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static HeapArray bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct HeapVector {
-        Program::MemoryAddress pointer;
-        Program::MemoryAddress size;
-
-        friend bool operator==(const HeapVector&, const HeapVector&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static HeapVector bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct BlackBoxOp {
-
-        struct AES128Encrypt {
-            Program::HeapVector inputs;
-            Program::HeapArray iv;
-            Program::HeapArray key;
-            Program::HeapVector outputs;
-
-            friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Sha256 {
-            Program::HeapVector message;
-            Program::HeapArray output;
-
-            friend bool operator==(const Sha256&, const Sha256&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sha256 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Blake2s {
-            Program::HeapVector message;
-            Program::HeapArray output;
-
-            friend bool operator==(const Blake2s&, const Blake2s&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Blake2s bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Blake3 {
-            Program::HeapVector message;
-            Program::HeapArray output;
-
-            friend bool operator==(const Blake3&, const Blake3&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Blake3 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Keccak256 {
-            Program::HeapVector message;
-            Program::HeapArray output;
-
-            friend bool operator==(const Keccak256&, const Keccak256&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Keccak256 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Keccakf1600 {
-            Program::HeapVector message;
-            Program::HeapArray output;
-
-            friend bool operator==(const Keccakf1600&, const Keccakf1600&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct EcdsaSecp256k1 {
-            Program::HeapVector hashed_msg;
-            Program::HeapArray public_key_x;
-            Program::HeapArray public_key_y;
-            Program::HeapArray signature;
-            Program::MemoryAddress result;
-
-            friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct EcdsaSecp256r1 {
-            Program::HeapVector hashed_msg;
-            Program::HeapArray public_key_x;
-            Program::HeapArray public_key_y;
-            Program::HeapArray signature;
-            Program::MemoryAddress result;
-
-            friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct SchnorrVerify {
-            Program::MemoryAddress public_key_x;
-            Program::MemoryAddress public_key_y;
-            Program::HeapVector message;
-            Program::HeapVector signature;
-            Program::MemoryAddress result;
-
-            friend bool operator==(const SchnorrVerify&, const SchnorrVerify&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static SchnorrVerify bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct PedersenCommitment {
-            Program::HeapVector inputs;
-            Program::MemoryAddress domain_separator;
-            Program::HeapArray output;
-
-            friend bool operator==(const PedersenCommitment&, const PedersenCommitment&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static PedersenCommitment bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct PedersenHash {
-            Program::HeapVector inputs;
-            Program::MemoryAddress domain_separator;
-            Program::MemoryAddress output;
-
-            friend bool operator==(const PedersenHash&, const PedersenHash&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static PedersenHash bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct MultiScalarMul {
-            Program::HeapVector points;
-            Program::HeapVector scalars;
-            Program::HeapArray outputs;
-
-            friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct EmbeddedCurveAdd {
-            Program::MemoryAddress input1_x;
-            Program::MemoryAddress input1_y;
-            Program::MemoryAddress input1_infinite;
-            Program::MemoryAddress input2_x;
-            Program::MemoryAddress input2_y;
-            Program::MemoryAddress input2_infinite;
-            Program::HeapArray result;
-
-            friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntAdd {
-            Program::MemoryAddress lhs;
-            Program::MemoryAddress rhs;
-            Program::MemoryAddress output;
-
-            friend bool operator==(const BigIntAdd&, const BigIntAdd&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntAdd bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntSub {
-            Program::MemoryAddress lhs;
-            Program::MemoryAddress rhs;
-            Program::MemoryAddress output;
-
-            friend bool operator==(const BigIntSub&, const BigIntSub&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntSub bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntMul {
-            Program::MemoryAddress lhs;
-            Program::MemoryAddress rhs;
-            Program::MemoryAddress output;
-
-            friend bool operator==(const BigIntMul&, const BigIntMul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntMul bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntDiv {
-            Program::MemoryAddress lhs;
-            Program::MemoryAddress rhs;
-            Program::MemoryAddress output;
-
-            friend bool operator==(const BigIntDiv&, const BigIntDiv&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntDiv bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntFromLeBytes {
-            Program::HeapVector inputs;
-            Program::HeapVector modulus;
-            Program::MemoryAddress output;
-
-            friend bool operator==(const BigIntFromLeBytes&, const BigIntFromLeBytes&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntFromLeBytes bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntToLeBytes {
-            Program::MemoryAddress input;
-            Program::HeapVector output;
-
-            friend bool operator==(const BigIntToLeBytes&, const BigIntToLeBytes&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntToLeBytes bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Poseidon2Permutation {
-            Program::HeapVector message;
-            Program::HeapArray output;
-            Program::MemoryAddress len;
-
-            friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Sha256Compression {
-            Program::HeapVector input;
-            Program::HeapVector hash_values;
-            Program::HeapArray output;
-
-            friend bool operator==(const Sha256Compression&, const Sha256Compression&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct ToRadix {
-            Program::MemoryAddress input;
-            uint32_t radix;
-            Program::HeapArray output;
-
-            friend bool operator==(const ToRadix&, const ToRadix&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static ToRadix bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<AES128Encrypt, Sha256, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, MultiScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression, ToRadix> value;
-
-        friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BlackBoxOp bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct HeapValueType;
-
-    struct HeapValueType {
-
-        struct Simple {
-            uint32_t value;
-
-            friend bool operator==(const Simple&, const Simple&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Simple bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Array {
-            std::vector<Program::HeapValueType> value_types;
-            uint64_t size;
-
-            friend bool operator==(const Array&, const Array&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Array bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Vector {
-            std::vector<Program::HeapValueType> value_types;
-
-            friend bool operator==(const Vector&, const Vector&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Vector bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<Simple, Array, Vector> value;
-
-        friend bool operator==(const HeapValueType&, const HeapValueType&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static HeapValueType bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct ValueOrArray {
-
-        struct MemoryAddress {
-            Program::MemoryAddress value;
-
-            friend bool operator==(const MemoryAddress&, const MemoryAddress&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct HeapArray {
-            Program::HeapArray value;
-
-            friend bool operator==(const HeapArray&, const HeapArray&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static HeapArray bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct HeapVector {
-            Program::HeapVector value;
-
-            friend bool operator==(const HeapVector&, const HeapVector&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static HeapVector bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<MemoryAddress, HeapArray, HeapVector> value;
-
-        friend bool operator==(const ValueOrArray&, const ValueOrArray&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static ValueOrArray bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct BrilligOpcode {
-
-        struct BinaryFieldOp {
-            Program::MemoryAddress destination;
-            Program::BinaryFieldOp op;
-            Program::MemoryAddress lhs;
-            Program::MemoryAddress rhs;
-
-            friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BinaryIntOp {
-            Program::MemoryAddress destination;
-            Program::BinaryIntOp op;
-            uint32_t bit_size;
-            Program::MemoryAddress lhs;
-            Program::MemoryAddress rhs;
-
-            friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Cast {
-            Program::MemoryAddress destination;
-            Program::MemoryAddress source;
-            uint32_t bit_size;
-
-            friend bool operator==(const Cast&, const Cast&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Cast bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct JumpIfNot {
-            Program::MemoryAddress condition;
-            uint64_t location;
-
-            friend bool operator==(const JumpIfNot&, const JumpIfNot&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static JumpIfNot bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct JumpIf {
-            Program::MemoryAddress condition;
-            uint64_t location;
-
-            friend bool operator==(const JumpIf&, const JumpIf&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static JumpIf bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Jump {
-            uint64_t location;
-
-            friend bool operator==(const Jump&, const Jump&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Jump bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct CalldataCopy {
-            Program::MemoryAddress destination_address;
-            uint64_t size;
-            uint64_t offset;
-
-            friend bool operator==(const CalldataCopy&, const CalldataCopy&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static CalldataCopy bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Call {
-            uint64_t location;
-
-            friend bool operator==(const Call&, const Call&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Call bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Const {
-            Program::MemoryAddress destination;
-            uint32_t bit_size;
-            std::string value;
-
-            friend bool operator==(const Const&, const Const&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Const bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Return {
-            friend bool operator==(const Return&, const Return&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Return bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct ForeignCall {
-            std::string function;
-            std::vector<Program::ValueOrArray> destinations;
-            std::vector<Program::HeapValueType> destination_value_types;
-            std::vector<Program::ValueOrArray> inputs;
-            std::vector<Program::HeapValueType> input_value_types;
-
-            friend bool operator==(const ForeignCall&, const ForeignCall&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static ForeignCall bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Mov {
-            Program::MemoryAddress destination;
-            Program::MemoryAddress source;
-
-            friend bool operator==(const Mov&, const Mov&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Mov bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct ConditionalMov {
-            Program::MemoryAddress destination;
-            Program::MemoryAddress source_a;
-            Program::MemoryAddress source_b;
-            Program::MemoryAddress condition;
-
-            friend bool operator==(const ConditionalMov&, const ConditionalMov&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static ConditionalMov bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Load {
-            Program::MemoryAddress destination;
-            Program::MemoryAddress source_pointer;
-
-            friend bool operator==(const Load&, const Load&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Load bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Store {
-            Program::MemoryAddress destination_pointer;
-            Program::MemoryAddress source;
-
-            friend bool operator==(const Store&, const Store&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Store bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BlackBox {
-            Program::BlackBoxOp value;
-
-            friend bool operator==(const BlackBox&, const BlackBox&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BlackBox bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Trap {
-            Program::HeapArray revert_data;
-
-            friend bool operator==(const Trap&, const Trap&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Trap bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Stop {
-            uint64_t return_data_offset;
-            uint64_t return_data_size;
-
-            friend bool operator==(const Stop&, const Stop&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Stop bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<BinaryFieldOp, BinaryIntOp, Cast, JumpIfNot, JumpIf, Jump, CalldataCopy, Call, Const, Return, ForeignCall, Mov, ConditionalMov, Load, Store, BlackBox, Trap, Stop> value;
-
-        friend bool operator==(const BrilligOpcode&, const BrilligOpcode&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BrilligOpcode bincodeDeserialize(std::vector<uint8_t>);
     };
 
     struct ExpressionOrMemory {
@@ -2199,6 +2273,121 @@ template <>
 template <typename Deserializer>
 Program::BinaryIntOp::Shr serde::Deserializable<Program::BinaryIntOp::Shr>::deserialize(Deserializer &deserializer) {
     Program::BinaryIntOp::Shr obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const BitSize &lhs, const BitSize &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BitSize::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BitSize>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BitSize BitSize::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BitSize>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BitSize>::serialize(const Program::BitSize &obj, Serializer &serializer) {
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Program::BitSize serde::Deserializable<Program::BitSize>::deserialize(Deserializer &deserializer) {
+    deserializer.increase_container_depth();
+    Program::BitSize obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const BitSize::Field &lhs, const BitSize::Field &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> BitSize::Field::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BitSize::Field>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BitSize::Field BitSize::Field::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BitSize::Field>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BitSize::Field>::serialize(const Program::BitSize::Field &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::BitSize::Field serde::Deserializable<Program::BitSize::Field>::deserialize(Deserializer &deserializer) {
+    Program::BitSize::Field obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const BitSize::Integer &lhs, const BitSize::Integer &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BitSize::Integer::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BitSize::Integer>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BitSize::Integer BitSize::Integer::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BitSize::Integer>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BitSize::Integer>::serialize(const Program::BitSize::Integer &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::BitSize::Integer serde::Deserializable<Program::BitSize::Integer>::deserialize(Deserializer &deserializer) {
+    Program::BitSize::Integer obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }
 
@@ -6517,6 +6706,293 @@ Program::HeapVector serde::Deserializable<Program::HeapVector>::deserialize(Dese
     obj.pointer = serde::Deserializable<decltype(obj.pointer)>::deserialize(deserializer);
     obj.size = serde::Deserializable<decltype(obj.size)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize &lhs, const IntegerBitSize &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize IntegerBitSize::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize>::serialize(const Program::IntegerBitSize &obj, Serializer &serializer) {
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize serde::Deserializable<Program::IntegerBitSize>::deserialize(Deserializer &deserializer) {
+    deserializer.increase_container_depth();
+    Program::IntegerBitSize obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U0 &lhs, const IntegerBitSize::U0 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U0::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U0>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U0 IntegerBitSize::U0::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U0>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U0>::serialize(const Program::IntegerBitSize::U0 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U0 serde::Deserializable<Program::IntegerBitSize::U0>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U0 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U1 &lhs, const IntegerBitSize::U1 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U1::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U1>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U1 IntegerBitSize::U1::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U1>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U1>::serialize(const Program::IntegerBitSize::U1 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U1 serde::Deserializable<Program::IntegerBitSize::U1>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U1 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U8 &lhs, const IntegerBitSize::U8 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U8::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U8>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U8 IntegerBitSize::U8::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U8>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U8>::serialize(const Program::IntegerBitSize::U8 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U8 serde::Deserializable<Program::IntegerBitSize::U8>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U8 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U16 &lhs, const IntegerBitSize::U16 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U16::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U16>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U16 IntegerBitSize::U16::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U16>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U16>::serialize(const Program::IntegerBitSize::U16 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U16 serde::Deserializable<Program::IntegerBitSize::U16>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U16 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U32 &lhs, const IntegerBitSize::U32 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U32::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U32>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U32 IntegerBitSize::U32::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U32>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U32>::serialize(const Program::IntegerBitSize::U32 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U32 serde::Deserializable<Program::IntegerBitSize::U32>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U32 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U64 &lhs, const IntegerBitSize::U64 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U64::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U64>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U64 IntegerBitSize::U64::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U64>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U64>::serialize(const Program::IntegerBitSize::U64 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U64 serde::Deserializable<Program::IntegerBitSize::U64>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U64 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U128 &lhs, const IntegerBitSize::U128 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U128::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U128>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U128 IntegerBitSize::U128::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U128>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U128>::serialize(const Program::IntegerBitSize::U128 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U128 serde::Deserializable<Program::IntegerBitSize::U128>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U128 obj;
     return obj;
 }
 
