@@ -1,4 +1,4 @@
-import { pedersenHash, poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
+import { pedersenHash, poseidon2Hash, poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { type PrivateFunction } from '@aztec/types/contracts';
 
@@ -33,7 +33,11 @@ export function computePrivateFunctionLeaf(fn: PrivateFunction): Buffer {
 function getPrivateFunctionTreeCalculator(): MerkleTreeCalculator {
   if (!privateFunctionTreeCalculator) {
     const functionTreeZeroLeaf = pedersenHash(new Array(PRIVATE_FUNCTION_SIZE).fill(0)).toBuffer();
-    privateFunctionTreeCalculator = new MerkleTreeCalculator(FUNCTION_TREE_HEIGHT, functionTreeZeroLeaf);
+    privateFunctionTreeCalculator = new MerkleTreeCalculator(
+      FUNCTION_TREE_HEIGHT,
+      functionTreeZeroLeaf,
+      (left, right) => poseidon2Hash([left, right]).toBuffer(),
+    );
   }
   return privateFunctionTreeCalculator;
 }

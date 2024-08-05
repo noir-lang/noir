@@ -3,7 +3,7 @@ use crate::{
     oracle::get_l1_to_l2_membership_witness::get_l1_to_l2_membership_witness
 };
 
-use std::merkle::compute_merkle_root;
+use dep::protocol_types::merkle_tree::root::root_from_sibling_path;
 use dep::protocol_types::{constants::L1_TO_L2_MSG_TREE_HEIGHT, address::{AztecAddress, EthAddress}, utils::arr_copy_slice};
 
 pub fn process_l1_to_l2_message(
@@ -31,7 +31,7 @@ pub fn process_l1_to_l2_message(
 
     // Check that the message is in the tree
     // This is implicitly checking that the values of the message are correct
-    let root = compute_merkle_root(message_hash, leaf_index, sibling_path);
+    let root = root_from_sibling_path(message_hash, leaf_index, sibling_path);
     assert(root == l1_to_l2_root, "Message not in state");
 
     compute_message_nullifier(message_hash, secret, leaf_index)

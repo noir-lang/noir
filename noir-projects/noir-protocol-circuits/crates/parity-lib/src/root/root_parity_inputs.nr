@@ -32,9 +32,9 @@ impl RootParityInputs {
         }
 
         let sha_tree = Sha256MerkleTree::new(sha_roots);
-        let pedersen_tree = MerkleTree::new(converted_roots);
+        let poseidon_tree = MerkleTree::new(converted_roots);
 
-        ParityPublicInputs { sha_root: sha_tree.get_root(), converted_root: pedersen_tree.get_root(), vk_tree_root }
+        ParityPublicInputs { sha_root: sha_tree.get_root(), converted_root: poseidon_tree.get_root(), vk_tree_root }
     }
 
     fn verify_child_proofs(self) {

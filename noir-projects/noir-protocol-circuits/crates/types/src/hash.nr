@@ -125,7 +125,7 @@ pub fn silo_unencrypted_log_hash(log_hash: ScopedLogHash) -> Field {
 }
 
 pub fn merkle_hash(left: Field, right: Field) -> Field {
-    pedersen_hash([left, right], 0)
+    poseidon2_hash([left, right])
 }
 
 pub fn stdlib_recursion_verification_key_compress_native_vk(_vk: VerificationKey) -> Field {
@@ -256,7 +256,10 @@ pub fn poseidon2_hash<let N: u32>(inputs: [Field; N]) -> Field {
 }
 
 #[no_predicates]
-pub fn poseidon2_hash_with_separator<N, T>(inputs: [Field; N], separator: T) -> Field where T: ToField {
+pub fn poseidon2_hash_with_separator<let N: u32, T>(
+    inputs: [Field; N],
+    separator: T
+) -> Field where T: ToField {
     // We manually hash the inputs here, since we cannot express with the type system a constant size inputs array of N + 1
     let in_len = N + 1;
     let two_pow_64 = 18446744073709551616;

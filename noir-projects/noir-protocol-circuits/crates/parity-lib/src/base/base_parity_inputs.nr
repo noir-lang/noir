@@ -9,11 +9,11 @@ struct BaseParityInputs {
 impl BaseParityInputs {
     pub fn base_parity_circuit(self) -> ParityPublicInputs {
         let sha_tree = Sha256MerkleTree::new(self.msgs);
-        let pedersen_tree = MerkleTree::new(self.msgs);
+        let poseidon_tree = MerkleTree::new(self.msgs);
 
         ParityPublicInputs {
             sha_root: sha_tree.get_root(),
-            converted_root: pedersen_tree.get_root(),
+            converted_root: poseidon_tree.get_root(),
             vk_tree_root: self.vk_tree_root
         }
     }

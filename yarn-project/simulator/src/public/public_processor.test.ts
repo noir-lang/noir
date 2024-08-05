@@ -35,7 +35,7 @@ import { fr, makeSelector } from '@aztec/circuits.js/testing';
 import { arrayNonEmptyLength, times } from '@aztec/foundation/collection';
 import { type FieldsOf } from '@aztec/foundation/types';
 import { openTmpStore } from '@aztec/kv-store/utils';
-import { type AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
+import { type AppendOnlyTree, Poseidon, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
   type PublicExecutionResult,
   type PublicExecutor,
@@ -151,7 +151,7 @@ describe('public_processor', () => {
       publicDataTree = await newTree(
         StandardTree,
         openTmpStore(),
-        new Pedersen(),
+        new Poseidon(),
         'PublicData',
         Fr,
         PUBLIC_DATA_TREE_HEIGHT,

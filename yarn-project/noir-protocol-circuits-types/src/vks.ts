@@ -27,6 +27,7 @@ import {
   VerificationKeyAsFields,
   VerificationKeyData,
 } from '@aztec/circuits.js';
+import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { assertLength } from '@aztec/foundation/serialize';
 
 import EmptyNestedVkJson from '../artifacts/keys/empty_nested.vk.data.json' assert { type: 'json' };
@@ -126,7 +127,9 @@ export const ProtocolCircuitVkIndexes: Record<ProtocolArtifact, number> = {
 };
 
 function buildVKTree() {
-  const calculator = new MerkleTreeCalculator(VK_TREE_HEIGHT);
+  const calculator = new MerkleTreeCalculator(VK_TREE_HEIGHT, Buffer.alloc(32), (a, b) =>
+    poseidon2Hash([a, b]).toBuffer(),
+  );
   const vkHashes = new Array(2 ** VK_TREE_HEIGHT).fill(Buffer.alloc(32));
 
   for (const [key, value] of Object.entries(ProtocolCircuitVks)) {

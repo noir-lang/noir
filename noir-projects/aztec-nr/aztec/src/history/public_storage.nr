@@ -2,7 +2,7 @@ use dep::protocol_types::{
     constants::GENERATOR_INDEX__PUBLIC_LEAF_INDEX, hash::poseidon2_hash_with_separator,
     address::AztecAddress, header::Header, utils::field::full_field_less_than
 };
-use std::merkle::compute_merkle_root;
+use dep::protocol_types::merkle_tree::root::root_from_sibling_path;
 
 use crate::{context::PrivateContext, oracle::get_public_data_witness::get_public_data_witness};
 
@@ -46,7 +46,7 @@ impl PublicStorageHistoricalRead for Header {
         // but also the metadata (slot, next index and next slot).
         assert(
             self.state.partial.public_data_tree.root
-            == compute_merkle_root(preimage.hash(), witness.index, witness.path), "Proving public value inclusion failed"
+            == root_from_sibling_path(preimage.hash(), witness.index, witness.path), "Proving public value inclusion failed"
         );
 
         value

@@ -16,7 +16,7 @@ inputs:
   tester_ttl:
     required: false
     description: "Time to live for the tester instance in minutes"
-    default: 30
+    default: 45
 runs:
   # define an action, runs in OS of caller
   using: composite

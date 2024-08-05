@@ -21,10 +21,10 @@ global default_private_function = ContractFunction {
         leaf_index: 0,
         sibling_path: [
             0x1eca11cd2abe68905eab86bc4f207cde29eb7c2b4c2c9b27e3d8c2f8b8234c87,
-            0x21dbfd1d029bf447152fcf89e355c334610d1632436ba170f738107266a71550,
-            0x0bcd1f91cf7bdd471d0a30c58c4706f3fdab3807a954b8f5b5e3bfec87d001bb,
-            0x06e62084ee7b602fe9abc15632dda3269f56fb0c6e12519a2eb2ec897091919d,
-            0x03c9e2e67178ac638746f068907e6677b4cc7a9592ef234ab6ab518f17efffa0,
+            0x233d10e0c959338e062b1c76fb81e17fcf61643da568eac372bb7feac8bfa357,
+            0x0e1ce4f11f4d51a7d3136abbd625315fff3876d322e46ad8401da96f8e43a614,
+            0x1a0ca5eecb1430479902264f04e557160a4666fb42bb8b283c6397e3d17ac937,
+            0x2a6595890719fef7967c209488728aa5342438ba52058a3c770202f55acf6854,
         ],
     },
 };
@@ -39,11 +39,11 @@ global default_public_function = ContractFunction {
     membership_witness: MembershipWitness {
         leaf_index: 2,
         sibling_path: [
-            0x2d72ef5ebb7c974e1f5a8bed092f1cf1bf0a0cb1eda28516221ca7e5811ecf15,
-            0x0d18bf69ba03cceb5b3ad320c0439559ae10eabd18dea07ea239c8eb2a96c3f8,
-            0x0837a67313f4dbbd8d6971c0672f961f0a3b9e218c1395d327915209292acbbf,
-            0x2e0ef36ddc5db29acb6ef904999046f835ce7c78a40c3f7a0edb03b2f917a765,
-            0x1a9fdb505152f9c2baaffe4a30ee80775b58ebf8c2dde76435835b085c6f70ca,
+            0x27b1d0839a5b23baf12a8d195b18ac288fcf401afb2f70b8a4b529ede5fa9fed,
+            0x1204fec45a58f11be9981f153319860aea2ece9152efab01885006e53dd70a79,
+            0x0e1ce4f11f4d51a7d3136abbd625315fff3876d322e46ad8401da96f8e43a614,
+            0x1a0ca5eecb1430479902264f04e557160a4666fb42bb8b283c6397e3d17ac937,
+            0x2a6595890719fef7967c209488728aa5342438ba52058a3c770202f55acf6854,
         ],
     },
 };

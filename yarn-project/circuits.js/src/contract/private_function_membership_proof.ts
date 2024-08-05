@@ -1,4 +1,5 @@
 import { type ContractArtifact, type FunctionSelector, FunctionType } from '@aztec/foundation/abi';
+import { poseidon2Hash } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import {
@@ -115,6 +116,7 @@ export function isValidPrivateFunctionMembershipProof(
       functionLeaf,
       fn.privateFunctionTreeSiblingPath.map(fr => fr.toBuffer()),
       fn.privateFunctionTreeLeafIndex,
+      (left, right) => poseidon2Hash([left, right]).toBuffer(),
     ),
   );
   if (!contractClass.privateFunctionsRoot.equals(computedPrivateFunctionTreeRoot)) {

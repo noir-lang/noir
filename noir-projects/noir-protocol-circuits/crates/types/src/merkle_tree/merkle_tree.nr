@@ -1,5 +1,4 @@
-use crate::traits::Empty;
-use crate::merkle_tree::membership::assert_check_membership;
+use crate::{traits::Empty, hash::merkle_hash};
 
 struct MerkleTree<let N: u32> {
     leaves: [Field; N],
@@ -25,12 +24,12 @@ impl<let N: u32> MerkleTree<N> {
 
         // hash base layer
         for i in 0..half_size {
-            nodes[i] = std::hash::pedersen_hash([leaves[2*i], leaves[2*i+1]]);
+            nodes[i] = merkle_hash(leaves[2*i],  leaves[2*i+1]);
         }
 
         // hash the other layers
         for i in 0..(total_nodes - half_size) {
-            nodes[half_size+i] = std::hash::pedersen_hash([nodes[2*i], nodes[2*i+1]]);
+            nodes[half_size+i] = merkle_hash(nodes[2*i],  nodes[2*i+1]);
         }
 
         MerkleTree { leaves, nodes }

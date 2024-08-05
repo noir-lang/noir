@@ -3,6 +3,7 @@ export * from './interfaces/indexed_tree.js';
 export * from './interfaces/merkle_tree.js';
 export * from './interfaces/update_only_tree.js';
 export * from './pedersen.js';
+export * from './poseidon.js';
 export * from './sha_256.js';
 export * from './sparse_tree/sparse_tree.js';
 export { StandardIndexedTree } from './standard_indexed_tree/standard_indexed_tree.js';

@@ -1,4 +1,4 @@
-use std::merkle::compute_merkle_root;
+use dep::protocol_types::merkle_tree::root::root_from_sibling_path;
 use dep::protocol_types::header::Header;
 
 use crate::{
@@ -20,7 +20,7 @@ impl ProveNoteInclusion for Header {
 
         // 3) Prove that the commitment is in the note hash tree
         assert_eq(
-            self.state.partial.note_hash_tree.root, compute_merkle_root(note_hash, witness.index, witness.path), "Proving note inclusion failed"
+            self.state.partial.note_hash_tree.root, root_from_sibling_path(note_hash, witness.index, witness.path), "Proving note inclusion failed"
         );
     }
 }

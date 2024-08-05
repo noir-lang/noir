@@ -30,7 +30,7 @@ import {
   type AppendOnlyTree,
   type BatchInsertionResult,
   type IndexedTree,
-  Pedersen,
+  Poseidon,
   StandardIndexedTree,
   StandardTree,
   type UpdateOnlyTree,
@@ -121,7 +121,7 @@ export class MerkleTrees implements MerkleTreeDb {
     const fromDb = this.#isDbPopulated();
     const initializeTree = fromDb ? loadTree : newTree;
 
-    const hasher = new Pedersen();
+    const hasher = new Poseidon();
 
     const nullifierTree = await initializeTree(
       NullifierTree,

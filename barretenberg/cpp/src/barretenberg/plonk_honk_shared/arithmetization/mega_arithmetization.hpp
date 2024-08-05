@@ -89,8 +89,8 @@ template <typename FF_> class MegaArith {
             this->aux = 1400000;
             this->lookup = 460000;
             this->busread = 1 << 7;
-            this->poseidon_external = 15000;
-            this->poseidon_internal = 85000;
+            this->poseidon_external = 30000;
+            this->poseidon_internal = 170000;
         }
     };
 
