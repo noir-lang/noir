@@ -10,12 +10,12 @@ use noirc_frontend::{
         FieldElement, FileId, HirContext, HirExpression, HirLiteral, HirStatement, NodeInterner,
     },
     node_interner::TraitId,
-    parse_program,
     parser::SortedModule,
     token::SecondaryAttribute,
     Type,
 };
 
+use crate::utils::parse_utils::parse_program;
 use crate::{
     chained_path,
     utils::{
@@ -246,7 +246,6 @@ pub fn generate_storage_implementation(
         methods: vec![(init, Span::default())],
 
         where_clause: vec![],
-        is_comptime: false,
     };
     module.impls.push(storage_impl);
 
@@ -499,6 +498,7 @@ pub fn generate_storage_layout(
     module: &mut SortedModule,
     storage_struct_name: String,
     module_name: &str,
+    empty_spans: bool,
 ) -> Result<(), AztecMacroError> {
     let definition = module
         .types
@@ -531,7 +531,7 @@ pub fn generate_storage_layout(
         storable_fields_impl.join(",\n")
     );
 
-    let (struct_ast, errors) = parse_program(&storage_fields_source);
+    let (struct_ast, errors) = parse_program(&storage_fields_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotExportStorageLayout {

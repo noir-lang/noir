@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::{collections::HashMap, future::Future};
 
 use crate::insert_all_files_for_workspace_into_file_manager;
@@ -324,7 +325,12 @@ where
     let file_name = files.name(file_id).ok()?;
 
     let path = file_name.to_string();
-    let uri = Url::from_file_path(path).ok()?;
+
+    // `path` might be a relative path so we canonicalize it to get an absolute path
+    let path_buf = PathBuf::from(path);
+    let path_buf = path_buf.canonicalize().unwrap_or(path_buf);
+
+    let uri = Url::from_file_path(path_buf.to_str()?).ok()?;
 
     Some(Location { uri, range })
 }
@@ -358,8 +364,7 @@ where
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace =
-        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path).unwrap();
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
@@ -382,7 +387,7 @@ where
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
         interner = &context.def_interner;
     }
 
