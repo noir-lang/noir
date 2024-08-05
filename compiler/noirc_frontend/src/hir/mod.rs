@@ -19,6 +19,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use self::def_map::TestFunction;
@@ -47,6 +48,8 @@ pub struct Context<'file_manager, 'parsed_files> {
     // Same as the file manager, we take ownership of the parsed files in the WASM context.
     // Parsed files is also read only.
     pub parsed_files: Cow<'parsed_files, ParsedFiles>,
+
+    pub package_build_path: PathBuf,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -66,6 +69,7 @@ impl Context<'_, '_> {
             file_manager: Cow::Owned(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Owned(parsed_files),
+            package_build_path: PathBuf::default(),
         }
     }
 
@@ -81,6 +85,7 @@ impl Context<'_, '_> {
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
+            package_build_path: PathBuf::default(),
         }
     }
 

@@ -206,7 +206,6 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
             test_function.get_id(),
             None,
             false,
-            None,
         );
         match compiled_program {
             Ok(compiled_program) => {

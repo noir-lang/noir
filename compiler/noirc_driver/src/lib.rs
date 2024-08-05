@@ -23,7 +23,7 @@ use noirc_frontend::monomorphization::{
 };
 use noirc_frontend::node_interner::FuncId;
 use noirc_frontend::token::SecondaryAttribute;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::info;
 
 mod abi_gen;
@@ -318,7 +318,6 @@ pub fn compile_main(
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
-    emit_ssa: Option<PathBuf>,
 ) -> CompilationResult<CompiledProgram> {
     let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
@@ -332,7 +331,7 @@ pub fn compile_main(
     })?;
 
     let compiled_program =
-        compile_no_check(context, options, main, cached_program, options.force_compile, emit_ssa)
+        compile_no_check(context, options, main, cached_program, options.force_compile)
             .map_err(FileDiagnostic::from)?;
 
     let compilation_warnings = vecmap(compiled_program.warnings.clone(), FileDiagnostic::from);
@@ -434,7 +433,7 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id, None, true, None) {
+        let function = match compile_no_check(context, options, function_id, None, true) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(FileDiagnostic::from(new_error));
@@ -540,7 +539,6 @@ pub fn compile_no_check(
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
-    emit_ssa: Option<PathBuf>,
 ) -> Result<CompiledProgram, CompileError> {
     let program = if options.instrument_debug {
         monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
@@ -560,7 +558,7 @@ pub fn compile_no_check(
         || options.print_acir
         || options.show_brillig
         || options.show_ssa
-        || emit_ssa.is_some();
+        || options.emit_ssa;
 
     if !force_compile && hashes_match {
         info!("Program matches existing artifact, returning early");
@@ -577,7 +575,11 @@ pub fn compile_no_check(
         } else {
             ExpressionWidth::default()
         },
-        emit_ssa,
+        emit_ssa: if options.emit_ssa {
+            Some(context.package_build_path.clone())
+        } else {
+            None
+        },
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =

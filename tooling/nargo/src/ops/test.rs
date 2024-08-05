@@ -32,7 +32,7 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     config: &CompileOptions,
 ) -> TestStatus {
     let compiled_program =
-        compile_no_check(context, config, test_function.get_id(), None, false, None);
+        compile_no_check(context, config, test_function.get_id(), None, false);
     match compiled_program {
         Ok(compiled_program) => {
             // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,

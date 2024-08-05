@@ -113,9 +113,9 @@ pub(crate) fn compile_bin_package_for_debugging(
         compile_program_with_debug_instrumenter(
             &workspace_file_manager,
             &parsed_files,
+            workspace,
             package,
             &compile_options,
-            None,
             None,
             debug_state,
         )
@@ -123,9 +123,9 @@ pub(crate) fn compile_bin_package_for_debugging(
         compile_program(
             &workspace_file_manager,
             &parsed_files,
+            workspace,
             package,
             &compile_options,
-            None,
             None,
         )
     };
