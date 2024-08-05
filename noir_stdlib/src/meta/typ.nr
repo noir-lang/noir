@@ -14,6 +14,9 @@ impl Type {
     #[builtin(type_as_slice)]
     fn as_slice(self) -> Option<Type> {}
 
+    #[builtin(type_as_struct)]
+    fn as_struct(self) -> Option<(StructDefinition, [Type])> {}
+
     #[builtin(type_as_tuple)]
     fn as_tuple(self) -> Option<[Type]> {}
 

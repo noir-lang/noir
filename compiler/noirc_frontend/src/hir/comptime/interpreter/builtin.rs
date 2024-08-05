@@ -61,6 +61,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_as_constant" => type_as_constant(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
             "type_as_slice" => type_as_slice(arguments, return_type, location),
+            "type_as_struct" => type_as_struct(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
             "type_is_bool" => type_is_bool(arguments, location),
@@ -544,6 +545,27 @@ fn type_as_slice(
     type_as(arguments, return_type, location, |typ| {
         if let Type::Slice(slice_type) = typ {
             Some(Value::Type(*slice_type))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_struct(self) -> Option<(StructDefinition, [Type])>
+fn type_as_struct(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Struct(struct_type, generics) = typ {
+            Some(Value::Tuple(vec![
+                Value::StructDefinition(struct_type.borrow().id),
+                Value::Array(
+                    generics.into_iter().map(Value::Type).collect(),
+                    Type::Quoted(QuotedType::Type),
+                ),
+            ]))
         } else {
             None
         }
