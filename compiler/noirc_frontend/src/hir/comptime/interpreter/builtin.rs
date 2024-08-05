@@ -57,8 +57,14 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "trait_def_hash" => trait_def_hash(interner, arguments, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
+            "type_as_array" => type_as_array(arguments, return_type, location),
+            "type_as_constant" => type_as_constant(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
+            "type_as_slice" => type_as_slice(arguments, return_type, location),
+            "type_as_struct" => type_as_struct(arguments, return_type, location),
+            "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
+            "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
             "zeroed" => zeroed(return_type),
@@ -485,20 +491,122 @@ fn quoted_as_type(
     Ok(Value::Type(typ))
 }
 
+// fn as_array(self) -> Option<(Type, Type)>
+fn type_as_array(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Array(length, array_type) = typ {
+            Some(Value::Tuple(vec![Value::Type(*array_type), Value::Type(*length)]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_constant(self) -> Option<u32>
+fn type_as_constant(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Constant(n) = typ {
+            Some(Value::U32(n))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_integer(self) -> Option<(bool, u8)>
 fn type_as_integer(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Integer(sign, bits) = typ {
+            Some(Value::Tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_slice(self) -> Option<Type>
+fn type_as_slice(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Slice(slice_type) = typ {
+            Some(Value::Type(*slice_type))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_struct(self) -> Option<(StructDefinition, [Type])>
+fn type_as_struct(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type, location, |typ| {
+        if let Type::Struct(struct_type, generics) = typ {
+            Some(Value::Tuple(vec![
+                Value::StructDefinition(struct_type.borrow().id),
+                Value::Slice(
+                    generics.into_iter().map(Value::Type).collect(),
+                    Type::Slice(Box::new(Type::Quoted(QuotedType::Type))),
+                ),
+            ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_tuple(self) -> Option<[Type]>
+fn type_as_tuple(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    type_as(arguments, return_type.clone(), location, |typ| {
+        if let Type::Tuple(types) = typ {
+            let t = extract_option_generic_type(return_type);
+
+            let Type::Slice(slice_type) = t else {
+                panic!("Expected T to be a slice");
+            };
+
+            Some(Value::Slice(types.into_iter().map(Value::Type).collect(), *slice_type))
+        } else {
+            None
+        }
+    })
+}
+
+// Helper function for implementing the `type_as_...` functions.
+fn type_as<F>(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    f: F,
+) -> IResult<Value>
+where
+    F: FnOnce(Type) -> Option<Value>,
+{
     let value = check_one_argument(arguments, location)?;
     let typ = get_type(value, location)?;
 
-    let option_value = if let Type::Integer(sign, bits) = typ {
-        Some(Value::Tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
-    } else {
-        None
-    };
+    let option_value = f(typ);
 
     option(return_type, option_value)
 }
@@ -508,6 +616,14 @@ fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
     let (self_type, other_type) = check_two_arguments(arguments, location)?;
 
     Ok(Value::Bool(self_type == other_type))
+}
+
+// fn is_bool(self) -> bool
+fn type_is_bool(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let value = check_one_argument(arguments, location)?;
+    let typ = get_type(value, location)?;
+
+    Ok(Value::Bool(matches!(typ, Type::Bool)))
 }
 
 // fn is_field(self) -> bool
@@ -751,14 +867,7 @@ fn trait_def_as_trait_constraint(
 /// Creates a value that holds an `Option`.
 /// `option_type` must be a Type referencing the `Option` type.
 pub(crate) fn option(option_type: Type, value: Option<Value>) -> IResult<Value> {
-    let Type::Struct(shared_option_type, mut generics) = option_type.clone() else {
-        panic!("Expected type to be a struct");
-    };
-
-    let shared_option_type = shared_option_type.borrow();
-    assert_eq!(shared_option_type.name.0.contents, "Option");
-
-    let t = generics.pop().expect("Expected Option to have a T generic type");
+    let t = extract_option_generic_type(option_type.clone());
 
     let (is_some, value) = match value {
         Some(value) => (Value::Bool(true), value),
@@ -769,4 +878,16 @@ pub(crate) fn option(option_type: Type, value: Option<Value>) -> IResult<Value> 
     fields.insert(Rc::new("_is_some".to_string()), is_some);
     fields.insert(Rc::new("_value".to_string()), value);
     Ok(Value::Struct(fields, option_type))
+}
+
+/// Given a type, assert that it's an Option<T> and return the Type for T
+pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
+    let Type::Struct(struct_type, mut generics) = typ else {
+        panic!("Expected type to be a struct");
+    };
+
+    let struct_type = struct_type.borrow();
+    assert_eq!(struct_type.name.0.contents, "Option");
+
+    generics.pop().expect("Expected Option to have a T generic type")
 }
