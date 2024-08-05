@@ -47,6 +47,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
             "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
+            "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
+            "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
             "slice_pop_back" => slice_pop_back(interner, arguments, location),
@@ -64,8 +66,6 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             }
             "trait_def_eq" => trait_def_eq(interner, arguments, location),
             "trait_def_hash" => trait_def_hash(interner, arguments, location),
-            "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
-            "quoted_as_type" => quoted_as_type(self, arguments, location),
             "type_as_array" => type_as_array(arguments, return_type, location),
             "type_as_constant" => type_as_constant(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
