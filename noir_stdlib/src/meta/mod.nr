@@ -3,6 +3,7 @@ use crate::hash::BuildHasherDefault;
 use crate::hash::poseidon2::Poseidon2Hasher;
 
 mod function_def;
+mod module;
 mod struct_def;
 mod trait_constraint;
 mod trait_def;

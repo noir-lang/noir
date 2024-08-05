@@ -47,6 +47,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
             "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
+            "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(arguments, location),
@@ -305,6 +306,31 @@ fn slice_insert(
     let (mut values, typ) = get_slice(interner, slice, location)?;
     values.insert(index, element);
     Ok(Value::Slice(values, typ))
+}
+
+// fn as_module(quoted: Quoted) -> Option<Module>
+fn quoted_as_module(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+
+    let tokens = get_quoted(argument, location)?;
+    let quoted = add_token_spans(tokens.clone(), location.span);
+
+    let option_value = parser::path_no_turbofish()
+        .parse(quoted)
+        .ok()
+        .and_then(|path| {
+            interpreter.elaborate_item(interpreter.current_function, |elaborator| {
+                elaborator.resolve_module_by_path(path)
+            })
+        })
+        .map(Value::ModuleDefinition);
+
+    option(return_type, option_value)
 }
 
 // fn as_trait_constraint(quoted: Quoted) -> TraitConstraint

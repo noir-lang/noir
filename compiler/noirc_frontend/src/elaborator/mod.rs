@@ -623,6 +623,21 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    pub fn resolve_module_by_path(&self, path: Path) -> Option<ModuleId> {
+        let path_resolver = StandardPathResolver::new(self.module_id());
+
+        match path_resolver.resolve(self.def_maps, path.clone(), &mut None) {
+            Ok(PathResolution { module_def_id: ModuleDefId::ModuleId(module_id), error }) => {
+                if let Some(_) = error {
+                    None
+                } else {
+                    Some(module_id)
+                }
+            }
+            _ => None,
+        }
+    }
+
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let path_resolver = StandardPathResolver::new(self.module_id());
 
