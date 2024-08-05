@@ -805,7 +805,7 @@ fn function_def_parameters(
     Ok(Value::Slice(parameters, typ))
 }
 
-// fn parameters(self) -> Type
+// fn return_type(self) -> Type
 fn function_def_return_type(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
