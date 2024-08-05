@@ -815,7 +815,7 @@ fn function_def_return_type(
     let func_id = get_function_def(self_argument, location)?;
     let func_meta = interner.function_meta(&func_id);
 
-    Ok(Value::Type(func_meta.return_type().clone()))
+    Ok(Value::Type(func_meta.return_type().follow_bindings()))
 }
 
 fn modulus_be_bits(
