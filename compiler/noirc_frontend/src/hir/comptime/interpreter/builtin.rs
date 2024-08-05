@@ -32,7 +32,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         let interner = &mut self.elaborator.interner;
         match name {
             "array_len" => array_len(interner, arguments, location),
-            "array_as_str" => array_as_str(interner, arguments, location),
+            "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
@@ -191,7 +191,7 @@ fn array_len(
     }
 }
 
-fn array_as_str(
+fn array_as_str_unchecked(
     interner: &NodeInterner,
     mut arguments: Vec<(Value, Location)>,
     location: Location,

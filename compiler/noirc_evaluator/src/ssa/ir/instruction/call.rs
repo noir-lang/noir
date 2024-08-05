@@ -86,7 +86,7 @@ pub(super) fn simplify_call(
             }
         }
         // Strings are already arrays of bytes in SSA
-        Intrinsic::ArrayAsStr => SimplifyResult::SimplifiedTo(arguments[0]),
+        Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
         Intrinsic::AsSlice => {
             let array = dfg.get_array_constant(arguments[0]);
             if let Some((array, array_type)) = array {

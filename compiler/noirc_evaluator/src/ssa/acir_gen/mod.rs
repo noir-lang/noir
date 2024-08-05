@@ -2714,7 +2714,7 @@ impl<'a> Context<'a> {
                     .get_or_create_witness_var(input)
                     .map(|val| self.convert_vars_to_values(vec![val], dfg, result_ids))?)
             }
-            Intrinsic::ArrayAsStr => Ok(vec![self.convert_value(arguments[0], dfg)]),
+            Intrinsic::ArrayAsStrUnchecked => Ok(vec![self.convert_value(arguments[0], dfg)]),
             Intrinsic::AssertConstant => {
                 unreachable!("Expected assert_constant to be removed by this point")
             }

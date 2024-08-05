@@ -202,7 +202,7 @@ impl Context {
                             | Intrinsic::AsWitness
                             | Intrinsic::IsUnconstrained => {}
                             Intrinsic::ArrayLen
-                            | Intrinsic::ArrayAsStr
+                            | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::AsField
                             | Intrinsic::AsSlice
                             | Intrinsic::BlackBox(..)

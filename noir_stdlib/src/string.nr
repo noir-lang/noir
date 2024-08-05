@@ -14,6 +14,6 @@ impl<let N: u32> str<N> {
 
 impl<let N: u32> From<[u8; N]> for str<N> {
     fn from(bytes: [u8; N]) -> Self {
-        bytes.as_str_lossy()
+        bytes.as_str_unchecked()
     }
 }
