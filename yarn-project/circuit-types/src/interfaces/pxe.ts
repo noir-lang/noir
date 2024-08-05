@@ -250,8 +250,9 @@ export interface PXE {
    * Adds a note to the database.
    * @throws If the note hash of the note doesn't exist in the tree.
    * @param note - The note to add.
+   * @param scope - The scope to add the note under. Currently optional.
    */
-  addNote(note: ExtendedNote): Promise<void>;
+  addNote(note: ExtendedNote, scope?: AztecAddress): Promise<void>;
 
   /**
    * Adds a nullified note to the database.

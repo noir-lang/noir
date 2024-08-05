@@ -338,7 +338,7 @@ export class PXEService implements PXE {
     return Promise.all(extendedNotes);
   }
 
-  public async addNote(note: ExtendedNote) {
+  public async addNote(note: ExtendedNote, scope?: AztecAddress) {
     const owner = await this.db.getCompleteAddress(note.owner);
     if (!owner) {
       throw new Error(`Unknown account: ${note.owner.toString()}`);
@@ -384,6 +384,7 @@ export class PXEService implements PXE {
           index,
           owner.publicKeys.masterIncomingViewingPublicKey,
         ),
+        scope,
       );
     }
   }

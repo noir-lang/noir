@@ -62,8 +62,10 @@ export interface PxeDatabase extends ContractArtifactDatabase, ContractInstanceD
   /**
    * Adds a note to DB.
    * @param note - The note to add.
+   * @param scope - The scope to add the note under. Currently optional.
+   * @remark - Will create a database for the scope if it does not already exist.
    */
-  addNote(note: IncomingNoteDao): Promise<void>;
+  addNote(note: IncomingNoteDao, scope?: AztecAddress): Promise<void>;
 
   /**
    * Adds a nullified note to DB.
@@ -78,8 +80,10 @@ export interface PxeDatabase extends ContractArtifactDatabase, ContractInstanceD
    *
    * @param incomingNotes - An array of notes which were decrypted as incoming.
    * @param outgoingNotes - An array of notes which were decrypted as outgoing.
+   * @param scope - The scope to add the notes under. Currently optional.
+   * @remark - Will create a database for the scope if it does not already exist.
    */
-  addNotes(incomingNotes: IncomingNoteDao[], outgoingNotes: OutgoingNoteDao[]): Promise<void>;
+  addNotes(incomingNotes: IncomingNoteDao[], outgoingNotes: OutgoingNoteDao[], scope?: AztecAddress): Promise<void>;
 
   /**
    * Add notes to the database that are intended for us, but we don't yet have the contract.

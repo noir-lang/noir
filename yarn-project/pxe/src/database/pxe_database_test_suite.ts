@@ -130,14 +130,19 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
 
       it.each(filteringTests)('stores notes in bulk and retrieves notes', async (getFilter, getExpected) => {
         await database.addNotes(notes, []);
-        await expect(database.getIncomingNotes(getFilter())).resolves.toEqual(getExpected());
+        const returnedNotes = await database.getIncomingNotes(getFilter());
+
+        expect(returnedNotes.sort()).toEqual(getExpected().sort());
       });
 
       it.each(filteringTests)('stores notes one by one and retrieves notes', async (getFilter, getExpected) => {
         for (const note of notes) {
           await database.addNote(note);
         }
-        await expect(database.getIncomingNotes(getFilter())).resolves.toEqual(getExpected());
+
+        const returnedNotes = await database.getIncomingNotes(getFilter());
+
+        expect(returnedNotes.sort()).toEqual(getExpected().sort());
       });
 
       it.each(filteringTests)('retrieves nullified notes', async (getFilter, getExpected) => {
@@ -195,6 +200,68 @@ export function describePxeDatabase(getDatabase: () => PxeDatabase) {
         // We have to compare the sorted arrays since the database does not return the same order as when originally
         // inserted combining active and nullified results.
         expect(result.sort()).toEqual([...notes].sort());
+      });
+
+      it('stores notes one by one and retrieves notes with siloed account', async () => {
+        for (const note of notes.slice(0, 5)) {
+          await database.addNote(note, owners[0].address);
+        }
+
+        for (const note of notes.slice(5)) {
+          await database.addNote(note, owners[1].address);
+        }
+
+        const owner0IncomingNotes = await database.getIncomingNotes({
+          scopes: [owners[0].address],
+        });
+
+        expect(owner0IncomingNotes.sort()).toEqual(notes.slice(0, 5).sort());
+
+        const owner1IncomingNotes = await database.getIncomingNotes({
+          scopes: [owners[1].address],
+        });
+
+        expect(owner1IncomingNotes.sort()).toEqual(notes.slice(5).sort());
+
+        const bothOwnerIncomingNotes = await database.getIncomingNotes({
+          scopes: [owners[0].address, owners[1].address],
+        });
+
+        expect(bothOwnerIncomingNotes.sort()).toEqual(notes.sort());
+      });
+
+      it('a nullified note removes notes from all accounts in the pxe', async () => {
+        await database.addNote(notes[0], owners[0].address);
+        await database.addNote(notes[0], owners[1].address);
+
+        await expect(
+          database.getIncomingNotes({
+            scopes: [owners[0].address],
+          }),
+        ).resolves.toEqual([notes[0]]);
+        await expect(
+          database.getIncomingNotes({
+            scopes: [owners[1].address],
+          }),
+        ).resolves.toEqual([notes[0]]);
+
+        await expect(
+          database.removeNullifiedNotes(
+            [notes[0].siloedNullifier],
+            owners[0].publicKeys.masterIncomingViewingPublicKey,
+          ),
+        ).resolves.toEqual([notes[0]]);
+
+        await expect(
+          database.getIncomingNotes({
+            scopes: [owners[0].address],
+          }),
+        ).resolves.toEqual([]);
+        await expect(
+          database.getIncomingNotes({
+            scopes: [owners[1].address],
+          }),
+        ).resolves.toEqual([]);
       });
     });
 

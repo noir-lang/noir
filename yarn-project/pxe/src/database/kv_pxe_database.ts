@@ -14,6 +14,7 @@ import {
   type AztecKVStore,
   type AztecMap,
   type AztecMultiMap,
+  type AztecSet,
   type AztecSingleton,
 } from '@aztec/kv-store';
 import { contractArtifactFromBuffer, contractArtifactToBuffer } from '@aztec/types/abi';
@@ -36,10 +37,7 @@ export class KVPxeDatabase implements PxeDatabase {
   #notes: AztecMap<string, Buffer>;
   #nullifiedNotes: AztecMap<string, Buffer>;
   #nullifierToNoteId: AztecMap<string, string>;
-  #notesByContract: AztecMultiMap<string, string>;
-  #notesByStorageSlot: AztecMultiMap<string, string>;
-  #notesByTxHash: AztecMultiMap<string, string>;
-  #notesByIvpkM: AztecMultiMap<string, string>;
+
   #nullifiedNotesByContract: AztecMultiMap<string, string>;
   #nullifiedNotesByStorageSlot: AztecMultiMap<string, string>;
   #nullifiedNotesByTxHash: AztecMultiMap<string, string>;
@@ -56,6 +54,12 @@ export class KVPxeDatabase implements PxeDatabase {
   #outgoingNotesByStorageSlot: AztecMultiMap<string, string>;
   #outgoingNotesByTxHash: AztecMultiMap<string, string>;
   #outgoingNotesByOvpkM: AztecMultiMap<string, string>;
+
+  #scopes: AztecSet<string>;
+  #notesByContractAndScope: Map<string, AztecMultiMap<string, string>>;
+  #notesByStorageSlotAndScope: Map<string, AztecMultiMap<string, string>>;
+  #notesByTxHashAndScope: Map<string, AztecMultiMap<string, string>>;
+  #notesByIvpkMAndScope: Map<string, AztecMultiMap<string, string>>;
 
   constructor(private db: AztecKVStore) {
     this.#db = db;
@@ -76,11 +80,6 @@ export class KVPxeDatabase implements PxeDatabase {
     this.#nullifiedNotes = db.openMap('nullified_notes');
     this.#nullifierToNoteId = db.openMap('nullifier_to_note');
 
-    this.#notesByContract = db.openMultiMap('notes_by_contract');
-    this.#notesByStorageSlot = db.openMultiMap('notes_by_storage_slot');
-    this.#notesByTxHash = db.openMultiMap('notes_by_tx_hash');
-    this.#notesByIvpkM = db.openMultiMap('notes_by_ivpk_m');
-
     this.#nullifiedNotesByContract = db.openMultiMap('nullified_notes_by_contract');
     this.#nullifiedNotesByStorageSlot = db.openMultiMap('nullified_notes_by_storage_slot');
     this.#nullifiedNotesByTxHash = db.openMultiMap('nullified_notes_by_tx_hash');
@@ -94,6 +93,19 @@ export class KVPxeDatabase implements PxeDatabase {
     this.#outgoingNotesByStorageSlot = db.openMultiMap('outgoing_notes_by_storage_slot');
     this.#outgoingNotesByTxHash = db.openMultiMap('outgoing_notes_by_tx_hash');
     this.#outgoingNotesByOvpkM = db.openMultiMap('outgoing_notes_by_ovpk_m');
+
+    this.#scopes = db.openSet('scopes');
+    this.#notesByContractAndScope = new Map<string, AztecMultiMap<string, string>>();
+    this.#notesByStorageSlotAndScope = new Map<string, AztecMultiMap<string, string>>();
+    this.#notesByTxHashAndScope = new Map<string, AztecMultiMap<string, string>>();
+    this.#notesByIvpkMAndScope = new Map<string, AztecMultiMap<string, string>>();
+
+    for (const scope of this.#scopes.entries()) {
+      this.#notesByContractAndScope.set(scope, db.openMultiMap(`${scope}:notes_by_contract`));
+      this.#notesByStorageSlotAndScope.set(scope, db.openMultiMap(`${scope}:notes_by_storage_slot`));
+      this.#notesByTxHashAndScope.set(scope, db.openMultiMap(`${scope}:notes_by_tx_hash`));
+      this.#notesByIvpkMAndScope.set(scope, db.openMultiMap(`${scope}:notes_by_ivpk_m`));
+    }
   }
 
   public async getContract(
@@ -154,11 +166,19 @@ export class KVPxeDatabase implements PxeDatabase {
     return val?.map(b => Fr.fromBuffer(b));
   }
 
-  async addNote(note: IncomingNoteDao): Promise<void> {
-    await this.addNotes([note], []);
+  async addNote(note: IncomingNoteDao, scope?: AztecAddress): Promise<void> {
+    await this.addNotes([note], [], scope);
   }
 
-  addNotes(incomingNotes: IncomingNoteDao[], outgoingNotes: OutgoingNoteDao[]): Promise<void> {
+  async addNotes(
+    incomingNotes: IncomingNoteDao[],
+    outgoingNotes: OutgoingNoteDao[],
+    scope: AztecAddress = AztecAddress.ZERO,
+  ): Promise<void> {
+    if (!this.#scopes.has(scope.toString())) {
+      await this.#addScope(scope);
+    }
+
     return this.db.transaction(() => {
       for (const dao of incomingNotes) {
         // store notes by their index in the notes hash tree
@@ -168,10 +188,11 @@ export class KVPxeDatabase implements PxeDatabase {
         const noteIndex = toBufferBE(dao.index, 32).toString('hex');
         void this.#notes.set(noteIndex, dao.toBuffer());
         void this.#nullifierToNoteId.set(dao.siloedNullifier.toString(), noteIndex);
-        void this.#notesByContract.set(dao.contractAddress.toString(), noteIndex);
-        void this.#notesByStorageSlot.set(dao.storageSlot.toString(), noteIndex);
-        void this.#notesByTxHash.set(dao.txHash.toString(), noteIndex);
-        void this.#notesByIvpkM.set(dao.ivpkM.toString(), noteIndex);
+
+        void this.#notesByContractAndScope.get(scope.toString())!.set(dao.contractAddress.toString(), noteIndex);
+        void this.#notesByStorageSlotAndScope.get(scope.toString())!.set(dao.storageSlot.toString(), noteIndex);
+        void this.#notesByTxHashAndScope.get(scope.toString())!.set(dao.txHash.toString(), noteIndex);
+        void this.#notesByIvpkMAndScope.get(scope.toString())!.set(dao.ivpkM.toString(), noteIndex);
       }
 
       for (const dao of outgoingNotes) {
@@ -244,16 +265,31 @@ export class KVPxeDatabase implements PxeDatabase {
 
     const candidateNoteSources = [];
 
+    filter.scopes ??= [...this.#scopes.entries()].map(addressString => AztecAddress.fromString(addressString));
+
+    const activeNoteIdsPerScope: IterableIterator<string>[] = [];
+
+    for (const scope of new Set(filter.scopes)) {
+      const formattedScopeString = scope.toString();
+      if (!this.#scopes.has(formattedScopeString)) {
+        throw new Error('Trying to get incoming notes of an scope that is not in the PXE database');
+      }
+
+      activeNoteIdsPerScope.push(
+        publicKey
+          ? this.#notesByIvpkMAndScope.get(formattedScopeString)!.getValues(publicKey.toString())
+          : filter.txHash
+          ? this.#notesByTxHashAndScope.get(formattedScopeString)!.getValues(filter.txHash.toString())
+          : filter.contractAddress
+          ? this.#notesByContractAndScope.get(formattedScopeString)!.getValues(filter.contractAddress.toString())
+          : filter.storageSlot
+          ? this.#notesByStorageSlotAndScope.get(formattedScopeString)!.getValues(filter.storageSlot.toString())
+          : this.#notesByIvpkMAndScope.get(formattedScopeString)!.values(),
+      );
+    }
+
     candidateNoteSources.push({
-      ids: publicKey
-        ? this.#notesByIvpkM.getValues(publicKey.toString())
-        : filter.txHash
-        ? this.#notesByTxHash.getValues(filter.txHash.toString())
-        : filter.contractAddress
-        ? this.#notesByContract.getValues(filter.contractAddress.toString())
-        : filter.storageSlot
-        ? this.#notesByStorageSlot.getValues(filter.storageSlot.toString())
-        : this.#notes.keys(),
+      ids: new Set(activeNoteIdsPerScope.flatMap(iterableIterator => [...iterableIterator])),
       notes: this.#notes,
     });
 
@@ -358,7 +394,7 @@ export class KVPxeDatabase implements PxeDatabase {
     return Promise.resolve(notes);
   }
 
-  removeNullifiedNotes(nullifiers: Fr[], account: PublicKey): Promise<IncomingNoteDao[]> {
+  removeNullifiedNotes(nullifiers: Fr[], accountIvpkM: PublicKey): Promise<IncomingNoteDao[]> {
     if (nullifiers.length === 0) {
       return Promise.resolve([]);
     }
@@ -380,7 +416,7 @@ export class KVPxeDatabase implements PxeDatabase {
         }
 
         const note = IncomingNoteDao.fromBuffer(noteBuffer);
-        if (!note.ivpkM.equals(account)) {
+        if (!note.ivpkM.equals(accountIvpkM)) {
           // tried to nullify someone else's note
           continue;
         }
@@ -388,10 +424,13 @@ export class KVPxeDatabase implements PxeDatabase {
         nullifiedNotes.push(note);
 
         void this.#notes.delete(noteIndex);
-        void this.#notesByIvpkM.deleteValue(account.toString(), noteIndex);
-        void this.#notesByTxHash.deleteValue(note.txHash.toString(), noteIndex);
-        void this.#notesByContract.deleteValue(note.contractAddress.toString(), noteIndex);
-        void this.#notesByStorageSlot.deleteValue(note.storageSlot.toString(), noteIndex);
+
+        for (const scope in this.#scopes.entries()) {
+          void this.#notesByIvpkMAndScope.get(scope)!.deleteValue(accountIvpkM.toString(), noteIndex);
+          void this.#notesByTxHashAndScope.get(scope)!.deleteValue(note.txHash.toString(), noteIndex);
+          void this.#notesByContractAndScope.get(scope)!.deleteValue(note.contractAddress.toString(), noteIndex);
+          void this.#notesByStorageSlotAndScope.get(scope)!.deleteValue(note.storageSlot.toString(), noteIndex);
+        }
 
         void this.#nullifiedNotes.set(noteIndex, note.toBuffer());
         void this.#nullifiedNotesByContract.set(note.contractAddress.toString(), noteIndex);
@@ -438,6 +477,22 @@ export class KVPxeDatabase implements PxeDatabase {
     }
 
     return Header.fromBuffer(headerBuffer);
+  }
+
+  async #addScope(scope: AztecAddress): Promise<boolean> {
+    const scopeString = scope.toString();
+
+    if (this.#scopes.has(scopeString)) {
+      return false;
+    }
+
+    await this.#scopes.add(scopeString);
+    this.#notesByContractAndScope.set(scopeString, this.#db.openMultiMap(`${scopeString}:notes_by_contract`));
+    this.#notesByStorageSlotAndScope.set(scopeString, this.#db.openMultiMap(`${scopeString}:notes_by_storage_slot`));
+    this.#notesByTxHashAndScope.set(scopeString, this.#db.openMultiMap(`${scopeString}:notes_by_tx_hash`));
+    this.#notesByIvpkMAndScope.set(scopeString, this.#db.openMultiMap(`${scopeString}:notes_by_ivpk_m`));
+
+    return true;
   }
 
   addCompleteAddress(completeAddress: CompleteAddress): Promise<boolean> {

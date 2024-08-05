@@ -20,4 +20,6 @@ export type IncomingNotesFilter = {
   status?: NoteStatus;
   /** The siloed nullifier for the note. */
   siloedNullifier?: Fr;
+  /** The scopes in which to get incoming notes from. This defaults to all scopes. */
+  scopes?: AztecAddress[];
 };
