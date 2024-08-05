@@ -31,8 +31,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
     ) -> IResult<Value> {
         let interner = &mut self.elaborator.interner;
         match name {
-            "array_len" => array_len(interner, arguments, location),
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
+            "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
@@ -175,7 +175,8 @@ fn get_u8(value: Value, location: Location) -> IResult<u8> {
         Value::U8(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
-            Err(InterpreterError::TypeMismatch { expected, value, location })
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
 }
