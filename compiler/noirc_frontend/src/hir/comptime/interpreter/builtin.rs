@@ -563,7 +563,7 @@ fn type_as_struct(
                 Value::StructDefinition(struct_type.borrow().id),
                 Value::Slice(
                     generics.into_iter().map(Value::Type).collect(),
-                    Type::Quoted(QuotedType::Type),
+                    Type::Slice(Box::new(Type::Quoted(QuotedType::Type))),
                 ),
             ]))
         } else {
