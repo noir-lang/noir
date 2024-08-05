@@ -8,28 +8,10 @@ trait Eq {
 // docs:end:eq-trait
 
 comptime fn derive_eq(s: StructDefinition) -> Quoted {
-    let typ = s.as_type();
-
-    let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
-
-    let where_clause = s.generics().map(|name| quote { $name: Eq }).join(quote {,});
-
-    // `(self.a == other.a) & (self.b == other.b) & ...`
-    let equalities = s.fields().map(
-        |f: (Quoted, Type)| {
-        let name = f.0;
-        quote { (self.$name == other.$name) }
-    }
-    );
-    let body = equalities.join(quote { & });
-
-    quote {
-        impl<$impl_generics> Eq for $typ where $where_clause {
-            fn eq(self, other: Self) -> bool {
-                $body
-            }
-        }
-    }
+    let signature = quote { fn eq(self, other: Self) -> bool };
+    let for_each_field = |name| quote { (self.$name == other.$name) };
+    let join_fields_with = quote { & };
+    crate::meta::make_impl(s, quote { Eq }, signature, for_each_field, join_fields_with)
 }
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
@@ -127,11 +109,46 @@ impl Ordering {
     }
 }
 
+// #[derive_via(derive_ord)]
 // docs:start:ord-trait
 trait Ord {
     fn cmp(self, other: Self) -> Ordering;
 }
 // docs:end:ord-trait
+
+// comptime fn derive_ord(s: StructDefinition) -> Quoted {
+//     let typ = s.as_type();
+// 
+//     let impl_generics = s.generics().join(quote {,});
+// 
+//     let where_clause = s.generics().map(|name| quote { $name: Ord }).join(quote {,});
+// 
+//     // For each field:
+//     // if result == Ordering::equal() {
+//     //     result = self.$field.cmp(other.$field);
+//     // }
+//     let body = s.fields().map(
+//         |f: (Quoted, Type)| {
+//         let name = f.0;
+//         quote {
+//             if result == Ordering::equal() {
+//                 result = self.$name.cmp(other.$name);
+//             }
+//         }
+//     }
+//     );
+//     let body = equalities.join(quote{});
+// 
+//     quote {
+//         impl<$impl_generics> Eq for $typ where $where_clause {
+//             fn cmp(self, other: Self) -> Ordering {
+//                 let mut result = Ordering::equal();
+//                 $body
+//                 result
+//             }
+//         }
+//     }
+// }
 
 // Note: Field deliberately does not implement Ord
 
