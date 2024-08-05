@@ -36,6 +36,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "as_slice" => as_slice(interner, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
+            "function_def_return_type" => function_def_return_type(interner, arguments, location),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
             "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
@@ -775,6 +776,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
 }
+
 // fn parameters(self) -> [(Quoted, Type)]
 fn function_def_parameters(
     interner: &NodeInterner,
@@ -801,6 +803,19 @@ fn function_def_parameters(
     ])));
 
     Ok(Value::Slice(parameters, typ))
+}
+
+// fn parameters(self) -> Type
+fn function_def_return_type(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument, location)?;
+    let func_meta = interner.function_meta(&func_id);
+
+    Ok(Value::Type(func_meta.return_type().clone()))
 }
 
 fn modulus_be_bits(
