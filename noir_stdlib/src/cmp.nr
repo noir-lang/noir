@@ -14,7 +14,7 @@ comptime fn derive_eq(s: StructDefinition) -> Quoted {
         quote { fn eq(_self: Self, _other: Self) -> bool },
         |name| quote { (_self.$name == _other.$name) },
         quote { & },
-        |fields| fields,
+        |fields| fields
     )
 }
 

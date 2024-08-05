@@ -154,7 +154,7 @@ comptime fn derive_hash(s: StructDefinition) -> Quoted {
         quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher },
         |name| quote { _self.$name.hash(_state); },
         quote {},
-        |fields| fields,
+        |fields| fields
     )
 }
 

@@ -14,7 +14,7 @@ comptime fn derive_default(s: StructDefinition) -> Quoted {
         quote { fn default() -> Self },
         |name| quote { $name: Default::default() },
         quote { , },
-        |fields| quote { Self { $fields } },
+        |fields| quote { Self { $fields } }
     )
 }
 
