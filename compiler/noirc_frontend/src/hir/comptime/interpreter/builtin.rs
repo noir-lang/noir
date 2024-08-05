@@ -12,8 +12,9 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::IntegerBitSize,
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
+    hir_def::stmt::HirPattern,
     macros_api::{NodeInterner, Signedness},
-    node_interner::TraitId,
+    node_interner::{FuncId, TraitId},
     parser,
     token::Token,
     QuotedType, Shared, Type,
@@ -34,6 +35,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
+            "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
             "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
@@ -173,6 +175,17 @@ pub(super) fn get_u32(value: Value, location: Location) -> IResult<u32> {
         Value::U32(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
+fn get_function_def(value: Value, location: Location) -> IResult<FuncId> {
+    match value {
+        Value::FunctionDefinition(id) => Ok(id),
+        value => {
+            let expected = Type::Quoted(QuotedType::FunctionDefinition);
             let actual = value.get_type().into_owned();
             Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
@@ -761,6 +774,33 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
 }
+// fn parameters(self) -> [(Quoted, Type)]
+fn function_def_parameters(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument, location)?;
+    let func_meta = interner.function_meta(&func_id);
+
+    let parameters = func_meta
+        .parameters
+        .iter()
+        .map(|(hir_pattern, typ, _visibility)| {
+            let name = Value::Quoted(Rc::new(hir_pattern_to_tokens(interner, hir_pattern)));
+            let typ = Value::Type(typ.clone());
+            Value::Tuple(vec![name, typ])
+        })
+        .collect();
+
+    let typ = Type::Slice(Box::new(Type::Tuple(vec![
+        Type::Quoted(QuotedType::Quoted),
+        Type::Quoted(QuotedType::Type),
+    ])));
+
+    Ok(Value::Slice(parameters, typ))
+}
 
 fn modulus_be_bits(
     _interner: &mut NodeInterner,
@@ -868,4 +908,71 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     assert_eq!(struct_type.name.0.contents, "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
+}
+
+fn hir_pattern_to_tokens(interner: &NodeInterner, hir_pattern: &HirPattern) -> Vec<Token> {
+    let mut tokens = Vec::new();
+    gather_hir_pattern_tokens(interner, hir_pattern, &mut tokens);
+    tokens
+}
+
+fn gather_hir_pattern_tokens(
+    interner: &NodeInterner,
+    hir_pattern: &HirPattern,
+    tokens: &mut Vec<Token>,
+) {
+    match hir_pattern {
+        HirPattern::Identifier(hir_ident) => {
+            let name = interner.definition_name(hir_ident.id).to_string();
+            tokens.push(Token::Ident(name));
+        }
+        HirPattern::Mutable(pattern, _) => {
+            tokens.push(Token::Keyword(crate::token::Keyword::Mut));
+            gather_hir_pattern_tokens(interner, pattern, tokens);
+        }
+        HirPattern::Tuple(patterns, _) => {
+            tokens.push(Token::LeftParen);
+            for (index, pattern) in patterns.iter().enumerate() {
+                if index != 0 {
+                    tokens.push(Token::Comma);
+                }
+                gather_hir_pattern_tokens(interner, pattern, tokens);
+            }
+            tokens.push(Token::RightParen);
+        }
+        HirPattern::Struct(typ, fields, _) => {
+            let Type::Struct(struct_type, _) = typ else {
+                panic!("Expected type to be a struct");
+            };
+
+            let name = struct_type.borrow().name.to_string();
+            tokens.push(Token::Ident(name));
+
+            tokens.push(Token::LeftBrace);
+            for (index, (field_name, pattern)) in fields.iter().enumerate() {
+                if index != 0 {
+                    tokens.push(Token::Comma);
+                }
+
+                let field_name = &field_name.0.contents;
+                tokens.push(Token::Ident(field_name.to_string()));
+
+                // If we have a pattern like `Foo { x }`, that's internally represented as `Foo { x: x }` so
+                // here we check if the field name is the same as the pattern and, if so, omit the `: x` part.
+                let field_name_is_same_as_pattern = if let HirPattern::Identifier(pattern) = pattern
+                {
+                    let pattern_name = interner.definition_name(pattern.id);
+                    field_name == pattern_name
+                } else {
+                    false
+                };
+
+                if !field_name_is_same_as_pattern {
+                    tokens.push(Token::Colon);
+                    gather_hir_pattern_tokens(interner, pattern, tokens);
+                }
+            }
+            tokens.push(Token::RightBrace);
+        }
+    }
 }
