@@ -38,6 +38,7 @@ export class AcirSimulator {
    * @param entryPointArtifact - The artifact of the entry point function.
    * @param contractAddress - The address of the contract (should match request.origin)
    * @param msgSender - The address calling the function. This can be replaced to simulate a call from another contract or a specific account.
+   * @param scopes - The accounts whose notes we can access in this call. Currently optional and will default to all.
    * @returns The result of the execution.
    */
   public async run(
@@ -45,6 +46,7 @@ export class AcirSimulator {
     entryPointArtifact: FunctionArtifact,
     contractAddress: AztecAddress,
     msgSender = AztecAddress.fromField(Fr.MAX_FIELD_VALUE),
+    scopes?: AztecAddress[],
   ): Promise<ExecutionResult> {
     if (entryPointArtifact.functionType !== FunctionType.PRIVATE) {
       throw new Error(`Cannot run ${entryPointArtifact.functionType} function as private`);
@@ -83,6 +85,8 @@ export class AcirSimulator {
       this.db,
       this.node,
       startSideEffectCounter,
+      undefined,
+      scopes,
     );
 
     try {
@@ -103,18 +107,19 @@ export class AcirSimulator {
    * @param request - The transaction request.
    * @param entryPointArtifact - The artifact of the entry point function.
    * @param contractAddress - The address of the contract.
-   * @param aztecNode - The AztecNode instance.
+   * @param scopes - The accounts whose notes we can access in this call. Currently optional and will default to all.
    */
   public async runUnconstrained(
     request: FunctionCall,
     entryPointArtifact: FunctionArtifact,
     contractAddress: AztecAddress,
+    scopes?: AztecAddress[],
   ) {
     if (entryPointArtifact.functionType !== FunctionType.UNCONSTRAINED) {
       throw new Error(`Cannot run ${entryPointArtifact.functionType} function as unconstrained`);
     }
 
-    const context = new ViewDataOracle(contractAddress, [], this.db, this.node);
+    const context = new ViewDataOracle(contractAddress, [], this.db, this.node, undefined, scopes);
 
     try {
       return await executeUnconstrainedFunction(
@@ -195,6 +200,7 @@ export class AcirSimulator {
       execRequest,
       artifact,
       contractAddress,
+      // We can omit scopes here, because "compute_note_hash_and_optionally_a_nullifier" does not need access to any notes.
     )) as bigint[];
 
     return {

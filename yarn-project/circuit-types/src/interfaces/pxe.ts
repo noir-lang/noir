@@ -159,11 +159,12 @@ export interface PXE {
    *
    * @param txRequest - An authenticated tx request ready for simulation
    * @param simulatePublic - Whether to simulate the public part of the transaction.
+   * @param scopes - (Optional) The accounts whose notes we can access in this call. Currently optional and will default to all.
    * @returns A transaction ready to be sent to the network for execution.
    * @throws If the code for the functions executed in this transaction has not been made available via `addContracts`.
    * Also throws if simulatePublic is true and public simulation reverts.
    */
-  proveTx(txRequest: TxExecutionRequest, simulatePublic: boolean): Promise<Tx>;
+  proveTx(txRequest: TxExecutionRequest, simulatePublic: boolean, scopes?: AztecAddress[]): Promise<Tx>;
 
   /**
    * Simulates a transaction based on the provided preauthenticated execution request.
@@ -179,12 +180,18 @@ export interface PXE {
    * @param txRequest - An authenticated tx request ready for simulation
    * @param simulatePublic - Whether to simulate the public part of the transaction.
    * @param msgSender - (Optional) The message sender to use for the simulation.
+   * @param scopes - (Optional) The accounts whose notes we can access in this call. Currently optional and will default to all.
    * @returns A simulated transaction object that includes a transaction that is potentially ready
    * to be sent to the network for execution, along with public and private return values.
    * @throws If the code for the functions executed in this transaction has not been made available via `addContracts`.
    * Also throws if simulatePublic is true and public simulation reverts.
    */
-  simulateTx(txRequest: TxExecutionRequest, simulatePublic: boolean, msgSender?: AztecAddress): Promise<SimulatedTx>;
+  simulateTx(
+    txRequest: TxExecutionRequest,
+    simulatePublic: boolean,
+    msgSender?: AztecAddress,
+    scopes?: AztecAddress[],
+  ): Promise<SimulatedTx>;
 
   /**
    * Sends a transaction to an Aztec node to be broadcasted to the network and mined.
@@ -281,9 +288,16 @@ export interface PXE {
    * @param args - The arguments to be provided to the function.
    * @param to - The address of the contract to be called.
    * @param from - (Optional) The msg sender to set for the call.
+   * @param scopes - (Optional) The accounts whose notes we can access in this call. Currently optional and will default to all.
    * @returns The result of the view function call, structured based on the function ABI.
    */
-  simulateUnconstrained(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress): Promise<any>;
+  simulateUnconstrained(
+    functionName: string,
+    args: any[],
+    to: AztecAddress,
+    from?: AztecAddress,
+    scopes?: AztecAddress[],
+  ): Promise<any>;
 
   /**
    * Gets unencrypted logs based on the provided filter.

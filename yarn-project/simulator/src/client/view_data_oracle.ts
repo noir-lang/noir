@@ -30,6 +30,7 @@ export class ViewDataOracle extends TypedOracle {
     protected readonly db: DBOracle,
     protected readonly aztecNode: AztecNode,
     protected log = createDebugLogger('aztec:simulator:client_view_context'),
+    protected readonly scopes?: AztecAddress[],
   ) {
     super();
   }
@@ -219,7 +220,7 @@ export class ViewDataOracle extends TypedOracle {
     offset: number,
     status: NoteStatus,
   ): Promise<NoteData[]> {
-    const dbNotes = await this.db.getNotes(this.contractAddress, storageSlot, status);
+    const dbNotes = await this.db.getNotes(this.contractAddress, storageSlot, status, this.scopes);
     return pickNotes<NoteData>(dbNotes, {
       selects: selectByIndexes.slice(0, numSelects).map((index, i) => ({
         selector: { index, offset: selectByOffsets[i], length: selectByLengths[i] },

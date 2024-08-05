@@ -77,11 +77,12 @@ export class SimulatorOracle implements DBOracle {
     return capsule;
   }
 
-  async getNotes(contractAddress: AztecAddress, storageSlot: Fr, status: NoteStatus) {
+  async getNotes(contractAddress: AztecAddress, storageSlot: Fr, status: NoteStatus, scopes?: AztecAddress[]) {
     const noteDaos = await this.db.getIncomingNotes({
       contractAddress,
       storageSlot,
       status,
+      scopes,
     });
     return noteDaos.map(({ contractAddress, storageSlot, nonce, note, slottedNoteHash, siloedNullifier, index }) => ({
       contractAddress,

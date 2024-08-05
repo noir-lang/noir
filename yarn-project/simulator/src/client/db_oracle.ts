@@ -81,9 +81,15 @@ export interface DBOracle extends CommitmentsDB {
    * @param contractAddress - The contract address of the notes.
    * @param storageSlot - The storage slot of the notes.
    * @param status - The status of notes to fetch.
+   * @param scopes - The accounts whose notes we can access in this call. Currently optional and will default to all.
    * @returns A Promise that resolves to an array of note data.
    */
-  getNotes(contractAddress: AztecAddress, storageSlot: Fr, status: NoteStatus): Promise<NoteData[]>;
+  getNotes(
+    contractAddress: AztecAddress,
+    storageSlot: Fr,
+    status: NoteStatus,
+    scopes?: AztecAddress[],
+  ): Promise<NoteData[]>;
 
   /**
    * Retrieve the artifact information of a specific function within a contract.

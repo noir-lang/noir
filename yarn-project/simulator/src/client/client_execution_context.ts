@@ -94,8 +94,9 @@ export class ClientExecutionContext extends ViewDataOracle {
     private node: AztecNode,
     protected sideEffectCounter: number = 0,
     log = createDebugLogger('aztec:simulator:client_execution_context'),
+    scopes?: AztecAddress[],
   ) {
-    super(contractAddress, authWitnesses, db, node, log);
+    super(contractAddress, authWitnesses, db, node, log, scopes);
   }
 
   // We still need this function until we can get user-defined ordering of structs for fn arguments
@@ -251,7 +252,7 @@ export class ClientExecutionContext extends ViewDataOracle {
     const pendingNotes = this.noteCache.getNotes(this.callContext.storageContractAddress, storageSlot);
 
     const pendingNullifiers = this.noteCache.getNullifiers(this.callContext.storageContractAddress);
-    const dbNotes = await this.db.getNotes(this.callContext.storageContractAddress, storageSlot, status);
+    const dbNotes = await this.db.getNotes(this.callContext.storageContractAddress, storageSlot, status, this.scopes);
     const dbNotesFiltered = dbNotes.filter(n => !pendingNullifiers.has((n.siloedNullifier as Fr).value));
 
     const notes = pickNotes<NoteData>([...dbNotesFiltered, ...pendingNotes], {
@@ -516,6 +517,8 @@ export class ClientExecutionContext extends ViewDataOracle {
       this.db,
       this.node,
       sideEffectCounter,
+      this.log,
+      this.scopes,
     );
 
     const childExecutionResult = await executePrivateFunction(

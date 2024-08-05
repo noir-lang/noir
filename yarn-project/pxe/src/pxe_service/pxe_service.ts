@@ -484,9 +484,9 @@ export class PXEService implements PXE {
     return await this.node.getBlock(blockNumber);
   }
 
-  public proveTx(txRequest: TxExecutionRequest, simulatePublic: boolean): Promise<Tx> {
+  public proveTx(txRequest: TxExecutionRequest, simulatePublic: boolean, scopes?: AztecAddress[]): Promise<Tx> {
     return this.jobQueue.put(async () => {
-      const simulatedTx = await this.#simulateAndProve(txRequest, this.proofCreator, undefined);
+      const simulatedTx = await this.#simulateAndProve(txRequest, this.proofCreator, undefined, scopes);
       if (simulatePublic) {
         simulatedTx.publicOutput = await this.#simulatePublicCalls(simulatedTx.tx);
       }
@@ -499,9 +499,10 @@ export class PXEService implements PXE {
     txRequest: TxExecutionRequest,
     simulatePublic: boolean,
     msgSender: AztecAddress | undefined = undefined,
+    scopes?: AztecAddress[],
   ): Promise<SimulatedTx> {
     return await this.jobQueue.put(async () => {
-      const simulatedTx = await this.#simulateAndProve(txRequest, this.fakeProofCreator, msgSender);
+      const simulatedTx = await this.#simulateAndProve(txRequest, this.fakeProofCreator, msgSender, scopes);
       if (simulatePublic) {
         simulatedTx.publicOutput = await this.#simulatePublicCalls(simulatedTx.tx);
       }
@@ -532,12 +533,13 @@ export class PXEService implements PXE {
     args: any[],
     to: AztecAddress,
     _from?: AztecAddress,
+    scopes?: AztecAddress[],
   ): Promise<DecodedReturn> {
     // all simulations must be serialized w.r.t. the synchronizer
     return await this.jobQueue.put(async () => {
       // TODO - Should check if `from` has the permission to call the view function.
       const functionCall = await this.#getFunctionCall(functionName, args, to);
-      const executionResult = await this.#simulateUnconstrained(functionCall);
+      const executionResult = await this.#simulateUnconstrained(functionCall, scopes);
 
       // TODO - Return typed result based on the function artifact.
       return executionResult;
@@ -649,14 +651,18 @@ export class PXEService implements PXE {
     };
   }
 
-  async #simulate(txRequest: TxExecutionRequest, msgSender?: AztecAddress): Promise<ExecutionResult> {
+  async #simulate(
+    txRequest: TxExecutionRequest,
+    msgSender?: AztecAddress,
+    scopes?: AztecAddress[],
+  ): Promise<ExecutionResult> {
     // TODO - Pause syncing while simulating.
 
     const { contractAddress, functionArtifact } = await this.#getSimulationParameters(txRequest);
 
     this.log.debug('Executing simulator...');
     try {
-      const result = await this.simulator.run(txRequest, functionArtifact, contractAddress, msgSender);
+      const result = await this.simulator.run(txRequest, functionArtifact, contractAddress, msgSender, scopes);
       this.log.verbose(`Simulation completed for ${contractAddress.toString()}:${functionArtifact.name}`);
       return result;
     } catch (err) {
@@ -673,14 +679,15 @@ export class PXEService implements PXE {
    * Returns the simulation result containing the outputs of the unconstrained function.
    *
    * @param execRequest - The transaction request object containing the target contract and function data.
+   * @param scopes - The accounts whose notes we can access in this call. Currently optional and will default to all.
    * @returns The simulation result containing the outputs of the unconstrained function.
    */
-  async #simulateUnconstrained(execRequest: FunctionCall) {
+  async #simulateUnconstrained(execRequest: FunctionCall, scopes?: AztecAddress[]) {
     const { contractAddress, functionArtifact } = await this.#getSimulationParameters(execRequest);
 
     this.log.debug('Executing unconstrained simulator...');
     try {
-      const result = await this.simulator.runUnconstrained(execRequest, functionArtifact, contractAddress);
+      const result = await this.simulator.runUnconstrained(execRequest, functionArtifact, contractAddress, scopes);
       this.log.verbose(`Unconstrained simulation for ${contractAddress}.${functionArtifact.name} completed`);
 
       return result;
@@ -738,6 +745,7 @@ export class PXEService implements PXE {
    * @param txExecutionRequest - The transaction request to be simulated and proved.
    * @param proofCreator - The proof creator to use for proving the execution.
    * @param msgSender - (Optional) The message sender to use for the simulation.
+   * @param scopes - The accounts whose notes we can access in this call. Currently optional and will default to all.
    * @returns An object that contains:
    * A private transaction object containing the proof, public inputs, and encrypted logs.
    * The return values of the private execution
@@ -746,9 +754,10 @@ export class PXEService implements PXE {
     txExecutionRequest: TxExecutionRequest,
     proofCreator: PrivateKernelProver,
     msgSender?: AztecAddress,
+    scopes?: AztecAddress[],
   ): Promise<SimulatedTx> {
     // Get values that allow us to reconstruct the block hash
-    const executionResult = await this.#simulate(txExecutionRequest, msgSender);
+    const executionResult = await this.#simulate(txExecutionRequest, msgSender, scopes);
 
     const kernelOracle = new KernelOracle(this.contractDataOracle, this.keyStore, this.node);
     const kernelProver = new KernelProver(kernelOracle, proofCreator);
