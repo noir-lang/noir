@@ -748,12 +748,10 @@ fn function_def_set_body(
 
     let body =
         parser::block(parser::fresh_statement()).parse(body_quoted).map_err(|mut errors| {
-            let error = errors.swap_remove(0);
-            let rule = "a block";
             InterpreterError::FailedToParseMacro {
-                error,
+                error: errors.swap_remove(0),
                 tokens: body_tokens,
-                rule,
+                rule: "a block",
                 file: location.file,
             }
         })?;
@@ -803,12 +801,10 @@ fn function_def_set_parameters(
             add_token_spans(parameter_name_tokens.clone(), parameters_argument_location.span);
         let parameter_pattern =
             parser::pattern().parse(parameter_name_quoted).map_err(|mut errors| {
-                let error = errors.swap_remove(0);
-                let rule = "a pattern";
                 InterpreterError::FailedToParseMacro {
-                    error,
+                    error: errors.swap_remove(0),
                     tokens: parameter_name_tokens,
-                    rule,
+                    rule: "a pattern",
                     file: location.file,
                 }
             })?;
