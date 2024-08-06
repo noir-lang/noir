@@ -2,8 +2,6 @@
 //! which the results are unused.
 use std::collections::HashSet;
 
-use noirc_frontend::hir_def::function;
-
 use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
@@ -79,7 +77,7 @@ impl Context {
         function: &mut Function,
         block_id: BasicBlockId,
     ) {
-        self.remove_unused_instructions_in_block_impl(function, block_id, true)
+        self.remove_unused_instructions_in_block_impl(function, block_id, true);
     }
 
     fn remove_unused_instructions_in_block_impl(
