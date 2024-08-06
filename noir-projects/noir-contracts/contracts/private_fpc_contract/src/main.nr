@@ -21,8 +21,6 @@ contract PrivateFPC {
     #[aztec(private)]
     fn fund_transaction_privately(amount: Field, asset: AztecAddress, user_randomness: Field) {
         assert(asset == storage.other_asset.read_private());
-        // convince the FPC we are not cheating
-        context.push_nullifier(user_randomness);
 
         // We use different randomness for fee payer to prevent a potential privacy leak (see description
         // of `setup_refund(...)` function in TokenWithRefunds for details.
