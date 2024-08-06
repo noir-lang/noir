@@ -32,20 +32,20 @@ pub(crate) fn check_argument_count(
 pub(crate) fn check_one_argument(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> IResult<Value> {
+) -> IResult<(Value, Location)> {
     check_argument_count(1, &arguments, location)?;
 
-    Ok(arguments.pop().unwrap().0)
+    Ok(arguments.pop().unwrap())
 }
 
 pub(crate) fn check_two_arguments(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> IResult<(Value, Value)> {
+) -> IResult<((Value, Location), (Value, Location))> {
     check_argument_count(2, &arguments, location)?;
 
-    let argument2 = arguments.pop().unwrap().0;
-    let argument1 = arguments.pop().unwrap().0;
+    let argument2 = arguments.pop().unwrap();
+    let argument1 = arguments.pop().unwrap();
 
     Ok((argument1, argument2))
 }
@@ -53,12 +53,12 @@ pub(crate) fn check_two_arguments(
 pub(crate) fn check_three_arguments(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> IResult<(Value, Value, Value)> {
+) -> IResult<((Value, Location), (Value, Location), (Value, Location))> {
     check_argument_count(3, &arguments, location)?;
 
-    let argument3 = arguments.pop().unwrap().0;
-    let argument2 = arguments.pop().unwrap().0;
-    let argument1 = arguments.pop().unwrap().0;
+    let argument3 = arguments.pop().unwrap();
+    let argument2 = arguments.pop().unwrap();
+    let argument1 = arguments.pop().unwrap();
 
     Ok((argument1, argument2, argument3))
 }

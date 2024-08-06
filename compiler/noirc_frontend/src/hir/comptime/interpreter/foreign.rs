@@ -31,10 +31,11 @@ fn poseidon2_permutation(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (input, state_length) = check_two_arguments(arguments, location)?;
+    let ((input, input_location), (state_length, state_length_location)) =
+        check_two_arguments(arguments, location)?;
 
-    let (input, typ) = get_array(interner, input, location)?;
-    let state_length = get_u32(state_length, location)?;
+    let (input, typ) = get_array(interner, input, input_location)?;
+    let state_length = get_u32(state_length, state_length_location)?;
 
     let input = try_vecmap(input, |integer| get_field(integer, location))?;
 
