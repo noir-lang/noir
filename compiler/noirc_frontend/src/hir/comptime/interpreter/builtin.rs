@@ -775,7 +775,7 @@ fn function_def_set_parameters(
         parameter_types.push(parameter_type);
     }
 
-    mutate_func_meta_type(&mut interpreter.elaborator.interner, func_id, |func_meta| {
+    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
         func_meta.parameters = parameters.into();
         func_meta.parameter_idents = parameter_idents;
         replace_func_meta_parameters(&mut func_meta.typ, parameter_types);
@@ -798,7 +798,7 @@ fn function_def_set_return_type(
 
     let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type.clone());
 
-    mutate_func_meta_type(&mut interpreter.elaborator.interner, func_id, |func_meta| {
+    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
         func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
             typ: UnresolvedTypeData::Resolved(quoted_type_id),
             span: Some(location.span),
@@ -984,7 +984,7 @@ fn check_function_not_yet_resolved(
     match func_meta.function_body {
         FunctionBody::Unresolved(_, _, _) => Ok(()),
         FunctionBody::Resolving | FunctionBody::Resolved => {
-            return Err(InterpreterError::FunctionAlreadyResolved { location })
+            Err(InterpreterError::FunctionAlreadyResolved { location })
         }
     }
 }

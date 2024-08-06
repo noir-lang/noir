@@ -159,7 +159,7 @@ pub(crate) fn get_struct((value, location): ValueAndLocation) -> IResult<StructI
         _ => {
             let expected = Type::Quoted(QuotedType::StructDefinition);
             let actual = value.get_type().into_owned();
-            return Err(InterpreterError::TypeMismatch { expected, location, actual });
+            Err(InterpreterError::TypeMismatch { expected, location, actual })
         }
     }
 }
