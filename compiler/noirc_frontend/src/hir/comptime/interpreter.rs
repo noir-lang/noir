@@ -44,6 +44,8 @@ mod builtin;
 mod foreign;
 mod unquote;
 
+pub(crate) type ValueAndLocation = (Value, Location);
+
 #[allow(unused)]
 pub struct Interpreter<'local, 'interner> {
     /// To expand macros the Interpreter needs access to the Elaborator
@@ -76,7 +78,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub(crate) fn call_function(
         &mut self,
         function: FuncId,
-        arguments: Vec<(Value, Location)>,
+        arguments: Vec<ValueAndLocation>,
         mut instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
@@ -110,7 +112,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn call_function_inner(
         &mut self,
         function: FuncId,
-        arguments: Vec<(Value, Location)>,
+        arguments: Vec<ValueAndLocation>,
         location: Location,
     ) -> IResult<Value> {
         let meta = self.elaborator.interner.function_meta(&function);
@@ -139,7 +141,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn call_user_defined_function(
         &mut self,
         function: FuncId,
-        arguments: Vec<(Value, Location)>,
+        arguments: Vec<ValueAndLocation>,
         location: Location,
     ) -> IResult<Value> {
         let meta = self.elaborator.interner.function_meta(&function);
@@ -193,7 +195,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn call_special(
         &mut self,
         function: FuncId,
-        arguments: Vec<(Value, Location)>,
+        arguments: Vec<ValueAndLocation>,
         return_type: Type,
         location: Location,
     ) -> IResult<Value> {
@@ -227,7 +229,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         &mut self,
         closure: HirLambda,
         environment: Vec<Value>,
-        arguments: Vec<(Value, Location)>,
+        arguments: Vec<ValueAndLocation>,
         call_location: Location,
     ) -> IResult<Value> {
         let previous_state = self.enter_function();
@@ -1641,7 +1643,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
+    fn print_oracle(&self, arguments: Vec<ValueAndLocation>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
         let print_newline = arguments[0].0 == Value::Bool(true);

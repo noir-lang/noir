@@ -27,11 +27,9 @@ use crate::{
     QuotedType, Shared, Type,
 };
 
-use super::Interpreter;
+use super::{Interpreter, ValueAndLocation};
 
 pub(crate) mod builtin_helpers;
-
-pub(crate) type ValueAndLocation = (Value, Location);
 
 impl<'local, 'context> Interpreter<'local, 'context> {
     pub(super) fn call_builtin(
