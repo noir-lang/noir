@@ -28,3 +28,4 @@ export * as url from './url/index.js';
 export * as wasm from './wasm/index.js';
 export * as worker from './worker/index.js';
 export * as testing from './testing/index.js';
+export * as hash from './hash/index.js';

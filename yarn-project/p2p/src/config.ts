@@ -1,5 +1,3 @@
-import { SemVer } from 'semver';
-
 /**
  * P2P client configuration values.
  */
@@ -80,11 +78,6 @@ export interface P2PConfig {
   dataDirectory?: string;
 
   /**
-   * The transaction gossiping message version.
-   */
-  txGossipVersion: SemVer;
-
-  /**
    * If announceUdpAddress or announceTcpAddress are not provided, query for the IP address of the machine. Default is false.
    */
   queryForIp: boolean;
@@ -113,7 +106,6 @@ export function getP2PConfigEnvVars(): P2PConfig {
     P2P_MIN_PEERS,
     P2P_MAX_PEERS,
     DATA_DIRECTORY,
-    TX_GOSSIP_VERSION,
     P2P_TX_PROTOCOL,
     P2P_QUERY_FOR_IP,
     P2P_TX_POOL_KEEP_PROVEN_FOR,
@@ -136,7 +128,6 @@ export function getP2PConfigEnvVars(): P2PConfig {
     minPeerCount: P2P_MIN_PEERS ? +P2P_MIN_PEERS : 10,
     maxPeerCount: P2P_MAX_PEERS ? +P2P_MAX_PEERS : 100,
     dataDirectory: DATA_DIRECTORY,
-    txGossipVersion: TX_GOSSIP_VERSION ? new SemVer(TX_GOSSIP_VERSION) : new SemVer('0.1.0'),
     queryForIp: P2P_QUERY_FOR_IP === 'true',
     keepProvenTxsInPoolFor: P2P_TX_POOL_KEEP_PROVEN_FOR ? +P2P_TX_POOL_KEEP_PROVEN_FOR : 0,
   };

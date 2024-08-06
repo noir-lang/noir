@@ -1,4 +1,4 @@
-import { Tx } from '@aztec/circuit-types';
+import { type Gossipable, type RawGossipMessage, TopicType, TopicTypeMap, Tx } from '@aztec/circuit-types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
@@ -21,7 +21,6 @@ import { convertToMultiaddr } from '../util.js';
 import { AztecDatastore } from './data_store.js';
 import { PeerManager } from './peer_manager.js';
 import type { P2PService, PeerDiscoveryService } from './service.js';
-import { AztecTxMessageCreator } from './tx_messages.js';
 
 export interface PubSubLibp2p extends Libp2p {
   services: {
@@ -49,7 +48,6 @@ export async function createLibP2PPeerId(privateKey?: string): Promise<PeerId> {
  */
 export class LibP2PService implements P2PService {
   private jobQueue: SerialQueue = new SerialQueue();
-  private messageCreator: AztecTxMessageCreator;
   private peerManager: PeerManager;
   private discoveryRunningPromise?: RunningPromise;
   constructor(
@@ -59,7 +57,6 @@ export class LibP2PService implements P2PService {
     private txPool: TxPool,
     private logger = createDebugLogger('aztec:libp2p_service'),
   ) {
-    this.messageCreator = new AztecTxMessageCreator(config.txGossipVersion);
     this.peerManager = new PeerManager(node, peerDiscoveryService, config, logger);
   }
 
@@ -89,14 +86,16 @@ export class LibP2PService implements P2PService {
     this.logger.info(`Started P2P client with Peer ID ${this.node.peerId.toString()}`);
 
     // Subscribe to standard GossipSub topics by default
-    this.subscribeToTopic(this.messageCreator.getTopic());
+    for (const topic in TopicType) {
+      this.subscribeToTopic(TopicTypeMap[topic].p2pTopic);
+    }
 
     // add GossipSub listener
     this.node.services.pubsub.addEventListener('gossipsub:message', async e => {
       const { msg } = e.detail;
       this.logger.debug(`Received PUBSUB message.`);
 
-      await this.jobQueue.put(() => this.handleNewGossipMessage(msg.topic, msg.data));
+      await this.jobQueue.put(() => this.handleNewGossipMessage(msg));
     });
 
     // Start running promise for peer discovery
@@ -233,14 +232,13 @@ export class LibP2PService implements P2PService {
    * @param topic - The message's topic.
    * @param data - The message data
    */
-  private async handleNewGossipMessage(topic: string, data: Uint8Array) {
-    if (topic !== this.messageCreator.getTopic()) {
-      // Invalid TX Topic, ignore
-      return;
+  private async handleNewGossipMessage(message: RawGossipMessage) {
+    if (message.topic === Tx.p2pTopic) {
+      const tx = Tx.fromBuffer(Buffer.from(message.data));
+      await this.processTxFromPeer(tx);
     }
 
-    const tx = Tx.fromBuffer(Buffer.from(data));
-    await this.processTxFromPeer(tx);
+    return;
   }
 
   /**
@@ -248,7 +246,7 @@ export class LibP2PService implements P2PService {
    * @param tx - The transaction to propagate.
    */
   public propagateTx(tx: Tx): void {
-    void this.jobQueue.put(() => Promise.resolve(this.sendTxToPeers(tx)));
+    void this.jobQueue.put(() => Promise.resolve(this.sendToPeers(tx)));
   }
 
   private async processTxFromPeer(tx: Tx): Promise<void> {
@@ -258,11 +256,14 @@ export class LibP2PService implements P2PService {
     await this.txPool.addTxs([tx]);
   }
 
-  private async sendTxToPeers(tx: Tx) {
-    const { data: txData } = this.messageCreator.createTxMessage(tx);
-    this.logger.verbose(`Sending tx ${tx.getTxHash().toString()} to peers`);
-    const recipientsNum = await this.publishToTopic(this.messageCreator.getTopic(), txData);
-    this.logger.verbose(`Sent tx ${tx.getTxHash().toString()} to ${recipientsNum} peers`);
+  private async sendToPeers<T extends Gossipable>(message: T) {
+    const parent = message.constructor as typeof Gossipable;
+
+    const identifier = message.p2pMessageIdentifier().toString();
+    this.logger.verbose(`Sending tx ${identifier} to peers`);
+
+    const recipientsNum = await this.publishToTopic(parent.p2pTopic, message.toBuffer());
+    this.logger.verbose(`Sent tx ${identifier} to ${recipientsNum} peers`);
   }
 
   // Libp2p seems to hang sometimes if new peers are initiating connections.

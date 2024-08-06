@@ -5,11 +5,14 @@ import {
   type PublicKernelCircuitPublicInputs,
 } from '@aztec/circuits.js';
 import { arraySerializedSizeOfNonEmpty } from '@aztec/foundation/collection';
+import { type BaseHashType } from '@aztec/foundation/hash';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { type GetUnencryptedLogsResponse } from '../logs/get_unencrypted_logs_response.js';
 import { type L2LogsSource } from '../logs/l2_logs_source.js';
 import { EncryptedNoteTxL2Logs, EncryptedTxL2Logs, UnencryptedTxL2Logs } from '../logs/tx_l2_logs.js';
+import { Gossipable } from '../p2p/gossipable.js';
+import { TopicType, createTopicString } from '../p2p/topic_type.js';
 import { PublicExecutionRequest } from '../public_execution_request.js';
 import { type TxStats } from '../stats/stats.js';
 import { TxHash } from './tx_hash.js';
@@ -17,7 +20,9 @@ import { TxHash } from './tx_hash.js';
 /**
  * The interface of an L2 transaction.
  */
-export class Tx {
+export class Tx extends Gossipable {
+  static override p2pTopic: string;
+
   constructor(
     /**
      * Output of the private kernel circuit for this tx.
@@ -49,7 +54,19 @@ export class Tx {
      * Public function call to be run by the sequencer as part of teardown.
      */
     public readonly publicTeardownFunctionCall: PublicExecutionRequest,
-  ) {}
+  ) {
+    super();
+  }
+
+  // Gossipable method
+  static {
+    this.p2pTopic = createTopicString(TopicType.tx);
+  }
+
+  // Gossipable method
+  override p2pMessageIdentifier(): BaseHashType {
+    return this.getTxHash();
+  }
 
   hasPublicCalls() {
     return this.data.numberOfPublicCallRequests() > 0;

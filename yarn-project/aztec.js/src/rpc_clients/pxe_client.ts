@@ -26,6 +26,7 @@ import {
   Point,
 } from '@aztec/circuits.js';
 import { NoteSelector } from '@aztec/foundation/abi';
+import { BaseHashType } from '@aztec/foundation/hash';
 import { createJsonRpcClient, makeFetch } from '@aztec/foundation/json-rpc/client';
 
 /**
@@ -54,6 +55,7 @@ export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], false)
       Point,
       TxExecutionRequest,
       TxHash,
+      BaseHashType,
     },
     {
       EncryptedNoteL2BlockL2Logs,

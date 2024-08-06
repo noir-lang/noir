@@ -3,6 +3,7 @@ import { EventSelector, NoteSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { BaseHashType } from '@aztec/foundation/hash';
 import { createJsonRpcClient, defaultFetch } from '@aztec/foundation/json-rpc/client';
 
 import { type AztecNode } from '../../interfaces/aztec-node.js';
@@ -40,6 +41,7 @@ export function createAztecNodeClient(url: string, fetch = defaultFetch): AztecN
       TxEffect,
       LogId,
       TxHash,
+      BaseHashType,
       PublicDataWitness,
       SiblingPath,
     },
