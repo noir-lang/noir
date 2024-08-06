@@ -14,7 +14,7 @@ pub(super) fn path<'a>(
     path_inner(path_segment(type_parser))
 }
 
-pub(super) fn path_no_turbofish() -> impl NoirParser<Path> {
+pub fn path_no_turbofish() -> impl NoirParser<Path> {
     path_inner(path_segment_no_turbofish())
 }
 
