@@ -234,6 +234,23 @@ impl<'context> Elaborator<'context> {
             } else if name == WILDCARD_TYPE {
                 return self.interner.next_type_variable();
             }
+        // Resolve Self::Foo to an associated type
+        } else if path.segments.len() == 2 && path.first_name() == SELF_TYPE_NAME {
+            if let Some(trait_id) = self.current_trait {
+                let the_trait = self.interner.get_trait(trait_id);
+                if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
+                    return typ.clone();
+                }
+            }
+
+            if let Some(impl_id) = self.current_trait_impl {
+                let the_impl = self.interner.get_trait_implementation(impl_id);
+                let the_impl = the_impl.borrow();
+
+                if let Some(typ) = the_impl.get_associated_type(path.last_name()) {
+                    return typ.clone();
+                }
+            }
         }
 
         let span = path.span();

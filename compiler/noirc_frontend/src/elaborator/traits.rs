@@ -13,7 +13,7 @@ use crate::{
     },
     hir_def::{
         function::Parameters,
-        traits::{TraitConstant, TraitFunction, TraitType},
+        traits::{TraitFunction, TraitType},
     },
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
@@ -21,7 +21,7 @@ use crate::{
     },
     node_interner::{FuncId, TraitId},
     token::Attributes,
-    Kind, ResolvedGeneric, Type, TypeBindings, TypeVariableKind,
+    Kind, ResolvedGeneric, Type, TypeBindings, TypeVariable, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -30,18 +30,21 @@ impl<'context> Elaborator<'context> {
     pub fn collect_traits(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.recover_generics(|this| {
+                this.current_trait = Some(*trait_id);
+
                 let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
                 this.add_existing_generics(
                     &unresolved_trait.trait_def.generics,
                     &resolved_generics,
                 );
 
-                // Resolve order
-                // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
-                let _ = this.resolve_trait_types(unresolved_trait);
-                // 2. Trait Constants ( Trait's methods can use trait types & constants, therefore they should be after)
-                let _ = this.resolve_trait_constants(unresolved_trait);
-                // 3. Trait Methods
+                // Resolve constants before types & methods since both types & methods may refer to trait constants.
+                let mut associated_types = this.resolve_trait_constants(unresolved_trait);
+                associated_types.extend(this.resolve_trait_types(unresolved_trait));
+                this.interner.update_trait(*trait_id, |trait_def| {
+                    trait_def.set_associated_types(associated_types);
+                });
+
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
@@ -57,19 +60,39 @@ impl<'context> Elaborator<'context> {
                 self.interner.try_add_prefix_operator_trait(*trait_id);
             }
         }
+
+        self.current_trait = None;
     }
 
-    fn resolve_trait_types(&mut self, _unresolved_trait: &UnresolvedTrait) -> Vec<TraitType> {
-        // TODO
-        vec![]
+    fn resolve_trait_types(&mut self, unresolved_trait: &UnresolvedTrait) -> Vec<TraitType> {
+        let mut types = Vec::new();
+
+        for item in &unresolved_trait.trait_def.items {
+            if let TraitItem::Type { name } = item {
+                let type_variable = TypeVariable::unbound(self.interner.next_type_variable_id());
+                let name_string = Rc::new(name.to_string());
+                let typ = Type::NamedGeneric(type_variable, name_string, Kind::Normal);
+                types.push(TraitType { name: name.clone(), typ });
+            }
+        }
+
+        types
     }
 
-    fn resolve_trait_constants(
-        &mut self,
-        _unresolved_trait: &UnresolvedTrait,
-    ) -> Vec<TraitConstant> {
-        // TODO
-        vec![]
+    fn resolve_trait_constants(&mut self, unresolved_trait: &UnresolvedTrait) -> Vec<TraitType> {
+        let mut types = Vec::new();
+
+        for item in &unresolved_trait.trait_def.items {
+            if let TraitItem::Constant { name, typ, default_value: _ } = item {
+                let type_variable = TypeVariable::unbound(self.interner.next_type_variable_id());
+                let name_string = Rc::new(name.to_string());
+                let typ = Box::new(self.resolve_type(typ.clone()));
+                let typ = Type::NamedGeneric(type_variable, name_string, Kind::Numeric(typ));
+                types.push(TraitType { name: name.clone(), typ });
+            }
+        }
+
+        types
     }
 
     fn resolve_trait_methods(

@@ -23,15 +23,14 @@ pub struct TraitFunction {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitConstant {
     pub name: Ident,
-    pub ty: Type,
+    pub typ: Type,
     pub span: Span,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitType {
     pub name: Ident,
-    pub ty: Type,
-    pub span: Span,
+    pub typ: Type,
 }
 
 /// Represents a trait in the type system. Each instance of this struct
@@ -53,8 +52,7 @@ pub struct Trait {
     /// the information needed to create the full TraitFunction.
     pub method_ids: HashMap<String, FuncId>,
 
-    pub constants: Vec<TraitConstant>,
-    pub types: Vec<TraitType>,
+    pub associated_types: Vec<TraitType>,
 
     pub name: Ident,
     pub generics: Generics,
@@ -77,11 +75,19 @@ pub struct TraitImpl {
     pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
+    pub associated_types: Vec<TraitType>,
+
     /// The where clause, if present, contains each trait requirement which must
     /// be satisfied for this impl to be selected. E.g. in `impl Eq for [T] where T: Eq`,
     /// `where_clause` would contain the one `T: Eq` constraint. If there is no where clause,
     /// this Vec is empty.
     pub where_clause: Vec<TraitConstraint>,
+}
+
+impl TraitImpl {
+    pub fn get_associated_type(&self, name: &str) -> Option<&Type> {
+        self.associated_types.iter().find(|typ| typ.name.0.contents == name).map(|typ| &typ.typ)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -130,6 +136,17 @@ impl Trait {
             }
         }
         None
+    }
+
+    pub fn set_associated_types(&mut self, associated_types: Vec<TraitType>) {
+        self.associated_types = associated_types;
+    }
+
+    pub fn get_associated_type(&self, last_name: &str) -> Option<&Type> {
+        self.associated_types
+            .iter()
+            .find(|typ| typ.name.0.contents == last_name)
+            .map(|typ| &typ.typ)
     }
 }
 

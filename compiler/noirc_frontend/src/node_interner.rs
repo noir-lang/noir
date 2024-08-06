@@ -657,8 +657,7 @@ impl NodeInterner {
             self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
             methods: Vec::new(),
             method_ids: unresolved_trait.method_ids.clone(),
-            constants: Vec::new(),
-            types: Vec::new(),
+            associated_types: Vec::new(),
         };
 
         self.traits.insert(type_id, new_trait);
