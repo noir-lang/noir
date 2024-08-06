@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{Binary, BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
@@ -173,48 +173,54 @@ impl Context {
                                         );
                                     } else {
                                         // If we are here it means the index is dynamic, so let's add a check that it's less than length
-                                        let index = function
-                                            .dfg
-                                            .insert_instruction_and_results(
-                                                Instruction::Cast(
-                                                    *index,
-                                                    Type::unsigned(SSA_WORD_SIZE),
-                                                ),
-                                                block_id,
-                                                None,
-                                                call_stack.clone(),
-                                            )
-                                            .first();
-                                        let array_length = function.dfg.make_constant(
-                                            (array_length as u128).into(),
-                                            Type::unsigned(SSA_WORD_SIZE),
-                                        );
-                                        let is_index_out_of_bounds = function
-                                            .dfg
-                                            .insert_instruction_and_results(
-                                                Instruction::Binary(Binary {
-                                                    operator: BinaryOp::Lt,
-                                                    lhs: index,
-                                                    rhs: array_length,
-                                                }),
-                                                block_id,
-                                                None,
-                                                call_stack.clone(),
-                                            )
-                                            .first();
-                                        let true_const =
-                                            function.dfg.make_constant(true.into(), Type::bool());
-
-                                        function.dfg.insert_instruction_and_results(
-                                            Instruction::Constrain(
-                                                is_index_out_of_bounds,
-                                                true_const,
-                                                Some("Index out of bounds".to_owned().into()),
+                                        let index = function.dfg.insert_instruction_and_results(
+                                            Instruction::Cast(
+                                                *index,
+                                                Type::unsigned(SSA_WORD_SIZE),
                                             ),
                                             block_id,
                                             None,
-                                            call_stack,
+                                            call_stack.clone(),
                                         );
+                                        if let InsertInstructionResult::Results(_, results) = index
+                                        {
+                                            assert_eq!(results.len(), 1);
+                                            let index = results[0];
+
+                                            let array_length = function.dfg.make_constant(
+                                                (array_length as u128).into(),
+                                                Type::unsigned(SSA_WORD_SIZE),
+                                            );
+                                            let is_index_out_of_bounds = function
+                                                .dfg
+                                                .insert_instruction_and_results(
+                                                    Instruction::Binary(Binary {
+                                                        operator: BinaryOp::Lt,
+                                                        lhs: index,
+                                                        rhs: array_length,
+                                                    }),
+                                                    block_id,
+                                                    None,
+                                                    call_stack.clone(),
+                                                )
+                                                .first();
+                                            let true_const = function
+                                                .dfg
+                                                .make_constant(true.into(), Type::bool());
+
+                                            function.dfg.insert_instruction_and_results(
+                                                Instruction::Constrain(
+                                                    is_index_out_of_bounds,
+                                                    true_const,
+                                                    Some("Index out of bounds".to_owned().into()),
+                                                ),
+                                                block_id,
+                                                None,
+                                                call_stack,
+                                            );
+                                        } else {
+                                            // TODO: handle the case where the index might have been simplified
+                                        }
                                     }
                                 } else {
                                     // TODO: this is tricky because we don't know the slice length... 🤔
