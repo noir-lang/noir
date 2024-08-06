@@ -973,14 +973,14 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     generics.pop().expect("Expected Option to have a T generic type")
 }
 
-fn check_function_not_yet_resolved<'a>(
-    interpreter: &'a Interpreter,
+fn check_function_not_yet_resolved(
+    interpreter: &Interpreter,
     func_id: FuncId,
     location: Location,
-) -> Result<&'a FuncMeta, InterpreterError> {
+) -> Result<(), InterpreterError> {
     let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
     match func_meta.function_body {
-        FunctionBody::Unresolved(_, _, _) => Ok(func_meta),
+        FunctionBody::Unresolved(_, _, _) => Ok(()),
         FunctionBody::Resolving | FunctionBody::Resolved => {
             return Err(InterpreterError::FunctionAlreadyResolved { location })
         }
