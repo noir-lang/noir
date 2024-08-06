@@ -16,7 +16,7 @@ contract Token {
     use dep::compressed_string::FieldCompressedString;
 
     use dep::aztec::{
-        hash::compute_secret_hash,
+        context::{PrivateContext, PrivateCallInterface}, hash::compute_secret_hash,
         prelude::{NoteGetterOptions, Map, PublicMutable, SharedImmutable, PrivateSet, AztecAddress},
         encrypted_logs::{
         encrypted_note_emission::{
@@ -33,6 +33,15 @@ contract Token {
 
     use crate::types::{transparent_note::TransparentNote, token_note::{TokenNote, TOKEN_NOTE_LEN}, balances_map::BalancesMap};
     // docs:end::imports
+
+    // In the first transfer iteration we are computing a lot of additional information (validating inputs, retrieving
+    // keys, etc.), so the gate count is already relatively high. We therefore only read a few notes to keep the happy
+    // case with few constraints.
+    global INITIAL_TRANSFER_CALL_MAX_NOTES = 2;
+    // All the recursive call does is nullify notes, meaning the gate count is low, but it is all constant overhead. We
+    // therefore read more notes than in the base case to increase the efficiency of the overhead, since this results in
+    // an overall small circuit regardless.
+    global RECURSIVE_TRANSFER_CALL_MAX_NOTES = 8;
 
     #[aztec(event)]
     struct Transfer {
@@ -335,12 +344,73 @@ contract Token {
         let to_ivpk = header.get_ivpk_m(&mut context, to);
 
         let amount = U128::from_integer(amount);
-        storage.balances.sub(from, amount).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, from_ivpk, from));
+
+        // We reduce `from`'s balance by amount by recursively removing notes over potentially multiple calls. This
+        // method keeps the gate count for each individual call low - reading too many notes at once could result in
+        // circuits in which proving is not feasible.
+        // Since the sum of the amounts in the notes we nullified was potentially larger than amount, we create a new
+        // note for `from` with the change amount, e.g. if `amount` is 10 and two notes are nullified with amounts 8 and
+        // 5, then the change will be 3 (since 8 + 5 - 10 = 3).
+        let change = subtract_balance(
+            &mut context,
+            storage,
+            from,
+            amount,
+            INITIAL_TRANSFER_CALL_MAX_NOTES
+        );
+
+        storage.balances.add(from, change).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, from_ivpk, from));
+
         storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk, to));
 
+        // We don't constrain encryption of the note log in `transfer` (unlike in `transfer_from`) because the transfer
+        // function is only designed to be used in situations where the event is not strictly necessary (e.g. payment to
+        // another person where the payment is considered to be successful when the other party successfully decrypts a
+        // note).
         Transfer { from, to, amount: amount.to_field() }.emit(encode_and_encrypt_event_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk, to));
     }
     // docs:end:transfer
+
+    #[contract_library_method]
+    fn subtract_balance(
+        context: &mut PrivateContext,
+        storage: Storage<&mut PrivateContext>,
+        account: AztecAddress,
+        amount: U128,
+        max_notes: u32
+    ) -> U128 {
+        let subtracted = storage.balances.try_sub(account, amount, max_notes);
+
+        // Failing to subtract any amount means that the owner was unable to produce more notes that could be nullified.
+        // We could in some cases fail early inside try_sub if we detected that fewer notes than the maximum were
+        // returned and we were still unable to reach the target amount, but that'd make the code more complicated, and
+        // optimizing for the failure scenario is not as important.
+        assert(subtracted > U128::from_integer(0), "Balance too low");
+
+        if subtracted >= amount {
+            // We have achieved our goal of nullifying notes that add up to more than amount, so we return the change
+            subtracted - amount
+        } else {
+            // try_sub failed to nullify enough notes to reach the target amount, so we compute the amount remaining
+            // and try again.
+            let remaining = amount - subtracted;
+            Token::at(context.this_address())._recurse_subtract_balance(account, remaining.to_field()).call(context)
+        }
+    }
+
+    // TODO(#7728): even though the amount should be a U128, we can't have that type in a contract interface due to
+    // serialization issues.
+    #[aztec(internal)]
+    #[aztec(private)]
+    fn _recurse_subtract_balance(account: AztecAddress, amount: Field) -> U128 {
+        subtract_balance(
+            &mut context,
+            storage,
+            account,
+            U128::from_integer(amount),
+            RECURSIVE_TRANSFER_CALL_MAX_NOTES
+        )
+    }
 
     /**
      * Cancel a private authentication witness.
@@ -427,4 +497,5 @@ contract Token {
     }
     // docs:end:balance_of_private
 }
+
 // docs:end:token_all
