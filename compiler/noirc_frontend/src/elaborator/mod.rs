@@ -1088,6 +1088,11 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
     }
 
+    pub fn get_module(&self, module: ModuleId) -> &ModuleData {
+        let message = "A crate should always be present for a given crate id";
+        &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
+    }
+
     fn get_module_mut(def_maps: &mut DefMaps, module: ModuleId) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
         &mut def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]

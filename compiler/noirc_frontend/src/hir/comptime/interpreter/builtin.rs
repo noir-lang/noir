@@ -18,7 +18,7 @@ use crate::{
     ast::IntegerBitSize,
     elaborator,
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
-    macros_api::{NodeInterner, Signedness},
+    macros_api::{ModuleDefId, NodeInterner, Signedness},
     parser,
     token::Token,
     QuotedType, Shared, Type,
@@ -43,6 +43,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
+            "module_functions" => module_functions(self, arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
             "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
@@ -719,6 +720,31 @@ fn function_def_return_type(
     let func_meta = interner.function_meta(&func_id);
 
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
+}
+
+// fn functions(self) -> [FunctionDefinition]
+fn module_functions(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument, location)?;
+    let module_data = interpreter.elaborator.get_module(module_id);
+    let func_ids = module_data
+        .value_definitions()
+        .filter_map(|module_def_id| {
+            if let ModuleDefId::FunctionId(func_id) = module_def_id {
+                Some(Value::FunctionDefinition(func_id))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
+
+    Ok(Value::Slice(func_ids, slice_type))
 }
 
 // fn is_contract(self) -> bool
