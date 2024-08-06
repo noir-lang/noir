@@ -110,7 +110,9 @@ barretenberg-acir-tests-bb.js:
     # Run ecdsa_secp256r1_3x through bb.js on node to check 256k support.
     RUN BIN=../ts/dest/node/main.js FLOW=prove_then_verify ./run_acir_tests.sh ecdsa_secp256r1_3x
     # Run a single arbitrary test not involving recursion through bb.js for UltraHonk
-    RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh 6_array
+    RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_ultra_honk ./run_acir_tests.sh 6_array assert_statement
+    # Run the prove then verify flow for UltraHonk. This makes sure we have the same circuit for different witness inputs.
+    RUN BIN=../ts/dest/node/main.js FLOW=prove_then_verify_ultra_honk ./run_acir_tests.sh 6_array assert_statement
     # Run a single arbitrary test not involving recursion through bb.js for MegaHonk
     RUN BIN=../ts/dest/node/main.js FLOW=prove_and_verify_mega_honk ./run_acir_tests.sh 6_array
     # Run 1_mul through bb.js build, all_cmds flow, to test all cli args.
