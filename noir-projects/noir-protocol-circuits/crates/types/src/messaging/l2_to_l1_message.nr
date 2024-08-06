@@ -61,6 +61,16 @@ struct ScopedL2ToL1Message {
     contract_address: AztecAddress,
 }
 
+impl ScopedL2ToL1Message {
+    pub fn expose_to_public(self) -> Self {
+        // Hide the counter when exposing to public.
+        Self {
+            message: L2ToL1Message { recipient: self.message.recipient, content: self.message.content, counter: 0 },
+            contract_address: self.contract_address
+        }
+    }
+}
+
 impl Scoped<L2ToL1Message> for ScopedL2ToL1Message {
     fn inner(self) -> L2ToL1Message {
         self.message

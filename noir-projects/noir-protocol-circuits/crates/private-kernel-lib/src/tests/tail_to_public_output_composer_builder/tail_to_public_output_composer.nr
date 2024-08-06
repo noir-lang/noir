@@ -23,7 +23,7 @@ fn tail_to_public_output_composer_succeeds() {
     siloed_data_builder.append_siloed_nullifiers(2);
 
     builder.previous_kernel.append_l2_to_l1_msgs(1);
-    siloed_data_builder.append_siloed_l2_to_l1_msgs(1);
+    siloed_data_builder.append_exposed_l2_to_l1_msgs(1);
 
     builder.previous_kernel.add_note_encrypted_log_hash(1001, 12, 0);
     builder.previous_kernel.add_note_encrypted_log_hash(1002, 8, 0);
@@ -45,7 +45,7 @@ fn tail_to_public_output_composer_succeeds() {
     siloed_data_builder.append_siloed_nullifiers(1);
 
     builder.previous_kernel.append_l2_to_l1_msgs(1);
-    siloed_data_builder.append_siloed_l2_to_l1_msgs(1);
+    siloed_data_builder.append_exposed_l2_to_l1_msgs(1);
 
     builder.previous_kernel.add_note_encrypted_log_hash(1003, 20, 0);
 

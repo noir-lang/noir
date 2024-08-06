@@ -10,8 +10,8 @@ use dep::types::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL
 },
-    hash::{silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier},
-    traits::is_empty, transaction::tx_request::TxRequest,
+    hash::{silo_encrypted_log_hash, silo_note_hash, silo_nullifier}, traits::is_empty,
+    transaction::tx_request::TxRequest,
     utils::arrays::{array_length, array_to_bounded_vec, sort_by_counters_asc, sort_by_counters_desc}
 };
 
@@ -276,7 +276,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
     fn silo_scoped_values(&mut self) {
         self.silo_note_hashes();
         self.silo_nullifiers();
-        self.silo_l2_to_l1_messages();
         self.silo_encrypted_logs();
     }
 
@@ -296,18 +295,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
         let nullifiers = self.public_inputs.end.nullifiers.storage;
         for i in 0..nullifiers.len() {
             self.public_inputs.end.nullifiers.storage[i].nullifier.value = silo_nullifier(nullifiers[i]);
-        }
-    }
-
-    fn silo_l2_to_l1_messages(&mut self) {
-        let l2_to_l1_msgs = self.public_inputs.end.l2_to_l1_msgs.storage;
-        let tx_context = self.public_inputs.constants.tx_context;
-        for i in 0..l2_to_l1_msgs.len() {
-            self.public_inputs.end.l2_to_l1_msgs.storage[i].message.content = silo_l2_to_l1_message(
-                l2_to_l1_msgs[i],
-                tx_context.version,
-                tx_context.chain_id,
-            );
         }
     }
 

@@ -98,6 +98,11 @@ export class ScopedL2ToL1Message {
     return new ScopedL2ToL1Message(reader.readObject(L2ToL1Message), reader.readObject(AztecAddress));
   }
 
+  static fromFields(fields: Fr[] | FieldReader) {
+    const reader = FieldReader.asReader(fields);
+    return new ScopedL2ToL1Message(reader.readObject(L2ToL1Message), reader.readObject(AztecAddress));
+  }
+
   isEmpty(): boolean {
     return this.message.isEmpty() && this.contractAddress.isZero();
   }

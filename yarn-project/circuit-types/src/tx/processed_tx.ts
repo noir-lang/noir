@@ -27,6 +27,7 @@ import {
   type TUBE_PROOF_LENGTH,
   type VerificationKeyData,
 } from '@aztec/circuits.js';
+import { siloL2ToL1Message } from '@aztec/circuits.js/hash';
 
 import { type CircuitName } from '../stats/stats.js';
 
@@ -266,7 +267,11 @@ export function toTxEffect(tx: ProcessedTx, gasFees: GasFees): TxEffect {
     tx.data.getTransactionFee(gasFees),
     tx.data.end.noteHashes.filter(h => !h.isZero()),
     tx.data.end.nullifiers.filter(h => !h.isZero()),
-    tx.data.end.l2ToL1Msgs.filter(h => !h.isZero()),
+    tx.data.end.l2ToL1Msgs
+      .map(message =>
+        siloL2ToL1Message(message, tx.data.constants.txContext.version, tx.data.constants.txContext.chainId),
+      )
+      .filter(h => !h.isZero()),
     tx.finalPublicDataUpdateRequests.map(t => new PublicDataWrite(t.leafSlot, t.newValue)).filter(h => !h.isEmpty()),
     tx.data.end.noteEncryptedLogPreimagesLength,
     tx.data.end.encryptedLogPreimagesLength,

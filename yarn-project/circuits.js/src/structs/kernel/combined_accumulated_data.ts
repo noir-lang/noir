@@ -13,6 +13,7 @@ import {
   MAX_UNENCRYPTED_LOGS_PER_TX,
 } from '../../constants.gen.js';
 import { Gas } from '../gas.js';
+import { ScopedL2ToL1Message } from '../l2_to_l1_message.js';
 import { ScopedLogHash } from '../log_hash.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
 
@@ -32,7 +33,7 @@ export class CombinedAccumulatedData {
     /**
      * All the new L2 to L1 messages created in this transaction.
      */
-    public l2ToL1Msgs: Tuple<Fr, typeof MAX_L2_TO_L1_MSGS_PER_TX>,
+    public l2ToL1Msgs: Tuple<ScopedL2ToL1Message, typeof MAX_L2_TO_L1_MSGS_PER_TX>,
     /**
      * Accumulated encrypted note logs hash from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
@@ -123,7 +124,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       reader.readArray(MAX_NOTE_HASHES_PER_TX, Fr),
       reader.readArray(MAX_NULLIFIERS_PER_TX, Fr),
-      reader.readArray(MAX_L2_TO_L1_MSGS_PER_TX, Fr),
+      reader.readArray(MAX_L2_TO_L1_MSGS_PER_TX, ScopedL2ToL1Message),
       Fr.fromBuffer(reader),
       Fr.fromBuffer(reader),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash),
@@ -148,7 +149,7 @@ export class CombinedAccumulatedData {
     return new CombinedAccumulatedData(
       makeTuple(MAX_NOTE_HASHES_PER_TX, Fr.zero),
       makeTuple(MAX_NULLIFIERS_PER_TX, Fr.zero),
-      makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, Fr.zero),
+      makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, ScopedL2ToL1Message.empty),
       Fr.zero(),
       Fr.zero(),
       makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash.empty),
@@ -171,7 +172,7 @@ export class CombinedAccumulatedData {
         .map(x => inspect(x))
         .join(', ')}],
       l2ToL1Msgs: [${this.l2ToL1Msgs
-        .filter(x => !x.isZero())
+        .filter(x => !x.isEmpty())
         .map(x => inspect(x))
         .join(', ')}],
       noteEncryptedLogsHash: ${this.noteEncryptedLogsHash.toString()},

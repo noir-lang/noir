@@ -91,9 +91,9 @@ pub fn compute_out_hash(previous_rollup_data: [PreviousRollupData; 2]) -> Field 
     )
 }
 
-pub fn compute_kernel_out_hash(combined: CombinedAccumulatedData) -> Field {
-    let non_empty_items = array_length(combined.l2_to_l1_msgs);
-    let merkle_tree = VariableMerkleTree::new_sha(combined.l2_to_l1_msgs, non_empty_items);
+pub fn compute_kernel_out_hash(l2_to_l1_msgs: [Field; MAX_L2_TO_L1_MSGS_PER_TX]) -> Field {
+    let non_empty_items = array_length(l2_to_l1_msgs);
+    let merkle_tree = VariableMerkleTree::new_sha(l2_to_l1_msgs, non_empty_items);
     merkle_tree.get_root()
 }
 
@@ -147,13 +147,13 @@ pub fn compute_tx_effects_hash(
     combined: CombinedAccumulatedData,
     revert_code: u8,
     transaction_fee: Field,
-    all_public_data_update_requests: [PublicDataUpdateRequest; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX]
+    all_public_data_update_requests: [PublicDataUpdateRequest; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
+    l2_to_l1_msgs: [Field; MAX_L2_TO_L1_MSGS_PER_TX]
 ) -> Field {
     let mut tx_effects_hash_input = [0; TX_EFFECTS_HASH_INPUT_FIELDS];
 
     let note_hashes = combined.note_hashes;
     let nullifiers = combined.nullifiers;
-    let l2_to_l1_msgs = combined.l2_to_l1_msgs;
 
     // Public writes are the concatenation of all non-empty user update requests and protocol update requests, then padded with zeroes.
     // The incoming all_public_data_update_requests may have empty update requests in the middle, so we move those to the end of the array.

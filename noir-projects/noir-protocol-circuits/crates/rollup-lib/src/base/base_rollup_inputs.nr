@@ -7,7 +7,7 @@ use crate::{
     components::{compute_tx_effects_hash, compute_kernel_out_hash}
 };
 use dep::types::{
-    hash::sha256_to_field,
+    hash::{sha256_to_field, silo_l2_to_l1_message},
     data::{
     public_data_hint::PublicDataHint,
     hash::{compute_public_data_tree_index, compute_public_data_tree_value}
@@ -18,6 +18,7 @@ use dep::types::{
     public_data_update_request::PublicDataUpdateRequest, public_data_read::PublicDataRead,
     kernel_data::KernelData
 },
+    messaging::l2_to_l1_message::ScopedL2ToL1Message,
     constants::{
     NOTE_HASH_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH,
     PUBLIC_DATA_TREE_HEIGHT, NOTE_HASH_SUBTREE_HEIGHT, MAX_NOTE_HASHES_PER_TX,
@@ -128,13 +129,17 @@ impl BaseRollupInputs {
         let end_public_data_tree_snapshot = self.validate_and_process_public_state(all_public_data_update_requests);
 
         // Calculate the tx effects hash of the transaction
+        let siloed_l2_to_l1_msgs = self.kernel_data.public_inputs.end.l2_to_l1_msgs.map(
+            |message: ScopedL2ToL1Message| silo_l2_to_l1_message(message, self.kernel_data.public_inputs.constants.tx_context.version, self.kernel_data.public_inputs.constants.tx_context.chain_id)
+        );
         let tx_effects_hash = compute_tx_effects_hash(
             self.kernel_data.public_inputs.end,
             self.kernel_data.public_inputs.revert_code,
             transaction_fee,
-            all_public_data_update_requests
+            all_public_data_update_requests,
+            siloed_l2_to_l1_msgs
         );
-        let out_hash = compute_kernel_out_hash(self.kernel_data.public_inputs.end);
+        let out_hash = compute_kernel_out_hash(siloed_l2_to_l1_msgs);
 
         // Perform membership checks that the notes provided exist within the historical trees data
         self.perform_archive_membership_checks();
@@ -464,7 +469,8 @@ mod tests {
         public_data_update_request::PublicDataUpdateRequest, kernel_data::KernelData,
         accumulated_data::CombinedAccumulatedData, gas::Gas
     },
-        merkle_tree::MembershipWitness, data::public_data_hint::PublicDataHint,
+        messaging::l2_to_l1_message::ScopedL2ToL1Message, merkle_tree::MembershipWitness,
+        hash::silo_l2_to_l1_message, data::public_data_hint::PublicDataHint,
         address::{AztecAddress, EthAddress},
         constants::{
         ARCHIVE_HEIGHT, MAX_PUBLIC_DATA_READS_PER_TX, MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -1086,14 +1092,19 @@ mod tests {
 
     #[test]
     unconstrained fn nonempty_block_out_hash() {
-        let mut end = CombinedAccumulatedData::empty();
+        let mut builder = BaseRollupInputsBuilder::new();
+
         for i in 0..MAX_L2_TO_L1_MSGS_PER_TX {
-            end.l2_to_l1_msgs[i] = 10 + i as Field;
+            builder.kernel_data.add_exposed_l2_to_l1_message(i as Field, EthAddress::from_field(1 + i as Field));
         }
 
-        let out_hash = compute_kernel_out_hash(end);
+        let out_hash = builder.execute().out_hash;
+        let siloed_l2_to_l1_msgs = builder.kernel_data.l2_to_l1_msgs.map(
+            |l2_to_l1_message: ScopedL2ToL1Message| silo_l2_to_l1_message(l2_to_l1_message, builder.constants.global_variables.version, builder.constants.global_variables.chain_id)
+        );
+
         // Since we fill the tree completely, we know to expect a full tree as below
-        let expected_tree = dep::types::merkle_tree::variable_merkle_tree::tests::generate_full_sha_tree(end.l2_to_l1_msgs);
+        let expected_tree = dep::types::merkle_tree::variable_merkle_tree::tests::generate_full_sha_tree(siloed_l2_to_l1_msgs.storage);
         assert_eq(out_hash, expected_tree.get_root());
     }
 

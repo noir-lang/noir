@@ -10,6 +10,7 @@ use dep::types::{
 },
     address::AztecAddress,
     contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
+    messaging::l2_to_l1_message::ScopedL2ToL1Message,
     constants::{
     MAX_L2_TO_L1_MSGS_PER_CALL, MAX_NOTE_HASHES_PER_CALL, MAX_NULLIFIERS_PER_CALL,
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
@@ -470,18 +471,11 @@ fn propagate_new_l2_to_l1_messages_non_revertible(
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
     let l2_to_l1_msgs = public_call_public_inputs.l2_to_l1_msgs;
-    let mut l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
+    let mut l2_to_l1_msgs_to_insert : BoundedVec<ScopedL2ToL1Message, MAX_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_L2_TO_L1_MSGS_PER_CALL {
         let msg = l2_to_l1_msgs[i];
         if !is_empty(msg) {
-            let l2_to_l1_msgs = compute_l2_to_l1_hash(
-                storage_contract_address,
-                msg.recipient,
-                msg.content,
-                public_inputs.constants.tx_context.version,
-                public_inputs.constants.tx_context.chain_id
-            );
-            l2_to_l1_msgs_to_insert.push(l2_to_l1_msgs)
+            l2_to_l1_msgs_to_insert.push(msg.scope(storage_contract_address));
         }
     }
     public_inputs.end_non_revertible.l2_to_l1_msgs.extend_from_bounded_vec(l2_to_l1_msgs_to_insert);
@@ -493,18 +487,11 @@ fn propagate_new_l2_to_l1_messages(public_call: PublicCallData, public_inputs: &
     let storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
     let l2_to_l1_msgs = public_call_public_inputs.l2_to_l1_msgs;
-    let mut l2_to_l1_msgs_to_insert : BoundedVec<Field, MAX_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
+    let mut l2_to_l1_msgs_to_insert : BoundedVec<ScopedL2ToL1Message, MAX_L2_TO_L1_MSGS_PER_CALL> = BoundedVec::new();
     for i in 0..MAX_L2_TO_L1_MSGS_PER_CALL {
         let msg = l2_to_l1_msgs[i];
         if !is_empty(msg) {
-            let l2_to_l1_msgs = compute_l2_to_l1_hash(
-                storage_contract_address,
-                msg.recipient,
-                msg.content,
-                public_inputs.constants.tx_context.version,
-                public_inputs.constants.tx_context.chain_id
-            );
-            l2_to_l1_msgs_to_insert.push(l2_to_l1_msgs)
+            l2_to_l1_msgs_to_insert.push(msg.scope(storage_contract_address));
         }
     }
     public_inputs.end.l2_to_l1_msgs.extend_from_bounded_vec(l2_to_l1_msgs_to_insert);

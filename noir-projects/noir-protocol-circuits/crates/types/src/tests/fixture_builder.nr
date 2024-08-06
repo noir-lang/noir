@@ -317,10 +317,6 @@ impl FixtureBuilder {
 
     pub fn to_public_accumulated_data_builder(self) -> PublicAccumulatedDataBuilder {
         let nullifiers = BoundedVec { storage: self.nullifiers.storage.map(|n: ScopedNullifier| n.nullifier), len: self.nullifiers.len() };
-        let l2_to_l1_msgs = BoundedVec {
-            storage: self.l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content),
-            len: self.l2_to_l1_msgs.len()
-        };
         let note_encrypted_logs_hashes = BoundedVec {
             storage: self.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| LogHash { value: l.value, counter: l.counter, length: l.length }),
             len: self.note_encrypted_logs_hashes.len()
@@ -333,7 +329,7 @@ impl FixtureBuilder {
         PublicAccumulatedDataBuilder {
             note_hashes: self.note_hashes,
             nullifiers,
-            l2_to_l1_msgs,
+            l2_to_l1_msgs: self.l2_to_l1_msgs,
             note_encrypted_logs_hashes,
             encrypted_logs_hashes,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes,
@@ -351,7 +347,7 @@ impl FixtureBuilder {
         PublicAccumulatedData {
             note_hashes: self.note_hashes.storage.map(|n: ScopedNoteHash| n.expose_to_public()),
             nullifiers: self.nullifiers.storage.map(|n: ScopedNullifier| n.expose_to_public()),
-            l2_to_l1_msgs: self.l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content),
+            l2_to_l1_msgs: self.l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.expose_to_public()),
             note_encrypted_logs_hashes: self.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| l.expose_to_public()),
             encrypted_logs_hashes: self.encrypted_logs_hashes.storage.map(|l: ScopedEncryptedLogHash| l.expose_to_public()),
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.expose_to_public()),
@@ -365,7 +361,7 @@ impl FixtureBuilder {
         CombinedAccumulatedData {
             note_hashes: self.note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash.value),
             nullifiers: self.nullifiers.storage.map(|n: ScopedNullifier| n.nullifier.value),
-            l2_to_l1_msgs: self.l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.message.content),
+            l2_to_l1_msgs: self.l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.expose_to_public()),
             note_encrypted_logs_hash: self.note_encrypted_logs_hash,
             encrypted_logs_hash: self.encrypted_logs_hash,
             unencrypted_logs_hashes: self.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.expose_to_public()),
@@ -574,6 +570,10 @@ impl FixtureBuilder {
         );
     }
 
+    pub fn add_exposed_l2_to_l1_message(&mut self, content: Field, recipient: EthAddress) {
+        self.l2_to_l1_msgs.push(L2ToL1Message { recipient, content, counter: 0 }.scope(self.storage_contract_address));
+    }
+
     pub fn add_siloed_l2_to_l1_message(&mut self, content: Field, recipient: EthAddress) {
         let siloed_content = compute_l2_to_l1_hash(
             self.storage_contract_address,
@@ -595,12 +595,12 @@ impl FixtureBuilder {
         }
     }
 
-    pub fn append_siloed_l2_to_l1_msgs(&mut self, num: u32) {
+    pub fn append_exposed_l2_to_l1_msgs(&mut self, num: u32) {
         let index_offset = self.l2_to_l1_msgs.len();
         for i in 0..self.l2_to_l1_msgs.max_len() {
             if i < num {
                 let (content, recipient) = self.mock_l2_to_l1_msg(index_offset + i);
-                self.add_siloed_l2_to_l1_message(content, recipient);
+                self.add_exposed_l2_to_l1_message(content, recipient);
             }
         }
     }

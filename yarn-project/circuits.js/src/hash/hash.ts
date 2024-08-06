@@ -1,13 +1,13 @@
 import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { pedersenHashBuffer, poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
+import { pedersenHashBuffer, poseidon2HashWithSeparator, sha256Trunc } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { numToUInt8, numToUInt16BE, numToUInt32BE } from '@aztec/foundation/serialize';
 
 import chunk from 'lodash.chunk';
 
 import { ARGS_HASH_CHUNK_COUNT, ARGS_HASH_CHUNK_LENGTH, GeneratorIndex, MAX_ARGS_LENGTH } from '../constants.gen.js';
-import { VerificationKey } from '../structs/index.js';
+import { type ScopedL2ToL1Message, VerificationKey } from '../structs/index.js';
 
 /**
  * Computes a hash of a given verification key.
@@ -142,4 +142,27 @@ export function computeL1ToL2MessageNullifier(
     GeneratorIndex.MESSAGE_NULLIFIER,
   );
   return siloNullifier(contract, innerMessageNullifier);
+}
+
+/**
+ * Calculates a siloed hash of a scoped l2 to l1 message.
+ * @returns Fr containing 248 bits of information of sha256 hash.
+ */
+export function siloL2ToL1Message(l2ToL1Message: ScopedL2ToL1Message, version: Fr, chainId: Fr): Fr {
+  if (l2ToL1Message.contractAddress.isZero()) {
+    return Fr.ZERO;
+  }
+  // Left-pad recipient to 32 bytes to match what the circuit is doing
+  // TODO: Only hash 20 bytes for l2l1 recipient everywhere.
+  const paddedRecipient = Buffer.alloc(32);
+  l2ToL1Message.message.recipient.toBuffer().copy(paddedRecipient, 12);
+
+  const preimage = Buffer.concat([
+    l2ToL1Message.contractAddress.toBuffer(),
+    version.toBuffer(),
+    paddedRecipient,
+    chainId.toBuffer(),
+    l2ToL1Message.message.content.toBuffer(),
+  ]);
+  return Fr.fromBuffer(sha256Trunc(preimage));
 }

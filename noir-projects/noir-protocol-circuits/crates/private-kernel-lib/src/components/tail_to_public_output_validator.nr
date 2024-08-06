@@ -12,8 +12,8 @@ use dep::types::{
     log_hash::{LogHash, ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, note_hash::NoteHash,
     nullifier::Nullifier, public_call_request::PublicCallRequest
 },
-    address::AztecAddress,
-    hash::{silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier},
+    messaging::l2_to_l1_message::ScopedL2ToL1Message, address::AztecAddress,
+    hash::{silo_encrypted_log_hash, silo_note_hash, silo_nullifier},
     traits::{Empty, is_empty, is_empty_array},
     utils::arrays::{
     array_length, assert_split_sorted_transformed_value_arrays_asc,
@@ -128,16 +128,10 @@ impl TailToPublicOutputValidator {
         );
 
         // l2_to_l1_msgs
-        let tx_context = self.previous_kernel.constants.tx_context;
-        validate_transformed_values(
-            prev_data.l2_to_l1_msgs,
-            hints.siloed_l2_to_l1_msgs,
-            |msg| silo_l2_to_l1_message(msg, tx_context.version, tx_context.chain_id)
-        );
 
         assert_split_sorted_transformed_value_arrays_asc(
             prev_data.l2_to_l1_msgs,
-            hints.siloed_l2_to_l1_msgs,
+            prev_data.l2_to_l1_msgs.map(|log: ScopedL2ToL1Message| log.expose_to_public()),
             split_counter,
             output_non_revertible.l2_to_l1_msgs,
             output_revertible.l2_to_l1_msgs,

@@ -8,7 +8,7 @@ use dep::types::{
     MAX_ENCRYPTED_LOGS_PER_TX, MAX_L2_TO_L1_MSGS_PER_TX, MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX,
     MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    hash::{silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier},
+    hash::{silo_encrypted_log_hash, silo_note_hash, silo_nullifier},
     messaging::l2_to_l1_message::ScopedL2ToL1Message,
     utils::arrays::{sort_get_split_order_hints_asc, sort_get_split_order_hints_desc, SplitOrderHints}
 };
@@ -20,7 +20,6 @@ struct TailToPublicOutputHints {
     siloed_nullifiers: [Nullifier; MAX_NULLIFIERS_PER_TX],
     sorted_nullifier_hints: SplitOrderHints<MAX_NULLIFIERS_PER_TX>,
     // L2 to l1 msgs.
-    siloed_l2_to_l1_msgs: [Field; MAX_L2_TO_L1_MSGS_PER_TX],
     sorted_l2_to_l1_msg_hints: SplitOrderHints<MAX_L2_TO_L1_MSGS_PER_TX>,
     // Note encrypted log hashes.
     note_encrypted_logs_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
@@ -52,19 +51,8 @@ unconstrained pub fn generate_tail_to_public_output_hints(previous_kernel: Priva
 
     let sorted_nullifier_hints = sort_get_split_order_hints_asc(unsiloed_nullifiers, split_counter);
 
-    // l2_to_l1_msgs
-    let unsiloed_l2_to_l1_msgs = previous_kernel.end.l2_to_l1_msgs;
-
-    let tx_context = previous_kernel.constants.tx_context;
-    let siloed_l2_to_l1_msgs = unsiloed_l2_to_l1_msgs.map(
-        |m: ScopedL2ToL1Message| silo_l2_to_l1_message(
-            m,
-            tx_context.version,
-            tx_context.chain_id,
-        )
-    );
-
-    let sorted_l2_to_l1_msg_hints = sort_get_split_order_hints_asc(unsiloed_l2_to_l1_msgs, split_counter);
+    // l2_to_l1_msgss
+    let sorted_l2_to_l1_msg_hints = sort_get_split_order_hints_asc(previous_kernel.end.l2_to_l1_msgs, split_counter);
 
     // note_encrypted_logs
     let note_encrypted_logs_hashes = previous_kernel.end.note_encrypted_logs_hashes.map(|h: NoteLogHash| h.expose_to_public());
@@ -90,7 +78,6 @@ unconstrained pub fn generate_tail_to_public_output_hints(previous_kernel: Priva
         sorted_nullifier_hints,
         siloed_nullifiers,
         sorted_l2_to_l1_msg_hints,
-        siloed_l2_to_l1_msgs,
         note_encrypted_logs_hashes,
         sorted_note_encrypted_log_hash_hints,
         siloed_encrypted_logs_hashes,

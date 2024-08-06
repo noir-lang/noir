@@ -7,7 +7,7 @@ use dep::types::{
     MAX_ENCRYPTED_LOGS_PER_TX, MAX_L2_TO_L1_MSGS_PER_TX, MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX,
     MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    hash::{silo_encrypted_log_hash, silo_l2_to_l1_message, silo_note_hash, silo_nullifier},
+    hash::{silo_encrypted_log_hash, silo_note_hash, silo_nullifier},
     messaging::l2_to_l1_message::ScopedL2ToL1Message, traits::{Empty, is_empty},
     utils::arrays::{OrderHint, sort_by_counters_asc, sort_get_order_hints_asc}
 };
@@ -20,7 +20,6 @@ struct TailOutputHints {
     siloed_nullifiers: [Field; MAX_NULLIFIERS_PER_TX],
     // L2 to l1 msgs.
     sorted_l2_to_l1_msg_hints: [OrderHint; MAX_L2_TO_L1_MSGS_PER_TX],
-    siloed_l2_to_l1_msgs: [Field; MAX_L2_TO_L1_MSGS_PER_TX],
     // Note encrypted log hashes.
     note_encrypted_log_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
     sorted_note_encrypted_log_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
@@ -45,15 +44,6 @@ unconstrained pub fn generate_tail_output_hints(previous_kernel: PrivateKernelCi
     // l2_to_l1_msgs
     let sorted_l2_to_l1_msg_hints = sort_get_order_hints_asc(previous_kernel.end.l2_to_l1_msgs);
 
-    let tx_context = previous_kernel.constants.tx_context;
-    let siloed_l2_to_l1_msgs = previous_kernel.end.l2_to_l1_msgs.map(
-        |m: ScopedL2ToL1Message| silo_l2_to_l1_message(
-            m,
-            tx_context.version,
-            tx_context.chain_id,
-        )
-    );
-
     // note_encrypted_logs
     let note_encrypted_log_hashes = previous_kernel.end.note_encrypted_logs_hashes.map(|h: NoteLogHash| h.expose_to_public());
     let sorted_note_encrypted_log_hashes = sort_by_counters_asc(previous_kernel.end.note_encrypted_logs_hashes).map(|h: NoteLogHash| h.expose_to_public());
@@ -77,7 +67,6 @@ unconstrained pub fn generate_tail_output_hints(previous_kernel: PrivateKernelCi
         sorted_nullifier_hints,
         siloed_nullifiers,
         sorted_l2_to_l1_msg_hints,
-        siloed_l2_to_l1_msgs,
         note_encrypted_log_hashes,
         sorted_note_encrypted_log_hashes,
         sorted_siloed_encrypted_log_hashes,
