@@ -12,10 +12,11 @@ pub fn create_note_getter_options_for_decreasing_balance(amount: Field) -> NoteG
 // Creates a new note for the recipient.
 // Inserts it to the recipient's set of notes.
 pub fn increment(
+    // docs:start:increment_args
     balance: PrivateSet<ValueNote, &mut PrivateContext>,
     amount: Field,
     recipient: AztecAddress,
-    outgoing_viewer: AztecAddress
+    outgoing_viewer: AztecAddress // docs:end:increment_args
 ) {
     let header = balance.context.get_header();
     let recipient_npk_m_hash = header.get_npk_m_hash(balance.context, recipient);

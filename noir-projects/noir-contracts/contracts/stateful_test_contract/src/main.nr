@@ -91,8 +91,10 @@ contract StatefulTest {
     unconstrained fn summed_values(owner: AztecAddress) -> pub Field {
         let owner_balance = storage.notes.at(owner);
 
+        // docs:start:get_balance
         // Return the sum of all notes in the set.
         balance_utils::get_balance(owner_balance)
+        // docs:end:get_balance
     }
 
     #[aztec(public)]

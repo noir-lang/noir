@@ -12,6 +12,7 @@ global ADDRESS_NOTE_LEN: Field = 3;
 global ADDRESS_NOTE_BYTES_LEN: Field = 3 * 32 + 64;
 
 // docs:start:address_note_def
+// docs:start:address_note_struct
 // Stores an address
 #[aztec(note)]
 struct AddressNote {
@@ -20,6 +21,7 @@ struct AddressNote {
     npk_m_hash: Field,
     randomness: Field,
 }
+// docs:end:address_note_struct
 
 impl NoteInterface<ADDRESS_NOTE_LEN, ADDRESS_NOTE_BYTES_LEN> for AddressNote {
 

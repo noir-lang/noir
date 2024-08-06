@@ -192,15 +192,14 @@ contract InclusionProofs {
     fn test_storage_historical_read_unset_slot(block_number: u32 // The block at which we'll read the public storage value
     ) {
         let header = context.get_header_at(block_number);
-
+        // docs:start:public_storage_historical_read
         assert_eq(
-            // docs:start:public_storage_historical_read
             header.public_storage_historical_read(
                 storage.public_unused_value.storage_slot,
                 context.this_address()
-            // docs:end:public_storage_historical_read
             ), 0
         );
+        // docs:end:public_storage_historical_read
     }
 
     #[aztec(private)]
