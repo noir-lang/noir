@@ -269,6 +269,9 @@ impl<'a> InlayHintCollector<'a> {
             ExpressionKind::Comptime(block_expression, _span) => {
                 self.collect_in_block_expression(block_expression);
             }
+            ExpressionKind::AsTraitPath(path) => {
+                self.collect_in_ident(&path.impl_item, true);
+            }
             ExpressionKind::Literal(..)
             | ExpressionKind::Variable(..)
             | ExpressionKind::Quote(..)
@@ -632,6 +635,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         ExpressionKind::MethodCall(method_call) => Some(method_call.method_name.to_string()),
         ExpressionKind::Cast(cast) => get_expression_name(&cast.lhs),
         ExpressionKind::Parenthesized(expr) => get_expression_name(expr),
+        ExpressionKind::AsTraitPath(path) => Some(path.impl_item.to_string()),
         ExpressionKind::Constructor(..)
         | ExpressionKind::Infix(..)
         | ExpressionKind::Index(..)

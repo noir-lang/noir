@@ -1,4 +1,4 @@
-use super::path::path_no_turbofish;
+use super::path::{as_trait_path, path_no_turbofish};
 use super::primitives::token_kind;
 use super::{
     expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
@@ -45,8 +45,16 @@ pub(super) fn parse_type_inner<'a>(
         parenthesized_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
-        mutable_reference_type(recursive_type_parser),
+        mutable_reference_type(recursive_type_parser.clone()),
+        as_trait_path_type(recursive_type_parser),
     ))
+}
+
+fn as_trait_path_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
+    as_trait_path(type_parser)
+        .map_with_span(|path, span| UnresolvedTypeData::AsTraitPath(Box::new(path)).with_span(span))
 }
 
 pub(super) fn parenthesized_type(

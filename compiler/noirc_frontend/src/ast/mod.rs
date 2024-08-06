@@ -129,8 +129,12 @@ pub enum UnresolvedTypeData {
         /*env:*/ Box<UnresolvedType>,
     ),
 
-    // The type of quoted code for metaprogramming
+    /// The type of quoted code for metaprogramming
     Quoted(crate::QuotedType),
+
+    /// An "as Trait" path leading to an associated type.
+    /// E.g. `<Foo as Trait>::Bar`
+    AsTraitPath(Box<crate::ast::AsTraitPath>),
 
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
@@ -239,6 +243,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
             Resolved(_) => write!(f, "(resolved type)"),
+            AsTraitPath(path) => write!(f, "{path}"),
         }
     }
 }

@@ -64,6 +64,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 (HirExpression::Error, Type::Error)
             }
+            ExpressionKind::AsTraitPath(_) => todo!("Implement AsTraitPath"),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.span, self.file);

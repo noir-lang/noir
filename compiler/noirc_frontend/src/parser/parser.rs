@@ -23,6 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
+use self::path::as_trait_path;
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time};
 pub use types::parse_type;
@@ -522,7 +523,9 @@ where
         .map(|(block, span)| ExpressionKind::Comptime(block, span))
 }
 
-fn let_statement<'a, P>(expr_parser: P) -> impl NoirParser<((Pattern, UnresolvedType), Expression)> + 'a
+fn let_statement<'a, P>(
+    expr_parser: P,
+) -> impl NoirParser<((Pattern, UnresolvedType), Expression)> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -1086,6 +1089,7 @@ where
         unquote(expr_parser.clone()),
         variable(),
         literal(),
+        as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
         macro_quote_marker(),
     ))
     .map_with_span(Expression::new)
