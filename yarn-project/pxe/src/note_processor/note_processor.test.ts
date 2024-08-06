@@ -200,6 +200,7 @@ describe('Note Processor', () => {
         }),
       ],
       [],
+      account.address,
     );
   }, 25_000);
 
@@ -211,7 +212,7 @@ describe('Note Processor', () => {
 
     expect(addNotesSpy).toHaveBeenCalledTimes(1);
     // For outgoing notes, the resulting DAO does not contain index.
-    expect(addNotesSpy).toHaveBeenCalledWith([], [expect.objectContaining(request.note.payload)]);
+    expect(addNotesSpy).toHaveBeenCalledWith([], [expect.objectContaining(request.note.payload)], account.address);
   }, 25_000);
 
   it('should store multiple notes that belong to us', async () => {
@@ -249,6 +250,7 @@ describe('Note Processor', () => {
         expect.objectContaining(requests[1].note.payload),
         expect.objectContaining(requests[4].note.payload),
       ],
+      account.address,
     );
   }, 30_000);
 

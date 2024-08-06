@@ -227,7 +227,7 @@ export class NoteProcessor {
     const incomingNotes = blocksAndNotes.flatMap(b => b.incomingNotes);
     const outgoingNotes = blocksAndNotes.flatMap(b => b.outgoingNotes);
     if (incomingNotes.length || outgoingNotes.length) {
-      await this.db.addNotes(incomingNotes, outgoingNotes);
+      await this.db.addNotes(incomingNotes, outgoingNotes, this.account);
       incomingNotes.forEach(noteDao => {
         this.log.verbose(
           `Added incoming note for contract ${noteDao.contractAddress} at slot ${
