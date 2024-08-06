@@ -628,7 +628,7 @@ impl<'context> Elaborator<'context> {
 
         match path_resolver.resolve(self.def_maps, path.clone(), &mut None) {
             Ok(PathResolution { module_def_id: ModuleDefId::ModuleId(module_id), error }) => {
-                if let Some(_) = error {
+                if error.is_some() {
                     None
                 } else {
                     Some(module_id)
