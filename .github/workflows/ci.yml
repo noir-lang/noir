@@ -91,14 +91,14 @@ jobs:
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
-        if: ${{ needs.changes.outputs.build-images }}
+        if: ${{ needs.changes.outputs.build-images == 'true' }}
         with: { ref: "${{ env.GIT_COMMIT }}" }
       - uses: ./.github/ci-setup-action
-        if: ${{ needs.changes.outputs.build-images }}
+        if: ${{ needs.changes.outputs.build-images == 'true' }}
         with:
           concurrency_key: build-images-x86
       - name: "Push Build Images If Changed"
-        if: ${{ needs.changes.outputs.build-images }}
+        if: ${{ needs.changes.outputs.build-images == 'true' }}
         timeout-minutes: 40
         run: |
           earthly-ci --push ./build-images/+build
