@@ -857,7 +857,7 @@ fn function_def_set_parameters(
                 }
             })?;
 
-        let hir_pattern = interpreter.elaborate_item(interpreter.current_function, |elaborator| {
+        let hir_pattern = interpreter.elaborate_item(Some(func_id), |elaborator| {
             elaborator.elaborate_pattern_and_store_ids(
                 parameter_pattern,
                 parameter_type.clone(),
