@@ -31,13 +31,13 @@ fn poseidon2_permutation(
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let ((input, input_location), (state_length, state_length_location)) =
-        check_two_arguments(arguments, location)?;
+    let (input, state_length) = check_two_arguments(arguments, location)?;
+    let input_location = input.1;
 
-    let (input, typ) = get_array(interner, input, input_location)?;
-    let state_length = get_u32(state_length, state_length_location)?;
+    let (input, typ) = get_array(interner, input)?;
+    let state_length = get_u32(state_length)?;
 
-    let input = try_vecmap(input, |integer| get_field(integer, location))?;
+    let input = try_vecmap(input, |integer| get_field((integer, input_location)))?;
 
     // Currently locked to only bn254!
     let fields = Bn254BlackBoxSolver

@@ -10,7 +10,7 @@ use crate::{
         def_map::ModuleId,
     },
     hir_def::stmt::HirPattern,
-    macros_api::NodeInterner,
+    macros_api::{NodeInterner, StructId},
     node_interner::{FuncId, TraitId},
     token::Token,
     QuotedType, Type,
@@ -65,8 +65,7 @@ pub(crate) fn check_three_arguments(
 
 pub(crate) fn get_array(
     interner: &NodeInterner,
-    value: Value,
-    location: Location,
+    (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
         Value::Array(values, typ) => Ok((values, typ)),
@@ -81,8 +80,7 @@ pub(crate) fn get_array(
 
 pub(crate) fn get_slice(
     interner: &NodeInterner,
-    value: Value,
-    location: Location,
+    (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
         Value::Slice(values, typ) => Ok((values, typ)),
@@ -97,8 +95,7 @@ pub(crate) fn get_slice(
 
 pub(crate) fn get_tuple(
     interner: &NodeInterner,
-    value: Value,
-    location: Location,
+    (value, location): (Value, Location),
 ) -> IResult<Vec<Value>> {
     match value {
         Value::Tuple(values) => Ok(values),
@@ -111,7 +108,7 @@ pub(crate) fn get_tuple(
     }
 }
 
-pub(crate) fn get_field(value: Value, location: Location) -> IResult<FieldElement> {
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
     match value {
         Value::Field(value) => Ok(value),
         value => {
@@ -121,7 +118,7 @@ pub(crate) fn get_field(value: Value, location: Location) -> IResult<FieldElemen
     }
 }
 
-pub(crate) fn get_u32(value: Value, location: Location) -> IResult<u32> {
+pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
@@ -132,7 +129,7 @@ pub(crate) fn get_u32(value: Value, location: Location) -> IResult<u32> {
     }
 }
 
-pub(crate) fn get_function_def(value: Value, location: Location) -> IResult<FuncId> {
+pub(crate) fn get_function_def((value, location): (Value, Location)) -> IResult<FuncId> {
     match value {
         Value::FunctionDefinition(id) => Ok(id),
         value => {
@@ -143,7 +140,7 @@ pub(crate) fn get_function_def(value: Value, location: Location) -> IResult<Func
     }
 }
 
-pub(crate) fn get_module(value: Value, location: Location) -> IResult<ModuleId> {
+pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<ModuleId> {
     match value {
         Value::ModuleDefinition(module_id) => Ok(module_id),
         value => {
@@ -154,9 +151,19 @@ pub(crate) fn get_module(value: Value, location: Location) -> IResult<ModuleId> 
     }
 }
 
+pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<StructId> {
+    match value {
+        Value::StructDefinition(id) => Ok(id),
+        _ => {
+            let expected = Type::Quoted(QuotedType::StructDefinition);
+            let actual = value.get_type().into_owned();
+            return Err(InterpreterError::TypeMismatch { expected, location, actual });
+        }
+    }
+}
+
 pub(crate) fn get_trait_constraint(
-    value: Value,
-    location: Location,
+    (value, location): (Value, Location),
 ) -> IResult<(TraitId, Vec<Type>)> {
     match value {
         Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
@@ -168,7 +175,7 @@ pub(crate) fn get_trait_constraint(
     }
 }
 
-pub(crate) fn get_trait_def(value: Value, location: Location) -> IResult<TraitId> {
+pub(crate) fn get_trait_def((value, location): (Value, Location)) -> IResult<TraitId> {
     match value {
         Value::TraitDefinition(id) => Ok(id),
         value => {
@@ -179,7 +186,7 @@ pub(crate) fn get_trait_def(value: Value, location: Location) -> IResult<TraitId
     }
 }
 
-pub(crate) fn get_type(value: Value, location: Location) -> IResult<Type> {
+pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
         Value::Type(typ) => Ok(typ),
         value => {
@@ -190,7 +197,7 @@ pub(crate) fn get_type(value: Value, location: Location) -> IResult<Type> {
     }
 }
 
-pub(crate) fn get_quoted(value: Value, location: Location) -> IResult<Rc<Vec<Token>>> {
+pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<Token>>> {
     match value {
         Value::Quoted(tokens) => Ok(tokens),
         value => {
