@@ -16,7 +16,6 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::IntegerBitSize,
-    elaborator,
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     macros_api::{ModuleDefId, NodeInterner, Signedness},
     parser,
@@ -45,6 +44,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
             "module_functions" => module_functions(self, arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
+            "module_name" => module_name(interner, arguments, location),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
             "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
@@ -756,6 +756,19 @@ fn module_is_contract(
     let self_argument = check_one_argument(arguments, location)?;
     let module_id = get_module(self_argument, location)?;
     Ok(Value::Bool(interpreter.elaborator.module_is_contract(module_id)))
+}
+
+// fn name(self) -> Quoted
+fn module_name(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument, location)?;
+    let name = &interner.module_attributes(&module_id).name;
+    let tokens = Rc::new(vec![Token::Ident(name.clone())]);
+    Ok(Value::Quoted(tokens))
 }
 
 fn modulus_be_bits(

@@ -18,5 +18,9 @@ fn main() {
         // Check Module::functions
         assert_eq(foo.functions().len(), 2);
         assert_eq(bar.functions().len(), 0);
+
+        // Check Module::name
+        assert_eq(foo.name(), quote { foo });
+        assert_eq(bar.name(), quote { bar });
     }
 }

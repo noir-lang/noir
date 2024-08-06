@@ -4,4 +4,7 @@ impl Module {
 
     #[builtin(module_functions)]
     fn functions(self) -> [FunctionDefinition] {}
+
+    #[builtin(module_name)]
+    fn name(self) -> Quoted {}
 }
