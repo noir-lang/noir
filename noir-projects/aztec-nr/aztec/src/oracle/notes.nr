@@ -7,7 +7,7 @@ unconstrained fn notify_created_note_oracle<let N: u32>(
     _storage_slot: Field,
     _note_type_id: Field,
     _serialized_note: [Field; N],
-    _slotted_note_hash: Field,
+    _note_hash: Field,
     _counter: u32
 ) -> Field {}
 
@@ -15,27 +15,21 @@ unconstrained pub fn notify_created_note<let N: u32>(
     storage_slot: Field,
     note_type_id: Field,
     serialized_note: [Field; N],
-    slotted_note_hash: Field,
+    note_hash: Field,
     counter: u32
 ) -> Field {
-    notify_created_note_oracle(
-        storage_slot,
-        note_type_id,
-        serialized_note,
-        slotted_note_hash,
-        counter
-    )
+    notify_created_note_oracle(storage_slot, note_type_id, serialized_note, note_hash, counter)
 }
 
 #[oracle(notifyNullifiedNote)]
-unconstrained fn notify_nullified_note_oracle<let N: u32>(_nullifier: Field, _slotted_note_hash: Field, _counter: u32) -> Field {}
+unconstrained fn notify_nullified_note_oracle<let N: u32>(_nullifier: Field, _note_hash: Field, _counter: u32) -> Field {}
 
 unconstrained pub fn notify_nullified_note<let N: u32>(
     nullifier: Field,
-    slotted_note_hash: Field,
+    note_hash: Field,
     counter: u32
 ) -> Field {
-    notify_nullified_note_oracle(nullifier, slotted_note_hash, counter)
+    notify_nullified_note_oracle(nullifier, note_hash, counter)
 }
 
 #[oracle(getNotes)]

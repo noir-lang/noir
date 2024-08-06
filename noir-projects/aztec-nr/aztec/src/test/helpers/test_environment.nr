@@ -12,10 +12,7 @@ use crate::test::helpers::{cheatcodes, utils::{apply_side_effects_private, Deplo
 use crate::keys::constants::{NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX, TAGGING_INDEX};
 use crate::hash::{hash_args, hash_args_array};
 
-use crate::note::{
-    note_header::NoteHeader, note_interface::NoteInterface,
-    utils::{compute_slotted_note_hash, compute_note_hash_for_consumption}
-};
+use crate::note::{note_header::NoteHeader, note_interface::NoteInterface};
 use crate::oracle::{execution::{get_block_number, get_contract_address}, notes::notify_created_note};
 
 struct TestEnvironment {}
@@ -219,14 +216,15 @@ impl TestEnvironment {
 
         let header = NoteHeader { contract_address, storage_slot, nonce: 0, note_hash_counter };
         note.set_header(header);
-        let slotted_note_hash = compute_slotted_note_hash(*note);
+        // TODO(#7771): inject compute_note_hash(...) func to notes with macros.
+        let note_hash = note.compute_note_hiding_point().x;
         let serialized_note = Note::serialize_content(*note);
         assert(
             notify_created_note(
             storage_slot,
             Note::get_note_type_id(),
             serialized_note,
-            slotted_note_hash,
+            note_hash,
             note_hash_counter
         )
             == 0

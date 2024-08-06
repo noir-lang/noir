@@ -51,7 +51,7 @@ export class ExecutionNoteCache {
     // The nonces will be used to create the "complete" nullifier.
     const updatedNotes = this.notes.map(({ note, counter }, i) => {
       const nonce = computeNoteHashNonce(this.txHash, i);
-      const uniqueNoteHash = computeUniqueNoteHash(nonce, note.slottedNoteHash);
+      const uniqueNoteHash = computeUniqueNoteHash(nonce, note.noteHash);
       return {
         counter,
         note: { ...note, nonce },
@@ -76,27 +76,27 @@ export class ExecutionNoteCache {
       );
     }
 
-    this.#addNote({ note, counter, noteHashForConsumption: note.slottedNoteHash });
+    this.#addNote({ note, counter, noteHashForConsumption: note.noteHash });
   }
 
   /**
    * Add a nullifier to cache. It could be for a db note or a new note created during execution.
    * @param contractAddress - Contract address of the note.
    * @param innerNullifier - Inner nullifier of the note.
-   * @param slottedNoteHash - Slotted note hash of the note. If this value equals 0, it means the
-   * note being nullified is from a previous transaction (and thus not a new note).
+   * @param noteHash - A hash of the note. If this value equals 0, it means the note being nullified is from a previous
+   * transaction (and thus not a new note).
    */
-  public nullifyNote(contractAddress: AztecAddress, innerNullifier: Fr, slottedNoteHash: Fr) {
+  public nullifyNote(contractAddress: AztecAddress, innerNullifier: Fr, noteHash: Fr) {
     const siloedNullifier = siloNullifier(contractAddress, innerNullifier);
     const nullifiers = this.getNullifiers(contractAddress);
     nullifiers.add(siloedNullifier.value);
     this.nullifierMap.set(contractAddress.toBigInt(), nullifiers);
 
     let nullifiedNoteHashCounter: number | undefined = undefined;
-    // Find and remove the matching new note and log(s) if the emitted slottedNoteHash is not empty.
-    if (!slottedNoteHash.isEmpty()) {
+    // Find and remove the matching new note and log(s) if the emitted noteHash is not empty.
+    if (!noteHash.isEmpty()) {
       const notesInContract = this.noteMap.get(contractAddress.toBigInt()) ?? [];
-      const noteIndexToRemove = notesInContract.findIndex(n => n.noteHashForConsumption.equals(slottedNoteHash));
+      const noteIndexToRemove = notesInContract.findIndex(n => n.noteHashForConsumption.equals(noteHash));
       if (noteIndexToRemove === -1) {
         throw new Error('Attempt to remove a pending note that does not exist.');
       }
@@ -124,11 +124,11 @@ export class ExecutionNoteCache {
    * Check if a note exists in the newNotes array.
    * @param contractAddress - Contract address of the note.
    * @param storageSlot - Storage slot of the note.
-   * @param slottedNoteHash - Slotted note hash of the note.
+   * @param noteHash - A hash of the note.
    **/
-  public checkNoteExists(contractAddress: AztecAddress, slottedNoteHash: Fr) {
+  public checkNoteExists(contractAddress: AztecAddress, noteHash: Fr) {
     const notes = this.noteMap.get(contractAddress.toBigInt()) ?? [];
-    return notes.some(n => n.note.slottedNoteHash.equals(slottedNoteHash));
+    return notes.some(n => n.note.noteHash.equals(noteHash));
   }
 
   /**

@@ -27,8 +27,8 @@ export interface NoteData {
   storageSlot: Fr;
   /** The nonce of the note. */
   nonce: Fr;
-  /** The slotted note hash of the note. */
-  slottedNoteHash: Fr;
+  /** A hash of the note. */
+  noteHash: Fr;
   /** The corresponding nullifier of the note. Undefined for pending notes. */
   siloedNullifier?: Fr;
   /** The note's leaf index in the note hash tree. Undefined for pending notes. */
@@ -158,17 +158,11 @@ export abstract class TypedOracle {
     throw new OracleMethodNotAvailableError('getNotes');
   }
 
-  notifyCreatedNote(
-    _storageSlot: Fr,
-    _noteTypeId: NoteSelector,
-    _note: Fr[],
-    _slottedNoteHash: Fr,
-    _counter: number,
-  ): void {
+  notifyCreatedNote(_storageSlot: Fr, _noteTypeId: NoteSelector, _note: Fr[], _noteHash: Fr, _counter: number): void {
     throw new OracleMethodNotAvailableError('notifyCreatedNote');
   }
 
-  notifyNullifiedNote(_innerNullifier: Fr, _slottedNoteHash: Fr, _counter: number): Promise<void> {
+  notifyNullifiedNote(_innerNullifier: Fr, _noteHash: Fr, _counter: number): Promise<void> {
     throw new OracleMethodNotAvailableError('notifyNullifiedNote');
   }
 

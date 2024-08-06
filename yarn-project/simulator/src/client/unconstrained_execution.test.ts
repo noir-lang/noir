@@ -61,7 +61,7 @@ describe('Unconstrained Execution test suite', () => {
           nonce: Fr.random(),
           isSome: new Fr(1),
           note,
-          slottedNoteHash: Fr.random(),
+          noteHash: Fr.random(),
           siloedNullifier: Fr.random(),
           index: BigInt(index),
         })),

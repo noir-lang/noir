@@ -30,26 +30,24 @@ sequenceDiagram
     BalanceSet->>Set: insert(note)
     Set->>LifeCycle: create_note(derived_slot, note)
     LifeCycle->>LifeCycle: note.header = NoteHeader { contract_address, <br> storage_slot: derived_slot, nonce: 0, note_hash_counter }
-    LifeCycle->>Utils: compute_slotted_note_hash(note)
-    Utils->>TokenNote: note.compute_note_hiding_point()
-    TokenNote->>Utils: note_hiding_point = MSM([G_amt, G_to, G_rand], [amount, to, randomness])
-    Utils->>NoteHash: compute_slotted_note_hash(derived_slot, note_hiding_point)
-    NoteHash->>LifeCycle: slotted_note_hash = CURVE_ADD(derived_slot_point, note_hiding_point).x
-    LifeCycle->>Context: push_note_hash(slotted_note_hash)
+    Utils->>TokenNote: note_hiding_point = note.compute_note_hiding_point()
+    TokenNote->>Utils: note_hash = note_hiding_point.x
+    LifeCycle->>Context: push_note_hash(note_hash)
     end
-    Context->>Kernel: siloed_note_hash = H(contract_address, slotted_note_hash)
+    Context->>Kernel: unique_note_hash = H(nonce, note_hash)
+    Context->>Kernel: siloed_note_hash = H(contract_address, unique_note_hash)
 ```
 
 Notice the `siloed_note_hash` at the very end. It's a hash that will be inserted into the note hashes tree. To clarify what this really is, we "unroll" the values to their simplest components. This gives us a better idea around what is actually inserted into the tree.
 
 ```rust
-siloed_note_hash = H(contract_address, slotted_note_hash)
-siloed_note_hash = H(contract_address, CURVE_ADD(derived_slot_point, note_hiding_point).x)
-siloed_note_hash = H(contract_address, CURVE_ADD(MSM([G_slot], [derived_slot]), note_hiding_point).x)
-siloed_note_hash = H(contract_address, CURVE_ADD(MSM([G_slot], [derived_slot]), MSM([G_amt, G_to, G_rand], [amount, to, randomness])).x)
+siloed_note_hash = H(contract_address, unique_note_hash)
+siloed_note_hash = H(contract_address, H(nonce, note_hash))
+siloed_note_hash = H(contract_address, H(H(tx_hash, note_index_in_tx), note_hash))
+siloed_note_hash = H(contract_address, H(H(tx_hash, note_index_in_tx), MSM([G_amt, G_to, G_rand, G_slot], [amount, to, randomness, derived_slot]).x))
 ```
 
-CURVE_ADD is a point addition and MSM is a multi scalar multiplication on a grumpkin curve and G_* values are generators.
+MSM is a multi scalar multiplication on a grumpkin curve and G_* values are generators.
 
 And `to` is the actor who receives the note, `amount` of the note and `randomness` is the randomness used to make the note hiding. Without the `randomness` the note could just as well be plaintext (computational cost of a preimage attack would be trivial in such a case).
 

@@ -522,12 +522,18 @@ fn generate_compute_note_hiding_point(
     impl_span: Option<Span>,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
+    // TODO(#7771): update this to do only 1 MSM call
     let function_source = format!(
-        "
+        r#"
         fn compute_note_hiding_point(self: {}) -> aztec::protocol_types::point::Point {{
-            aztec::hash::pedersen_commitment(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_HIDING_POINT)
+            assert(self.header.storage_slot != 0, "Storage slot must be set before computing note hiding point");
+            let slot_scalar = dep::std::hash::from_field_unsafe(self.header.storage_slot);
+
+            let point_before_slotting = aztec::hash::pedersen_commitment(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_HIDING_POINT);
+            let slot_point = dep::std::embedded_curve_ops::multi_scalar_mul([dep::aztec::generators::G_slot], [slot_scalar]);
+            point_before_slotting + slot_point
         }}
-        ",
+        "#,
         note_type
     );
     let (function_ast, errors) = parse_program(&function_source, empty_spans);

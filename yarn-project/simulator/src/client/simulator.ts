@@ -196,7 +196,7 @@ export class AcirSimulator {
       returnTypes: artifact.returnTypes,
     };
 
-    const [slottedNoteHash, uniqueNoteHash, siloedNoteHash, innerNullifier] = (await this.runUnconstrained(
+    const [noteHash, uniqueNoteHash, siloedNoteHash, innerNullifier] = (await this.runUnconstrained(
       execRequest,
       artifact,
       contractAddress,
@@ -204,7 +204,7 @@ export class AcirSimulator {
     )) as bigint[];
 
     return {
-      slottedNoteHash: new Fr(slottedNoteHash),
+      noteHash: new Fr(noteHash),
       uniqueNoteHash: new Fr(uniqueNoteHash),
       siloedNoteHash: new Fr(siloedNoteHash),
       innerNullifier: new Fr(innerNullifier),
@@ -212,20 +212,15 @@ export class AcirSimulator {
   }
 
   /**
-   * Computes the slotted note hash of a note, which contains storage slot and the custom note hash.
+   * Computes a hash of the note.
    * @param contractAddress - The address of the contract.
    * @param storageSlot - The storage slot.
    * @param noteTypeId - The note type identifier.
    * @param note - The note.
    * @returns The note hash.
    */
-  public async computeSlottedNoteHash(
-    contractAddress: AztecAddress,
-    storageSlot: Fr,
-    noteTypeId: NoteSelector,
-    note: Note,
-  ) {
-    const { slottedNoteHash } = await this.computeNoteHashAndOptionallyANullifier(
+  public async computeNoteHash(contractAddress: AztecAddress, storageSlot: Fr, noteTypeId: NoteSelector, note: Note) {
+    const { noteHash } = await this.computeNoteHashAndOptionallyANullifier(
       contractAddress,
       Fr.ZERO,
       storageSlot,
@@ -233,6 +228,6 @@ export class AcirSimulator {
       false,
       note,
     );
-    return slottedNoteHash;
+    return noteHash;
   }
 }

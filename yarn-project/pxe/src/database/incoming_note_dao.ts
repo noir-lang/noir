@@ -23,10 +23,10 @@ export class IncomingNoteDao implements NoteData {
     /** The nonce of the note. */
     public nonce: Fr,
     /**
-     * Slotted note hash of the note. This is customizable by the app circuit.
+     * A hash of the note. This is customizable by the app circuit.
      * We can use this value to compute siloedNoteHash and uniqueSiloedNoteHash.
      */
-    public slottedNoteHash: Fr,
+    public noteHash: Fr,
     /**
      * The nullifier of the note (siloed by contract address).
      * Note: Might be set as 0 if the note was added to PXE as nullified.
@@ -46,7 +46,7 @@ export class IncomingNoteDao implements NoteData {
       this.noteTypeId,
       this.txHash.buffer,
       this.nonce,
-      this.slottedNoteHash,
+      this.noteHash,
       this.siloedNullifier,
       this.index,
       this.ivpkM,
@@ -61,7 +61,7 @@ export class IncomingNoteDao implements NoteData {
     const noteTypeId = reader.readObject(NoteSelector);
     const txHash = reader.readObject(TxHash);
     const nonce = Fr.fromBuffer(reader);
-    const slottedNoteHash = Fr.fromBuffer(reader);
+    const noteHash = Fr.fromBuffer(reader);
     const siloedNullifier = Fr.fromBuffer(reader);
     const index = toBigIntBE(reader.readBytes(32));
     const publicKey = Point.fromBuffer(reader);
@@ -73,7 +73,7 @@ export class IncomingNoteDao implements NoteData {
       noteTypeId,
       txHash,
       nonce,
-      slottedNoteHash,
+      noteHash,
       siloedNullifier,
       index,
       publicKey,

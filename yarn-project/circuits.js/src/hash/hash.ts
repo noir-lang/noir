@@ -55,11 +55,11 @@ export function siloNoteHash(contract: AztecAddress, uniqueNoteHash: Fr): Fr {
  * Computes a unique note hash.
  * @dev Includes a nonce which contains data that guarantees the resulting note hash will be unique.
  * @param nonce - A nonce (typically derived from tx hash and note hash index in the tx).
- * @param slottedNoteHash - A slotted note hash.
+ * @param noteHash - A note hash.
  * @returns A unique note hash.
  */
-export function computeUniqueNoteHash(nonce: Fr, slottedNoteHash: Fr): Fr {
-  return poseidon2HashWithSeparator([nonce, slottedNoteHash], GeneratorIndex.UNIQUE_NOTE_HASH);
+export function computeUniqueNoteHash(nonce: Fr, noteHash: Fr): Fr {
+  return poseidon2HashWithSeparator([nonce, noteHash], GeneratorIndex.UNIQUE_NOTE_HASH);
 }
 
 /**

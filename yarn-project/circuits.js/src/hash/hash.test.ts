@@ -27,8 +27,8 @@ describe('hash', () => {
 
   it('computes unique note hash', () => {
     const nonce = new Fr(123n);
-    const slottedNoteHash = new Fr(456);
-    const res = computeUniqueNoteHash(nonce, slottedNoteHash);
+    const noteHash = new Fr(456);
+    const res = computeUniqueNoteHash(nonce, noteHash);
     expect(res).toMatchSnapshot();
   });
 

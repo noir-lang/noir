@@ -350,15 +350,14 @@ export class PXEService implements PXE {
     }
 
     for (const nonce of nonces) {
-      const { slottedNoteHash, siloedNoteHash, innerNullifier } =
-        await this.simulator.computeNoteHashAndOptionallyANullifier(
-          note.contractAddress,
-          nonce,
-          note.storageSlot,
-          note.noteTypeId,
-          true,
-          note.note,
-        );
+      const { noteHash, siloedNoteHash, innerNullifier } = await this.simulator.computeNoteHashAndOptionallyANullifier(
+        note.contractAddress,
+        nonce,
+        note.storageSlot,
+        note.noteTypeId,
+        true,
+        note.note,
+      );
 
       const index = await this.node.findLeafIndex('latest', MerkleTreeId.NOTE_HASH_TREE, siloedNoteHash);
       if (index === undefined) {
@@ -379,7 +378,7 @@ export class PXEService implements PXE {
           note.noteTypeId,
           note.txHash,
           nonce,
-          slottedNoteHash,
+          noteHash,
           siloedNullifier,
           index,
           owner.publicKeys.masterIncomingViewingPublicKey,
@@ -401,15 +400,14 @@ export class PXEService implements PXE {
     }
 
     for (const nonce of nonces) {
-      const { slottedNoteHash, siloedNoteHash, innerNullifier } =
-        await this.simulator.computeNoteHashAndOptionallyANullifier(
-          note.contractAddress,
-          nonce,
-          note.storageSlot,
-          note.noteTypeId,
-          false,
-          note.note,
-        );
+      const { noteHash, siloedNoteHash, innerNullifier } = await this.simulator.computeNoteHashAndOptionallyANullifier(
+        note.contractAddress,
+        nonce,
+        note.storageSlot,
+        note.noteTypeId,
+        false,
+        note.note,
+      );
 
       if (!innerNullifier.equals(Fr.ZERO)) {
         throw new Error('Unexpectedly received non-zero nullifier.');
@@ -428,7 +426,7 @@ export class PXEService implements PXE {
           note.noteTypeId,
           note.txHash,
           nonce,
-          slottedNoteHash,
+          noteHash,
           Fr.ZERO, // We are not able to derive
           index,
           owner.publicKeys.masterIncomingViewingPublicKey,

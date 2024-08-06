@@ -51,7 +51,7 @@ export async function produceNoteDaos(
 
   try {
     if (ivpkM) {
-      const { noteHashIndex, nonce, slottedNoteHash, siloedNullifier } = await findNoteIndexAndNullifier(
+      const { noteHashIndex, nonce, noteHash, siloedNullifier } = await findNoteIndexAndNullifier(
         simulator,
         noteHashes,
         txHash,
@@ -69,7 +69,7 @@ export async function produceNoteDaos(
         payload.noteTypeId,
         txHash,
         nonce,
-        slottedNoteHash,
+        noteHash,
         siloedNullifier,
         index,
         ivpkM,
@@ -108,12 +108,12 @@ export async function produceNoteDaos(
           payload.noteTypeId,
           txHash,
           incomingNote.nonce,
-          incomingNote.slottedNoteHash,
+          incomingNote.noteHash,
           incomingNote.index,
           ovpkM,
         );
       } else {
-        const { noteHashIndex, nonce, slottedNoteHash } = await findNoteIndexAndNullifier(
+        const { noteHashIndex, nonce, noteHash } = await findNoteIndexAndNullifier(
           simulator,
           noteHashes,
           txHash,
@@ -130,7 +130,7 @@ export async function produceNoteDaos(
           payload.noteTypeId,
           txHash,
           nonce,
-          slottedNoteHash,
+          noteHash,
           index,
           ovpkM,
         );
@@ -170,7 +170,7 @@ export async function produceNoteDaos(
  * @dev Finds the index in the note hash tree by computing the note hash with different nonce and see which hash for
  * the current tx matches this value.
  * @remarks This method assists in identifying spent notes in the note hash tree.
- * @param noteHashes - Note hashes in the tx. One of them should correspond to the note we are looking for
+ * @param siloedNoteHashes - Note hashes in the tx. One of them should correspond to the note we are looking for
  * @param txHash - Hash of a tx the note was emitted in.
  * @param l1NotePayload - The note payload.
  * @param excludedIndices - Indices that have been assigned a note in the same tx. Notes in a tx can have the same
@@ -181,7 +181,7 @@ export async function produceNoteDaos(
  */
 async function findNoteIndexAndNullifier(
   simulator: AcirSimulator,
-  noteHashes: Fr[],
+  siloedNoteHashes: Fr[],
   txHash: TxHash,
   { contractAddress, storageSlot, noteTypeId, note }: L1NotePayload,
   excludedIndices: Set<number>,
@@ -189,23 +189,23 @@ async function findNoteIndexAndNullifier(
 ) {
   let noteHashIndex = 0;
   let nonce: Fr | undefined;
-  let slottedNoteHash: Fr | undefined;
+  let noteHash: Fr | undefined;
   let siloedNoteHash: Fr | undefined;
   let innerNullifier: Fr | undefined;
   const firstNullifier = Fr.fromBuffer(txHash.toBuffer());
 
-  for (; noteHashIndex < noteHashes.length; ++noteHashIndex) {
+  for (; noteHashIndex < siloedNoteHashes.length; ++noteHashIndex) {
     if (excludedIndices.has(noteHashIndex)) {
       continue;
     }
 
-    const noteHash = noteHashes[noteHashIndex];
-    if (noteHash.equals(Fr.ZERO)) {
+    const siloedNoteHashFromTxEffect = siloedNoteHashes[noteHashIndex];
+    if (siloedNoteHashFromTxEffect.equals(Fr.ZERO)) {
       break;
     }
 
     const expectedNonce = computeNoteHashNonce(firstNullifier, noteHashIndex);
-    ({ slottedNoteHash, siloedNoteHash, innerNullifier } = await simulator.computeNoteHashAndOptionallyANullifier(
+    ({ noteHash, siloedNoteHash, innerNullifier } = await simulator.computeNoteHashAndOptionallyANullifier(
       contractAddress,
       expectedNonce,
       storageSlot,
@@ -214,7 +214,7 @@ async function findNoteIndexAndNullifier(
       note,
     ));
 
-    if (noteHash.equals(siloedNoteHash)) {
+    if (siloedNoteHashFromTxEffect.equals(siloedNoteHash)) {
       nonce = expectedNonce;
       break;
     }
@@ -229,7 +229,7 @@ async function findNoteIndexAndNullifier(
   return {
     noteHashIndex,
     nonce,
-    slottedNoteHash: slottedNoteHash!,
+    noteHash: noteHash!,
     siloedNullifier: siloNullifier(contractAddress, innerNullifier!),
   };
 }

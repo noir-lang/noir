@@ -55,21 +55,21 @@ mod tests {
     global contract_address = AztecAddress::from_field(123);
 
     // Create 4 note hashes. 10 and 11 are settled. 12 and 13 are pending.
-    global slotted_note_hashes = [10, 11, 12, 13];
-    global note_hashes = slotted_note_hashes.map(|n| compute_siloed_note_hash(contract_address, n));
+    global note_hashes = [10, 11, 12, 13];
+    global siloed_note_hashes = note_hashes.map(|n| compute_siloed_note_hash(contract_address, n));
 
     // Create 5 read requests. 0 and 3 are reading settled note hashes. 1, 2 and 4 are reading pending note hashes.
     global read_requests = [
-        ReadRequest { value: slotted_note_hashes[1], counter: 11 }.scope(contract_address), // settled
-        ReadRequest { value: slotted_note_hashes[3], counter: 13 }.scope(contract_address), // pending
-        ReadRequest { value: slotted_note_hashes[2], counter: 39 }.scope(contract_address), // pending
-        ReadRequest { value: slotted_note_hashes[0], counter: 46 }.scope(contract_address), // settled
-        ReadRequest { value: slotted_note_hashes[3], counter: 78 }.scope(contract_address), // pending
+        ReadRequest { value: note_hashes[1], counter: 11 }.scope(contract_address), // settled
+        ReadRequest { value: note_hashes[3], counter: 13 }.scope(contract_address), // pending
+        ReadRequest { value: note_hashes[2], counter: 39 }.scope(contract_address), // pending
+        ReadRequest { value: note_hashes[0], counter: 46 }.scope(contract_address), // settled
+        ReadRequest { value: note_hashes[3], counter: 78 }.scope(contract_address), // pending
     ];
 
     global pending_values = [
-        NoteHash { value: slotted_note_hashes[2], counter: 2, }.scope(contract_address),
-        NoteHash { value: slotted_note_hashes[3], counter: 8,  }.scope(contract_address),
+        NoteHash { value: note_hashes[2], counter: 2, }.scope(contract_address),
+        NoteHash { value: note_hashes[3], counter: 8,  }.scope(contract_address),
     ];
     global pending_read_hints = [
         PendingReadHint { read_request_index: 1, pending_value_index: 1 },
@@ -78,8 +78,8 @@ mod tests {
     ];
 
     global leaf_preimages = [
-        NoteHashLeafPreimage { value: note_hashes[0] },
-        NoteHashLeafPreimage { value: note_hashes[1] },
+        NoteHashLeafPreimage { value: siloed_note_hashes[0] },
+        NoteHashLeafPreimage { value: siloed_note_hashes[1] },
     ];
 
     fn read_request_statuses() -> [ReadRequestStatus; 5] {
