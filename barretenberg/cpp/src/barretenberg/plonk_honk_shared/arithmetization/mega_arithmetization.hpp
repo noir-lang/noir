@@ -81,16 +81,16 @@ template <typename FF_> class MegaArith {
     struct E2eStructuredBlockSizes : public MegaTraceBlocks<uint32_t> {
         E2eStructuredBlockSizes()
         {
-            this->ecc_op = 1 << 10;
-            this->pub_inputs = 30000;
-            this->arithmetic = 600000;
-            this->delta_range = 140000;
-            this->elliptic = 600000;
-            this->aux = 1400000;
-            this->lookup = 460000;
-            this->busread = 1 << 7;
+            this->ecc_op = 1 << 9;
+            this->pub_inputs = 4000;
+            this->arithmetic = 200000;
+            this->delta_range = 25000;
+            this->elliptic = 80000;
+            this->aux = 100000;
+            this->lookup = 200000;
+            this->busread = 10;
             this->poseidon_external = 30000;
-            this->poseidon_internal = 170000;
+            this->poseidon_internal = 150000;
         }
     };
 

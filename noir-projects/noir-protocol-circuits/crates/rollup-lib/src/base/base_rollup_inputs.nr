@@ -1417,6 +1417,7 @@ mod tests {
             next_slot: 0,
             next_index: 0,
         };
+
         builder.pre_existing_public_data[1] = PublicDataTreeLeafPreimage {
             slot: 1,
             value: initial_balance,
