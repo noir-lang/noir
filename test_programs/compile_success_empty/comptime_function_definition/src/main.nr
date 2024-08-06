@@ -28,6 +28,9 @@ comptime fn function_attr(f: FunctionDefinition) {
 
     // Check FunctionDefinition::return_type
     assert_eq(f.return_type(), type_of(an_i32));
+
+    // Check FunctionDefinition::name
+    assert_eq(f.name(), quote { foo });
 }
 
 fn main() {}

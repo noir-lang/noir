@@ -40,6 +40,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
+            "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
             "module_functions" => module_functions(self, arguments, location),
@@ -679,6 +680,20 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::TraitAsType(_, _, _)
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
+}
+
+// fn name(self) -> Quoted
+fn function_def_name(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument, location)?;
+    let func_meta = interner.function_meta(&func_id);
+    let name = &interner.definition(func_meta.name.id).name;
+    let tokens = Rc::new(vec![Token::Ident(name.clone())]);
+    Ok(Value::Quoted(tokens))
 }
 
 // fn parameters(self) -> [(Quoted, Type)]
