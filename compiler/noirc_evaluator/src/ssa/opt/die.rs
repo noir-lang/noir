@@ -108,15 +108,13 @@ impl Context {
                                 // might be an index out of bounds.
                                 true
                             }
+                        } else if let ArrayGet { .. } = instruction {
+                            // array_get on a slice always does an index in bounds check,
+                            // so we can remove this instruction if it's unused
+                            false
                         } else {
-                            if let ArrayGet { .. } = instruction {
-                                // array_get on a slice always does an index in bounds check,
-                                // so we can remove this instruction if it's unused
-                                false
-                            } else {
-                                // The same check isn't done on array_set, though
-                                true
-                            }
+                            // The same check isn't done on array_set, though
+                            true
                         };
                         if might_be_out_of_bounds {
                             possible_index_out_of_bounds_indexes
@@ -156,9 +154,7 @@ impl Context {
                                 if let Some(array_length) =
                                     function.dfg.try_get_array_length(*array)
                                 {
-                                    if let Some(known_index) =
-                                        function.dfg.get_numeric_constant(*index)
-                                    {
+                                    if let Some(_) = function.dfg.get_numeric_constant(*index) {
                                         // If we are here it means the index is known but out of bounds. That's always an error!
                                         let false_const =
                                             function.dfg.make_constant(false.into(), Type::bool());
