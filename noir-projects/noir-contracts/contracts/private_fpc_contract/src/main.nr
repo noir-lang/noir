@@ -24,8 +24,8 @@ contract PrivateFPC {
         // convince the FPC we are not cheating
         context.push_nullifier(user_randomness);
 
-        // We use different randomness for fee payer to prevent a potential privay leak (see impl
-        // of PrivatelyRefundable for TokenNote for details).
+        // We use different randomness for fee payer to prevent a potential privacy leak (see description
+        // of `setup_refund(...)` function in TokenWithRefunds for details.
         let fee_payer_randomness = poseidon2_hash([user_randomness]);
         // We emit fee payer randomness to ensure FPC admin can reconstruct their fee note
         emit_randomness_as_unencrypted_log(&mut context, fee_payer_randomness);

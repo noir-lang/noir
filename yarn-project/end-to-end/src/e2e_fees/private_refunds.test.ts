@@ -152,7 +152,7 @@ describe('e2e_fees/private_refunds', () => {
           ),
         },
       }),
-    ).rejects.toThrow('tx fee is higher than funded amount');
+    ).rejects.toThrow('funded amount not enough to cover tx fee');
   });
 });
 
