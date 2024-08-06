@@ -954,25 +954,21 @@ fn poseidon2_permutation_invalid_len_op(
     }
 }
 
-// TODO: the following hash function has a "twist" on the above pattern
-//
-//
-// /// Applies the SHA-256 compression function to the input message
-// ///
-// /// # Arguments
-// ///
-// /// * `inputs` - input message block
-// /// * `hash_values` - state from the previous compression
-// /// * `outputs` - result of the input compressed into 256 bits
-// Sha256Compression {
-//     /// 512 bits of the input message, represented by 16 u32s
-//     inputs: Box<[FunctionInput<F>; 16]>,
-//     /// Vector of 8 u32s used to compress the input
-//     hash_values: Box<[FunctionInput<F>; 8]>,
-//     /// Output of the compression, represented by 8 u32s
-//     outputs: Box<[Witness; 8]>,
-// },
-//
+// 24 inputs (16 + 8)
+// 8 outputs
+fn sha256_compression_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let mut function_inputs = function_inputs.into_iter();
+    let inputs = core::array::from_fn(|_| function_inputs.next().unwrap());
+    let hash_values = core::array::from_fn(|_| function_inputs.next().unwrap());
+    BlackBoxFuncCall::Sha256Compression {
+        inputs: Box::new(inputs),
+        hash_values: Box::new(hash_values),
+        outputs: outputs.try_into().unwrap(),
+    }
+}
 
 fn into_repr_vec<T>(xs: T) -> Vec<ark_bn254::Fr>
 where
@@ -1121,12 +1117,12 @@ prop_compose! {
 }
 
 prop_compose! {
-    fn any_distinct_inputs(max_size: usize)
-        (size_and_patch in any::<(usize, usize, usize)>()) // NOTE: local ambiguity when using (x: T)
-        // (size in any::<usize>(),
-        //  patch_location in any::<usize>(),
-        //  patch_value in any::<usize>())
-        (inputs_distinct_inputs in (proptest::collection::vec(any::<(u128, bool)>(), size_and_patch.0 % max_size), proptest::collection::vec(any::<(u128, bool)>(), size_and_patch.0 % max_size)), size_and_patch in Just(size_and_patch))
+    fn any_distinct_inputs(min_size: usize, max_size: usize)
+        (size_and_patch in any::<(usize, usize, usize)>()) // NOTE: macro ambiguity when using (x: T)
+        (inputs_distinct_inputs in
+            (proptest::collection::vec(any::<(u128, bool)>(), std::cmp::max(min_size, size_and_patch.0) % max_size),
+             proptest::collection::vec(any::<(u128, bool)>(), std::cmp::max(min_size, size_and_patch.0) % max_size)),
+            size_and_patch in Just(size_and_patch))
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>) {
         let (_size, patch_location, patch_value) = size_and_patch;
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
@@ -1144,7 +1140,7 @@ prop_compose! {
             if distinct_inputs_len != 0 {
                 distinct_inputs[patch_location % distinct_inputs_len].0 += FieldElement::from(positive_patch_value)
             } else {
-                distinct_inputs.push((FieldElement::from(0u128), true))
+                distinct_inputs.push((FieldElement::zero(), true))
             }
         }
 
@@ -1177,6 +1173,16 @@ fn sha256_zeros() {
         227, 176, 196, 66, 152, 252, 28, 20, 154, 251, 244, 200, 153, 111, 185, 36, 39, 174, 65,
         228, 100, 155, 147, 76, 164, 149, 153, 27, 120, 82, 184, 85,
     ]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+#[test]
+fn sha256_compression_zeros() {
+    let results = solve_array_input_blackbox_call([(FieldElement::zero(), false); 24].try_into().unwrap(), 8, sha256_compression_op);
+    let expected_results: Vec<_> = vec![2091193876, 1113340840, 3461668143, 3254913767, 3068490961, 2551409935, 2927503052, 3205228454]
     .into_iter()
     .map(|x: u128| FieldElement::from(x))
     .collect();
@@ -1326,23 +1332,31 @@ proptest! {
         prop_assert_eq!(result, expected_result)
     }
 
-
     #[test]
-    fn sha256_injective(inputs_distinct_inputs in any_distinct_inputs(32)) {
+    fn sha256_injective(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, sha256_op);
         prop_assert!(result, "{}", message);
     }
 
     #[test]
-    fn blake2s_injective(inputs_distinct_inputs in any_distinct_inputs(32)) {
+    fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(24, 24)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        if inputs.len() == 24 && distinct_inputs.len() == 24 {
+            let (result, message) = prop_assert_injective(inputs, distinct_inputs, 8, sha256_compression_op);
+            prop_assert!(result, "{}", message);
+        }
+    }
+
+    #[test]
+    fn blake2s_injective(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, blake2s_op);
         prop_assert!(result, "{}", message);
     }
 
     #[test]
-    fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(32)) {
+    fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, blake3_op);
         prop_assert!(result, "{}", message);
@@ -1351,7 +1365,7 @@ proptest! {
     // TODO: see keccak256_injective_regression for specific case
     #[test]
     #[should_panic(expected = "not injective")]
-    fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(32)) {
+    fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, keccak256_op);
         prop_assert!(result, "{}", message);
@@ -1360,7 +1374,7 @@ proptest! {
     // TODO: doesn't fail with an error, returns constant output
     #[test]
     #[should_panic(expected = "Test failed: not injective")]
-    fn keccak256_invalid_message_size_fails(inputs_distinct_inputs in any_distinct_inputs(32)) {
+    fn keccak256_invalid_message_size_fails(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, keccak256_invalid_message_size_op);
         prop_assert!(result, "{}", message);
@@ -1369,7 +1383,7 @@ proptest! {
     // TODO: internal error when calling Keccakf1600
     #[test]
     #[should_panic(expected = "assertion `left == right` failed")]
-    fn keccakf1600_injective(inputs_distinct_inputs in any_distinct_inputs(25)) {
+    fn keccakf1600_injective(inputs_distinct_inputs in any_distinct_inputs(25, 25)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (_result, _message) = prop_assert_injective(inputs, distinct_inputs, 25, keccakf1600_op);
         // prop_assert!(result, "{}", message);
@@ -1378,7 +1392,7 @@ proptest! {
     // TODO: wrong failure message? The number of inputs appears to be correct
     #[test]
     #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 0 != 1\"))")]
-    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(6)) {
+    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(6, 6)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, poseidon2_permutation_invalid_len_op);
         prop_assert!(result, "{}", message);
