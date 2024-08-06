@@ -58,16 +58,16 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     )?;
 
     if args.watch {
-        watch_workspace(&workspace, args.compile_options)
+        watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
-        compile_workspace_full(&workspace, args.compile_options)?;
+        compile_workspace_full(&workspace, &args.compile_options)?;
     }
 
     Ok(())
 }
 
-fn watch_workspace(workspace: &Workspace, compile_options: CompileOptions) -> notify::Result<()> {
+fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> notify::Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
 
     // No specific tickrate, max debounce time 1 seconds
@@ -80,7 +80,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: CompileOptions) -> no
     let mut screen = std::io::stdout();
     write!(screen, "{}", termion::cursor::Save).unwrap();
     screen.flush().unwrap();
-    let _ = compile_workspace_full(workspace, compile_options.clone());
+    let _ = compile_workspace_full(workspace, compile_options);
     for res in rx {
         let debounced_events = res.map_err(|mut err| err.remove(0))?;
 
@@ -101,7 +101,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: CompileOptions) -> no
         if noir_files_modified {
             write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
             screen.flush().unwrap();
-            let _ = compile_workspace_full(workspace, compile_options.clone());
+            let _ = compile_workspace_full(workspace, compile_options);
         }
     }
 
@@ -112,7 +112,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: CompileOptions) -> no
 
 pub(super) fn compile_workspace_full(
     workspace: &Workspace,
-    compile_options: CompileOptions,
+    compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);

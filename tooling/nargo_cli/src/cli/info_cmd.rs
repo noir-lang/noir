@@ -60,7 +60,7 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
     )?;
 
     // Compile the full workspace in order to generate any build artifacts.
-    compile_workspace_full(&workspace, args.compile_options.clone())?;
+    compile_workspace_full(&workspace, &args.compile_options)?;
 
     let binary_packages: Vec<(Package, ProgramArtifact)> = workspace
         .into_iter()
