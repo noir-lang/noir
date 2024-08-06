@@ -2,10 +2,11 @@ use super::{
     attributes::{attributes, validate_attributes},
     block, fresh_statement, ident, keyword, maybe_comp_time, nothing, optional_visibility,
     parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
+    primitives::token_kind,
     self_parameter, where_clause, NoirParser,
 };
-use crate::parser::spanned;
-use crate::token::{Keyword, Token};
+use crate::token::{Keyword, Token, TokenKind};
+use crate::{ast::IntegerBitSize, parser::spanned};
 use crate::{
     ast::{
         FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility,
@@ -91,10 +92,12 @@ pub(super) fn numeric_generic() -> impl NoirParser<UnresolvedGeneric> {
         .map(|(ident, typ)| UnresolvedGeneric::Numeric { ident, typ })
         .validate(|generic, span, emit| {
             if let UnresolvedGeneric::Numeric { typ, .. } = &generic {
-                if let UnresolvedTypeData::Integer(signedness, _) = typ.typ {
-                    if matches!(signedness, Signedness::Signed) {
+                if let UnresolvedTypeData::Integer(signedness, bit_size) = typ.typ {
+                    if matches!(signedness, Signedness::Signed)
+                        || matches!(bit_size, IntegerBitSize::SixtyFour)
+                    {
                         emit(ParserError::with_reason(
-                            ParserErrorReason::SignedNumericGeneric,
+                            ParserErrorReason::ForbiddenNumericGenericType,
                             span,
                         ));
                     }
@@ -108,8 +111,15 @@ pub(super) fn generic_type() -> impl NoirParser<UnresolvedGeneric> {
     ident().map(UnresolvedGeneric::Variable)
 }
 
+pub(super) fn resolved_generic() -> impl NoirParser<UnresolvedGeneric> {
+    token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
+        Token::QuotedType(id) => UnresolvedGeneric::Resolved(id, span),
+        _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
+    })
+}
+
 pub(super) fn generic() -> impl NoirParser<UnresolvedGeneric> {
-    generic_type().or(numeric_generic())
+    generic_type().or(numeric_generic()).or(resolved_generic())
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
@@ -228,7 +238,7 @@ mod test {
                 // fn func_name(x: impl Eq) {} with error Expected an end of input but found end of input
                 // "fn func_name(x: impl Eq) {}",
                 "fn func_name<T>(x: impl Eq, y : T) where T: SomeTrait + Eq {}",
-                "fn func_name<let N: u64>(x: [Field; N]) {}",
+                "fn func_name<let N: u32>(x: [Field; N]) {}",
             ],
         );
 
@@ -249,8 +259,12 @@ mod test {
                 "fn func_name<let T>(y: T) {}",
                 "fn func_name<let T:>(y: T) {}",
                 "fn func_name<T:>(y: T) {}",
-                "fn func_name<T: u64>(y: T) {}",
+                // Test failure of missing `let`
+                "fn func_name<T: u32>(y: T) {}",
+                // Test that signed numeric generics are banned
                 "fn func_name<let N: i8>() {}",
+                // Test that `u64` is banned
+                "fn func_name<let N: u64>(x: [Field; N]) {}",
             ],
         );
     }

@@ -10,18 +10,18 @@ use noirc_frontend::{
         FieldElement, FileId, HirContext, HirExpression, HirLiteral, HirStatement, NodeInterner,
     },
     node_interner::TraitId,
-    parse_program,
     parser::SortedModule,
     token::SecondaryAttribute,
     Type,
 };
 
+use crate::utils::parse_utils::parse_program;
 use crate::{
     chained_path,
     utils::{
         ast_utils::{
             call, expression, ident, ident_path, is_custom_attribute, lambda, make_statement,
-            make_type, pattern, return_type, variable, variable_path,
+            make_type, path_segment, pattern, return_type, variable, variable_path,
         },
         errors::AztecMacroError,
         hir_utils::{
@@ -59,7 +59,7 @@ fn inject_context_in_storage_field(field: &mut UnresolvedType) -> Result<(), Azt
                 vec![],
                 false,
             )));
-            match path.segments.last().unwrap().0.contents.as_str() {
+            match path.last_name() {
                 "Map" => inject_context_in_storage_field(&mut generics[1]),
                 _ => Ok(()),
             }
@@ -106,9 +106,7 @@ pub fn check_for_storage_implementation(
     storage_struct_name: &String,
 ) -> bool {
     module.impls.iter().any(|r#impl| match &r#impl.object_type.typ {
-        UnresolvedTypeData::Named(path, _, _) => {
-            path.segments.last().is_some_and(|segment| segment.0.contents == *storage_struct_name)
-        }
+        UnresolvedTypeData::Named(path, _, _) => path.last_name() == *storage_struct_name,
         _ => false,
     })
 }
@@ -123,8 +121,8 @@ pub fn generate_storage_field_constructor(
     match typ {
         UnresolvedTypeData::Named(path, generics, _) => {
             let mut new_path = path.clone().to_owned();
-            new_path.segments.push(ident("new"));
-            match path.segments.last().unwrap().0.contents.as_str() {
+            new_path.segments.push(path_segment("new"));
+            match path.last_name() {
                 "Map" => Ok(call(
                     variable_path(new_path),
                     vec![
@@ -248,7 +246,6 @@ pub fn generate_storage_implementation(
         methods: vec![(init, Span::default())],
 
         where_clause: vec![],
-        is_comptime: false,
     };
     module.impls.push(storage_impl);
 
@@ -501,6 +498,7 @@ pub fn generate_storage_layout(
     module: &mut SortedModule,
     storage_struct_name: String,
     module_name: &str,
+    empty_spans: bool,
 ) -> Result<(), AztecMacroError> {
     let definition = module
         .types
@@ -533,7 +531,7 @@ pub fn generate_storage_layout(
         storable_fields_impl.join(",\n")
     );
 
-    let (struct_ast, errors) = parse_program(&storage_fields_source);
+    let (struct_ast, errors) = parse_program(&storage_fields_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotExportStorageLayout {

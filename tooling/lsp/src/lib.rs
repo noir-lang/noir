@@ -30,7 +30,7 @@ use lsp_types::{
 use nargo::{
     package::{Package, PackageType},
     parse_all,
-    workspace::Workspace,
+    workspace::{self, Workspace},
 };
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
@@ -236,41 +236,14 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     }
 }
 
-pub(crate) fn resolve_workspace_for_source_path(
-    file_path: &Path,
-    root_path: &Option<PathBuf>,
-) -> Result<Workspace, LspError> {
-    // If there's a LSP root path, starting from file_path go up the directory tree
-    // searching for Nargo.toml files. The last one we find is the one we'll use
-    // (we'll assume Noir workspaces aren't nested)
-    if let Some(root_path) = root_path {
-        let mut current_path = file_path;
-        let mut current_toml_path = None;
-        while current_path.starts_with(root_path) {
-            let no_dummy_toml = false;
-            if let Some(toml_path) = find_file_manifest(current_path, no_dummy_toml) {
-                current_toml_path = Some(toml_path);
-
-                if let Some(next_path) = current_path.parent() {
-                    current_path = next_path;
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-
-        if let Some(toml_path) = current_toml_path {
-            let no_dummy_toml = false;
-            return resolve_workspace_from_toml(
-                &toml_path,
-                PackageSelection::All,
-                Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-                no_dummy_toml,
-            )
-            .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
-        }
+pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
+    if let Some(toml_path) = find_file_manifest(file_path) {
+        return resolve_workspace_from_toml(
+            &toml_path,
+            PackageSelection::All,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        )
+        .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
     }
 
     let Some(parent_folder) = file_path
@@ -316,7 +289,7 @@ pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
     package: &Package,
 ) -> (Context<'file_manager, 'parsed_files>, CrateId) {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    context.track_references();
+    context.activate_lsp_mode();
     (context, crate_id)
 }
 
@@ -337,7 +310,7 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
     let parsed_files = parse_diff(&file_manager, state);
 
     let mut context = Context::new(file_manager, parsed_files);
-    context.track_references();
+    context.activate_lsp_mode();
 
     let root_crate_id = prepare_crate(&mut context, file_name);
 
@@ -401,6 +374,22 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
     }
 }
 
+pub fn insert_all_files_for_workspace_into_file_manager(
+    state: &LspState,
+    workspace: &workspace::Workspace,
+    file_manager: &mut FileManager,
+) {
+    // First add files we cached: these have the source code of files that are modified
+    // but not saved to disk yet, and we want to make sure all LSP features work well
+    // according to these unsaved buffers, not what's saved on disk.
+    for (path, source) in &state.input_files {
+        let path = path.strip_prefix("file://").unwrap();
+        file_manager.add_file_with_source_canonical_path(Path::new(path), source.clone());
+    }
+
+    nargo::insert_all_files_for_workspace_into_file_manager(workspace, file_manager);
+}
+
 #[test]
 fn prepare_package_from_source_string() {
     let source = r#"
@@ -415,7 +404,7 @@ fn prepare_package_from_source_string() {
     let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
 
     let (mut context, crate_id) = crate::prepare_source(source.to_string(), &mut state);
-    let _check_result = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
+    let _check_result = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
     let main_func_id = context.get_main_function(&crate_id);
     assert!(main_func_id.is_some());
 }

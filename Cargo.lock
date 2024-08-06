@@ -48,6 +48,7 @@ dependencies = [
  "brillig_vm",
  "indexmap 1.9.3",
  "num-bigint",
+ "proptest",
  "serde",
  "thiserror",
  "tracing",
@@ -2925,6 +2926,8 @@ dependencies = [
  "num-bigint",
  "proptest",
  "serde",
+ "serde_json",
+ "serde_with",
  "thiserror",
  "tracing",
 ]
@@ -2935,6 +2938,7 @@ version = "0.32.0"
 dependencies = [
  "acvm",
  "base64 0.21.2",
+ "bn254_blackbox_solver",
  "cfg-if 1.0.0",
  "chumsky",
  "fm",

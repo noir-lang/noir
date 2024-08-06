@@ -427,7 +427,7 @@ impl<'a> DocumentSymbolCollector<'a> {
             return;
         };
 
-        let name = name_path.last_segment();
+        let name = name_path.last_ident();
 
         let Some(name_location) = self.to_lsp_location(name.span()) else {
             return;

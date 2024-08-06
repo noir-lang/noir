@@ -635,6 +635,10 @@ impl Attributes {
     pub fn is_no_predicates(&self) -> bool {
         self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
     }
+
+    pub fn is_varargs(&self) -> bool {
+        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -728,6 +732,7 @@ impl Attribute {
                     name.trim_matches('"').to_string().into(),
                 ))
             }
+            ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
                 Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
@@ -825,6 +830,9 @@ pub enum SecondaryAttribute {
     Field(String),
     Custom(String),
     Abi(String),
+
+    /// A variable-argument comptime function.
+    Varargs,
 }
 
 impl fmt::Display for SecondaryAttribute {
@@ -839,6 +847,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
             SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
+            SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
         }
     }
 }
@@ -867,6 +876,7 @@ impl AsRef<str> for SecondaryAttribute {
             | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
+            SecondaryAttribute::Varargs => "",
         }
     }
 }

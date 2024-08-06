@@ -17,22 +17,25 @@ sidebar_position: 1
 
 ---
 
-Now that we have installed Nargo, it is time to make our first hello world program!
+Now that we have installed Nargo and a proving backend, it is time to make our first hello world program!
 
-## Create a Project Directory
+### 1. Create a new project directory
 
 Noir code can live anywhere on your computer. Let us create a _projects_ folder in the home
-directory to house our Noir programs.
+directory to house our first Noir program.
 
-For Linux, macOS, and Windows PowerShell, create the directory and change directory into it by
-running:
+Create the directory and change directory into it by running:
 
 ```sh
 mkdir ~/projects
 cd ~/projects
 ```
 
-## Create Our First Nargo Project
+## Nargo
+
+Nargo provides the ability to initiate and execute Noir projects. Read the [Nargo installation](../installation/index.md) section to learn more about Nargo and how to install it.
+
+### 2. Create a new Noir project
 
 Now that we are in the projects directory, create a new Nargo project by running:
 
@@ -40,18 +43,15 @@ Now that we are in the projects directory, create a new Nargo project by running
 nargo new hello_world
 ```
 
-> **Note:** `hello_world` can be any arbitrary project name, we are simply using `hello_world` for
-> demonstration.
->
-> In production, the common practice is to name the project folder as `circuits` for better
-> identifiability when sitting alongside other folders in the codebase (e.g. `contracts`, `scripts`,
-> `test`).
+`hello_world` can be any arbitrary project name, we are simply using `hello_world` for demonstration.
+
+In production, it is common practice to name the project folder, `circuits`, for clarity amongst other folders in the codebase (like: `contracts`, `scripts`, and `test`).
 
 A `hello_world` folder would be created. Similar to Rust, the folder houses _src/main.nr_ and
 _Nargo.toml_ which contain the source code and environmental options of your Noir program
 respectively.
 
-### Intro to Noir Syntax
+#### Intro to Noir Syntax
 
 Let us take a closer look at _main.nr_. The default _main.nr_ generated should look like this:
 
@@ -81,7 +81,7 @@ The Noir syntax `assert` can be interpreted as something similar to constraints 
 
 For more Noir syntax, check the [Language Concepts](../../noir/concepts/comments.md) chapter.
 
-## Build In/Output Files
+### 3. Build in/output files
 
 Change directory into _hello_world_ and build in/output files for your Noir program by running:
 
@@ -92,7 +92,7 @@ nargo check
 
 A _Prover.toml_ file will be generated in your project directory, to allow specifying input values to the program.
 
-## Execute Our Noir Program
+### 4. Execute the Noir program
 
 Now that the project is set up, we can execute our Noir program.
 
@@ -111,34 +111,41 @@ nargo execute witness-name
 
 The witness corresponding to this execution will then be written to the file `./target/witness-name.gz`.
 
-## Prove Our Noir Program
+The command also automatically compiles your Noir program if it was not already / was edited, which you may notice the compiled artifacts being written to the file `./target/hello_world.json`.
 
-:::info
+## Proving Backend
 
-Nargo no longer handles communicating with backends in order to generate proofs. In order to prove/verify your Noir programs, you'll need an installation of [bb](../barretenberg/index.md).
+Proving backends provide the ability to generate and verify proofs of executing Noir programs, following Noir's tooling that compiles and executes the programs. Read the [proving backend installation](../backend/index.md) section to learn more about proving backends and how to install them.
 
-:::
+Barretenberg is used as an example here to demonstrate how proving and verifying could be implemented and used. Read the [`bb` installation](../backend/index.md#example-installing-bb) section for how to install Barretenberg's CLI tool; refer to [`bb`'s documentation](https://github.com/AztecProtocol/aztec-packages/blob/master/barretenberg/cpp/src/barretenberg/bb/readme.md) for full details about the tool.
 
-Prove the valid execution of your Noir program using `bb`:
+### 5. Prove an execution of the Noir program
+
+Using Barretenberg as an example, prove the valid execution of your Noir program running:
 
 ```sh
-bb prove -b ./target/hello_world.json -w ./target/witness-name.gz -o ./proof
+bb prove -b ./target/hello_world.json -w ./target/witness-name.gz -o ./target/proof
 ```
 
-A new file called `proof` will be generated in your project directory, containing the generated proof for your program.
+The proof generated will then be written to the file `./target/proof`.
 
-## Verify Our Noir Program
+### 6. Verify the execution proof
 
 Once a proof is generated, we can verify correct execution of our Noir program by verifying the proof file.
 
-Verify your proof by running:
+Using Barretenberg as an example, compute the verification key for the Noir program by running:
 
 ```sh
 bb write_vk -b ./target/hello_world.json -o ./target/vk
-bb verify -k ./target/vk -p ./proof
 ```
 
-The verification will complete in silence if it is successful. If it fails, it will log the corresponding error instead.
+And verify your proof by running:
+
+```sh
+bb verify -k ./target/vk -p ./target/proof
+```
+
+If successful, the verification will complete in silence; if unsuccessful, the command will trigger logging of the corresponding error.
 
 Congratulations, you have now created and verified a proof for your very first Noir program!
 

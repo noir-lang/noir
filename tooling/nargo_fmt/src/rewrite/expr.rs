@@ -1,5 +1,6 @@
 use noirc_frontend::ast::{
-    ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, UnaryOp, UnresolvedType,
+    ArrayLiteral, BlockExpression, Expression, ExpressionKind, Literal, Path, PathKind, UnaryOp,
+    UnresolvedType,
 };
 use noirc_frontend::{macros_api::Span, token::Token};
 
@@ -161,12 +162,7 @@ pub(crate) fn rewrite(
 
             visitor.format_if(*if_expr)
         }
-        ExpressionKind::Variable(path, generics) => {
-            let path_string = visitor.slice(path.span);
-
-            let turbofish = rewrite_turbofish(visitor, shape, generics);
-            format!("{path_string}{turbofish}")
-        }
+        ExpressionKind::Variable(path) => rewrite_path(visitor, shape, path),
         ExpressionKind::Lambda(_) => visitor.slice(span).to_string(),
         ExpressionKind::Quote(_) => visitor.slice(span).to_string(),
         ExpressionKind::Comptime(block, block_span) => {
@@ -190,6 +186,25 @@ fn rewrite_block(visitor: &FmtVisitor, block: BlockExpression, span: Span) -> St
     let mut visitor = visitor.fork();
     visitor.visit_block(block, span);
     visitor.finish()
+}
+
+fn rewrite_path(visitor: &FmtVisitor, shape: Shape, path: Path) -> String {
+    let mut string = String::new();
+
+    if path.kind != PathKind::Plain {
+        string.push_str(&path.kind.to_string());
+        string.push_str("::");
+    }
+
+    for (index, segment) in path.segments.iter().enumerate() {
+        if index > 0 {
+            string.push_str("::");
+        }
+        string.push_str(&segment.ident.to_string());
+        string.push_str(&rewrite_turbofish(visitor, shape, segment.generics.clone()));
+    }
+
+    string
 }
 
 fn rewrite_turbofish(

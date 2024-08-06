@@ -1,8 +1,36 @@
+use crate::meta::derive_via;
+
+#[derive_via(derive_eq)]
 // docs:start:eq-trait
 trait Eq {
     fn eq(self, other: Self) -> bool;
 }
 // docs:end:eq-trait
+
+comptime fn derive_eq(s: StructDefinition) -> Quoted {
+    let typ = s.as_type();
+
+    let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
+
+    let where_clause = s.generics().map(|name| quote { $name: Eq }).join(quote {,});
+
+    // `(self.a == other.a) & (self.b == other.b) & ...`
+    let equalities = s.fields().map(
+        |f: (Quoted, Type)| {
+        let name = f.0;
+        quote { (self.$name == other.$name) }
+    }
+    );
+    let body = equalities.join(quote { & });
+
+    quote {
+        impl<$impl_generics> Eq for $typ where $where_clause {
+            fn eq(self, other: Self) -> bool {
+                $body
+            }
+        }
+    }
+}
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 

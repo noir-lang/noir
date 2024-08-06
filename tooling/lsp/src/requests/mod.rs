@@ -1,5 +1,7 @@
+use std::path::PathBuf;
 use std::{collections::HashMap, future::Future};
 
+use crate::insert_all_files_for_workspace_into_file_manager;
 use crate::{
     parse_diff, resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
@@ -11,7 +13,6 @@ use lsp_types::{
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
     WorkDoneProgressOptions,
 };
-use nargo::insert_all_files_for_workspace_into_file_manager;
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
 use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
@@ -77,6 +78,9 @@ pub(crate) struct InlayHintsOptions {
 
     #[serde(rename = "parameterHints", default = "default_parameter_hints")]
     pub(crate) parameter_hints: ParameterHintsOptions,
+
+    #[serde(rename = "closingBraceHints", default = "default_closing_brace_hints")]
+    pub(crate) closing_brace_hints: ClosingBraceHintsOptions,
 }
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
@@ -91,6 +95,15 @@ pub(crate) struct ParameterHintsOptions {
     pub(crate) enabled: bool,
 }
 
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct ClosingBraceHintsOptions {
+    #[serde(rename = "enabled", default = "default_closing_brace_hints_enabled")]
+    pub(crate) enabled: bool,
+
+    #[serde(rename = "minLines", default = "default_closing_brace_min_lines")]
+    pub(crate) min_lines: u32,
+}
+
 fn default_enable_code_lens() -> bool {
     true
 }
@@ -103,6 +116,7 @@ fn default_inlay_hints() -> InlayHintsOptions {
     InlayHintsOptions {
         type_hints: default_type_hints(),
         parameter_hints: default_parameter_hints(),
+        closing_brace_hints: default_closing_brace_hints(),
     }
 }
 
@@ -120,6 +134,21 @@ fn default_parameter_hints() -> ParameterHintsOptions {
 
 fn default_parameter_hints_enabled() -> bool {
     true
+}
+
+fn default_closing_brace_hints() -> ClosingBraceHintsOptions {
+    ClosingBraceHintsOptions {
+        enabled: default_closing_brace_hints_enabled(),
+        min_lines: default_closing_brace_min_lines(),
+    }
+}
+
+fn default_closing_brace_hints_enabled() -> bool {
+    true
+}
+
+fn default_closing_brace_min_lines() -> u32 {
+    25
 }
 
 impl Default for LspInitializationOptions {
@@ -324,7 +353,12 @@ where
     let file_name = files.name(file_id).ok()?;
 
     let path = file_name.to_string();
-    let uri = Url::from_file_path(path).ok()?;
+
+    // `path` might be a relative path so we canonicalize it to get an absolute path
+    let path_buf = PathBuf::from(path);
+    let path_buf = path_buf.canonicalize().unwrap_or(path_buf);
+
+    let uri = Url::from_file_path(path_buf.to_str()?).ok()?;
 
     Some(Location { uri, range })
 }
@@ -358,8 +392,7 @@ where
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace =
-        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path).unwrap();
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
@@ -367,7 +400,11 @@ where
     let package_root_path: String = package.root_dir.as_os_str().to_string_lossy().into();
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    insert_all_files_for_workspace_into_file_manager(
+        state,
+        &workspace,
+        &mut workspace_file_manager,
+    );
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     let (mut context, crate_id) =
@@ -378,7 +415,7 @@ where
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
         interner = &context.def_interner;
     }
 

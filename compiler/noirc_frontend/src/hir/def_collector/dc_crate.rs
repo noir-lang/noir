@@ -19,7 +19,8 @@ use crate::node_interner::{
 
 use crate::ast::{
     ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType,
 };
 
 use crate::parser::{ParserError, SortedModule};
@@ -79,7 +80,6 @@ pub struct UnresolvedTraitImpl {
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
-    pub is_comptime: bool,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,
@@ -247,6 +247,7 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
+        enable_arithmetic_generics: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -264,6 +265,7 @@ impl DefCollector {
                 dep.crate_id,
                 context,
                 debug_comptime_in_file,
+                enable_arithmetic_generics,
                 macro_processors,
             ));
 
@@ -306,7 +308,7 @@ impl DefCollector {
         // Resolve unresolved imports collected from the crate, one by one.
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let module_id = collected_import.module_id;
-            let resolved_import = if context.def_interner.track_references {
+            let resolved_import = if context.def_interner.lsp_mode {
                 let mut references: Vec<Option<ReferenceId>> = Vec::new();
                 let resolved_import = resolve_import(
                     crate_id,
@@ -318,13 +320,14 @@ impl DefCollector {
                 let current_def_map = context.def_maps.get(&crate_id).unwrap();
                 let file_id = current_def_map.file_id(module_id);
 
-                for (referenced, ident) in references.iter().zip(&collected_import.path.segments) {
+                for (referenced, segment) in references.iter().zip(&collected_import.path.segments)
+                {
                     let Some(referenced) = referenced else {
                         continue;
                     };
                     context.def_interner.add_reference(
                         *referenced,
-                        Location::new(ident.span(), file_id),
+                        Location::new(segment.ident.span(), file_id),
                         false,
                     );
                 }
@@ -351,7 +354,7 @@ impl DefCollector {
                             .import(name.clone(), ns, resolved_import.is_prelude);
 
                         let file_id = current_def_map.file_id(module_id);
-                        let last_segment = collected_import.path.last_segment();
+                        let last_segment = collected_import.path.last_ident();
 
                         add_import_reference(ns, &last_segment, &mut context.def_interner, file_id);
                         if let Some(ref alias) = collected_import.alias {
@@ -385,8 +388,14 @@ impl DefCollector {
             })
         });
 
-        let mut more_errors =
-            Elaborator::elaborate(context, crate_id, def_collector.items, debug_comptime_in_file);
+        let mut more_errors = Elaborator::elaborate(
+            context,
+            crate_id,
+            def_collector.items,
+            debug_comptime_in_file,
+            enable_arithmetic_generics,
+        );
+
         errors.append(&mut more_errors);
 
         for macro_processor in macro_processors {
@@ -425,7 +434,12 @@ fn inject_prelude(
     if !crate_id.is_stdlib() {
         let segments: Vec<_> = "std::prelude"
             .split("::")
-            .map(|segment| crate::ast::Ident::new(segment.into(), Span::default()))
+            .map(|segment| {
+                crate::ast::PathSegment::from(crate::ast::Ident::new(
+                    segment.into(),
+                    Span::default(),
+                ))
+            })
             .collect();
 
         let path = Path {
@@ -446,7 +460,7 @@ fn inject_prelude(
 
             for path in prelude {
                 let mut segments = segments.clone();
-                segments.push(Ident::new(path.to_string(), Span::default()));
+                segments.push(PathSegment::from(Ident::new(path.to_string(), Span::default())));
 
                 collected_imports.insert(
                     0,
