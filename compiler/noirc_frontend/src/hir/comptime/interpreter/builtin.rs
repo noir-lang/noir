@@ -329,7 +329,7 @@ fn quoted_as_module(
         let module = interpreter.elaborate_item(interpreter.current_function, |elaborator| {
             elaborator.resolve_module_by_path(path)
         });
-        Value::ModuleDefinition(module)
+        module.map(Value::ModuleDefinition)
     });
 
     option(return_type, option_value)
@@ -688,7 +688,7 @@ fn function_def_name(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument, location)?;
-    let name = interner.function_name(&func_id).clone();
+    let name = interner.function_name(&func_id).to_string();
     let tokens = Rc::new(vec![Token::Ident(name)]);
     Ok(Value::Quoted(tokens))
 }
