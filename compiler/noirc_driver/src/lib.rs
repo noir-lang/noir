@@ -56,6 +56,12 @@ pub struct CompileOptions {
     #[arg(long, value_parser = parse_expression_width)]
     pub expression_width: Option<ExpressionWidth>,
 
+    /// Generate ACIR with the target backend expression width.
+    /// The default is to generate ACIR without a bound and split expressions after code generation.
+    /// Activating this flag can sometimes provide optimizations for certain programs.
+    #[arg(long, default_value = "false")]
+    pub bounded_codegen: bool,
+
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
@@ -99,10 +105,6 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub force_brillig: bool,
 
-    /// Use the deprecated name resolution & type checking passes instead of the elaborator
-    #[arg(long, hide = true)]
-    pub use_legacy: bool,
-
     /// Enable printing results of comptime evaluation: provide a path suffix
     /// for the module to debug, e.g. "package_name/src/main.nr"
     #[arg(long)]
@@ -111,6 +113,10 @@ pub struct CompileOptions {
     /// Outputs the paths to any modified artifacts
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
+
+    /// Temporary flag to enable the experimental arithmetic generics feature
+    #[arg(long, hide = true)]
+    pub arithmetic_generics: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -260,23 +266,28 @@ pub fn add_dep(
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
-    deny_warnings: bool,
-    disable_macros: bool,
-    use_legacy: bool,
-    debug_comptime_in_file: Option<&str>,
+    options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let macros: &[&dyn MacroProcessor] =
-        if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
+    let macros: &[&dyn MacroProcessor] = if options.disable_macros {
+        &[]
+    } else {
+        &[&aztec_macros::AztecMacro as &dyn MacroProcessor]
+    };
 
     let mut errors = vec![];
-    let diagnostics =
-        CrateDefMap::collect_defs(crate_id, context, use_legacy, debug_comptime_in_file, macros);
+    let diagnostics = CrateDefMap::collect_defs(
+        crate_id,
+        context,
+        options.debug_comptime_in_file.as_deref(),
+        options.arithmetic_generics,
+        macros,
+    );
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
         let diagnostic = CustomDiagnostic::from(&error);
         diagnostic.in_file(file_id)
     }));
 
-    if has_errors(&errors, deny_warnings) {
+    if has_errors(&errors, options.deny_warnings) {
         Err(errors)
     } else {
         Ok(((), errors))
@@ -302,14 +313,7 @@ pub fn compile_main(
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate(
-        context,
-        crate_id,
-        options.deny_warnings,
-        options.disable_macros,
-        options.use_legacy,
-        options.debug_comptime_in_file.as_deref(),
-    )?;
+    let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -344,14 +348,7 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(
-        context,
-        crate_id,
-        options.deny_warnings,
-        options.disable_macros,
-        options.use_legacy,
-        options.debug_comptime_in_file.as_deref(),
-    )?;
+    let (_, warnings) = check_crate(context, crate_id, options)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
@@ -520,6 +517,12 @@ fn compile_contract_inner(
     }
 }
 
+/// Default expression width used for Noir compilation.
+/// The ACVM native type `ExpressionWidth` has its own default which should always be unbounded,
+/// while we can sometimes expect the compilation target width to change.
+/// Thus, we set it separately here rather than trying to alter the default derivation of the type.
+pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded { width: 4 };
+
 /// Compile the current crate using `main_function` as the entrypoint.
 ///
 /// This function assumes [`check_crate`] is called beforehand.
@@ -558,6 +561,11 @@ pub fn compile_no_check(
         enable_brillig_logging: options.show_brillig,
         force_brillig_output: options.force_brillig,
         print_codegen_timings: options.benchmark_codegen,
+        expression_width: if options.bounded_codegen {
+            options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
+        } else {
+            ExpressionWidth::default()
+        },
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =

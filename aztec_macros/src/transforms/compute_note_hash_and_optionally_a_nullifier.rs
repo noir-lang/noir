@@ -3,9 +3,10 @@ use noirc_frontend::ast::{FunctionReturnType, NoirFunction, UnresolvedTypeData};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{FileId, HirContext},
-    parse_program, Type,
+    Type,
 };
 
+use crate::utils::parse_utils::parse_program;
 use crate::utils::{
     errors::AztecMacroError,
     hir_utils::{
@@ -125,8 +126,12 @@ pub fn inject_compute_note_hash_and_optionally_a_nullifier(
             notes_and_lengths.iter().map(|(note_type, _)| note_type.clone()).collect::<Vec<_>>();
 
         // We can now generate a version of compute_note_hash_and_optionally_a_nullifier tailored for the contract in this crate.
-        let func =
-            generate_compute_note_hash_and_optionally_a_nullifier(&note_types, max_note_length);
+        let empty_spans = context.def_interner.is_in_lsp_mode();
+        let func = generate_compute_note_hash_and_optionally_a_nullifier(
+            &note_types,
+            max_note_length,
+            empty_spans,
+        );
 
         // And inject the newly created function into the contract.
 
@@ -149,11 +154,12 @@ pub fn inject_compute_note_hash_and_optionally_a_nullifier(
 fn generate_compute_note_hash_and_optionally_a_nullifier(
     note_types: &[String],
     max_note_length: u128,
+    empty_spans: bool,
 ) -> NoirFunction {
     let function_source =
         generate_compute_note_hash_and_optionally_a_nullifier_source(note_types, max_note_length);
 
-    let (function_ast, errors) = parse_program(&function_source);
+    let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors.clone());
     }

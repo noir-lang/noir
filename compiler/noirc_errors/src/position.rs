@@ -43,6 +43,10 @@ impl<T> Spanned<T> {
     pub fn span(&self) -> Span {
         self.span
     }
+
+    pub fn set_span(&mut self, span: Span) {
+        self.span = span;
+    }
 }
 
 impl<T> std::borrow::Borrow<T> for Spanned<T> {
@@ -88,6 +92,10 @@ impl Span {
 
     pub fn contains(&self, other: &Span) -> bool {
         self.start() <= other.start() && self.end() >= other.end()
+    }
+
+    pub fn intersects(&self, other: &Span) -> bool {
+        self.end() > other.start() && self.start() < other.end()
     }
 
     pub fn is_smaller(&self, other: &Span) -> bool {

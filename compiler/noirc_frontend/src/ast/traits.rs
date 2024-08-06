@@ -84,7 +84,7 @@ pub struct UnresolvedTraitConstraint {
 }
 
 /// Represents a single trait bound, such as `TraitX` or `TraitY<U, V>`
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TraitBound {
     pub trait_path: Path,
     pub trait_id: Option<TraitId>, // initially None, gets assigned during DC

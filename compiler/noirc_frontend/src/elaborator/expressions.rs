@@ -10,7 +10,7 @@ use crate::{
     },
     hir::{
         comptime::{self, InterpreterError},
-        resolution::{errors::ResolverError, resolver::LambdaContext},
+        resolution::errors::ResolverError,
         type_check::TypeCheckError,
     },
     hir_def::{
@@ -32,14 +32,14 @@ use crate::{
     QuotedType, Shared, StructType, Type,
 };
 
-use super::Elaborator;
+use super::{Elaborator, LambdaContext};
 
 impl<'context> Elaborator<'context> {
-    pub(super) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
+    pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
             ExpressionKind::Block(block) => self.elaborate_block(block),
-            ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix),
+            ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix, expr.span),
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
             ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
@@ -50,9 +50,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
-            ExpressionKind::Variable(variable, generics) => {
-                return self.elaborate_variable(variable, generics)
-            }
+            ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
@@ -227,8 +225,7 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
     }
 
-    fn elaborate_prefix(&mut self, prefix: PrefixExpression) -> (ExprId, Type) {
-        let span = prefix.rhs.span;
+    fn elaborate_prefix(&mut self, prefix: PrefixExpression, span: Span) -> (ExprId, Type) {
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
         let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
 
@@ -300,15 +297,21 @@ impl<'context> Elaborator<'context> {
         }
 
         let location = Location::new(span, self.file);
-        let hir_call = HirCallExpression { func, arguments, location };
-        let typ = self.type_check_call(&hir_call, func_type, args, span);
+        let is_macro_call = call.is_macro_call;
+        let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
+        let mut typ = self.type_check_call(&hir_call, func_type, args, span);
 
-        if call.is_macro_call {
-            self.call_macro(func, comptime_args, location, typ)
-                .unwrap_or_else(|| (HirExpression::Error, Type::Error))
-        } else {
-            (HirExpression::Call(hir_call), typ)
+        if is_macro_call {
+            if self.in_comptime_context() {
+                typ = self.interner.next_type_variable();
+            } else {
+                return self
+                    .call_macro(func, comptime_args, location, typ)
+                    .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+            }
         }
+
+        (HirExpression::Call(hir_call), typ)
     }
 
     fn elaborate_method_call(
@@ -346,7 +349,7 @@ impl<'context> Elaborator<'context> {
                         &mut object,
                     );
 
-                    self.resolve_turbofish_generics(&func_id, method_call.generics, span)
+                    self.resolve_function_turbofish_generics(&func_id, method_call.generics, span)
                 } else {
                     None
                 };
@@ -368,6 +371,7 @@ impl<'context> Elaborator<'context> {
                 let location = Location::new(span, self.file);
                 let method = method_call.method_name;
                 let turbofish_generics = generics.clone();
+                let is_macro_call = method_call.is_macro_call;
                 let method_call =
                     HirMethodCallExpression { method, object, arguments, location, generics };
 
@@ -377,6 +381,7 @@ impl<'context> Elaborator<'context> {
                 let ((function_id, function_name), function_call) = method_call.into_function_call(
                     &method_ref,
                     object_type,
+                    is_macro_call,
                     location,
                     self.interner,
                 );
@@ -402,9 +407,12 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&constructor.type_name, exclude_last_segment);
+
         let span = constructor.type_name.span();
         let last_segment = constructor.type_name.last_segment();
-        let is_self_type = last_segment.is_self_type_name();
+        let is_self_type = last_segment.ident.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
             let typ = self.interner.get_struct(struct_id);
@@ -421,6 +429,15 @@ impl<'context> Elaborator<'context> {
             }
         };
 
+        let turbofish_span = last_segment.turbofish_span();
+
+        let struct_generics = self.resolve_struct_turbofish_generics(
+            &r#type.borrow(),
+            struct_generics,
+            last_segment.generics,
+            turbofish_span,
+        );
+
         let struct_type = r#type.clone();
         let generics = struct_generics.clone();
 
@@ -435,7 +452,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let struct_id = struct_type.borrow().id;
-        let reference_location = Location::new(last_segment.span(), self.file);
+        let reference_location = Location::new(last_segment.ident.span(), self.file);
         self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::Struct(struct_type, generics))
@@ -536,7 +553,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_cast(&mut self, cast: CastExpression, span: Span) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
         let r#type = self.resolve_type(cast.r#type);
-        let result = self.check_cast(lhs_type, &r#type, span);
+        let result = self.check_cast(&lhs_type, &r#type, span);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }
@@ -586,6 +603,7 @@ impl<'context> Elaborator<'context> {
                         typ: operand_type.clone(),
                         trait_id: trait_id.trait_id,
                         trait_generics: Vec::new(),
+                        span,
                     };
                     self.push_trait_constraint(constraint, expr_id);
                     self.type_check_operator_method(expr_id, trait_id, operand_type, span);
@@ -708,10 +726,8 @@ impl<'context> Elaborator<'context> {
         let (block, _typ) = self.elaborate_block_expression(block);
 
         self.check_and_pop_function_context();
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
-        self.include_interpreter_errors(interpreter_errors);
         let (id, typ) = self.inline_comptime_value(value, span);
 
         let location = self.interner.id_location(id);
@@ -722,7 +738,7 @@ impl<'context> Elaborator<'context> {
         (id, typ)
     }
 
-    pub(super) fn inline_comptime_value(
+    pub fn inline_comptime_value(
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
         span: Span,
@@ -750,19 +766,23 @@ impl<'context> Elaborator<'context> {
         &mut self,
         func: ExprId,
         location: Location,
-    ) -> Result<FuncId, ResolverError> {
+    ) -> Result<Option<FuncId>, ResolverError> {
         match self.interner.expression(&func) {
             HirExpression::Ident(ident, _generics) => {
-                let definition = self.interner.definition(ident.id);
-                if let DefinitionKind::Function(function) = definition.kind {
-                    let meta = self.interner.function_modifiers(&function);
-                    if meta.is_comptime {
-                        Ok(function)
+                if let Some(definition) = self.interner.try_definition(ident.id) {
+                    if let DefinitionKind::Function(function) = definition.kind {
+                        let meta = self.interner.function_modifiers(&function);
+                        if meta.is_comptime {
+                            Ok(Some(function))
+                        } else {
+                            Err(ResolverError::MacroIsNotComptime { span: location.span })
+                        }
                     } else {
-                        Err(ResolverError::MacroIsNotComptime { span: location.span })
+                        Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span })
                     }
                 } else {
-                    Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span })
+                    // Assume a name resolution error has already been issued
+                    Ok(None)
                 }
             }
             _ => Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span }),
@@ -783,7 +803,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let function = match self.try_get_comptime_function(func, location) {
-            Ok(function) => function,
+            Ok(function) => function?,
             Err(error) => {
                 self.push_err(error);
                 return None;
@@ -791,24 +811,22 @@ impl<'context> Elaborator<'context> {
         };
 
         let file = self.file;
-        let mut interpreter_errors = vec![];
-        let mut interpreter = self.setup_interpreter(&mut interpreter_errors);
+        let mut interpreter = self.setup_interpreter();
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
 
         for argument in arguments {
             match interpreter.evaluate(argument) {
                 Ok(arg) => {
-                    let location = interpreter.interner.expr_location(&argument);
+                    let location = interpreter.elaborator.interner.expr_location(&argument);
                     comptime_args.push((arg, location));
                 }
                 Err(error) => errors.push((error.into(), file)),
             }
         }
 
-        let bindings = interpreter.interner.get_instantiation_bindings(func).clone();
+        let bindings = interpreter.elaborator.interner.get_instantiation_bindings(func).clone();
         let result = interpreter.call_function(function, comptime_args, bindings, location);
-        self.include_interpreter_errors(interpreter_errors);
 
         if !errors.is_empty() {
             self.errors.append(&mut errors);

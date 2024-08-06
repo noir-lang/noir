@@ -40,13 +40,6 @@ pub enum HirExpression {
     Error,
 }
 
-impl HirExpression {
-    /// Returns an empty block expression
-    pub const fn empty_block() -> HirExpression {
-        HirExpression::Block(HirBlockExpression { statements: vec![] })
-    }
-}
-
 /// Corresponds to a variable in the source code
 #[derive(Debug, Clone)]
 pub struct HirIdent {
@@ -178,6 +171,7 @@ pub struct HirCallExpression {
     pub func: ExprId,
     pub arguments: Vec<ExprId>,
     pub location: Location,
+    pub is_macro_call: bool,
 }
 
 /// These nodes are temporary, they're
@@ -215,6 +209,7 @@ impl HirMethodCallExpression {
         mut self,
         method: &HirMethodReference,
         object_type: Type,
+        is_macro_call: bool,
         location: Location,
         interner: &mut NodeInterner,
     ) -> ((ExprId, HirIdent), HirCallExpression) {
@@ -231,6 +226,7 @@ impl HirMethodCallExpression {
                     typ: object_type,
                     trait_id: method_id.trait_id,
                     trait_generics: generics.clone(),
+                    span: location.span,
                 };
                 (id, ImplKind::TraitMethod(*method_id, constraint, false))
             }
@@ -238,7 +234,7 @@ impl HirMethodCallExpression {
         let func_var = HirIdent { location, id, impl_kind };
         let func = interner.push_expr(HirExpression::Ident(func_var.clone(), self.generics));
         interner.push_expr_location(func, location.span, location.file);
-        let expr = HirCallExpression { func, arguments, location };
+        let expr = HirCallExpression { func, arguments, location, is_macro_call };
         ((func, func_var), expr)
     }
 }

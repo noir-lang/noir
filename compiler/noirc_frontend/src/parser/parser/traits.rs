@@ -2,6 +2,7 @@ use chumsky::prelude::*;
 
 use super::attributes::{attributes, validate_secondary_attributes};
 use super::function::function_return_type;
+use super::path::path_no_turbofish;
 use super::{block, expression, fresh_statement, function, function_declaration_parameters, let_statement};
 
 use crate::ast::{
@@ -17,7 +18,7 @@ use crate::{
     token::{Keyword, Token},
 };
 
-use super::{generic_type_args, parse_type, path, primitives::ident};
+use super::{generic_type_args, parse_type, primitives::ident};
 
 pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
     attributes()
@@ -102,7 +103,7 @@ fn trait_type_declaration() -> impl NoirParser<TraitItem> {
 pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
         .ignore_then(function::generics())
-        .then(path())
+        .then(path_no_turbofish())
         .then(generic_type_args(parse_type()))
         .then_ignore(keyword(Keyword::For))
         .then(parse_type())
@@ -111,8 +112,8 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then(trait_implementation_body())
         .then_ignore(just(Token::RightBrace))
         .map(|args| {
-            let ((other_args, where_clause), items) = args;
-            let (((impl_generics, trait_name), trait_generics), object_type) = other_args;
+            let (((other_args, object_type), where_clause), items) = args;
+            let ((impl_generics, trait_name), trait_generics) = other_args;
 
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
@@ -152,7 +153,7 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
     choice((function, alias, let_statement)).repeated()
 }
 
-fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
+pub(super) fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
     struct MultiTraitConstraint {
         typ: UnresolvedType,
         trait_bounds: Vec<TraitBound>,
@@ -164,7 +165,7 @@ fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
         .map(|(typ, trait_bounds)| MultiTraitConstraint { typ, trait_bounds });
 
     keyword(Keyword::Where)
-        .ignore_then(constraints.separated_by(just(Token::Comma)))
+        .ignore_then(constraints.separated_by(just(Token::Comma)).allow_trailing())
         .or_not()
         .map(|option| option.unwrap_or_default())
         .map(|x: Vec<MultiTraitConstraint>| {
@@ -185,11 +186,9 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
     trait_bound().separated_by(just(Token::Plus)).at_least(1).allow_trailing()
 }
 
-fn trait_bound() -> impl NoirParser<TraitBound> {
-    path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
-        trait_path,
-        trait_generics,
-        trait_id: None,
+pub(super) fn trait_bound() -> impl NoirParser<TraitBound> {
+    path_no_turbofish().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| {
+        TraitBound { trait_path, trait_generics, trait_id: None }
     })
 }
 
@@ -216,6 +215,7 @@ mod test {
                 "trait GenericTrait<T> { fn elem(&mut self, index: Field) -> T; }",
                 "trait GenericTraitWithConstraints<T> where T: SomeTrait { fn elem(self, index: Field) -> T; }",
                 "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C> { let Size: Field; fn zero() -> Self; }",
+                "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C>, { let Size: Field; fn zero() -> Self; }",
             ],
         );
 
