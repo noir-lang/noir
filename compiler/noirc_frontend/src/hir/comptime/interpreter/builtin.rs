@@ -773,23 +773,11 @@ fn function_def_set_parameters(
         parameter_types.push(parameter_type);
     }
 
-    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
-    let mut function_type = Type::Function(
-        parameter_types,
-        Box::new(func_meta.return_type().clone()),
-        Box::new(Type::Unit),
-    );
-
-    if let Type::Forall(generics, _) = &func_meta.typ {
-        function_type = Type::Forall(generics.clone(), Box::new(function_type));
-    }
-
-    interpreter.elaborator.interner.push_definition_type(func_meta.name.id, function_type.clone());
-
-    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.parameters = parameters.into();
-    func_meta.parameter_idents = parameter_idents;
-    func_meta.typ = function_type;
+    mutate_func_meta(&mut interpreter.elaborator.interner, func_id, |func_meta| {
+        func_meta.parameters = parameters.into();
+        func_meta.parameter_idents = parameter_idents;
+        replace_func_meta_parameters(&mut func_meta.typ, parameter_types);
+    });
 
     Ok(Value::Unit)
 }
@@ -804,28 +792,17 @@ fn function_def_set_return_type(
     let return_type = get_type(return_type_argument)?;
 
     let func_id = get_function_def(self_argument)?;
-    let func_meta = check_function_not_yet_resolved(interpreter, func_id, location)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
 
-    let parameter_types = func_meta.parameters.iter().map(|(_, typ, _)| typ.clone()).collect();
+    let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type.clone());
 
-    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
-    let mut function_type =
-        Type::Function(parameter_types, Box::new(return_type.clone()), Box::new(Type::Unit));
-
-    if let Type::Forall(generics, _) = &func_meta.typ {
-        function_type = Type::Forall(generics.clone(), Box::new(function_type));
-    }
-
-    interpreter.elaborator.interner.push_definition_type(func_meta.name.id, function_type.clone());
-
-    let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type);
-
-    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
-        typ: UnresolvedTypeData::Resolved(quoted_type_id),
-        span: Some(location.span),
+    mutate_func_meta(&mut interpreter.elaborator.interner, func_id, |func_meta| {
+        func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
+            typ: UnresolvedTypeData::Resolved(quoted_type_id),
+            span: Some(location.span),
+        });
+        replace_func_meta_return_type(&mut func_meta.typ, return_type);
     });
-    func_meta.typ = function_type;
 
     Ok(Value::Unit)
 }
@@ -1031,4 +1008,37 @@ fn parse_tokens<T>(
         let error = errors.swap_remove(0);
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })
+}
+
+fn mutate_func_meta<F>(interner: &mut NodeInterner, func_id: FuncId, f: F)
+where
+    F: FnOnce(&mut FuncMeta),
+{
+    let (name_id, function_type) = {
+        let func_meta = interner.function_meta_mut(&func_id);
+        f(func_meta);
+        (func_meta.name.id, func_meta.typ.clone())
+    };
+
+    interner.push_definition_type(name_id, function_type);
+}
+
+fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<Type>) {
+    match typ {
+        Type::Function(parameters, _, _) => {
+            *parameters = parameter_types;
+        }
+        Type::Forall(_, typ) => replace_func_meta_parameters(typ, parameter_types),
+        _ => {}
+    }
+}
+
+fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
+    match typ {
+        Type::Function(_, ret, _) => {
+            *ret = Box::new(return_type);
+        }
+        Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
+        _ => {}
+    }
 }
