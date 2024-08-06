@@ -154,7 +154,7 @@ impl Context {
                                 if let Some(array_length) =
                                     function.dfg.try_get_array_length(*array)
                                 {
-                                    if let Some(_) = function.dfg.get_numeric_constant(*index) {
+                                    if function.dfg.get_numeric_constant(*index).is_some() {
                                         // If we are here it means the index is known but out of bounds. That's always an error!
                                         let false_const =
                                             function.dfg.make_constant(false.into(), Type::bool());
