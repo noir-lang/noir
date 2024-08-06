@@ -66,9 +66,15 @@ pub struct CompileOptions {
     #[arg(long = "force")]
     pub force_compile: bool,
 
-    /// Emit debug information for the intermediate SSA IR
+    /// Emit debug information for the intermediate SSA IR to stdout
     #[arg(long, hide = true)]
     pub show_ssa: bool,
+
+    /// Emit the unoptimized SSA IR to file.
+    /// The IR will be dumped into the workspace target directory,
+    /// under `[compiled-package].ssa.json`.
+    #[arg(long, hide = true)]
+    pub emit_ssa: bool,
 
     #[arg(long, hide = true)]
     pub show_brillig: bool,
@@ -548,8 +554,11 @@ pub fn compile_no_check(
 
     // If user has specified that they want to see intermediate steps printed then we should
     // force compilation even if the program hasn't changed.
-    let force_compile =
-        force_compile || options.print_acir || options.show_brillig || options.show_ssa;
+    let force_compile = force_compile
+        || options.print_acir
+        || options.show_brillig
+        || options.show_ssa
+        || options.emit_ssa;
 
     if !force_compile && hashes_match {
         info!("Program matches existing artifact, returning early");
@@ -566,6 +575,7 @@ pub fn compile_no_check(
         } else {
             ExpressionWidth::default()
         },
+        emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =

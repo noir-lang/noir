@@ -4,11 +4,11 @@ use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    hir::comptime::{errors::IResult, interpreter::builtin::get_field, InterpreterError, Value},
+    hir::comptime::{errors::IResult, InterpreterError, Value},
     macros_api::NodeInterner,
 };
 
-use super::builtin::{check_two_arguments, get_array, get_u32};
+use super::builtin::builtin_helpers::{check_two_arguments, get_array, get_field, get_u32};
 
 pub(super) fn call_foreign(
     interner: &mut NodeInterner,
