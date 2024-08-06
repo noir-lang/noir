@@ -324,15 +324,13 @@ fn quoted_as_module(
     let tokens = get_quoted(argument, location)?;
     let quoted = add_token_spans(tokens.clone(), location.span);
 
-    let option_value = parser::path_no_turbofish()
-        .parse(quoted)
-        .ok()
-        .and_then(|path| {
-            interpreter.elaborate_item(interpreter.current_function, |elaborator| {
-                elaborator.resolve_module_by_path(path)
-            })
-        })
-        .map(Value::ModuleDefinition);
+    let path = parser::path_no_turbofish().parse(quoted).ok();
+    let option_value = path.and_then(|path| {
+        let module = interpreter.elaborate_item(interpreter.current_function, |elaborator| {
+            elaborator.resolve_module_by_path(path)
+        });
+        Value::ModuleDefinition(module)
+    });
 
     option(return_type, option_value)
 }
@@ -690,9 +688,8 @@ fn function_def_name(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument, location)?;
-    let func_meta = interner.function_meta(&func_id);
-    let name = &interner.definition(func_meta.name.id).name;
-    let tokens = Rc::new(vec![Token::Ident(name.clone())]);
+    let name = interner.function_name(&func_id).clone();
+    let tokens = Rc::new(vec![Token::Ident(name)]);
     Ok(Value::Quoted(tokens))
 }
 
@@ -758,7 +755,6 @@ fn module_functions(
         .collect();
 
     let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
-
     Ok(Value::Slice(func_ids, slice_type))
 }
 
