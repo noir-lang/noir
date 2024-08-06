@@ -86,25 +86,73 @@ impl<'a> InlayHintCollector<'a> {
         }
 
         match &item.kind {
-            ItemKind::Function(noir_function) => self.collect_in_noir_function(noir_function),
+            ItemKind::Function(noir_function) => {
+                self.collect_in_noir_function(noir_function, item.span)
+            }
             ItemKind::Trait(noir_trait) => {
                 for item in &noir_trait.items {
                     self.collect_in_trait_item(item);
                 }
             }
             ItemKind::TraitImpl(noir_trait_impl) => {
-                for item in &noir_trait_impl.items {
-                    self.collect_in_trait_impl_item(item);
+                for trait_impl_item in &noir_trait_impl.items {
+                    self.collect_in_trait_impl_item(trait_impl_item, item.span);
+                }
+
+                if self.options.closing_brace_hints.enabled {
+                    if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, item.span)
+                    {
+                        let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
+                        if lines >= self.options.closing_brace_hints.min_lines {
+                            self.push_text_hint(
+                                lsp_location.range.end,
+                                format!(
+                                    " impl {} for {}",
+                                    noir_trait_impl.trait_name, noir_trait_impl.object_type
+                                ),
+                            );
+                        }
+                    }
                 }
             }
             ItemKind::Impl(type_impl) => {
-                for (noir_function, _) in &type_impl.methods {
-                    self.collect_in_noir_function(noir_function);
+                for (noir_function, span) in &type_impl.methods {
+                    self.collect_in_noir_function(noir_function, *span);
+                }
+
+                if self.options.closing_brace_hints.enabled {
+                    if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, item.span)
+                    {
+                        let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
+                        if lines >= self.options.closing_brace_hints.min_lines {
+                            self.push_text_hint(
+                                lsp_location.range.end,
+                                format!(" impl {}", type_impl.object_type),
+                            );
+                        }
+                    }
                 }
             }
             ItemKind::Global(let_statement) => self.collect_in_let_statement(let_statement),
             ItemKind::Submodules(parsed_submodule) => {
                 self.collect_in_parsed_module(&parsed_submodule.contents);
+
+                if self.options.closing_brace_hints.enabled {
+                    if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, item.span)
+                    {
+                        let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
+                        if lines >= self.options.closing_brace_hints.min_lines {
+                            self.push_text_hint(
+                                lsp_location.range.end,
+                                if parsed_submodule.is_contract {
+                                    format!(" contract {}", parsed_submodule.name)
+                                } else {
+                                    format!(" mod {}", parsed_submodule.name)
+                                },
+                            );
+                        }
+                    }
+                }
             }
             ItemKind::ModuleDecl(_) => (),
             ItemKind::Import(_) => (),
@@ -129,9 +177,11 @@ impl<'a> InlayHintCollector<'a> {
         }
     }
 
-    fn collect_in_trait_impl_item(&mut self, item: &TraitImplItem) {
+    fn collect_in_trait_impl_item(&mut self, item: &TraitImplItem, span: Span) {
         match item {
-            TraitImplItem::Function(noir_function) => self.collect_in_noir_function(noir_function),
+            TraitImplItem::Function(noir_function) => {
+                self.collect_in_noir_function(noir_function, span)
+            }
             TraitImplItem::Constant(_name, _typ, default_value) => {
                 self.collect_in_expression(default_value);
             }
@@ -139,8 +189,20 @@ impl<'a> InlayHintCollector<'a> {
         }
     }
 
-    fn collect_in_noir_function(&mut self, noir_function: &NoirFunction) {
+    fn collect_in_noir_function(&mut self, noir_function: &NoirFunction, span: Span) {
         self.collect_in_block_expression(&noir_function.def.body);
+
+        if self.options.closing_brace_hints.enabled {
+            if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
+                let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
+                if lines >= self.options.closing_brace_hints.min_lines {
+                    self.push_text_hint(
+                        lsp_location.range.end,
+                        format!(" fn {}", noir_function.def.name),
+                    );
+                }
+            }
+        }
     }
 
     fn collect_in_let_statement(&mut self, let_statement: &LetStatement) {
@@ -708,7 +770,7 @@ fn character_to_line_offset(line: &str, character: u32) -> Option<usize> {
 #[cfg(test)]
 mod inlay_hints_tests {
     use crate::{
-        requests::{ParameterHintsOptions, TypeHintsOptions},
+        requests::{ClosingBraceHintsOptions, ParameterHintsOptions, TypeHintsOptions},
         test_utils,
     };
 
@@ -744,6 +806,7 @@ mod inlay_hints_tests {
         InlayHintsOptions {
             type_hints: TypeHintsOptions { enabled: false },
             parameter_hints: ParameterHintsOptions { enabled: false },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 25 },
         }
     }
 
@@ -751,6 +814,7 @@ mod inlay_hints_tests {
         InlayHintsOptions {
             type_hints: TypeHintsOptions { enabled: true },
             parameter_hints: ParameterHintsOptions { enabled: false },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 25 },
         }
     }
 
@@ -758,6 +822,15 @@ mod inlay_hints_tests {
         InlayHintsOptions {
             type_hints: TypeHintsOptions { enabled: false },
             parameter_hints: ParameterHintsOptions { enabled: true },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 25 },
+        }
+    }
+
+    fn closing_braces_hints(min_lines: u32) -> InlayHintsOptions {
+        InlayHintsOptions {
+            type_hints: TypeHintsOptions { enabled: false },
+            parameter_hints: ParameterHintsOptions { enabled: false },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: true, min_lines: min_lines },
         }
     }
 
@@ -1024,5 +1097,92 @@ mod inlay_hints_tests {
     async fn test_do_not_show_parameter_inlay_hints_if_param_name_is_suffix_of_arg_name() {
         let inlay_hints = get_inlay_hints(89, 92, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_does_not_show_closing_brace_inlay_hints_if_disabled() {
+        let inlay_hints = get_inlay_hints(41, 46, no_hints()).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_does_not_show_closing_brace_inlay_hints_if_enabled_but_not_lines() {
+        let inlay_hints = get_inlay_hints(41, 46, closing_braces_hints(6)).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_a_function() {
+        let inlay_hints = get_inlay_hints(41, 46, closing_braces_hints(5)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 45, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " fn call_where_name_matches");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_impl() {
+        let inlay_hints = get_inlay_hints(32, 34, closing_braces_hints(2)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 34, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " impl SomeStruct");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_trait_impl() {
+        let inlay_hints = get_inlay_hints(111, 113, closing_braces_hints(2)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 113, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " impl SomeTrait for SomeStruct");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_module() {
+        let inlay_hints = get_inlay_hints(115, 117, closing_braces_hints(2)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 117, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " mod some_module");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_contract() {
+        let inlay_hints = get_inlay_hints(119, 121, closing_braces_hints(2)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 121, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " contract some_contract");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
     }
 }
