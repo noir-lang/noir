@@ -8,14 +8,11 @@ trait Default {
 // docs:end:default-trait
 
 comptime fn derive_default(s: StructDefinition) -> Quoted {
-    crate::meta::make_impl(
-        s,
-        quote { Default },
-        quote { fn default() -> Self },
-        |name| quote { $name: Default::default() },
-        quote { , },
-        |fields| quote { Self { $fields } }
-    )
+    let name = quote { Default };
+    let signature = quote { fn default() -> Self };
+    let for_each_field = |name| quote { $name: Default::default() };
+    let body = |fields| quote { Self { $fields } };
+    crate::meta::make_trait_impl(s, name, signature, for_each_field, quote { , }, body)
 }
 
 impl Default for Field { fn default() -> Field { 0 } }

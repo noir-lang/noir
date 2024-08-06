@@ -54,7 +54,7 @@ unconstrained pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) 
 /// any final processing - e.g. wrapping each field in a `StructConstructor { .. }` expression.
 ///
 /// See `derive_eq` and `derive_default` for example usage.
-pub comptime fn make_impl<Env1, Env2>(
+pub comptime fn make_trait_impl<Env1, Env2>(
     s: StructDefinition,
     trait_name: Quoted,
     function_signature: Quoted,

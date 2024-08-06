@@ -46,12 +46,13 @@ fn main() {
     assert_eq(o, o);
 
     // Field & str<2> above don't implement Ord
-    let o = MyOtherStruct { field1: 12 as u32, field2: 24 as i8, field3: MyOtherOtherStruct { x: 54 as i8 } };
-    assert_eq(o.cmp(o), std::cmp::Ordering::equal());
+    let o1 = MyOtherStruct { field1: 12 as u32, field2: 24 as i8, field3: MyOtherOtherStruct { x: 54 as i8 } };
+    let o2 = MyOtherStruct { field1: 12 as u32, field2: 24 as i8, field3: MyOtherOtherStruct { x: 55 as i8 } };
+    assert(o1 < o2);
 
     let mut hasher = TestHasher { result: 0 };
-    o.hash(&mut hasher);
-    assert(hasher.finish() != 0);
+    o1.hash(&mut hasher);
+    assert_eq(hasher.finish(), 12 + 24 + 54);
 }
 
 struct TestHasher {
