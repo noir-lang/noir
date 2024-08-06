@@ -95,6 +95,22 @@ pub(crate) fn get_slice(
     }
 }
 
+pub(crate) fn get_tuple(
+    interner: &NodeInterner,
+    value: Value,
+    location: Location,
+) -> IResult<Vec<Value>> {
+    match value {
+        Value::Tuple(values) => Ok(values),
+        value => {
+            let type_var = interner.next_type_variable();
+            let expected = Type::Tuple(vec![type_var]);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
 pub(crate) fn get_field(value: Value, location: Location) -> IResult<FieldElement> {
     match value {
         Value::Field(value) => Ok(value),

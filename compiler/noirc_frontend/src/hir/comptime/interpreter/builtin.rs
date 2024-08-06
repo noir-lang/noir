@@ -7,7 +7,7 @@ use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     check_argument_count, check_one_argument, check_three_arguments, check_two_arguments,
     get_function_def, get_module, get_quoted, get_slice, get_trait_constraint, get_trait_def,
-    get_type, get_u32, hir_pattern_to_tokens,
+    get_tuple, get_type, get_u32, hir_pattern_to_tokens,
 };
 use chumsky::Parser;
 use iter_extended::{try_vecmap, vecmap};
@@ -15,11 +15,16 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    ast::IntegerBitSize,
+    ast::{
+        FunctionKind, FunctionReturnType, IntegerBitSize, UnresolvedType, UnresolvedTypeData,
+        Visibility,
+    },
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
+    hir_def::function::FunctionBody,
     macros_api::{ModuleDefId, NodeInterner, Signedness},
+    node_interner::DefinitionKind,
     parser,
-    token::Token,
+    token::{SpannedToken, Token},
     QuotedType, Shared, Type,
 };
 
@@ -43,6 +48,11 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
+            "function_def_set_body" => function_def_set_body(self, arguments, location),
+            "function_def_set_parameters" => function_def_set_parameters(self, arguments, location),
+            "function_def_set_return_type" => {
+                function_def_set_return_type(self, arguments, location)
+            }
             "module_functions" => module_functions(self, arguments, location),
             "module_is_contract" => module_is_contract(self, arguments, location),
             "module_name" => module_name(interner, arguments, location),
@@ -732,6 +742,176 @@ fn function_def_return_type(
     let func_meta = interner.function_meta(&func_id);
 
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
+}
+
+// fn set_body(self, body: Quoted)
+fn function_def_set_body(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, body_argument) = check_two_arguments(arguments, location)?;
+    let func_id = get_function_def(self_argument, location)?;
+
+    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    match func_meta.function_body {
+        FunctionBody::Unresolved(_, _, _) => (),
+        FunctionBody::Resolving | FunctionBody::Resolved => {
+            return Err(InterpreterError::CannotMutateFunction { location })
+        }
+    }
+
+    let body_tokens = get_quoted(body_argument, location)?;
+    let mut body_quoted = add_token_spans(body_tokens.clone(), location.span);
+
+    // Surround the body in `{ ... }` so we can parse it as a block
+    body_quoted.0.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
+    body_quoted.0.push(SpannedToken::new(Token::RightBrace, location.span));
+
+    let body =
+        parser::block(parser::fresh_statement()).parse(body_quoted).map_err(|mut errors| {
+            let error = errors.swap_remove(0);
+            let rule = "a block";
+            InterpreterError::FailedToParseMacro {
+                error,
+                tokens: body_tokens,
+                rule,
+                file: location.file,
+            }
+        })?;
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    func_meta.has_body = true;
+    func_meta.function_body = FunctionBody::Unresolved(FunctionKind::Normal, body, location.span);
+
+    Ok(Value::Unit)
+}
+
+// fn set_parameters(self, parameters: [(Quoted, Type)])
+fn function_def_set_parameters(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, parameters_argument) = check_two_arguments(arguments, location)?;
+
+    let func_id = get_function_def(self_argument, location)?;
+    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    match func_meta.function_body {
+        FunctionBody::Unresolved(_, _, _) => (),
+        FunctionBody::Resolving | FunctionBody::Resolved => {
+            return Err(InterpreterError::CannotMutateFunction { location })
+        }
+    }
+
+    let (input_parameters, _type) =
+        get_slice(interpreter.elaborator.interner, parameters_argument, location)?;
+
+    // What follows is very similar to what happens in Elaborator::define_function_meta
+    let mut parameters = Vec::new();
+    let mut parameter_types = Vec::new();
+    let mut parameter_idents = Vec::new();
+
+    for input_parameter in input_parameters {
+        let mut tuple = get_tuple(interpreter.elaborator.interner, input_parameter, location)?;
+        let parameter_type = get_type(tuple.pop().unwrap(), location)?;
+        let parameter_name_tokens = get_quoted(tuple.pop().unwrap(), location)?;
+        let parameter_name_quoted = add_token_spans(parameter_name_tokens.clone(), location.span);
+        let parameter_pattern =
+            parser::pattern().parse(parameter_name_quoted).map_err(|mut errors| {
+                let error = errors.swap_remove(0);
+                let rule = "a pattern";
+                InterpreterError::FailedToParseMacro {
+                    error,
+                    tokens: parameter_name_tokens,
+                    rule,
+                    file: location.file,
+                }
+            })?;
+
+        let hir_pattern = interpreter.elaborate_item(interpreter.current_function, |elaborator| {
+            elaborator.elaborate_pattern_and_store_ids(
+                parameter_pattern,
+                parameter_type.clone(),
+                DefinitionKind::Local(None),
+                &mut parameter_idents,
+                None,
+            )
+        });
+
+        parameters.push((hir_pattern, parameter_type.clone(), Visibility::Private));
+        parameter_types.push(parameter_type);
+    }
+
+    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    let function_type = Type::Function(
+        parameter_types,
+        Box::new(func_meta.return_type().clone()),
+        Box::new(Type::Unit),
+    );
+
+    // TODO: generics. In Elaborator::define_function_meta there's this code:
+    //
+    //     if !generics.is_empty() {
+    //         typ = Type::Forall(generics, Box::new(typ));
+    //     }
+
+    interpreter.elaborator.interner.push_definition_type(func_meta.name.id, function_type.clone());
+
+    {
+        let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+        func_meta.parameters = parameters.into();
+        func_meta.parameter_idents = parameter_idents;
+        func_meta.typ = function_type;
+    }
+
+    Ok(Value::Unit)
+}
+
+// fn set_return_type(self, return_type: Type)
+fn function_def_set_return_type(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, return_type_argument) = check_two_arguments(arguments, location)?;
+    let return_type = get_type(return_type_argument, location)?;
+
+    let func_id = get_function_def(self_argument, location)?;
+    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    match func_meta.function_body {
+        FunctionBody::Unresolved(_, _, _) => (),
+        FunctionBody::Resolving | FunctionBody::Resolved => {
+            return Err(InterpreterError::CannotMutateFunction { location })
+        }
+    }
+
+    let parameter_types = func_meta.parameters.iter().map(|(_, typ, _)| typ.clone()).collect();
+
+    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    let function_type =
+        Type::Function(parameter_types, Box::new(return_type.clone()), Box::new(Type::Unit));
+
+    // TODO: generics. In Elaborator::define_function_meta there's this code:
+    //
+    //     if !generics.is_empty() {
+    //         typ = Type::Forall(generics, Box::new(typ));
+    //     }
+
+    interpreter.elaborator.interner.push_definition_type(func_meta.name.id, function_type.clone());
+
+    let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type);
+
+    {
+        let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+        func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
+            typ: UnresolvedTypeData::Resolved(quoted_type_id),
+            span: Some(location.span),
+        });
+        func_meta.typ = function_type;
+    }
+
+    Ok(Value::Unit)
 }
 
 // fn functions(self) -> [FunctionDefinition]

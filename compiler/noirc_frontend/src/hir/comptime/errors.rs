@@ -185,6 +185,9 @@ pub enum InterpreterError {
     FailedToResolveTraitDefinition {
         location: Location,
     },
+    CannotMutateFunction {
+        location: Location,
+    },
 
     Unimplemented {
         item: String,
@@ -255,6 +258,7 @@ impl InterpreterError {
             | InterpreterError::TraitDefinitionMustBeAPath { location }
             | InterpreterError::FailedToResolveTraitDefinition { location }
             | InterpreterError::FailedToResolveTraitBound { location, .. } => *location,
+            InterpreterError::CannotMutateFunction { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -514,6 +518,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::FailedToResolveTraitDefinition { location } => {
                 let msg = "Failed to resolve to a trait definition".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::CannotMutateFunction { location } => {
+                let msg = "Cannot mutate function at this point".to_string();
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
         }
