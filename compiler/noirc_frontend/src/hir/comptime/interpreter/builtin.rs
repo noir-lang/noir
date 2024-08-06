@@ -703,7 +703,7 @@ fn function_def_set_body(
     let body_argument_location = body_argument.1;
 
     let func_id = get_function_def(self_argument)?;
-    check_can_mutate_function(interpreter, func_id, location)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let body_tokens = get_quoted(body_argument)?;
     let mut body_quoted = add_token_spans(body_tokens.clone(), body_argument_location.span);
@@ -737,7 +737,7 @@ fn function_def_set_parameters(
     let parameters_argument_location = parameters_argument.1;
 
     let func_id = get_function_def(self_argument)?;
-    check_can_mutate_function(interpreter, func_id, location)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let (input_parameters, _type) =
         get_slice(interpreter.elaborator.interner, parameters_argument)?;
@@ -804,7 +804,7 @@ fn function_def_set_return_type(
     let return_type = get_type(return_type_argument)?;
 
     let func_id = get_function_def(self_argument)?;
-    let func_meta = check_can_mutate_function(interpreter, func_id, location)?;
+    let func_meta = check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let parameter_types = func_meta.parameters.iter().map(|(_, typ, _)| typ.clone()).collect();
 
@@ -996,7 +996,7 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     generics.pop().expect("Expected Option to have a T generic type")
 }
 
-fn check_can_mutate_function<'a>(
+fn check_function_not_yet_resolved<'a>(
     interpreter: &'a Interpreter,
     func_id: FuncId,
     location: Location,
@@ -1005,7 +1005,7 @@ fn check_can_mutate_function<'a>(
     match func_meta.function_body {
         FunctionBody::Unresolved(_, _, _) => Ok(func_meta),
         FunctionBody::Resolving | FunctionBody::Resolved => {
-            return Err(InterpreterError::CannotMutateFunction { location })
+            return Err(InterpreterError::FunctionAlreadyResolved { location })
         }
     }
 }
