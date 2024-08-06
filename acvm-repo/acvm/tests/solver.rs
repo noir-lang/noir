@@ -776,7 +776,6 @@ where
     let initial_witness_vec: Vec<_> =
         inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
     let outputs: Vec<_> = (0..num_outputs)
-        .into_iter()
         .map(|i| Witness((i + inputs.len()) as u32)) // offset past the indices of inputs
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
@@ -932,12 +931,12 @@ fn keccakf1600_op(
 fn poseidon2_permutation_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> BlackBoxFuncCall<FieldElement> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    let function_inputs_len = function_inputs.len() as u32;
+    let (inputs, outputs) = function_inputs_and_outputs;
+    let len = inputs.len() as u32;
     BlackBoxFuncCall::Poseidon2Permutation {
-        inputs: function_inputs,
-        outputs: outputs,
-        len: function_inputs_len,
+        inputs,
+        outputs,
+        len,
     }
 }
 
@@ -946,12 +945,12 @@ fn poseidon2_permutation_op(
 fn poseidon2_permutation_invalid_len_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> BlackBoxFuncCall<FieldElement> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    let function_inputs_len = function_inputs.len() as u32;
+    let (inputs, outputs) = function_inputs_and_outputs;
+    let len = (inputs.len() as u32) + 1;
     BlackBoxFuncCall::Poseidon2Permutation {
-        inputs: function_inputs,
-        outputs: outputs,
-        len: function_inputs_len + 1,
+        inputs,
+        outputs,
+        len,
     }
 }
 
@@ -1157,7 +1156,7 @@ prop_compose! {
 fn poseidon2_permutation_zeroes() {
     let use_constants: [bool; 4] = [false; 4];
     let inputs: Vec<_> =
-        [FieldElement::zero(); 4].into_iter().zip(use_constants.into_iter()).collect();
+        [FieldElement::zero(); 4].into_iter().zip(use_constants).collect();
     let (result, expected_result) = run_both_poseidon2_permutations(inputs);
 
     let internal_expected_result = vec![
