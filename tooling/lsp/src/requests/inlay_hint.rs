@@ -87,7 +87,7 @@ impl<'a> InlayHintCollector<'a> {
 
         match &item.kind {
             ItemKind::Function(noir_function) => {
-                self.collect_in_noir_function(noir_function, item.span)
+                self.collect_in_noir_function(noir_function, item.span);
             }
             ItemKind::Trait(noir_trait) => {
                 for item in &noir_trait.items {
@@ -153,7 +153,7 @@ impl<'a> InlayHintCollector<'a> {
     fn collect_in_trait_impl_item(&mut self, item: &TraitImplItem, span: Span) {
         match item {
             TraitImplItem::Function(noir_function) => {
-                self.collect_in_noir_function(noir_function, span)
+                self.collect_in_noir_function(noir_function, span);
             }
             TraitImplItem::Constant(_name, _typ, default_value) => {
                 self.collect_in_expression(default_value);
@@ -807,7 +807,7 @@ mod inlay_hints_tests {
         InlayHintsOptions {
             type_hints: TypeHintsOptions { enabled: false },
             parameter_hints: ParameterHintsOptions { enabled: false },
-            closing_brace_hints: ClosingBraceHintsOptions { enabled: true, min_lines: min_lines },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: true, min_lines },
         }
     }
 
