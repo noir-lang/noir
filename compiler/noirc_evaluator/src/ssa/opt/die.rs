@@ -126,7 +126,7 @@ impl Context {
             }
         }
 
-        // If there are some instructions that might result trigger an out of bounds error,
+        // If there are some instructions that might trigger an out of bounds error,
         // first add constrain checks. Then run the DIE pass again, which will remove those
         // but leave the constrains (any any value needed by those constrains)
         if !possible_index_out_of_bounds_indexes.is_empty() {
