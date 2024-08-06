@@ -23,9 +23,9 @@ template <typename FF> void MegaCircuitBuilder_<FF>::finalize_circuit()
  *
  * @param in Structure containing variables and witness selectors
  */
-// TODO(#423): This function adds valid (but arbitrary) gates to ensure that the circuit which includes
-// them will not result in any zero-polynomials. It also ensures that the first coefficient of the wire
-// polynomials is zero, which is required for them to be shiftable.
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/1066): This function adds valid (but arbitrary) gates to
+// ensure that the circuit which includes them will not result in any zero-polynomials. It also ensures that the first
+// coefficient of the wire polynomials is zero, which is required for them to be shiftable.
 template <typename FF> void MegaCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero()
 {
     // Most polynomials are handled via the conventional Ultra method
@@ -34,20 +34,25 @@ template <typename FF> void MegaCircuitBuilder_<FF>::add_gates_to_ensure_all_pol
     // All that remains is to handle databus related and poseidon2 related polynomials. In what follows we populate the
     // calldata with some mock data then constuct a single calldata read gate
 
+    // Define a single dummy value to add to all databus columns. Note: This value must be equal across all columns in
+    // order for inter-circuit databus commitment checks to pass in IVC settings. These dummy gates can be deleted with
+    // all of the others when (https://github.com/AztecProtocol/barretenberg/issues/1066) is resolved.
+    FF databus_dummy_value = 25;
+
     // Create an arbitrary calldata read gate
-    add_public_calldata(this->add_variable(25)); // ensure there is at least one entry in calldata
+    add_public_calldata(this->add_variable(databus_dummy_value));         // add one entry in calldata
     auto raw_read_idx = static_cast<uint32_t>(get_calldata().size()) - 1; // read data that was just added
     auto read_idx = this->add_variable(raw_read_idx);
     read_calldata(read_idx);
 
     // Create an arbitrary secondary_calldata read gate
-    add_public_secondary_calldata(this->add_variable(25)); // ensure there is at least one entry in secondary_calldata
+    add_public_secondary_calldata(this->add_variable(databus_dummy_value));    // add one entry in secondary_calldata
     raw_read_idx = static_cast<uint32_t>(get_secondary_calldata().size()) - 1; // read data that was just added
     read_idx = this->add_variable(raw_read_idx);
     read_secondary_calldata(read_idx);
 
     // Create an arbitrary return data read gate
-    add_public_return_data(this->add_variable(17)); // ensure there is at least one entry in return data
+    add_public_return_data(this->add_variable(databus_dummy_value));    // add one entry in return data
     raw_read_idx = static_cast<uint32_t>(get_return_data().size()) - 1; // read data that was just added
     read_idx = this->add_variable(raw_read_idx);
     read_return_data(read_idx);

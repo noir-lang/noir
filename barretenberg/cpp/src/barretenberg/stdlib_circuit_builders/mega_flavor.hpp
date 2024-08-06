@@ -374,6 +374,9 @@ class MegaFlavor {
         std::vector<uint32_t> memory_write_records;
         ProverPolynomials polynomials; // storage for all polynomials evaluated by the prover
 
+        // Data pertaining to transfer of databus return data via public inputs
+        DatabusPropagationData databus_propagation_data;
+
         /**
          * @brief Add plookup memory records to the fourth wire polynomial
          *
@@ -463,6 +466,9 @@ class MegaFlavor {
     // using VerificationKey = VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey>;
     class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
       public:
+        // Data pertaining to transfer of databus return data via public inputs of the proof being recursively verified
+        DatabusPropagationData databus_propagation_data;
+
         VerificationKey() = default;
         VerificationKey(const size_t circuit_size, const size_t num_public_inputs)
             : VerificationKey_(circuit_size, num_public_inputs)
@@ -479,6 +485,9 @@ class MegaFlavor {
             this->pub_inputs_offset = proving_key.pub_inputs_offset;
             this->contains_recursive_proof = proving_key.contains_recursive_proof;
             this->recursive_proof_public_input_indices = proving_key.recursive_proof_public_input_indices;
+
+            // Databus commitment propagation data
+            this->databus_propagation_data = proving_key.databus_propagation_data;
 
             for (auto [polynomial, commitment] : zip_view(proving_key.polynomials.get_precomputed(), this->get_all())) {
                 commitment = proving_key.commitment_key->commit(polynomial);

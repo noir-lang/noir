@@ -6,6 +6,7 @@
 #include "barretenberg/protogalaxy/decider_verifier.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_prover.hpp"
 #include "barretenberg/protogalaxy/protogalaxy_verifier.hpp"
+#include "barretenberg/stdlib/primitives/databus/databus.hpp"
 #include "barretenberg/sumcheck/instance/instances.hpp"
 #include "barretenberg/ultra_honk/decider_prover.hpp"
 #include <algorithm>
@@ -45,6 +46,8 @@ class AztecIVC {
     using FoldingRecursiveVerifier =
         bb::stdlib::recursion::honk::ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances>;
 
+    using DataBusDepot = stdlib::DataBusDepot<ClientCircuit>;
+
     // A full proof for the IVC scheme
     struct Proof {
         FoldProof folding_proof; // final fold proof
@@ -77,6 +80,9 @@ class AztecIVC {
 
     // Set of pairs of {fold_proof, verification_key} to be recursively verified
     std::vector<FoldingVerifierInputs> verification_queue;
+
+    // Management of linking databus commitments between circuits in the IVC
+    DataBusDepot bus_depot;
 
     // A flag indicating whether or not to construct a structured trace in the ProverInstance
     TraceStructure trace_structure = TraceStructure::NONE;

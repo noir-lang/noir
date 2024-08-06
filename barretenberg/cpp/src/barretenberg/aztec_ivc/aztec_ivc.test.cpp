@@ -88,8 +88,10 @@ TEST_F(AztecIVCTests, Basic)
 
 /**
  * @brief Check that the IVC fails to verify if an intermediate fold proof is invalid
- * @details When accumulating 4 circuits, there are 3 fold proofs to verify (the first two are recursively verfied and
- * the 3rd is verified as part of the IVC proof). Check that if any of one of these proofs is invalid, the IVC will fail
+ * @details When accumulating 4 circuits, there are 3 fold proofs to verify (the first two are recursively verfied
+ and
+ * the 3rd is verified as part of the IVC proof). Check that if any of one of these proofs is invalid, the IVC will
+ fail
  * to verify.
  *
  */

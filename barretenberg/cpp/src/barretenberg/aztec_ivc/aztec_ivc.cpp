@@ -22,10 +22,13 @@ void AztecIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verifica
         ASSERT(circuit_count % 2 == 0); // ensure this is a kernel
 
         for (auto& [proof, vkey] : verification_queue) {
+            // Perform folding recursive verification
             FoldingRecursiveVerifier verifier{ &circuit, { verifier_accumulator, { vkey } } };
             auto verifier_accum = verifier.verify_folding_proof(proof);
             verifier_accumulator = std::make_shared<VerifierInstance>(verifier_accum->get_value());
-            info("Num gates = ", circuit.get_num_gates());
+
+            // Perform databus commitment consistency checks and propagate return data commitments via the public inputs
+            bus_depot.execute(verifier.instances);
         }
         verification_queue.clear();
     }
@@ -44,6 +47,11 @@ void AztecIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verifica
     } else {
         instance_vk = std::make_shared<VerificationKey>(prover_instance->proving_key);
     }
+
+    // Store whether the present circuit is a kernel (Note: the aztec architecture dictates that every second circuit
+    // is a kernel. This check can triggered/replaced by the presence of the recursive folding verify opcode once it is
+    // introduced into noir).
+    instance_vk->databus_propagation_data.is_kernel = (circuit_count % 2 == 0);
 
     // If this is the first circuit simply initialize the prover and verifier accumulator instances
     if (circuit_count == 1) {
