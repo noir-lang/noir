@@ -226,8 +226,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn call_closure(
         &mut self,
         closure: HirLambda,
-        // TODO: How to define environment here?
-        _environment: Vec<Value>,
+        environment: Vec<Value>,
         arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
@@ -244,6 +243,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let parameters = closure.parameters.iter().zip(arguments);
         for ((parameter, typ), (argument, arg_location)) in parameters {
             self.define_pattern(parameter, typ, argument, arg_location)?;
+        }
+
+        for (param, arg) in closure.captures.into_iter().zip(environment) {
+            self.define(param.ident.id, arg);
         }
 
         let result = self.evaluate(closure.body)?;
