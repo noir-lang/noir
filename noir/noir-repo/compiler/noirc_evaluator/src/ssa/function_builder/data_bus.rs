@@ -9,7 +9,7 @@ use noirc_frontend::hir_def::function::FunctionSignature;
 
 use super::FunctionBuilder;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum DatabusVisibility {
     None,
     CallData(u32),
@@ -34,7 +34,7 @@ impl DataBusBuilder {
         }
     }
 
-    /// Generates a vector telling which (ssa) parameters from the given function signature
+    /// Generates a vector telling which flattened parameters from the given function signature
     /// are tagged with databus visibility
     pub(crate) fn is_databus(main_signature: &FunctionSignature) -> Vec<DatabusVisibility> {
         let mut params_is_databus = Vec::new();
@@ -157,11 +157,16 @@ impl FunctionBuilder {
     /// and a vector telling which ones are call-data
     pub(crate) fn call_data_bus(
         &mut self,
-        is_params_databus: Vec<DatabusVisibility>,
+        flattened_databus_visibilities: Vec<DatabusVisibility>,
     ) -> Vec<DataBusBuilder> {
         //filter parameters of the first block that have call-data visibility
         let first_block = self.current_function.entry_block();
         let params = self.current_function.dfg[first_block].parameters();
+
+        // Reshape the is_params_databus to map to the SSA-level parameters
+        let is_params_databus =
+            self.deflatten_databus_visibilities(params, flattened_databus_visibilities);
+
         let mut databus_param: BTreeMap<u32, Vec<ValueId>> = BTreeMap::new();
         for (param, databus_attribute) in params.iter().zip(is_params_databus) {
             match databus_attribute {
@@ -185,5 +190,41 @@ impl FunctionBuilder {
             result.push(call_databus);
         }
         result
+    }
+
+    /// This function takes the flattened databus visibilities and generates the databus visibility for each ssa parameter
+    /// asserting that an ssa parameter is not assigned two different databus visibilities
+    fn deflatten_databus_visibilities(
+        &self,
+        ssa_params: &[ValueId],
+        flattened_params_databus_visibility: Vec<DatabusVisibility>,
+    ) -> Vec<DatabusVisibility> {
+        // To do so, create a vec the size of the flattened arguments where the items are the ssa param index they correspond to
+        let ssa_param_indices: Vec<_> = ssa_params
+            .iter()
+            .enumerate()
+            .flat_map(|(ssa_param_index, ssa_param)| {
+                let flattened_size =
+                    self.current_function.dfg[*ssa_param].get_type().flattened_size();
+                std::iter::repeat(ssa_param_index).take(flattened_size)
+            })
+            .collect();
+
+        let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());
+        assert!(flattened_params_databus_visibility.len() == ssa_param_indices.len());
+        for (databus_visibility, ssa_index) in
+            flattened_params_databus_visibility.into_iter().zip(ssa_param_indices)
+        {
+            if let Some(previous_databus_visibility) = is_ssa_params_databus.get(ssa_index) {
+                assert!(
+                    *previous_databus_visibility == databus_visibility,
+                    "inconsistent databus visibility for ssa param"
+                );
+            } else {
+                assert!(ssa_index == is_ssa_params_databus.len());
+                is_ssa_params_databus.push(databus_visibility);
+            }
+        }
+        is_ssa_params_databus
     }
 }
