@@ -774,17 +774,15 @@ fn function_def_set_parameters(
     }
 
     let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
-    let function_type = Type::Function(
+    let mut function_type = Type::Function(
         parameter_types,
         Box::new(func_meta.return_type().clone()),
         Box::new(Type::Unit),
     );
 
-    // TODO: generics. In Elaborator::define_function_meta there's this code:
-    //
-    //     if !generics.is_empty() {
-    //         typ = Type::Forall(generics, Box::new(typ));
-    //     }
+    if let Type::Forall(generics, _) = &func_meta.typ {
+        function_type = Type::Forall(generics.clone(), Box::new(function_type));
+    }
 
     interpreter.elaborator.interner.push_definition_type(func_meta.name.id, function_type.clone());
 
@@ -813,14 +811,12 @@ fn function_def_set_return_type(
     let parameter_types = func_meta.parameters.iter().map(|(_, typ, _)| typ.clone()).collect();
 
     let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
-    let function_type =
+    let mut function_type =
         Type::Function(parameter_types, Box::new(return_type.clone()), Box::new(Type::Unit));
 
-    // TODO: generics. In Elaborator::define_function_meta there's this code:
-    //
-    //     if !generics.is_empty() {
-    //         typ = Type::Forall(generics, Box::new(typ));
-    //     }
+    if let Type::Forall(generics, _) = &func_meta.typ {
+        function_type = Type::Forall(generics.clone(), Box::new(function_type));
+    }
 
     interpreter.elaborator.interner.push_definition_type(func_meta.name.id, function_type.clone());
 

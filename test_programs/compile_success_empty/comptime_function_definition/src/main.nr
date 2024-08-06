@@ -8,9 +8,6 @@ fn foo(w: i32, y: Field, Foo { x, field: some_field }: Foo, mut a: bool, (b, c):
     1
 }
 
-#[mutate_add_one]
-fn add_one() {}
-
 comptime fn function_attr(f: FunctionDefinition) {
     // Check FunctionDefinition::parameters
     let parameters = f.parameters();
@@ -36,6 +33,9 @@ comptime fn function_attr(f: FunctionDefinition) {
     // Check FunctionDefinition::name
     assert_eq(f.name(), quote { foo });
 }
+
+#[mutate_add_one]
+fn add_one() {}
 
 comptime fn mutate_add_one(f: FunctionDefinition) {
     // fn add_one(x: Field)
