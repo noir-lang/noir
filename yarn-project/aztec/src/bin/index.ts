@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { fileURLToPath } from '@aztec/aztec.js';
 import { injectCommands as injectBuilderCommands } from '@aztec/builder';
 import { injectCommands as injectWalletCommands } from '@aztec/cli-wallet';

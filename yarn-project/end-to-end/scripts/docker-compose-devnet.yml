@@ -1,0 +1,29 @@
+version: '3'
+services:
+  end-to-end:
+    image: aztecprotocol/end-to-end:${AZTEC_DOCKER_TAG:-latest}
+    secrets:
+      - ethereum-host
+      - aztec-node-url
+      - faucet-url
+    environment:
+      DEBUG: ${DEBUG:-'aztec:*'}
+      DEBUG_COLORS: 1
+      ETHEREUM_HOST:
+      JOB_NAME: ${JOB_NAME:-''}
+      PXE_PROVER_ENABLED: ${PXE_PROVER_ENABLED:-1}
+    command: |
+      export ETHEREUM_HOST=$$(cat /var/run/secrets/ethereum-host)
+      export FAUCET_URL=$$(cat /var/run/secrets/faucet-url)
+      export AZTEC_NODE_URL=$$(cat /var/run/secrets/aztec-node-url)
+      ${TEST:-./src/devnet/e2e_smoke.test.ts}
+    volumes:
+      - ../log:/usr/src/yarn-project/end-to-end/log:rw
+
+secrets:
+  aztec-node-url:
+    environment: AZTEC_NODE_URL
+  ethereum-host:
+    environment: ETHEREUM_HOST
+  faucet-url:
+    environment: FAUCET_URL

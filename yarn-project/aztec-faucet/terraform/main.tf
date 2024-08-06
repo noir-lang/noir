@@ -71,7 +71,7 @@ resource "aws_service_discovery_service" "aztec-faucet" {
   # Terraform just fails if this resource changes and you have registered instances.
   provisioner "local-exec" {
     when    = destroy
-    command = "${path.module}/../servicediscovery-drain.sh ${self.id}"
+    command = "${path.module}/servicediscovery-drain.sh ${self.id}"
   }
 }
 
@@ -84,83 +84,83 @@ resource "aws_ecs_task_definition" "aztec-faucet" {
   memory                   = "4096"
   execution_role_arn       = data.terraform_remote_state.setup_iac.outputs.ecs_task_execution_role_arn
   task_role_arn            = data.terraform_remote_state.aztec2_iac.outputs.cloudwatch_logging_ecs_role_arn
-  container_definitions    = <<DEFINITIONS
-[
-  {
-    "name": "${var.DEPLOY_TAG}-aztec-faucet",
-    "image": "${var.DOCKERHUB_ACCOUNT}/aztec-faucet:${var.DEPLOY_TAG}",
-    "essential": true,
-    "memoryReservation": 3776,
-    "portMappings": [
-      {
-        "containerPort": 80
-      }
-    ],
-    "environment": [
-      {
-        "name": "NODE_ENV",
-        "value": "production"
-      },
-      {
-        "name": "FAUCET_PORT",
-        "value": "80"
-      },
-      {
-        "name": "DEBUG",
-        "value": "aztec:*"
-      },
-      {
-        "name": "RPC_URL",
-        "value": "${local.rpc_url}"
-      },
-      {
-        "name": "API_PREFIX",
-        "value": "${local.api_prefix}"
-      },
-      {
-        "name": "L1_CHAIN_ID",
-        "value": "${var.L1_CHAIN_ID}"
-      },
-      {
-        "name": "PRIVATE_KEY",
-        "value": "${var.FAUCET_PRIVATE_KEY}"
-      },
-      {
-        "name": "INTERVAL",
-        "value": "86400"
-      },
-      {
-        "name": "ETH_AMOUNT",
-        "value": "1.0"
-      },
-      {
-        "name": "FAUCET_ACCOUNT_INDEX",
-        "value": "${var.FAUCET_ACCOUNT_INDEX}"
-      },
-      {
-        "name": "FORK_MNEMONIC",
-        "value": "${var.FORK_MNEMONIC}"
-      },
-      {
-        "name": "EXTRA_ASSETS",
-        "value": "fee_juice:${var.GAS_TOKEN_CONTRACT_ADDRESS},dev_coin:${var.DEV_COIN_CONTRACT_ADDRESS}"
-      },
-      {
-        "name": "EXTRA_ASSET_AMOUNT",
-        "value": "1000000000"
-      }
-    ],
-    "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-group": "/fargate/service/${var.DEPLOY_TAG}/aztec-faucet",
-        "awslogs-region": "eu-west-2",
-        "awslogs-stream-prefix": "ecs"
+
+  container_definitions = jsonencode([
+    {
+      name              = "${var.DEPLOY_TAG}-aztec-faucet"
+      image             = "${var.DOCKERHUB_ACCOUNT}/aztec-faucet:${var.IMAGE_TAG}"
+      essential         = true
+      memoryReservation = 3376
+      portMappings = [
+        {
+          containerPort = 80
+          hostPort      = 80
+        }
+      ]
+      environment = [
+        {
+          name  = "NODE_ENV",
+          value = "production"
+        },
+        {
+          name  = "FAUCET_PORT",
+          value = "80"
+        },
+        {
+          name  = "DEBUG",
+          value = "aztec:*"
+        },
+        {
+          name  = "RPC_URL",
+          value = local.rpc_url
+        },
+        {
+          name  = "API_PREFIX",
+          value = local.api_prefix
+        },
+        {
+          name  = "L1_CHAIN_ID",
+          value = var.L1_CHAIN_ID
+        },
+        {
+          name  = "PRIVATE_KEY",
+          value = var.FAUCET_PRIVATE_KEY
+        },
+        {
+          name  = "INTERVAL",
+          value = "86400"
+        },
+        {
+          name  = "ETH_AMOUNT",
+          value = "1.0"
+        },
+        {
+          name  = "FAUCET_ACCOUNT_INDEX",
+          value = tostring(var.FAUCET_ACCOUNT_INDEX)
+        },
+        {
+          name  = "FORK_MNEMONIC",
+          value = var.FORK_MNEMONIC
+        },
+        {
+          name  = "EXTRA_ASSETS",
+          value = "fee_juice:${var.GAS_TOKEN_CONTRACT_ADDRESS},dev_coin:${var.DEV_COIN_CONTRACT_ADDRESS}"
+        },
+        {
+          name  = "EXTRA_ASSET_AMOUNT",
+          value = "1000000000000000000"
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.aztec-faucet.name
+          "awslogs-region"        = "eu-west-2"
+          "awslogs-stream-prefix" = "ecs"
+        }
       }
     }
-  }
-]
-DEFINITIONS
+  ])
 }
 
 resource "aws_ecs_service" "aztec-faucet" {
@@ -220,7 +220,7 @@ resource "aws_alb_target_group" "aztec-faucet" {
 
 resource "aws_lb_listener_rule" "api-1" {
   listener_arn = data.terraform_remote_state.aztec2_iac.outputs.alb_listener_arn
-  priority     = 600
+  priority     = var.FAUCET_LB_RULE_PRIORITY
 
   action {
     type             = "forward"

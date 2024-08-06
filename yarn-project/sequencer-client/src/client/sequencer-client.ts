@@ -41,7 +41,7 @@ export class SequencerClient {
     simulationProvider: SimulationProvider,
     telemetryClient: TelemetryClient,
   ) {
-    const publisher = getL1Publisher(config);
+    const publisher = getL1Publisher(config, telemetryClient);
     const globalsBuilder = getGlobalVariableBuilder(config);
     const merkleTreeDb = worldStateSynchronizer.getLatest();
 

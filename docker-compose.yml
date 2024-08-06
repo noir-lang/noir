@@ -185,6 +185,7 @@ configs:
         otlp:
           protocols:
             http:
+              endpoint: 0.0.0.0:4318
 
       processors:
         batch:

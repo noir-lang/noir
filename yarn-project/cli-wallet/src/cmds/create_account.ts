@@ -1,6 +1,7 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { type DeployAccountOptions, createCompatibleClient } from '@aztec/aztec.js';
 import { deriveSigningKey } from '@aztec/circuits.js';
+import { prettyPrintJSON } from '@aztec/cli/cli-utils';
 import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
@@ -15,6 +16,7 @@ export async function createAccount(
   skipInitialization: boolean,
   wait: boolean,
   feeOpts: IFeeOpts,
+  json: boolean,
   debugLogger: DebugLogger,
   log: LogFn,
 ) {
@@ -27,16 +29,29 @@ export async function createAccount(
   const account = getSchnorrAccount(client, privateKey, deriveSigningKey(privateKey), salt);
   const { address, publicKeys, partialAddress } = account.getCompleteAddress();
 
-  log(`\nNew account:\n`);
-  log(`Address:         ${address.toString()}`);
-  log(`Public key:      0x${publicKeys.toString()}`);
-  if (printPK) {
-    log(`Private key:     ${privateKey.toString()}`);
+  const out: Record<string, any> = {};
+  if (json) {
+    out.address = address;
+    out.publicKey = publicKeys;
+    if (printPK) {
+      out.privateKey = privateKey;
+    }
+    out.partialAddress = partialAddress;
+    out.salt = salt;
+    out.initHash = account.getInstance().initializationHash;
+    out.deployer = account.getInstance().deployer;
+  } else {
+    log(`\nNew account:\n`);
+    log(`Address:         ${address.toString()}`);
+    log(`Public key:      0x${publicKeys.toString()}`);
+    if (printPK) {
+      log(`Private key:     ${privateKey.toString()}`);
+    }
+    log(`Partial address: ${partialAddress.toString()}`);
+    log(`Salt:            ${salt.toString()}`);
+    log(`Init hash:       ${account.getInstance().initializationHash.toString()}`);
+    log(`Deployer:        ${account.getInstance().deployer.toString()}`);
   }
-  log(`Partial address: ${partialAddress.toString()}`);
-  log(`Salt:            ${salt.toString()}`);
-  log(`Init hash:       ${account.getInstance().initializationHash.toString()}`);
-  log(`Deployer:        ${account.getInstance().deployer.toString()}`);
 
   let tx;
   let txReceipt;
@@ -52,23 +67,47 @@ export async function createAccount(
     };
     if (feeOpts.estimateOnly) {
       const gas = await (await account.getDeployMethod()).estimateGas({ ...sendOpts });
-      printGasEstimates(feeOpts, gas, log);
+      if (json) {
+        out.fee = {
+          gasLimits: {
+            da: gas.gasLimits.daGas,
+            l2: gas.gasLimits.l2Gas,
+          },
+          teardownGasLimits: {
+            da: gas.teardownGasLimits.daGas,
+            l2: gas.teardownGasLimits,
+          },
+        };
+      } else {
+        printGasEstimates(feeOpts, gas, log);
+      }
     } else {
       tx = account.deploy({ ...sendOpts });
       const txHash = await tx.getTxHash();
       debugLogger.debug(`Account contract tx sent with hash ${txHash}`);
+      out.txHash = txHash;
       if (wait) {
-        log(`\nWaiting for account contract deployment...`);
+        if (!json) {
+          log(`\nWaiting for account contract deployment...`);
+        }
         txReceipt = await tx.wait();
+        out.txReceipt = {
+          status: txReceipt.status,
+          transactionFee: txReceipt.transactionFee,
+        };
       }
     }
   }
 
-  if (tx) {
-    log(`Deploy tx hash:  ${await tx.getTxHash()}`);
-  }
-  if (txReceipt) {
-    log(`Deploy tx fee:   ${txReceipt.transactionFee}`);
+  if (json) {
+    log(prettyPrintJSON(out));
+  } else {
+    if (tx) {
+      log(`Deploy tx hash:  ${await tx.getTxHash()}`);
+    }
+    if (txReceipt) {
+      log(`Deploy tx fee:   ${txReceipt.transactionFee}`);
+    }
   }
 
   return { alias, address, privateKey, salt };

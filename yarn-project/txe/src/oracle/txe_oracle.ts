@@ -68,6 +68,7 @@ import {
   toACVMWitness,
   witnessMapToFields,
 } from '@aztec/simulator';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { type ContractInstance, type ContractInstanceWithAddress } from '@aztec/types/contracts';
 import { MerkleTreeSnapshotOperationsFacade, type MerkleTrees } from '@aztec/world-state';
 
@@ -714,6 +715,7 @@ export class TXE implements TypedOracle {
       new ContractsDataSourcePublicDB(new TXEPublicContractDataSource(this)),
       new WorldStateDB(this.trees.asLatest()),
       header,
+      new NoopTelemetryClient(),
     );
     const execution = new PublicExecutionRequest(targetContractAddress, callContext, args);
 

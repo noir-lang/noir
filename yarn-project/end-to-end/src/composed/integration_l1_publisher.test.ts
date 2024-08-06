@@ -140,14 +140,17 @@ describe('L1Publisher integration', () => {
     await worldStateSynchronizer.start();
     builder = await TxProver.new(config, worldStateSynchronizer, blockSource, new NoopTelemetryClient());
 
-    publisher = getL1Publisher({
-      rpcUrl: config.rpcUrl,
-      requiredConfirmations: 1,
-      l1Contracts: l1ContractAddresses,
-      publisherPrivateKey: sequencerPK,
-      l1PublishRetryIntervalMS: 100,
-      l1ChainId: 31337,
-    });
+    publisher = getL1Publisher(
+      {
+        rpcUrl: config.rpcUrl,
+        requiredConfirmations: 1,
+        l1Contracts: l1ContractAddresses,
+        publisherPrivateKey: sequencerPK,
+        l1PublishRetryIntervalMS: 100,
+        l1ChainId: 31337,
+      },
+      new NoopTelemetryClient(),
+    );
 
     coinbase = config.coinbase || EthAddress.random();
     feeRecipient = config.feeRecipient || AztecAddress.random();

@@ -1,4 +1,5 @@
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js/constants';
+import { type Network } from '@aztec/types/network';
 
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
@@ -33,6 +34,8 @@ export interface PXEConfig {
 
 export type PXEServiceConfig = PXEConfig & KernelProverConfig & BBProverConfig;
 
+export type CliPXEOptions = PXEServiceConfig & { network?: Network; apiKey?: string; nodeUrl?: string };
+
 /**
  * Creates an instance of PXEServiceConfig out of environment variables using sensible defaults for integration testing if not set.
  */
@@ -53,6 +56,22 @@ export function getPXEServiceConfig(): PXEServiceConfig {
     bbBinaryPath: BB_BINARY_PATH,
     bbWorkingDirectory: BB_WORKING_DIRECTORY,
     proverEnabled: ['1', 'true'].includes(PXE_PROVER_ENABLED!),
+  };
+}
+
+/**
+ * Creates an instance of CliPxeOptions out of environment variables
+ */
+export function getCliPXEOptions(): CliPXEOptions {
+  const pxeServiceConfig = getPXEServiceConfig();
+  const { NETWORK, AZTEC_NODE_URL, ΑPI_KEY } = process.env;
+
+  return {
+    ...pxeServiceConfig,
+    network: NETWORK ? (NETWORK as Network) : undefined,
+    apiKey: ΑPI_KEY,
+    nodeUrl: AZTEC_NODE_URL,
+    proverEnabled: !!NETWORK,
   };
 }
 

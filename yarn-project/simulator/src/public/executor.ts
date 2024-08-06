@@ -3,6 +3,7 @@ import { type AvmSimulationStats } from '@aztec/circuit-types/stats';
 import { Fr, Gas, type GlobalVariables, type Header, type Nullifier, type TxContext } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
+import { type TelemetryClient } from '@aztec/telemetry-client';
 
 import { AvmContext } from '../avm/avm_context.js';
 import { AvmExecutionEnvironment } from '../avm/avm_execution_environment.js';
@@ -12,18 +13,24 @@ import { HostStorage } from '../avm/journal/host_storage.js';
 import { AvmPersistableStateManager } from '../avm/journal/index.js';
 import { type CommitmentsDB, type PublicContractsDB, type PublicStateDB } from './db_interfaces.js';
 import { type PublicExecutionResult } from './execution.js';
+import { ExecutorMetrics } from './executor_metrics.js';
 import { PublicSideEffectTrace } from './side_effect_trace.js';
 
 /**
  * Handles execution of public functions.
  */
 export class PublicExecutor {
+  metrics: ExecutorMetrics;
+
   constructor(
     private readonly publicStorageDB: PublicStateDB,
     private readonly contractsDb: PublicContractsDB,
     private readonly commitmentsDb: CommitmentsDB,
     private readonly header: Header,
-  ) {}
+    client: TelemetryClient,
+  ) {
+    this.metrics = new ExecutorMetrics(client, 'PublicExecutor');
+  }
 
   static readonly log = createDebugLogger('aztec:simulator:public_executor');
 
@@ -101,6 +108,12 @@ export class PublicExecutor {
       avmResult,
       fnName,
     );
+
+    if (publicExecutionResult.reverted) {
+      this.metrics.recordFunctionSimulationFailure();
+    } else {
+      this.metrics.recordFunctionSimulation(bytecode.length, timer.ms());
+    }
 
     return publicExecutionResult;
   }

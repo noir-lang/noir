@@ -122,7 +122,7 @@ export class TestContext {
       localProver = await createProver(bbConfig);
     }
 
-    const queue = new MemoryProvingQueue();
+    const queue = new MemoryProvingQueue(telemetry);
     const orchestrator = new ProvingOrchestrator(actualDb, queue, telemetry);
     const agent = new ProverAgent(localProver, proverCount);
 

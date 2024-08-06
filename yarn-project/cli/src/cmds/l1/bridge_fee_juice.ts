@@ -4,6 +4,7 @@ import { createEthereumChain, createL1Clients } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
 import { FeeJuicePortalManager } from '../../portal_manager.js';
+import { prettyPrintJSON } from '../../utils/commands.js';
 
 export async function bridgeL1Gas(
   amount: bigint,
@@ -11,14 +12,16 @@ export async function bridgeL1Gas(
   rpcUrl: string,
   l1RpcUrl: string,
   chainId: number,
+  privateKey: string | undefined,
   mnemonic: string,
   mint: boolean,
+  json: boolean,
   log: LogFn,
   debugLogger: DebugLogger,
 ) {
   // Prepare L1 client
   const chain = createEthereumChain(l1RpcUrl, chainId);
-  const { publicClient, walletClient } = createL1Clients(chain.rpcUrl, mnemonic, chain.chainInfo);
+  const { publicClient, walletClient } = createL1Clients(chain.rpcUrl, privateKey ?? mnemonic, chain.chainInfo);
 
   // Prepare L2 client
   const client = await createCompatibleClient(rpcUrl, debugLogger);
@@ -27,7 +30,19 @@ export async function bridgeL1Gas(
   const portal = await FeeJuicePortalManager.create(client, publicClient, walletClient, debugLogger);
   const { secret } = await portal.prepareTokensOnL1(amount, amount, recipient, mint);
 
-  log(`Minted ${amount} gas tokens on L1 and pushed to L2 portal`);
-  log(`claimAmount=${amount},claimSecret=${secret}\n`);
-  log(`Note: You need to wait for two L2 blocks before pulling them from the L2 side`);
+  if (json) {
+    const out = {
+      claimAmount: amount,
+      claimSecret: secret,
+    };
+    log(prettyPrintJSON(out));
+  } else {
+    if (mint) {
+      log(`Minted ${amount} fee juice on L1 and pushed to L2 portal`);
+    } else {
+      log(`Bridged ${amount} fee juice to L2 portal`);
+    }
+    log(`claimAmount=${amount},claimSecret=${secret}\n`);
+    log(`Note: You need to wait for two L2 blocks before pulling them from the L2 side`);
+  }
 }

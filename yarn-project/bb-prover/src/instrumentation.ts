@@ -8,6 +8,7 @@ import {
   type TelemetryClient,
   type Tracer,
   ValueType,
+  millisecondBuckets,
 } from '@aztec/telemetry-client';
 
 /**
@@ -15,8 +16,8 @@ import {
  */
 export class ProverInstrumentation {
   private simulationDuration: Histogram;
-  private witGenDuration: Gauge;
-  private provingDuration: Gauge;
+  private witGenDuration: Histogram;
+  private provingDuration: Histogram;
 
   private witGenInputSize: Gauge;
   private witGenOutputSize: Gauge;
@@ -33,25 +34,29 @@ export class ProverInstrumentation {
 
     this.simulationDuration = meter.createHistogram(Metrics.CIRCUIT_SIMULATION_DURATION, {
       description: 'Records how long it takes to simulate a circuit',
-      unit: 's',
-      valueType: ValueType.DOUBLE,
+      unit: 'ms',
+      valueType: ValueType.INT,
       advice: {
-        explicitBucketBoundaries: [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60],
+        explicitBucketBoundaries: millisecondBuckets(1), // 10ms -> ~327s
       },
     });
 
-    this.witGenDuration = meter.createGauge(Metrics.CIRCUIT_WITNESS_GEN_DURATION, {
+    this.witGenDuration = meter.createHistogram(Metrics.CIRCUIT_WITNESS_GEN_DURATION, {
       description: 'Records how long it takes to generate the partial witness for a circuit',
-      unit: 's',
-      valueType: ValueType.DOUBLE,
+      unit: 'ms',
+      valueType: ValueType.INT,
+      advice: {
+        explicitBucketBoundaries: millisecondBuckets(1),
+      },
     });
 
-    // ideally this would be a histogram, but proving takes a long time on the server
-    // and they don't happen that often so Prometheus & Grafana have a hard time handling it
-    this.provingDuration = meter.createGauge(Metrics.CIRCUIT_PROVING_DURATION, {
-      unit: 's',
+    this.provingDuration = meter.createHistogram(Metrics.CIRCUIT_PROVING_DURATION, {
+      unit: 'ms',
       description: 'Records how long it takes to prove a circuit',
-      valueType: ValueType.DOUBLE,
+      valueType: ValueType.INT,
+      advice: {
+        explicitBucketBoundaries: millisecondBuckets(2), // 100ms -> 54 minutes
+      },
     });
 
     this.witGenInputSize = meter.createGauge(Metrics.CIRCUIT_WITNESS_GEN_INPUT_SIZE, {
@@ -87,15 +92,15 @@ export class ProverInstrumentation {
    * Records the duration of a circuit operation.
    * @param metric - The metric to record
    * @param circuitName - The name of the circuit
-   * @param timerOrS - The duration
+   * @param timerOrMS - The duration
    */
   recordDuration(
     metric: 'simulationDuration' | 'witGenDuration' | 'provingDuration',
-    circuitName: CircuitName,
-    timerOrS: Timer | number,
+    circuitName: CircuitName | 'tubeCircuit',
+    timerOrMS: Timer | number,
   ) {
-    const s = typeof timerOrS === 'number' ? timerOrS : timerOrS.s();
-    this[metric].record(s, {
+    const ms = typeof timerOrMS === 'number' ? timerOrMS : timerOrMS.ms();
+    this[metric].record(Math.ceil(ms), {
       [Attributes.PROTOCOL_CIRCUIT_NAME]: circuitName,
       [Attributes.PROTOCOL_CIRCUIT_TYPE]: 'server',
     });
@@ -105,11 +110,11 @@ export class ProverInstrumentation {
    * Records the duration of an AVM circuit operation.
    * @param metric - The metric to record
    * @param appCircuitName - The name of the function circuit (should be a `contract:function` string)
-   * @param timerOrS - The duration
+   * @param timerOrMS - The duration
    */
-  recordAvmDuration(metric: 'witGenDuration' | 'provingDuration', appCircuitName: string, timerOrS: Timer | number) {
-    const s = typeof timerOrS === 'number' ? timerOrS : timerOrS.s();
-    this[metric].record(s, {
+  recordAvmDuration(metric: 'witGenDuration' | 'provingDuration', appCircuitName: string, timerOrMS: Timer | number) {
+    const ms = typeof timerOrMS === 'number' ? timerOrMS : timerOrMS.s();
+    this[metric].record(Math.ceil(ms), {
       [Attributes.APP_CIRCUIT_NAME]: appCircuitName,
     });
   }
@@ -122,7 +127,7 @@ export class ProverInstrumentation {
    */
   recordSize(
     metric: 'witGenInputSize' | 'witGenOutputSize' | 'proofSize' | 'circuitSize' | 'circuitPublicInputCount',
-    circuitName: CircuitName,
+    circuitName: CircuitName | 'tubeCircuit',
     size: number,
   ) {
     this[metric].record(Math.ceil(size), {

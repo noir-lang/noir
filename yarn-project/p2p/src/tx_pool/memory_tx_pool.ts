@@ -36,6 +36,8 @@ export class InMemoryTxPool implements TxPool {
       this.minedTxs.add(key);
       this.pendingTxs.delete(key);
     }
+    this.metrics.recordRemovedTxs('pending', txHashes.length);
+    this.metrics.recordAddedTxs('mined', txHashes.length);
     return Promise.resolve();
   }
 
@@ -74,7 +76,7 @@ export class InMemoryTxPool implements TxPool {
    * @returns Empty promise.
    */
   public addTxs(txs: Tx[]): Promise<void> {
-    this.metrics.recordTxs(txs);
+    let pending = 0;
     for (const tx of txs) {
       const txHash = tx.getTxHash();
       this.log.debug(`Adding tx with id ${txHash.toString()}`, {
@@ -85,9 +87,13 @@ export class InMemoryTxPool implements TxPool {
       const key = txHash.toBigInt();
       this.txs.set(key, tx);
       if (!this.minedTxs.has(key)) {
+        pending++;
+        this.metrics.recordTxSize(tx);
         this.pendingTxs.add(key);
       }
     }
+
+    this.metrics.recordAddedTxs('pending', pending);
     return Promise.resolve();
   }
 
@@ -97,13 +103,19 @@ export class InMemoryTxPool implements TxPool {
    * @returns The number of transactions that was deleted from the pool.
    */
   public deleteTxs(txHashes: TxHash[]): Promise<void> {
-    this.metrics.removeTxs(txHashes.length);
+    let deletedMined = 0;
+    let deletedPending = 0;
+
     for (const txHash of txHashes) {
       const key = txHash.toBigInt();
       this.txs.delete(key);
-      this.pendingTxs.delete(key);
-      this.minedTxs.delete(key);
+      deletedPending += this.pendingTxs.delete(key) ? 1 : 0;
+      deletedMined += this.minedTxs.delete(key) ? 1 : 0;
     }
+
+    this.metrics.recordRemovedTxs('pending', deletedPending);
+    this.metrics.recordRemovedTxs('mined', deletedMined);
+
     return Promise.resolve();
   }
 

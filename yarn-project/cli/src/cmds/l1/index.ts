@@ -101,8 +101,10 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       'test test test test test test test test test test test junk',
     )
     .option('--mint', 'Mint the tokens on L1', false)
+    .option('--l1-private-key <string>', 'The private key to the eth account bridging', PRIVATE_KEY)
     .addOption(pxeOption)
     .addOption(l1ChainIdOption)
+    .option('--json', 'Output the claim in JSON format')
     .action(async (amount, recipient, options) => {
       const { bridgeL1Gas } = await import('./bridge_fee_juice.js');
       await bridgeL1Gas(
@@ -111,8 +113,10 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         options.rpcUrl,
         options.l1RpcUrl,
         options.l1ChainId,
+        options.l1PrivateKey,
         options.mnemonic,
         options.mint,
+        options.json,
         log,
         debugLogger,
       );
@@ -137,7 +141,8 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
     .addOption(l1ChainIdOption)
     .requiredOption('-t, --token <string>', 'The address of the token to bridge', parseEthereumAddress)
     .requiredOption('-p, --portal <string>', 'The address of the portal contract', parseEthereumAddress)
-    .option('-k, --private-key <string>', 'The private key to use for deployment', PRIVATE_KEY)
+    .option('--l1-private-key <string>', 'The private key to use for deployment', PRIVATE_KEY)
+    .option('--json', 'Output the claim in JSON format')
     .action(async (amount, recipient, options) => {
       const { bridgeERC20 } = await import('./bridge_erc20.js');
       await bridgeERC20(
@@ -145,20 +150,24 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         recipient,
         options.l1RpcUrl,
         options.l1ChainId,
-        options.privateKey,
+        options.l1PrivateKey,
         options.mnemonic,
         options.token,
         options.portal,
         options.mint,
+        options.json,
         log,
         debugLogger,
       );
     });
 
-  program.command('create-l1-account').action(async () => {
-    const { createL1Account } = await import('./create_l1_account.js');
-    createL1Account(log);
-  });
+  program
+    .command('create-l1-account')
+    .option('--json', 'Output the account in JSON format')
+    .action(async options => {
+      const { createL1Account } = await import('./create_l1_account.js');
+      createL1Account(options.json, log);
+    });
 
   program
     .command('get-l1-balance')
@@ -169,11 +178,12 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       'Url of the ethereum host. Chain identifiers localhost and testnet can be used',
       ETHEREUM_HOST,
     )
-    .requiredOption('-t, --token <string>', 'The address of the token to check the balance of', parseEthereumAddress)
+    .option('-t, --token <string>', 'The address of the token to check the balance of', parseEthereumAddress)
     .addOption(l1ChainIdOption)
+    .option('--json', 'Output the balance in JSON format')
     .action(async (who, options) => {
       const { getL1Balance } = await import('./get_l1_balance.js');
-      await getL1Balance(who, options.token, options.l1RpcUrl, options.l1ChainId, log);
+      await getL1Balance(who, options.token, options.l1RpcUrl, options.l1ChainId, options.json, log);
     });
 
   return program;

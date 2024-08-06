@@ -49,6 +49,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256Trunc } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { Timer } from '@aztec/foundation/timer';
 import { type AztecKVStore } from '@aztec/kv-store';
 import { createStore, openTmpStore } from '@aztec/kv-store/utils';
 import { SHA256Trunc, StandardTree, UnbalancedTree } from '@aztec/merkle-tree';
@@ -78,6 +79,7 @@ import {
 import { MerkleTrees, type WorldStateSynchronizer, createWorldStateSynchronizer } from '@aztec/world-state';
 
 import { type AztecNodeConfig, getPackageInfo } from './config.js';
+import { NodeMetrics } from './node_metrics.js';
 import { MetadataTxValidator } from './tx_validator/tx_metadata_validator.js';
 import { TxProofValidator } from './tx_validator/tx_proof_validator.js';
 
@@ -86,6 +88,8 @@ import { TxProofValidator } from './tx_validator/tx_proof_validator.js';
  */
 export class AztecNodeService implements AztecNode {
   private packageVersion: string;
+
+  private metrics: NodeMetrics;
 
   constructor(
     protected config: AztecNodeConfig,
@@ -107,6 +111,8 @@ export class AztecNodeService implements AztecNode {
     private log = createDebugLogger('aztec:node'),
   ) {
     this.packageVersion = getPackageInfo().version;
+    this.metrics = new NodeMetrics(telemetry, 'AztecNodeService');
+
     const message =
       `Started Aztec Node against chain 0x${l1ChainId.toString(16)} with contracts - \n` +
       `Rollup: ${config.l1Contracts.rollupAddress.toString()}\n` +
@@ -330,15 +336,18 @@ export class AztecNodeService implements AztecNode {
    * @param tx - The transaction to be submitted.
    */
   public async sendTx(tx: Tx) {
+    const timer = new Timer();
     this.log.info(`Received tx ${tx.getTxHash()}`);
 
     const [_, invalidTxs] = await this.txValidator.validateTxs([tx]);
     if (invalidTxs.length > 0) {
       this.log.warn(`Rejecting tx ${tx.getTxHash()} because of validation errors`);
+      this.metrics.receivedTx(timer.ms(), false);
       return;
     }
 
     await this.p2pClient!.sendTx(tx);
+    this.metrics.receivedTx(timer.ms(), true);
   }
 
   public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {

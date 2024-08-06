@@ -1,6 +1,10 @@
 import { BBNativeRollupProver, type BBProverConfig } from '@aztec/bb-prover';
 import { makePaddingProcessedTxFromTubeProof } from '@aztec/circuit-types';
-import { NESTED_RECURSIVE_PROOF_LENGTH, makeEmptyRecursiveProof } from '@aztec/circuits.js';
+import {
+  NESTED_RECURSIVE_PROOF_LENGTH,
+  PrivateKernelEmptyInputData,
+  makeEmptyRecursiveProof,
+} from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
@@ -32,13 +36,7 @@ describe('prover/bb_prover/base-rollup', () => {
     const version = context.globalVariables.version;
     const vkTreeRoot = getVKTreeRoot();
 
-    const inputs = {
-      header,
-      chainId,
-      version,
-      vkTreeRoot,
-    };
-
+    const inputs = new PrivateKernelEmptyInputData(header, chainId, version, vkTreeRoot);
     const paddingTxPublicInputsAndProof = await context.prover.getEmptyTubeProof(inputs);
     const tx = makePaddingProcessedTxFromTubeProof(paddingTxPublicInputsAndProof);
 

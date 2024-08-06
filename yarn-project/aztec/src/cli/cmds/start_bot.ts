@@ -21,7 +21,14 @@ export async function startBot(
     process.exit(1);
   }
 
-  await addBot(options, services, signalHandlers);
+  // Start a PXE client that is used by the bot if required
+  let pxe: PXE | undefined;
+  if (options.pxe) {
+    const { addPXE } = await import('./start_pxe.js');
+    pxe = await addPXE(options, services, signalHandlers, userLog);
+  }
+
+  await addBot(options, services, signalHandlers, { pxe });
   return services;
 }
 

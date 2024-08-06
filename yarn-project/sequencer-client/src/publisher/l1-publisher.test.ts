@@ -1,5 +1,6 @@
 import { L2Block } from '@aztec/circuit-types';
 import { sleep } from '@aztec/foundation/sleep';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
@@ -47,7 +48,7 @@ describe('L1Publisher', () => {
     txSender.getTransactionReceipt.mockResolvedValueOnce(publishTxReceipt).mockResolvedValueOnce(processTxReceipt);
     txSender.getCurrentArchive.mockResolvedValue(l2Block.header.lastArchive.root.toBuffer());
 
-    publisher = new L1Publisher(txSender, { l1PublishRetryIntervalMS: 1 });
+    publisher = new L1Publisher(txSender, new NoopTelemetryClient(), { l1PublishRetryIntervalMS: 1 });
   });
 
   it('publishes l2 block to l1', async () => {

@@ -44,7 +44,9 @@ export const cliTexts = {
     'port:PXE_PORT - number - The port on which the PXE should listen for connections. Default: 79\n' +
     'l2BlockPollingIntervalMS:PXE_BLOCK_POLLING_INTERVAL_MS - number - The frequency in which to check for blocks in ms. Default: 1000\n' +
     'l2StartingBlock:PXE_L2_STARTING_BLOCK - number - The block number from which to start polling. Default: 1\n' +
-    'dataDirectory:PXE_DATA_DIRECTORY - string - Where to store PXE data. If not set, will store temporarily.\n',
+    'dataDirectory:PXE_DATA_DIRECTORY - string - Where to store PXE data. If not set, will store temporarily.\n' +
+    'network:NETWORK - string - The network to connect to, e.g. devnet\n' +
+    "apiKey:API_KEY - string - The API key to use when connecting to an Aztec network. Required when using 'network' option.\n",
   archiver:
     'Starts an Archiver with options. If started additionally to --node, the Archiver will attach to that node.' +
     'Available options are listed below as cliProperty:ENV_VARIABLE_NAME.\n' +

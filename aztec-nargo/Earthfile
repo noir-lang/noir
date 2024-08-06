@@ -15,3 +15,9 @@ run:
     ENV PATH "/usr/bin:${PATH}"
     ENTRYPOINT ["/usr/bin/tini", "--", "/usr/bin/compile_then_transpile.sh"]
     SAVE IMAGE aztecprotocol/aztec-nargo
+
+export-aztec-nargo:
+  FROM +run
+  ARG DIST_TAG="latest"
+  ARG ARCH
+  SAVE IMAGE --push aztecprotocol/aztec-nargo:${DIST_TAG}${ARCH:+-$ARCH}

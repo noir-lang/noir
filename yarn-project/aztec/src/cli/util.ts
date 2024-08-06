@@ -8,7 +8,7 @@ import { type ServerList } from '@aztec/foundation/json-rpc/server';
 import { type LogFn, createConsoleLogger } from '@aztec/foundation/log';
 import { type P2PConfig } from '@aztec/p2p';
 import { type ProverNodeConfig } from '@aztec/prover-node';
-import { type PXEService, type PXEServiceConfig } from '@aztec/pxe';
+import type { CliPXEOptions, PXEService } from '@aztec/pxe';
 
 export interface ServiceStarter<T = any> {
   (options: T, signalHandlers: (() => Promise<void>)[], logger: LogFn): Promise<ServerList>;
@@ -69,9 +69,9 @@ export const parseModuleOptions = (options: string): Record<string, string> => {
 };
 
 export const mergeEnvVarsAndCliOptions = <
-  T extends AztecNodeConfig | PXEServiceConfig | P2PConfig | ArchiverConfig | BotConfig | ProverNodeConfig,
+  T extends AztecNodeConfig | CliPXEOptions | P2PConfig | ArchiverConfig | BotConfig | ProverNodeConfig,
 >(
-  envVars: AztecNodeConfig | PXEServiceConfig | P2PConfig | ArchiverConfig | BotConfig | ProverNodeConfig,
+  envVars: AztecNodeConfig | CliPXEOptions | P2PConfig | ArchiverConfig | BotConfig | ProverNodeConfig,
   cliOptions: Record<string, string>,
   contractsRequired = false,
   userLog = createConsoleLogger(),

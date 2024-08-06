@@ -68,9 +68,15 @@ export class Bot {
     this.log.verbose(`Sending tx`, logCtx);
     const tx = batch.send(opts);
 
-    this.log.verbose(`Awaiting tx ${tx.getTxHash()} to be mined (timeout ${this.config.txMinedWaitSeconds}s)`, logCtx);
-    const receipt = await tx.wait({ timeout: this.config.txMinedWaitSeconds });
+    const txHash = await tx.getTxHash();
 
+    if (this.config.noWaitForTransfers) {
+      this.log.info(`Transaction ${txHash} sent, not waiting for it to be mined`);
+      return;
+    }
+
+    this.log.verbose(`Awaiting tx ${txHash} to be mined (timeout ${this.config.txMinedWaitSeconds}s)`, logCtx);
+    const receipt = await tx.wait({ timeout: this.config.txMinedWaitSeconds });
     this.log.info(`Tx ${receipt.txHash} mined in block ${receipt.blockNumber}`, logCtx);
   }
 

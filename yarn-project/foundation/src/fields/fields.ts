@@ -433,7 +433,7 @@ export function reduceFn<TInput, TField extends BaseField>(fn: (input: TInput) =
 }
 
 /** If we are in test mode, we register a special equality for fields. */
-if (process.env.NODE_ENV === 'test') {
+if (process.env.NODE_ENV === 'test' && typeof expect !== 'undefined') {
   const areFieldsEqual = (a: unknown, b: unknown): boolean | undefined => {
     const isAField = a instanceof BaseField;
     const isBField = b instanceof BaseField;

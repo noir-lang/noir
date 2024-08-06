@@ -250,3 +250,6 @@ bench-prover:
   ARG COMMIT_HASH
   DO +E2E_COMPOSE_TEST --test=bench_prover --debug="aztec:benchmarks:*,aztec:prover*,aztec:bb*,aztec:pxe*" --enable_gas=1 --compose_file=./scripts/docker-compose-no-sandbox.yml --hardware_concurrency=${HARDWARE_CONCURRENCY:-32}
   DO ../../+UPLOAD_LOGS --PULL_REQUEST=$PULL_REQUEST --BRANCH=$BRANCH --COMMIT_HASH=$COMMIT_HASH
+
+e2e-devnet-smoke:
+  DO +E2E_COMPOSE_TEST --test=devnet/e2e_smoke.test.ts --compose_file=scripts/docker-compose-devnet.yml

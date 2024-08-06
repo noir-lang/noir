@@ -3,7 +3,8 @@ variable "DEPLOY_TAG" {
 }
 
 variable "IMAGE_TAG" {
-  type = string
+  type    = string
+  default = "latest"
 }
 
 variable "DOCKERHUB_ACCOUNT" {
@@ -12,4 +13,14 @@ variable "DOCKERHUB_ACCOUNT" {
 
 variable "API_KEY" {
   type = string
+}
+
+variable "PROVING_ENABLED" {
+  type    = bool
+  default = false
+}
+
+variable "PXE_LB_RULE_PRIORITY" {
+  type    = number
+  default = 5000
 }

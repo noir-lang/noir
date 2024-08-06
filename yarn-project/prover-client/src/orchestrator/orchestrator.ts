@@ -37,6 +37,7 @@ import {
   type NESTED_RECURSIVE_PROOF_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   NUM_BASE_PARITY_PER_ROOT_PARITY,
+  PrivateKernelEmptyInputData,
   type Proof,
   type PublicKernelCircuitPublicInputs,
   type RECURSIVE_PROOF_LENGTH,
@@ -55,6 +56,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { promiseWithResolvers } from '@aztec/foundation/promise';
 import { BufferReader, type Tuple } from '@aztec/foundation/serialize';
 import { pushTestData } from '@aztec/foundation/testing';
+import { elapsed } from '@aztec/foundation/timer';
 import { ProtocolCircuitVks, getVKIndex, getVKSiblingPath, getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { Attributes, type TelemetryClient, type Tracer, trackSpan, wrapCallbackInSpan } from '@aztec/telemetry-client';
 import { type MerkleTreeOperations } from '@aztec/world-state';
@@ -71,6 +73,7 @@ import {
   validateRootOutput,
   validateTx,
 } from './block-building-helpers.js';
+import { ProvingOrchestratorMetrics } from './orchestrator_metrics.js';
 import { type MergeRollupInputData, ProvingState, type TreeSnapshots } from './proving-state.js';
 import { TX_PROVING_CODE, TxProvingState } from './tx-proving-state.js';
 
@@ -95,7 +98,7 @@ export class ProvingOrchestrator {
   private pendingProvingJobs: AbortController[] = [];
   private paddingTx: PaddingProcessedTx | undefined = undefined;
 
-  public readonly tracer: Tracer;
+  private metrics: ProvingOrchestratorMetrics;
 
   constructor(
     private db: MerkleTreeOperations,
@@ -103,7 +106,11 @@ export class ProvingOrchestrator {
     telemetryClient: TelemetryClient,
     public readonly proverId: Fr = Fr.ZERO,
   ) {
-    this.tracer = telemetryClient.getTracer('ProvingOrchestrator');
+    this.metrics = new ProvingOrchestratorMetrics(telemetryClient, 'ProvingOrchestrator');
+  }
+
+  get tracer(): Tracer {
+    return this.metrics.tracer;
   }
 
   /**
@@ -306,15 +313,15 @@ export class ProvingOrchestrator {
         },
         signal =>
           this.prover.getEmptyPrivateKernelProof(
-            {
+            new PrivateKernelEmptyInputData(
+              unprovenPaddingTx.data.constants.historicalHeader,
               // Chain id and version should not change even if the proving state does, so it's safe to use them for the padding tx
               // which gets cached across multiple runs of the orchestrator with different proving states. If they were to change,
               // we'd have to clear out the paddingTx here and regenerate it when they do.
-              chainId: unprovenPaddingTx.data.constants.txContext.chainId,
-              version: unprovenPaddingTx.data.constants.txContext.version,
-              header: unprovenPaddingTx.data.constants.historicalHeader,
-              vkTreeRoot: getVKTreeRoot(),
-            },
+              unprovenPaddingTx.data.constants.txContext.chainId,
+              unprovenPaddingTx.data.constants.txContext.version,
+              getVKTreeRoot(),
+            ),
             signal,
           ),
       ),
@@ -557,21 +564,30 @@ export class ProvingOrchestrator {
     }
 
     const getBaseInputsEmptyTx = async () => {
-      const inputs = {
-        header: this.db.getInitialHeader(),
-        chainId: tx.data.constants.globalVariables.chainId,
-        version: tx.data.constants.globalVariables.version,
-        vkTreeRoot: tx.data.constants.vkTreeRoot,
-      };
+      const inputs = new PrivateKernelEmptyInputData(
+        this.db.getInitialHeader(),
+        tx.data.constants.globalVariables.chainId,
+        tx.data.constants.globalVariables.version,
+        tx.data.constants.vkTreeRoot,
+      );
 
       const proof = await this.prover.getEmptyTubeProof(inputs);
-      return await buildBaseRollupInput(tx, proof.proof, provingState.globalVariables, this.db, proof.verificationKey);
+      return await elapsed(
+        buildBaseRollupInput(tx, proof.proof, provingState.globalVariables, this.db, proof.verificationKey),
+      );
     };
     const getBaseInputsNonEmptyTx = async () => {
       const proof = await this.prover.getTubeProof(new TubeInputs(tx.clientIvcProof));
-      return await buildBaseRollupInput(tx, proof.tubeProof, provingState.globalVariables, this.db, proof.tubeVK);
+      return await elapsed(
+        buildBaseRollupInput(tx, proof.tubeProof, provingState.globalVariables, this.db, proof.tubeVK),
+      );
     };
-    const inputs = tx.isEmpty ? await getBaseInputsEmptyTx() : await getBaseInputsNonEmptyTx();
+    const [ms, inputs] = tx.isEmpty ? await getBaseInputsEmptyTx() : await getBaseInputsNonEmptyTx();
+
+    if (!tx.isEmpty) {
+      this.metrics.recordBaseRollupInputs(ms);
+    }
+
     const promises = [MerkleTreeId.NOTE_HASH_TREE, MerkleTreeId.NULLIFIER_TREE, MerkleTreeId.PUBLIC_DATA_TREE].map(
       async (id: MerkleTreeId) => {
         return { key: id, value: await getTreeSnapshot(id, this.db) };

@@ -27,6 +27,7 @@ import { type GlobalVariableBuilder } from '../global_variable_builder/global_bu
 import { type L1Publisher } from '../publisher/l1-publisher.js';
 import { type TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
 import { type SequencerConfig } from './config.js';
+import { SequencerMetrics } from './metrics.js';
 
 /**
  * Sequencer client
@@ -53,8 +54,7 @@ export class Sequencer {
   private allowedInTeardown: AllowedElement[] = [];
   private maxBlockSizeInBytes: number = 1024 * 1024;
   private skipSubmitProofs: boolean = false;
-
-  public readonly tracer: Tracer;
+  private metrics: SequencerMetrics;
 
   constructor(
     private publisher: L1Publisher,
@@ -71,8 +71,12 @@ export class Sequencer {
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.updateConfig(config);
-    this.tracer = telemetry.getTracer('Sequencer');
+    this.metrics = new SequencerMetrics(telemetry, 'Sequencer');
     this.log.verbose(`Initialized sequencer with ${this.minTxsPerBLock}-${this.maxTxsPerBlock} txs per block.`);
+  }
+
+  get tracer(): Tracer {
+    return this.metrics.tracer;
   }
 
   /**
@@ -280,6 +284,7 @@ export class Sequencer {
     historicalHeader: Header | undefined,
     elapsedSinceLastBlock: number,
   ): Promise<void> {
+    this.metrics.recordNewBlock(validTxs.length);
     const workTimer = new Timer();
     this.state = SequencerState.CREATING_BLOCK;
     this.log.info(`Building block ${newGlobalVariables.blockNumber.toNumber()} with ${validTxs.length} transactions`);
@@ -287,6 +292,7 @@ export class Sequencer {
     const assertBlockHeight = async () => {
       const currentBlockNumber = await this.l2BlockSource.getBlockNumber();
       if (currentBlockNumber + 1 !== newGlobalVariables.blockNumber.toNumber()) {
+        this.metrics.recordCancelledBlock();
         throw new Error('New block was emitted while building block');
       }
 
@@ -350,16 +356,23 @@ export class Sequencer {
 
     await assertBlockHeight();
 
+    const workDuration = workTimer.ms();
     this.log.verbose(`Assembled block ${block.number}`, {
       eventName: 'l2-block-built',
-      duration: workTimer.ms(),
+      duration: workDuration,
       publicProcessDuration: publicProcessorDuration,
       rollupCircuitsDuration: blockBuildingTimer.ms(),
       ...block.getStats(),
     } satisfies L2BlockBuiltStats);
 
-    await this.publishL2Block(block);
-    this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
+    try {
+      await this.publishL2Block(block);
+      this.metrics.recordPublishedBlock(workDuration);
+      this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
+    } catch (err) {
+      this.metrics.recordFailedBlock();
+      throw err;
+    }
 
     // Submit the proof if we have configured this sequencer to run with an actual prover.
     // This is temporary while we submit one proof per block, but will have to change once we

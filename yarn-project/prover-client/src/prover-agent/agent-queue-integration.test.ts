@@ -4,6 +4,7 @@ import { makeBaseParityInputs, makeRootParityInput } from '@aztec/circuits.js/te
 import { AbortError } from '@aztec/foundation/error';
 import { promiseWithResolvers } from '@aztec/foundation/promise';
 import { sleep } from '@aztec/foundation/sleep';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
@@ -23,7 +24,7 @@ describe('Prover agent <-> queue integration', () => {
 
     queueJobTimeout = 100;
     queuePollInterval = 10;
-    queue = new MemoryProvingQueue(queueJobTimeout, queuePollInterval);
+    queue = new MemoryProvingQueue(new NoopTelemetryClient(), queueJobTimeout, queuePollInterval);
 
     agentPollInterval = 10;
     agent = new ProverAgent(prover, 1, agentPollInterval);

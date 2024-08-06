@@ -5,11 +5,14 @@ import { type Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { serializeToBuffer } from '@aztec/foundation/serialize';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
+import { Timer } from '@aztec/foundation/timer';
+import { type TelemetryClient } from '@aztec/telemetry-client';
 
 import pick from 'lodash.pick';
 
 import { type L2BlockReceiver } from '../receiver.js';
 import { type PublisherConfig } from './config.js';
+import { L1PublisherMetrics } from './l1-publisher-metrics.js';
 
 /**
  * Stats for a sent transaction.
@@ -133,10 +136,12 @@ export class L1Publisher implements L2BlockReceiver {
   private interruptibleSleep = new InterruptibleSleep();
   private sleepTimeMs: number;
   private interrupted = false;
+  private metrics: L1PublisherMetrics;
   private log = createDebugLogger('aztec:sequencer:publisher');
 
-  constructor(private txSender: L1PublisherTxSender, config?: PublisherConfig) {
+  constructor(private txSender: L1PublisherTxSender, client: TelemetryClient, config?: PublisherConfig) {
     this.sleepTimeMs = config?.l1PublishRetryIntervalMS ?? 60_000;
+    this.metrics = new L1PublisherMetrics(client, 'L1Publisher');
   }
 
   public async isItMyTurnToSubmit(): Promise<boolean> {
@@ -203,6 +208,7 @@ export class L1Publisher implements L2BlockReceiver {
 
     // Process block
     while (!this.interrupted) {
+      const timer = new Timer();
       const txHash = await this.sendProcessTx(processTxArgs);
       if (!txHash) {
         break;
@@ -223,8 +229,11 @@ export class L1Publisher implements L2BlockReceiver {
           eventName: 'rollup-published-to-l1',
         };
         this.log.info(`Published L2 block to L1 rollup contract`, { ...stats, ...ctx });
+        this.metrics.recordProcessBlockTx(timer.ms(), stats);
         return true;
       }
+
+      this.metrics.recordFailedTx('process');
 
       // Check if someone else incremented the block number
       if (!(await this.checkLastArchiveHash(lastArchive))) {
@@ -259,6 +268,7 @@ export class L1Publisher implements L2BlockReceiver {
 
     // Process block
     while (!this.interrupted) {
+      const timer = new Timer();
       const txHash = await this.sendSubmitProofTx(txArgs);
       if (!txHash) {
         break;
@@ -278,9 +288,11 @@ export class L1Publisher implements L2BlockReceiver {
           eventName: 'proof-published-to-l1',
         };
         this.log.info(`Published L2 block to L1 rollup contract`, { ...stats, ...ctx });
+        this.metrics.recordSubmitProof(timer.ms(), stats);
         return true;
       }
 
+      this.metrics.recordFailedTx('submitProof');
       this.log.error(`Rollup.submitProof tx status failed: ${receipt.transactionHash}`, ctx);
       await this.sleepOrInterrupted();
     }

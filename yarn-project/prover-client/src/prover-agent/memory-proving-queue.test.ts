@@ -11,6 +11,7 @@ import { makeBaseParityInputs, makeBaseRollupInputs, makeParityPublicInputs } fr
 import { makeTuple } from '@aztec/foundation/array';
 import { AbortError } from '@aztec/foundation/error';
 import { sleep } from '@aztec/foundation/sleep';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import { MemoryProvingQueue } from './memory-proving-queue.js';
 
@@ -22,7 +23,7 @@ describe('MemoryProvingQueue', () => {
   beforeEach(() => {
     jobTimeoutMs = 100;
     pollingIntervalMs = 10;
-    queue = new MemoryProvingQueue(jobTimeoutMs, pollingIntervalMs);
+    queue = new MemoryProvingQueue(new NoopTelemetryClient(), jobTimeoutMs, pollingIntervalMs);
     queue.start();
   });
 

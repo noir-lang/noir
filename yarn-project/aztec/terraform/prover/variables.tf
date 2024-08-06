@@ -3,10 +3,11 @@ variable "DEPLOY_TAG" {
 }
 
 variable "IMAGE_TAG" {
-  type = string
+  type    = string
+  default = "latest"
 }
 
-variable "AGENTS_PER_SEQUENCER" {
+variable "AGENTS_PER_PROVER" {
   type    = string
   default = 1
 }

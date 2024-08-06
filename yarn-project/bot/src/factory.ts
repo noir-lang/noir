@@ -19,7 +19,13 @@ export class BotFactory {
       throw new Error(`Either a PXE client or a PXE URL must be provided`);
     }
 
-    this.pxe = dependencies.pxe ?? createPXEClient(config.pxeUrl!);
+    if (dependencies.pxe) {
+      this.log.info(`Using local PXE`);
+      this.pxe = dependencies.pxe;
+      return;
+    }
+    this.log.info(`Using remote PXE at ${config.pxeUrl!}`);
+    this.pxe = createPXEClient(config.pxeUrl!);
   }
 
   /**
@@ -48,7 +54,7 @@ export class BotFactory {
       return account.register();
     } else {
       this.log.info(`Initializing account at ${account.getAddress().toString()}`);
-      return account.waitSetup();
+      return account.waitSetup({ timeout: this.config.txMinedWaitSeconds });
     }
   }
 
@@ -74,7 +80,7 @@ export class BotFactory {
       return deploy.register();
     } else {
       this.log.info(`Deploying token contract at ${address.toString()}`);
-      return deploy.send(deployOpts).deployed();
+      return deploy.send(deployOpts).deployed({ timeout: this.config.txMinedWaitSeconds });
     }
   }
 
@@ -98,6 +104,6 @@ export class BotFactory {
       this.log.info(`Skipping minting as ${sender.toString()} has enough tokens`);
       return;
     }
-    await new BatchCall(token.wallet, calls).send().wait();
+    await new BatchCall(token.wallet, calls).send().wait({ timeout: this.config.txMinedWaitSeconds });
   }
 }

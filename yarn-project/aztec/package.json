@@ -54,6 +54,7 @@
     "@aztec/pxe": "workspace:^",
     "@aztec/telemetry-client": "workspace:^",
     "@aztec/txe": "workspace:^",
+    "@aztec/types": "workspace:^",
     "abitype": "^0.8.11",
     "commander": "^12.1.0",
     "koa": "^2.14.2",

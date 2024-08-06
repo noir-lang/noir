@@ -9,6 +9,7 @@ import {
 } from '@aztec/circuits.js';
 import { makeBaseParityInputs, makeParityPublicInputs } from '@aztec/circuits.js/testing';
 import { makeTuple } from '@aztec/foundation/array';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 
@@ -22,7 +23,7 @@ describe('ProverAgent', () => {
 
   beforeEach(() => {
     prover = mock<ServerCircuitProver>();
-    queue = new MemoryProvingQueue();
+    queue = new MemoryProvingQueue(new NoopTelemetryClient());
     agent = new ProverAgent(prover);
   });
 

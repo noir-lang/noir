@@ -34,6 +34,10 @@ import { AbortError, TimeoutError } from '@aztec/foundation/error';
 import { MemoryFifo } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type PromiseWithResolvers, RunningPromise, promiseWithResolvers } from '@aztec/foundation/promise';
+import { serializeToBuffer } from '@aztec/foundation/serialize';
+import { type TelemetryClient } from '@aztec/telemetry-client';
+
+import { ProvingQueueMetrics } from './queue_metrics.js';
 
 type ProvingJobWithResolvers<T extends ProvingRequest = ProvingRequest> = {
   id: string;
@@ -59,7 +63,10 @@ export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource
 
   private runningPromise: RunningPromise;
 
+  private metrics: ProvingQueueMetrics;
+
   constructor(
+    client: TelemetryClient,
     /** Timeout the job if an agent doesn't report back in this time */
     private jobTimeoutMs = 60 * 1000,
     /** How often to check for timed out jobs */
@@ -67,6 +74,7 @@ export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource
     private generateId = defaultIdGenerator,
     private timeSource = defaultTimeSource,
   ) {
+    this.metrics = new ProvingQueueMetrics(client, 'MemoryProvingQueue');
     this.runningPromise = new RunningPromise(this.poll, pollingIntervalMs);
   }
 
@@ -190,6 +198,7 @@ export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource
 
   private poll = () => {
     const now = this.timeSource();
+    this.metrics.recordQueueSize(this.queue.length());
 
     for (const job of this.jobsInProgress.values()) {
       if (job.signal?.aborted) {
@@ -238,6 +247,9 @@ export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource
     if (!this.queue.put(item as any)) {
       throw new Error();
     }
+
+    const byteSize = serializeToBuffer(item.request.inputs).length;
+    this.metrics.recordNewJob(item.request.type, byteSize);
 
     return promise;
   }

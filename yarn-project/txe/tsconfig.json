@@ -37,6 +37,9 @@
       "path": "../simulator"
     },
     {
+      "path": "../telemetry-client"
+    },
+    {
       "path": "../types"
     },
     {

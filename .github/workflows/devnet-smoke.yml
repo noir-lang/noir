@@ -1,0 +1,85 @@
+name: Run devnet smoke tests
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - Deploy to network
+    types:
+      # triggered even if the workflow fails
+      - completed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+  GIT_COMMIT: devnet
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AZTEC_NODE_URL: https://api.aztec.network/devnet/aztec-node-1/{{ secrets.DEVNET_API_KEY }}
+  FAUCET_URL: https://api.aztec.network/devnet/aztec-faucet/{{ secrets.DEVNET_API_KEY }}
+  ETHEREUM_HOST: https://devnet-mainnet-fork.aztec.network:8545/${{ secrets.DEVNET_API_KEY }}
+
+jobs:
+  setup:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      username: ${{ github.event.pull_request.user.login || github.actor }}
+      runner_type: builder-x86
+    secrets: inherit
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+  build:
+    needs: setup
+    runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
+    outputs:
+      e2e_list: ${{ steps.e2e_list.outputs.list }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: build-test-artifacts-${{ github.actor }}
+
+      - name: "Build E2E Image"
+        timeout-minutes: 40
+        run: |
+          earthly-ci ./yarn-project+export-e2e-test-images
+
+      - name: Create list of devnet end-to-end jobs
+        id: e2e_list
+        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep 'devnet' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
+
+  e2e:
+    needs: build
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ${{ fromJson( needs.build.outputs.e2e_list )}}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+      - name: Setup and Test
+        timeout-minutes: 40
+        uses: ./.github/ensure-tester-with-images
+        with:
+          # big machine since we're doing proving
+          runner_type: "64core-tester-x86"
+          builder_type: builder-x86
+          # these are copied to the tester and expected by the earthly command below
+          # if they fail to copy, it will try to build them on the tester and fail
+          builder_images_to_copy: aztecprotocol/end-to-end:${{ env.GIT_COMMIT }}
+          # command to produce the images in case they don't exist
+          builder_command: scripts/earthly-ci ./yarn-project+export-e2e-test-images
+          run: |
+            set -eux
+            cd ./yarn-project/end-to-end/
+            export FORCE_COLOR=1
+            ../../scripts/earthly-ci -P --no-output +${{ matrix.test }}

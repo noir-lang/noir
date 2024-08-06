@@ -22,6 +22,8 @@ export type BotConfig = {
   noStart: boolean;
   /** How long to wait for a tx to be mined before reporting an error. */
   txMinedWaitSeconds: number;
+  /** Don't wait for transfer transactions. */
+  noWaitForTransfers: boolean;
 };
 
 export function getBotConfigFromEnv(): BotConfig {
@@ -35,6 +37,7 @@ export function getBotConfigFromEnv(): BotConfig {
     BOT_PUBLIC_TRANSFERS_PER_TX,
     BOT_NO_START,
     BOT_TX_MINED_WAIT_SECONDS,
+    BOT_NO_WAIT_FOR_TRANSFERS,
   } = process.env;
   if (BOT_FEE_PAYMENT_METHOD && !['native', 'none'].includes(BOT_FEE_PAYMENT_METHOD)) {
     throw new Error(`Invalid bot fee payment method: ${BOT_FEE_PAYMENT_METHOD}`);
@@ -53,6 +56,7 @@ export function getBotConfigFromEnv(): BotConfig {
     feePaymentMethod: BOT_FEE_PAYMENT_METHOD ? (BOT_FEE_PAYMENT_METHOD as 'native' | 'none') : undefined,
     noStart: BOT_NO_START ? ['1', 'true'].includes(BOT_NO_START) : undefined,
     txMinedWaitSeconds: BOT_TX_MINED_WAIT_SECONDS ? parseInt(BOT_TX_MINED_WAIT_SECONDS) : undefined,
+    noWaitForTransfers: BOT_NO_WAIT_FOR_TRANSFERS ? ['1', 'true'].includes(BOT_NO_WAIT_FOR_TRANSFERS) : undefined,
   });
 }
 
@@ -68,6 +72,7 @@ export function getBotDefaultConfig(overrides: Partial<BotConfig> = {}): BotConf
     feePaymentMethod: 'none',
     noStart: false,
     txMinedWaitSeconds: 180,
+    noWaitForTransfers: false,
     ...compact(overrides),
   };
 }

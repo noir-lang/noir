@@ -47,6 +47,8 @@ export class AztecKVTxPool implements TxPool {
         void this.#minedTxs.add(key);
         void this.#pendingTxs.delete(key);
       }
+      this.#metrics.recordRemovedTxs('pending', txHashes.length);
+      this.#metrics.recordAddedTxs('mined', txHashes.length);
     });
   }
 
@@ -87,6 +89,7 @@ export class AztecKVTxPool implements TxPool {
   public addTxs(txs: Tx[]): Promise<void> {
     const txHashes = txs.map(tx => tx.getTxHash());
     return this.#store.transaction(() => {
+      let pendingCount = 0;
       for (const [i, tx] of txs.entries()) {
         const txHash = txHashes[i];
         this.#log.info(`Adding tx with id ${txHash.toString()}`, {
@@ -97,12 +100,14 @@ export class AztecKVTxPool implements TxPool {
         const key = txHash.toString();
         void this.#txs.set(key, tx.toBuffer());
         if (!this.#minedTxs.has(key)) {
+          pendingCount++;
           // REFACTOR: Use an lmdb conditional write to avoid race conditions with this write tx
           void this.#pendingTxs.add(key);
+          this.#metrics.recordTxSize(tx);
         }
       }
 
-      this.#metrics.recordTxs(txs);
+      this.#metrics.recordAddedTxs('pending', pendingCount);
     });
   }
 
@@ -113,14 +118,24 @@ export class AztecKVTxPool implements TxPool {
    */
   public deleteTxs(txHashes: TxHash[]): Promise<void> {
     return this.#store.transaction(() => {
+      let pendingDeleted = 0;
+      let minedDeleted = 0;
       for (const hash of txHashes) {
         const key = hash.toString();
         void this.#txs.delete(key);
-        void this.#pendingTxs.delete(key);
-        void this.#minedTxs.delete(key);
+        if (this.#pendingTxs.has(key)) {
+          pendingDeleted++;
+          void this.#pendingTxs.delete(key);
+        }
+
+        if (this.#minedTxs.has(key)) {
+          minedDeleted++;
+          void this.#minedTxs.delete(key);
+        }
       }
 
-      this.#metrics.removeTxs(txHashes.length);
+      this.#metrics.recordRemovedTxs('pending', pendingDeleted);
+      this.#metrics.recordRemovedTxs('mined', minedDeleted);
     });
   }
 

@@ -146,6 +146,10 @@ resource "aws_ecs_task_definition" "aztec-pxe" {
         {
           name  = "API_PREFIX"
           value = local.api_prefix
+        },
+        {
+          name  = "PXE_PROVER_ENABLED"
+          value = tostring(var.PROVING_ENABLED)
         }
       ]
       mountPoints = [
@@ -223,7 +227,7 @@ resource "aws_alb_target_group" "pxe_http" {
 
 resource "aws_lb_listener_rule" "pxe_api" {
   listener_arn = data.terraform_remote_state.aztec2_iac.outputs.alb_listener_arn
-  priority     = 400
+  priority     = var.PXE_LB_RULE_PRIORITY
 
   action {
     type             = "forward"

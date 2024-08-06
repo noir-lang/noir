@@ -3,7 +3,8 @@ variable "DEPLOY_TAG" {
 }
 
 variable "IMAGE_TAG" {
-  type = string
+  type    = string
+  default = "latest"
 }
 
 variable "API_KEY" {
@@ -25,12 +26,12 @@ variable "L1_CHAIN_ID" {
 
 variable "NODE_P2P_TCP_PORT" {
   type    = number
-  default = 40400
+  default = 40000
 }
 
 variable "NODE_P2P_UDP_PORT" {
   type    = number
-  default = 40300
+  default = 45000
 }
 
 variable "DOCKERHUB_ACCOUNT" {
@@ -44,7 +45,7 @@ variable "SEQ_MAX_TX_PER_BLOCK" {
 
 variable "SEQ_MIN_TX_PER_BLOCK" {
   type    = string
-  default = 0
+  default = 2
 }
 
 variable "SEQ_MAX_SECONDS_BETWEEN_BLOCKS" {
@@ -69,7 +70,7 @@ variable "P2P_MAX_PEERS" {
 
 variable "P2P_ENABLED" {
   type    = bool
-  default = true
+  default = false
 }
 
 variable "P2P_TX_POOL_KEEP_PROVEN_FOR" {
@@ -80,4 +81,14 @@ variable "P2P_TX_POOL_KEEP_PROVEN_FOR" {
 variable "PROVING_ENABLED" {
   type    = bool
   default = false
+}
+
+variable "BOOTSTRAP_NODES" {
+  type    = string
+  default = ""
+}
+
+variable "NODE_LB_RULE_PRIORITY" {
+  type    = number
+  default = 4000
 }

@@ -1,5 +1,7 @@
 import { type Tx } from '@aztec/circuit-types';
-import { type Histogram, Metrics, type TelemetryClient, type UpDownCounter } from '@aztec/telemetry-client';
+import { Attributes, type Histogram, Metrics, type TelemetryClient, type UpDownCounter } from '@aztec/telemetry-client';
+
+export type TxStatus = 'pending' | 'mined';
 
 /**
  * Instrumentation class for the TxPool.
@@ -33,26 +35,39 @@ export class TxPoolInstrumentation {
     });
   }
 
+  public recordTxSize(tx: Tx) {
+    this.txSize.record(tx.getSize());
+  }
+
   /**
    * Updates the metrics with the new transactions.
    * @param txs - The transactions to record
    */
-  public recordTxs(txs: Tx[]) {
-    for (const tx of txs) {
-      this.txSize.record(tx.getSize());
+  public recordAddedTxs(status: string, count = 1) {
+    if (count < 0) {
+      throw new Error('Count must be positive');
     }
-
-    this.txInMempool.add(txs.length);
+    if (count === 0) {
+      return;
+    }
+    this.txInMempool.add(count, {
+      [Attributes.STATUS]: status,
+    });
   }
 
   /**
    * Updates the metrics by removing transactions from the mempool.
    * @param count - The number of transactions to remove from the mempool
    */
-  public removeTxs(count = 1) {
+  public recordRemovedTxs(status: string, count = 1) {
     if (count < 0) {
       throw new Error('Count must be positive');
     }
-    this.txInMempool.add(-1 * count);
+    if (count === 0) {
+      return;
+    }
+    this.txInMempool.add(-1 * count, {
+      [Attributes.STATUS]: status,
+    });
   }
 }

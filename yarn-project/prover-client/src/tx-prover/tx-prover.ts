@@ -31,7 +31,7 @@ export class TxProver implements ProverClient {
     private telemetry: TelemetryClient,
     private agent?: ProverAgent,
   ) {
-    this.queue = new MemoryProvingQueue(config.proverJobTimeoutMs, config.proverJobPollIntervalMs);
+    this.queue = new MemoryProvingQueue(telemetry, config.proverJobTimeoutMs, config.proverJobPollIntervalMs);
     this.orchestrator = new ProvingOrchestrator(
       worldStateSynchronizer.getLatest(),
       this.queue,
