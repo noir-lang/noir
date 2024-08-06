@@ -9,7 +9,6 @@ use builtin_helpers::{
     get_function_def, get_module, get_quoted, get_slice, get_struct, get_trait_constraint,
     get_trait_def, get_tuple, get_type, get_u32, hir_pattern_to_tokens,
 };
-use chumsky::Parser;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
@@ -23,8 +22,8 @@ use crate::{
     hir_def::function::{FuncMeta, FunctionBody},
     macros_api::{ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, FuncId},
-    parser,
-    token::{SpannedToken, Token},
+    parser::{self, NoirParser},
+    token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type,
 };
 
@@ -303,12 +302,8 @@ fn quoted_as_module(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let argument_location = argument.1;
 
-    let tokens = get_quoted(argument)?;
-    let quoted = add_token_spans(tokens.clone(), argument_location.span);
-
-    let path = parser::path_no_turbofish().parse(quoted).ok();
+    let path = parse(argument, parser::path_no_turbofish(), "a path").ok();
     let option_value = path.and_then(|path| {
         let module = interpreter.elaborate_item(interpreter.current_function, |elaborator| {
             elaborator.resolve_module_by_path(path)
@@ -326,23 +321,12 @@ fn quoted_as_trait_constraint(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let argument_location = argument.1;
-
-    let tokens = get_quoted(argument)?;
-    let quoted = add_token_spans(tokens.clone(), argument_location.span);
-
-    let trait_bound = parser::trait_bound().parse(quoted).map_err(|mut errors| {
-        let error = errors.swap_remove(0);
-        let rule = "a trait constraint";
-        InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
-    })?;
-
+    let trait_bound = parse(argument, parser::trait_bound(), "a trait constraint")?;
     let bound = interpreter
         .elaborate_item(interpreter.current_function, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
-
     Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
 }
 
@@ -353,20 +337,9 @@ fn quoted_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let argument_location = argument.1;
-
-    let tokens = get_quoted(argument)?;
-    let quoted = add_token_spans(tokens.clone(), argument_location.span);
-
-    let typ = parser::parse_type().parse(quoted).map_err(|mut errors| {
-        let error = errors.swap_remove(0);
-        let rule = "a type";
-        InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
-    })?;
-
+    let typ = parse(argument, parser::parse_type(), "a type")?;
     let typ =
         interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
-
     Ok(Value::Type(typ))
 }
 
@@ -739,15 +712,13 @@ fn function_def_set_body(
     body_quoted.0.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
     body_quoted.0.push(SpannedToken::new(Token::RightBrace, location.span));
 
-    let body =
-        parser::block(parser::fresh_statement()).parse(body_quoted).map_err(|mut errors| {
-            InterpreterError::FailedToParseMacro {
-                error: errors.swap_remove(0),
-                tokens: body_tokens,
-                rule: "a block",
-                file: location.file,
-            }
-        })?;
+    let body = parse_tokens(
+        body_tokens,
+        body_quoted,
+        body_argument_location,
+        parser::block(parser::fresh_statement()),
+        "a block",
+    )?;
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.has_body = true;
@@ -782,19 +753,11 @@ fn function_def_set_parameters(
             (input_parameter, parameters_argument_location),
         )?;
         let parameter_type = get_type((tuple.pop().unwrap(), parameters_argument_location))?;
-        let parameter_name_tokens =
-            get_quoted((tuple.pop().unwrap(), parameters_argument_location))?;
-        let parameter_name_quoted =
-            add_token_spans(parameter_name_tokens.clone(), parameters_argument_location.span);
-        let parameter_pattern =
-            parser::pattern().parse(parameter_name_quoted).map_err(|mut errors| {
-                InterpreterError::FailedToParseMacro {
-                    error: errors.swap_remove(0),
-                    tokens: parameter_name_tokens,
-                    rule: "a pattern",
-                    file: location.file,
-                }
-            })?;
+        let parameter_pattern = parse(
+            (tuple.pop().unwrap(), parameters_argument_location),
+            parser::pattern(),
+            "a pattern",
+        )?;
 
         let hir_pattern = interpreter.elaborate_item(Some(func_id), |elaborator| {
             elaborator.elaborate_pattern_and_store_ids(
@@ -1053,4 +1016,27 @@ fn check_can_mutate_function<'a>(
             return Err(InterpreterError::CannotMutateFunction { location })
         }
     }
+}
+
+fn parse<T>(
+    (value, location): (Value, Location),
+    parser: impl NoirParser<T>,
+    rule: &'static str,
+) -> IResult<T> {
+    let tokens = get_quoted((value, location))?;
+    let quoted = add_token_spans(tokens.clone(), location.span);
+    parse_tokens(tokens, quoted, location, parser, rule)
+}
+
+fn parse_tokens<T>(
+    tokens: Rc<Vec<Token>>,
+    quoted: Tokens,
+    location: Location,
+    parser: impl NoirParser<T>,
+    rule: &'static str,
+) -> IResult<T> {
+    parser.parse(quoted).map_err(|mut errors| {
+        let error = errors.swap_remove(0);
+        InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
+    })
 }
