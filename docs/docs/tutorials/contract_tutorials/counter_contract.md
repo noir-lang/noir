@@ -106,7 +106,7 @@ Let’s create a constructor method to run on deployment that assigns an initial
 
 This function accesses the counts from storage. Then it assigns the passed initial counter to the `owner`'s counter privately using `at().add()`.
 
-We have annotated this and other functions with `#[aztec(private)]` which are ABI macros so the compiler understands it will handle private inputs. Learn more about functions and annotations [here](../../aztec/concepts/smart_contracts/functions/index.md).
+We have annotated this and other functions with `#[aztec(private)]` which are ABI macros so the compiler understands it will handle private inputs.
 
 ## Incrementing our counter
 
@@ -151,3 +151,13 @@ aztec codegen -o src/artifacts target
 ```
 
 You can now use the artifact and/or the TS class in your Aztec.js!
+
+## Next Steps
+
+### Write a slightly more complex Aztec contract
+
+Follow the private voting contract tutorial on the [next page](./private_voting_contract.md).
+
+### Optional: Learn more about concepts mentioned here
+
+ - [Functions and annotations like `#[aztec(private)]`](../../aztec/concepts/smart_contracts/functions/index.md)

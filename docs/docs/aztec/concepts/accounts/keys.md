@@ -116,7 +116,7 @@ This is a snippet of our Schnorr Account contract implementation, which uses Sch
 
 #include_code entrypoint /noir-projects/noir-contracts/contracts/schnorr_account_contract/src/main.nr rust
 
-Still, different accounts may use different signing schemes, may require multi-factor authentication, or _may not even use signing keys_ and instead rely on other authentication mechanisms. Read [how to write an account contract](../../../tutorials/write_accounts_contract.md) for a full example of how to manage authentication.
+Still, different accounts may use different signing schemes, may require multi-factor authentication, or _may not even use signing keys_ and instead rely on other authentication mechanisms. Read [how to write an account contract](../../../tutorials/contract_tutorials/write_accounts_contract.md) for a full example of how to manage authentication.
 
 Furthermore, and since signatures are fully abstracted, how the key is stored in the contract is abstracted as well and left to the developer of the account contract.
 In the following section we describe a few ways how an account contract could be architected to store signing keys.

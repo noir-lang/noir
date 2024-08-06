@@ -1103,7 +1103,7 @@ Now:
 import { TokenContract } from "@aztec/noir-contracts.js/Token";
 ```
 
-### [Aztec.nr] aztec-nr contracts location change in Nargo.toml
+### [Aztec.nr] Aztec.nr contracts location change in Nargo.toml
 
 Aztec contracts are now moved outside of the `yarn-project` folder and into `noir-projects`, so you need to update your imports.
 

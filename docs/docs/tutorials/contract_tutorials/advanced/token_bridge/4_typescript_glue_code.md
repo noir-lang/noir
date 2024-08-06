@@ -160,6 +160,17 @@ cd packages/src
 DEBUG='aztec:e2e_uniswap' yarn test
 ```
 
-### Error handling
-
 Note - you might have a jest error at the end of each test saying "expected 1-2 arguments but got 3". In case case simply remove the "120_000" at the end of each test. We have already set the timeout at the top so this shouldn't be a problem.
+
+**Congratulations!** You have just written a set of contracts for Ethereum and Aztec that have private and public interactions with each other, and tested them with TypeScript.
+
+## Next Steps
+
+### Follow a more detailed Aztec.js tutorial 
+
+Follow the tutorial on the [next page](../../../aztecjs-getting-started.md).
+
+### Optional: Learn more about concepts mentioned here
+
+- [Portals (protocol specs)](../../../../protocol-specs/l1-smart-contracts/index.md)
+- [Functions under the hood (concepts)](../../../../aztec/concepts/smart_contracts/functions/inner_workings.md)

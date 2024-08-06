@@ -8,9 +8,6 @@ contract InclusionProofs {
 
     use dep::aztec::protocol_types::{contract_class_id::ContractClassId, header::Header};
     use dep::aztec::{note::note_getter_options::NoteStatus};
-    // docs:start:imports
-    // Imports are not needed as inclusion / non_inclusion proofs are accessible on the header.
-    // docs:end:imports
     // docs:start:value_note_imports
     use dep::value_note::value_note::ValueNote;
     // docs:end:value_note_imports
@@ -58,13 +55,14 @@ contract InclusionProofs {
         let note = private_values.get_notes(options).get(0);
         // docs:end:get_note_from_pxe
 
+        // docs:start:prove_note_inclusion
         // 2) Prove the note inclusion
         let header = if (use_block_number) {
             context.get_header_at(block_number)
         } else {
             context.get_header()
         };
-        // docs:start:prove_note_inclusion
+
         header.prove_note_inclusion(note);
         // docs:end:prove_note_inclusion
     }

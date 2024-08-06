@@ -3,6 +3,14 @@ title: Running Multiple PXEs in the Sandbox
 sidebar_position: 2
 ---
 
+:::warning
+
+Unfortunately, this is currently not working due to a bug when attempting to run an `aztec` command with the sandbox running. This will be fixed in a future version.
+
+:::
+
+--
+
 When you run the sandbox, the Aztec node and PXE have their own http server. This makes it possible to run two PXEs on your local machine, which can be useful for testing that notes are accurately stored and remaining private in their respective PXEs.
 
 We are working on a better solution for this so expect an update soon, but currently you can follow this guide.
@@ -12,20 +20,20 @@ We are working on a better solution for this so expect an update soon, but curre
 Rather than use the usual command, run:
 
 ```bash
-cd ~/.aztec && docker-compose up
+cd ~/.aztec && docker-compose -f ./docker-compose.sandbox.yml up
 ```
 
-This removes any other arguments, allowing you to ensure an isolated environment for the sandbox so it doesn't interfere with another PXE.
+This removes any other arguments, allowing you to ensure an isolated environment for the sandbox so it doesn't interfere with another PXE. By default, the sandbox will run on port `8080`.
 
 ## Run PXE mode in another terminal
 
 In another terminal, run:
 
 ```bash
-aztec start --pxe nodeUrl=http://localhost:8080/
+aztec start --port 8081 --pxe nodeUrl=http://host.docker.internal:8080/
 ```
 
-This command uses the default ports, so they might need to be changed depending on yuor configuration.
+This command uses the default ports, so they might need to be changed depending on yuor configuration. It will run the PXE on port `8081`.
 
 You should see something like this:
 

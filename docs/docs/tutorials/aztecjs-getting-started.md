@@ -11,13 +11,13 @@ This guide assumes you have followed the [quickstart](../getting_started.md).
 
 ## Prerequisites
 
-- A running [Aztec sandbox](../getting_started.md)
+- A running Aztec sandbox
 
 ## Set up the project
 
 We will deploy a pre-compiled token contract, and send tokens privately, using the Sandbox.
 
-We will create a `yarn` project called `token` (although `npm` works fine too).
+We will create a `yarn` TypeScript project called `token` (although `npm` works fine too).
 
 1. Initialize a yarn project
 
@@ -33,13 +33,13 @@ yarn init -yp
 mkdir src
 ```
 
-3. Add necessary yarn packages (and optionally add typescript too)
+3. Add necessary yarn packages
 
 ```sh
 yarn add @aztec/aztec.js @aztec/accounts @aztec/noir-contracts.js typescript @types/node
 ```
 
-4. [Optional] If creating a typescript file, add a `tsconfig.json` file into the project root, here is an example:
+4. Add a `tsconfig.json` file into the project root and paste this:
 
 ```json
 {
@@ -67,16 +67,9 @@ yarn add @aztec/aztec.js @aztec/accounts @aztec/noir-contracts.js typescript @ty
 }
 ```
 
-5. Update `package.json` - Add a `scripts` section to `package.json` and set `"type": "module"`:
+5. Add this to your `package.json`:
 
 ```json
-{
-  "name": "token",
-  "version": "1.0.0",
-  "description": "My first token contract",
-  "main": "index.js",
-  "author": "1000x Dev",
-  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "yarn clean && tsc -b",
@@ -84,14 +77,6 @@ yarn add @aztec/aztec.js @aztec/accounts @aztec/noir-contracts.js typescript @ty
     "clean": "rm -rf ./dest tsconfig.tsbuildinfo",
     "start": "yarn build && DEBUG='token' node ./dest/index.js"
   },
-  "dependencies": {
-    "@aztec/accounts": "latest",
-    "@aztec/aztec.js": "latest",
-    "@aztec/noir-contracts.js": "latest",
-    "@types/node": "^20.6.3",
-    "typescript": "^5.2.2"
-  }
-}
 ```
 
 6. Create an `index.ts` file in the `src` directory with the following sandbox connection setup:
@@ -148,11 +133,9 @@ The sandbox is preloaded with multiple accounts so you don't have to sit and cre
 
 An explanation on accounts on Aztec can be found [here](../aztec/concepts/index.md).
 
-If you want more accounts, you can find instructions in the [Account creation section](../guides/local_env/creating_schnorr_accounts.md).
-
 ## Deploy a contract
 
-Now that we have our accounts loaded, let's move on to deploy our pre-compiled token smart contract. You can find the full code for the contract [here](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts/contracts/token_contract/src). Add this to `index.ts` below the code you added earlier:
+Now that we have our accounts loaded, let's move on to deploy our pre-compiled token smart contract. You can find the full code for the contract [here (GitHub link)](https://github.com/AztecProtocol/aztec-packages/tree/master/noir-projects/noir-contracts/contracts/token_contract/src). Add this to `index.ts` below the code you added earlier:
 
 #include_code Deployment /yarn-project/end-to-end/src/composed/e2e_sandbox_example.test.ts typescript
 
@@ -353,8 +336,15 @@ Our complete output should now be something like:
   token Bob's balance 10543 +43ms
 ```
 
-That's it! We have successfully deployed a token contract to an instance of the Aztec network and mined private state-transitioning transactions. We have also queried the resulting state all via the interfaces provided by the contract. To see exactly what has happened here, you can learn about the transaction flow [here](../aztec/concepts/transactions.md).
+That's it! We have successfully deployed a token contract to an instance of the Aztec network and mined private state-transitioning transactions. We have also queried the resulting state all via the interfaces provided by the contract. To see exactly what has happened here, you can learn about the transaction flow [on the Concepts page here](../aztec/concepts/transactions.md).
 
 ## Next Steps
 
-Write your first account contract on the [next page](./write_accounts_contract.md).
+### Build a fullstack Aztec project
+
+Follow the dapp tutorial on the [next page](./simple_dapp/index.md).
+
+### Optional: Learn more about concepts mentioned here
+
+- [Authentication witness](../aztec/concepts/accounts/authwit.md)
+- [Functions under the hood](../aztec/concepts/smart_contracts/functions/inner_workings.md)

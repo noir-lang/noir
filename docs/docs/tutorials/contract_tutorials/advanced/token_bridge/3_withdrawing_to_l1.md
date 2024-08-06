@@ -6,7 +6,7 @@ This is where we have tokens on Aztec and want to withdraw them back to L1 (i.e.
 
 ## Withdrawing publicly
 
-Go back to your `main.nr` and paste this:
+In your `main.nr` paste this:
 
 #include_code exit_to_l1_public /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
@@ -69,7 +69,7 @@ Compile your Solidity contracts using hardhat. Run this in the `packages` direct
 
 ```bash
 cd l1-contracts
-npx hardhat compile
+yarn hardhat compile
 ```
 
 And compile your Aztec.nr contracts like this:
@@ -87,6 +87,6 @@ And generate the TypeScript interface for the contract and add it to the test di
 aztec codegen target -o ../../src/test/fixtures
 ```
 
-This will create a TS interface inside `fixtures` dir in our `src/test` folder!
+This will create a TS interface inside `fixtures` dir in our `src/test` folder! 
 
 In the next step we will write the TypeScript code to deploy our contracts and call on both L1 and L2 so we can see how everything works together.

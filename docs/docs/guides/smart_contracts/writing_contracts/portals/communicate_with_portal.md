@@ -47,7 +47,7 @@ Computing the `content` must currently be done manually, as we are still adding 
 #include_code claim_public /noir-projects/noir-contracts/contracts/token_bridge_contract/src/main.nr rust
 
 :::info
-The `content_hash` is a sha256 truncated to a field element (~ 254 bits). In Aztec-nr, you can use our `sha256_to_field()` to do a sha256 hash which fits in one field element
+The `content_hash` is a sha256 truncated to a field element (~ 254 bits). In Aztec.nr, you can use our `sha256_to_field()` to do a sha256 hash which fits in one field element
 :::
 
 ### Token portal hash library

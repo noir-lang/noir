@@ -67,11 +67,11 @@ Inside this, paste these imports:
 
 #include_code imports noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
-We are using various utils within the Aztec library:
+We are using various utils within the Aztec `prelude` library:
 
-- `PrivateContext` - exposes things such as the contract address, msg_sender, etc
 - `AztecAddress` - A type for storing an address on Aztec
 - `FunctionSelector` - Used for computing a selector to call a function
+- `PrivateContext` - exposes things such as the contract address, msg_sender, etc
 - `Map` - A data storage type for storing candidates with the number of votes they have
 - `PublicMutable` - A type of storage, which holds a mutable public value. We'll store votes as PublicMutables
 - `SharedImmutable` - an immutable storage value that is accessible in private and public execution.
@@ -112,9 +112,9 @@ Create a private function called `cast_vote`:
 
 #include_code cast_vote noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
-In this function, we do not create a nullifier with the address directly. This would leak privacy as it would be easy to reverse-engineer. We must add some randomness or some form of secret, like [nullifier secrets](../../aztec/concepts/accounts/keys.md#nullifier-secrets).
+In this function, we do not create a nullifier with the address directly. This would leak privacy as it would be easy to reverse-engineer. We must add some randomness or some form of secret, like nullifier secrets.
 
-To do this, we make an [oracle call](../../aztec/concepts/smart_contracts/oracles/index.md) to fetch the caller's secret key, hash it to create a nullifier, and push the nullifier to Aztec.
+To do this, we make an oracle call to fetch the caller's secret key, hash it to create a nullifier, and push the nullifier to Aztec.
 
 After pushing the nullifier, we update the `tally` to reflect this vote. As we know from before, a private function cannot update public state directly, so we are calling a public function.
 
@@ -138,7 +138,7 @@ We will create a function that anyone can call that will return the number of vo
 
 #include_code get_vote noir-projects/noir-contracts/contracts/easy_private_voting_contract/src/main.nr rust
 
-We set it as `unconstrained` and do not annotate it because it is only reading from state. You can read more about unconstrained functions [here](../../aztec/concepts/pxe/acir_simulator.md#unconstrained-functions).
+We set it as `unconstrained` and do not annotate it because it is only reading from state. 
 
 ## Allowing an admin to end a voting period
 
@@ -166,11 +166,17 @@ Use `aztec codegen` to generate the Typescript artifact for the contract:
 aztec codegen target --outdir src/artifacts
 ```
 
-Once it is compiled you can [deploy](../../guides/smart_contracts/how_to_deploy_contract.md) it to the sandbox.
+**Congratulations, you have written and compiled a private voting smart contract!** Once it is compiled you can deploy it to the sandbox!
 
 ## Next steps
 
-Now you have learned the foundations of Aztec smart contracts, you can start to play around with some more advanced features. Some ideas:
+### Learn how contracts can work together
 
-- Add some more features into this contract, like the admin can distribute votes, people can delegate their votes, or voteIds can have more data like names, descriptions, etc
-- Go to the [next tutorial](token_contract.md) and learn how to write a token contract
+Follow the crowdfunding contracts tutorial on the [next page](./crowdfunding_contract.md).
+
+### Optional: Learn more about concepts mentioned here
+
+ - [Unconstrained functions](../../aztec/concepts/pxe/acir_simulator.md#unconstrained-functions).
+ - [Oracles](../../aztec/concepts/smart_contracts/oracles/index.md)
+ - [Nullifier secrets](../../aztec/concepts/accounts/keys.md#nullifier-secrets).
+ - [How to deploy a contract to the sandbox](../../guides/smart_contracts/how_to_deploy_contract.md)

@@ -1,5 +1,6 @@
 ---
-title: Writing an Account Contract
+title: Account Contract
+sidebar_position: 4
 tags: [accounts]
 ---
 
@@ -14,15 +15,15 @@ You will learn:
 - Typescript glue code to format and authenticate transactions
 - Deploying and testing the account contract
 
-Writing your own account contract allows you to define the rules by which user transactions are authorized and paid for, as well as how user keys are managed (including key rotation and recovery). In other words, writing an account contract lets you make the most out of [account abstraction](../aztec/concepts/accounts/index.md#what-is-account-abstraction) in the Aztec network.
+Writing your own account contract allows you to define the rules by which user transactions are authorized and paid for, as well as how user keys are managed (including key rotation and recovery). In other words, writing an account contract lets you make the most out of account abstraction in the Aztec network.
 
-It is highly recommended that you understand how an [account](../aztec/concepts/accounts/index.md) is defined in Aztec, as well as the differences between privacy and authentication [keys](../aztec/concepts/accounts/keys.md). You will also need to know how to write a contract in Noir, as well as some basic [Typescript](https://www.typescriptlang.org/).
+It is highly recommended that you understand how an [account](../../aztec/concepts/accounts/index.md) is defined in Aztec, as well as the differences between privacy and authentication [keys](../../aztec/concepts/accounts/keys.md). You will also need to know how to write a contract in Noir, as well as some basic [Typescript](https://www.typescriptlang.org/).
 
 For this tutorial, we will write an account contract that uses Schnorr signatures for authenticating transaction requests.
 
 Every time a transaction payload is passed to this account contract's `entrypoint` function, the account contract requires a valid Schnorr signature, whose signed message matches the transaction payload, and whose signer matches the account contract owner's public key. If the signature fails, the transaction will fail.
 
-For the sake of simplicity, we will hardcode the signing public key into the contract, but you could store it [in a private note](../aztec/concepts/accounts/keys.md#using-a-private-note), [in an immutable note](../aztec/concepts/accounts/keys.md#using-an-immutable-private-note), or [on a separate keystore](../aztec/concepts/accounts/keys.md#using-a-separate-keystore), to mention a few examples.
+For the sake of simplicity, we will hardcode the signing public key into the contract, but you could store it [in a private note](../../aztec/concepts/accounts/keys.md#using-a-private-note), [in an immutable note](../../aztec/concepts/accounts/keys.md#using-an-immutable-private-note), or [on a separate keystore](../../aztec/concepts/accounts/keys.md#using-a-separate-keystore), to mention a few examples.
 
 ## Contract
 
@@ -30,7 +31,7 @@ Let's start with the account contract itself in Aztec.nr. Create a new Aztec.nr 
 
 #include_code contract noir-projects/noir-contracts/contracts/schnorr_hardcoded_account_contract/src/main.nr rust
 
-The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding [authentication witness](../aztec/concepts/accounts/authwit.md) from an oracle to validate it. Authentication witnesses are used for authorizing actions for an account, whether it is just checking a signature, like in this case, or granting authorization for another account to act on an accounts behalf (e.g. token approvals). You will find this logic implemented in the `AccountActions` module, which use the `AppPayload` and `FeePayload` structs:
+The important part of this contract is the `entrypoint` function, which will be the first function executed in any transaction originated from this account. This function has two main responsibilities: authenticating the transaction and executing calls. It receives a `payload` with the list of function calls to execute, and requests a corresponding authentication witness from an oracle to validate it. Authentication witnesses are used for authorizing actions for an account, whether it is just checking a signature, like in this case, or granting authorization for another account to act on an accounts behalf (e.g. token approvals). You will find this logic implemented in the `AccountActions` module, which use the `AppPayload` and `FeePayload` structs:
 
 #include_code entrypoint noir-projects/aztec-nr/authwit/src/account.nr rust
 
@@ -50,7 +51,7 @@ For our account contract, we will take the hash of the action to authorize, requ
 
 ### Fee Abstraction
 
-The `FeePayload`, being distinct from the `AppPayload`, allows for fee abstraction, meaning the account paying the fee for the transaction can be different than the account that is initiating the transaction. This is also useful for maintaining privacy, as fee payments on the network must be public. For example, Alice could pay a relayer transaction fees in private, and the relayer could pay the transaction fee in public. This also allows for accounts without a fee paying asset to use a non-fee paying asset to pay for fees, provided they can find a relayer willing to accept a non-fee paying asset as payment (or do it for free). You can read more about that works in the protocol specification on fees [here](../protocol-specs/gas-and-fees/tx-setup-and-teardown.md).
+The `FeePayload`, being distinct from the `AppPayload`, allows for fee abstraction, meaning the account paying the fee for the transaction can be different than the account that is initiating the transaction. This is also useful for maintaining privacy, as fee payments on the network must be public. For example, Alice could pay a relayer transaction fees in private, and the relayer could pay the transaction fee in public. This also allows for accounts without a fee paying asset to use a non-fee paying asset to pay for fees, provided they can find a relayer willing to accept a non-fee paying asset as payment (or do it for free). 
 
 ### Nonce Abstraction
 
@@ -84,7 +85,7 @@ More signing schemes are available in case you want to experiment with other typ
 
 Let's try creating a new account backed by our account contract, and interact with a simple token contract to test it works.
 
-To create and deploy the account, we will use the `AccountManager` class, which takes an instance of an Private Execution Environment (PXE), a [privacy private key](../aztec/concepts/accounts/keys.md#incoming-viewing-keys), and an instance of our `AccountContract` class:
+To create and deploy the account, we will use the `AccountManager` class, which takes an instance of an Private Execution Environment (PXE), a [privacy private key](../../aztec/concepts/accounts/keys.md#incoming-viewing-keys), and an instance of our `AccountContract` class:
 
 #include_code account-contract-deploy yarn-project/end-to-end/src/guides/writing_an_account_contract.test.ts typescript
 
@@ -100,9 +101,16 @@ To make sure that we are actually validating the provided signature in our accou
 
 Lo and behold, we get `Error: Assertion failed: 'verification == true'` when running the snippet above, pointing to the line in our account contract where we verify the Schnorr signature.
 
-## Resources
+## Next Steps
 
-Account contracts source code:
+### Build a hybrid token tutorial
 
-- [ECDSA signer account contract](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/ecdsa_account_contract/src/main.nr)
-- [Schnorr signer account contract](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts/schnorr_account_contract)
+Follow the token contract tutorial on the [next page](./token_contract.md) and learn more about hybrid state.
+
+### Optional: Learn more about concepts mentioned here
+
+- [ECDSA signer account contract (GitHub link)](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/ecdsa_account_contract/src/main.nr)
+- [Schnorr signer account contract (GitHub link)](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts/schnorr_account_contract)
+- [Account abstraction](../../aztec/concepts/accounts/index.md#what-is-account-abstraction)
+- [Authentication witness](../../aztec/concepts/accounts/authwit.md)
+- [Fee abstraction](../../protocol-specs/gas-and-fees/tx-setup-and-teardown.md).

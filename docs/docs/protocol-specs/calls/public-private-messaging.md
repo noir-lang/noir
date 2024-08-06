@@ -63,7 +63,7 @@ When a private function calls a public function:
 
 ### Handling Privacy Leakage and `msg.sender`
 
-The sequencer only sees the data in the [`transaction_object`](../transactions/tx-object.md), which shouldn't expose any private information. There are some [practical caveats](http://docs.aztec.network).
+The sequencer only sees the data in the [`transaction_object`](../transactions/tx-object.md), which shouldn't expose any private information. There are some practical caveats.
 
 When making a private-to-public call, the `msg_sender` will become public. If this is the actual user, then it leaks privacy. If `msg_sender` is some application's contract address, this leaks which contract is calling the public method and therefore leaks which contract the user was interacting with in private land.
 

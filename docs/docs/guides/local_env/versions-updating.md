@@ -3,9 +3,19 @@ title: Updating the Sandbox
 sidebar_position: 0
 ---
 
+- Current version: `#include_aztec_version`
+- Update with `aztec-up`
+
+On this page you will find
+
+- [Understanding versions](#versions)
+- [How to automatically update Aztec sandbox and aztec-nargo](#updating)
+- [How to update Aztec.nr packages](#updating-aztecnr-packages)
+- [How to update Aztec.js packages](#updating-aztecjs-packages)
+
 ## Versions
 
-Aztec tools (sandbox, nargo), dependencies (aztec-nr), and sample contracts are constantly being improved.
+Aztec tools (sandbox, nargo), dependencies (Aztec.nr), and sample contracts are constantly being improved.
 When developing and referring to example .nr files/snippets, it is helpful to verify the versions of different components (below), and if required keep them in lock-step by [updating](#updating).
 
 ### Checking tool versions
@@ -14,8 +24,6 @@ When developing and referring to example .nr files/snippets, it is helpful to ve
 The `aztec-nargo` versions follow `nargo` versions, which is different to the Aztec tool versions.
 :::
 
-The latest version of the Aztec tooling is currently `#include_aztec_version` , updating roughly every week.
-
 ### Dependency versions
 
 Dependency versions in a contract's `Nargo.toml` file correspond to the `aztec-packages` repository tag `aztec-packages` (filter tags by `aztec`...)
@@ -23,15 +31,11 @@ Dependency versions in a contract's `Nargo.toml` file correspond to the `aztec-p
 If you get an error like: `Cannot read file ~/nargo/github.com/AztecProtocol/aztec-packages/...`
 Check the `git=` github url, tag, and directory.
 
-:::note
-The folder structure changed at **0.24.0** from `yarn-project/aztec-nr` to `noir-projects/aztec-nr`. More details [here](../../migration_notes.md#aztecnr-aztec-nr-contracts-location-change-in-nargotoml)
-:::
-
 ### Example contract versions
 
-Example contracts serve as a helpful reference between versions of the aztec-nr framework since they are strictly maintained with each release.
+Example contracts serve as a helpful reference between versions of the Aztec.nr framework since they are strictly maintained with each release.
 
-Code referenced in the documentation is sourced from contracts within [this directory](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts).
+Code referenced in the documentation is sourced from contracts within [this directory (GitHub link)](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts).
 
 As in the previous section, the location of the noir contracts moved at version `0.24.0`, from `yarn-project/noir-contracts` before, to `noir-projects/noir-contracts`.
 
@@ -80,7 +84,7 @@ To set `VERSION` for a particular git tag, eg for [aztec-package-v**0.35.0**](ht
 VERSION=0.35.0 aztec-up
 ```
 
-2. Update aztec-nr and individual @aztec dependencies:
+2. Update Aztec.nr and individual @aztec dependencies:
 
 Inside your project run:
 

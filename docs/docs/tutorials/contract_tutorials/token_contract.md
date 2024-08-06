@@ -1,6 +1,6 @@
 ---
-title: "Private token contract"
-sidebar_position: 4
+title: "Private & Public token contract"
+sidebar_position: 5
 ---
 
 In this tutorial we will go through writing an L2 native token contract
@@ -17,7 +17,7 @@ In this tutorial you will learn how to:
 - Handle different private note types
 - Pass data between private and public state
 
-We are going to start with a blank project and fill in the token contract source code defined on Github [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/token_contract/src/main.nr), and explain what is being added as we go.
+We are going to start with a blank project and fill in the token contract source code defined [here (GitHub Link)](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/noir-contracts/contracts/token_contract/src/main.nr), and explain what is being added as we go.
 
 ## Requirements
 
@@ -56,116 +56,11 @@ compressed_string = {git="https://github.com/AztecProtocol/aztec-packages/", tag
 
 We will be working within `main.nr` for the rest of the tutorial.
 
-## Contract Interface
+## How this will work 
 
-Remove everything from `main.nr` and paste this:
+Before writing the functions, let's go through them to see how this contract will work:
 
-```rust
-contract Token {
-    #[aztec(public)]
-    #[aztec(initializer)]
-    fn constructor() {}
-
-    #[aztec(public)]
-    fn set_admin(new_admin: AztecAddress) {}
-
-    #[aztec(public)]
-    fn set_minter(minter: AztecAddress, approve: bool) {}
-
-    #[aztec(public)]
-    fn mint_public(to: AztecAddress, amount: Field) -> Field {}
-
-    #[aztec(public)]
-    fn mint_private(amount: Field, secret_hash: Field) -> Field {}
-
-    #[aztec(public)]
-    fn shield(from: AztecAddress, amount: Field, secret_hash: Field, nonce: Field) -> Field {}
-
-    #[aztec(public)]
-    fn transfer_public(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) -> Field {}
-
-    #[aztec(public)]
-    fn burn_public(from: AztecAddress, amount: Field, nonce: Field) -> Field {}
-
-    // Private functions
-
-    #[aztec(private)]
-    fn redeem_shield(to: AztecAddress, amount: Field, secret: Field) -> Field {}
-
-    #[aztec(private)]
-    fn unshield(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) -> Field {}
-
-    #[aztec(private)]
-    fn transfer(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) -> Field {}
-
-    #[aztec(private)]
-    fn transfer_from(from: AztecAddress, to: AztecAddress, amount: Field, nonce: Field) {}
-
-    #[aztec(private)]
-    fn cancel_authwit(inner_hash: Field) {}
-
-    #[aztec(private)]
-    fn burn(from: AztecAddress, amount: Field, nonce: Field) -> Field {}
-
-    // Internal functions
-
-    #[aztec(internal)]
-    #[aztec(public)]
-    fn _increase_public_balance(to: AztecAddress, amount: Field) {}
-
-    #[aztec(internal)]
-    #[aztec(public)]
-    fn _reduce_total_supply(amount: Field) {}
-
-    // View functions
-
-    #[aztec(public)]
-    #[aztec(view)]
-    fn public_get_name() -> pub FieldCompressedString {}
-
-    #[aztec(private)]
-    #[aztec(view)]
-    fn private_get_name() -> pub FieldCompressedString {}
-
-    #[aztec(public)]
-    #[aztec(view)]
-    fn public_get_symbol() -> pub FieldCompressedString {}
-
-    #[aztec(public)]
-    #[aztec(view)]
-    fn public_get_decimals() -> pub u8 {}
-
-    #[aztec(private)]
-    #[aztec(view)]
-    fn private_get_decimals() -> pub u8 {}
-
-    #[aztec(public)]
-    #[aztec(view)]
-    fn admin() -> Field {}
-
-    #[aztec(public)]
-    #[aztec(view)]
-    fn is_minter(minter: AztecAddress) -> bool {}
-
-    #[aztec(public)]
-    #[aztec(view)]
-    fn total_supply() -> Field {}
-
-    #[aztec(public)]
-    #[aztec(view)]
-    fn balance_of_public(owner: AztecAddress) -> Field {}
-
-    // Unconstrained functions (read only)
-
-    unconstrained fn balance_of_private(owner: AztecAddress) -> Field {}
-}
-```
-
-This specifies the interface of the `Token` contract. Don't worry if you get some warnings - we haven't imported our types yet.
-
-Before we through the interface and implement each function, let's review the functions to get a sense of what the contract does.
-
-### Initializer interface
+### Initializer
 
 There is one `initilizer` function in this contract, and it will be selected and executed once when the contract is deployed, similar to a constructor in Solidity. This is marked private, so the function logic will not be transparent. To execute public function logic in the constructor, this function will call `_initialize` (marked internal, more detail below).
 
@@ -183,7 +78,7 @@ These are functions that have transparent logic, will execute in a publicly veri
 
 ### Private functions
 
-These are functions that have private logic and will be executed on user devices to maintain privacy. The only data that is submitted to the network is a proof of correct execution, new data [commitments](https://en.wikipedia.org/wiki/Commitment_scheme) and [nullifiers](../../aztec/concepts/storage/trees/index.md#nullifier-tree), so users will not reveal which contract they are interacting with or which function they are executing. The only information that will be revealed publicly is that someone executed a private transaction on Aztec.
+These are functions that have private logic and will be executed on user devices to maintain privacy. The only data that is submitted to the network is a proof of correct execution, new data commitments and nullifiers, so users will not reveal which contract they are interacting with or which function they are executing. The only information that will be revealed publicly is that someone executed a private transaction on Aztec.
 
 - `redeem_shield` enables accounts to claim tokens that have been made private via `mint_private` or `shield` by providing the secret
 - `unshield` enables an account to send tokens from their private balance to any other account's public balance
@@ -227,13 +122,16 @@ Before we can implement the functions, we need set up the contract storage, and 
 
 :::info Copy required files
 
-We will be going over the code in `main.nr` [here](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts/token_contract/src). If you are following along and want to compile `main.nr` yourself, you need to add the other files in the directory as they contain imports that are used in `main.nr`.
+We will be going over the code in `main.nr` [here (GitHub link)](https://github.com/AztecProtocol/aztec-packages/tree/#include_aztec_version/noir-projects/noir-contracts/contracts/token_contract/src). If you are following along and want to compile `main.nr` yourself, you need to add the other files in the directory as they contain imports that are used in `main.nr`.
 
 :::
 
-Just below the contract definition, add the following imports:
+Paste these imports:
 
-#include_code imports /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
+```rust
+#include_code imports /noir-projects/noir-contracts/contracts/token_contract/src/main.nr raw
+}
+```
 
 We are importing:
 
@@ -241,8 +139,6 @@ We are importing:
 - Types from `aztec::prelude`
 - `compute_secret_hash` that will help with the shielding and unshielding, allowing someone to claim a token from private to public
 - Types for storing note types
-
-For more detail on execution contexts, see [Contract Communication](../../aztec/concepts/smart_contracts/communication/index.md).
 
 ### Types files
 
@@ -252,7 +148,7 @@ The main thing to note from this types folder is the `TransparentNote` definitio
 
 ### Note on private state
 
-Private state in Aztec is all [UTXOs](../../aztec/concepts/storage/index.md) to learn more about public and private state in Aztec.
+Private state in Aztec is all [UTXOs](../../aztec/concepts/storage/index.md).
 
 ## Contract Storage
 
@@ -272,8 +168,6 @@ Reading through the storage variables:
 - `public_balances` is a mapping of Aztec addresses in public state and represents the publicly viewable balances of accounts.
 - `symbol`, `name`, and `decimals` are similar in meaning to ERC20 tokens on Ethereum.
 
-You can read more about it [here](../../aztec/concepts/storage/index.md).
-
 ## Functions
 
 Copy and paste the body of each function into the appropriate place in your project if you are following along.
@@ -286,9 +180,7 @@ This function sets the creator of the contract (passed as `msg_sender` from the 
 
 ### Public function implementations
 
-Public functions are declared with the `#[aztec(public)]` macro above the function name like so:
-
-#include_code set_admin /noir-projects/noir-contracts/contracts/token_contract/src/main.nr rust
+Public functions are declared with the `#[aztec(public)]` macro above the function name.
 
 As described in the [execution contexts section above](#execution-contexts), public function logic and transaction information is transparent to the world. Public functions update public state, but can be used to prepare data to be used in a private context, as we will go over below (e.g. see the [shield](#shield) function).
 
@@ -485,12 +377,17 @@ aztec codegen target -o src/artifacts
 
 ## Next Steps
 
-### Testing
-
-Review [the end to end tests](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/end-to-end/src/e2e_token_contract/) for reference.
-
 ### Token Bridge Contract
 
 The [token bridge tutorial](advanced/token_bridge/index.md) is a great follow up to this one.
 
 It builds on the Token contract described here and goes into more detail about Aztec contract composability and Ethereum (L1) and Aztec (L2) cross-chain messaging.
+
+### Optional: Dive deeper into this contract and concepts mentioned here
+
+- Review [the end to end tests (Github link)](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/yarn-project/end-to-end/src/e2e_token_contract/) for reference.
+-  [Commitments (Wikipedia link)](https://en.wikipedia.org/wiki/Commitment_scheme)
+-  [Nullifiers](../../aztec/concepts/storage/trees/index.md#nullifier-tree)
+-  [Contract Communication](../../aztec/concepts/smart_contracts/communication/index.md).
+-  [Contract Storage](../../aztec/concepts/storage/index.md)
+-  [Authwit](../../aztec/concepts/accounts/authwit.md)

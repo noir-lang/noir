@@ -83,7 +83,7 @@ The exact form of the artifact is not specified by the protocol, but it needs at
 | Field | Type | Description |
 |----------|----------|----------|
 | `name` | `string` | The name of the contract. |
-| `compilerVersion` | `string` | Version of the compiler that generated the bytecode. This is a string to convey extra information like the version of aztec-nr used. |
+| `compilerVersion` | `string` | Version of the compiler that generated the bytecode. This is a string to convey extra information like the version of Aztec.nr used. |
 | `functions` | [FunctionEntry[]](#function-entry) | The functions of the contract. |
 | `publicBytecode` | `string` | The AVM bytecode of the public functions, converted to base64. |
 | `events` | [EventAbi[]](#event-abi) | The events of the contract. |

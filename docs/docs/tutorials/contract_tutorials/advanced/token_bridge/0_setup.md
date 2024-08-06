@@ -19,8 +19,10 @@ We recommend going through this setup to fully understand where things live.
 - [docker](https://docs.docker.com/)
 - [Aztec sandbox](../../../../getting_started.md) - you should have this running before starting the tutorial
 
+Start the sandbox
+
 ```bash
-/bin/sh -c "$(curl -fsSL 'https://sandbox.aztec.network')"
+aztec start --sandbox
 ```
 
 ## Create the root project and packages
@@ -45,7 +47,7 @@ cd packages && mkdir aztec-contracts
 Inside `aztec-contracts` create a new contract project like this:
 
 ```bash
-aztec-nargo new --contract token_bridge
+cd aztec-contracts && aztec-nargo new --contract token_bridge
 ```
 
 Your file structure should look something like this:
