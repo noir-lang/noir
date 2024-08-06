@@ -77,7 +77,7 @@ describe('e2e_sandbox_example', () => {
 
     // Add the newly created "pending shield" note to PXE
     const note = new Note([new Fr(initialSupply), aliceSecretHash]);
-    await pxe.addNote(
+    await aliceWallet.addNote(
       new ExtendedNote(
         note,
         alice,
@@ -152,7 +152,7 @@ describe('e2e_sandbox_example', () => {
     const mintPrivateReceipt = await tokenContractBob.methods.mint_private(mintQuantity, bobSecretHash).send().wait();
 
     const bobPendingShield = new Note([new Fr(mintQuantity), bobSecretHash]);
-    await pxe.addNote(
+    await bobWallet.addNote(
       new ExtendedNote(
         bobPendingShield,
         bob,

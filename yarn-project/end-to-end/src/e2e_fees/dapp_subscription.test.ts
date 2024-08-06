@@ -112,6 +112,9 @@ describe('e2e_fees dapp_subscription', () => {
       new PrivateFeePaymentMethod(bananaCoin.address, bananaFPC.address, aliceWallet),
     );
 
+    // We let Alice see Bob's notes because the expect uses Alice's wallet to interact with the contracts to "get" state.
+    aliceWallet.setScopes([aliceAddress, bobAddress]);
+
     await expectMapping(
       t.getGasBalanceFn,
       [sequencerAddress, bananaFPC.address],

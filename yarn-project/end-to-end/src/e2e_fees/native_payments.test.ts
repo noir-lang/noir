@@ -1,4 +1,9 @@
-import { type AztecAddress, NativeFeePaymentMethod, NativeFeePaymentMethodWithClaim } from '@aztec/aztec.js';
+import {
+  type AccountWallet,
+  type AztecAddress,
+  NativeFeePaymentMethod,
+  NativeFeePaymentMethodWithClaim,
+} from '@aztec/aztec.js';
 import { type GasSettings } from '@aztec/circuits.js';
 import { type TokenContract as BananaCoin, type GasTokenContract } from '@aztec/noir-contracts.js';
 
@@ -6,6 +11,7 @@ import { FeesTest } from './fees_test.js';
 
 describe('e2e_fees native_payments', () => {
   let aliceAddress: AztecAddress;
+  let aliceWallet: AccountWallet;
   let bobAddress: AztecAddress;
   let bananaCoin: BananaCoin;
   let gasSettings: GasSettings;
@@ -17,9 +23,12 @@ describe('e2e_fees native_payments', () => {
   beforeAll(async () => {
     await t.applyBaseSnapshots();
     await t.applyFundAliceWithBananas();
-    ({ gasTokenContract, aliceAddress, bobAddress, bananaCoin, gasSettings } = await t.setup());
+    ({ gasTokenContract, aliceAddress, aliceWallet, bobAddress, bananaCoin, gasSettings } = await t.setup());
 
     paymentMethod = new NativeFeePaymentMethod(aliceAddress);
+
+    // We let Alice see Bob's notes because the expect uses Alice's wallet to interact with the contracts to "get" state.
+    aliceWallet.setScopes([aliceAddress, bobAddress]);
   });
 
   afterAll(async () => {

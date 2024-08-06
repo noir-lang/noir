@@ -187,6 +187,7 @@ export class CrossChainTestHarness {
       walletClient,
       owner.address,
       l1ContractAddresses,
+      wallet,
     );
   }
 
@@ -226,6 +227,9 @@ export class CrossChainTestHarness {
 
     /** Deployment addresses for all L1 contracts */
     public readonly l1ContractAddresses: L1ContractAddresses,
+
+    /** Wallet of the owner. */
+    public readonly ownerWallet: Wallet,
   ) {}
 
   /**
@@ -440,7 +444,7 @@ export class CrossChainTestHarness {
       TokenContract.notes.TransparentNote.id,
       txHash,
     );
-    await this.pxeService.addNote(extendedNote);
+    await this.ownerWallet.addNote(extendedNote);
   }
 
   async redeemShieldPrivatelyOnL2(shieldAmount: bigint, secret: Fr) {

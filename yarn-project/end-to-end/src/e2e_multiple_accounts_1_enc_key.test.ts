@@ -72,7 +72,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
       TokenContract.notes.TransparentNote.id,
       receipt.txHash,
     );
-    await pxe.addNote(extendedNote);
+    await wallets[0].addNote(extendedNote);
 
     await token.methods.redeem_shield(accounts[0], initialBalance, secret).send().wait();
   });

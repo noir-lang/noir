@@ -271,7 +271,7 @@ export const browserTestSuite = (
             noteTypeId,
             mintPrivateReceipt.txHash,
           );
-          await pxe.addNote(extendedNote);
+          await owner.addNote(extendedNote);
 
           await token.methods.redeem_shield(ownerAddress, initialBalance, secret).send().wait();
 

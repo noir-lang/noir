@@ -167,6 +167,7 @@ export class PublicCrossChainMessagingContractTest {
           walletClient,
           this.ownerAddress,
           this.aztecNodeConfig.l1Contracts,
+          this.user1Wallet,
         );
 
         this.publicClient = publicClient;

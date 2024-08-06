@@ -72,9 +72,12 @@ describe('e2e_escrow_contract', () => {
       TokenContract.notes.TransparentNote.id,
       receipt.txHash,
     );
-    await pxe.addNote(extendedNote);
+    await wallet.addNote(extendedNote);
 
     await token.methods.redeem_shield(escrowContract.address, mintAmount, secret).send().wait();
+
+    // We allow our wallet to see the escrow contract's notes.
+    wallet.setScopes([wallet.getAddress(), escrowContract.address]);
 
     logger.info(`Token contract deployed at ${token.address}`);
   });
@@ -123,7 +126,7 @@ describe('e2e_escrow_contract', () => {
       TokenContract.notes.TransparentNote.id,
       receipt.txHash,
     );
-    await pxe.addNote(extendedNote);
+    await wallet.addNote(extendedNote);
 
     await token.methods.redeem_shield(owner, mintAmount, secret).send().wait();
 

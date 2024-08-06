@@ -19,7 +19,7 @@ import { BaseWallet } from './base_wallet.js';
  */
 export class AccountWallet extends BaseWallet {
   constructor(pxe: PXE, protected account: AccountInterface) {
-    super(pxe);
+    super(pxe, [account.getAddress()]);
   }
 
   createTxExecutionRequest(exec: ExecutionRequestInit): Promise<TxExecutionRequest> {

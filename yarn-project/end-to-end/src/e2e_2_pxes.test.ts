@@ -116,7 +116,7 @@ describe('e2e_2_pxes', () => {
       TokenContract.notes.TransparentNote.id,
       receipt.txHash,
     );
-    await recipientPxe.addNote(extendedNote);
+    await recipientPxe.addNote(extendedNote, recipient);
 
     await contractAsRecipient.methods.redeem_shield(recipient, balance, secret).send().wait();
   };

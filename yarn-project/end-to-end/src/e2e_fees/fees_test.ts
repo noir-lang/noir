@@ -145,7 +145,7 @@ export class FeesTest {
       BananaCoin.notes.TransparentNote.id,
       txHash,
     );
-    await this.pxe.addNote(extendedNote);
+    await this.pxe.addNote(extendedNote, ownerAddress);
   }
 
   public async applyBaseSnapshots() {

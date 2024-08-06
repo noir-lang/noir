@@ -64,10 +64,10 @@ describe('guides/dapp/testing', () => {
           TokenContract.notes.TransparentNote.id,
           receipt.txHash,
         );
-        await pxe.addNote(extendedNote);
+        await owner.addNote(extendedNote);
 
         await token.methods.redeem_shield(recipientAddress, mintAmount, secret).send().wait();
-        expect(await token.methods.balance_of_private(recipientAddress).simulate()).toEqual(20n);
+        expect(await token.withWallet(recipient).methods.balance_of_private(recipientAddress).simulate()).toEqual(20n);
       });
     });
 
@@ -104,10 +104,10 @@ describe('guides/dapp/testing', () => {
           TokenContract.notes.TransparentNote.id,
           receipt.txHash,
         );
-        await pxe.addNote(extendedNote);
+        await owner.addNote(extendedNote);
 
         await token.methods.redeem_shield(recipientAddress, mintAmount, secret).send().wait();
-        expect(await token.methods.balance_of_private(recipientAddress).simulate()).toEqual(20n);
+        expect(await token.withWallet(recipient).methods.balance_of_private(recipientAddress).simulate()).toEqual(20n);
       });
     });
 
@@ -167,7 +167,7 @@ describe('guides/dapp/testing', () => {
           TokenContract.notes.TransparentNote.id,
           receipt.txHash,
         );
-        await pxe.addNote(extendedNote);
+        await owner.addNote(extendedNote);
 
         await token.methods.redeem_shield(ownerAddress, 100n, secret).send().wait();
 
@@ -184,6 +184,7 @@ describe('guides/dapp/testing', () => {
           owner: owner.getAddress(),
           contractAddress: token.address,
           storageSlot: ownerSlot,
+          scopes: [owner.getAddress()],
         });
         const values = notes.map(note => note.note.items[0]);
         const balance = values.reduce((sum, current) => sum + current.toBigInt(), 0n);

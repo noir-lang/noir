@@ -1,4 +1,5 @@
 import {
+  type AccountWallet,
   type AztecAddress,
   ExtendedNote,
   type FeePaymentMethod,
@@ -16,8 +17,9 @@ import { expectMapping } from '../fixtures/utils.js';
 import { FeesTest } from './fees_test.js';
 
 describe('e2e_fees/private_refunds', () => {
-  let aliceWallet: Wallet;
+  let aliceWallet: AccountWallet;
   let aliceAddress: AztecAddress;
+  let bobAddress: AztecAddress;
   let tokenWithRefunds: TokenWithRefundsContract;
   let privateFPC: PrivateFPCContract;
 
@@ -34,8 +36,11 @@ describe('e2e_fees/private_refunds', () => {
     await t.applyDeployGasTokenSnapshot();
     await t.applyTokenWithRefundsAndFPC();
     await t.applyFundAliceWithTokens();
-    ({ aliceWallet, aliceAddress, privateFPC, tokenWithRefunds } = await t.setup());
+    ({ aliceWallet, aliceAddress, bobAddress, privateFPC, tokenWithRefunds } = await t.setup());
     t.logger.debug(`Alice address: ${aliceAddress}`);
+
+    // We give Alice access to Bob's notes because Alice is used to check if balances are correct.
+    aliceWallet.setScopes([aliceAddress, bobAddress]);
   });
 
   afterAll(async () => {

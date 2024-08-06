@@ -60,11 +60,17 @@ describe('e2e_authwit_tests', () => {
           isValidInPublic: false,
         });
 
+        // We give wallets[0] access to wallets[1]'s notes.
+        wallets[0].setScopes([wallets[0].getAddress(), wallets[1].getAddress()]);
+
         // Check that the authwit is NOT valid in private for wallets[1]
         expect(await wallets[0].lookupValidity(wallets[1].getAddress(), intent)).toEqual({
           isValidInPrivate: false,
           isValidInPublic: false,
         });
+
+        // We give wallets[1] access to wallets[0]'s notes.
+        wallets[1].setScopes([wallets[0].getAddress(), wallets[1].getAddress()]);
 
         // Consume the inner hash using the wallets[0] as the "on behalf of".
         await auth.withWallet(wallets[1]).methods.consume(wallets[0].getAddress(), innerHash).send().wait();

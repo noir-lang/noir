@@ -81,7 +81,7 @@ describe('guides/writing_an_account_contract', () => {
       TokenContract.notes.TransparentNote.id,
       receipt.txHash,
     );
-    await pxe.addNote(extendedNote);
+    await wallet.addNote(extendedNote);
 
     await token.methods.redeem_shield(address, mintAmount, secret).send().wait();
 

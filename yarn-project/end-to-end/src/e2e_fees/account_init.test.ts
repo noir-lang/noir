@@ -139,7 +139,7 @@ describe('e2e_fees account_init', () => {
       await expect(t.getGasBalanceFn(bananaFPC.address)).resolves.toEqual([fpcsInitialGas - actualFee]);
 
       // the new account should have received a refund
-      await t.addPendingShieldNoteToPXE(bobsAddress, maxFee - actualFee, computeSecretHash(rebateSecret), tx.txHash);
+      await t.addPendingShieldNoteToPXE(aliceAddress, maxFee - actualFee, computeSecretHash(rebateSecret), tx.txHash);
 
       // and it can redeem the refund
       await bananaCoin.methods

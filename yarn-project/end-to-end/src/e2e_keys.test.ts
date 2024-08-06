@@ -79,7 +79,7 @@ describe('Key Registry', () => {
 
       expect(await getNumNullifiedNotes(nskApp, testContract.address)).toEqual(0);
 
-      await testContract.methods.call_destroy_note(noteStorageSlot).send().wait();
+      await testContract.withWallet(account).methods.call_destroy_note(noteStorageSlot).send().wait();
 
       expect(await getNumNullifiedNotes(nskApp, testContract.address)).toEqual(1);
     });

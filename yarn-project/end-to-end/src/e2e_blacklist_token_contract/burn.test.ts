@@ -141,6 +141,9 @@ describe('e2e_blacklist_token_contract burn', () => {
       const witness = await wallets[0].createAuthWit({ caller: wallets[1].getAddress(), action });
       await wallets[1].addAuthWitness(witness);
 
+      // We give wallets[1] access to wallets[0]'s notes to be able to burn the notes.
+      wallets[1].setScopes([wallets[1].getAddress(), wallets[0].getAddress()]);
+
       await asset.withWallet(wallets[1]).methods.burn(wallets[0].getAddress(), amount, nonce).send().wait();
       tokenSim.burnPrivate(wallets[0].getAddress(), amount);
 
@@ -198,6 +201,9 @@ describe('e2e_blacklist_token_contract burn', () => {
           { chainId: wallets[0].getChainId(), version: wallets[0].getVersion() },
         );
 
+        // We give wallets[1] access to wallets[0]'s notes to test the authwit.
+        wallets[1].setScopes([wallets[1].getAddress(), wallets[0].getAddress()]);
+
         await expect(action.prove()).rejects.toThrow(`Unknown auth witness for message hash ${messageHash.toString()}`);
       });
 
@@ -216,6 +222,9 @@ describe('e2e_blacklist_token_contract burn', () => {
 
         const witness = await wallets[0].createAuthWit({ caller: wallets[1].getAddress(), action });
         await wallets[2].addAuthWitness(witness);
+
+        // We give wallets[2] access to wallets[0]'s notes to test the authwit.
+        wallets[2].setScopes([wallets[2].getAddress(), wallets[0].getAddress()]);
 
         await expect(action.prove()).rejects.toThrow(
           `Unknown auth witness for message hash ${expectedMessageHash.toString()}`,
