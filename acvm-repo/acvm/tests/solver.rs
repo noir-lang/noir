@@ -875,9 +875,8 @@ fn blake3_op(
 fn keccak256_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> BlackBoxFuncCall<FieldElement> {
-    let (function_inputs, mut outputs) = function_inputs_and_outputs;
+    let (function_inputs, outputs) = function_inputs_and_outputs;
     let function_inputs_len = function_inputs.len();
-    outputs.truncate(32);
     BlackBoxFuncCall::Keccak256 {
         inputs: function_inputs,
         var_message_size: FunctionInput::constant(
@@ -898,9 +897,8 @@ fn keccak256_op(
 fn keccak256_invalid_message_size_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> BlackBoxFuncCall<FieldElement> {
-    let (function_inputs, mut outputs) = function_inputs_and_outputs;
+    let (function_inputs, outputs) = function_inputs_and_outputs;
     let function_inputs_len = function_inputs.len();
-    outputs.truncate(32);
     BlackBoxFuncCall::Keccak256 {
         inputs: function_inputs,
         var_message_size: FunctionInput::constant(
@@ -916,10 +914,7 @@ fn keccak256_invalid_message_size_op(
 fn keccakf1600_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> BlackBoxFuncCall<FieldElement> {
-    let (function_inputs, mut outputs) = function_inputs_and_outputs;
-    outputs.truncate(25);
-    assert_eq!(function_inputs.len(), 25);
-    assert_eq!(outputs.len(), 25);
+    let (function_inputs, outputs) = function_inputs_and_outputs;
     BlackBoxFuncCall::Keccakf1600 {
         inputs: function_inputs.try_into().expect("Keccakf1600 expects 25 inputs"),
         outputs: outputs.try_into().expect("Keccakf1600 returns 25 outputs"),
@@ -933,11 +928,7 @@ fn poseidon2_permutation_op(
 ) -> BlackBoxFuncCall<FieldElement> {
     let (inputs, outputs) = function_inputs_and_outputs;
     let len = inputs.len() as u32;
-    BlackBoxFuncCall::Poseidon2Permutation {
-        inputs,
-        outputs,
-        len,
-    }
+    BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len }
 }
 
 // N inputs
@@ -947,11 +938,7 @@ fn poseidon2_permutation_invalid_len_op(
 ) -> BlackBoxFuncCall<FieldElement> {
     let (inputs, outputs) = function_inputs_and_outputs;
     let len = (inputs.len() as u32) + 1;
-    BlackBoxFuncCall::Poseidon2Permutation {
-        inputs,
-        outputs,
-        len,
-    }
+    BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len }
 }
 
 // 24 inputs (16 + 8)
@@ -1151,8 +1138,7 @@ prop_compose! {
 #[test]
 fn poseidon2_permutation_zeroes() {
     let use_constants: [bool; 4] = [false; 4];
-    let inputs: Vec<_> =
-        [FieldElement::zero(); 4].into_iter().zip(use_constants).collect();
+    let inputs: Vec<_> = [FieldElement::zero(); 4].into_iter().zip(use_constants).collect();
     let (result, expected_result) = run_both_poseidon2_permutations(inputs);
 
     let internal_expected_result = vec![
@@ -1181,8 +1167,15 @@ fn sha256_zeros() {
 
 #[test]
 fn sha256_compression_zeros() {
-    let results = solve_array_input_blackbox_call([(FieldElement::zero(), false); 24].try_into().unwrap(), 8, sha256_compression_op);
-    let expected_results: Vec<_> = vec![2091193876, 1113340840, 3461668143, 3254913767, 3068490961, 2551409935, 2927503052, 3205228454]
+    let results = solve_array_input_blackbox_call(
+        [(FieldElement::zero(), false); 24].try_into().unwrap(),
+        8,
+        sha256_compression_op,
+    );
+    let expected_results: Vec<_> = vec![
+        2091193876, 1113340840, 3461668143, 3254913767, 3068490961, 2551409935, 2927503052,
+        3205228454,
+    ]
     .into_iter()
     .map(|x: u128| FieldElement::from(x))
     .collect();
@@ -1228,36 +1221,38 @@ fn keccak256_zeros() {
     assert_eq!(results, expected_results);
 }
 
-// TODO: internal error when calling Keccakf1600
+// TODO(https://github.com/noir-lang/noir/issues/5687): internal error when calling Keccakf1600
 #[test]
 #[should_panic(expected = "assertion `left == right` failed")]
 fn keccakf1600_zeros() {
+    assert_eq!(FieldElement::zero().num_bits(), 0);
+
     let _results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 25].into(),
         25,
         keccakf1600_op,
     );
-    // TODO: re-enable once the above works
+    // TODO(https://github.com/noir-lang/noir/issues/5687): re-enable once internal error is resolved
     // assert_eq!(results, vec![]);
 }
 
-// TODO: see keccak256_injective for proptest
+// TODO(https://github.com/noir-lang/noir/issues/5690): expected to be injective
 #[test]
 #[should_panic(expected = "not injective")]
 fn keccak256_injective_regression() {
+    // 2⁸×61916068613087029720904767285796661
     let x = FieldElement::from(15850513564950279608551620425163945216u128);
+
+    // 2⁸×220343640628484768581538005104492351
     let y = FieldElement::from(56407972000892100756873729306750041856u128);
     assert!(x != y);
-    let inputs = vec![(
-        x, // 2⁸×61916068613087029720904767285796661,
-        false,
-    )];
-    let distinct_inputs = vec![(
-        y, // 2⁸×220343640628484768581538005104492351,
-        false,
-    )];
 
-    let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, keccak256_op);
+    let inputs = vec![(x, false)];
+    let distinct_inputs = vec![(y, false)];
+    let num_outputs = 32;
+    let (result, message) =
+        prop_assert_injective(inputs.clone(), distinct_inputs.clone(), num_outputs, keccak256_op);
+
     assert!(result, "{}", message);
 }
 
@@ -1362,7 +1357,7 @@ proptest! {
         prop_assert!(result, "{}", message);
     }
 
-    // TODO: see keccak256_injective_regression for specific case
+    // TODO(https://github.com/noir-lang/noir/issues/5690): expected to be injective
     #[test]
     #[should_panic(expected = "not injective")]
     fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
@@ -1371,7 +1366,7 @@ proptest! {
         prop_assert!(result, "{}", message);
     }
 
-    // TODO: doesn't fail with an error, returns constant output
+    // TODO(https://github.com/noir-lang/noir/issues/5689): doesn't fail with an error, returns constant output
     #[test]
     #[should_panic(expected = "Test failed: not injective")]
     fn keccak256_invalid_message_size_fails(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
@@ -1380,12 +1375,15 @@ proptest! {
         prop_assert!(result, "{}", message);
     }
 
-    // TODO: internal error when calling Keccakf1600
+    // TODO(https://github.com/noir-lang/noir/issues/5687): internal error when calling Keccakf1600
     #[test]
     #[should_panic(expected = "assertion `left == right` failed")]
     fn keccakf1600_injective(inputs_distinct_inputs in any_distinct_inputs(25, 25)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        assert_eq!(inputs.len(), 25);
+        assert_eq!(distinct_inputs.len(), 25);
         let (_result, _message) = prop_assert_injective(inputs, distinct_inputs, 25, keccakf1600_op);
+        // TODO(https://github.com/noir-lang/noir/issues/5687): re-enable once internal error is resolved
         // prop_assert!(result, "{}", message);
     }
 
