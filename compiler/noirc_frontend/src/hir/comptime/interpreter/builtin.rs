@@ -786,12 +786,10 @@ fn function_def_set_parameters(
 
     interpreter.elaborator.interner.push_definition_type(func_meta.name.id, function_type.clone());
 
-    {
-        let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-        func_meta.parameters = parameters.into();
-        func_meta.parameter_idents = parameter_idents;
-        func_meta.typ = function_type;
-    }
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    func_meta.parameters = parameters.into();
+    func_meta.parameter_idents = parameter_idents;
+    func_meta.typ = function_type;
 
     Ok(Value::Unit)
 }
@@ -822,14 +820,12 @@ fn function_def_set_return_type(
 
     let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type);
 
-    {
-        let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-        func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
-            typ: UnresolvedTypeData::Resolved(quoted_type_id),
-            span: Some(location.span),
-        });
-        func_meta.typ = function_type;
-    }
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
+        typ: UnresolvedTypeData::Resolved(quoted_type_id),
+        span: Some(location.span),
+    });
+    func_meta.typ = function_type;
 
     Ok(Value::Unit)
 }
