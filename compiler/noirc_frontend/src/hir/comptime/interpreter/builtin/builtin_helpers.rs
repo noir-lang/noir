@@ -16,9 +16,11 @@ use crate::{
     QuotedType, Type,
 };
 
+use super::ValueAndLocation;
+
 pub(crate) fn check_argument_count(
     expected: usize,
-    arguments: &[(Value, Location)],
+    arguments: &[ValueAndLocation],
     location: Location,
 ) -> IResult<()> {
     if arguments.len() == expected {
@@ -30,18 +32,18 @@ pub(crate) fn check_argument_count(
 }
 
 pub(crate) fn check_one_argument(
-    mut arguments: Vec<(Value, Location)>,
+    mut arguments: Vec<ValueAndLocation>,
     location: Location,
-) -> IResult<(Value, Location)> {
+) -> IResult<ValueAndLocation> {
     check_argument_count(1, &arguments, location)?;
 
     Ok(arguments.pop().unwrap())
 }
 
 pub(crate) fn check_two_arguments(
-    mut arguments: Vec<(Value, Location)>,
+    mut arguments: Vec<ValueAndLocation>,
     location: Location,
-) -> IResult<((Value, Location), (Value, Location))> {
+) -> IResult<(ValueAndLocation, ValueAndLocation)> {
     check_argument_count(2, &arguments, location)?;
 
     let argument2 = arguments.pop().unwrap();
@@ -51,9 +53,9 @@ pub(crate) fn check_two_arguments(
 }
 
 pub(crate) fn check_three_arguments(
-    mut arguments: Vec<(Value, Location)>,
+    mut arguments: Vec<ValueAndLocation>,
     location: Location,
-) -> IResult<((Value, Location), (Value, Location), (Value, Location))> {
+) -> IResult<(ValueAndLocation, ValueAndLocation, ValueAndLocation)> {
     check_argument_count(3, &arguments, location)?;
 
     let argument3 = arguments.pop().unwrap();
@@ -65,7 +67,7 @@ pub(crate) fn check_three_arguments(
 
 pub(crate) fn get_array(
     interner: &NodeInterner,
-    (value, location): (Value, Location),
+    (value, location): ValueAndLocation,
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
         Value::Array(values, typ) => Ok((values, typ)),
@@ -80,7 +82,7 @@ pub(crate) fn get_array(
 
 pub(crate) fn get_slice(
     interner: &NodeInterner,
-    (value, location): (Value, Location),
+    (value, location): ValueAndLocation,
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
         Value::Slice(values, typ) => Ok((values, typ)),
@@ -95,7 +97,7 @@ pub(crate) fn get_slice(
 
 pub(crate) fn get_tuple(
     interner: &NodeInterner,
-    (value, location): (Value, Location),
+    (value, location): ValueAndLocation,
 ) -> IResult<Vec<Value>> {
     match value {
         Value::Tuple(values) => Ok(values),
@@ -108,7 +110,7 @@ pub(crate) fn get_tuple(
     }
 }
 
-pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
+pub(crate) fn get_field((value, location): ValueAndLocation) -> IResult<FieldElement> {
     match value {
         Value::Field(value) => Ok(value),
         value => {
@@ -118,7 +120,7 @@ pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldEl
     }
 }
 
-pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
+pub(crate) fn get_u32((value, location): ValueAndLocation) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
@@ -129,7 +131,7 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     }
 }
 
-pub(crate) fn get_function_def((value, location): (Value, Location)) -> IResult<FuncId> {
+pub(crate) fn get_function_def((value, location): ValueAndLocation) -> IResult<FuncId> {
     match value {
         Value::FunctionDefinition(id) => Ok(id),
         value => {
@@ -140,7 +142,7 @@ pub(crate) fn get_function_def((value, location): (Value, Location)) -> IResult<
     }
 }
 
-pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<ModuleId> {
+pub(crate) fn get_module((value, location): ValueAndLocation) -> IResult<ModuleId> {
     match value {
         Value::ModuleDefinition(module_id) => Ok(module_id),
         value => {
@@ -151,7 +153,7 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     }
 }
 
-pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<StructId> {
+pub(crate) fn get_struct((value, location): ValueAndLocation) -> IResult<StructId> {
     match value {
         Value::StructDefinition(id) => Ok(id),
         _ => {
@@ -163,7 +165,7 @@ pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<Struct
 }
 
 pub(crate) fn get_trait_constraint(
-    (value, location): (Value, Location),
+    (value, location): ValueAndLocation,
 ) -> IResult<(TraitId, Vec<Type>)> {
     match value {
         Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
@@ -175,7 +177,7 @@ pub(crate) fn get_trait_constraint(
     }
 }
 
-pub(crate) fn get_trait_def((value, location): (Value, Location)) -> IResult<TraitId> {
+pub(crate) fn get_trait_def((value, location): ValueAndLocation) -> IResult<TraitId> {
     match value {
         Value::TraitDefinition(id) => Ok(id),
         value => {
@@ -186,7 +188,7 @@ pub(crate) fn get_trait_def((value, location): (Value, Location)) -> IResult<Tra
     }
 }
 
-pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
+pub(crate) fn get_type((value, location): ValueAndLocation) -> IResult<Type> {
     match value {
         Value::Type(typ) => Ok(typ),
         value => {
@@ -197,7 +199,7 @@ pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     }
 }
 
-pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<Token>>> {
+pub(crate) fn get_quoted((value, location): ValueAndLocation) -> IResult<Rc<Vec<Token>>> {
     match value {
         Value::Quoted(tokens) => Ok(tokens),
         value => {

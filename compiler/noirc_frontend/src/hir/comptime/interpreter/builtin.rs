@@ -31,11 +31,13 @@ use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
 
+pub(crate) type ValueAndLocation = (Value, Location);
+
 impl<'local, 'context> Interpreter<'local, 'context> {
     pub(super) fn call_builtin(
         &mut self,
         name: &str,
-        arguments: Vec<(Value, Location)>,
+        arguments: Vec<ValueAndLocation>,
         return_type: Type,
         location: Location,
     ) -> IResult<Value> {
@@ -105,7 +107,7 @@ fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IRes
 
 fn array_len(
     interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (argument, argument_location) = check_one_argument(arguments, location)?;
@@ -123,7 +125,7 @@ fn array_len(
 
 fn as_slice(
     interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (array, array_location) = check_one_argument(arguments, location)?;
@@ -141,7 +143,7 @@ fn as_slice(
 
 fn slice_push_back(
     interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (slice, (element, _)) = check_two_arguments(arguments, location)?;
@@ -154,7 +156,7 @@ fn slice_push_back(
 /// fn as_type(self) -> Type
 fn struct_def_as_type(
     interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -173,7 +175,7 @@ fn struct_def_as_type(
 /// fn generics(self) -> [Type]
 fn struct_def_generics(
     interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -192,7 +194,7 @@ fn struct_def_generics(
 /// Returns (name, type) pairs of each field of this StructDefinition
 fn struct_def_fields(
     interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -217,7 +219,7 @@ fn struct_def_fields(
 
 fn slice_remove(
     interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (slice, index) = check_two_arguments(arguments, location)?;
@@ -243,7 +245,7 @@ fn slice_remove(
 
 fn slice_push_front(
     interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (slice, (element, _)) = check_two_arguments(arguments, location)?;
@@ -255,7 +257,7 @@ fn slice_push_front(
 
 fn slice_pop_front(
     interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -269,7 +271,7 @@ fn slice_pop_front(
 
 fn slice_pop_back(
     interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -283,7 +285,7 @@ fn slice_pop_back(
 
 fn slice_insert(
     interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (slice, index, (element, _)) = check_three_arguments(arguments, location)?;
@@ -297,7 +299,7 @@ fn slice_insert(
 // fn as_module(quoted: Quoted) -> Option<Module>
 fn quoted_as_module(
     interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
@@ -317,7 +319,7 @@ fn quoted_as_module(
 // fn as_trait_constraint(quoted: Quoted) -> TraitConstraint
 fn quoted_as_trait_constraint(
     interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -333,7 +335,7 @@ fn quoted_as_trait_constraint(
 // fn as_type(quoted: Quoted) -> Type
 fn quoted_as_type(
     interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -345,7 +347,7 @@ fn quoted_as_type(
 
 // fn as_array(self) -> Option<(Type, Type)>
 fn type_as_array(
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
@@ -360,7 +362,7 @@ fn type_as_array(
 
 // fn as_constant(self) -> Option<u32>
 fn type_as_constant(
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
@@ -375,7 +377,7 @@ fn type_as_constant(
 
 // fn as_integer(self) -> Option<(bool, u8)>
 fn type_as_integer(
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
@@ -390,7 +392,7 @@ fn type_as_integer(
 
 // fn as_slice(self) -> Option<Type>
 fn type_as_slice(
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
@@ -405,7 +407,7 @@ fn type_as_slice(
 
 // fn as_struct(self) -> Option<(StructDefinition, [Type])>
 fn type_as_struct(
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
@@ -426,7 +428,7 @@ fn type_as_struct(
 
 // fn as_tuple(self) -> Option<[Type]>
 fn type_as_tuple(
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
@@ -447,7 +449,7 @@ fn type_as_tuple(
 
 // Helper function for implementing the `type_as_...` functions.
 fn type_as<F>(
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     return_type: Type,
     location: Location,
     f: F,
@@ -464,7 +466,7 @@ where
 }
 
 // fn type_eq(_first: Type, _second: Type) -> bool
-fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn type_eq(arguments: Vec<ValueAndLocation>, location: Location) -> IResult<Value> {
     let (self_type, other_type) = check_two_arguments(arguments, location)?;
 
     let self_type = get_type(self_type)?;
@@ -474,7 +476,7 @@ fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
 }
 
 // fn is_bool(self) -> bool
-fn type_is_bool(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn type_is_bool(arguments: Vec<ValueAndLocation>, location: Location) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let typ = get_type(value)?;
 
@@ -482,7 +484,7 @@ fn type_is_bool(arguments: Vec<(Value, Location)>, location: Location) -> IResul
 }
 
 // fn is_field(self) -> bool
-fn type_is_field(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn type_is_field(arguments: Vec<ValueAndLocation>, location: Location) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
     let typ = get_type(value)?;
 
@@ -490,7 +492,7 @@ fn type_is_field(arguments: Vec<(Value, Location)>, location: Location) -> IResu
 }
 
 // fn type_of<T>(x: T) -> Type
-fn type_of(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn type_of(arguments: Vec<ValueAndLocation>, location: Location) -> IResult<Value> {
     let (value, _) = check_one_argument(arguments, location)?;
     let typ = value.get_type().into_owned();
     Ok(Value::Type(typ))
@@ -499,7 +501,7 @@ fn type_of(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
 // fn constraint_hash(constraint: TraitConstraint) -> Field
 fn trait_constraint_hash(
     _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -516,7 +518,7 @@ fn trait_constraint_hash(
 // fn constraint_eq(constraint_a: TraitConstraint, constraint_b: TraitConstraint) -> bool
 fn trait_constraint_eq(
     _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (value_a, value_b) = check_two_arguments(arguments, location)?;
@@ -530,7 +532,7 @@ fn trait_constraint_eq(
 // fn trait_def_hash(def: TraitDefinition) -> Field
 fn trait_def_hash(
     _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
@@ -547,7 +549,7 @@ fn trait_def_hash(
 // fn trait_def_eq(def_a: TraitDefinition, def_b: TraitDefinition) -> bool
 fn trait_def_eq(
     _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (id_a, id_b) = check_two_arguments(arguments, location)?;
@@ -642,7 +644,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
 // fn name(self) -> Quoted
 fn function_def_name(
     interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
@@ -655,7 +657,7 @@ fn function_def_name(
 // fn parameters(self) -> [(Quoted, Type)]
 fn function_def_parameters(
     interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
@@ -683,7 +685,7 @@ fn function_def_parameters(
 // fn return_type(self) -> Type
 fn function_def_return_type(
     interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
@@ -696,7 +698,7 @@ fn function_def_return_type(
 // fn set_body(self, body: Quoted)
 fn function_def_set_body(
     interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, body_argument) = check_two_arguments(arguments, location)?;
@@ -730,7 +732,7 @@ fn function_def_set_body(
 // fn set_parameters(self, parameters: [(Quoted, Type)])
 fn function_def_set_parameters(
     interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, parameters_argument) = check_two_arguments(arguments, location)?;
@@ -785,7 +787,7 @@ fn function_def_set_parameters(
 // fn set_return_type(self, return_type: Type)
 fn function_def_set_return_type(
     interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, return_type_argument) = check_two_arguments(arguments, location)?;
@@ -810,7 +812,7 @@ fn function_def_set_return_type(
 // fn functions(self) -> [FunctionDefinition]
 fn module_functions(
     interpreter: &Interpreter,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
@@ -834,7 +836,7 @@ fn module_functions(
 // fn is_contract(self) -> bool
 fn module_is_contract(
     interpreter: &Interpreter,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
@@ -845,7 +847,7 @@ fn module_is_contract(
 // fn name(self) -> Quoted
 fn module_name(
     interner: &NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
@@ -857,7 +859,7 @@ fn module_name(
 
 fn modulus_be_bits(
     _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
@@ -872,7 +874,7 @@ fn modulus_be_bits(
 
 fn modulus_be_bytes(
     _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
@@ -887,7 +889,7 @@ fn modulus_be_bytes(
 
 fn modulus_le_bits(
     interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let Value::Slice(bits, typ) = modulus_be_bits(interner, arguments, location)? else {
@@ -899,7 +901,7 @@ fn modulus_le_bits(
 
 fn modulus_le_bytes(
     interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     let Value::Slice(bytes, typ) = modulus_be_bytes(interner, arguments, location)? else {
@@ -911,7 +913,7 @@ fn modulus_le_bytes(
 
 fn modulus_num_bits(
     _interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
@@ -920,7 +922,7 @@ fn modulus_num_bits(
 }
 
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
-fn quoted_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn quoted_eq(arguments: Vec<ValueAndLocation>, location: Location) -> IResult<Value> {
     let (self_value, other_value) = check_two_arguments(arguments, location)?;
 
     let self_quoted = get_quoted(self_value)?;
@@ -931,7 +933,7 @@ fn quoted_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
 
 fn trait_def_as_trait_constraint(
     interner: &mut NodeInterner,
-    arguments: Vec<(Value, Location)>,
+    arguments: Vec<ValueAndLocation>,
     location: Location,
 ) -> Result<Value, InterpreterError> {
     let argument = check_one_argument(arguments, location)?;
@@ -988,7 +990,7 @@ fn check_function_not_yet_resolved(
 }
 
 fn parse<T>(
-    (value, location): (Value, Location),
+    (value, location): ValueAndLocation,
     parser: impl NoirParser<T>,
     rule: &'static str,
 ) -> IResult<T> {
