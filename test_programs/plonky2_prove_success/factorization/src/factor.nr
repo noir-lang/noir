@@ -16,7 +16,7 @@ pub fn print_factors(mut number: u32) {
 
     // The first 16 primes are enough to figure out whether numbers up to 3480
     // are prime; the 17th prime is 59, which squared is 3481.
-    for factor in 2..256 {
+    for factor in 2..64 {
         if factor * factor > number {
             // performance-break;
         } else {
