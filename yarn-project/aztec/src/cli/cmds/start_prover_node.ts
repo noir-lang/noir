@@ -70,7 +70,7 @@ export const startProverNode = async (
 
   services.push({ node: createProverNodeRpcServer(proverNode) });
 
-  if (options.prover) {
+  if (!options.prover) {
     const provingJobSource = createProvingJobSourceServer(proverNode.getProver().getProvingJobSource());
     services.push({ provingJobSource });
   }

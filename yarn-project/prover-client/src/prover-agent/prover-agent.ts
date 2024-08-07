@@ -71,7 +71,7 @@ export class ProverAgent {
             );
           }
         } catch (err) {
-          // no-op
+          this.log.error(`Error fetching job`, err);
         }
       }
     }, this.pollIntervalMs);
@@ -96,7 +96,7 @@ export class ProverAgent {
       this.log.debug(`Picked up proving job id=${job.id} type=${ProvingRequestType[job.request.type]}`);
       const [time, result] = await elapsed(this.getProof(job.request));
       if (this.isRunning()) {
-        this.log.debug(
+        this.log.verbose(
           `Processed proving job id=${job.id} type=${ProvingRequestType[job.request.type]} duration=${time}ms`,
         );
         await jobSource.resolveProvingJob(job.id, result);
