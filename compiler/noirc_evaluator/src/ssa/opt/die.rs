@@ -158,12 +158,9 @@ impl Context {
             ArrayGet { array, index } | ArraySet { array, index, .. } => {
                 if let Some(array_length) = function.dfg.try_get_array_length(*array) {
                     if let Some(known_index) = function.dfg.get_numeric_constant(*index) {
-                        // If the index is known at compile-time, we can only remove it if it's not out of bounds.
-                        // If it's out of bounds we'd like that to keep failing at runtime.
                         known_index >= array_length.into()
                     } else {
-                        // If the index is not known at compile-time we can't remove this instruction as this
-                        // might be an index out of bounds.
+                        // The index is not know so it might be out of bounds
                         true
                     }
                 } else if let ArrayGet { .. } = instruction {
