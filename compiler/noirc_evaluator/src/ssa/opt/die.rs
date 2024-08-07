@@ -149,33 +149,6 @@ impl Context {
         false
     }
 
-    fn instruction_might_result_in_out_of_bounds(
-        function: Function,
-        instruction: &Instruction,
-    ) -> bool {
-        use Instruction::*;
-        match instruction {
-            ArrayGet { array, index } | ArraySet { array, index, .. } => {
-                if let Some(array_length) = function.dfg.try_get_array_length(*array) {
-                    if let Some(known_index) = function.dfg.get_numeric_constant(*index) {
-                        known_index >= array_length.into()
-                    } else {
-                        // The index is not know so it might be out of bounds
-                        true
-                    }
-                } else if let ArrayGet { .. } = instruction {
-                    // array_get on a slice always does an index in bounds check,
-                    // so no need to do it again
-                    false
-                } else {
-                    // The same check isn't done on array_set, though
-                    true
-                }
-            }
-            _ => false,
-        }
-    }
-
     fn insert_out_of_bounds_checks(
         &mut self,
         function: &mut Function,
@@ -197,7 +170,7 @@ impl Context {
                     match instruction {
                         Instruction::ArrayGet { array, index }
                         | Instruction::ArraySet { array, index, .. } => {
-                            if let Some(array_length) = function.dfg.try_get_array_length(*array) {
+                            if function.dfg.try_get_array_length(*array).is_some() {
                                 if function.dfg.get_numeric_constant(*index).is_some() {
                                     // If we are here it means the index is known but out of bounds. That's always an error!
                                     let false_const =
@@ -216,6 +189,10 @@ impl Context {
                                         call_stack,
                                     );
                                 } else {
+                                    // `index` will be relative to the flattened array length, so we need to take that into account
+                                    let array_length =
+                                        function.dfg.type_of_value(*array).flattened_size();
+
                                     // If we are here it means the index is dynamic, so let's add a check that it's less than length
                                     let index = function
                                         .dfg
@@ -229,6 +206,7 @@ impl Context {
                                             call_stack.clone(),
                                         )
                                         .first();
+
                                     let array_length = function.dfg.make_constant(
                                         (array_length as u128).into(),
                                         Type::unsigned(SSA_WORD_SIZE),
@@ -349,19 +327,19 @@ fn instruction_might_result_in_out_of_bounds(
     use Instruction::*;
     match instruction {
         ArrayGet { array, index } | ArraySet { array, index, .. } => {
-            if let Some(array_length) = function.dfg.try_get_array_length(*array) {
+            if function.dfg.try_get_array_length(*array).is_some() {
                 if let Some(known_index) = function.dfg.get_numeric_constant(*index) {
-                    // If the index is known at compile-time, we can only remove it if it's not out of bounds.
-                    // If it's out of bounds we'd like that to keep failing at runtime.
+                    // `index` will be relative to the flattened array length, so we need to take that into account
+                    let typ = function.dfg.type_of_value(*array);
+                    let array_length = typ.flattened_size();
                     known_index >= array_length.into()
                 } else {
-                    // If the index is not known at compile-time we can't remove this instruction as this
-                    // might be an index out of bounds.
+                    // A dynamic index might always be out of bounds
                     true
                 }
             } else if let ArrayGet { .. } = instruction {
                 // array_get on a slice always does an index in bounds check,
-                // so we can remove this instruction if it's unused
+                // so no need to do it again
                 false
             } else {
                 // The same check isn't done on array_set, though
