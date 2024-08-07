@@ -1,5 +1,4 @@
 use crate::cli::compile_cmd::get_target_width;
-use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::ops::{compile_program, report_errors};
@@ -75,6 +74,7 @@ pub(crate) fn run(args: ProveCommand, config: NargoConfig) -> Result<(), CliErro
         let compilation_result = compile_program(
             &workspace_file_manager,
             &parsed_files,
+            &workspace,
             package,
             &args.compile_options,
             None,

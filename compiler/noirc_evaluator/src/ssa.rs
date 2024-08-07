@@ -7,7 +7,12 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use crate::errors::{RuntimeError, SsaReport};
 use acvm::{
@@ -28,7 +33,6 @@ use noirc_frontend::{
     hir_def::{function::FunctionSignature, types::Type as HirType},
     monomorphization::ast::Program,
 };
-use plonky2_gen::asm_writer::AsmWriter;
 use tracing::{span, Level};
 
 use self::{
@@ -59,6 +63,17 @@ pub struct SsaEvaluatorOptions {
 
     /// Width of expressions to be used for ACIR
     pub expression_width: ExpressionWidth,
+
+    /// Dump the unoptimized SSA to the supplied path if it exists
+    pub emit_ssa: Option<PathBuf>,
+
+    /// Print abstract assembly-like representation of the plonky2 high-level operations used to
+    /// represent the program.
+    pub show_plonky2: bool,
+
+    /// If specified, write the abstract assembly-like representation of the plonky2 high-level
+    /// operations used to represent the program in the given file.
+    pub plonky2_print_file: Option<String>,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -79,6 +94,7 @@ pub(crate) fn optimize_into_acir(
         options.enable_ssa_logging,
         options.force_brillig_output,
         options.print_codegen_timings,
+        &options.emit_ssa,
     )?
     .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
     .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
@@ -129,50 +145,53 @@ pub(crate) fn optimize_into_acir(
 /// convert the final SSA into a PLONKY2 circuit and return it.
 pub(crate) fn optimize_into_plonky2(
     program: Program,
-    print_passes: bool,
-    print_plonky2: bool,
-    plonky2_print_file: Option<String>,
-    print_timings: bool,
+    options: &SsaEvaluatorOptions,
     parameter_names: Vec<String>,
 ) -> Result<Plonky2Circuit, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
     let main_function_signature: FunctionSignature = program.function_signatures[0].clone();
-    let ssa = SsaBuilder::new(program, print_passes, false, print_timings)?
-        .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
-        .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
-        .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
-        .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
-        .run_pass(Ssa::inline_functions, "After Inlining:")
-        // Run mem2reg with the CFG separated into blocks
-        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-        .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
-        .try_run_pass(
-            Ssa::evaluate_static_assert_and_assert_constant,
-            "After `static_assert` and `assert_constant`:",
-        )?
-        .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
-        .run_pass(Ssa::simplify_cfg, "After Simplifying:")
-        .run_pass(Ssa::flatten_cfg, "After Flattening:")
-        .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
-        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-        .run_pass(Ssa::mem2reg, "After Mem2Reg:")
-        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
-        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
-        // This pass must come immediately following `mem2reg` as the succeeding passes
-        // may create an SSA which inlining fails to handle.
-        .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
-        .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
-        .run_pass(Ssa::fold_constants, "After Constant Folding:")
-        .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
-        .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
-        .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
-        .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
-        .finish();
+    let ssa = SsaBuilder::new(
+        program,
+        options.enable_ssa_logging,
+        false,
+        options.print_codegen_timings,
+        &options.emit_ssa,
+    )?
+    .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
+    .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
+    .run_pass(Ssa::separate_runtime, "After Runtime Separation:")
+    .run_pass(Ssa::resolve_is_unconstrained, "After Resolving IsUnconstrained:")
+    .run_pass(Ssa::inline_functions, "After Inlining:")
+    // Run mem2reg with the CFG separated into blocks
+    .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+    .run_pass(Ssa::as_slice_optimization, "After `as_slice` optimization")
+    .try_run_pass(
+        Ssa::evaluate_static_assert_and_assert_constant,
+        "After `static_assert` and `assert_constant`:",
+    )?
+    .try_run_pass(Ssa::unroll_loops_iteratively, "After Unrolling:")?
+    .run_pass(Ssa::simplify_cfg, "After Simplifying:")
+    .run_pass(Ssa::flatten_cfg, "After Flattening:")
+    .run_pass(Ssa::remove_bit_shifts, "After Removing Bit Shifts:")
+    // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+    .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+    // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+    // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+    // This pass must come immediately following `mem2reg` as the succeeding passes
+    // may create an SSA which inlining fails to handle.
+    .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
+    .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
+    .run_pass(Ssa::fold_constants, "After Constant Folding:")
+    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
+    .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
+    .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
+    .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
+    .finish();
 
     drop(ssa_gen_span_guard);
 
-    Builder::new(print_plonky2, plonky2_print_file).build(
+    Builder::new(options.show_plonky2, options.plonky2_print_file.clone()).build(
         ssa,
         parameter_names,
         main_function_signature,
@@ -393,20 +412,10 @@ fn split_public_and_private_inputs(
 
 pub fn create_plonky2_circuit(
     program: Program,
-    enable_ssa_logging: bool,
-    show_plonky2: bool,
-    plonky2_print_file: Option<String>,
-    print_codegen_timings: bool,
+    options: &SsaEvaluatorOptions,
     parameter_names: Vec<String>,
 ) -> Result<Plonky2Circuit, RuntimeError> {
-    optimize_into_plonky2(
-        program,
-        enable_ssa_logging,
-        show_plonky2,
-        plonky2_print_file,
-        print_codegen_timings,
-        parameter_names,
-    )
+    optimize_into_plonky2(program, options, parameter_names)
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
@@ -422,8 +431,18 @@ impl SsaBuilder {
         print_ssa_passes: bool,
         force_brillig_runtime: bool,
         print_codegen_timings: bool,
+        emit_ssa: &Option<PathBuf>,
     ) -> Result<SsaBuilder, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
+        if let Some(emit_ssa) = emit_ssa {
+            let mut emit_ssa_dir = emit_ssa.clone();
+            // We expect the full package artifact path to be passed in here,
+            // and attempt to create the target directory if it does not exist.
+            emit_ssa_dir.pop();
+            create_named_dir(emit_ssa_dir.as_ref(), "target");
+            let ssa_path = emit_ssa.with_extension("ssa.json");
+            write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
+        }
         Ok(SsaBuilder { print_ssa_passes, print_codegen_timings, ssa }.print("Initial SSA:"))
     }
 
@@ -452,5 +471,25 @@ impl SsaBuilder {
             println!("{msg}\n{}", self.ssa);
         }
         self
+    }
+}
+
+fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
+    std::fs::create_dir_all(named_dir)
+        .unwrap_or_else(|_| panic!("could not create the `{name}` directory"));
+
+    PathBuf::from(named_dir)
+}
+
+fn write_to_file(bytes: &[u8], path: &Path) {
+    let display = path.display();
+
+    let mut file = match File::create(path) {
+        Err(why) => panic!("couldn't create {display}: {why}"),
+        Ok(file) => file,
+    };
+
+    if let Err(why) = file.write_all(bytes) {
+        panic!("couldn't write to {display}: {why}");
     }
 }

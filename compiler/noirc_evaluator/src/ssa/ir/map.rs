@@ -1,8 +1,11 @@
 use fxhash::FxHashMap as HashMap;
+use serde::{Deserialize, Serialize};
 use std::{
     hash::Hash,
+    str::FromStr,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use thiserror::Error;
 
 /// A unique ID corresponding to a value of type T.
 /// This type can be used to retrieve a value of type T from
@@ -12,8 +15,11 @@ use std::{
 /// DenseMap or SparseMap. If an Id was created to correspond to one
 /// particular map type, users need to take care not to use it with
 /// another map where it will likely be invalid.
+#[derive(Serialize, Deserialize)]
 pub(crate) struct Id<T> {
     index: usize,
+    // If we do not skip this field it will simply serialize as `"_marker":null` which is useless extra data
+    #[serde(skip)]
     _marker: std::marker::PhantomData<T>,
 }
 
@@ -106,7 +112,58 @@ impl std::fmt::Display for Id<super::function::Function> {
 
 impl std::fmt::Display for Id<super::instruction::Instruction> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "f{}", self.index)
+        write!(f, "i{}", self.index)
+    }
+}
+
+#[derive(Error, Debug)]
+pub(crate) enum IdDisplayFromStrErr {
+    #[error("Invalid id when deserializing SSA: {0}")]
+    InvalidId(String),
+}
+
+/// The implementation of display and FromStr allows serializing and deserializing an Id<T> to a string.
+/// This is useful when used as key in a map that has to be serialized to JSON/TOML.
+impl FromStr for Id<super::basic_block::BasicBlock> {
+    type Err = IdDisplayFromStrErr;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        id_from_str_helper::<super::basic_block::BasicBlock>(s, 'b')
+    }
+}
+
+impl FromStr for Id<super::value::Value> {
+    type Err = IdDisplayFromStrErr;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        id_from_str_helper::<super::value::Value>(s, 'v')
+    }
+}
+
+impl FromStr for Id<super::function::Function> {
+    type Err = IdDisplayFromStrErr;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        id_from_str_helper::<super::function::Function>(s, 'f')
+    }
+}
+
+impl FromStr for Id<super::instruction::Instruction> {
+    type Err = IdDisplayFromStrErr;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        id_from_str_helper::<super::instruction::Instruction>(s, 'i')
+    }
+}
+
+fn id_from_str_helper<T>(s: &str, value_prefix: char) -> Result<Id<T>, IdDisplayFromStrErr> {
+    if s.len() < 2 {
+        return Err(IdDisplayFromStrErr::InvalidId(s.to_string()));
+    }
+
+    let index = &s[1..];
+    let index = index.parse().map_err(|_| IdDisplayFromStrErr::InvalidId(s.to_string()))?;
+
+    if s.chars().next().unwrap() == value_prefix {
+        Ok(Id::<T>::new(index))
+    } else {
+        Err(IdDisplayFromStrErr::InvalidId(s.to_string()))
     }
 }
 
@@ -115,7 +172,7 @@ impl std::fmt::Display for Id<super::instruction::Instruction> {
 /// access to indices is provided. Since IDs must be stable and correspond
 /// to indices in the internal Vec, operations that would change element
 /// ordering like pop, remove, swap_remove, etc, are not possible.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct DenseMap<T> {
     storage: Vec<T>,
 }
@@ -300,7 +357,7 @@ impl<K: Eq + Hash, V> std::ops::Index<&K> for TwoWayMap<K, V> {
 /// for types that have no single owner.
 ///
 /// This type wraps an AtomicUsize so it can safely be used across threads.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AtomicCounter<T> {
     next: AtomicUsize,
     _marker: std::marker::PhantomData<T>,

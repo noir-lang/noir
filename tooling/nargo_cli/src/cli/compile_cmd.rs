@@ -187,6 +187,7 @@ fn compile_programs(
             let (program, warnings) = compile_program(
                 file_manager,
                 parsed_files,
+                workspace,
                 package,
                 compile_options,
                 load_cached_program(package),

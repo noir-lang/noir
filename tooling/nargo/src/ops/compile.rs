@@ -32,7 +32,15 @@ pub fn compile_workspace(
     let program_results: Vec<CompilationResult<CompiledProgram>> = binary_packages
         .par_iter()
         .map(|package| {
-            compile_program(file_manager, parsed_files, package, compile_options, None, false)
+            compile_program(
+                file_manager,
+                parsed_files,
+                workspace,
+                package,
+                compile_options,
+                None,
+                false,
+            )
         })
         .collect();
     let contract_results: Vec<CompilationResult<CompiledContract>> = contract_packages
@@ -59,6 +67,7 @@ pub fn compile_workspace(
 pub fn compile_program(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
+    workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
@@ -67,6 +76,7 @@ pub fn compile_program(
     compile_program_with_debug_instrumenter(
         file_manager,
         parsed_files,
+        workspace,
         package,
         compile_options,
         cached_program,
@@ -78,6 +88,7 @@ pub fn compile_program(
 pub fn compile_program_with_debug_instrumenter(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
+    workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
@@ -87,6 +98,7 @@ pub fn compile_program_with_debug_instrumenter(
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     link_to_debug_crate(&mut context, crate_id);
     context.debug_instrumenter = debug_instrumenter;
+    context.package_build_path = workspace.package_build_path(package);
 
     noirc_driver::compile_main(
         &mut context,

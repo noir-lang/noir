@@ -66,16 +66,26 @@ pub struct CompileOptions {
     #[arg(long = "force")]
     pub force_compile: bool,
 
-    /// Emit debug information for the intermediate SSA IR
+    /// Emit debug information for the intermediate SSA IR to stdout
     #[arg(long, hide = true)]
     pub show_ssa: bool,
+
+    /// Emit the unoptimized SSA IR to file.
+    /// The IR will be dumped into the workspace target directory,
+    /// under `[compiled-package].ssa.json`.
+    #[arg(long, hide = true)]
+    pub emit_ssa: bool,
 
     #[arg(long, hide = true)]
     pub show_brillig: bool,
 
+    /// Print abstract assembly-like representation of the plonky2 high-level operations used to
+    /// represent the program.
     #[arg(long, hide = true)]
     pub show_plonky2: bool,
 
+    /// If specified, write the abstract assembly-like representation of the plonky2 high-level
+    /// operations used to represent the program in the given file.
     #[arg(long, hide = true)]
     pub plonky2_print_file: Option<String>,
 
@@ -562,8 +572,11 @@ pub fn compile_no_check(
 
     // If user has specified that they want to see intermediate steps printed then we should
     // force compilation even if the program hasn't changed.
-    let force_compile =
-        force_compile || options.print_acir || options.show_brillig || options.show_ssa;
+    let force_compile = force_compile
+        || options.print_acir
+        || options.show_brillig
+        || options.show_ssa
+        || options.emit_ssa;
 
     if !force_compile && hashes_match {
         info!("Program matches existing artifact, returning early");
@@ -581,6 +594,9 @@ pub fn compile_no_check(
         } else {
             ExpressionWidth::default()
         },
+        emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
+        show_plonky2: options.show_plonky2,
+        plonky2_print_file: options.plonky2_print_file.clone(),
     };
     let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
         create_program(monomorph.clone(), &ssa_evaluator_options)?;
@@ -590,14 +606,7 @@ pub fn compile_no_check(
 
     let plonky2_circuit = if compile_plonky2_circuit {
         let parameter_names = abi.parameters.iter().map(|param| param.name.clone()).collect();
-        Some(create_plonky2_circuit(
-            monomorph,
-            options.show_ssa,
-            options.show_plonky2,
-            options.plonky2_print_file.clone(),
-            options.benchmark_codegen,
-            parameter_names,
-        )?)
+        Some(create_plonky2_circuit(monomorph, &ssa_evaluator_options, parameter_names)?)
     } else {
         None
     };
