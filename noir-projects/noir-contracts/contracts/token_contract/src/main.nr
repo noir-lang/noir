@@ -394,8 +394,20 @@ contract Token {
             // try_sub failed to nullify enough notes to reach the target amount, so we compute the amount remaining
             // and try again.
             let remaining = amount - subtracted;
-            Token::at(context.this_address())._recurse_subtract_balance(account, remaining.to_field()).call(context)
+            compute_recurse_subtract_balance_call(*context, account, remaining).call(context)
         }
+    }
+
+    // TODO(#7729): apply no_predicates to the contract interface method directly instead of having to use a wrapper
+    // like we do here.
+    #[no_predicates]
+    #[contract_library_method]
+    fn compute_recurse_subtract_balance_call(
+        context: PrivateContext,
+        account: AztecAddress,
+        remaining: U128
+    ) -> PrivateCallInterface<25, U128, (AztecAddress, Field)> {
+        Token::at(context.this_address())._recurse_subtract_balance(account, remaining.to_field())
     }
 
     // TODO(#7728): even though the amount should be a U128, we can't have that type in a contract interface due to
