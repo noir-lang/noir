@@ -21,7 +21,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            dead_instruction_elimination(function);
+            dead_instruction_elimination(function, true);
         }
         self
     }
@@ -33,16 +33,29 @@ impl Ssa {
 /// instructions that reference results from an instruction in another block are evaluated first.
 /// If we did not iterate blocks in this order we could not safely say whether or not the results
 /// of its instructions are needed elsewhere.
-fn dead_instruction_elimination(function: &mut Function) {
+fn dead_instruction_elimination(function: &mut Function, insert_out_of_bounds_checks: bool) {
     let mut context = Context::default();
     for call_data in &function.dfg.data_bus.call_data {
         context.mark_used_instruction_results(&function.dfg, call_data.array_id);
     }
 
-    let blocks = PostOrder::with_function(function);
+    let mut inserted_out_of_bounds_checks = false;
 
+    let blocks = PostOrder::with_function(function);
     for block in blocks.as_slice() {
-        context.remove_unused_instructions_in_block(function, *block);
+        inserted_out_of_bounds_checks |= context.remove_unused_instructions_in_block(
+            function,
+            *block,
+            insert_out_of_bounds_checks,
+        );
+    }
+
+    // If we inserted out of bounds check, let's run the pass again with those new
+    // instructions (we don't want to remove those checks, or instructions that are
+    // dependencies of those checks)
+    if inserted_out_of_bounds_checks {
+        dead_instruction_elimination(function, false);
+        return;
     }
 
     context.remove_rc_instructions(&mut function.dfg);
@@ -72,25 +85,18 @@ impl Context {
     /// values set. This allows DIE to identify whole chains of unused instructions. (If the
     /// values referenced by an unused instruction were considered to be used, only the head of
     /// such chains would be removed.)
+    ///
+    /// If `insert_out_of_bounds_checks` is true and there are unused ArrayGet/ArraySet that
+    /// might be out of bounds, this method will insert out of bounds checks instead of
+    /// removing unused instructions and return `true`. The idea then is to later call this
+    /// function again with `insert_out_of_bounds_checks` set to false to effectively remove
+    /// unused instructions but leave the out of bounds checks.
     fn remove_unused_instructions_in_block(
         &mut self,
         function: &mut Function,
         block_id: BasicBlockId,
-    ) {
-        self.remove_unused_instructions_in_block_impl(function, block_id, true);
-    }
-
-    fn remove_unused_instructions_in_block_impl(
-        &mut self,
-        function: &mut Function,
-        block_id: BasicBlockId,
-        analyze_index_out_of_bounds: bool,
-    ) {
-        // Clear state because this might have been called recursively
-        self.used_values.clear();
-        self.instructions_to_remove.clear();
-        self.rc_instructions.clear();
-
+        insert_out_of_bounds_checks: bool,
+    ) -> bool {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
@@ -106,7 +112,7 @@ impl Context {
             if self.is_unused(*instruction_id, function) {
                 self.instructions_to_remove.insert(*instruction_id);
 
-                if analyze_index_out_of_bounds
+                if insert_out_of_bounds_checks
                     && instruction_might_result_in_out_of_bounds(function, instruction)
                 {
                     possible_index_out_of_bounds_indexes
@@ -133,14 +139,14 @@ impl Context {
                 block_id,
                 &mut possible_index_out_of_bounds_indexes,
             );
-
-            self.remove_unused_instructions_in_block_impl(function, block_id, false);
-            return;
+            return true;
         }
 
         function.dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
+
+        false
     }
 
     fn instruction_might_result_in_out_of_bounds(
@@ -162,7 +168,7 @@ impl Context {
                     }
                 } else if let ArrayGet { .. } = instruction {
                     // array_get on a slice always does an index in bounds check,
-                    // so we can remove this instruction if it's unused
+                    // so no need to do it again
                     false
                 } else {
                     // The same check isn't done on array_set, though
