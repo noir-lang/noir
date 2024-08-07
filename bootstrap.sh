@@ -103,7 +103,8 @@ if [ "$CMD" = "clean" ]; then
   echo "WARNING: This will erase *all* untracked files, including hooks and submodules."
   echo -n "Continue? [y/n] "
   read user_input
-  if [ "$user_input" != "y" ] && [ "$user_input" != "Y" ]; then
+  if [ "$user_input" != "y" ] && [ "$user_input" != "yes" ] && [ "$user_input" != "Y" ] && [ "$user_input" != "YES" ]; then
+    echo "Exiting without cleaning"
     exit 1
   fi
 
@@ -117,6 +118,7 @@ if [ "$CMD" = "clean" ]; then
   # Remove all untracked files, directories, nested repos, and .gitignore files.
   git clean -ffdx
 
+  echo "Cleaning complete"
   exit 0
 elif [ "$CMD" = "full" ]; then
   if can_use_ci_cache; then
