@@ -335,6 +335,38 @@ impl Instruction {
     pub(crate) fn can_eliminate_if_unused(&self, dfg: &DataFlowGraph) -> bool {
         use Instruction::*;
         match self {
+            Cast(_, _) | Not(_) | Truncate { .. } | Allocate | Load { .. } | IfElse { .. } => true,
+
+            Constrain(..)
+            | Store { .. }
+            | EnableSideEffects { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. }
+            | RangeCheck { .. } => false,
+
+            ArrayGet { array, index } | ArraySet { array, index, .. } => {
+                if let Some(array_length) = dfg.try_get_array_length(*array) {
+                    if let Some(known_index) = dfg.get_numeric_constant(*index) {
+                        // If the index is known at compile-time, we can only remove it if it's not out of bounds.
+                        // If it's out of bounds we'd like that to keep failing at runtime.
+                        known_index < array_length.into()
+                    } else {
+                        // If the index is not known at compile-time we can't remove this instruction as this
+                        // might be an index out of bounds.
+                        false
+                    }
+                } else {
+                    if let ArrayGet { .. } = self {
+                        // array_get on a slice always does an index in bounds check,
+                        // so we can remove this instruction if it's unused
+                        true
+                    } else {
+                        // The same check isn't done on array_set, though
+                        false
+                    }
+                }
+            }
+
             Binary(binary) => {
                 if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
                     if let Some(rhs) = dfg.get_numeric_constant(binary.rhs) {
@@ -346,21 +378,6 @@ impl Instruction {
                     true
                 }
             }
-            Cast(_, _)
-            | Not(_)
-            | Truncate { .. }
-            | Allocate
-            | Load { .. }
-            | ArrayGet { .. }
-            | IfElse { .. }
-            | ArraySet { .. } => true,
-
-            Constrain(..)
-            | Store { .. }
-            | EnableSideEffects { .. }
-            | IncrementRc { .. }
-            | DecrementRc { .. }
-            | RangeCheck { .. } => false,
 
             // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
             Call { func, .. } => match dfg[*func] {
