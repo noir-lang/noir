@@ -715,7 +715,12 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, location, .. } => {
-                self.index_lvalue(array, index, location)?.2
+                let (_array_or_slice, index, lvalue_ref, length) =
+                    self.index_lvalue(array, index, location)?;
+
+                self.codegen_slice_access_check(index, length);
+
+                lvalue_ref
             }
             ast::LValue::MemberAccess { object, field_index } => {
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
@@ -747,37 +752,29 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref, Option<length>) where the lvalue_ref records the
+    /// This will return a tuple of four elements, (array, index, lvalue_ref, length), where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
-    /// The optional length is for indexing slices rather than arrays since slices
-    /// are represented as a tuple in the form: (length, slice contents).
     fn index_lvalue(
         &mut self,
         array: &ast::LValue,
         index: &ast::Expression,
         location: &Location,
-    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
+    ) -> Result<(ValueId, ValueId, LValue, ValueId), RuntimeError> {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
         let index = self.codegen_non_tuple_expression(index)?;
         let array_lvalue = Box::new(array_lvalue);
         let array_values = old_array.clone().into_value_list(self);
 
         let location = *location;
-        // A slice is represented as a tuple (length, slice contents).
-        // We need to fetch the second value.
-        Ok(if array_values.len() > 1 {
-            let slice_lvalue = LValue::SliceIndex {
-                old_slice: old_array,
-                index,
-                slice_lvalue: array_lvalue,
-                location,
-            };
-            (array_values[1], index, slice_lvalue, Some(array_values[0]))
+        let (array_or_slice, length) = self.extract_indexable_type_length(&array_values);
+
+        let lvalue_ref = if array_values.len() > 1 {
+            LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue, location }
         } else {
-            let array_lvalue =
-                LValue::Index { old_array: array_values[0], index, array_lvalue, location };
-            (array_values[0], index, array_lvalue, None)
-        })
+            LValue::Index { old_array: array_or_slice, index, array_lvalue, location }
+        };
+
+        Ok((array_or_slice, index, lvalue_ref, length))
     }
 
     fn extract_current_value_recursive(

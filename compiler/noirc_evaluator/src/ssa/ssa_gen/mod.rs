@@ -368,20 +368,14 @@ impl<'a> FunctionContext<'a> {
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
         let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
-        // Slices are represented as a tuple in the form: (length, slice contents).
-        // Thus, slices require two value ids for their representation.
-        let (array, slice_length) = if array_or_slice.len() > 1 {
-            (array_or_slice[1], Some(array_or_slice[0]))
-        } else {
-            (array_or_slice[0], None)
-        };
+        let (array_or_slice, length) = self.extract_indexable_type_length(&array_or_slice);
 
         self.codegen_array_index(
-            array,
+            array_or_slice,
             index_value,
             &index.element_type,
             index.location,
-            slice_length,
+            length,
         )
     }
 
@@ -397,7 +391,7 @@ impl<'a> FunctionContext<'a> {
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
         location: Location,
-        length: Option<super::ir::value::ValueId>,
+        length: super::ir::value::ValueId,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
@@ -412,16 +406,7 @@ impl<'a> FunctionContext<'a> {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
 
-            let array_type = &self.builder.type_of_value(array);
-            match array_type {
-                Type::Slice(_) => {
-                    self.codegen_slice_access_check(index, length);
-                }
-                Type::Array(..) => {
-                    // Nothing needs to done to prepare an array access on an array
-                }
-                _ => unreachable!("must have array or slice but got {array_type}"),
-            }
+            self.codegen_slice_access_check(index, length);
 
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
@@ -438,12 +423,11 @@ impl<'a> FunctionContext<'a> {
     fn codegen_slice_access_check(
         &mut self,
         index: super::ir::value::ValueId,
-        length: Option<super::ir::value::ValueId>,
+        length: super::ir::value::ValueId,
     ) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
-        let array_len = self
-            .make_array_index(length.expect("ICE: a length must be supplied for indexing slices"));
+        let array_len = self.make_array_index(length);
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, Type::bool());
@@ -638,10 +622,10 @@ impl<'a> FunctionContext<'a> {
                     // can be converted to a slice push back
                     let len_plus_one = self.builder.insert_binary(arguments[0], BinaryOp::Add, one);
 
-                    self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
+                    self.codegen_slice_access_check(arguments[2], len_plus_one);
                 }
                 Intrinsic::SliceRemove => {
-                    self.codegen_slice_access_check(arguments[2], Some(arguments[0]));
+                    self.codegen_slice_access_check(arguments[2], arguments[0]);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
@@ -748,5 +732,24 @@ impl<'a> FunctionContext<'a> {
         let new_loop_index = self.make_offset(loop_.loop_index, 1);
         self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
         Self::unit_value()
+    }
+
+    // Given an indexable type (array or slice) that can either be a single value (an array) or two values (a slice),
+    // returns two values where the first one is the array or the slice, and the second one is the
+    // length.
+    fn extract_indexable_type_length(&mut self, array_or_slice: &[ValueId]) -> (ValueId, ValueId) {
+        // Slices are represented as a tuple in the form: (length, slice contents).
+        // Thus, slices require two value ids for their representation.
+        if array_or_slice.len() > 1 {
+            (array_or_slice[1], array_or_slice[0])
+        } else {
+            let array_type = &self.builder.type_of_value(array_or_slice[0]);
+            let Type::Array(_, length) = array_type else {
+                panic!("Expected array type when array is just a single value");
+            };
+
+            let length = self.builder.numeric_constant(*length, Type::unsigned(32));
+            (array_or_slice[0], length)
+        }
     }
 }
