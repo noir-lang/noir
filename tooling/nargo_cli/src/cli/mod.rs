@@ -49,11 +49,6 @@ pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
     #[arg(long, hide = true, global = true, default_value = "./")]
     pub program_dir: PathBuf,
-
-    /// Accept a single '.nr' file through STDIN instead of reading from the
-    /// root directory
-    #[clap(long, hide = true)]
-    pub debug_compile_stdin: bool,
 }
 
 #[non_exhaustive]
@@ -77,7 +72,7 @@ enum NargoCommand {
 }
 
 #[cfg(not(feature = "codegen-docs"))]
-pub(crate) fn start_cli() -> eyre::Result<()> {
+pub fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
@@ -93,11 +88,14 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     // Search through parent directories to find package root if necessary.
     if !matches!(
         command,
-        NargoCommand::New(_) | NargoCommand::Init(_) | NargoCommand::Lsp(_) | NargoCommand::Dap(_)
+        NargoCommand::New(_)
+            | NargoCommand::Init(_)
+            | NargoCommand::Lsp(_)
+            | NargoCommand::Dap(_)
+            | NargoCommand::Compile(_)
     ) {
-
-        // TODO: needs actual debug_compile_stdin
-        config.program_dir = find_package_root(&config.program_dir, config.debug_compile_stdin)?;
+        let no_debug_compile_stdin = false;
+        config.program_dir = find_package_root(&config.program_dir, no_debug_compile_stdin)?;
     }
 
     match command {
@@ -119,7 +117,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 }
 
 #[cfg(feature = "codegen-docs")]
-pub(crate) fn start_cli() -> eyre::Result<()> {
+pub fn start_cli() -> eyre::Result<()> {
     let markdown: String = clap_markdown::help_markdown::<NargoCli>();
     println!("{markdown}");
     Ok(())

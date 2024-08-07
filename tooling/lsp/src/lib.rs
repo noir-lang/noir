@@ -237,7 +237,8 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
 }
 
 pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
-    if let Some(toml_path) = find_file_manifest(file_path) {
+    let no_dummy_toml = false;
+    if let Some(toml_path) = find_file_manifest(file_path, no_dummy_toml) {
         return resolve_workspace_from_toml(
             &toml_path,
             PackageSelection::All,

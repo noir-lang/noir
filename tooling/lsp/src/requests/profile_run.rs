@@ -44,12 +44,10 @@ fn on_profile_run_request_inner(
 
     let crate_name = params.package;
 
-    let no_dummy_toml = false;
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         PackageSelection::DefaultOrAll,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-        no_dummy_toml,
     )
     .map_err(|err| {
         // If we found a manifest, but the workspace is invalid, we raise an error about it

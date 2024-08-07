@@ -15,8 +15,7 @@ use crate::{
 };
 
 // TODO: remove debug
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Workspace {
     pub root_dir: PathBuf,
     pub members: Vec<Package>,

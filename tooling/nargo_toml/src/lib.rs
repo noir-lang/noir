@@ -39,7 +39,7 @@ use git::clone_git_repo;
 /// will return the `Nargo.toml` file in `/workspace/package/Nargo.toml`
 pub fn find_file_manifest(current_path: &Path, use_dummy_toml: bool) -> Option<PathBuf> {
     for path in current_path.ancestors() {
-        if let Ok(toml_path) = get_package_manifest(path, use_dummy_toml) {
+        if let Ok(toml_path) = get_package_manifest_or_dummy_toml(path, use_dummy_toml) {
             return Some(toml_path);
         }
     }
@@ -49,7 +49,10 @@ pub fn find_file_manifest(current_path: &Path, use_dummy_toml: bool) -> Option<P
 /// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
 ///
 /// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
-pub fn find_package_root(current_path: &Path, use_dummy_toml: bool) -> Result<PathBuf, ManifestError> {
+pub fn find_package_root(
+    current_path: &Path,
+    use_dummy_toml: bool,
+) -> Result<PathBuf, ManifestError> {
     let root = path_root(current_path);
     let manifest_path = find_package_manifest(&root, current_path, use_dummy_toml)?;
 
@@ -84,7 +87,7 @@ pub fn find_package_manifest(
     if current_path.starts_with(root_path) {
         let mut found_toml_paths = Vec::new();
         for path in current_path.ancestors() {
-            if let Ok(toml_path) = get_package_manifest(path, use_dummy_toml) {
+            if let Ok(toml_path) = get_package_manifest_or_dummy_toml(path, use_dummy_toml) {
                 found_toml_paths.push(toml_path);
             }
             // While traversing, break once we process the root specified
@@ -106,7 +109,18 @@ pub fn find_package_manifest(
 /// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
 ///
 /// Returns a [ManifestError] if `current_path` does not contain a manifest file.
-pub fn get_package_manifest(current_path: &Path, use_dummy_toml: bool) -> Result<PathBuf, ManifestError> {
+pub fn get_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> {
+    let no_dummy_toml = false;
+    get_package_manifest_or_dummy_toml(current_path, no_dummy_toml)
+}
+
+/// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
+///
+/// Returns a [ManifestError] if `current_path` does not contain a manifest file.
+pub fn get_package_manifest_or_dummy_toml(
+    current_path: &Path,
+    use_dummy_toml: bool,
+) -> Result<PathBuf, ManifestError> {
     let toml_path = current_path.join("Nargo.toml");
     if use_dummy_toml || toml_path.exists() {
         Ok(toml_path)
@@ -144,7 +158,8 @@ impl PackageConfig {
                 toml: root_dir.join("Nargo.toml"),
                 name: name.into(),
             })?;
-            let resolved_dep = dep_config.resolve_to_dependency(root_dir, processed, use_dummy_toml)?;
+            let resolved_dep =
+                dep_config.resolve_to_dependency(root_dir, processed, use_dummy_toml)?;
 
             dependencies.insert(name, resolved_dep);
         }
@@ -354,7 +369,11 @@ fn toml_to_workspace(
     let mut resolved = Vec::new();
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
-            let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved, use_dummy_toml)?;
+            let member = package_config.resolve_to_package(
+                &nargo_toml.root_dir,
+                &mut resolved,
+                use_dummy_toml,
+            )?;
             match &package_selection {
                 PackageSelection::Selected(selected_name) if selected_name != &member.name => {
                     return Err(ManifestError::MissingSelectedPackage(member.name))
@@ -373,7 +392,8 @@ fn toml_to_workspace(
             for (index, member_path) in workspace_config.members.into_iter().enumerate() {
                 let package_root_dir = nargo_toml.root_dir.join(&member_path);
                 let package_toml_path = package_root_dir.join("Nargo.toml");
-                let member = resolve_package_from_toml(&package_toml_path, &mut resolved, use_dummy_toml)?;
+                let member =
+                    resolve_package_from_toml(&package_toml_path, &mut resolved, use_dummy_toml)?;
 
                 match &package_selection {
                     PackageSelection::Selected(selected_name) => {
@@ -434,10 +454,11 @@ fn read_toml(toml_path: &Path, use_dummy_toml: bool) -> Result<NargoToml, Manife
             compiler_version = ">=0.32.0"
             
             [dependencies]
-        "#.to_string()
+        "#
+        .to_string()
     } else {
         std::fs::read_to_string(&toml_path)
-        .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?
+            .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?
     };
 
     let root_dir = toml_path.parent().ok_or(ManifestError::MissingParent)?;
@@ -497,6 +518,21 @@ pub enum PackageSelection {
 
 /// Resolves a Nargo.toml file into a `Workspace` struct as defined by our `nargo` core.
 pub fn resolve_workspace_from_toml(
+    toml_path: &Path,
+    package_selection: PackageSelection,
+    current_compiler_version: Option<String>,
+) -> Result<Workspace, ManifestError> {
+    let no_dummy_toml = false;
+    resolve_workspace_from_toml_or_dummy(
+        toml_path,
+        package_selection,
+        current_compiler_version,
+        no_dummy_toml,
+    )
+}
+
+/// Resolves a Nargo.toml file into a `Workspace` struct as defined by our `nargo` core.
+pub fn resolve_workspace_from_toml_or_dummy(
     toml_path: &Path,
     package_selection: PackageSelection,
     current_compiler_version: Option<String>,

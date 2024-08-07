@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum FilesystemError {
+pub enum FilesystemError {
     #[error("Error: {} is not a valid path\nRun either `nargo compile` to generate missing build artifacts or `nargo prove` to construct a proof", .0.display())]
     PathNotValid(PathBuf),
 

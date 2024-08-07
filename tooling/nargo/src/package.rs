@@ -23,8 +23,7 @@ impl Display for PackageType {
 }
 
 // TODO: remove debug
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Dependency {
     Local { package: Package },
     Remote { package: Package },
@@ -45,8 +44,7 @@ impl Dependency {
 }
 
 // TODO: remove debug
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Package {
     pub version: Option<String>,
     // A semver string which specifies the compiler version required to compile this package

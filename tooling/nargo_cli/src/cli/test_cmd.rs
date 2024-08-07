@@ -56,8 +56,7 @@ pub(crate) struct TestCommand {
 }
 
 pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
-    let no_dummy_toml = false;
-    let toml_path = get_package_manifest(&config.program_dir, no_dummy_toml)?;
+    let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
@@ -65,7 +64,6 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-        no_dummy_toml,
     )?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);

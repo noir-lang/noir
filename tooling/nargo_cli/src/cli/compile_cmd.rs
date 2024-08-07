@@ -8,7 +8,9 @@ use nargo::ops::{collect_errors, compile_contract, compile_program, report_error
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{
+    get_package_manifest_or_dummy_toml, resolve_workspace_from_toml_or_dummy, PackageSelection,
+};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{file_manager_with_stdlib, DEFAULT_EXPRESSION_WIDTH};
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
@@ -20,6 +22,7 @@ use noirc_frontend::hir::ParsedFiles;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
 
+use crate::cli::find_package_root;
 use crate::errors::CliError;
 
 use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
@@ -45,9 +48,12 @@ pub struct CompileCommand {
     pub watch: bool,
 }
 
-
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let debug_compile_stdin = if config.debug_compile_stdin {
+    let debug_compile_stdin = args.compile_options.debug_compile_stdin;
+    let mut config = config;
+    config.program_dir = find_package_root(&config.program_dir, debug_compile_stdin)?;
+
+    let debug_compile_stdin = if debug_compile_stdin {
         let mut main_nr = String::new();
         let stdin = std::io::stdin();
         let mut stdin_handle = stdin.lock();
@@ -60,13 +66,18 @@ pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliEr
     run_debug_compile_stdin(args, config, debug_compile_stdin)
 }
 
-pub fn run_debug_compile_stdin(args: CompileCommand, config: NargoConfig, debug_compile_stdin: Option<String>) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir, debug_compile_stdin.is_some())?;
+pub fn run_debug_compile_stdin(
+    args: CompileCommand,
+    config: NargoConfig,
+    debug_compile_stdin: Option<String>,
+) -> Result<(), CliError> {
+    let toml_path =
+        get_package_manifest_or_dummy_toml(&config.program_dir, debug_compile_stdin.is_some())?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
 
-    let workspace = resolve_workspace_from_toml(
+    let workspace = resolve_workspace_from_toml_or_dummy(
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
@@ -96,8 +107,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     let mut screen = std::io::stdout();
     write!(screen, "{}", termion::cursor::Save).unwrap();
     screen.flush().unwrap();
-    let no_dummy_toml = false;
-    let _ = compile_workspace_full(workspace, compile_options, no_dummy_toml);
+    let _ = compile_workspace_full(workspace, compile_options);
     for res in rx {
         let debounced_events = res.map_err(|mut err| err.remove(0))?;
 
@@ -118,7 +128,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         if noir_files_modified {
             write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
             screen.flush().unwrap();
-            let _ = compile_workspace_full(workspace, compile_options, no_dummy_toml);
+            let _ = compile_workspace_full(workspace, compile_options);
         }
     }
 
@@ -130,15 +140,14 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
-    debug_compile_stdin: bool,
 ) -> Result<(), CliError> {
-    let mut workspace_file_manager = if debug_compile_stdin {
+    let mut workspace_file_manager = if compile_options.debug_compile_stdin {
         FileManager::new(&workspace.root_dir)
     } else {
         file_manager_with_stdlib(&workspace.root_dir)
     };
 
-    if debug_compile_stdin {
+    if compile_options.debug_compile_stdin {
         let mut main_nr = String::new();
         let stdin = std::io::stdin();
         let mut stdin_handle = stdin.lock();
@@ -150,7 +159,7 @@ pub(super) fn compile_workspace_full(
 
     let parsed_files = parse_all(&workspace_file_manager);
     let compiled_workspace =
-        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options, debug_compile_stdin);
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
 
     report_errors(
         compiled_workspace,
@@ -169,7 +178,6 @@ fn compile_workspace_full_helper(
     debug_compile_stdin: Option<String>,
 ) -> Result<(), CliError> {
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    let debug_compile_stdin_is_some = debug_compile_stdin.is_some();
     if let Some(main_nr) = debug_compile_stdin {
         workspace_file_manager.add_file_with_source(Path::new("/src/main.nr"), main_nr);
     } else {
@@ -178,7 +186,7 @@ fn compile_workspace_full_helper(
 
     let parsed_files = parse_all(&workspace_file_manager);
     let compiled_workspace =
-        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options, debug_compile_stdin_is_some);
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
 
     report_errors(
         compiled_workspace,
@@ -190,14 +198,11 @@ fn compile_workspace_full_helper(
     Ok(())
 }
 
-
-
 fn compile_workspace(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
     compile_options: &CompileOptions,
-    debug_compile_stdin: bool,
 ) -> CompilationResult<()> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
@@ -207,7 +212,7 @@ fn compile_workspace(
 
     // Compile all of the packages in parallel.
     let program_warnings_or_errors: CompilationResult<()> =
-        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options, debug_compile_stdin);
+        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options);
     let contract_warnings_or_errors: CompilationResult<()> = compiled_contracts(
         file_manager,
         parsed_files,
@@ -234,7 +239,6 @@ fn compile_programs(
     workspace: &Workspace,
     binary_packages: &[Package],
     compile_options: &CompileOptions,
-    debug_compile_stdin: bool,
 ) -> CompilationResult<()> {
     let load_cached_program = |package| {
         let program_artifact_path = workspace.package_build_path(package);
@@ -260,7 +264,7 @@ fn compile_programs(
                 get_target_width(package.expression_width, compile_options.expression_width);
             let program = nargo::ops::transform_program(program, target_width);
 
-            if !debug_compile_stdin {
+            if !compile_options.debug_compile_stdin {
                 save_program_to_file(
                     &program.clone().into(),
                     &package.name,

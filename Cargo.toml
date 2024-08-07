@@ -18,7 +18,6 @@ members = [
     "tooling/fuzzer",
     "tooling/nargo",
     "tooling/nargo_fmt",
-    "tooling/nargo_fuzz_target",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
     "tooling/noirc_artifacts",
