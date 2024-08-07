@@ -33,7 +33,7 @@ export abstract class L1Payload {
 
   /**
    * Encrypts an event payload for a given recipient and sender.
-   * Creates an incoming log the the recipient using the recipient's ivsk, and
+   * Creates an incoming log the recipient using the recipient's ivsk, and
    * an outgoing log for the sender using the sender's ovsk.
    *
    * @param ephSk - An ephemeral secret key used for the encryption

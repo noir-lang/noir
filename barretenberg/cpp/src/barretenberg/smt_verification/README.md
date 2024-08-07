@@ -119,7 +119,7 @@ To store it on the disk just do the following
     - ```smt_circuit::StandardCircuit circuit(CircuitSchema c_info, Solver* s, TermType type, str tag="", bool optimizations=true)```
     - ```smt_circuit::UltraCircuit circuit(CircuitSchema c_info, Solver* s, TermType type, str tag="", bool optimizations=true)```
 	
-	It will generate all the symbolic values of the circuit wires, add all the gate constrains, create a map `term_name->STerm` and the inverse of it. Where `term_name` is the the name you provided earlier.
+	It will generate all the symbolic values of the circuit wires, add all the gate constrains, create a map `term_name->STerm` and the inverse of it. Where `term_name` is the name you provided earlier.
 
     In case you want to create two similar circuits with the same `solver` and `schema`, then you should specify the `tag`(name) of a circuit. 
 
@@ -209,7 +209,7 @@ Another one is
 - `pair<StandardCircuit, StandardCircuit> StandardCircuit::unique_witness_ext(CircuitSchema circuit_info, Solver* s, TermType type, vector<str> equal_variables, vector<str> nequal_variables, vector<str> at_least_one_equal_variable, vector<str> at_least_one_nequal_variable)` that does the same but provides you with more flexible settings.
 - Same in `UltraCircuit`
 
-The return circuits can be useful, if you want to define some additional constraints, that are not covered by the the above functions.
+The return circuits can be useful, if you want to define some additional constraints, that are not covered by the above functions.
 You can call `s.check`, `s.model`, `smt_timer` or `default_model` further.
 
 ## 5. smt_util.hpp

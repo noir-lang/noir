@@ -45,7 +45,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   private l2BlockBodies: Map<string, Body> = new Map();
 
   /**
-   * An array containing all the the tx effects in the L2 blocks that have been fetched so far.
+   * An array containing all the tx effects in the L2 blocks that have been fetched so far.
    */
   private txEffects: TxEffect[] = [];
 

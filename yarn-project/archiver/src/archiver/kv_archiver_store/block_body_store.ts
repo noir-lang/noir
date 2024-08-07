@@ -43,7 +43,7 @@ export class BlockBodyStore {
 
   /**
    * Gets an L2 block body.
-   * @param txsEffectsHash - The txHash of the the block body to return
+   * @param txsEffectsHash - The txHash of the block body to return
    * @returns The requested L2 block body
    */
   getBlockBody(txsEffectsHash: Buffer): Body | undefined {

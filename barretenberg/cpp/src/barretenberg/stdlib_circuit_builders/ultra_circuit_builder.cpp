@@ -457,7 +457,7 @@ void UltraCircuitBuilder_<Arithmetization>::create_poly_gate(const poly_triple_<
  *
  * @details x and y are defined over scalar field.
  *
- * @param in Elliptic curve point addition gate parameters, including the the affine coordinates of the two points being
+ * @param in Elliptic curve point addition gate parameters, including the affine coordinates of the two points being
  * added, the resulting point coordinates and the selector values that describe whether the second point is negated.
  */
 template <typename Arithmetization>

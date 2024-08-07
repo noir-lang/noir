@@ -257,7 +257,7 @@ TEST(stdlib_plookup, blake2s_xor_rotate_16)
     }
 
     /*
-     * The following out coefficients are the the ones multiplied for computing the cumulative intermediate terms
+     * The following out coefficients are the ones multiplied for computing the cumulative intermediate terms
      * in the expected output. If the column_3_coefficients for this table are (a0, a1, ..., a5), then the
      * out_coefficients must be (a5/a4, a4/a3, a3/a2, a2/a1, a1/a0). Note that these are stored in reverse orde
      * for simplicity.

@@ -77,7 +77,7 @@ template <typename BuilderType> class ECCVMRecursiveFlavor_ {
 
     using VerifierCommitmentKey = bb::VerifierCommitmentKey<Curve>;
     /**
-     * @brief The verification key is responsible for storing the the commitments to the precomputed (non-witness)
+     * @brief The verification key is responsible for storing the commitments to the precomputed (non-witness)
      * polynomials used by the verifier.
      *
      * @note Note the discrepancy with what sort of data is stored here vs in the proving key. We may want to

@@ -38,7 +38,7 @@ bool_t<Builder> ecdsa_verify_signature(const stdlib::byte_array<Builder>& messag
      * It is used to recover signing public key from an ecdsa signature. In practice, the value
      * of v is offset by 27 following the convention from the original bitcoin whitepaper.
      *
-     * The value of v depends on the the point R = (x, y) s.t. r = x % |Fr|
+     * The value of v depends on the point R = (x, y) s.t. r = x % |Fr|
      * 0: y is even  &&  x < |Fr| (x = r)
      * 1: y is odd   &&  x < |Fr| (x = r)
      * 2: y is even  &&  |Fr| <= x < |Fq| (x = r + |Fr|)

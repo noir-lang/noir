@@ -2760,7 +2760,7 @@ void AvmTraceBuilder::op_call(uint8_t indirect,
                           { hint.success });
     external_call_counter++;
     pc++;
-    // Adjust the side_effect_counter to the the value at the end of the external call.
+    // Adjust the side_effect_counter to the value at the end of the external call.
     side_effect_counter = static_cast<uint32_t>(hint.end_side_effect_counter);
 }
 

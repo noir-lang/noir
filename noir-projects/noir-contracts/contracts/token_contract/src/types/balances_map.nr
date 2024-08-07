@@ -118,7 +118,7 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
                 let note = notes.get_unchecked(i);
 
                 // Removes the note from the owner's set of notes.
-                // This will call the the `compute_nullifer` function of the `token_note`
+                // This will call the `compute_nullifer` function of the `token_note`
                 // which require knowledge of the secret key (currently the users encryption key).
                 // The contract logic must ensure that the spending key is used as well.
                 // docs:start:remove

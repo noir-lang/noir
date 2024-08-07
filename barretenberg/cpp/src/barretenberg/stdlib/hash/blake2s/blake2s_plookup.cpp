@@ -40,7 +40,7 @@ enum blake2s_constant {
  * h: A 64-byte chain value denoted decomposed as (h_0, h_1, ..., h_7), each h_i is a 32-bit number.
  *    It form the first two rows on the internal state matrix v of the compression function G.
  *
- * t: It is a counter (t_0 lsb and t_1 msb) used in the the initialization of the internal state v.
+ * t: It is a counter (t_0 lsb and t_1 msb) used in the initialization of the internal state v.
  *
  * f: f_0 and f_1 are finalization flags used in the initialization of the internal state v.
  *           /  0xfff...ff   if the block processed is the last

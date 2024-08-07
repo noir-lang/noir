@@ -1705,7 +1705,7 @@ template <typename Builder> class stdlib_uint : public testing::Test {
     }
 
     /**
-     * @brief Test the the function uint_ct::at used to extract bits.
+     * @brief Test the function uint_ct::at used to extract bits.
      */
     static void test_at()
     {

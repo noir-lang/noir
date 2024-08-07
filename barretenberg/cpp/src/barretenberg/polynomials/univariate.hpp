@@ -459,7 +459,7 @@ template <class Fr, size_t domain_end, size_t domain_start = 0, size_t skip_coun
                     term *= Data::precomputed_denominator_inverses[LENGTH * k + j];
                     result.value_at(k) += term;
                 }
-                // scale the sum by the the value of of B(x)
+                // scale the sum by the value of of B(x)
                 result.value_at(k) *= Data::full_numerator_values[k];
             }
         }
@@ -497,7 +497,7 @@ template <class Fr, size_t domain_end, size_t domain_start = 0, size_t skip_coun
             term *= denominator_inverses[i - domain_start];
             result += term;
         }
-        // scale the sum by the the value of of B(x)
+        // scale the sum by the value of of B(x)
         result *= full_numerator_value;
         return result;
     };

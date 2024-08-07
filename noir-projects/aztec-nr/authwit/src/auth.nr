@@ -258,7 +258,7 @@ pub fn assert_current_call_valid_authwit_public(context: &mut PublicContext, on_
  * Note that the authentication registry will take the `msg_sender` into account as the consumer, so this will only
  * work if the `msg_sender` is the same as the `consumer` when the `message_hash` was inserted into the registry.
  * 
- * @param on_behalf_of The address that have authorized the the `inner_hash`
+ * @param on_behalf_of The address that have authorized the `inner_hash`
  */
 pub fn assert_inner_hash_valid_authwit_public(context: &mut PublicContext, on_behalf_of: AztecAddress, inner_hash: Field) {
     let result: Field = context.call_public_function(
@@ -316,7 +316,7 @@ pub fn compute_inner_authwit_hash<let N: u32>(args: [Field; N]) -> Field {
  * 
  * Using the `on_behalf_of` and the `inner_hash` to ensure that the nullifier is siloed for a specific `on_behalf_of`.
  * 
- * @param on_behalf_of The address that have authorized the the `inner_hash`
+ * @param on_behalf_of The address that have authorized the `inner_hash`
  * @param inner_hash The hash of the message to authorize
  */
 pub fn compute_authwit_nullifier(on_behalf_of: AztecAddress, inner_hash: Field) -> Field {

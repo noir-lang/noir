@@ -101,7 +101,7 @@ export class KeyStore {
    * Gets the key validation request for a given master public key hash and contract address.
    * @throws If the account corresponding to the master public key hash does not exist in the key store.
    * @param pkMHash - The master public key hash.
-   * @param contractAddress - The contract address to silo the secret key in the the key validation request with.
+   * @param contractAddress - The contract address to silo the secret key in the key validation request with.
    * @returns The key validation request.
    */
   public getKeyValidationRequest(pkMHash: Fr, contractAddress: AztecAddress): Promise<KeyValidationRequest> {
