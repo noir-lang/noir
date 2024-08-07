@@ -1,9 +1,7 @@
 import { type BBProverConfig } from '@aztec/bb-prover';
 import {
   type BlockProver,
-  type BlockResult,
   type ProcessedTx,
-  type ProvingTicket,
   type PublicExecutionRequest,
   type ServerCircuitProver,
   type Tx,
@@ -36,30 +34,7 @@ import { MemoryProvingQueue } from '../prover-agent/memory-proving-queue.js';
 import { ProverAgent } from '../prover-agent/prover-agent.js';
 import { getEnvironmentConfig, getSimulationProvider, makeGlobals } from './fixtures.js';
 
-class DummyProverClient implements BlockProver {
-  constructor(private orchestrator: ProvingOrchestrator) {}
-  startNewBlock(numTxs: number, globalVariables: GlobalVariables, l1ToL2Messages: Fr[]): Promise<ProvingTicket> {
-    return this.orchestrator.startNewBlock(numTxs, globalVariables, l1ToL2Messages);
-  }
-  addNewTx(tx: ProcessedTx): Promise<void> {
-    return this.orchestrator.addNewTx(tx);
-  }
-  cancelBlock(): void {
-    return this.orchestrator.cancelBlock();
-  }
-  finaliseBlock(): Promise<BlockResult> {
-    return this.orchestrator.finaliseBlock();
-  }
-  setBlockCompleted(): Promise<void> {
-    return this.orchestrator.setBlockCompleted();
-  }
-  getProverId(): Fr {
-    return this.orchestrator.proverId;
-  }
-}
-
 export class TestContext {
-  public blockProver: BlockProver;
   constructor(
     public publicExecutor: MockProxy<PublicExecutor>,
     public publicContractsDB: MockProxy<ContractsDataSourcePublicDB>,
@@ -74,8 +49,10 @@ export class TestContext {
     public blockNumber: number,
     public directoriesToCleanup: string[],
     public logger: DebugLogger,
-  ) {
-    this.blockProver = new DummyProverClient(this.orchestrator);
+  ) {}
+
+  public get blockProver() {
+    return this.orchestrator;
   }
 
   static async new(

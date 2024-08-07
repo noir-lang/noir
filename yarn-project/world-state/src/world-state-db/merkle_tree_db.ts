@@ -1,8 +1,7 @@
 import { type MerkleTreeId } from '@aztec/circuit-types';
+import { type MerkleTreeOperations } from '@aztec/circuit-types/interfaces';
 import { type Fr, MAX_NULLIFIERS_PER_TX, MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX } from '@aztec/circuits.js';
 import { type IndexedTreeSnapshot, type TreeSnapshot } from '@aztec/merkle-tree';
-
-import { type MerkleTreeOperations } from './merkle_tree_operations.js';
 
 /**
  *
@@ -62,4 +61,9 @@ export type MerkleTreeDb = {
      * @param block - The block number to take the snapshot at.
      */
     getSnapshot(block: number): Promise<TreeSnapshots>;
+
+    /**
+     * Forks the database at its current state.
+     */
+    fork(): Promise<MerkleTreeDb>;
   };

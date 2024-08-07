@@ -1,4 +1,4 @@
-import { type SiblingPath } from '@aztec/circuit-types';
+import { type BatchInsertionResult } from '@aztec/circuit-types';
 import { type IndexedTreeLeaf, type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
 
 import {
@@ -34,46 +34,6 @@ export interface PreimageFactory {
    * @param preimage - Preimage to be cloned.
    */
   clone(preimage: IndexedTreeLeafPreimage): IndexedTreeLeafPreimage;
-}
-
-/**
- * All of the data to be return during batch insertion.
- */
-export interface LowLeafWitnessData<N extends number> {
-  /**
-   * Preimage of the low nullifier that proves non membership.
-   */
-  leafPreimage: IndexedTreeLeafPreimage;
-  /**
-   * Sibling path to prove membership of low nullifier.
-   */
-  siblingPath: SiblingPath<N>;
-  /**
-   * The index of low nullifier.
-   */
-  index: bigint;
-}
-
-/**
- * The result of a batch insertion in an indexed merkle tree.
- */
-export interface BatchInsertionResult<TreeHeight extends number, SubtreeSiblingPathHeight extends number> {
-  /**
-   * Data for the leaves to be updated when inserting the new ones.
-   */
-  lowLeavesWitnessData?: LowLeafWitnessData<TreeHeight>[];
-  /**
-   * Sibling path "pointing to" where the new subtree should be inserted into the tree.
-   */
-  newSubtreeSiblingPath: SiblingPath<SubtreeSiblingPathHeight>;
-  /**
-   * The new leaves being inserted in high to low order. This order corresponds with the order of the low leaves witness.
-   */
-  sortedNewLeaves: Buffer[];
-  /**
-   * The indexes of the sorted new leaves to the original ones.
-   */
-  sortedNewLeavesIndexes: number[];
 }
 
 /**

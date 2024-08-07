@@ -1,4 +1,4 @@
-import { MerkleTreeId } from '@aztec/circuit-types';
+import { type IndexedTreeId, MerkleTreeId } from '@aztec/circuit-types';
 import {
   type Fr,
   type MAX_NULLIFIERS_PER_TX,
@@ -23,7 +23,7 @@ import {
   buildSiloedNullifierReadRequestHints,
 } from '@aztec/circuits.js';
 import { type Tuple } from '@aztec/foundation/serialize';
-import { type IndexedTreeId, type MerkleTreeOperations } from '@aztec/world-state';
+import { type MerkleTreeOperations } from '@aztec/world-state';
 
 export class HintsBuilder {
   constructor(private db: MerkleTreeOperations) {}

@@ -60,24 +60,24 @@ export class PublicProcessorFactory {
    * Creates a new instance of a PublicProcessor.
    * @param historicalHeader - The header of a block previous to the one in which the tx is included.
    * @param globalVariables - The global variables for the block being processed.
-   * @param newContracts - Provides access to contract bytecode for public executions.
    * @returns A new instance of a PublicProcessor.
    */
-  public create(historicalHeader: Header | undefined, globalVariables: GlobalVariables): PublicProcessor {
-    historicalHeader = historicalHeader ?? this.merkleTree.getInitialHeader();
-
+  public create(maybeHistoricalHeader: Header | undefined, globalVariables: GlobalVariables): PublicProcessor {
+    const { merkleTree, telemetryClient } = this;
+    const historicalHeader = maybeHistoricalHeader ?? merkleTree.getInitialHeader();
     const publicContractsDB = new ContractsDataSourcePublicDB(this.contractDataSource);
-    const worldStatePublicDB = new WorldStatePublicDB(this.merkleTree);
-    const worldStateDB = new WorldStateDB(this.merkleTree);
+
+    const worldStatePublicDB = new WorldStatePublicDB(merkleTree);
+    const worldStateDB = new WorldStateDB(merkleTree);
     const publicExecutor = new PublicExecutor(
       worldStatePublicDB,
       publicContractsDB,
       worldStateDB,
       historicalHeader,
-      this.telemetryClient,
+      telemetryClient,
     );
     return new PublicProcessor(
-      this.merkleTree,
+      merkleTree,
       publicExecutor,
       new RealPublicKernelCircuitSimulator(this.simulator),
       globalVariables,

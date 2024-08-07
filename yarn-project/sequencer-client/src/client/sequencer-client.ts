@@ -1,5 +1,5 @@
 import { type L1ToL2MessageSource, type L2BlockSource } from '@aztec/circuit-types';
-import { type BlockProver } from '@aztec/circuit-types/interfaces';
+import { type ProverClient } from '@aztec/circuit-types/interfaces';
 import { type P2P } from '@aztec/p2p';
 import { PublicProcessorFactory, type SimulationProvider } from '@aztec/simulator';
 import { type TelemetryClient } from '@aztec/telemetry-client';
@@ -37,7 +37,7 @@ export class SequencerClient {
     contractDataSource: ContractDataSource,
     l2BlockSource: L2BlockSource,
     l1ToL2MessageSource: L1ToL2MessageSource,
-    prover: BlockProver,
+    prover: ProverClient,
     simulationProvider: SimulationProvider,
     telemetryClient: TelemetryClient,
   ) {

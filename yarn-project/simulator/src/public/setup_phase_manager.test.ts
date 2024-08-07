@@ -1,7 +1,7 @@
-import { mockTx } from '@aztec/circuit-types';
+import { type TreeInfo, mockTx } from '@aztec/circuit-types';
 import { GlobalVariables, Header } from '@aztec/circuits.js';
 import { type PublicExecutor } from '@aztec/simulator';
-import { type MerkleTreeOperations, type TreeInfo } from '@aztec/world-state';
+import { type MerkleTreeOperations } from '@aztec/world-state';
 
 import { it } from '@jest/globals';
 import { type MockProxy, mock } from 'jest-mock-extended';

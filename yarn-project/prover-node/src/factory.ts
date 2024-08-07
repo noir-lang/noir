@@ -4,7 +4,7 @@ import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { createStore } from '@aztec/kv-store/utils';
 import { createProverClient } from '@aztec/prover-client';
 import { getL1Publisher } from '@aztec/sequencer-client';
-import { PublicProcessorFactory, createSimulationProvider } from '@aztec/simulator';
+import { createSimulationProvider } from '@aztec/simulator';
 import { type TelemetryClient } from '@aztec/telemetry-client';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { createWorldStateSynchronizer } from '@aztec/world-state';
@@ -40,17 +40,24 @@ export async function createProverNode(
 
   const simulationProvider = await createSimulationProvider(config, log);
 
-  const prover = await createProverClient(config, worldStateSynchronizer, archiver);
+  const prover = await createProverClient(config, telemetry);
 
   // REFACTOR: Move publisher out of sequencer package and into an L1-related package
   const publisher = getL1Publisher(config, telemetry);
-
-  const latestWorldState = worldStateSynchronizer.getLatest();
-  const publicProcessorFactory = new PublicProcessorFactory(latestWorldState, archiver, simulationProvider, telemetry);
 
   const txProvider = deps.aztecNodeTxProvider
     ? new AztecNodeTxProvider(deps.aztecNodeTxProvider)
     : createTxProvider(config);
 
-  return new ProverNode(prover!, publicProcessorFactory, publisher, archiver, archiver, txProvider);
+  return new ProverNode(
+    prover!,
+    publisher,
+    archiver,
+    archiver,
+    archiver,
+    worldStateSynchronizer,
+    txProvider,
+    simulationProvider,
+    telemetry,
+  );
 }

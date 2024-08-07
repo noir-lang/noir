@@ -15,7 +15,7 @@ import {
   sleep,
 } from '@aztec/aztec.js';
 import { StatefulTestContract, TestContract } from '@aztec/noir-contracts.js';
-import { type ProverNode, createProverNode } from '@aztec/prover-node';
+import { createProverNode } from '@aztec/prover-node';
 import { type SequencerClientConfig } from '@aztec/sequencer-client';
 
 import { sendL1ToL2Message } from './fixtures/l1_to_l2_messaging.js';
@@ -107,20 +107,12 @@ describe('e2e_prover_node', () => {
     ctx = await snapshotManager.setup();
   });
 
-  const prove = async (proverNode: ProverNode, blockNumber: number) => {
-    logger.info(`Proving block ${blockNumber}`);
-    await proverNode.prove(blockNumber, blockNumber);
-
-    logger.info(`Proof submitted. Awaiting aztec node to sync...`);
-    await retryUntil(async () => (await ctx.aztecNode.getProvenBlockNumber()) === blockNumber, 'block-1', 10, 1);
-    expect(await ctx.aztecNode.getProvenBlockNumber()).toEqual(blockNumber);
-  };
-
   it('submits three blocks, then prover proves the first two', async () => {
     // Check everything went well during setup and txs were mined in two different blocks
     const [txReceipt1, txReceipt2, txReceipt3] = txReceipts;
     const firstBlock = txReceipt1.blockNumber!;
-    expect(txReceipt2.blockNumber).toEqual(firstBlock + 1);
+    const secondBlock = firstBlock + 1;
+    expect(txReceipt2.blockNumber).toEqual(secondBlock);
     expect(txReceipt3.blockNumber).toEqual(firstBlock + 2);
     expect(await contract.methods.get_public_value(recipient).simulate()).toEqual(20n);
     expect(await contract.methods.summed_values(recipient).simulate()).toEqual(10n);
@@ -141,9 +133,18 @@ describe('e2e_prover_node', () => {
     const archiver = ctx.aztecNode.getBlockSource() as Archiver;
     const proverNode = await createProverNode(proverConfig, { aztecNodeTxProvider: ctx.aztecNode, archiver });
 
-    // Prove the first two blocks
-    await prove(proverNode, firstBlock);
-    await prove(proverNode, firstBlock + 1);
+    // Prove the first two blocks simultaneously
+    logger.info(`Starting proof for first block #${firstBlock}`);
+    await proverNode.startProof(firstBlock, firstBlock);
+    logger.info(`Starting proof for second block #${secondBlock}`);
+    await proverNode.startProof(secondBlock, secondBlock);
+
+    // Confirm that we cannot go back to prove an old one
+    await expect(proverNode.startProof(firstBlock, firstBlock)).rejects.toThrow(/behind the current world state/i);
+
+    // Await until proofs get submitted
+    await retryUntil(async () => (await ctx.aztecNode.getProvenBlockNumber()) === secondBlock, 'proven', 10, 1);
+    expect(await ctx.aztecNode.getProvenBlockNumber()).toEqual(secondBlock);
 
     // Check that the prover id made it to the emitted event
     const { publicClient, l1ContractAddresses } = ctx.deployL1ContractsValues;

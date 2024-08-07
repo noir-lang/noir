@@ -4,6 +4,7 @@ import {
   PublicDataWrite,
   PublicKernelType,
   SimulationError,
+  type TreeInfo,
   type TxValidator,
   mockTx,
   toTxEffect,
@@ -43,7 +44,7 @@ import {
   computeFeePayerBalanceLeafSlot,
 } from '@aztec/simulator';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
-import { type MerkleTreeOperations, type TreeInfo } from '@aztec/world-state';
+import { type MerkleTreeOperations } from '@aztec/world-state';
 
 import { jest } from '@jest/globals';
 import { type MockProxy, mock } from 'jest-mock-extended';

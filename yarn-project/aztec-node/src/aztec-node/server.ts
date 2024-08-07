@@ -169,7 +169,7 @@ export class AztecNodeService implements AztecNode {
 
     const simulationProvider = await createSimulationProvider(config, log);
 
-    const prover = await createProverClient(config, worldStateSynchronizer, archiver, telemetry);
+    const prover = await createProverClient(config, telemetry);
 
     if (!prover && !config.disableSequencer) {
       throw new Error("Can't start a sequencer without a prover");
@@ -742,6 +742,7 @@ export class AztecNodeService implements AztecNode {
       this.telemetry,
     );
     const processor = publicProcessorFactory.create(prevHeader, newGlobalVariables);
+
     // REFACTOR: Consider merging ProcessReturnValues into ProcessedTx
     const [processedTxs, failedTxs, returns] = await processor.process([tx]);
     // REFACTOR: Consider returning the error/revert rather than throwing

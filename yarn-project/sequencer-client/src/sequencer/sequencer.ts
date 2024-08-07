@@ -9,8 +9,8 @@ import {
 import {
   type AllowedElement,
   BlockProofError,
-  type BlockProver,
   PROVING_STATUS,
+  type ProverClient,
 } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
 import { AztecAddress, EthAddress, type GlobalVariables, type Header } from '@aztec/circuits.js';
@@ -61,7 +61,7 @@ export class Sequencer {
     private globalsBuilder: GlobalVariableBuilder,
     private p2pClient: P2P,
     private worldState: WorldStateSynchronizer,
-    private prover: BlockProver,
+    private prover: ProverClient,
     private l2BlockSource: L2BlockSource,
     private l1ToL2MessageSource: L1ToL2MessageSource,
     private publicProcessorFactory: PublicProcessorFactory,
@@ -264,8 +264,6 @@ export class Sequencer {
         await this.p2pClient.deleteTxs(txHashes);
       }
       this.log.error(`Rolling back world state DB due to error assembling block`, (err as any).stack);
-      // Cancel any further proving on the block
-      this.prover?.cancelBlock();
       await this.worldState.getLatest().rollback();
     }
   }
@@ -315,10 +313,11 @@ export class Sequencer {
     const blockSize = Math.max(2, numRealTxs);
 
     const blockBuildingTimer = new Timer();
-    const blockTicket = await this.prover.startNewBlock(blockSize, newGlobalVariables, l1ToL2Messages);
+    const prover = this.prover.createBlockProver(this.worldState.getLatest());
+    const blockTicket = await prover.startNewBlock(blockSize, newGlobalVariables, l1ToL2Messages);
 
     const [publicProcessorDuration, [processedTxs, failedTxs]] = await elapsed(() =>
-      processor.process(validTxs, blockSize, this.prover, this.txValidatorFactory.validatorForProcessedTxs()),
+      processor.process(validTxs, blockSize, prover, this.txValidatorFactory.validatorForProcessedTxs()),
     );
     if (failedTxs.length > 0) {
       const failedTxData = failedTxs.map(fail => fail.tx);
@@ -332,14 +331,14 @@ export class Sequencer {
     // we should bail.
     if (processedTxs.length === 0 && !this.skipMinTxsPerBlockCheck(elapsedSinceLastBlock)) {
       this.log.verbose('No txs processed correctly to build block. Exiting');
-      this.prover.cancelBlock();
+      prover.cancelBlock();
       return;
     }
 
     await assertBlockHeight();
 
     // All real transactions have been added, set the block as full and complete the proving.
-    await this.prover.setBlockCompleted();
+    await prover.setBlockCompleted();
 
     // Here we are now waiting for the block to be proven.
     // TODO(@PhilWindle) We should probably periodically check for things like another
@@ -352,7 +351,7 @@ export class Sequencer {
     await assertBlockHeight();
 
     // Block is proven, now finalise and publish!
-    const { block, aggregationObject, proof } = await this.prover.finaliseBlock();
+    const { block, aggregationObject, proof } = await prover.finaliseBlock();
 
     await assertBlockHeight();
 
@@ -381,7 +380,7 @@ export class Sequencer {
       await this.publisher.submitProof(
         block.header,
         block.archive.root,
-        this.prover.getProverId(),
+        prover.getProverId(),
         aggregationObject,
         proof,
       );

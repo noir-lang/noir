@@ -58,4 +58,9 @@ export interface AztecKVStore {
    * Clears the store
    */
   clear(): Promise<void>;
+
+  /**
+   * Forks the store.
+   */
+  fork(): Promise<AztecKVStore>;
 }

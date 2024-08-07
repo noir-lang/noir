@@ -1,13 +1,55 @@
-import { type L2Block, type MerkleTreeId, type SiblingPath } from '@aztec/circuit-types';
 import { type Fr, type Header, type NullifierLeafPreimage, type StateReference } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type IndexedTreeLeafPreimage } from '@aztec/foundation/trees';
-import { type AppendOnlyTree, type BatchInsertionResult, type IndexedTree } from '@aztec/merkle-tree';
+
+import { type L2Block } from '../l2_block.js';
+import { type MerkleTreeId } from '../merkle_tree_id.js';
+import { type SiblingPath } from '../sibling_path/sibling_path.js';
 
 /**
  * Type alias for the nullifier tree ID.
  */
 export type IndexedTreeId = MerkleTreeId.NULLIFIER_TREE | MerkleTreeId.PUBLIC_DATA_TREE;
+
+/**
+ * All of the data to be return during batch insertion.
+ */
+export interface LowLeafWitnessData<N extends number> {
+  /**
+   * Preimage of the low nullifier that proves non membership.
+   */
+  leafPreimage: IndexedTreeLeafPreimage;
+  /**
+   * Sibling path to prove membership of low nullifier.
+   */
+  siblingPath: SiblingPath<N>;
+  /**
+   * The index of low nullifier.
+   */
+  index: bigint;
+}
+
+/**
+ * The result of a batch insertion in an indexed merkle tree.
+ */
+export interface BatchInsertionResult<TreeHeight extends number, SubtreeSiblingPathHeight extends number> {
+  /**
+   * Data for the leaves to be updated when inserting the new ones.
+   */
+  lowLeavesWitnessData?: LowLeafWitnessData<TreeHeight>[];
+  /**
+   * Sibling path "pointing to" where the new subtree should be inserted into the tree.
+   */
+  newSubtreeSiblingPath: SiblingPath<SubtreeSiblingPathHeight>;
+  /**
+   * The new leaves being inserted in high to low order. This order corresponds with the order of the low leaves witness.
+   */
+  sortedNewLeaves: Buffer[];
+  /**
+   * The indexes of the sorted new leaves to the original ones.
+   */
+  sortedNewLeavesIndexes: number[];
+}
 
 /**
  *  Defines tree information.
@@ -31,14 +73,6 @@ export interface TreeInfo {
    */
   depth: number;
 }
-
-export type MerkleTreeMap = {
-  [MerkleTreeId.NULLIFIER_TREE]: IndexedTree;
-  [MerkleTreeId.NOTE_HASH_TREE]: AppendOnlyTree<Fr>;
-  [MerkleTreeId.PUBLIC_DATA_TREE]: IndexedTree;
-  [MerkleTreeId.L1_TO_L2_MESSAGE_TREE]: AppendOnlyTree<Fr>;
-  [MerkleTreeId.ARCHIVE]: AppendOnlyTree<Fr>;
-};
 
 type LeafTypes = {
   [MerkleTreeId.NULLIFIER_TREE]: Buffer;

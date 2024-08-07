@@ -1,16 +1,14 @@
 import { BBNativeRollupProver, TestCircuitProver } from '@aztec/bb-prover';
-import { type L2BlockSource, type ProcessedTx } from '@aztec/circuit-types';
 import {
-  type BlockResult,
+  type BlockProver,
   type ProverClient,
   type ProvingJobSource,
-  type ProvingTicket,
   type ServerCircuitProver,
 } from '@aztec/circuit-types/interfaces';
-import { Fr, type GlobalVariables } from '@aztec/circuits.js';
+import { Fr } from '@aztec/circuits.js';
 import { NativeACVMSimulator } from '@aztec/simulator';
 import { type TelemetryClient } from '@aztec/telemetry-client';
-import { type WorldStateSynchronizer } from '@aztec/world-state';
+import { type MerkleTreeOperations } from '@aztec/world-state';
 
 import { type ProverClientConfig } from '../config.js';
 import { ProvingOrchestrator } from '../orchestrator/orchestrator.js';
@@ -18,26 +16,25 @@ import { MemoryProvingQueue } from '../prover-agent/memory-proving-queue.js';
 import { ProverAgent } from '../prover-agent/prover-agent.js';
 
 /**
- * A prover accepting individual transaction requests
+ * A prover factory.
+ * TODO(palla/prover-node): Rename this class
  */
 export class TxProver implements ProverClient {
-  private orchestrator: ProvingOrchestrator;
   private queue: MemoryProvingQueue;
   private running = false;
 
   private constructor(
     private config: ProverClientConfig,
-    private worldStateSynchronizer: WorldStateSynchronizer,
     private telemetry: TelemetryClient,
     private agent?: ProverAgent,
   ) {
+    // TODO(palla/prover-node): Cache the paddingTx here, and not in each proving orchestrator,
+    // so it can be reused across multiple ones and not recomputed every time.
     this.queue = new MemoryProvingQueue(telemetry, config.proverJobTimeoutMs, config.proverJobPollIntervalMs);
-    this.orchestrator = new ProvingOrchestrator(
-      worldStateSynchronizer.getLatest(),
-      this.queue,
-      telemetry,
-      config.proverId,
-    );
+  }
+
+  public createBlockProver(db: MerkleTreeOperations): BlockProver {
+    return new ProvingOrchestrator(db, this.queue, this.telemetry, this.config.proverId);
   }
 
   public getProverId(): Fr {
@@ -57,7 +54,7 @@ export class TxProver implements ProverClient {
     }
 
     if (!this.config.realProofs && newConfig.realProofs) {
-      this.orchestrator.reset();
+      // TODO(palla/prover-node): Reset padding tx here once we cache it at this class
     }
 
     this.config = newConfig;
@@ -85,6 +82,8 @@ export class TxProver implements ProverClient {
       return;
     }
     this.running = false;
+
+    // TODO(palla/prover-node): Keep a reference to all proving orchestrators that are alive and stop them?
     await this.agent?.stop();
     await this.queue.stop();
   }
@@ -96,12 +95,7 @@ export class TxProver implements ProverClient {
    * @param worldStateSynchronizer - An instance of the world state
    * @returns An instance of the prover, constructed and started.
    */
-  public static async new(
-    config: ProverClientConfig,
-    worldStateSynchronizer: WorldStateSynchronizer,
-    blockSource: L2BlockSource,
-    telemetry: TelemetryClient,
-  ) {
+  public static async new(config: ProverClientConfig, telemetry: TelemetryClient) {
     const agent = config.proverAgentEnabled
       ? new ProverAgent(
           await TxProver.buildCircuitProver(config, telemetry),
@@ -110,7 +104,7 @@ export class TxProver implements ProverClient {
         )
       : undefined;
 
-    const prover = new TxProver(config, worldStateSynchronizer, telemetry, agent);
+    const prover = new TxProver(config, telemetry, agent);
     await prover.start();
     return prover;
   }
@@ -128,52 +122,6 @@ export class TxProver implements ProverClient {
       : undefined;
 
     return new TestCircuitProver(telemetry, simulationProvider);
-  }
-
-  /**
-   * Cancels any block that is currently being built and prepares for a new one to be built
-   * @param numTxs - The complete size of the block, must be a power of 2
-   * @param globalVariables - The global variables for this block
-   * @param l1ToL2Messages - The set of L1 to L2 messages to be included in this block
-   */
-  public async startNewBlock(
-    numTxs: number,
-    globalVariables: GlobalVariables,
-    newL1ToL2Messages: Fr[],
-  ): Promise<ProvingTicket> {
-    const previousBlockNumber = globalVariables.blockNumber.toNumber() - 1;
-    await this.worldStateSynchronizer.syncImmediate(previousBlockNumber);
-    return this.orchestrator.startNewBlock(numTxs, globalVariables, newL1ToL2Messages);
-  }
-
-  /**
-   * Add a processed transaction to the current block
-   * @param tx - The transaction to be added
-   */
-  public addNewTx(tx: ProcessedTx): Promise<void> {
-    return this.orchestrator.addNewTx(tx);
-  }
-
-  /**
-   * Cancels the block currently being proven. Proofs already bring built may continue but further proofs should not be started.
-   */
-  public cancelBlock(): void {
-    this.orchestrator.cancelBlock();
-  }
-
-  /**
-   * Performs the final archive tree insertion for this block and returns the L2Block and Proof instances
-   */
-  public finaliseBlock(): Promise<BlockResult> {
-    return this.orchestrator.finaliseBlock();
-  }
-
-  /**
-   * Mark the block as having all the transactions it is going to contain.
-   * Will pad the block to it's complete size with empty transactions and prove all the way to the root rollup.
-   */
-  public setBlockCompleted(): Promise<void> {
-    return this.orchestrator.setBlockCompleted();
   }
 
   public getProvingJobSource(): ProvingJobSource {
