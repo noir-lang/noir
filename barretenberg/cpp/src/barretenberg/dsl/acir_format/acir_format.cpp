@@ -190,6 +190,7 @@ void build_constraints(Builder& builder,
     }
 
     // Add block constraints
+    assign_calldata_ids<Builder>(constraint_system.block_constraints);
     for (size_t i = 0; i < constraint_system.block_constraints.size(); ++i) {
         const auto& constraint = constraint_system.block_constraints.at(i);
         create_block_constraints(builder, constraint, has_valid_witness_assignments);

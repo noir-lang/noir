@@ -69,6 +69,7 @@ class AcirIntegrationTest : public ::testing::Test {
         info("log circuit size   = ", prover.instance->proving_key.log_circuit_size);
 #endif
         auto proof = prover.construct_proof();
+
         // Verify Honk proof
         auto verification_key = std::make_shared<VerificationKey>(prover.instance->proving_key);
         Verifier verifier{ verification_key };
@@ -430,7 +431,7 @@ INSTANTIATE_TEST_SUITE_P(AcirTests,
                          testing::Values("fold_basic", "fold_basic_nested_call"));
 
 /**
- *@brief A basic test of a circuit generated in noir that makes use of the databus
+ * @brief A basic test of a circuit generated in noir that makes use of the databus
  *
  */
 TEST_F(AcirIntegrationTest, DISABLED_Databus)
@@ -444,6 +445,59 @@ TEST_F(AcirIntegrationTest, DISABLED_Databus)
 
     // Construct a bberg circuit from the acir representation
     Builder builder = acir_format::create_circuit<Builder>(acir_program.constraints, 0, acir_program.witness);
+
+    // This prints a summary of the types of gates in the circuit
+    builder.blocks.summarize();
+
+    // Construct and verify Honk proof
+    EXPECT_TRUE(prove_and_verify_honk<Flavor>(builder));
+}
+
+/**
+ * @brief Test a program that uses two databus calldata columns
+ * @details In addition to checking that a proof of the resulting circuit verfies, check that the specific structure of
+ * the calldata/return data interaction in the noir program is reflected in the bberg circuit
+ */
+TEST_F(AcirIntegrationTest, DISABLED_DatabusTwoCalldata)
+{
+    using Flavor = MegaFlavor;
+    using Builder = Flavor::CircuitBuilder;
+
+    std::string test_name = "databus_two_calldata";
+    info("Test: ", test_name);
+    acir_format::AcirProgram acir_program = get_program_data_from_test_file(test_name);
+
+    // Construct a bberg circuit from the acir representation
+    Builder builder = acir_format::create_circuit<Builder>(acir_program.constraints, 0, acir_program.witness);
+
+    // Check that the databus columns in the builder have been populated as expected
+    const auto& calldata = builder.get_calldata();
+    const auto& secondary_calldata = builder.get_secondary_calldata();
+    const auto& return_data = builder.get_return_data();
+
+    ASSERT(calldata.size() == 4);
+    ASSERT(secondary_calldata.size() == 3);
+    ASSERT(return_data.size() == 4);
+
+    // Check that return data was computed from the two calldata inputs as expected
+    ASSERT_EQ(builder.get_variable(calldata[0]) + builder.get_variable(secondary_calldata[0]),
+              builder.get_variable(return_data[0]));
+    ASSERT_EQ(builder.get_variable(calldata[1]) + builder.get_variable(secondary_calldata[1]),
+              builder.get_variable(return_data[1]));
+    ASSERT_EQ(builder.get_variable(calldata[2]) + builder.get_variable(secondary_calldata[2]),
+              builder.get_variable(return_data[2]));
+    ASSERT_EQ(builder.get_variable(calldata[3]), builder.get_variable(return_data[3]));
+
+    // Ensure that every index of each bus column was read once as expected
+    for (size_t idx = 0; idx < calldata.size(); ++idx) {
+        ASSERT_EQ(calldata.get_read_count(idx), 1);
+    }
+    for (size_t idx = 0; idx < secondary_calldata.size(); ++idx) {
+        ASSERT_EQ(secondary_calldata.get_read_count(idx), 1);
+    }
+    for (size_t idx = 0; idx < return_data.size(); ++idx) {
+        ASSERT_EQ(return_data.get_read_count(idx), 1);
+    }
 
     // This prints a summary of the types of gates in the circuit
     builder.blocks.summarize();

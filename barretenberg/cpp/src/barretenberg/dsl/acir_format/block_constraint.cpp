@@ -163,20 +163,34 @@ void process_call_data_operations(Builder& builder,
     using databus_ct = stdlib::databus<Builder>;
 
     databus_ct databus;
-    // Populate the calldata in the databus
-    databus.calldata.set_values(init);
-    for (const auto& op : constraint.trace) {
-        ASSERT(op.access_type == 0);
-        field_ct value = poly_to_field_ct(op.value, builder);
-        field_ct index = poly_to_field_ct(op.index, builder);
-        fr w_value = 0;
-        if (has_valid_witness_assignments) {
-            // If witness are assigned, we use the correct value for w
-            w_value = index.get_value();
+
+    // Method for processing operations on a generic databus calldata array
+    auto process_calldata = [&](auto& calldata_array) {
+        calldata_array.set_values(init); // Initialize the data in the bus array
+
+        for (const auto& op : constraint.trace) {
+            ASSERT(op.access_type == 0);
+            field_ct value = poly_to_field_ct(op.value, builder);
+            field_ct index = poly_to_field_ct(op.index, builder);
+            fr w_value = 0;
+            if (has_valid_witness_assignments) {
+                // If witness are assigned, we use the correct value for w
+                w_value = index.get_value();
+            }
+            field_ct w = field_ct::from_witness(&builder, w_value);
+            value.assert_equal(calldata_array[w]);
+            w.assert_equal(index);
         }
-        field_ct w = field_ct::from_witness(&builder, w_value);
-        value.assert_equal(databus.calldata[w]);
-        w.assert_equal(index);
+    };
+
+    // Process primary or secondary calldata based on calldata_id
+    if (constraint.calldata_id == 0) {
+        process_calldata(databus.calldata);
+    } else if (constraint.calldata_id == 1) {
+        process_calldata(databus.secondary_calldata);
+    } else {
+        info("Databus only supports two calldata arrays.");
+        ASSERT(false);
     }
 }
 
@@ -197,6 +211,22 @@ void process_return_data_operations(const BlockConstraint& constraint, std::vect
         c++;
     }
     ASSERT(constraint.trace.size() == 0);
+}
+
+// Do nothing for Ultra since it does not support Databus
+template <> void assign_calldata_ids<UltraCircuitBuilder>([[maybe_unused]] std::vector<BlockConstraint>& constraints) {}
+
+template <> void assign_calldata_ids<MegaCircuitBuilder>(std::vector<BlockConstraint>& constraints)
+{
+    // Assign unique ID to each calldata block constraint
+    uint32_t calldata_id = 0;
+    for (auto& constraint : constraints) {
+        if (constraint.type == BlockType::CallData) {
+            constraint.calldata_id = calldata_id++;
+        }
+    }
+    // The backend only supports 2 calldata columns
+    ASSERT(calldata_id <= 2);
 }
 
 } // namespace acir_format

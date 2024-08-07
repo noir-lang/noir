@@ -22,6 +22,7 @@ struct BlockConstraint {
     std::vector<bb::poly_triple> init;
     std::vector<MemOp> trace;
     BlockType type;
+    uint32_t calldata_id{ 0 };
 };
 
 template <typename Builder>
@@ -46,6 +47,16 @@ void process_call_data_operations(Builder& builder,
                                   std::vector<bb::stdlib::field_t<Builder>>& init);
 template <typename Builder>
 void process_return_data_operations(const BlockConstraint& constraint, std::vector<bb::stdlib::field_t<Builder>>& init);
+
+/**
+ * @brief Assign a unique ID to each calldata block constraint based on the order in which it was recieved
+ * TODO(https://github.com/AztecProtocol/barretenberg/issues/1070): this is a workaround to allow calldata inputs to be
+ * distinguished by the backend since no identifiers are received from noir.
+ *
+ * @tparam Builder
+ * @param constraints
+ */
+template <typename Builder> void assign_calldata_ids(std::vector<BlockConstraint>& constraints);
 
 template <typename B> inline void read(B& buf, MemOp& mem_op)
 {
