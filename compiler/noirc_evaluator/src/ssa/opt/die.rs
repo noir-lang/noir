@@ -192,69 +192,68 @@ impl Context {
             // This is an instruction that might be out of bounds: let's add a constrain.
             let call_stack = function.dfg.get_call_stack(instruction_id);
 
-            match instruction {
+            let (array, index) = match instruction {
                 Instruction::ArrayGet { array, index }
-                | Instruction::ArraySet { array, index, .. } => {
-                    let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
-                        // If we are here it means the index is known but out of bounds. That's always an error!
-                        let false_const = function.dfg.make_constant(false.into(), Type::bool());
-                        let true_const = function.dfg.make_constant(true.into(), Type::bool());
-                        (false_const, true_const)
-                    } else {
-                        // `index` will be relative to the flattened array length, so we need to take that into account
-                        let array_length = function.dfg.type_of_value(*array).flattened_size();
+                | Instruction::ArraySet { array, index, .. } => (array, index),
+                _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
+            };
 
-                        // If we are here it means the index is dynamic, so let's add a check that it's less than length
-                        let index = function
-                            .dfg
-                            .insert_instruction_and_results(
-                                Instruction::Cast(*index, Type::unsigned(SSA_WORD_SIZE)),
-                                block_id,
-                                None,
-                                call_stack.clone(),
-                            )
-                            .first();
+            let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
+                // If we are here it means the index is known but out of bounds. That's always an error!
+                let false_const = function.dfg.make_constant(false.into(), Type::bool());
+                let true_const = function.dfg.make_constant(true.into(), Type::bool());
+                (false_const, true_const)
+            } else {
+                // `index` will be relative to the flattened array length, so we need to take that into account
+                let array_length = function.dfg.type_of_value(*array).flattened_size();
 
-                        let array_length = function.dfg.make_constant(
-                            (array_length as u128).into(),
-                            Type::unsigned(SSA_WORD_SIZE),
-                        );
-                        let is_index_out_of_bounds = function
-                            .dfg
-                            .insert_instruction_and_results(
-                                Instruction::Binary(Binary {
-                                    operator: BinaryOp::Lt,
-                                    lhs: index,
-                                    rhs: array_length,
-                                }),
-                                block_id,
-                                None,
-                                call_stack.clone(),
-                            )
-                            .first();
-                        let true_const = function.dfg.make_constant(true.into(), Type::bool());
-                        (is_index_out_of_bounds, true_const)
-                    };
-
-                    let (lhs, rhs) = apply_side_effects(
-                        side_effects_condition,
-                        lhs,
-                        rhs,
-                        function,
-                        block_id,
-                        call_stack.clone(),
-                    );
-
-                    let message = Some("Index out of bounds".to_owned().into());
-                    function.dfg.insert_instruction_and_results(
-                        Instruction::Constrain(lhs, rhs, message),
+                // If we are here it means the index is dynamic, so let's add a check that it's less than length
+                let index = function
+                    .dfg
+                    .insert_instruction_and_results(
+                        Instruction::Cast(*index, Type::unsigned(SSA_WORD_SIZE)),
                         block_id,
                         None,
-                        call_stack,
-                    );
-                }
-                _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
-            }
+                        call_stack.clone(),
+                    )
+                    .first();
+
+                let array_length = function
+                    .dfg
+                    .make_constant((array_length as u128).into(), Type::unsigned(SSA_WORD_SIZE));
+                let is_index_out_of_bounds = function
+                    .dfg
+                    .insert_instruction_and_results(
+                        Instruction::Binary(Binary {
+                            operator: BinaryOp::Lt,
+                            lhs: index,
+                            rhs: array_length,
+                        }),
+                        block_id,
+                        None,
+                        call_stack.clone(),
+                    )
+                    .first();
+                let true_const = function.dfg.make_constant(true.into(), Type::bool());
+                (is_index_out_of_bounds, true_const)
+            };
+
+            let (lhs, rhs) = apply_side_effects(
+                side_effects_condition,
+                lhs,
+                rhs,
+                function,
+                block_id,
+                call_stack.clone(),
+            );
+
+            let message = Some("Index out of bounds".to_owned().into());
+            function.dfg.insert_instruction_and_results(
+                Instruction::Constrain(lhs, rhs, message),
+                block_id,
+                None,
+                call_stack,
+            );
 
             next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
         }
