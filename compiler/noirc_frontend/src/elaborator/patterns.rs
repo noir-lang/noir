@@ -600,7 +600,7 @@ impl<'context> Elaborator<'context> {
             // to specify a redundant type annotation.
             if *assumed {
                 bindings.insert(
-                    the_trait.self_type_typevar_id,
+                    the_trait.self_type_typevar.id(),
                     (the_trait.self_type_typevar.clone(), constraint.typ.clone()),
                 );
             }

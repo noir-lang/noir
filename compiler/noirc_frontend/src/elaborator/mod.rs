@@ -1013,15 +1013,9 @@ impl<'context> Elaborator<'context> {
                 .flat_map(|item| self.resolve_trait_constraint(item))
                 .collect::<Vec<_>>();
 
-            // TODO: UnresolvedTraitImpl doesn't have constants & types
-            //       but NoirTraitImpl does
-            let associated_types =
-                self.collect_associated_types(trait_impl.resolved_trait_generics);
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
-            let span = trait_impl.object_type.span;
-
-            let span = span.unwrap_or_else(|| {
+            let span = trait_impl.object_type.span.unwrap_or_else(|| {
                 if self.interner.is_in_lsp_mode() {
                     return Default::default();
                 }
@@ -1040,11 +1034,10 @@ impl<'context> Elaborator<'context> {
                 ident: trait_impl.trait_path.last_ident(),
                 typ: self_type.clone(),
                 trait_id,
-                trait_generics: trait_generics.clone(),
+                trait_generics,
                 file: trait_impl.file_id,
-                where_clause,
+                where_clause: where_clause.clone(),
                 methods,
-                associated_types: Vec::new(),
             });
 
             let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
@@ -1052,7 +1045,6 @@ impl<'context> Elaborator<'context> {
             if let Err((prev_span, prev_file)) = self.interner.add_trait_implementation(
                 self_type.clone(),
                 trait_id,
-                trait_generics,
                 trait_impl.impl_id.expect("impl_id should be set in define_function_metas"),
                 generics,
                 resolved_trait_impl,
@@ -1388,6 +1380,7 @@ impl<'context> Elaborator<'context> {
             let impl_id = self.interner.next_trait_impl_id();
             self.current_trait_impl = Some(impl_id);
 
+            self.register_associated_types(impl_id, trait_impl);
             self.define_function_metas_for_functions(&mut trait_impl.methods);
 
             trait_impl.resolved_object_type = self.self_type.take();

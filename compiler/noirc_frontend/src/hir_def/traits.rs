@@ -4,7 +4,7 @@ use crate::ast::{Ident, NoirFunction};
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
-    Generics, Type, TypeBindings, TypeVariable, TypeVariableId,
+    Generics, Type, TypeBindings, TypeVariable,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -62,7 +62,6 @@ pub struct Trait {
     /// to this TypeVariable. Then when we check if the types of trait impl elements
     /// match the definition in the trait, we bind this TypeVariable to whatever
     /// the correct Self type is for that particular impl block.
-    pub self_type_typevar_id: TypeVariableId,
     pub self_type_typevar: TypeVariable,
 }
 
@@ -75,19 +74,11 @@ pub struct TraitImpl {
     pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
-    pub associated_types: Vec<TraitType>,
-
     /// The where clause, if present, contains each trait requirement which must
     /// be satisfied for this impl to be selected. E.g. in `impl Eq for [T] where T: Eq`,
     /// `where_clause` would contain the one `T: Eq` constraint. If there is no where clause,
     /// this Vec is empty.
     pub where_clause: Vec<TraitConstraint>,
-}
-
-impl TraitImpl {
-    pub fn get_associated_type(&self, name: &str) -> Option<&Type> {
-        self.associated_types.iter().find(|typ| typ.name.0.contents == name).map(|typ| &typ.typ)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,16 +1,16 @@
 use crate::{
+    ast::UnresolvedTypeExpression,
     graph::CrateId,
     hir::def_collector::{dc_crate::UnresolvedTraitImpl, errors::DefCollectorErrorKind},
+    hir_def::traits::TraitType,
+    node_interner::TraitImplId,
     ResolvedGeneric,
 };
 use crate::{
     hir::def_collector::errors::DuplicateType,
-    hir_def::{
-        traits::{TraitConstraint, TraitFunction},
-        types::Generics,
-    },
+    hir_def::traits::{TraitConstraint, TraitFunction},
     node_interner::{FuncId, TraitId},
-    Type, TypeBindings,
+    Type,
 };
 
 use noirc_errors::Location;
@@ -28,6 +28,8 @@ impl<'context> Elaborator<'context> {
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
 
+        let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
+
         // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
         // for a particular method, the default implementation will be added at that slot.
         let mut ordered_methods = Vec::new();
@@ -38,7 +40,6 @@ impl<'context> Elaborator<'context> {
         // set of function ids that have a corresponding method in the trait
         let mut func_ids_in_trait = HashSet::default();
 
-        let trait_generics = &self.interner.get_trait(trait_id).generics.clone();
         // Temporarily take ownership of the trait's methods so we can iterate over them
         // while also mutating the interner
         let the_trait = self.interner.get_trait_mut(trait_id);
@@ -85,7 +86,8 @@ impl<'context> Elaborator<'context> {
                         method,
                         trait_impl_where_clause,
                         &trait_impl.resolved_trait_generics,
-                        trait_generics,
+                        trait_id,
+                        impl_id,
                     );
 
                     func_ids_in_trait.insert(*func_id);
@@ -141,16 +143,15 @@ impl<'context> Elaborator<'context> {
         func_id: &FuncId,
         method: &TraitFunction,
         trait_impl_where_clause: &[TraitConstraint],
-        impl_trait_generics: &[Type],
-        trait_generics: &Generics,
+        trait_impl_generics: &[Type],
+        trait_id: TraitId,
+        impl_id: TraitImplId,
     ) {
-        let mut bindings = TypeBindings::new();
-        for (trait_generic, impl_trait_generic) in trait_generics.iter().zip(impl_trait_generics) {
-            bindings.insert(
-                trait_generic.type_var.id(),
-                (trait_generic.type_var.clone(), impl_trait_generic.clone()),
-            );
-        }
+        // First get the general trait to impl bindings.
+        // Then we'll need to add the bindings for this specific method.
+        let self_type = self.self_type.as_ref().unwrap().clone();
+        let mut bindings =
+            self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
         let override_meta = self.interner.function_meta(func_id);
         // Substitute each generic on the trait function with the corresponding generic on the impl function
@@ -224,5 +225,38 @@ impl<'context> Elaborator<'context> {
                 span: trait_impl.object_type.span.expect("object type must have a span"),
             });
         }
+    }
+
+    /// Resolve & save the associated types for the given trait impl.
+    /// These are stored outside of the TraitImpl object since they are
+    /// required before it is created to resolve the type signature of each method.
+    pub(super) fn register_associated_types(
+        &mut self,
+        impl_id: TraitImplId,
+        trait_impl: &mut UnresolvedTraitImpl,
+    ) {
+        let mut associated_types = Vec::new();
+
+        for (name, typ, expression) in trait_impl.associated_constants.drain(..) {
+            // TODO: What to do with the expression type?
+            let _typ = self.resolve_type(typ.clone());
+            let span = expression.span;
+            let expr = match UnresolvedTypeExpression::from_expr(expression, span) {
+                Ok(expr) => expr,
+                Err(error) => {
+                    self.push_err(error);
+                    continue;
+                }
+            };
+            let typ = self.convert_expression_type(expr);
+            associated_types.push(TraitType { name, typ });
+        }
+
+        for (name, typ) in trait_impl.associated_types.drain(..) {
+            let typ = self.resolve_type(typ);
+            associated_types.push(TraitType { name, typ });
+        }
+
+        self.interner.set_associated_types_for_impl(impl_id, associated_types);
     }
 }

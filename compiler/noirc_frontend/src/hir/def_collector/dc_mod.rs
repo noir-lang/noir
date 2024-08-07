@@ -13,7 +13,7 @@ use crate::ast::{
     NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
     TypeImpl,
 };
-use crate::macros_api::NodeInterner;
+use crate::macros_api::{Expression, NodeInterner, UnresolvedType};
 use crate::node_interner::{ModuleAttributes, ReferenceId};
 use crate::{
     graph::CrateId,
@@ -162,13 +162,14 @@ impl<'a> ModCollector<'a> {
         for mut trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
-            let mut unresolved_functions = collect_trait_impl_functions(
-                &mut context.def_interner,
-                &mut trait_impl,
-                krate,
-                self.file_id,
-                self.module_id,
-            );
+            let (mut unresolved_functions, associated_types, associated_constants) =
+                collect_trait_impl_items(
+                    &mut context.def_interner,
+                    &mut trait_impl,
+                    krate,
+                    self.file_id,
+                    self.module_id,
+                );
 
             let module = ModuleId { krate, local_id: self.module_id };
 
@@ -186,6 +187,8 @@ impl<'a> ModCollector<'a> {
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
                 trait_generics: trait_impl.trait_generics,
+                associated_constants,
+                associated_types,
 
                 // These last fields are filled later on
                 trait_id: None,
@@ -858,28 +861,40 @@ fn is_native_field(str: &str) -> bool {
     }
 }
 
-pub(crate) fn collect_trait_impl_functions(
+/// Returns a tuple of (methods, associated types, associated constants)
+pub(crate) fn collect_trait_impl_items(
     interner: &mut NodeInterner,
     trait_impl: &mut NoirTraitImpl,
     krate: CrateId,
     file_id: FileId,
     local_id: LocalModuleId,
-) -> UnresolvedFunctions {
+) -> (UnresolvedFunctions, Vec<(Ident, UnresolvedType)>, Vec<(Ident, UnresolvedType, Expression)>) {
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
+
+    let mut associated_types = Vec::new();
+    let mut associated_constants = Vec::new();
 
     let module = ModuleId { krate, local_id };
 
     for item in std::mem::take(&mut trait_impl.items) {
-        if let TraitImplItem::Function(impl_method) = item {
-            let func_id = interner.push_empty_fn();
-            let location = Location::new(impl_method.span(), file_id);
-            interner.push_function(func_id, &impl_method.def, module, location);
-            unresolved_functions.push_fn(local_id, func_id, impl_method);
+        match item {
+            TraitImplItem::Function(impl_method) => {
+                let func_id = interner.push_empty_fn();
+                let location = Location::new(impl_method.span(), file_id);
+                interner.push_function(func_id, &impl_method.def, module, location);
+                unresolved_functions.push_fn(local_id, func_id, impl_method);
+            }
+            TraitImplItem::Constant(name, typ, expr) => {
+                associated_constants.push((name, typ, expr));
+            }
+            TraitImplItem::Type { name, alias } => {
+                associated_types.push((name, alias));
+            }
         }
     }
 
-    unresolved_functions
+    (unresolved_functions, associated_types, associated_constants)
 }
 
 pub(crate) fn collect_global(

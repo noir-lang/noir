@@ -286,23 +286,17 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     let definition_type = meta.typ.as_monotype();
 
-    let impl_ =
+    let impl_id =
         meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
 
     // If the trait implementation is not defined in the interner then there was a previous
     // error in resolving the trait path and there is likely no trait for this impl.
-    let Some(impl_) = interner.try_get_trait_implementation(impl_) else {
+    let Some(impl_) = interner.try_get_trait_implementation(impl_id) else {
         return errors;
     };
 
     let impl_ = impl_.borrow();
     let trait_info = interner.get_trait(impl_.trait_id);
-
-    let mut bindings = TypeBindings::new();
-    bindings.insert(
-        trait_info.self_type_typevar_id,
-        (trait_info.self_type_typevar.clone(), impl_.typ.clone()),
-    );
 
     if trait_info.generics.len() != impl_.trait_generics.len() {
         let expected = trait_info.generics.len();
@@ -313,9 +307,12 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     }
 
     // Substitute each generic on the trait with the corresponding generic on the impl
-    for (generic, arg) in trait_info.generics.iter().zip(&impl_.trait_generics) {
-        bindings.insert(generic.type_var.id(), (generic.type_var.clone(), arg.clone()));
-    }
+    let mut bindings = interner.trait_to_impl_bindings(
+        impl_.trait_id,
+        impl_id,
+        &impl_.trait_generics,
+        impl_.typ.clone(),
+    );
 
     // If this is None, the trait does not have the corresponding function.
     // This error should have been caught in name resolution already so we don't

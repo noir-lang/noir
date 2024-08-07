@@ -19,6 +19,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir_def::traits::TraitType;
 use crate::macros_api::UnaryOp;
 use crate::QuotedType;
 
@@ -131,6 +132,11 @@ pub struct NodeInterner {
     pub(crate) trait_implementations: HashMap<TraitImplId, Shared<TraitImpl>>,
 
     next_trait_implementation_id: usize,
+
+    /// The associated types for each trait impl.
+    /// This is stored outside of the TraitImpl object since it is required before that object is
+    /// created, when resolving the type signature of each method in the impl.
+    trait_impl_associated_types: HashMap<TraitImplId, Vec<TraitType>>,
 
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -603,6 +609,7 @@ impl Default for NodeInterner {
             reference_graph_indices: HashMap::default(),
             reference_modules: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
+            trait_impl_associated_types: HashMap::default(),
         }
     }
 }
@@ -645,16 +652,13 @@ impl NodeInterner {
         unresolved_trait: &UnresolvedTrait,
         generics: Generics,
     ) {
-        let self_type_typevar_id = self.next_type_variable_id();
-
         let new_trait = Trait {
             id: type_id,
             name: unresolved_trait.trait_def.name.clone(),
             crate_id: unresolved_trait.crate_id,
             location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
             generics,
-            self_type_typevar_id,
-            self_type_typevar: TypeVariable::unbound(self_type_typevar_id),
+            self_type_typevar: TypeVariable::unbound(self.next_type_variable_id()),
             methods: Vec::new(),
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types: Vec::new(),
@@ -1575,7 +1579,6 @@ impl NodeInterner {
         &mut self,
         object_type: Type,
         trait_id: TraitId,
-        trait_generics: Vec<Type>,
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
@@ -1596,6 +1599,8 @@ impl NodeInterner {
             .collect();
 
         let instantiated_object_type = object_type.substitute(&substitutions);
+
+        let trait_generics = &trait_impl.borrow().trait_generics;
 
         // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
         // It should never happen since impls are defined at global scope, but even
@@ -1986,6 +1991,64 @@ impl NodeInterner {
 
     pub fn is_in_lsp_mode(&self) -> bool {
         self.lsp_mode
+    }
+
+    pub fn set_associated_types_for_impl(
+        &mut self,
+        impl_id: TraitImplId,
+        associated_types: Vec<TraitType>,
+    ) {
+        self.trait_impl_associated_types.insert(impl_id, associated_types);
+    }
+
+    pub fn get_associated_types_for_impl(&self, impl_id: TraitImplId) -> &[TraitType] {
+        &self.trait_impl_associated_types[&impl_id]
+    }
+
+    pub fn find_associated_type_for_impl(
+        &self,
+        impl_id: TraitImplId,
+        type_name: &str,
+    ) -> Option<&Type> {
+        let types = self.trait_impl_associated_types.get(&impl_id)?;
+        types.iter().find(|typ| typ.name.0.contents == type_name).map(|typ| &typ.typ)
+    }
+
+    /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.
+    pub fn trait_to_impl_bindings(
+        &self,
+        trait_id: TraitId,
+        impl_id: TraitImplId,
+        trait_impl_generics: &[Type],
+        impl_self_type: Type,
+    ) -> TypeBindings {
+        let mut bindings = TypeBindings::new();
+        let the_trait = self.get_trait(trait_id);
+        let trait_generics = the_trait.generics.clone();
+
+        let self_type_var = the_trait.self_type_typevar.clone();
+        bindings.insert(self_type_var.id(), (self_type_var, impl_self_type));
+
+        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
+            bindings.insert(
+                trait_generic.type_var.id(),
+                (trait_generic.type_var.clone(), trait_impl_generic.clone()),
+            );
+        }
+
+        // Now that the normal bindings are added, we still need to bind the associated types
+        let impl_associated_types = self.get_associated_types_for_impl(impl_id);
+        let trait_associated_types = &the_trait.associated_types;
+
+        for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
+            let type_variable = match &trait_type.typ {
+                Type::NamedGeneric(type_variable, ..) => type_variable,
+                other => unreachable!("A trait's associated type should always be a named generic, but found: {other:?}"),
+            };
+            bindings.insert(type_variable.id(), (type_variable.clone(), impl_type.typ.clone()));
+        }
+
+        bindings
     }
 }
 
