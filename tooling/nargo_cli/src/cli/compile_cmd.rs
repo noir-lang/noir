@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Duration;
 
@@ -8,7 +8,9 @@ use nargo::ops::{collect_errors, compile_contract, compile_program, report_error
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{
+    get_package_manifest_or_dummy_toml, resolve_workspace_from_toml_or_dummy, PackageSelection,
+};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{file_manager_with_stdlib, DEFAULT_EXPRESSION_WIDTH};
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
@@ -20,6 +22,7 @@ use noirc_frontend::hir::ParsedFiles;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
 
+use crate::cli::find_package_root;
 use crate::errors::CliError;
 
 use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
@@ -28,40 +31,64 @@ use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
-pub(crate) struct CompileCommand {
+pub struct CompileCommand {
     /// The name of the package to compile
     #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
+    pub package: Option<CrateName>,
 
     /// Compile all packages in the workspace.
     #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    pub workspace: bool,
 
     #[clap(flatten)]
-    compile_options: CompileOptions,
+    pub compile_options: CompileOptions,
 
     /// Watch workspace and recompile on changes.
     #[clap(long, hide = true)]
-    watch: bool,
+    pub watch: bool,
 }
 
 pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
+    let debug_compile_stdin = args.compile_options.debug_compile_stdin;
+    let mut config = config;
+    config.program_dir = find_package_root(&config.program_dir, debug_compile_stdin)?;
+
+    let debug_compile_stdin = if debug_compile_stdin {
+        let mut main_nr = String::new();
+        let stdin = std::io::stdin();
+        let mut stdin_handle = stdin.lock();
+        stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
+        Some(main_nr)
+    } else {
+        None
+    };
+
+    run_debug_compile_stdin(args, config, debug_compile_stdin)
+}
+
+pub fn run_debug_compile_stdin(
+    args: CompileCommand,
+    config: NargoConfig,
+    debug_compile_stdin: Option<String>,
+) -> Result<(), CliError> {
+    let toml_path =
+        get_package_manifest_or_dummy_toml(&config.program_dir, debug_compile_stdin.is_some())?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
 
-    let workspace = resolve_workspace_from_toml(
+    let workspace = resolve_workspace_from_toml_or_dummy(
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+        debug_compile_stdin.is_some(),
     )?;
 
     if args.watch {
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
-        compile_workspace_full(&workspace, &args.compile_options)?;
+        compile_workspace_full_helper(&workspace, &args.compile_options, debug_compile_stdin)?;
     }
 
     Ok(())
@@ -114,10 +141,50 @@ pub(super) fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let mut workspace_file_manager = if compile_options.debug_compile_stdin {
+        FileManager::new(&workspace.root_dir)
+    } else {
+        file_manager_with_stdlib(&workspace.root_dir)
+    };
 
+    if compile_options.debug_compile_stdin {
+        let mut main_nr = String::new();
+        let stdin = std::io::stdin();
+        let mut stdin_handle = stdin.lock();
+        stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
+        workspace_file_manager.add_file_with_source(Path::new("/src/main.nr"), main_nr);
+    } else {
+        insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
+    }
+
+    let parsed_files = parse_all(&workspace_file_manager);
+    let compiled_workspace =
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
+
+    report_errors(
+        compiled_workspace,
+        &workspace_file_manager,
+        compile_options.deny_warnings,
+        compile_options.silence_warnings,
+    )?;
+
+    Ok(())
+}
+
+// TODO: make compile_workspace_full a wrapper and revert to previous API b/c pub(crate)
+fn compile_workspace_full_helper(
+    workspace: &Workspace,
+    compile_options: &CompileOptions,
+    debug_compile_stdin: Option<String>,
+) -> Result<(), CliError> {
+    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+    if let Some(main_nr) = debug_compile_stdin {
+        workspace_file_manager.add_file_with_source(Path::new("/src/main.nr"), main_nr);
+    } else {
+        insert_all_files_for_workspace_into_file_manager(workspace, &mut workspace_file_manager);
+    }
+
+    let parsed_files = parse_all(&workspace_file_manager);
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
 
@@ -197,11 +264,13 @@ fn compile_programs(
                 get_target_width(package.expression_width, compile_options.expression_width);
             let program = nargo::ops::transform_program(program, target_width);
 
-            save_program_to_file(
-                &program.clone().into(),
-                &package.name,
-                workspace.target_directory_path(),
-            );
+            if !compile_options.debug_compile_stdin {
+                save_program_to_file(
+                    &program.clone().into(),
+                    &package.name,
+                    workspace.target_directory_path(),
+                );
+            }
             Ok(((), warnings))
         })
         .collect();

@@ -30,7 +30,8 @@ fn on_test_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find project root")
     })?;
 
-    let toml_path = find_package_manifest(root_path, root_path).map_err(|err| {
+    let no_dummy_toml = false;
+    let toml_path = find_package_manifest(root_path, root_path, no_dummy_toml).map_err(|err| {
         // If we cannot find a manifest, we can't run the test
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;

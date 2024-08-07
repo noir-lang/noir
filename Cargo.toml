@@ -73,6 +73,7 @@ noirc_printable_type = { path = "compiler/noirc_printable_type" }
 # Noir tooling workspace dependencies
 noir_fuzzer = { path = "tooling/fuzzer" }
 nargo = { path = "tooling/nargo" }
+nargo_cli = { path = "tooling/nargo_cli" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }
