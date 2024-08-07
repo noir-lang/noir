@@ -1,7 +1,9 @@
 name: Deploy to network
 on:
-  push:
-    branches: [devnet, provernet, alphanet]
+  # push:
+  #   branches: [devnet, provernet, alphanet]
+  workflow_dispatch:
+    inputs: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

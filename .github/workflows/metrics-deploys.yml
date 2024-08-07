@@ -1,7 +1,9 @@
 name: Deploy metrics
 on:
-  push:
-    branches: [devnet]
+  # push:
+  #   branches: [devnet]
+  workflow_dispatch:
+    inputs: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
