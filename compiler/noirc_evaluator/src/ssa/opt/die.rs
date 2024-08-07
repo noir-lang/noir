@@ -195,68 +195,63 @@ impl Context {
             match instruction {
                 Instruction::ArrayGet { array, index }
                 | Instruction::ArraySet { array, index, .. } => {
-                    if function.dfg.try_get_array_length(*array).is_some() {
-                        let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
-                            // If we are here it means the index is known but out of bounds. That's always an error!
-                            let false_const =
-                                function.dfg.make_constant(false.into(), Type::bool());
-                            let true_const = function.dfg.make_constant(true.into(), Type::bool());
-                            (false_const, true_const)
-                        } else {
-                            // `index` will be relative to the flattened array length, so we need to take that into account
-                            let array_length = function.dfg.type_of_value(*array).flattened_size();
-
-                            // If we are here it means the index is dynamic, so let's add a check that it's less than length
-                            let index = function
-                                .dfg
-                                .insert_instruction_and_results(
-                                    Instruction::Cast(*index, Type::unsigned(SSA_WORD_SIZE)),
-                                    block_id,
-                                    None,
-                                    call_stack.clone(),
-                                )
-                                .first();
-
-                            let array_length = function.dfg.make_constant(
-                                (array_length as u128).into(),
-                                Type::unsigned(SSA_WORD_SIZE),
-                            );
-                            let is_index_out_of_bounds = function
-                                .dfg
-                                .insert_instruction_and_results(
-                                    Instruction::Binary(Binary {
-                                        operator: BinaryOp::Lt,
-                                        lhs: index,
-                                        rhs: array_length,
-                                    }),
-                                    block_id,
-                                    None,
-                                    call_stack.clone(),
-                                )
-                                .first();
-                            let true_const = function.dfg.make_constant(true.into(), Type::bool());
-                            (is_index_out_of_bounds, true_const)
-                        };
-
-                        let (lhs, rhs) = apply_side_effects(
-                            side_effects_condition,
-                            lhs,
-                            rhs,
-                            function,
-                            block_id,
-                            call_stack.clone(),
-                        );
-
-                        let message = Some("Index out of bounds".to_owned().into());
-                        function.dfg.insert_instruction_and_results(
-                            Instruction::Constrain(lhs, rhs, message),
-                            block_id,
-                            None,
-                            call_stack,
-                        );
+                    let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
+                        // If we are here it means the index is known but out of bounds. That's always an error!
+                        let false_const = function.dfg.make_constant(false.into(), Type::bool());
+                        let true_const = function.dfg.make_constant(true.into(), Type::bool());
+                        (false_const, true_const)
                     } else {
-                        // TODO: this is tricky because we don't know the slice length... 🤔
-                    }
+                        // `index` will be relative to the flattened array length, so we need to take that into account
+                        let array_length = function.dfg.type_of_value(*array).flattened_size();
+
+                        // If we are here it means the index is dynamic, so let's add a check that it's less than length
+                        let index = function
+                            .dfg
+                            .insert_instruction_and_results(
+                                Instruction::Cast(*index, Type::unsigned(SSA_WORD_SIZE)),
+                                block_id,
+                                None,
+                                call_stack.clone(),
+                            )
+                            .first();
+
+                        let array_length = function.dfg.make_constant(
+                            (array_length as u128).into(),
+                            Type::unsigned(SSA_WORD_SIZE),
+                        );
+                        let is_index_out_of_bounds = function
+                            .dfg
+                            .insert_instruction_and_results(
+                                Instruction::Binary(Binary {
+                                    operator: BinaryOp::Lt,
+                                    lhs: index,
+                                    rhs: array_length,
+                                }),
+                                block_id,
+                                None,
+                                call_stack.clone(),
+                            )
+                            .first();
+                        let true_const = function.dfg.make_constant(true.into(), Type::bool());
+                        (is_index_out_of_bounds, true_const)
+                    };
+
+                    let (lhs, rhs) = apply_side_effects(
+                        side_effects_condition,
+                        lhs,
+                        rhs,
+                        function,
+                        block_id,
+                        call_stack.clone(),
+                    );
+
+                    let message = Some("Index out of bounds".to_owned().into());
+                    function.dfg.insert_instruction_and_results(
+                        Instruction::Constrain(lhs, rhs, message),
+                        block_id,
+                        None,
+                        call_stack,
+                    );
                 }
                 _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
             }
@@ -349,13 +344,10 @@ fn instruction_might_result_in_out_of_bounds(
                     // A dynamic index might always be out of bounds
                     true
                 }
-            } else if let ArrayGet { .. } = instruction {
-                // array_get on a slice always does an index in bounds check,
-                // so no need to do it again
-                false
             } else {
-                // The same check isn't done on array_set, though
-                true
+                // Slice operations might be out of bounds, but there's no way we
+                // can insert a check because we don't know a slice's length
+                false
             }
         }
         _ => false,
