@@ -481,7 +481,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             )?,
         };
 
-        let result = solver.solve().map_err(|err| self.map_brillig_error(err))?;
+        let result = solver.solve().map_err(|err| {
+            dbg!(id);
+            self.map_brillig_error(err)
+        })?;
 
         match result {
             BrilligSolverStatus::ForeignCallWait(foreign_call) => {

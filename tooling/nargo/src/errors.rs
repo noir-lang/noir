@@ -128,7 +128,7 @@ fn extract_locations_from_error<F: AcirField>(
         },
         _ => None,
     }?;
-
+    // dbg!(opcode_locations.clone());
     // Insert the top-level Acir location where the Brillig function failed
     for (i, resolved_location) in opcode_locations.iter().enumerate() {
         if let ResolvedOpcodeLocation {
@@ -149,13 +149,21 @@ fn extract_locations_from_error<F: AcirField>(
         }
     }
 
+    // dbg!(debug.clone());
+
     Some(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
                 debug[resolved_location.acir_function_index]
                     .opcode_location(&resolved_location.opcode_location)
-                    .unwrap_or_default()
+                    .unwrap_or_else(|| {
+                        // dbg!(resolved_location.opcode_location.clone());
+                        // dbg!(debug[resolved_location.acir_function_index].brillig_locations.clone());
+                        // debug[resolved_location.acir_function_index].brillig_locations.get(&2).unwrap().get(&resolved_location.opcode_location).cloned().unwrap_or_default()
+                        vec![]
+                    })
+                    // .unwrap_or_default()
             })
             .collect(),
     )

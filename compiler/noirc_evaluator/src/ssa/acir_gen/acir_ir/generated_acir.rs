@@ -52,6 +52,8 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
     /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
 
+    pub(crate) brillig_locations: BTreeMap<u32, BTreeMap<OpcodeLocation, CallStack>>,
+
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
     pub(crate) call_stack: CallStack,
@@ -574,16 +576,39 @@ impl<F: AcirField> GeneratedAcir<F> {
             self.brillig_stdlib_func_locations
                 .insert(self.last_acir_opcode_location(), stdlib_func);
         }
-
+        let seen_func_before = self.opcodes.iter().any(|opcode| {
+            if let AcirOpcode::BrilligCall { id, .. } = opcode {
+                // dbg!(id);
+                *id == brillig_function_index
+            } else { 
+                false
+            }
+        });
+        // dbg!(seen_func_before);
         for (brillig_index, call_stack) in generated_brillig.locations.iter() {
-            self.locations.insert(
+            // if self.brillig_locations.get(&brillig_function_index).is_some() {
+            //     break;
+            // }
+            if seen_func_before {
+                // dbg!("got here");
+                break;
+            }
+            self.brillig_locations.entry(brillig_function_index).or_default().insert(
                 OpcodeLocation::Brillig {
                     acir_index: self.opcodes.len() - 1,
                     brillig_index: *brillig_index,
                 },
                 call_stack.clone(),
             );
+            // self.locations.insert(
+            //     OpcodeLocation::Brillig {
+            //         acir_index: self.opcodes.len() - 1,
+            //         brillig_index: *brillig_index,
+            //     },
+            //     call_stack.clone(),
+            // );
         }
+        // dbg!(self.brillig_locations.len());
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
             self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
