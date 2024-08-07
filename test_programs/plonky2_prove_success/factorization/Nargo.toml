@@ -1,0 +1,7 @@
+[package]
+name = "factorization"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]
