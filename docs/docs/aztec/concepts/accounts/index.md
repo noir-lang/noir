@@ -117,7 +117,7 @@ However, this is not required when sitting on the receiving end. A user can dete
 
 ### Account contract deployment
 
-Users will need to pay transaction fees in order to deploy their account contract. This can be done by sending a fee paying asset to their account contract address (which can be derived deterministically, as mentioned above), so they have funds to pay for the deployment. Alternatively, the fee can be paid for by another account, using [fee abstraction](#fee-management).
+Users will need to pay transaction fees in order to deploy their account contract. This can be done by sending Fee Juice to their account contract address (which can be derived deterministically, as mentioned above), so they have funds to pay for the deployment. Alternatively, the fee can be paid for by another account, using [fee abstraction](#fee-management).
 
 ### Authorizing actions
 

@@ -8,4 +8,3 @@ type = "contract"
 aztec = { path = "../../../aztec-nr/aztec" }
 authwit = { path = "../../../aztec-nr/authwit" }
 token = { path = "../token_contract" }
-gas_token = { path = "../gas_token_contract" }

@@ -51,7 +51,7 @@ For our account contract, we will take the hash of the action to authorize, requ
 
 ### Fee Abstraction
 
-The `FeePayload`, being distinct from the `AppPayload`, allows for fee abstraction, meaning the account paying the fee for the transaction can be different than the account that is initiating the transaction. This is also useful for maintaining privacy, as fee payments on the network must be public. For example, Alice could pay a relayer transaction fees in private, and the relayer could pay the transaction fee in public. This also allows for accounts without a fee paying asset to use a non-fee paying asset to pay for fees, provided they can find a relayer willing to accept a non-fee paying asset as payment (or do it for free). 
+The `FeePayload`, being distinct from the `AppPayload`, allows for fee abstraction, meaning the account paying the fee for the transaction can be different than the account that is initiating the transaction. This is also useful for maintaining privacy, as fee payments on the network must be public. For example, Alice could pay a relayer transaction fees in private, and the relayer could pay the transaction fee in public. This also allows for accounts without Fee Juice to use another asset to pay for fees, provided they can find a relayer willing to accept the asset as payment (or do it for free).
 
 ### Nonce Abstraction
 

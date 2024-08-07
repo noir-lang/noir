@@ -6,20 +6,17 @@ contract FPC {
         state_vars::SharedImmutable, context::gas::GasOpts
     };
     use dep::token::Token;
-    use dep::gas_token::GasToken;
     use crate::lib::compute_rebate;
 
     #[aztec(storage)]
     struct Storage {
         other_asset: SharedImmutable<AztecAddress>,
-        gas_token_address: SharedImmutable<AztecAddress>,
     }
 
     #[aztec(public)]
     #[aztec(initializer)]
-    fn constructor(other_asset: AztecAddress, gas_token_address: AztecAddress) {
+    fn constructor(other_asset: AztecAddress) {
         storage.other_asset.initialize(other_asset);
-        storage.gas_token_address.initialize(gas_token_address);
     }
 
     #[aztec(private)]

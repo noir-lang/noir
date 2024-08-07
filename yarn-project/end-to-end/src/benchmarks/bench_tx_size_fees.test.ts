@@ -1,15 +1,15 @@
 import {
   type AccountWalletWithSecretKey,
   type AztecAddress,
+  FeeJuicePaymentMethod,
   type FeePaymentMethod,
-  NativeFeePaymentMethod,
   PrivateFeePaymentMethod,
   PublicFeePaymentMethod,
   TxStatus,
 } from '@aztec/aztec.js';
 import { GasSettings } from '@aztec/circuits.js';
-import { FPCContract, GasTokenContract, TokenContract } from '@aztec/noir-contracts.js';
-import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { FPCContract, FeeJuiceContract, TokenContract } from '@aztec/noir-contracts.js';
+import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 
 import { jest } from '@jest/globals';
 
@@ -21,7 +21,7 @@ describe('benchmarks/tx_size_fees', () => {
   let aliceWallet: AccountWalletWithSecretKey;
   let bobAddress: AztecAddress;
   let sequencerAddress: AztecAddress;
-  let gas: GasTokenContract;
+  let feeJuice: FeeJuiceContract;
   let fpc: FPCContract;
   let token: TokenContract;
 
@@ -42,16 +42,16 @@ describe('benchmarks/tx_size_fees', () => {
 
   // deploy the contracts
   beforeAll(async () => {
-    gas = await GasTokenContract.at(GasTokenAddress, aliceWallet);
+    feeJuice = await FeeJuiceContract.at(FeeJuiceAddress, aliceWallet);
     token = await TokenContract.deploy(aliceWallet, aliceWallet.getAddress(), 'test', 'test', 18).send().deployed();
-    fpc = await FPCContract.deploy(aliceWallet, token.address, gas.address).send().deployed();
+    fpc = await FPCContract.deploy(aliceWallet, token.address).send().deployed();
   });
 
   // mint tokens
   beforeAll(async () => {
     await Promise.all([
-      gas.methods.mint_public(aliceWallet.getAddress(), 100e9).send().wait(),
-      gas.methods.mint_public(fpc.address, 100e9).send().wait(),
+      feeJuice.methods.mint_public(aliceWallet.getAddress(), 100e9).send().wait(),
+      feeJuice.methods.mint_public(fpc.address, 100e9).send().wait(),
     ]);
     await token.methods.privately_mint_private_note(100e9).send().wait();
     await token.methods.mint_public(aliceWallet.getAddress(), 100e9).send().wait();
@@ -61,7 +61,7 @@ describe('benchmarks/tx_size_fees', () => {
     ['no', () => undefined /*200021120n*/],
     [
       'native fee',
-      () => new NativeFeePaymentMethod(aliceWallet.getAddress()),
+      () => new FeeJuicePaymentMethod(aliceWallet.getAddress()),
       // Same cost as no fee payment, since payment is done natively
       // 200021120n,
     ],

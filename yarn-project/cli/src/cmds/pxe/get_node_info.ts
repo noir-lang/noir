@@ -10,7 +10,7 @@ export async function getNodeInfo(rpcUrl: string, debugLogger: DebugLogger, log:
   log(`Rollup Address: ${info.l1ContractAddresses.rollupAddress.toString()}`);
   log(`Protocol Contract Addresses:`);
   log(` Class Registerer:  ${info.protocolContractAddresses.classRegisterer.toString()}`);
-  log(` Gas Token:         ${info.protocolContractAddresses.gasToken.toString()}`);
+  log(` Fee Juice:         ${info.protocolContractAddresses.feeJuice.toString()}`);
   log(` Instance Deployer: ${info.protocolContractAddresses.instanceDeployer.toString()}`);
   log(` Key Registry:      ${info.protocolContractAddresses.keyRegistry.toString()}`);
   log(` MultiCall:         ${info.protocolContractAddresses.multiCallEntrypoint.toString()}`);

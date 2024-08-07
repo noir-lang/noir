@@ -12,8 +12,8 @@ export const l1ContractsNames = [
   'registryAddress',
   'inboxAddress',
   'outboxAddress',
-  'gasTokenAddress',
-  'gasPortalAddress',
+  'feeJuiceAddress',
+  'feeJuicePortalAddress',
 ] as const;
 
 /**
@@ -30,8 +30,8 @@ export function getL1ContractAddressesFromEnv() {
     REGISTRY_CONTRACT_ADDRESS,
     INBOX_CONTRACT_ADDRESS,
     OUTBOX_CONTRACT_ADDRESS,
-    GAS_TOKEN_CONTRACT_ADDRESS,
-    GAS_PORTAL_CONTRACT_ADDRESS,
+    FEE_JUICE_CONTRACT_ADDRESS,
+    FEE_JUICE_PORTAL_CONTRACT_ADDRESS,
   } = process.env;
 
   return {
@@ -42,9 +42,9 @@ export function getL1ContractAddressesFromEnv() {
     registryAddress: REGISTRY_CONTRACT_ADDRESS ? EthAddress.fromString(REGISTRY_CONTRACT_ADDRESS) : EthAddress.ZERO,
     inboxAddress: INBOX_CONTRACT_ADDRESS ? EthAddress.fromString(INBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
     outboxAddress: OUTBOX_CONTRACT_ADDRESS ? EthAddress.fromString(OUTBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    gasTokenAddress: GAS_TOKEN_CONTRACT_ADDRESS ? EthAddress.fromString(GAS_TOKEN_CONTRACT_ADDRESS) : EthAddress.ZERO,
-    gasPortalAddress: GAS_PORTAL_CONTRACT_ADDRESS
-      ? EthAddress.fromString(GAS_PORTAL_CONTRACT_ADDRESS)
+    feeJuiceAddress: FEE_JUICE_CONTRACT_ADDRESS ? EthAddress.fromString(FEE_JUICE_CONTRACT_ADDRESS) : EthAddress.ZERO,
+    feeJuicePortalAddress: FEE_JUICE_PORTAL_CONTRACT_ADDRESS
+      ? EthAddress.fromString(FEE_JUICE_PORTAL_CONTRACT_ADDRESS)
       : EthAddress.ZERO,
   };
 }

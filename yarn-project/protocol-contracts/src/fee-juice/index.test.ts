@@ -1,10 +1,10 @@
 import { computeContractAddressFromInstance, getContractClassFromArtifact } from '@aztec/circuits.js';
 
-import { getCanonicalGasToken } from './index.js';
+import { getCanonicalFeeJuice } from './index.js';
 
-describe('GasToken', () => {
+describe('FeeJuice', () => {
   it('returns canonical protocol contract', () => {
-    const contract = getCanonicalGasToken();
+    const contract = getCanonicalFeeJuice();
     expect(computeContractAddressFromInstance(contract.instance)).toEqual(contract.address);
     expect(getContractClassFromArtifact(contract.artifact).id).toEqual(contract.contractClass.id);
   });

@@ -1,5 +1,5 @@
 [package]
-name = "gas_token_contract"
+name = "fee_juice_contract"
 authors = [""]
 compiler_version = ">=0.25.0"
 type = "contract"

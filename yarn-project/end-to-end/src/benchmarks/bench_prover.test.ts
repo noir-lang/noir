@@ -3,8 +3,8 @@ import { PublicFeePaymentMethod, TxStatus, sleep } from '@aztec/aztec.js';
 import { type AccountWallet } from '@aztec/aztec.js/wallet';
 import { BBCircuitVerifier } from '@aztec/bb-prover';
 import { CompleteAddress, Fq, Fr, GasSettings } from '@aztec/circuits.js';
-import { FPCContract, GasTokenContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
-import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { FPCContract, FeeJuiceContract, TestContract, TokenContract } from '@aztec/noir-contracts.js';
+import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 import { type PXEService, createPXEService } from '@aztec/pxe';
 
 import { jest } from '@jest/globals';
@@ -37,7 +37,7 @@ describe('benchmarks/proving', () => {
 
   let recipient: CompleteAddress;
 
-  let initialGasContract: GasTokenContract;
+  let initialGasContract: FeeJuiceContract;
   let initialTestContract: TestContract;
   let initialTokenContract: TokenContract;
   let initialFpContract: FPCContract;
@@ -88,14 +88,8 @@ describe('benchmarks/proving', () => {
     )
       .send()
       .deployed();
-    initialGasContract = await GasTokenContract.at(GasTokenAddress, initialSchnorrWallet);
-    initialFpContract = await FPCContract.deploy(
-      initialSchnorrWallet,
-      initialTokenContract.address,
-      initialGasContract.address,
-    )
-      .send()
-      .deployed();
+    initialGasContract = await FeeJuiceContract.at(FeeJuiceAddress, initialSchnorrWallet);
+    initialFpContract = await FPCContract.deploy(initialSchnorrWallet, initialTokenContract.address).send().deployed();
 
     await Promise.all([
       initialGasContract.methods.mint_public(initialFpContract.address, 1e12).send().wait(),

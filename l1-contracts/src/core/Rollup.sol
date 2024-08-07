@@ -42,7 +42,7 @@ contract Rollup is Leonidas, IRollup {
   IInbox public immutable INBOX;
   IOutbox public immutable OUTBOX;
   uint256 public immutable VERSION;
-  IERC20 public immutable GAS_TOKEN;
+  IERC20 public immutable FEE_JUICE;
 
   IVerifier public verifier;
 
@@ -66,13 +66,13 @@ contract Rollup is Leonidas, IRollup {
   constructor(
     IRegistry _registry,
     IAvailabilityOracle _availabilityOracle,
-    IERC20 _gasToken,
+    IERC20 _fpcJuice,
     bytes32 _vkTreeRoot
   ) Leonidas(msg.sender) {
     verifier = new MockVerifier();
     REGISTRY = _registry;
     AVAILABILITY_ORACLE = _availabilityOracle;
-    GAS_TOKEN = _gasToken;
+    FEE_JUICE = _fpcJuice;
     INBOX = new Inbox(address(this), Constants.L1_TO_L2_MSG_SUBTREE_HEIGHT);
     OUTBOX = new Outbox(address(this));
     vkTreeRoot = _vkTreeRoot;
@@ -150,9 +150,9 @@ contract Rollup is Leonidas, IRollup {
       header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeMinHeight
     );
 
-    // pay the coinbase 1 gas token if it is not empty and header.totalFees is not zero
+    // pay the coinbase 1 Fee Juice if it is not empty and header.totalFees is not zero
     if (header.globalVariables.coinbase != address(0) && header.totalFees > 0) {
-      GAS_TOKEN.transfer(address(header.globalVariables.coinbase), header.totalFees);
+      FEE_JUICE.transfer(address(header.globalVariables.coinbase), header.totalFees);
     }
 
     emit L2BlockProcessed(header.globalVariables.blockNumber);

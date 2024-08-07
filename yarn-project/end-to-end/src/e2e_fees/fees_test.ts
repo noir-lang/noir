@@ -22,18 +22,21 @@ import {
   TokenContract as BananaCoin,
   CounterContract,
   FPCContract,
-  GasTokenContract,
+  FeeJuiceContract,
   PrivateFPCContract,
   TokenWithRefundsContract,
 } from '@aztec/noir-contracts.js';
-import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
+import { getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
 
 import { getContract } from 'viem';
 
 import { MNEMONIC } from '../fixtures/fixtures.js';
 import { type ISnapshotManager, addAccounts, createSnapshotManager } from '../fixtures/snapshot_manager.js';
-import { type BalancesFn, deployCanonicalGasToken, getBalancesFn, publicDeployAccounts } from '../fixtures/utils.js';
-import { GasPortalTestingHarnessFactory, type IGasBridgingTestHarness } from '../shared/gas_portal_test_harness.js';
+import { type BalancesFn, deployCanonicalFeeJuice, getBalancesFn, publicDeployAccounts } from '../fixtures/utils.js';
+import {
+  FeeJuicePortalTestingHarnessFactory,
+  type IGasBridgingTestHarness,
+} from '../shared/gas_portal_test_harness.js';
 
 const { E2E_DATA_PATH: dataPath } = process.env;
 
@@ -41,10 +44,10 @@ const { E2E_DATA_PATH: dataPath } = process.env;
  * Test fixture for testing fees. Provides the following snapshots:
  * InitialAccounts: Initializes 3 Schnorr account contracts.
  * PublicDeployAccounts: Deploys the accounts publicly.
- * DeployGasToken: Deploys the gas token contract.
+ * DeployFeeJuice: Deploys the Fee Juice contract.
  * FPCSetup: Deploys BananaCoin and FPC contracts, and bridges gas from L1.
  * FundAlice: Mints private and public bananas to Alice.
- * SetupSubscription: Deploys a counter contract and a subscription contract, and mints gas token to the subscription contract.
+ * SetupSubscription: Deploys a counter contract and a subscription contract, and mints Fee Juice to the subscription contract.
  */
 export class FeesTest {
   private snapshotManager: ISnapshotManager;
@@ -64,14 +67,14 @@ export class FeesTest {
   public gasSettings = GasSettings.default();
   public maxFee = this.gasSettings.getFeeLimit().toBigInt();
 
-  public gasTokenContract!: GasTokenContract;
+  public feeJuiceContract!: FeeJuiceContract;
   public bananaCoin!: BananaCoin;
   public bananaFPC!: FPCContract;
   public tokenWithRefunds!: TokenWithRefundsContract;
   public privateFPC!: PrivateFPCContract;
   public counterContract!: CounterContract;
   public subscriptionContract!: AppSubscriptionContract;
-  public gasBridgeTestHarness!: IGasBridgingTestHarness;
+  public feeJuiceBridgeTestHarness!: IGasBridgingTestHarness;
 
   public getCoinbaseBalance!: () => Promise<bigint>;
   public getGasBalanceFn!: BalancesFn;
@@ -151,7 +154,7 @@ export class FeesTest {
   public async applyBaseSnapshots() {
     await this.applyInitialAccountsSnapshot();
     await this.applyPublicDeployAccountsSnapshot();
-    await this.applyDeployGasTokenSnapshot();
+    await this.applyDeployFeeJuiceSnapshot();
     await this.applyDeployBananaTokenSnapshot();
   }
 
@@ -168,7 +171,7 @@ export class FeesTest {
         this.wallets.forEach((w, i) => this.logger.verbose(`Wallet ${i} address: ${w.getAddress()}`));
         [this.aliceWallet, this.bobWallet] = this.wallets.slice(0, 2);
         [this.aliceAddress, this.bobAddress, this.sequencerAddress] = this.wallets.map(w => w.getAddress());
-        this.gasTokenContract = await GasTokenContract.at(getCanonicalGasToken().address, this.aliceWallet);
+        this.feeJuiceContract = await FeeJuiceContract.at(getCanonicalFeeJuice().address, this.aliceWallet);
         const bobInstance = await this.bobWallet.getContractInstance(this.bobAddress);
         if (!bobInstance) {
           throw new Error('Bob instance not found');
@@ -177,7 +180,7 @@ export class FeesTest {
         this.coinbase = EthAddress.random();
 
         const { publicClient, walletClient } = createL1Clients(aztecNodeConfig.rpcUrl, MNEMONIC);
-        this.gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
+        this.feeJuiceBridgeTestHarness = await FeeJuicePortalTestingHarnessFactory.create({
           aztecNode: aztecNode,
           pxeService: pxe,
           publicClient: publicClient,
@@ -196,11 +199,11 @@ export class FeesTest {
     );
   }
 
-  async applyDeployGasTokenSnapshot() {
+  async applyDeployFeeJuiceSnapshot() {
     await this.snapshotManager.snapshot(
-      'deploy_gas_token',
+      'deploy_fee_juice',
       async context => {
-        await deployCanonicalGasToken(
+        await deployCanonicalFeeJuice(
           new SignerlessWallet(
             context.pxe,
             new DefaultMultiCallEntrypoint(context.aztecNodeConfig.l1ChainId, context.aztecNodeConfig.version),
@@ -208,12 +211,12 @@ export class FeesTest {
         );
       },
       async (_data, context) => {
-        this.gasTokenContract = await GasTokenContract.at(getCanonicalGasToken().address, this.aliceWallet);
+        this.feeJuiceContract = await FeeJuiceContract.at(getCanonicalFeeJuice().address, this.aliceWallet);
 
-        this.getGasBalanceFn = getBalancesFn('⛽', this.gasTokenContract.methods.balance_of_public, this.logger);
+        this.getGasBalanceFn = getBalancesFn('⛽', this.feeJuiceContract.methods.balance_of_public, this.logger);
 
         const { publicClient, walletClient } = createL1Clients(context.aztecNodeConfig.rpcUrl, MNEMONIC);
-        this.gasBridgeTestHarness = await GasPortalTestingHarnessFactory.create({
+        this.feeJuiceBridgeTestHarness = await FeeJuicePortalTestingHarnessFactory.create({
           aztecNode: context.aztecNode,
           pxeService: context.pxe,
           publicClient: publicClient,
@@ -247,8 +250,8 @@ export class FeesTest {
       'token_with_refunds_and_private_fpc',
       async context => {
         // Deploy token/fpc flavors for private refunds
-        const gasTokenContract = this.gasBridgeTestHarness.l2Token;
-        expect(await context.pxe.isContractPubliclyDeployed(gasTokenContract.address)).toBe(true);
+        const feeJuiceContract = this.feeJuiceBridgeTestHarness.l2Token;
+        expect(await context.pxe.isContractPubliclyDeployed(feeJuiceContract.address)).toBe(true);
 
         const tokenWithRefunds = await TokenWithRefundsContract.deploy(
           this.aliceWallet,
@@ -270,7 +273,7 @@ export class FeesTest {
         const privateFPC = await privateFPCSent.deployed();
 
         this.logger.info(`PrivateFPC deployed at ${privateFPC.address}`);
-        await this.gasBridgeTestHarness.bridgeFromL1ToL2(
+        await this.feeJuiceBridgeTestHarness.bridgeFromL1ToL2(
           this.INITIAL_GAS_BALANCE,
           this.INITIAL_GAS_BALANCE,
           privateFPC.address,
@@ -299,17 +302,15 @@ export class FeesTest {
     await this.snapshotManager.snapshot(
       'fpc_setup',
       async context => {
-        const gasTokenContract = this.gasBridgeTestHarness.l2Token;
-        expect(await context.pxe.isContractPubliclyDeployed(gasTokenContract.address)).toBe(true);
+        const feeJuiceContract = this.feeJuiceBridgeTestHarness.l2Token;
+        expect(await context.pxe.isContractPubliclyDeployed(feeJuiceContract.address)).toBe(true);
 
         const bananaCoin = this.bananaCoin;
-        const bananaFPC = await FPCContract.deploy(this.aliceWallet, bananaCoin.address, gasTokenContract.address)
-          .send()
-          .deployed();
+        const bananaFPC = await FPCContract.deploy(this.aliceWallet, bananaCoin.address).send().deployed();
 
         this.logger.info(`BananaPay deployed at ${bananaFPC.address}`);
 
-        await this.gasBridgeTestHarness.bridgeFromL1ToL2(
+        await this.feeJuiceBridgeTestHarness.bridgeFromL1ToL2(
           this.INITIAL_GAS_BALANCE,
           this.INITIAL_GAS_BALANCE,
           bananaFPC.address,
@@ -317,8 +318,8 @@ export class FeesTest {
 
         return {
           bananaFPCAddress: bananaFPC.address,
-          gasTokenAddress: gasTokenContract.address,
-          l1GasTokenAddress: this.gasBridgeTestHarness.l1GasTokenAddress,
+          feeJuiceAddress: feeJuiceContract.address,
+          l1FeeJuiceAddress: this.feeJuiceBridgeTestHarness.l1FeeJuiceAddress,
         };
       },
       async (data, context) => {
@@ -336,7 +337,7 @@ export class FeesTest {
         this.getCoinbaseBalance = async () => {
           const { walletClient } = createL1Clients(context.aztecNodeConfig.rpcUrl, MNEMONIC);
           const gasL1 = getContract({
-            address: data.l1GasTokenAddress.toString(),
+            address: data.l1FeeJuiceAddress.toString(),
             abi: PortalERC20Abi,
             client: walletClient,
           });
@@ -367,11 +368,11 @@ export class FeesTest {
     );
   }
 
-  public async applyFundAliceWithGasToken() {
+  public async applyFundAliceWithFeeJuice() {
     await this.snapshotManager.snapshot(
-      'fund_alice_with_gas_token',
+      'fund_alice_with_fee_juice',
       async () => {
-        await this.gasTokenContract.methods.mint_public(this.aliceAddress, this.INITIAL_GAS_BALANCE).send().wait();
+        await this.feeJuiceContract.methods.mint_public(this.aliceAddress, this.INITIAL_GAS_BALANCE).send().wait();
       },
       () => Promise.resolve(),
     );
@@ -394,15 +395,14 @@ export class FeesTest {
           this.bobAddress,
           this.bananaCoin.address,
           this.SUBSCRIPTION_AMOUNT,
-          this.gasTokenContract.address,
           this.APP_SPONSORED_TX_GAS_LIMIT,
         )
           .send()
           .deployed();
 
-        // Mint some gas tokens to the subscription contract
+        // Mint some Fee Juice to the subscription contract
         // Could also use bridgeFromL1ToL2 from the harness, but this is more direct
-        await this.gasTokenContract.methods
+        await this.feeJuiceContract.methods
           .mint_public(subscriptionContract.address, this.INITIAL_GAS_BALANCE)
           .send()
           .wait();

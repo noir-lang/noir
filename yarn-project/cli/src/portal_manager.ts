@@ -1,7 +1,7 @@
 // REFACTOR: This file has been shamelessly copied from yarn-project/end-to-end/src/shared/gas_portal_test_harness.ts
 // We should make this a shared utility in the aztec.js package.
 import { type AztecAddress, type DebugLogger, type EthAddress, Fr, type PXE, computeSecretHash } from '@aztec/aztec.js';
-import { GasPortalAbi, PortalERC20Abi, TokenPortalAbi } from '@aztec/l1-artifacts';
+import { FeeJuicePortalAbi, PortalERC20Abi, TokenPortalAbi } from '@aztec/l1-artifacts';
 
 import {
   type Account,
@@ -90,7 +90,7 @@ export class FeeJuicePortalManager extends PortalManager {
   async bridgeTokens(to: AztecAddress, amount: bigint, secretHash: Fr): Promise<Hex> {
     const portal = getContract({
       address: this.tokenPortalAddress.toString(),
-      abi: GasPortalAbi,
+      abi: FeeJuicePortalAbi,
       client: this.walletClient,
     });
 
@@ -115,14 +115,14 @@ export class FeeJuicePortalManager extends PortalManager {
     logger: DebugLogger,
   ): Promise<PortalManager> {
     const {
-      l1ContractAddresses: { gasTokenAddress, gasPortalAddress },
+      l1ContractAddresses: { feeJuiceAddress, feeJuicePortalAddress },
     } = await pxe.getNodeInfo();
 
-    if (gasTokenAddress.isZero() || gasPortalAddress.isZero()) {
+    if (feeJuiceAddress.isZero() || feeJuicePortalAddress.isZero()) {
       throw new Error('Portal or token not deployed on L1');
     }
 
-    return new FeeJuicePortalManager(gasTokenAddress, gasPortalAddress, publicClient, walletClient, logger);
+    return new FeeJuicePortalManager(feeJuiceAddress, feeJuicePortalAddress, publicClient, walletClient, logger);
   }
 }
 

@@ -256,7 +256,7 @@ Regardless, it has a `fee_payer` set.
 When a node receives a transaction, it must check that:
 
 1. the `fee_payer` is set
-2. the `fee_payer` has a balance of [FPA](./fee-payment-asset.md) greater than the computed [transaction fee](./specifying-gas-fee-info.md#transaction-fee) if the transaction has no public component
+2. the `fee_payer` has a balance of [Fee Juice](./fee-juice.md) greater than the computed [transaction fee](./specifying-gas-fee-info.md#transaction-fee) if the transaction has no public component
 3. the `fee_payer` has a balance of FPA greater than the computed [max transaction fee](./specifying-gas-fee-info.md#maximum-transaction-fee) if the transaction has a public component
 
 See other [validity conditions](../transactions/validity.md).

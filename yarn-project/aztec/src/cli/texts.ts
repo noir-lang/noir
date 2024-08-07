@@ -5,8 +5,8 @@ const contractAddresses =
   'inboxAddress:INBOX_CONTRACT_ADDRESS - string - The deployed L1 inbox contract address.\n' +
   'outboxAddress:OUTBOX_CONTRACT_ADDRESS - string - The deployed L1 outbox contract address.\n' +
   'availabilityOracleAddress:AVAILABILITY_ORACLE_CONTRACT_ADDRESS - string - The deployed L1 availability oracle contract address.\n' +
-  'gasTokenAddress:GAS_TOKEN_CONTRACT_ADDRESS - string - The deployed L1 gas token contract address.\n' +
-  'gasPortalAddress:GAS_PORTAL_CONTRACT_ADDRESS - string - The deployed L1 gas portal contract address.\n';
+  'feeJuiceAddress:FEE_JUICE_TOKEN_CONTRACT_ADDRESS - string - The deployed L1 Fee Juice contract address.\n' +
+  'feeJuicePortalAddress:FEE_JUICE_PORTAL_CONTRACT_ADDRESS - string - The deployed L1 gas portal contract address.\n';
 const p2pOptions =
   'p2pBlockCheckIntervalMS:P2P_BLOCK_CHECK_INTERVAL_MS - number - The frequency in which to check for blocks. Default: 100\n' +
   'p2pPeerCheckIntervalMS:P2P_PEER_CHECK_INTERVAL_MS - number - The frequency in which to check for peers. Default: 1000\n' +

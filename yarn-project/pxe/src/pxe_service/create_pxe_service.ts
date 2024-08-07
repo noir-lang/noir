@@ -7,7 +7,7 @@ import { AztecLmdbStore } from '@aztec/kv-store/lmdb';
 import { initStoreForRollup } from '@aztec/kv-store/utils';
 import { getCanonicalAuthRegistry } from '@aztec/protocol-contracts/auth-registry';
 import { getCanonicalClassRegisterer } from '@aztec/protocol-contracts/class-registerer';
-import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
+import { getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
 import { getCanonicalInstanceDeployer } from '@aztec/protocol-contracts/instance-deployer';
 import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
 import { getCanonicalMultiCallEntrypointContract } from '@aztec/protocol-contracts/multi-call-entrypoint';
@@ -66,7 +66,7 @@ export async function createPXEService(
     getCanonicalClassRegisterer(),
     getCanonicalInstanceDeployer(),
     getCanonicalMultiCallEntrypointContract(),
-    getCanonicalGasToken(),
+    getCanonicalFeeJuice(),
     getCanonicalKeyRegistry(),
     getCanonicalAuthRegistry(),
   ]) {

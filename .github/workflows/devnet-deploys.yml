@@ -468,8 +468,8 @@ jobs:
           echo "TF_VAR_INBOX_CONTRACT_ADDRESS=$(extract inboxAddress)" >>$GITHUB_ENV
           echo "TF_VAR_OUTBOX_CONTRACT_ADDRESS=$(extract outboxAddress)" >>$GITHUB_ENV
           echo "TF_VAR_AVAILABILITY_ORACLE_CONTRACT_ADDRESS=$(extract availabilityOracleAddress)" >>$GITHUB_ENV
-          echo "TF_VAR_GAS_TOKEN_CONTRACT_ADDRESS=$(extract gasTokenAddress)" >>$GITHUB_ENV
-          echo "TF_VAR_GAS_PORTAL_CONTRACT_ADDRESS=$(extract gasPortalAddress)" >>$GITHUB_ENV
+          echo "TF_VAR_FEE_JUICE_CONTRACT_ADDRESS=$(extract feeJuiceAddress)" >>$GITHUB_ENV
+          echo "TF_VAR_FEE_JUICE_PORTAL_CONTRACT_ADDRESS=$(extract feeJuicePortalAddress)" >>$GITHUB_ENV
 
       - name: Apply l1-contracts Terraform
         working-directory: ./l1-contracts/terraform
@@ -591,7 +591,7 @@ jobs:
           aws s3 cp ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/l1_contracts.json ./l1_contracts.json
           aws s3 cp ${{ env.CONTRACT_S3_BUCKET }}/${{ env.DEPLOY_TAG }}/basic_contracts.json ./basic_contracts.json
 
-          echo "TF_VAR_GAS_TOKEN_CONTRACT_ADDRESS=$(jq -r '.gasTokenAddress' ./l1_contracts.json)" >>$GITHUB_ENV
+          echo "TF_VAR_FEE_JUICE_CONTRACT_ADDRESS=$(jq -r '.feeJuiceAddress' ./l1_contracts.json)" >>$GITHUB_ENV
           echo "TF_VAR_DEV_COIN_CONTRACT_ADDRESS=$(jq -r '.devCoinL1' ./basic_contracts.json)" >>$GITHUB_ENV
 
       - name: Deploy Faucet

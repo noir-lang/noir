@@ -7,7 +7,8 @@ title: Gas & Fees
 The Aztec network uses a fee system to incentivize sequencers to process transactions and publish blocks.
 
 This section breaks down:
-- [the fee payment asset](./fee-payment-asset.md)
+
+- [fee juice](./fee-juice.md)
 - [how users specify gas/fee parameters in their transactions](./specifying-gas-fee-info.md)
 - [fee abstraction](./tx-setup-and-teardown.md)
 - [tracking gas/fee information in the kernel circuits](./kernel-tracking.md)

@@ -87,8 +87,8 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
 
   program
     .command('bridge-fee-juice')
-    .description('Mints L1 gas tokens and pushes them to L2.')
-    .argument('<amount>', 'The amount of gas tokens to mint and bridge.', parseBigint)
+    .description('Mints L1 Fee Juice and pushes them to L2.')
+    .argument('<amount>', 'The amount of Fee Juice to mint and bridge.', parseBigint)
     .argument('<recipient>', 'Aztec address of the recipient.', parseAztecAddress)
     .requiredOption(
       '--l1-rpc-url <string>',
@@ -125,7 +125,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
   program
     .command('bridge-erc20')
     .description('Bridges ERC20 tokens to L2.')
-    .argument('<amount>', 'The amount of gas tokens to mint and bridge.', parseBigint)
+    .argument('<amount>', 'The amount of Fee Juice to mint and bridge.', parseBigint)
     .argument('<recipient>', 'Aztec address of the recipient.', parseAztecAddress)
     .requiredOption(
       '--l1-rpc-url <string>',

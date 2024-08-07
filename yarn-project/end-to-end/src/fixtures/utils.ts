@@ -42,8 +42,8 @@ import { makeBackoff, retry } from '@aztec/foundation/retry';
 import {
   AvailabilityOracleAbi,
   AvailabilityOracleBytecode,
-  GasPortalAbi,
-  GasPortalBytecode,
+  FeeJuicePortalAbi,
+  FeeJuicePortalBytecode,
   InboxAbi,
   InboxBytecode,
   OutboxAbi,
@@ -56,10 +56,10 @@ import {
   RollupBytecode,
 } from '@aztec/l1-artifacts';
 import { AuthRegistryContract, KeyRegistryContract } from '@aztec/noir-contracts.js';
-import { GasTokenContract } from '@aztec/noir-contracts.js/GasToken';
+import { FeeJuiceContract } from '@aztec/noir-contracts.js/FeeJuice';
 import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { getCanonicalAuthRegistry } from '@aztec/protocol-contracts/auth-registry';
-import { GasTokenAddress, getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
+import { FeeJuiceAddress, getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
 import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
 import { type ProverClient } from '@aztec/prover-client';
 import { PXEService, type PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
@@ -128,18 +128,18 @@ export const setupL1Contracts = async (
       contractAbi: RollupAbi,
       contractBytecode: RollupBytecode,
     },
-    gasToken: {
+    feeJuice: {
       contractAbi: PortalERC20Abi,
       contractBytecode: PortalERC20Bytecode,
     },
-    gasPortal: {
-      contractAbi: GasPortalAbi,
-      contractBytecode: GasPortalBytecode,
+    feeJuicePortal: {
+      contractAbi: FeeJuicePortalAbi,
+      contractBytecode: FeeJuicePortalBytecode,
     },
   };
 
   const l1Data = await deployL1Contracts(l1RpcUrl, account, foundry, logger, l1Artifacts, {
-    l2GasTokenAddress: GasTokenAddress,
+    l2FeeJuiceAddress: FeeJuiceAddress,
     vkTreeRoot: getVKTreeRoot(),
   });
 
@@ -245,7 +245,7 @@ async function setupWithRemoteEnvironment(
   );
 
   if (enableGas) {
-    await deployCanonicalGasToken(
+    await deployCanonicalFeeJuice(
       new SignerlessWallet(pxeClient, new DefaultMultiCallEntrypoint(chainId, protocolVersion)),
     );
   }
@@ -398,8 +398,8 @@ export async function setup(
   );
 
   if (enableGas) {
-    logger.verbose('Deploying gas token...');
-    await deployCanonicalGasToken(
+    logger.verbose('Deploying Fee Juice...');
+    await deployCanonicalFeeJuice(
       new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
     );
   }
@@ -625,41 +625,41 @@ export async function expectMappingDelta<K, V extends number | bigint>(
 /**
  * Deploy the protocol contracts to a running instance.
  */
-export async function deployCanonicalGasToken(pxe: PXE) {
-  // "deploy" the Gas token as it contains public functions
-  const gasPortalAddress = (await pxe.getNodeInfo()).l1ContractAddresses.gasPortalAddress;
-  const canonicalGasToken = getCanonicalGasToken();
+export async function deployCanonicalFeeJuice(pxe: PXE) {
+  // "deploy" the Fee Juice as it contains public functions
+  const feeJuicePortalAddress = (await pxe.getNodeInfo()).l1ContractAddresses.feeJuicePortalAddress;
+  const canonicalFeeJuice = getCanonicalFeeJuice();
 
-  if (await pxe.isContractClassPubliclyRegistered(canonicalGasToken.contractClass.id)) {
-    getLogger().debug('Gas token already deployed');
-    await expect(pxe.isContractPubliclyDeployed(canonicalGasToken.address)).resolves.toBe(true);
+  if (await pxe.isContractClassPubliclyRegistered(canonicalFeeJuice.contractClass.id)) {
+    getLogger().debug('Fee Juice already deployed');
+    await expect(pxe.isContractPubliclyDeployed(canonicalFeeJuice.address)).resolves.toBe(true);
     return;
   }
 
   // Capsules will die soon, patience!
-  const publicBytecode = canonicalGasToken.contractClass.packedBytecode;
+  const publicBytecode = canonicalFeeJuice.contractClass.packedBytecode;
   const encodedBytecode = bufferAsFields(publicBytecode, MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS);
   await pxe.addCapsule(encodedBytecode);
 
-  await pxe.registerContract(canonicalGasToken);
+  await pxe.registerContract(canonicalFeeJuice);
   const wallet = new SignerlessWallet(pxe);
-  const gasToken = await GasTokenContract.at(canonicalGasToken.address, wallet);
+  const feeJuice = await FeeJuiceContract.at(canonicalFeeJuice.address, wallet);
 
-  await gasToken.methods
+  await feeJuice.methods
     .deploy(
-      canonicalGasToken.contractClass.artifactHash,
-      canonicalGasToken.contractClass.privateFunctionsRoot,
-      canonicalGasToken.contractClass.publicBytecodeCommitment,
-      gasPortalAddress,
+      canonicalFeeJuice.contractClass.artifactHash,
+      canonicalFeeJuice.contractClass.privateFunctionsRoot,
+      canonicalFeeJuice.contractClass.publicBytecodeCommitment,
+      feeJuicePortalAddress,
     )
     .send({ fee: { paymentMethod: new NoFeePaymentMethod(), gasSettings: GasSettings.teardownless() } })
     .wait();
 
-  getLogger().info(`Gas token publicly deployed at ${gasToken.address}`);
+  getLogger().info(`Fee Juice publicly deployed at ${feeJuice.address}`);
 
-  await expect(pxe.isContractClassPubliclyRegistered(gasToken.instance.contractClassId)).resolves.toBe(true);
-  await expect(pxe.getContractInstance(gasToken.address)).resolves.toBeDefined();
-  await expect(pxe.isContractPubliclyDeployed(gasToken.address)).resolves.toBe(true);
+  await expect(pxe.isContractClassPubliclyRegistered(feeJuice.instance.contractClassId)).resolves.toBe(true);
+  await expect(pxe.getContractInstance(feeJuice.address)).resolves.toBeDefined();
+  await expect(pxe.isContractPubliclyDeployed(feeJuice.address)).resolves.toBe(true);
 }
 
 export async function deployCanonicalKeyRegistry(deployer: Wallet) {

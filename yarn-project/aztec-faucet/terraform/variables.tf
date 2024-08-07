@@ -31,7 +31,7 @@ variable "FAUCET_ACCOUNT_INDEX" {
   type = string
 }
 
-variable "GAS_TOKEN_CONTRACT_ADDRESS" {
+variable "FEE_JUICE_CONTRACT_ADDRESS" {
   type = string
 }
 

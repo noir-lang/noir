@@ -22,7 +22,7 @@ members = [
     "contracts/easy_private_voting_contract",
     "contracts/ecdsa_account_contract",
     "contracts/escrow_contract",
-    "contracts/gas_token_contract",
+    "contracts/fee_juice_contract",
     "contracts/import_test_contract",
     "contracts/key_registry_contract",
     "contracts/inclusion_proofs_contract",

@@ -1,17 +1,17 @@
 import { type FunctionCall } from '@aztec/circuit-types';
 import { type AztecAddress } from '@aztec/circuits.js';
-import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 
 import { type FeePaymentMethod } from './fee_payment_method.js';
 
 /**
- * Pay fee directly in the native gas token.
+ * Pay fee directly in the native Fee Juice.
  */
-export class NativeFeePaymentMethod implements FeePaymentMethod {
+export class FeeJuicePaymentMethod implements FeePaymentMethod {
   constructor(protected sender: AztecAddress) {}
 
   getAsset() {
-    return GasTokenAddress;
+    return FeeJuiceAddress;
   }
 
   getFunctionCalls(): Promise<FunctionCall[]> {

@@ -1,8 +1,8 @@
 import {
   type AccountWallet,
+  FeeJuicePaymentMethod,
+  FeeJuicePaymentMethodWithClaim,
   type FeePaymentMethod,
-  NativeFeePaymentMethod,
-  NativeFeePaymentMethodWithClaim,
   NoFeePaymentMethod,
   PrivateFeePaymentMethod,
   PublicFeePaymentMethod,
@@ -139,14 +139,14 @@ function parsePaymentMethod(payment: string, log: LogFn): (sender: AccountWallet
       case 'native':
         if (parsed.claimSecret && parsed.claimAmount) {
           log(`Using native fee payment method with claim for ${parsed.claimAmount} tokens`);
-          return new NativeFeePaymentMethodWithClaim(
+          return new FeeJuicePaymentMethodWithClaim(
             sender.getAddress(),
             BigInt(parsed.claimAmount),
             Fr.fromString(parsed.claimSecret),
           );
         } else {
           log(`Using native fee payment`);
-          return new NativeFeePaymentMethod(sender.getAddress());
+          return new FeeJuicePaymentMethod(sender.getAddress());
         }
       case 'fpc-public': {
         const [asset, fpc] = getFpcOpts(parsed);

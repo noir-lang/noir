@@ -198,10 +198,7 @@ async function deployFPC(wallet: Wallet, tokenAddress: AztecAddress): Promise<Co
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
   const { FPCContract } = await import('@aztec/noir-contracts.js');
-  const {
-    protocolContractAddresses: { gasToken },
-  } = await wallet.getPXEInfo();
-  const fpc = await FPCContract.deploy(wallet, tokenAddress, gasToken).send().deployed();
+  const fpc = await FPCContract.deploy(wallet, tokenAddress).send().deployed();
   const info: ContractDeploymentInfo = {
     address: fpc.address,
     initHash: fpc.instance.initializationHash,
@@ -232,12 +229,12 @@ async function fundFPC(
 ) {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
-  const { GasTokenContract, CounterContract } = await import('@aztec/noir-contracts.js');
+  const { FeeJuiceContract, CounterContract } = await import('@aztec/noir-contracts.js');
   const {
-    protocolContractAddresses: { gasToken },
+    protocolContractAddresses: { feeJuice },
   } = await wallet.getPXEInfo();
 
-  const gasTokenContract = await GasTokenContract.at(gasToken, wallet);
+  const feeJuiceContract = await FeeJuiceContract.at(feeJuice, wallet);
 
   const feeJuicePortal = await FeeJuicePortalManager.create(
     wallet,
@@ -256,5 +253,5 @@ async function fundFPC(
   await counter.methods.increment(wallet.getAddress(), wallet.getAddress()).send().wait();
   await counter.methods.increment(wallet.getAddress(), wallet.getAddress()).send().wait();
 
-  await gasTokenContract.methods.claim(fpcAddress, amount, secret).send().wait();
+  await feeJuiceContract.methods.claim(fpcAddress, amount, secret).send().wait();
 }

@@ -46,7 +46,7 @@ export class KernelCircuitPublicInputs {
    * Computes the transaction fee for the transaction.
    * @param gasFees - Gas fees for the block. We cannot source this from the constants
    * since they may be unset if this comes from a private kernel directly.
-   * @returns The amount in gas tokens to pay for this tx.
+   * @returns The amount in Fee Juice to pay for this tx.
    * @remarks It is safe to compute this method in typescript because we compute the
    * transaction_fee ourselves in the base rollup. This value must match the value
    * computed in the base rollup, otherwise the content commitment of the block will be invalid.

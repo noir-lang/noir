@@ -1,18 +1,19 @@
 # Fee Schedule
 
-The  [transaction fee](./specifying-gas-fee-info.md#transaction-fee) is comprised of a DA component, an L2 component, and an inclusion fee. The DA and L2 components are calculated by multiplying the gas consumed in each dimension by the respective `feePerGas` value. The inclusion fee is a fixed cost associated with the transaction, which is used to cover the cost of verifying the encompassing rollup proof on L1.
+The [transaction fee](./specifying-gas-fee-info.md#transaction-fee) is comprised of a DA component, an L2 component, and an inclusion fee. The DA and L2 components are calculated by multiplying the gas consumed in each dimension by the respective `feePerGas` value. The inclusion fee is a fixed cost associated with the transaction, which is used to cover the cost of verifying the encompassing rollup proof on L1.
 
 ## DA Gas
 
 DA gas is consumed to cover the costs associated with publishing data associated with a transaction.
 
 These data include:
-  - new note hashes
-  - new nullifiers
-  - new l2 -> l1 message hashes
-  - new public data writes
-  - new logs
-  - protocol metadata (e.g. the amount of gas consumed, revert code, etc.)
+
+- new note hashes
+- new nullifiers
+- new l2 -> l1 message hashes
+- new public data writes
+- new logs
+- protocol metadata (e.g. the amount of gas consumed, revert code, etc.)
 
 The DA gas used is then calculated as:
 
@@ -75,16 +76,19 @@ l2_gas_used = FIXED_L2_GAS
 ```
 
 ### L2 Gas from Private
+
 Private execution also consumes L2 gas, because there is still work that needs to be performed by the sequencer correspondent to the private outputs, which is effectively L2 gas. The following operations performed in private execution will consume L2 gas:
+
 - 32 L2 gas per note hash
 - 64 L2 gas per nullifier
 - 4 L2 gas per byte of logs (note encrypted, encrypted, and unencrypted)
 
 ## Max Inclusion Fee
 
-Each transaction, and each block, has inescapable overhead costs associated with it which are not directly related to the amount of data or computation performed. 
+Each transaction, and each block, has inescapable overhead costs associated with it which are not directly related to the amount of data or computation performed.
 
 These costs include:
+
 - verifying the private kernel proof of each transaction
 - executing/proving the base/merge/root rollup circuits
   - includes verifying that every new nullifier is unique across the tx/block
@@ -99,12 +103,11 @@ These costs include:
 
 See [the l1 contracts section](../l1-smart-contracts/index.md) for more information on the L1 Inbox and Outbox.
 
-Users cover these costs by [specifying an inclusion fee](./specifying-gas-fee-info.md#specifying-gas--fee-info), which is different from other parameters specified in that it is a fixed fee offered to the sequencer, denominated in [FPA](./fee-payment-asset.md). 
+Users cover these costs by [specifying an inclusion fee](./specifying-gas-fee-info.md#specifying-gas--fee-info), which is different from other parameters specified in that it is a fixed fee offered to the sequencer, denominated in [Fee Juice](./fee-juice.md).
 
 Even though these line items will be the same for every transaction in a block, the **cost** to the sequencer will vary, particularly based on:
+
 - congestion on L1
 - prevailing price of proof generation
 
 A price discovery mechanism is being developed to help users set the inclusion fee appropriately.
-
-

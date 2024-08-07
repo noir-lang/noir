@@ -5,7 +5,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { FPCContract } from '@aztec/noir-contracts.js/FPC';
 import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 import { AuthRegistryAddress } from '@aztec/protocol-contracts/auth-registry';
-import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 
 import { type GlobalReaderConfig } from './global_variable_builder/index.js';
 import { type PublisherConfig, type TxSenderConfig, getTxSenderConfigFromEnv } from './publisher/config.js';
@@ -136,7 +136,7 @@ function getDefaultAllowedSetupFunctions(): AllowedElement[] {
     },
     // needed for claiming on the same tx as a spend
     {
-      address: GasTokenAddress,
+      address: FeeJuiceAddress,
       selector: FunctionSelector.fromSignature('_increase_public_balance((Field),Field)'),
     },
     // needed for private transfers via FPC

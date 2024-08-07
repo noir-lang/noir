@@ -5,7 +5,7 @@ import { type LogFn } from '@aztec/foundation/log';
 import {
   deployCanonicalAuthRegistry,
   deployCanonicalKeyRegistry,
-  deployCanonicalL2GasToken,
+  deployCanonicalL2FeeJuice,
 } from '../misc/deploy_contracts.js';
 
 const waitOpts: WaitOpts = {
@@ -27,8 +27,8 @@ export async function deployProtocolContracts(rpcUrl: string, l1ChainId: number,
   const authRegistryAddress = await deployCanonicalAuthRegistry(deployer, waitOpts);
 
   // Deploy Fee Juice
-  const gasPortalAddress = (await deployer.getNodeInfo()).l1ContractAddresses.gasPortalAddress;
-  const feeJuiceAddress = await deployCanonicalL2GasToken(deployer, gasPortalAddress, waitOpts);
+  const feeJuicePortalAddress = (await deployer.getNodeInfo()).l1ContractAddresses.feeJuicePortalAddress;
+  const feeJuiceAddress = await deployCanonicalL2FeeJuice(deployer, feeJuicePortalAddress, waitOpts);
 
   if (json) {
     log(

@@ -1,6 +1,6 @@
 mod lib;
 
-contract GasToken {
+contract FeeJuice {
     use dep::aztec::{
         protocol_types::{
         contract_class_id::ContractClassId, abis::function_selector::FunctionSelector,
@@ -42,12 +42,12 @@ contract GasToken {
             public_bytecode_commitment
         );
         assert(
-            instance.contract_class_id == contract_class_id, "Invalid contract class id computed for gas token"
+            instance.contract_class_id == contract_class_id, "Invalid contract class id computed for Fee Juice"
         );
 
         // Increase self balance and set as fee payer, and end setup
         let deploy_fees = 20000000000;
-        GasToken::at(self)._increase_public_balance(self, deploy_fees).enqueue(&mut context);
+        FeeJuice::at(self)._increase_public_balance(self, deploy_fees).enqueue(&mut context);
         context.set_as_fee_payer();
         context.end_setup();
 
@@ -66,11 +66,11 @@ contract GasToken {
         ).call(&mut context);
 
         // Enqueue call to set the portal address
-        GasToken::at(self).set_portal(portal_address).enqueue(&mut context);
+        FeeJuice::at(self).set_portal(portal_address).enqueue(&mut context);
     }
 
     // We purposefully not set this function as an initializer so we do not bind
-    // the contract to a specific L1 portal address, since the gas token address
+    // the contract to a specific L1 portal address, since the Fee Juice address
     // is a hardcoded constant in the rollup circuits.
     #[aztec(public)]
     fn set_portal(portal_address: EthAddress) {
@@ -90,7 +90,7 @@ contract GasToken {
         // TODO(palla/gas) Emit an unencrypted log to announce which L1 to L2 message has been claimed
         // Otherwise, we cannot trace L1 deposits to their corresponding claims on L2
 
-        GasToken::at(context.this_address())._increase_public_balance(to, amount).enqueue(&mut context);
+        FeeJuice::at(context.this_address())._increase_public_balance(to, amount).enqueue(&mut context);
     }
 
     #[aztec(public)]
@@ -116,7 +116,7 @@ contract GasToken {
 
     // TODO(@just-mitch): remove this function before mainnet deployment
     // convenience function for testing
-    // the true canonical gas token contract will not have this function
+    // the true canonical Fee Juice contract will not have this function
     #[aztec(public)]
     fn mint_public(to: AztecAddress, amount: Field) {
         let amount = U128::from_integer(amount);

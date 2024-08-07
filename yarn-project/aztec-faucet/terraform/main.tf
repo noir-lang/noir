@@ -144,7 +144,7 @@ resource "aws_ecs_task_definition" "aztec-faucet" {
         },
         {
           name  = "EXTRA_ASSETS",
-          value = "fee_juice:${var.GAS_TOKEN_CONTRACT_ADDRESS},dev_coin:${var.DEV_COIN_CONTRACT_ADDRESS}"
+          value = "fee_juice:${var.FEE_JUICE_CONTRACT_ADDRESS},dev_coin:${var.DEV_COIN_CONTRACT_ADDRESS}"
         },
         {
           name  = "EXTRA_ASSET_AMOUNT",

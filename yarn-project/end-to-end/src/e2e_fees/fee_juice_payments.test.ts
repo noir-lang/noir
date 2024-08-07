@@ -1,31 +1,31 @@
 import {
   type AccountWallet,
   type AztecAddress,
-  NativeFeePaymentMethod,
-  NativeFeePaymentMethodWithClaim,
+  FeeJuicePaymentMethod,
+  FeeJuicePaymentMethodWithClaim,
 } from '@aztec/aztec.js';
 import { type GasSettings } from '@aztec/circuits.js';
-import { type TokenContract as BananaCoin, type GasTokenContract } from '@aztec/noir-contracts.js';
+import { type TokenContract as BananaCoin, type FeeJuiceContract } from '@aztec/noir-contracts.js';
 
 import { FeesTest } from './fees_test.js';
 
-describe('e2e_fees native_payments', () => {
+describe('e2e_fees Fee Juice payments', () => {
   let aliceAddress: AztecAddress;
   let aliceWallet: AccountWallet;
   let bobAddress: AztecAddress;
   let bananaCoin: BananaCoin;
   let gasSettings: GasSettings;
-  let gasTokenContract: GasTokenContract;
-  let paymentMethod: NativeFeePaymentMethod;
+  let feeJuiceContract: FeeJuiceContract;
+  let paymentMethod: FeeJuicePaymentMethod;
 
-  const t = new FeesTest('native_payments');
+  const t = new FeesTest('fee_juice');
 
   beforeAll(async () => {
     await t.applyBaseSnapshots();
     await t.applyFundAliceWithBananas();
-    ({ gasTokenContract, aliceAddress, aliceWallet, bobAddress, bananaCoin, gasSettings } = await t.setup());
+    ({ feeJuiceContract, aliceAddress, aliceWallet, bobAddress, bananaCoin, gasSettings } = await t.setup());
 
-    paymentMethod = new NativeFeePaymentMethod(aliceAddress);
+    paymentMethod = new FeeJuicePaymentMethod(aliceAddress);
 
     // We let Alice see Bob's notes because the expect uses Alice's wallet to interact with the contracts to "get" state.
     aliceWallet.setScopes([aliceAddress, bobAddress]);
@@ -37,7 +37,7 @@ describe('e2e_fees native_payments', () => {
 
   describe('without initial funds', () => {
     beforeAll(async () => {
-      expect(await gasTokenContract.methods.balance_of_public(aliceAddress).simulate()).toEqual(0n);
+      expect(await feeJuiceContract.methods.balance_of_public(aliceAddress).simulate()).toEqual(0n);
     });
 
     it('fails to send a tx', async () => {
@@ -50,17 +50,17 @@ describe('e2e_fees native_payments', () => {
     });
 
     it('claims bridged funds and pays with them on the same tx', async () => {
-      const { secret } = await t.gasBridgeTestHarness.prepareTokensOnL1(
+      const { secret } = await t.feeJuiceBridgeTestHarness.prepareTokensOnL1(
         t.INITIAL_GAS_BALANCE,
         t.INITIAL_GAS_BALANCE,
         aliceAddress,
       );
-      const paymentMethod = new NativeFeePaymentMethodWithClaim(aliceAddress, t.INITIAL_GAS_BALANCE, secret);
+      const paymentMethod = new FeeJuicePaymentMethodWithClaim(aliceAddress, t.INITIAL_GAS_BALANCE, secret);
       const receipt = await bananaCoin.methods
         .transfer_public(aliceAddress, bobAddress, 1n, 0n)
         .send({ fee: { gasSettings, paymentMethod } })
         .wait();
-      const endBalance = await gasTokenContract.methods.balance_of_public(aliceAddress).simulate();
+      const endBalance = await feeJuiceContract.methods.balance_of_public(aliceAddress).simulate();
 
       expect(endBalance).toBeGreaterThan(0n);
       expect(endBalance).toBeLessThan(t.INITIAL_GAS_BALANCE);
@@ -70,28 +70,28 @@ describe('e2e_fees native_payments', () => {
 
   describe('with initial funds', () => {
     beforeAll(async () => {
-      await t.applyFundAliceWithGasToken();
+      await t.applyFundAliceWithFeeJuice();
     });
 
     it('sends tx with native fee payment method with public calls', async () => {
-      const initialBalance = await gasTokenContract.methods.balance_of_public(aliceAddress).simulate();
+      const initialBalance = await feeJuiceContract.methods.balance_of_public(aliceAddress).simulate();
       const { transactionFee } = await bananaCoin.methods
         .transfer_public(aliceAddress, bobAddress, 1n, 0n)
         .send({ fee: { gasSettings, paymentMethod } })
         .wait();
       expect(transactionFee).toBeGreaterThan(0n);
-      const endBalance = await gasTokenContract.methods.balance_of_public(aliceAddress).simulate();
+      const endBalance = await feeJuiceContract.methods.balance_of_public(aliceAddress).simulate();
       expect(endBalance).toBeLessThan(initialBalance);
     });
 
     it('sends tx with native fee payment method with no public calls', async () => {
-      const initialBalance = await gasTokenContract.methods.balance_of_public(aliceAddress).simulate();
+      const initialBalance = await feeJuiceContract.methods.balance_of_public(aliceAddress).simulate();
       const { transactionFee } = await bananaCoin.methods
         .transfer(bobAddress, 1n)
         .send({ fee: { gasSettings, paymentMethod } })
         .wait();
       expect(transactionFee).toBeGreaterThan(0n);
-      const endBalance = await gasTokenContract.methods.balance_of_public(aliceAddress).simulate();
+      const endBalance = await feeJuiceContract.methods.balance_of_public(aliceAddress).simulate();
       expect(endBalance).toBeLessThan(initialBalance);
     });
   });

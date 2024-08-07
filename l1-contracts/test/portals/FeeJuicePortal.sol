@@ -12,7 +12,7 @@ import {Hash} from "../../src/core/libraries/Hash.sol";
 // docs:end:content_hash_sol_import
 
 // docs:start:init
-contract GasPortal {
+contract FeeJuicePortal {
   using SafeERC20 for IERC20;
 
   IRegistry public registry;

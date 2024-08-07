@@ -1,7 +1,7 @@
 import {
   type AztecAddress,
   BatchCall,
-  NativeFeePaymentMethod,
+  FeeJuicePaymentMethod,
   NoFeePaymentMethod,
   type SendMethodOptions,
   type Wallet,
@@ -51,7 +51,7 @@ export class Bot {
       ),
     ];
 
-    const paymentMethod = feePaymentMethod === 'native' ? new NativeFeePaymentMethod(sender) : new NoFeePaymentMethod();
+    const paymentMethod = feePaymentMethod === 'native' ? new FeeJuicePaymentMethod(sender) : new NoFeePaymentMethod();
     const gasSettings = GasSettings.default();
     const opts: SendMethodOptions = { estimateGas: true, fee: { paymentMethod, gasSettings } };
 

@@ -75,7 +75,7 @@ export class BaseRollupInputs {
     /** Hints used while proving state diff validity. */
     public stateDiffHints: StateDiffHints,
     /** Public data read hint for accessing the balance of the fee payer. */
-    public feePayerGasTokenBalanceReadHint: PublicDataHint,
+    public feePayerFeeJuiceBalanceReadHint: PublicDataHint,
 
     /**
      * The public data writes to be inserted in the tree, sorted high slot to low slot.
@@ -122,7 +122,7 @@ export class BaseRollupInputs {
       fields.kernelData,
       fields.start,
       fields.stateDiffHints,
-      fields.feePayerGasTokenBalanceReadHint,
+      fields.feePayerFeeJuiceBalanceReadHint,
       fields.sortedPublicDataWrites,
       fields.sortedPublicDataWritesIndexes,
       fields.lowPublicDataWritesPreimages,

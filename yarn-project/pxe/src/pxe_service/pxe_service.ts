@@ -48,7 +48,7 @@ import { SerialQueue } from '@aztec/foundation/fifo';
 import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { type KeyStore } from '@aztec/key-store';
 import { ClassRegistererAddress } from '@aztec/protocol-contracts/class-registerer';
-import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
+import { getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
 import { getCanonicalInstanceDeployer } from '@aztec/protocol-contracts/instance-deployer';
 import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
 import { getCanonicalMultiCallEntrypointAddress } from '@aztec/protocol-contracts/multi-call-entrypoint';
@@ -618,7 +618,7 @@ export class PXEService implements PXE {
       pxeVersion: this.packageVersion,
       protocolContractAddresses: {
         classRegisterer: ClassRegistererAddress,
-        gasToken: getCanonicalGasToken().address,
+        feeJuice: getCanonicalFeeJuice().address,
         instanceDeployer: getCanonicalInstanceDeployer().address,
         keyRegistry: getCanonicalKeyRegistryAddress(),
         multiCallEntrypoint: getCanonicalMultiCallEntrypointAddress(),

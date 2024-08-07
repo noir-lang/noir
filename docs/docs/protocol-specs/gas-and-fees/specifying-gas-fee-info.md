@@ -40,8 +40,8 @@ GasSettings --> Gas
 GasSettings --> GasFees
 ```
 
-:::note 
-All fees are denominated in the [Fee Payment Asset (FPA)](./fee-payment-asset.md).
+:::note
+All fees are denominated in [Fee Juice](./fee-juice.md).
 :::
 
 ## Gas Dimensions and Max Inclusion Fee
@@ -56,7 +56,6 @@ This is similar to the gas model in Ethereum, where transaction consume gas to p
 Separately, every transaction has overhead costs associated with it, e.g. verifying its encompassing rollup proof on L1, which are captured in the `maxInclusionFee`, which is not tied to gas consumption on the transaction, but is specified in FPA.
 
 See the [Fee Schedule](./fee-schedule.md) for a detailed breakdown of costs associated with different actions.
-
 
 ## `gasLimits` and `teardownGasLimits`
 
@@ -129,7 +128,7 @@ This is useful for imposing [validity conditions](./kernel-tracking.md#mempoolno
 
 ## `fee_payer`
 
-The `fee_payer` is the entity that pays the transaction fee. 
+The `fee_payer` is the entity that pays the transaction fee.
 
 It is effectively set in private by the contract that calls `context.set_as_fee_payer()`.
 

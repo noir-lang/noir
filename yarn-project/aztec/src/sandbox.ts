@@ -3,7 +3,7 @@ import { type AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec
 import { SignerlessWallet } from '@aztec/aztec.js';
 import { DefaultMultiCallEntrypoint } from '@aztec/aztec.js/entrypoint';
 import { type AztecNode } from '@aztec/circuit-types';
-import { deployCanonicalAuthRegistry, deployCanonicalKeyRegistry, deployCanonicalL2GasToken } from '@aztec/cli/misc';
+import { deployCanonicalAuthRegistry, deployCanonicalKeyRegistry, deployCanonicalL2FeeJuice } from '@aztec/cli/misc';
 import {
   type DeployL1Contracts,
   type L1ContractArtifactsForDeployment,
@@ -16,8 +16,8 @@ import { retryUntil } from '@aztec/foundation/retry';
 import {
   AvailabilityOracleAbi,
   AvailabilityOracleBytecode,
-  GasPortalAbi,
-  GasPortalBytecode,
+  FeeJuicePortalAbi,
+  FeeJuicePortalBytecode,
   InboxAbi,
   InboxBytecode,
   OutboxAbi,
@@ -30,7 +30,7 @@ import {
   RollupBytecode,
 } from '@aztec/l1-artifacts';
 import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
-import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 import { type PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 import { type TelemetryClient } from '@aztec/telemetry-client';
 import {
@@ -112,19 +112,19 @@ export async function deployContractsToL1(
       contractAbi: RollupAbi,
       contractBytecode: RollupBytecode,
     },
-    gasToken: {
+    feeJuice: {
       contractAbi: PortalERC20Abi,
       contractBytecode: PortalERC20Bytecode,
     },
-    gasPortal: {
-      contractAbi: GasPortalAbi,
-      contractBytecode: GasPortalBytecode,
+    feeJuicePortal: {
+      contractAbi: FeeJuicePortalAbi,
+      contractBytecode: FeeJuicePortalBytecode,
     },
   };
 
   const l1Contracts = await waitThenDeploy(aztecNodeConfig, () =>
     deployL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, localAnvil, contractDeployLogger, l1Artifacts, {
-      l2GasTokenAddress: GasTokenAddress,
+      l2FeeJuiceAddress: FeeJuiceAddress,
       vkTreeRoot: getVKTreeRoot(),
     }),
   );
@@ -171,9 +171,9 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   );
 
   if (config.enableGas) {
-    await deployCanonicalL2GasToken(
+    await deployCanonicalL2FeeJuice(
       new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(aztecNodeConfig.l1ChainId, aztecNodeConfig.version)),
-      aztecNodeConfig.l1Contracts.gasPortalAddress,
+      aztecNodeConfig.l1Contracts.feeJuicePortalAddress,
     );
   }
 

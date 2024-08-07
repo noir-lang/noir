@@ -160,8 +160,8 @@ e2e-fees-dapp-subscription:
 e2e-fees-failures:
   DO +E2E_TEST --test=./src/e2e_fees/failures.test.ts
 
-e2e-fees-native-payments:
-  DO +E2E_TEST --test=./src/e2e_fees/native_payments.test.ts
+e2e-fees-fee-juice-payments:
+  DO +E2E_TEST --test=./src/e2e_fees/fee_juice_payments.test.ts
 
 e2e-fees-account-init:
   DO +E2E_TEST --test=./src/e2e_fees/account_init.test.ts

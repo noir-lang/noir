@@ -301,18 +301,18 @@ Required options:
 - `-pk, --private-key <string>`: The private key to use for deployment.
 - `--verifier <verifier>`: Either 'mock' or 'real'.
 
-### bridge-l1-gas
-Mints L1 gas tokens and pushes them to L2.
+### bridge-fee-juice
+Bridges (and optionally mints) L1 Fee Juice and pushes them to L2.
 
 ```
-aztec bridge-l1-gas <amount> <recipient> [options]
+aztec bridge-fee-juice <amount> <recipient> [options]
 ```
 
 Required option:
 - `--l1-rpc-url <string>`: URL of the Ethereum host.
 
 ### get-l1-balance
-Gets the balance of gas tokens in L1 for a given Ethereum address.
+Gets the balance of ETH or an ERC20 token on L1 for a given Ethereum address.
 
 ```
 aztec get-l1-balance <who> [options]

@@ -4,7 +4,7 @@ import { type PXE } from '@aztec/circuit-types';
 import { type DeployL1Contracts } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { type NoirPackageConfig } from '@aztec/foundation/noir';
-import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 
 import TOML from '@iarna/toml';
 import { readFile } from 'fs/promises';
@@ -58,8 +58,8 @@ export async function deployAztecContracts(
     RollupBytecode,
     AvailabilityOracleAbi,
     AvailabilityOracleBytecode,
-    GasPortalAbi,
-    GasPortalBytecode,
+    FeeJuicePortalAbi,
+    FeeJuicePortalBytecode,
     PortalERC20Abi,
     PortalERC20Bytecode,
   } = await import('@aztec/l1-artifacts');
@@ -91,19 +91,19 @@ export async function deployAztecContracts(
       contractAbi: RollupAbi,
       contractBytecode: RollupBytecode,
     },
-    gasToken: {
+    feeJuice: {
       contractAbi: PortalERC20Abi,
       contractBytecode: PortalERC20Bytecode,
     },
-    gasPortal: {
-      contractAbi: GasPortalAbi,
-      contractBytecode: GasPortalBytecode,
+    feeJuicePortal: {
+      contractAbi: FeeJuicePortalAbi,
+      contractBytecode: FeeJuicePortalBytecode,
     },
   };
   const { getVKTreeRoot } = await import('@aztec/noir-protocol-circuits-types');
 
   return await deployL1Contracts(chain.rpcUrl, account, chain.chainInfo, debugLogger, l1Artifacts, {
-    l2GasTokenAddress: GasTokenAddress,
+    l2FeeJuiceAddress: FeeJuiceAddress,
     vkTreeRoot: getVKTreeRoot(),
   });
 }

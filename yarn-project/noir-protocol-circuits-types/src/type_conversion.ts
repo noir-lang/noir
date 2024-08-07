@@ -2340,7 +2340,7 @@ export function mapBaseRollupInputsToNoir(inputs: BaseRollupInputs): BaseRollupI
 
     archive_root_membership_witness: mapMembershipWitnessToNoir(inputs.archiveRootMembershipWitness),
     constants: mapConstantRollupDataToNoir(inputs.constants),
-    fee_payer_gas_token_balance_read_hint: mapPublicDataHintToNoir(inputs.feePayerGasTokenBalanceReadHint),
+    fee_payer_fee_juice_balance_read_hint: mapPublicDataHintToNoir(inputs.feePayerFeeJuiceBalanceReadHint),
   };
 }
 

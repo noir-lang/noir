@@ -14,7 +14,7 @@ import {
 import {
   AztecAddress,
   ContractClassRegisteredEvent,
-  GAS_TOKEN_ADDRESS,
+  FEE_JUICE_ADDRESS,
   type GlobalVariables,
   type Header,
   type KernelCircuitPublicInputs,
@@ -202,12 +202,12 @@ export class PublicProcessor {
       return finalPublicDataUpdateRequests;
     }
 
-    const gasToken = AztecAddress.fromBigInt(GAS_TOKEN_ADDRESS);
+    const feeJuiceAddress = AztecAddress.fromBigInt(FEE_JUICE_ADDRESS);
     const balanceSlot = computeFeePayerBalanceStorageSlot(feePayer);
     const leafSlot = computeFeePayerBalanceLeafSlot(feePayer);
     const txFee = tx.data.getTransactionFee(this.globalVariables.gasFees);
 
-    this.log.debug(`Deducting ${txFee} balance in gas tokens for ${feePayer}`);
+    this.log.debug(`Deducting ${txFee} balance in Fee Juice for ${feePayer}`);
 
     const existingBalanceWriteIndex = finalPublicDataUpdateRequests.findIndex(request =>
       request.leafSlot.equals(leafSlot),
@@ -216,14 +216,14 @@ export class PublicProcessor {
     const balance =
       existingBalanceWriteIndex > -1
         ? finalPublicDataUpdateRequests[existingBalanceWriteIndex].newValue
-        : await this.publicStateDB.storageRead(gasToken, balanceSlot);
+        : await this.publicStateDB.storageRead(feeJuiceAddress, balanceSlot);
 
     if (balance.lt(txFee)) {
       throw new Error(`Not enough balance for fee payer to pay for transaction (got ${balance} needs ${txFee})`);
     }
 
     const updatedBalance = balance.sub(txFee);
-    await this.publicStateDB.storageWrite(gasToken, balanceSlot, updatedBalance);
+    await this.publicStateDB.storageWrite(feeJuiceAddress, balanceSlot, updatedBalance);
 
     finalPublicDataUpdateRequests[
       existingBalanceWriteIndex > -1 ? existingBalanceWriteIndex : MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX

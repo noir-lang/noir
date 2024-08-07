@@ -27,8 +27,8 @@ describe('Contract Class', () => {
     registryAddress: EthAddress.random(),
     inboxAddress: EthAddress.random(),
     outboxAddress: EthAddress.random(),
-    gasTokenAddress: EthAddress.random(),
-    gasPortalAddress: EthAddress.random(),
+    feeJuiceAddress: EthAddress.random(),
+    feeJuicePortalAddress: EthAddress.random(),
   };
   const mockNodeInfo: NodeInfo = {
     nodeVersion: 'vx.x.x',
@@ -37,7 +37,7 @@ describe('Contract Class', () => {
     l1ContractAddresses: l1Addresses,
     protocolContractAddresses: {
       classRegisterer: AztecAddress.random(),
-      gasToken: AztecAddress.random(),
+      feeJuice: AztecAddress.random(),
       instanceDeployer: AztecAddress.random(),
       keyRegistry: AztecAddress.random(),
       multiCallEntrypoint: AztecAddress.random(),

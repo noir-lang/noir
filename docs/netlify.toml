@@ -57,3 +57,7 @@
 [[redirects]]
     from = "/compliance"
     to = "/"
+
+[[redirects]]
+    from = "/protocol-specs/gas-and-fees/fee-payment-asset"
+    to = "/protocol-specs/gas-and-fees/fee-juice"

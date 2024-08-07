@@ -8,52 +8,52 @@ import {
 } from '@aztec/circuits.js';
 import { bufferAsFields } from '@aztec/foundation/abi';
 import { getCanonicalAuthRegistry } from '@aztec/protocol-contracts/auth-registry';
-import { getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
+import { getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
 import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
 
 /**
  * Deploys the contract to pay for gas on L2.
  */
-export async function deployCanonicalL2GasToken(
+export async function deployCanonicalL2FeeJuice(
   deployer: Wallet,
-  gasPortalAddress: EthAddress,
+  feeJuicePortalAddress: EthAddress,
   waitOpts = DefaultWaitOpts,
 ): Promise<AztecAddress> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
-  const { GasTokenContract } = await import('@aztec/noir-contracts.js');
+  const { FeeJuiceContract } = await import('@aztec/noir-contracts.js');
 
-  const canonicalGasToken = getCanonicalGasToken();
+  const canonicalFeeJuice = getCanonicalFeeJuice();
 
-  if (await deployer.isContractClassPubliclyRegistered(canonicalGasToken.contractClass.id)) {
-    return canonicalGasToken.address;
+  if (await deployer.isContractClassPubliclyRegistered(canonicalFeeJuice.contractClass.id)) {
+    return canonicalFeeJuice.address;
   }
 
-  const publicBytecode = canonicalGasToken.contractClass.packedBytecode;
+  const publicBytecode = canonicalFeeJuice.contractClass.packedBytecode;
   const encodedBytecode = bufferAsFields(publicBytecode, MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS);
   await deployer.addCapsule(encodedBytecode);
-  const gasToken = await GasTokenContract.at(canonicalGasToken.address, deployer);
-  await gasToken.methods
+  const feeJuiceContract = await FeeJuiceContract.at(canonicalFeeJuice.address, deployer);
+  await feeJuiceContract.methods
     .deploy(
-      canonicalGasToken.contractClass.artifactHash,
-      canonicalGasToken.contractClass.privateFunctionsRoot,
-      canonicalGasToken.contractClass.publicBytecodeCommitment,
-      gasPortalAddress,
+      canonicalFeeJuice.contractClass.artifactHash,
+      canonicalFeeJuice.contractClass.privateFunctionsRoot,
+      canonicalFeeJuice.contractClass.publicBytecodeCommitment,
+      feeJuicePortalAddress,
     )
     .send({ fee: { paymentMethod: new NoFeePaymentMethod(), gasSettings: GasSettings.teardownless() } })
     .wait(waitOpts);
 
-  if (!gasToken.address.equals(canonicalGasToken.address)) {
+  if (!feeJuiceContract.address.equals(canonicalFeeJuice.address)) {
     throw new Error(
-      `Deployed Gas Token address ${gasToken.address} does not match expected address ${canonicalGasToken.address}`,
+      `Deployed Fee Juice address ${feeJuiceContract.address} does not match expected address ${canonicalFeeJuice.address}`,
     );
   }
 
-  if (!(await deployer.isContractPubliclyDeployed(canonicalGasToken.address))) {
-    throw new Error(`Failed to deploy Gas Token to ${canonicalGasToken.address}`);
+  if (!(await deployer.isContractPubliclyDeployed(canonicalFeeJuice.address))) {
+    throw new Error(`Failed to deploy Fee Juice to ${canonicalFeeJuice.address}`);
   }
 
-  return canonicalGasToken.address;
+  return canonicalFeeJuice.address;
 }
 
 /**

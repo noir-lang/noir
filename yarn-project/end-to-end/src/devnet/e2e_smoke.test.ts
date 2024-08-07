@@ -1,8 +1,8 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import {
   type EthAddress,
+  FeeJuicePaymentMethodWithClaim,
   Fr,
-  NativeFeePaymentMethodWithClaim,
   type PXE,
   SignerlessWallet,
   TxStatus,
@@ -17,7 +17,7 @@ import { GasSettings, deriveSigningKey } from '@aztec/circuits.js';
 import { startHttpRpcServer } from '@aztec/foundation/json-rpc/server';
 import { type DebugLogger } from '@aztec/foundation/log';
 import { promiseWithResolvers } from '@aztec/foundation/promise';
-import { GasTokenContract, TestContract } from '@aztec/noir-contracts.js';
+import { FeeJuiceContract, TestContract } from '@aztec/noir-contracts.js';
 import { createPXERpcServer } from '@aztec/pxe';
 
 import getPort from 'get-port';
@@ -100,7 +100,7 @@ describe('End-to-end tests for devnet', () => {
       expect(nodeInfo.protocolContractAddresses.instanceDeployer).toEqual(
         pxeInfo.protocolContractAddresses.instanceDeployer,
       );
-      expect(nodeInfo.protocolContractAddresses.gasToken).toEqual(pxeInfo.protocolContractAddresses.gasToken);
+      expect(nodeInfo.protocolContractAddresses.feeJuice).toEqual(pxeInfo.protocolContractAddresses.feeJuice);
       expect(nodeInfo.protocolContractAddresses.keyRegistry).toEqual(pxeInfo.protocolContractAddresses.keyRegistry);
       expect(nodeInfo.protocolContractAddresses.multiCallEntrypoint).toEqual(
         pxeInfo.protocolContractAddresses.multiCallEntrypoint,
@@ -132,7 +132,7 @@ describe('End-to-end tests for devnet', () => {
 
     ({
       l1ChainId,
-      l1ContractAddresses: { gasTokenAddress: feeJuiceL1 },
+      l1ContractAddresses: { feeJuiceAddress: feeJuiceL1 },
     } = await pxe.getNodeInfo());
     logger.info(`PXE instance started`);
   });
@@ -178,7 +178,7 @@ describe('End-to-end tests for devnet', () => {
       .deploy({
         fee: {
           gasSettings: GasSettings.default(),
-          paymentMethod: new NativeFeePaymentMethodWithClaim(
+          paymentMethod: new FeeJuicePaymentMethodWithClaim(
             l2Account.getAddress(),
             BigInt(claimAmount),
             Fr.fromString(claimSecret.value),
@@ -208,10 +208,10 @@ describe('End-to-end tests for devnet', () => {
     // );
 
     expect(txReceipt.status).toBe(TxStatus.SUCCESS);
-    const feeJuice = await GasTokenContract.at(
+    const feeJuice = await FeeJuiceContract.at(
       (
         await pxe.getNodeInfo()
-      ).protocolContractAddresses.gasToken,
+      ).protocolContractAddresses.feeJuice,
       await l2Account.getWallet(),
     );
     const balance = await feeJuice.methods.balance_of_public(l2Account.getAddress()).simulate();

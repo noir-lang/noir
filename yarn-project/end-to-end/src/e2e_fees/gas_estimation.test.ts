@@ -1,8 +1,8 @@
 import {
   type AccountWallet,
   type AztecAddress,
+  FeeJuicePaymentMethod,
   type FeePaymentMethod,
-  NativeFeePaymentMethod,
   PublicFeePaymentMethod,
 } from '@aztec/aztec.js';
 import { GasFees, type GasSettings } from '@aztec/circuits.js';
@@ -29,7 +29,7 @@ describe('e2e_fees gas_estimation', () => {
     await t.applyBaseSnapshots();
     await t.applyFPCSetupSnapshot();
     await t.applyFundAliceWithBananas();
-    await t.applyFundAliceWithGasToken();
+    await t.applyFundAliceWithFeeJuice();
     ({ aliceWallet, aliceAddress, bobAddress, bananaCoin, bananaFPC, gasSettings, logger } = await t.setup());
 
     teardownFixedFee = gasSettings.teardownGasLimits.computeFee(GasFees.default()).toBigInt();
@@ -65,7 +65,7 @@ describe('e2e_fees gas_estimation', () => {
     });
 
   it('estimates gas with native fee payment method', async () => {
-    const paymentMethod = new NativeFeePaymentMethod(aliceAddress);
+    const paymentMethod = new FeeJuicePaymentMethod(aliceAddress);
     const estimatedGas = await makeTransferRequest().estimateGas({ fee: { gasSettings, paymentMethod } });
     logGasEstimate(estimatedGas);
 
@@ -112,7 +112,7 @@ describe('e2e_fees gas_estimation', () => {
   });
 
   it('estimates gas for public contract initialization with native fee payment method', async () => {
-    const paymentMethod = new NativeFeePaymentMethod(aliceAddress);
+    const paymentMethod = new FeeJuicePaymentMethod(aliceAddress);
     const deployMethod = () => BananaCoin.deploy(aliceWallet, aliceAddress, 'TKN', 'TKN', 8);
     const deployOpts = { fee: { gasSettings, paymentMethod }, skipClassRegistration: true };
     const estimatedGas = await deployMethod().estimateGas(deployOpts);

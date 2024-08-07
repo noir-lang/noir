@@ -8,9 +8,9 @@ import {
   type Wallet,
   computeSecretHash,
 } from '@aztec/aztec.js';
-import { GasPortalAbi, OutboxAbi, PortalERC20Abi } from '@aztec/l1-artifacts';
-import { GasTokenContract } from '@aztec/noir-contracts.js';
-import { GasTokenAddress, getCanonicalGasToken } from '@aztec/protocol-contracts/gas-token';
+import { FeeJuicePortalAbi, OutboxAbi, PortalERC20Abi } from '@aztec/l1-artifacts';
+import { FeeJuiceContract } from '@aztec/noir-contracts.js';
+import { FeeJuiceAddress, getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
 
 import {
   type Account,
@@ -23,18 +23,18 @@ import {
 } from 'viem';
 
 export interface IGasBridgingTestHarness {
-  getL1GasTokenBalance(address: EthAddress): Promise<bigint>;
+  getL1FeeJuiceBalance(address: EthAddress): Promise<bigint>;
   prepareTokensOnL1(
     l1TokenBalance: bigint,
     bridgeAmount: bigint,
     owner: AztecAddress,
   ): Promise<{ secret: Fr; secretHash: Fr; msgHash: Fr }>;
   bridgeFromL1ToL2(l1TokenBalance: bigint, bridgeAmount: bigint, owner: AztecAddress): Promise<void>;
-  l2Token: GasTokenContract;
-  l1GasTokenAddress: EthAddress;
+  l2Token: FeeJuiceContract;
+  l1FeeJuiceAddress: EthAddress;
 }
 
-export interface GasPortalTestingHarnessFactoryConfig {
+export interface FeeJuicePortalTestingHarnessFactoryConfig {
   aztecNode: AztecNode;
   pxeService: PXE;
   publicClient: PublicClient<HttpTransport, Chain>;
@@ -44,15 +44,15 @@ export interface GasPortalTestingHarnessFactoryConfig {
   mockL1?: boolean;
 }
 
-export class GasPortalTestingHarnessFactory {
-  private constructor(private config: GasPortalTestingHarnessFactoryConfig) {}
+export class FeeJuicePortalTestingHarnessFactory {
+  private constructor(private config: FeeJuicePortalTestingHarnessFactoryConfig) {}
 
   private async createMock() {
     const wallet = this.config.wallet;
 
     // In this case we are not using a portal we just yolo it.
-    const gasL2 = await GasTokenContract.deploy(wallet)
-      .send({ contractAddressSalt: getCanonicalGasToken().instance.salt })
+    const gasL2 = await FeeJuiceContract.deploy(wallet)
+      .send({ contractAddressSalt: getCanonicalFeeJuice().instance.salt })
       .deployed();
     return Promise.resolve(new MockGasBridgingTestHarness(gasL2, EthAddress.ZERO));
   }
@@ -63,10 +63,10 @@ export class GasPortalTestingHarnessFactory {
     const ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
     const l1ContractAddresses = (await pxeService.getNodeInfo()).l1ContractAddresses;
 
-    const gasTokenAddress = l1ContractAddresses.gasTokenAddress;
-    const gasPortalAddress = l1ContractAddresses.gasPortalAddress;
+    const feeJuiceAddress = l1ContractAddresses.feeJuiceAddress;
+    const feeJuicePortalAddress = l1ContractAddresses.feeJuicePortalAddress;
 
-    if (gasTokenAddress.isZero() || gasPortalAddress.isZero()) {
+    if (feeJuiceAddress.isZero() || feeJuicePortalAddress.isZero()) {
       throw new Error('Gas portal not deployed on L1');
     }
 
@@ -77,18 +77,18 @@ export class GasPortalTestingHarnessFactory {
     });
 
     const gasL1 = getContract({
-      address: gasTokenAddress.toString(),
+      address: feeJuiceAddress.toString(),
       abi: PortalERC20Abi,
       client: walletClient,
     });
 
-    const gasPortal = getContract({
-      address: gasPortalAddress.toString(),
-      abi: GasPortalAbi,
+    const feeJuicePortal = getContract({
+      address: feeJuicePortalAddress.toString(),
+      abi: FeeJuicePortalAbi,
       client: walletClient,
     });
 
-    const gasL2 = await GasTokenContract.at(GasTokenAddress, wallet);
+    const gasL2 = await FeeJuiceContract.at(FeeJuiceAddress, wallet);
 
     return new GasBridgingTestHarness(
       aztecNode,
@@ -96,8 +96,8 @@ export class GasPortalTestingHarnessFactory {
       logger,
       gasL2,
       ethAccount,
-      gasPortalAddress,
-      gasPortal,
+      feeJuicePortalAddress,
+      feeJuicePortal,
       gasL1,
       outbox,
       publicClient,
@@ -105,8 +105,8 @@ export class GasPortalTestingHarnessFactory {
     );
   }
 
-  static create(config: GasPortalTestingHarnessFactoryConfig): Promise<IGasBridgingTestHarness> {
-    const factory = new GasPortalTestingHarnessFactory(config);
+  static create(config: FeeJuicePortalTestingHarnessFactoryConfig): Promise<IGasBridgingTestHarness> {
+    const factory = new FeeJuicePortalTestingHarnessFactory(config);
     if (config.mockL1) {
       return factory.createMock();
     } else {
@@ -116,7 +116,7 @@ export class GasPortalTestingHarnessFactory {
 }
 
 class MockGasBridgingTestHarness implements IGasBridgingTestHarness {
-  constructor(public l2Token: GasTokenContract, public l1GasTokenAddress: EthAddress) {}
+  constructor(public l2Token: FeeJuiceContract, public l1FeeJuiceAddress: EthAddress) {}
   prepareTokensOnL1(
     _l1TokenBalance: bigint,
     _bridgeAmount: bigint,
@@ -127,8 +127,8 @@ class MockGasBridgingTestHarness implements IGasBridgingTestHarness {
   async bridgeFromL1ToL2(_l1TokenBalance: bigint, bridgeAmount: bigint, owner: AztecAddress): Promise<void> {
     await this.l2Token.methods.mint_public(owner, bridgeAmount).send().wait();
   }
-  getL1GasTokenBalance(_address: EthAddress): Promise<bigint> {
-    throw new Error('Cannot get gas token balance on mocked L1.');
+  getL1FeeJuiceBalance(_address: EthAddress): Promise<bigint> {
+    throw new Error('Cannot get Fee Juice balance on mocked L1.');
   }
 }
 
@@ -146,7 +146,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     public logger: DebugLogger,
 
     /** L2 Token/Bridge contract. */
-    public l2Token: GasTokenContract,
+    public l2Token: FeeJuiceContract,
 
     /** Eth account to interact with. */
     public ethAccount: EthAddress,
@@ -154,7 +154,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     /** Portal address. */
     public tokenPortalAddress: EthAddress,
     /** Token portal instance. */
-    public tokenPortal: GetContractReturnType<typeof GasPortalAbi, WalletClient<HttpTransport, Chain, Account>>,
+    public tokenPortal: GetContractReturnType<typeof FeeJuicePortalAbi, WalletClient<HttpTransport, Chain, Account>>,
     /** Underlying token for portal tests. */
     public underlyingERC20: GetContractReturnType<typeof PortalERC20Abi, WalletClient<HttpTransport, Chain, Account>>,
     /** Message Bridge Outbox. */
@@ -165,7 +165,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     public walletClient: WalletClient,
   ) {}
 
-  get l1GasTokenAddress() {
+  get l1FeeJuiceAddress() {
     return EthAddress.fromString(this.underlyingERC20.address);
   }
 
@@ -185,7 +185,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     expect(await this.underlyingERC20.read.balanceOf([this.ethAccount.toString()])).toBe(amount);
   }
 
-  async getL1GasTokenBalance(address: EthAddress) {
+  async getL1FeeJuiceBalance(address: EthAddress) {
     return await this.underlyingERC20.read.balanceOf([address.toString()]);
   }
 
@@ -230,7 +230,7 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
 
     // Deposit tokens to the TokenPortal
     const msgHash = await this.sendTokensToPortalPublic(bridgeAmount, owner, secretHash);
-    expect(await this.getL1GasTokenBalance(this.ethAccount)).toBe(l1TokenBalance - bridgeAmount);
+    expect(await this.getL1FeeJuiceBalance(this.ethAccount)).toBe(l1TokenBalance - bridgeAmount);
 
     // Perform an unrelated transactions on L2 to progress the rollup by 2 blocks.
     await this.l2Token.methods.check_balance(0).send().wait();

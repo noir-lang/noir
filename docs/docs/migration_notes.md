@@ -6,6 +6,19 @@ keywords: [sandbox, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## 0.48.0
+
+### Fee Juice rename
+
+The name of the canonical Gas contract has changed to Fee Juice. Update noir code:
+
+```diff
+-GasToken::at(contract_address)
++FeeJuice::at(contract_address)
+```
+
+Additionally, `NativePaymentMethod` and `NativePaymentMethodWithClaim` have been renamed to `FeeJuicePaymentMethod` and `FeeJuicePaymentMethodWithClaim`.
+
 ## 0.47.0
 
 # [Aztec sandbox] TXE deployment changes
@@ -38,19 +51,23 @@ Sandbox commands have been cleaned up and simplified. Doing `aztec-up` now gets 
 
 **REMOVED/RENAMED**:
 
-* `aztec-sandbox` and `aztec sandbox`: now `aztec start --sandbox`
-* `aztec-builder`: now `aztec codegen` and `aztec update`
+- `aztec-sandbox` and `aztec sandbox`: now `aztec start --sandbox`
+- `aztec-builder`: now `aztec codegen` and `aztec update`
 
 **ADDED**:
 
-* `aztec test [options]`: runs `aztec start --txe && aztec-nargo test --oracle-resolver http://aztec:8081 --silence-warnings [options]` via docker-compose allowing users to easily run contract tests using TXE
+- `aztec test [options]`: runs `aztec start --txe && aztec-nargo test --oracle-resolver http://aztec:8081 --silence-warnings [options]` via docker-compose allowing users to easily run contract tests using TXE
 
 ## 0.45.0
+
 ### [Aztec.nr] Remove unencrypted logs from private
+
 They leak privacy so is a footgun!
 
 ## 0.44.0
+
 ### [Aztec.nr] Autogenerate Serialize methods for events
+
 ```diff
 #[aztec(event)]
 struct WithdrawalProcessed {
@@ -66,10 +83,11 @@ struct WithdrawalProcessed {
 ```
 
 ### [Aztec.nr] rename `encode_and_encrypt_with_keys` to `encode_and_encrypt_note_with_keys`
-```diff
+
+````diff
 contract XYZ {
 -   use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_with_keys;
-+   use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys;    
++   use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys;
 ....
 
 -    numbers.at(owner).initialize(&mut new_number).emit(encode_and_encrypt_with_keys(&mut context, owner_ovpk_m, owner_ivpk_m));
@@ -129,7 +147,7 @@ These changes were done because having the note hash exposed allowed us to not h
 +        (note_hash_for_nullify, nullifier)
 +    }
 + }
-```
+````
 
 ### [Aztec.nr] `note_getter` returns `BoundedVec`
 

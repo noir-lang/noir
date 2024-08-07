@@ -43,7 +43,7 @@ You should see something like this:
   pxe_service Added contract ContractClassRegisterer at 0x030c6b23cf81a1c1387674e7d180ef04abc19387eb0ec71eea67c2b602b517b7
   pxe_service Added contract ContractInstanceDeployer at 0x2d8e7aedc70b65d49e6aa0794d8d12721896c177e87126701f6e60d184358e74
   pxe_service Added contract MultiCallEntrypoint at 0x0325a7874e168991a060b7f54e7324a42f87f48ffa592a903a5ce170b9d99e20
-  pxe_service Added contract GasToken at 0x0f0be9c2e88fe0a7baa0823fbf7cfba98a6ba71558d6b5a4ee497e3b38f0aa7c
+  pxe_service Added contract FeeJuice at 0x0f0be9c2e88fe0a7baa0823fbf7cfba98a6ba71558d6b5a4ee497e3b38f0aa7c
   pxe_synchronizer Initial sync complete
   pxe_service Started PXE connected to chain 31337 version 1
 Aztec Server listening on port 8080

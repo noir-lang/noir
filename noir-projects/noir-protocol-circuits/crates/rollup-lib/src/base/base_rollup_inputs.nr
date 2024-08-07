@@ -25,7 +25,7 @@ use dep::types::{
     MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_PUBLIC_DATA_READS_PER_TX, MAX_NULLIFIERS_PER_TX,
     MAX_L2_TO_L1_MSGS_PER_TX, NULLIFIER_SUBTREE_HEIGHT, NULLIFIER_TREE_HEIGHT,
     PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH, PUBLIC_DATA_SUBTREE_HEIGHT,
-    PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, ARCHIVE_HEIGHT, GAS_TOKEN_ADDRESS,
+    PROTOCOL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, ARCHIVE_HEIGHT, FEE_JUICE_ADDRESS,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PUBLIC_KERNEL_TAIL_INDEX, PRIVATE_KERNEL_EMPTY_INDEX,
     PRIVATE_KERNEL_TAIL_INDEX
 },
@@ -49,7 +49,7 @@ struct BaseRollupInputs {
     start: PartialStateReference,
 
     state_diff_hints: StateDiffHints,
-    fee_payer_gas_token_balance_read_hint: PublicDataHint,
+    fee_payer_fee_juice_balance_read_hint: PublicDataHint,
 
     // TODO: The following 6 values are eventually going to be nuked from here. See discussion:
     // https://aztecprotocol.slack.com/archives/C060PU5R327/p1701965354071269
@@ -264,10 +264,10 @@ impl BaseRollupInputs {
         all_update_requests
     }
 
-    // Deducts the tx_fee from the GasToken balance of the fee_payer. If there is already a PublicDataUpdateRequest
+    // Deducts the tx_fee from the FeeJuice balance of the fee_payer. If there is already a PublicDataUpdateRequest
     // in this tx for their balance (because they issued a 'claim' to increase their balance by bridging from L1),
     // update it by subtracting the tx_fee. Otherwise, build a new PublicDataUpdateRequest to subtract the tx_fee
-    // from the balance of the fee_payer, using the fee_payer_gas_token_balance_read_hint to read the current balance.
+    // from the balance of the fee_payer, using the fee_payer_fee_juice_balance_read_hint to read the current balance.
     // Returns the data update request that subtracts the tx_fee from the fee_payer's balance, and the index where it
     // should be inserted in the public data update requests array.
     fn build_or_patch_payment_update_request(self, tx_fee: Field) -> (PublicDataUpdateRequest, u32) {
@@ -275,15 +275,15 @@ impl BaseRollupInputs {
 
         // TODO(@spalladino) Eventually remove the is_zero condition as we should always charge fees to every tx
         if !fee_payer.is_zero() {
-            let read_hint = self.fee_payer_gas_token_balance_read_hint;
-            let leaf_slot = compute_fee_payer_gas_token_balance_leaf_slot(fee_payer);
+            let read_hint = self.fee_payer_fee_juice_balance_read_hint;
+            let leaf_slot = compute_fee_payer_fee_juice_balance_leaf_slot(fee_payer);
 
             if read_hint.leaf_slot == 0 {
                 // Is there a balance update already in this tx? If so, update it and return its index.
-                let existing_update_index = self.find_fee_payer_gas_token_update_index(leaf_slot);
+                let existing_update_index = self.find_fee_payer_fee_juice_update_index(leaf_slot);
                 let existing_update = self.kernel_data.public_inputs.end.public_data_update_requests[existing_update_index];
                 assert(
-                    existing_update.leaf_slot == leaf_slot, "Wrong leaf slot for gas token balance update request"
+                    existing_update.leaf_slot == leaf_slot, "Wrong leaf slot for Fee Juice balance update request"
                 );
                 assert(
                     !existing_update.new_value.lt(tx_fee), "Not enough balance for fee payer after claim to pay for transaction"
@@ -297,7 +297,7 @@ impl BaseRollupInputs {
                 read_hint.validate(self.start.public_data_tree.root);
 
                 let balance = read_hint.value;
-                assert(read_hint.leaf_slot == leaf_slot, "Wrong leaf slot for gas token balance read hint");
+                assert(read_hint.leaf_slot == leaf_slot, "Wrong leaf slot for Fee Juice balance read hint");
                 assert(!balance.lt(tx_fee), "Not enough balance for fee payer to pay for transaction");
 
                 let new_value = compute_public_data_tree_value(balance - tx_fee);
@@ -332,7 +332,7 @@ impl BaseRollupInputs {
         );
     }
 
-    unconstrained fn find_fee_payer_gas_token_update_index(self, leaf_slot: Field) -> u32 {
+    unconstrained fn find_fee_payer_fee_juice_update_index(self, leaf_slot: Field) -> u32 {
         let mut update_index = MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX + 1;
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
             if self.kernel_data.public_inputs.end.public_data_update_requests[i].leaf_slot == leaf_slot {
@@ -340,7 +340,7 @@ impl BaseRollupInputs {
             }
         }
         assert(
-            update_index < MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, "Could not find fee payer gas token update request"
+            update_index < MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, "Could not find fee payer Fee Juice update request"
         );
         update_index
     }
@@ -418,11 +418,11 @@ fn insert_public_data_update_requests(
     )
 }
 
-fn compute_fee_payer_gas_token_balance_leaf_slot(fee_payer: AztecAddress) -> Field {
-    let balances_slot_in_gas_token_contract = 1;
-    let gas_token = AztecAddress::from_field(GAS_TOKEN_ADDRESS);
-    let fee_payer_balance_slot_in_gas_token_contract = derive_storage_slot_in_map(balances_slot_in_gas_token_contract, fee_payer);
-    compute_public_data_tree_index(gas_token, fee_payer_balance_slot_in_gas_token_contract)
+fn compute_fee_payer_fee_juice_balance_leaf_slot(fee_payer: AztecAddress) -> Field {
+    let balances_slot_in_fee_juice_contract = 1;
+    let fee_juice = AztecAddress::from_field(FEE_JUICE_ADDRESS);
+    let fee_payer_balance_slot_in_fee_juice_contract = derive_storage_slot_in_map(balances_slot_in_fee_juice_contract, fee_payer);
+    compute_public_data_tree_index(fee_juice, fee_payer_balance_slot_in_fee_juice_contract)
 }
 
 #[test]
@@ -458,7 +458,7 @@ mod tests {
     },
         base::{
         state_diff_hints::StateDiffHints,
-        base_rollup_inputs::{BaseRollupInputs, compute_fee_payer_gas_token_balance_leaf_slot, ALLOWED_PREVIOUS_CIRCUITS}
+        base_rollup_inputs::{BaseRollupInputs, compute_fee_payer_fee_juice_balance_leaf_slot, ALLOWED_PREVIOUS_CIRCUITS}
     },
         components::{TX_EFFECTS_HASH_INPUT_FIELDS, compute_kernel_out_hash}
     };
@@ -605,9 +605,9 @@ mod tests {
         final_public_data_writes: BoundedVec<(u32, PublicDataTreeLeaf), MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>,
         nullifiers: BoundedVec<NullifierInsertion, MAX_nullifiers_PER_TEST>,
         constants: ConstantRollupData,
-        // Index of the item in the pre_existing_public_data array that contains the fee payer's gas token balance.
+        // Index of the item in the pre_existing_public_data array that contains the fee payer's Fee Juice balance.
         // Used for building the public data hint read for the payment update request. If set to none, no hint is built.
-        fee_payer_gas_token_balance_pre_existing_public_data_index: Option<u32>
+        fee_payer_fee_juice_balance_pre_existing_public_data_index: Option<u32>
     }
 
     fn test_compute_empty_root<N>(size: [Field; N]) -> Field {
@@ -627,11 +627,11 @@ mod tests {
             inputs
         }
 
-        fn build_fee_payer_gas_token_balance_read_hint(
+        fn build_fee_payer_fee_juice_balance_read_hint(
             self,
             start_public_data_tree: NonEmptyMerkleTree<MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PUBLIC_DATA_TREE_HEIGHT, PUBLIC_DATA_TREE_HEIGHT - PUBLIC_DATA_SUBTREE_HEIGHT, PUBLIC_DATA_SUBTREE_HEIGHT>
         ) -> PublicDataHint {
-            self.fee_payer_gas_token_balance_pre_existing_public_data_index.map_or(
+            self.fee_payer_fee_juice_balance_pre_existing_public_data_index.map_or(
                 PublicDataHint::empty(),
                 |leaf_index_u32: u32| {
                     let leaf_index = leaf_index_u32 as Field;
@@ -759,7 +759,7 @@ mod tests {
                 next_available_leaf_index: start_public_data_tree.get_next_available_index() as u32
             };
 
-            let fee_payer_gas_token_balance_read_hint = self.build_fee_payer_gas_token_balance_read_hint(start_public_data_tree);
+            let fee_payer_fee_juice_balance_read_hint = self.build_fee_payer_fee_juice_balance_read_hint(start_public_data_tree);
 
             let start_archive = NonEmptyMerkleTree::new(
                 self.pre_existing_blocks,
@@ -831,7 +831,7 @@ mod tests {
                 low_public_data_writes_witnesses,
                 archive_root_membership_witness: MembershipWitness { leaf_index: 0, sibling_path: start_archive.get_sibling_path(0) },
                 constants: self.constants,
-                fee_payer_gas_token_balance_read_hint
+                fee_payer_fee_juice_balance_read_hint
             }
         }
 
@@ -863,7 +863,7 @@ mod tests {
                 final_public_data_writes: BoundedVec::new(),
                 nullifiers: BoundedVec::new(),
                 constants: ConstantRollupData::empty(),
-                fee_payer_gas_token_balance_pre_existing_public_data_index: Option::none()
+                fee_payer_fee_juice_balance_pre_existing_public_data_index: Option::none()
             }
         }
     }
@@ -1281,7 +1281,7 @@ mod tests {
     #[test]
     unconstrained fn updates_fee_payer_balance_with_new_data_write() {
         let fee_payer = AztecAddress::from_field(0x1234);
-        let balance_slot = compute_fee_payer_gas_token_balance_leaf_slot(fee_payer);
+        let balance_slot = compute_fee_payer_fee_juice_balance_leaf_slot(fee_payer);
         let initial_balance = 300_000;
         let tx_fee = 100_000;
         let expected_balance = 200_000;
@@ -1298,7 +1298,7 @@ mod tests {
             next_slot: 0,
             next_index: 0,
         };
-        builder.fee_payer_gas_token_balance_pre_existing_public_data_index = Option::some(0);
+        builder.fee_payer_fee_juice_balance_pre_existing_public_data_index = Option::some(0);
 
         // Set values for computing exact tx_fee
         builder.kernel_data.tx_context.gas_settings.inclusion_fee = tx_fee;
@@ -1323,7 +1323,7 @@ mod tests {
     #[test]
     unconstrained fn updates_fee_payer_balance_in_existing_data_write() {
         let fee_payer = AztecAddress::from_field(0x1234);
-        let balance_slot = compute_fee_payer_gas_token_balance_leaf_slot(fee_payer);
+        let balance_slot = compute_fee_payer_fee_juice_balance_leaf_slot(fee_payer);
         let initial_balance = 100_000;
         let after_claim_balance = 300_000;
         let tx_fee = 100_000;
@@ -1369,7 +1369,7 @@ mod tests {
     #[test(should_fail_with="Not enough balance for fee payer to pay for transaction")]
     unconstrained fn fails_to_update_fee_payer_balance_if_not_enough_funds() {
         let fee_payer = AztecAddress::from_field(0x1234);
-        let balance_slot = compute_fee_payer_gas_token_balance_leaf_slot(fee_payer);
+        let balance_slot = compute_fee_payer_fee_juice_balance_leaf_slot(fee_payer);
         // Set low initial balance so it fails!
         let initial_balance = 10_000;
         let tx_fee = 100_000;
@@ -1386,7 +1386,7 @@ mod tests {
             next_slot: 0,
             next_index: 0,
         };
-        builder.fee_payer_gas_token_balance_pre_existing_public_data_index = Option::some(0);
+        builder.fee_payer_fee_juice_balance_pre_existing_public_data_index = Option::some(0);
 
         // Set values for computing exact tx_fee
         builder.kernel_data.tx_context.gas_settings.inclusion_fee = tx_fee;
@@ -1397,10 +1397,10 @@ mod tests {
         builder.fails();
     }
 
-    #[test(should_fail_with="Wrong leaf slot for gas token balance read hint")]
+    #[test(should_fail_with="Wrong leaf slot for Fee Juice balance read hint")]
     unconstrained fn fails_to_update_fee_payer_balance_if_wrong_read_hint() {
         let fee_payer = AztecAddress::from_field(0x1234);
-        let balance_slot = compute_fee_payer_gas_token_balance_leaf_slot(fee_payer);
+        let balance_slot = compute_fee_payer_fee_juice_balance_leaf_slot(fee_payer);
         let initial_balance = 300_000;
         let expected_balance = 200_000;
         let tx_fee = 100_000;
@@ -1426,7 +1426,7 @@ mod tests {
         };
 
         // But point the read hint to the wrong one!
-        builder.fee_payer_gas_token_balance_pre_existing_public_data_index = Option::some(1);
+        builder.fee_payer_fee_juice_balance_pre_existing_public_data_index = Option::some(1);
 
         // Set values for computing exact tx_fee
         builder.kernel_data.tx_context.gas_settings.inclusion_fee = tx_fee;

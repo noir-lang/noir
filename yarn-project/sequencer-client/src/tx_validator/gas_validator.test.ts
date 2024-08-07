@@ -1,8 +1,8 @@
 import { type Tx, mockTx } from '@aztec/circuit-types';
 import { AztecAddress, Fr, FunctionSelector, GasSettings } from '@aztec/circuits.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
-import { GasTokenContract } from '@aztec/noir-contracts.js';
-import { GasTokenAddress } from '@aztec/protocol-contracts/gas-token';
+import { FeeJuiceContract } from '@aztec/noir-contracts.js';
+import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 
 import { type MockProxy, mock, mockFn } from 'jest-mock-extended';
 
@@ -12,15 +12,15 @@ import { patchNonRevertibleFn, patchRevertibleFn } from './test_utils.js';
 describe('GasTxValidator', () => {
   let validator: GasTxValidator;
   let publicStateSource: MockProxy<PublicStateSource>;
-  let gasTokenAddress: AztecAddress;
+  let feeJuiceAddress: AztecAddress;
 
   beforeEach(() => {
-    gasTokenAddress = GasTokenAddress;
+    feeJuiceAddress = FeeJuiceAddress;
     publicStateSource = mock<PublicStateSource>({
       storageRead: mockFn().mockImplementation((_address: AztecAddress, _slot: Fr) => Fr.ZERO),
     });
 
-    validator = new GasTxValidator(publicStateSource, gasTokenAddress, false);
+    validator = new GasTxValidator(publicStateSource, feeJuiceAddress, false);
   });
 
   let tx: Tx;
@@ -37,14 +37,14 @@ describe('GasTxValidator', () => {
       inclusionFee: new Fr(TX_FEE),
     });
     payer = tx.data.feePayer;
-    expectedBalanceSlot = pedersenHash([GasTokenContract.storage.balances.slot, payer]);
+    expectedBalanceSlot = pedersenHash([FeeJuiceContract.storage.balances.slot, payer]);
 
     expect(tx.data.constants.txContext.gasSettings.getFeeLimit()).toEqual(new Fr(TX_FEE));
   });
 
   const mockBalance = (balance: bigint) => {
     publicStateSource.storageRead.mockImplementation((address, slot) =>
-      Promise.resolve(address.equals(gasTokenAddress) && slot.equals(expectedBalanceSlot) ? new Fr(balance) : Fr.ZERO),
+      Promise.resolve(address.equals(feeJuiceAddress) && slot.equals(expectedBalanceSlot) ? new Fr(balance) : Fr.ZERO),
     );
   };
 
@@ -68,10 +68,10 @@ describe('GasTxValidator', () => {
   it('allows fee paying txs if fee payer claims enough balance during setup', async () => {
     mockBalance(TX_FEE - 1n);
     patchNonRevertibleFn(tx, 0, {
-      address: GasTokenAddress,
+      address: FeeJuiceAddress,
       selector: FunctionSelector.fromSignature('_increase_public_balance((Field),Field)'),
       args: [payer, new Fr(1n)],
-      msgSender: GasTokenAddress,
+      msgSender: FeeJuiceAddress,
     });
     await expectValidateSuccess(tx);
   });

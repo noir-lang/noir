@@ -131,7 +131,7 @@ EasyPrivateVotingContractArtifact
 EcdsaAccountContractArtifact
 EscrowContractArtifact
 FPCContractArtifact
-GasTokenContractArtifact
+FeeJuiceContractArtifact
 ImportTestContractArtifact
 InclusionProofsContractArtifact
 LendingContractArtifact

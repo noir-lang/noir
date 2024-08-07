@@ -1134,7 +1134,7 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
 
   const constants = makeConstantBaseRollupData(0x100);
 
-  const feePayerGasTokenBalanceReadHint = PublicDataHint.empty();
+  const feePayerFeeJuiceBalanceReadHint = PublicDataHint.empty();
 
   return BaseRollupInputs.from({
     kernelData,
@@ -1146,7 +1146,7 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
     lowPublicDataWritesMembershipWitnesses,
     archiveRootMembershipWitness,
     constants,
-    feePayerGasTokenBalanceReadHint,
+    feePayerFeeJuiceBalanceReadHint: feePayerFeeJuiceBalanceReadHint,
   });
 }
 
