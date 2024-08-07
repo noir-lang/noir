@@ -1,6 +1,5 @@
 contract Vanilla {
-    use dep::aztec::prelude::{AztecAddress, PrivateMutable, Map, NoteInterface, NoteHeader};
-    use dep::aztec::protocol_types::point::Point;
+    use dep::aztec::prelude::{AztecAddress, PrivateMutable, Map, NoteInterface, NoteHeader, Point};
     use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys;
     use dep::value_note::value_note::{ValueNote, VALUE_NOTE_LEN};
 

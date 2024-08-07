@@ -1,6 +1,6 @@
 // docs:start:prelude
 use dep::protocol_types::{
-    address::{AztecAddress, EthAddress}, abis::function_selector::FunctionSelector,
+    address::{AztecAddress, EthAddress}, abis::function_selector::FunctionSelector, point::Point,
     traits::{Serialize, Deserialize}
 };
 use crate::{
