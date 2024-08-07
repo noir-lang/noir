@@ -26,22 +26,26 @@ TXE is a JSON RPC server much like PXE, but provides an extra set of oracle func
 
 End-to-end tests are written in typescripts and use compiled Aztec contracts and generated Typescript interfaces, a private execution environment (PXE) and a simulated execution environment to process transactions, create blocks and apply state updates. This allows for advanced checks on state updates like generation the of logs, cross-chain messages and checking transaction status and also enforce the rules of the protocol (e.g. checks in our rollup circuits). If you need the rules of the protocol to be enforced or require complex interactions (such as with L1 contracts), please refer to [Testing Aztec.nr contracts with Typescript](../../js_apps/test.md).
 
-The TXE is a super fast framework in Noir to quickly test your smart contract code. 
+The TXE is a super fast framework in Noir to quickly test your smart contract code.
 
 So to summarize:
-* End-to-end tests are written in Typescript. TXE in Noir.
-* End-to-end tests are most similar to using mocha + ethers.js to test Solidity Contracts. TXE is like foundry (fast tests in solidity) 
+
+- End-to-end tests are written in Typescript. TXE in Noir.
+- End-to-end tests are most similar to using mocha + ethers.js to test Solidity Contracts. TXE is like foundry (fast tests in solidity)
 
 ### Running TXE
 
-In order to use the TXE, it must be running on a known address. 
-
-:::tip
 If you have [the sandbox](../../../getting_started.md) installed, you can run TXE tests using:
 
 `aztec test`
 
-:::
+The complete process for running tests:
+
+1. Compile contracts
+2. Start the sandbox
+3. Run `aztec test`
+
+In order to use the TXE, it must be running on a known address.
 
 :::warning
 Since TXE tests are written in Noir and executed with `aztec-nargo`, they all run in parallel. This also means every test creates their own isolated environment, so state modifications are local to each one of them.
@@ -147,6 +151,8 @@ Once accounts have been created, you can impersonate them in your test by callin
 
 ```rust
 env.impersonate(account_address);
+// or (these are equivalent)
+cheatcodes::set_contract_address(contract_address);
 ```
 
 ### Checking state
@@ -202,3 +208,7 @@ For example:
 You can also use the `assert_public_call_fails` or `assert_private_call_fails` methods on the `TestEnvironment` to check that a call fails.
 
 #include_code assert_public_fail /noir-projects/noir-contracts/contracts/token_contract/src/test/transfer_public.nr rust
+
+### All Cheatcodes
+
+You can find the full list of cheatcodes available in the TXE [here](https://github.com/AztecProtocol/aztec-packages/blob/#include_aztec_version/noir-projects/aztec-nr/aztec/src/test/helpers/cheatcodes.nr)
