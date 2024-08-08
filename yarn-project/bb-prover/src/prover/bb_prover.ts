@@ -476,7 +476,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     this.instrumentation.recordSize('witGenInputSize', circuitName, input.toBuffer().length);
     this.instrumentation.recordSize('witGenOutputSize', circuitName, output.toBuffer().length);
 
-    logger.debug(`Generated witness`, {
+    logger.info(`Generated witness`, {
       circuitName,
       duration: timer.ms(),
       inputSize: input.toBuffer().length,

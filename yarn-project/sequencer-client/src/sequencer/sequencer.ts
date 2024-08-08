@@ -71,7 +71,7 @@ export class Sequencer {
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.updateConfig(config);
-    this.metrics = new SequencerMetrics(telemetry, 'Sequencer');
+    this.metrics = new SequencerMetrics(telemetry, () => this.state, 'Sequencer');
     this.log.verbose(`Initialized sequencer with ${this.minTxsPerBLock}-${this.maxTxsPerBlock} txs per block.`);
   }
 
@@ -282,7 +282,7 @@ export class Sequencer {
     historicalHeader: Header | undefined,
     elapsedSinceLastBlock: number,
   ): Promise<void> {
-    this.metrics.recordNewBlock(validTxs.length);
+    this.metrics.recordNewBlock(newGlobalVariables.blockNumber.toNumber(), validTxs.length);
     const workTimer = new Timer();
     this.state = SequencerState.CREATING_BLOCK;
     this.log.info(`Building block ${newGlobalVariables.blockNumber.toNumber()} with ${validTxs.length} transactions`);
@@ -367,7 +367,9 @@ export class Sequencer {
     try {
       await this.publishL2Block(block);
       this.metrics.recordPublishedBlock(workDuration);
-      this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
+      this.log.info(
+        `Submitted rollup block ${block.number} with ${processedTxs.length} transactions duration=${workDuration}ms`,
+      );
     } catch (err) {
       this.metrics.recordFailedBlock();
       throw err;

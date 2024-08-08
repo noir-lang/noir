@@ -26,16 +26,18 @@ export const CIRCUIT_SIZE = 'aztec.circuit.size';
 export const MEMPOOL_TX_COUNT = 'aztec.mempool.tx_count';
 export const MEMPOOL_TX_SIZE = 'aztec.mempool.tx_size';
 
+export const ARCHIVER_SYNC_DURATION = 'aztec.archiver.sync_duration';
 export const ARCHIVER_BLOCK_HEIGHT = 'aztec.archiver.block_height';
 export const ARCHIVER_BLOCK_SIZE = 'aztec.archiver.block_size';
 
 export const NODE_RECEIVE_TX_DURATION = 'aztec.node.receive_tx.duration';
 export const NODE_RECEIVE_TX_COUNT = 'aztec.node.receive_tx.count';
 
-export const SEQUENCER_BLOCK_BUILD_DURATION = 'aztec.sequencer.block_build.duration';
-export const SEQUENCER_BLOCK_BUILD_COUNT = 'aztec.sequencer.block_build.ok_count';
-export const SEQUENCER_BLOCK_BUILD_CANCELLED_COUNT = 'aztec.sequencer.block_build.cancelled_count';
-export const SEQUENCER_BLOCK_BUILD_TX_COUNT = 'aztec.sequencer.block_build.tx_count';
+export const SEQUENCER_BLOCK_BUILD_DURATION = 'aztec.sequencer.block.build_duration';
+export const SEQUENCER_BLOCK_COUNT = 'aztec.sequencer.block.count';
+export const SEQUENCER_CURRENT_STATE = 'aztec.sequencer.current.state';
+export const SEQUENCER_CURRENT_BLOCK_NUMBER = 'aztec.sequencer.current.block_number';
+export const SEQUENCER_CURRENT_BLOCK_SIZE = 'aztec.sequencer.current.block_size';
 
 export const L1_PUBLISHER_GAS_PRICE = 'aztec.l1_publisher.gas_price';
 export const L1_PUBLISHER_TX_COUNT = 'aztec.l1_publisher.tx_count';

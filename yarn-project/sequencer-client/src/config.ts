@@ -1,14 +1,19 @@
 import { type AllowedElement } from '@aztec/circuit-types';
 import { AztecAddress, Fr, FunctionSelector, getContractClassFromArtifact } from '@aztec/circuits.js';
-import { getL1ContractAddressesFromEnv } from '@aztec/ethereum';
+import { type L1ReaderConfig, l1ReaderConfigMappings } from '@aztec/ethereum';
+import { type ConfigMappingsType, getConfigFromMappings, numberConfigHelper } from '@aztec/foundation/config';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { FPCContract } from '@aztec/noir-contracts.js/FPC';
 import { TokenContractArtifact } from '@aztec/noir-contracts.js/Token';
 import { AuthRegistryAddress } from '@aztec/protocol-contracts/auth-registry';
 import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 
-import { type GlobalReaderConfig } from './global_variable_builder/index.js';
-import { type PublisherConfig, type TxSenderConfig, getTxSenderConfigFromEnv } from './publisher/config.js';
+import {
+  type PublisherConfig,
+  type TxSenderConfig,
+  getPublisherConfigMappings,
+  getTxSenderConfigMappings,
+} from './publisher/config.js';
 import { type SequencerConfig } from './sequencer/config.js';
 
 /** Chain configuration. */
@@ -22,60 +27,107 @@ type ChainConfig = {
 /**
  * Configuration settings for the SequencerClient.
  */
-export type SequencerClientConfig = PublisherConfig &
-  TxSenderConfig &
-  SequencerConfig &
-  GlobalReaderConfig &
-  ChainConfig;
+export type SequencerClientConfig = PublisherConfig & TxSenderConfig & SequencerConfig & L1ReaderConfig & ChainConfig;
+
+export const sequencerConfigMappings: ConfigMappingsType<SequencerConfig> = {
+  transactionPollingIntervalMS: {
+    env: 'SEQ_TX_POLLING_INTERVAL_MS',
+    description: 'The number of ms to wait between polling for pending txs.',
+    ...numberConfigHelper(1_000),
+  },
+  maxTxsPerBlock: {
+    env: 'SEQ_MAX_TX_PER_BLOCK',
+    description: 'The maximum number of txs to include in a block.',
+    ...numberConfigHelper(32),
+  },
+  minTxsPerBlock: {
+    env: 'SEQ_MIN_TX_PER_BLOCK',
+    description: 'The minimum number of txs to include in a block.',
+    ...numberConfigHelper(1),
+  },
+  minSecondsBetweenBlocks: {
+    env: 'SEQ_MIN_SECONDS_BETWEEN_BLOCKS',
+    description: 'The minimum number of seconds in-between consecutive blocks.',
+    ...numberConfigHelper(0),
+  },
+  maxSecondsBetweenBlocks: {
+    env: 'SEQ_MAX_SECONDS_BETWEEN_BLOCKS',
+    description:
+      'The maximum number of seconds in-between consecutive blocks. Sequencer will produce a block with less than minTxsPerBlock once this threshold is reached.',
+    ...numberConfigHelper(0),
+  },
+  coinbase: {
+    env: 'COINBASE',
+    parseEnv: (val: string) => EthAddress.fromString(val),
+    description: 'Recipient of block reward.',
+  },
+  feeRecipient: {
+    env: 'FEE_RECIPIENT',
+    parseEnv: (val: string) => AztecAddress.fromString(val),
+    description: 'Address to receive fees.',
+  },
+  acvmWorkingDirectory: {
+    env: 'ACVM_WORKING_DIRECTORY',
+    description: 'The working directory to use for simulation/proving',
+  },
+  acvmBinaryPath: {
+    env: 'ACVM_BINARY_PATH',
+    description: 'The path to the ACVM binary',
+  },
+  allowedInSetup: {
+    env: 'SEQ_ALLOWED_SETUP_FN',
+    parseEnv: (val: string) => parseSequencerAllowList(val),
+    default: getDefaultAllowedSetupFunctions(),
+    description: 'The list of functions calls allowed to run in setup',
+    printDefault: () =>
+      'AuthRegistry, FeeJuice.increase_public_balance, Token.increase_public_balance, FPC.prepare_fee',
+  },
+  allowedInTeardown: {
+    env: 'SEQ_ALLOWED_TEARDOWN_FN',
+    parseEnv: (val: string) => parseSequencerAllowList(val),
+    default: getDefaultAllowedTeardownFunctions(),
+    description: 'The list of functions calls allowed to run teardown',
+    printDefault: () => 'FPC.pay_refund, FPC.pay_refund_with_shielded_rebate',
+  },
+  maxBlockSizeInBytes: {
+    env: 'SEQ_MAX_BLOCK_SIZE_IN_BYTES',
+    description: 'Max block size',
+    ...numberConfigHelper(1024 * 1024),
+  },
+  enforceFees: {
+    env: 'ENFORCE_FEES',
+    parseEnv: (val: string) => ['1', 'true'].includes(val),
+    description: 'Whether to require every tx to have a fee payer',
+  },
+  sequencerSkipSubmitProofs: {
+    env: 'SEQ_SKIP_SUBMIT_PROOFS',
+    parseEnv: (val: string) => ['1', 'true'].includes(val),
+    description: 'Temporary flag to skip submitting proofs, so a prover-node takes care of it.',
+  },
+};
+
+export const chainConfigMappings: ConfigMappingsType<ChainConfig> = {
+  l1ChainId: l1ReaderConfigMappings.l1ChainId,
+  version: {
+    env: 'VERSION',
+    description: 'The version of the rollup.',
+    ...numberConfigHelper(1),
+  },
+};
+
+export const sequencerClientConfigMappings: ConfigMappingsType<SequencerClientConfig> = {
+  ...sequencerConfigMappings,
+  ...getTxSenderConfigMappings('SEQ'),
+  ...getPublisherConfigMappings('SEQ'),
+  ...l1ReaderConfigMappings,
+  ...chainConfigMappings,
+};
 
 /**
  * Creates an instance of SequencerClientConfig out of environment variables using sensible defaults for integration testing if not set.
  */
 export function getConfigEnvVars(): SequencerClientConfig {
-  const {
-    VERSION,
-    SEQ_PUBLISH_RETRY_INTERVAL_MS,
-    SEQ_TX_POLLING_INTERVAL_MS,
-    SEQ_MAX_TX_PER_BLOCK,
-    SEQ_MIN_TX_PER_BLOCK,
-    SEQ_MAX_SECONDS_BETWEEN_BLOCKS,
-    SEQ_MIN_SECONDS_BETWEEN_BLOCKS,
-    SEQ_ALLOWED_SETUP_FN,
-    SEQ_ALLOWED_TEARDOWN_FN,
-    SEQ_MAX_BLOCK_SIZE_IN_BYTES,
-    SEQ_SKIP_SUBMIT_PROOFS,
-    COINBASE,
-    FEE_RECIPIENT,
-    ACVM_WORKING_DIRECTORY,
-    ACVM_BINARY_PATH,
-    ENFORCE_FEES = '',
-  } = process.env;
-
-  return {
-    enforceFees: ['1', 'true'].includes(ENFORCE_FEES),
-    version: VERSION ? +VERSION : 1, // 1 is our default version
-    l1PublishRetryIntervalMS: SEQ_PUBLISH_RETRY_INTERVAL_MS ? +SEQ_PUBLISH_RETRY_INTERVAL_MS : 1_000,
-    transactionPollingIntervalMS: SEQ_TX_POLLING_INTERVAL_MS ? +SEQ_TX_POLLING_INTERVAL_MS : 1_000,
-    maxBlockSizeInBytes: SEQ_MAX_BLOCK_SIZE_IN_BYTES ? +SEQ_MAX_BLOCK_SIZE_IN_BYTES : undefined,
-    l1Contracts: getL1ContractAddressesFromEnv(),
-    maxTxsPerBlock: SEQ_MAX_TX_PER_BLOCK ? +SEQ_MAX_TX_PER_BLOCK : 32,
-    minTxsPerBlock: SEQ_MIN_TX_PER_BLOCK ? +SEQ_MIN_TX_PER_BLOCK : 1,
-    maxSecondsBetweenBlocks: SEQ_MAX_SECONDS_BETWEEN_BLOCKS ? +SEQ_MAX_SECONDS_BETWEEN_BLOCKS : 0,
-    minSecondsBetweenBlocks: SEQ_MIN_SECONDS_BETWEEN_BLOCKS ? +SEQ_MIN_SECONDS_BETWEEN_BLOCKS : 0,
-    sequencerSkipSubmitProofs: ['1', 'true'].includes(SEQ_SKIP_SUBMIT_PROOFS ?? ''),
-    // TODO: undefined should not be allowed for the following 2 values in PROD
-    coinbase: COINBASE ? EthAddress.fromString(COINBASE) : undefined,
-    feeRecipient: FEE_RECIPIENT ? AztecAddress.fromString(FEE_RECIPIENT) : undefined,
-    acvmWorkingDirectory: ACVM_WORKING_DIRECTORY ? ACVM_WORKING_DIRECTORY : undefined,
-    acvmBinaryPath: ACVM_BINARY_PATH ? ACVM_BINARY_PATH : undefined,
-    allowedInSetup: SEQ_ALLOWED_SETUP_FN
-      ? parseSequencerAllowList(SEQ_ALLOWED_SETUP_FN)
-      : getDefaultAllowedSetupFunctions(),
-    allowedInTeardown: SEQ_ALLOWED_TEARDOWN_FN
-      ? parseSequencerAllowList(SEQ_ALLOWED_TEARDOWN_FN)
-      : getDefaultAllowedTeardownFunctions(),
-    ...getTxSenderConfigFromEnv('SEQ'),
-  };
+  return getConfigFromMappings<SequencerClientConfig>(sequencerClientConfigMappings);
 }
 
 /**

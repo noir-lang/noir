@@ -131,7 +131,6 @@ export class TestCircuitProver implements ServerCircuitProver {
       SimulatedServerCircuitArtifacts.PrivateKernelEmptyArtifact,
     );
     const result = convertPrivateKernelEmptyOutputsFromWitnessMap(witness);
-
     return makePublicInputsAndRecursiveProof(
       result,
       makeRecursiveProof(NESTED_RECURSIVE_PROOF_LENGTH),

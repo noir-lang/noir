@@ -1,42 +1,19 @@
-import { type ArchiverConfig } from '@aztec/archiver';
-import { type AztecNodeConfig } from '@aztec/aztec-node';
 import { type AccountManager, type Fr } from '@aztec/aztec.js';
-import { type BotConfig } from '@aztec/bot';
 import { type L1ContractAddresses, l1ContractsNames } from '@aztec/ethereum';
+import { type ConfigMappingsType } from '@aztec/foundation/config';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { type ServerList } from '@aztec/foundation/json-rpc/server';
-import { type LogFn, createConsoleLogger } from '@aztec/foundation/log';
-import { type P2PConfig } from '@aztec/p2p';
-import { type ProverNodeConfig } from '@aztec/prover-node';
-import type { CliPXEOptions, PXEService } from '@aztec/pxe';
+import { type LogFn } from '@aztec/foundation/log';
+import { type PXEService } from '@aztec/pxe';
+
+import chalk from 'chalk';
+import { type Command } from 'commander';
+
+import { type AztecStartOption, aztecStartOptions } from './aztec_start_options.js';
 
 export interface ServiceStarter<T = any> {
   (options: T, signalHandlers: (() => Promise<void>)[], logger: LogFn): Promise<ServerList>;
 }
-
-/**
- * Checks if the object has l1Contracts property
- * @param obj - The object to check
- * @returns True if the object has l1Contracts property
- */
-function hasL1Contracts(obj: any): obj is {
-  /** the deployed L1 contract addresses */
-  l1Contracts: unknown;
-} {
-  return 'l1Contracts' in obj;
-}
-
-/**
- * Checks if all contract addresses set in config.
- * @param contracts - L1 Contract Addresses object
- * @returns true if all contract addresses are not zero
- */
-const checkContractAddresses = (contracts: L1ContractAddresses) => {
-  return l1ContractsNames.every(cn => {
-    const key = cn as keyof L1ContractAddresses;
-    return contracts[key] && contracts[key] !== EthAddress.ZERO;
-  });
-};
 
 export const installSignalHandlers = (logFn: LogFn, cb?: Array<() => Promise<void>>) => {
   const shutdown = async () => {
@@ -50,57 +27,6 @@ export const installSignalHandlers = (logFn: LogFn, cb?: Array<() => Promise<voi
   process.removeAllListeners('SIGTERM');
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
-};
-
-/**
- * Parses a string of options into a key-value map.
- * @param options - String of options in the format "option1=value1,option2=value2".
- * @returns Key-value map of options.
- */
-export const parseModuleOptions = (options: string): Record<string, string> => {
-  if (!options?.length) {
-    return {};
-  }
-  const optionsArray = options.split(/,(?=\w+=)/);
-  return optionsArray.reduce((acc, option) => {
-    const [key, value] = option.split('=');
-    return { ...acc, [key]: value };
-  }, {});
-};
-
-export const mergeEnvVarsAndCliOptions = <
-  T extends AztecNodeConfig | CliPXEOptions | P2PConfig | ArchiverConfig | BotConfig | ProverNodeConfig,
->(
-  envVars: AztecNodeConfig | CliPXEOptions | P2PConfig | ArchiverConfig | BotConfig | ProverNodeConfig,
-  cliOptions: Record<string, string>,
-  contractsRequired = false,
-  userLog = createConsoleLogger(),
-) => {
-  let merged = { ...envVars, ...cliOptions } as T;
-
-  if (hasL1Contracts(envVars)) {
-    // create options object for L1 contract addresses
-    const l1Contracts: L1ContractAddresses = l1ContractsNames.reduce((acc, cn) => {
-      const key = cn as keyof L1ContractAddresses;
-      if (cliOptions[key]) {
-        return { ...acc, [key]: EthAddress.fromString(cliOptions[key]) };
-      } else {
-        return { ...acc, [key]: envVars.l1Contracts[key] };
-      }
-    }, {} as L1ContractAddresses);
-
-    if (contractsRequired && !checkContractAddresses(l1Contracts)) {
-      userLog('Deployed L1 contract addresses are required to start the service');
-      throw new Error('Deployed L1 contract addresses are required to start the service');
-    }
-
-    merged = {
-      ...merged,
-      l1Contracts,
-    } as T;
-  }
-
-  return merged;
 };
 
 /**
@@ -146,3 +72,145 @@ export async function createAccountLogs(
   }
   return accountLogStrings;
 }
+
+export function getMaxLengths(sections: { [key: string]: AztecStartOption[] }): [number, number] {
+  let maxFlagLength = 0;
+  let maxDefaultLength = 0;
+
+  Object.values(sections).forEach(options => {
+    options.forEach(option => {
+      if (option.flag.length > maxFlagLength) {
+        maxFlagLength = option.flag.length;
+      }
+      const defaultLength = option.defaultValue ? option.defaultValue.length : 0;
+      if (defaultLength > maxDefaultLength) {
+        maxDefaultLength = defaultLength;
+      }
+    });
+  });
+
+  return [maxFlagLength + 1, maxDefaultLength + 1];
+}
+
+export function formatHelpLine(
+  option: string,
+  defaultValue: string,
+  envVar: string,
+  maxOptionLength: number,
+  maxDefaultLength: number,
+): string {
+  const paddedOption = option.padEnd(maxOptionLength + 2, ' ');
+  const paddedDefault = defaultValue.padEnd(maxDefaultLength + 2, ' ');
+
+  return `${chalk.cyan(paddedOption)}${chalk.yellow(paddedDefault)}${chalk.green(envVar)}`;
+}
+
+const getDefaultOrEnvValue = (opt: AztecStartOption) => {
+  let val;
+  // if the option is set in the environment, use that & parse it
+  if (opt.envVar && process.env[opt.envVar]) {
+    val = process.env[opt.envVar];
+    if (val && opt.parseVal) {
+      return opt.parseVal(val);
+    }
+    // if no env variable, use the default value
+  } else if (opt.defaultValue) {
+    val = opt.defaultValue;
+  }
+
+  return val;
+};
+
+// Function to add options dynamically
+export const addOptions = (cmd: Command, options: AztecStartOption[]) => {
+  options.forEach(opt => {
+    cmd.option(
+      opt.flag,
+      `${opt.description} (default: ${opt.defaultValue}) ($${opt.envVar})`,
+      opt.parseVal ? opt.parseVal : val => val,
+      getDefaultOrEnvValue(opt),
+    );
+  });
+};
+
+export const printAztecStartHelpText = () => {
+  const helpTextLines: string[] = [''];
+  const [maxFlagLength, maxDefaultLength] = getMaxLengths(aztecStartOptions);
+
+  Object.keys(aztecStartOptions).forEach(category => {
+    helpTextLines.push(chalk.bold.blue(`  ${category}`));
+    helpTextLines.push('');
+
+    aztecStartOptions[category].forEach(opt => {
+      const defaultValueText = opt.defaultValue
+        ? `(default: ${opt.printDefault ? opt.printDefault(opt.defaultValue) : opt.defaultValue})`
+        : '';
+      const envVarText = opt.envVar ? `($${opt.envVar})` : '';
+      const flagText = `${opt.flag}`;
+
+      const paddedText = formatHelpLine(flagText, defaultValueText, envVarText, maxFlagLength, maxDefaultLength);
+
+      helpTextLines.push(`    ${paddedText}`);
+      helpTextLines.push(`          ${chalk.white(opt.description)}`);
+      helpTextLines.push('');
+    });
+  });
+
+  return helpTextLines.join('\n');
+};
+
+/**
+ * Extracts namespaced options from a key-value map.
+ * @param options - Key-value map of options.
+ * @param namespace - The namespace to extract.
+ * @returns Key-value map of namespaced options.
+ */
+export const extractNamespacedOptions = (options: Record<string, any>, namespace: string) => {
+  const extract = `${namespace}.`;
+  const namespacedOptions: Record<string, any> = {};
+  for (const key in options) {
+    if (key.startsWith(extract)) {
+      namespacedOptions[key.replace(extract, '')] = options[key];
+    }
+  }
+  return namespacedOptions;
+};
+
+/**
+ * Extracts L1 contract addresses from a key-value map.
+ * @param options - Key-value map of options.
+ * @returns L1 contract addresses.
+ */
+export const extractL1ContractAddresses = (options: Record<string, any>): L1ContractAddresses => {
+  const contractAddresses: L1ContractAddresses = l1ContractsNames.reduce((acc, cn) => {
+    const key = cn as keyof L1ContractAddresses;
+    if (options[key]) {
+      return { ...acc, [key]: EthAddress.fromString(options[key]) };
+    }
+    return acc;
+  }, {} as L1ContractAddresses);
+
+  return contractAddresses;
+};
+
+/**
+ * Extracts relevant options from a key-value map.
+ * @template T - The type of the relevant options.
+ * @param options - Key-value map of options.
+ * @param mappings - The mappings to extract.
+ * @returns Key-value map of relevant options.
+ */
+export const extractRelevantOptions = <T>(options: Record<string, any>, mappings: ConfigMappingsType<T>): T => {
+  const relevantOptions: T = {} as T;
+
+  Object.keys(options).forEach(key => {
+    const keyParts = key.split('.');
+    const mainKey = keyParts.length > 1 ? keyParts[1] : keyParts[0];
+
+    if (mainKey in mappings) {
+      relevantOptions[mainKey as keyof T] = options[key];
+    }
+  });
+
+  return relevantOptions;
+};

@@ -129,11 +129,11 @@ describe('Discv5Service', () => {
       tcpAnnounceAddress: `127.0.0.1:${port}`,
       udpAnnounceAddress: `127.0.0.1:${port}`,
       bootstrapNodes: [bootnodeAddr],
-      p2pBlockCheckIntervalMS: 50,
-      p2pPeerCheckIntervalMS: 50,
+      blockCheckIntervalMS: 50,
+      peerCheckIntervalMS: 50,
       transactionProtocol: 'aztec/1.0.0',
       p2pEnabled: true,
-      p2pL2QueueSize: 100,
+      l2QueueSize: 100,
       keepProvenTxsInPoolFor: 0,
     };
     return new DiscV5Service(peerId, config);

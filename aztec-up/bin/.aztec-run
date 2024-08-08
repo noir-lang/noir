@@ -10,6 +10,13 @@ shift
 DEFAULT_PORT=8080
 VERSION=${VERSION:-"latest"}
 AZTEC_PORT=${AZTEC_PORT:-$DEFAULT_PORT}
+INHERIT_USER=${INHERIT_USER:-1}
+
+if [[ -n "${NETWORK:-}" ]]; then
+  VERSION=$NETWORK
+  # enable proving if connecting to a network by default
+  export PXE_PROVER_ENABLED=${PXE_PROVER_ENABLED:-1}
+fi
 
 # preserve arguments to pass to docker run
 declare -a preserved_args
@@ -39,7 +46,7 @@ fi
 
 # If running in rootless docker, don't set uid/gid in container, as it breaks the write perms to the home mount.
 # Otherwise we set the uid/gid to be that of user running the container to ensure write perms to the home mount.
-if [ -z "${ROOTLESS:-}" ]; then
+if [[ -z "${ROOTLESS:-}" && "${INHERIT_USER:-}" == "1" ]]; then
   DOCKER_USER="--user $(id -u):$(id -g)"
 fi
 
@@ -73,16 +80,6 @@ for i in "${!args[@]}"; do
   fi
 done
 
-DOCKER_ENV="-e HOME=$HOME"
-for env in ${ENV_VARS_TO_INJECT:-}; do
-  if [ -n "${!env:-}" ]; then
-    # First substitute any reference to localhost with our host gateway.
-    env=${env//localhost/host.docker.internal}
-    # Inject into container.
-    DOCKER_ENV+=" -e $env=${!env:-}"
-  fi
-done
-
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -91,11 +88,29 @@ while [[ "$#" -gt 0 ]]; do
     preserved_args+=("$1" "$2") # Store both argument and value
     shift 2                     # Move past argument and value
     ;;
+  --pxe.network)
+    VERSION="$2" # Set version to user-specified network (e.g. 'devnet')
+    echo "Using aztecprotocol/aztec: $VERSION"
+    preserved_args+=("$1" "$2") # Store both argument and value
+    # turn on proving if connecting to a network by default
+    export PXE_PROVER_ENABLED=${PXE_PROVER_ENABLED:-1}
+    shift 2
+    ;; # Move past argument and value
   *)
     preserved_args+=("$1") # Store unrecognized/other arguments
     shift                  # Move to next argument
     ;;
   esac
+done
+
+DOCKER_ENV="-e HOME=$HOME"
+for env in ${ENV_VARS_TO_INJECT:-}; do
+  if [ -n "${!env:-}" ]; then
+    # First substitute any reference to localhost with our host gateway.
+    env=${env//localhost/host.docker.internal}
+    # Inject into container.
+    DOCKER_ENV+=" -e $env=${!env:-}"
+  fi
 done
 
 # Dynamic port assignment

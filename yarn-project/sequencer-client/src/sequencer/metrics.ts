@@ -1,5 +1,6 @@
 import {
   Attributes,
+  type Gauge,
   type Histogram,
   Metrics,
   type TelemetryClient,
@@ -9,20 +10,21 @@ import {
   millisecondBuckets,
 } from '@aztec/telemetry-client';
 
+type SequencerStateCallback = () => number;
+
 export class SequencerMetrics {
   public readonly tracer: Tracer;
 
-  private cancelledBlockCounter: UpDownCounter;
-  private blocksBuiltCounter: UpDownCounter;
+  private blockCounter: UpDownCounter;
   private blockBuildDuration: Histogram;
-  private blockTxCount: Histogram;
+  private currentBlockNumber: Gauge;
+  private currentBlockSize: Gauge;
 
-  constructor(client: TelemetryClient, name = 'Sequencer') {
+  constructor(client: TelemetryClient, getState: SequencerStateCallback, name = 'Sequencer') {
     const meter = client.getMeter(name);
     this.tracer = client.getTracer(name);
 
-    this.cancelledBlockCounter = meter.createUpDownCounter(Metrics.SEQUENCER_BLOCK_BUILD_CANCELLED_COUNT);
-    this.blocksBuiltCounter = meter.createUpDownCounter(Metrics.SEQUENCER_BLOCK_BUILD_COUNT);
+    this.blockCounter = meter.createUpDownCounter(Metrics.SEQUENCER_BLOCK_COUNT);
     this.blockBuildDuration = meter.createHistogram(Metrics.SEQUENCER_BLOCK_BUILD_DURATION, {
       unit: 'ms',
       description: 'Duration to build a block',
@@ -32,30 +34,53 @@ export class SequencerMetrics {
       },
     });
 
-    this.blockTxCount = meter.createHistogram(Metrics.SEQUENCER_BLOCK_BUILD_TX_COUNT, {
-      description: 'Number of transactions in a block',
-      valueType: ValueType.INT,
+    const currentState = meter.createObservableGauge(Metrics.SEQUENCER_CURRENT_STATE, {
+      description: 'Current state of the sequencer',
     });
+
+    currentState.addCallback(observer => {
+      observer.observe(getState());
+    });
+
+    this.currentBlockNumber = meter.createGauge(Metrics.SEQUENCER_CURRENT_BLOCK_NUMBER, {
+      description: 'Current block number',
+    });
+
+    this.currentBlockSize = meter.createGauge(Metrics.SEQUENCER_CURRENT_BLOCK_SIZE, {
+      description: 'Current block number',
+    });
+
+    this.setCurrentBlock(0, 0);
   }
 
   recordCancelledBlock() {
-    this.cancelledBlockCounter.add(1);
+    this.blockCounter.add(1, {
+      [Attributes.STATUS]: 'cancelled',
+    });
+    this.setCurrentBlock(0, 0);
   }
 
   recordPublishedBlock(buildDurationMs: number) {
-    this.blocksBuiltCounter.add(1, {
-      [Attributes.OK]: true,
+    this.blockCounter.add(1, {
+      [Attributes.STATUS]: 'published',
     });
     this.blockBuildDuration.record(Math.ceil(buildDurationMs));
+    this.setCurrentBlock(0, 0);
   }
 
   recordFailedBlock() {
-    this.blocksBuiltCounter.add(1, {
-      [Attributes.OK]: false,
+    this.blockCounter.add(1, {
+      [Attributes.STATUS]: 'failed',
     });
+    this.setCurrentBlock(0, 0);
   }
 
-  recordNewBlock(txCount: number) {
-    this.blockTxCount.record(txCount);
+  recordNewBlock(blockNumber: number, txCount: number) {
+    this.setCurrentBlock(blockNumber, txCount);
+  }
+
+  private setCurrentBlock(blockNumber: number, txCount: number) {
+    this.currentBlockNumber.record(blockNumber);
+    this.currentBlockSize.record(txCount);
   }
 }

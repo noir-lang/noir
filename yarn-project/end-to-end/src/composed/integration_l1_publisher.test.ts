@@ -90,7 +90,7 @@ describe('L1Publisher integration', () => {
 
   let blockSource: MockProxy<ArchiveSource>;
 
-  const chainId = createEthereumChain(config.rpcUrl, config.l1ChainId).chainInfo.id;
+  const chainId = createEthereumChain(config.l1RpcUrl, config.l1ChainId).chainInfo.id;
 
   let coinbase: EthAddress;
   let feeRecipient: AztecAddress;
@@ -103,7 +103,7 @@ describe('L1Publisher integration', () => {
   beforeEach(async () => {
     deployerAccount = privateKeyToAccount(deployerPK);
     ({ l1ContractAddresses, publicClient, walletClient } = await setupL1Contracts(
-      config.rpcUrl,
+      config.l1RpcUrl,
       deployerAccount,
       logger,
     ));
@@ -145,7 +145,7 @@ describe('L1Publisher integration', () => {
 
     publisher = getL1Publisher(
       {
-        rpcUrl: config.rpcUrl,
+        l1RpcUrl: config.l1RpcUrl,
         requiredConfirmations: 1,
         l1Contracts: l1ContractAddresses,
         publisherPrivateKey: sequencerPK,

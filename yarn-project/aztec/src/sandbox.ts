@@ -42,7 +42,7 @@ import { type HDAccount, type PrivateKeyAccount, createPublicClient, http as htt
 import { mnemonicToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
-export const { MNEMONIC = 'test test test test test test test test test test test junk' } = process.env;
+export const defaultMnemonic = 'test test test test test test test test test test test junk';
 
 const logger = createDebugLogger('aztec:sandbox');
 
@@ -52,7 +52,7 @@ const localAnvil = foundry;
  * Helper function that waits for the Ethereum RPC server to respond before deploying L1 contracts.
  */
 async function waitThenDeploy(config: AztecNodeConfig, deployFunction: () => Promise<DeployL1Contracts>) {
-  const chain = createEthereumChain(config.rpcUrl, config.l1ChainId);
+  const chain = createEthereumChain(config.l1RpcUrl, config.l1ChainId);
   // wait for ETH RPC to respond to a request.
   const publicClient = createPublicClient({
     chain: chain.chainInfo,
@@ -123,7 +123,7 @@ export async function deployContractsToL1(
   };
 
   const l1Contracts = await waitThenDeploy(aztecNodeConfig, () =>
-    deployL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, localAnvil, contractDeployLogger, l1Artifacts, {
+    deployL1Contracts(aztecNodeConfig.l1RpcUrl, hdAccount, localAnvil, contractDeployLogger, l1Artifacts, {
       l2FeeJuiceAddress: FeeJuiceAddress,
       vkTreeRoot: getVKTreeRoot(),
     }),
@@ -149,8 +149,8 @@ export type SandboxConfig = AztecNodeConfig & {
  */
 export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   const aztecNodeConfig: AztecNodeConfig = { ...getConfigEnvVars(), ...config };
-  const hdAccount = mnemonicToAccount(config.l1Mnemonic ?? MNEMONIC);
-  if (aztecNodeConfig.publisherPrivateKey === NULL_KEY) {
+  const hdAccount = mnemonicToAccount(config.l1Mnemonic || defaultMnemonic);
+  if (!aztecNodeConfig.publisherPrivateKey || aztecNodeConfig.publisherPrivateKey === NULL_KEY) {
     const privKey = hdAccount.getHdKey().privateKey;
     aztecNodeConfig.publisherPrivateKey = `0x${Buffer.from(privKey!).toString('hex')}`;
   }
@@ -160,7 +160,7 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
   }
 
   const client = createAndStartTelemetryClient(getTelemetryClientConfig());
-  const node = await createAztecNode(client, aztecNodeConfig);
+  const node = await createAztecNode(aztecNodeConfig, client);
   const pxe = await createAztecPXE(node);
 
   await deployCanonicalKeyRegistry(
@@ -189,7 +189,7 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
  * Create and start a new Aztec RPC HTTP Server
  * @param config - Optional Aztec node settings.
  */
-export async function createAztecNode(telemetryClient: TelemetryClient, config: Partial<AztecNodeConfig> = {}) {
+export async function createAztecNode(config: Partial<AztecNodeConfig> = {}, telemetryClient?: TelemetryClient) {
   const aztecNodeConfig: AztecNodeConfig = { ...getConfigEnvVars(), ...config };
   const node = await AztecNodeService.createAndSync(aztecNodeConfig, telemetryClient);
   return node;

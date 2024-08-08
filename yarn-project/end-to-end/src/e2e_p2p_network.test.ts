@@ -11,7 +11,7 @@ import {
   createDebugLogger,
   sleep,
 } from '@aztec/aztec.js';
-import { type BootNodeConfig, BootstrapNode, createLibP2PPeerId } from '@aztec/p2p';
+import { type BootnodeConfig, BootstrapNode, createLibP2PPeerId } from '@aztec/p2p';
 import { type PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
@@ -162,13 +162,12 @@ describe('e2e_p2p_network', () => {
   const createBootstrapNode = async () => {
     const peerId = await createLibP2PPeerId();
     const bootstrapNode = new BootstrapNode();
-    const config: BootNodeConfig = {
+    const config: BootnodeConfig = {
       udpListenAddress: `0.0.0.0:${BOOT_NODE_UDP_PORT}`,
       udpAnnounceAddress: `127.0.0.1:${BOOT_NODE_UDP_PORT}`,
       peerIdPrivateKey: Buffer.from(peerId.privateKey!).toString('hex'),
       minPeerCount: 10,
       maxPeerCount: 100,
-      p2pPeerCheckIntervalMS: 100,
     };
     await bootstrapNode.start(config);
 
@@ -198,8 +197,8 @@ describe('e2e_p2p_network', () => {
       minTxsPerBlock: NUM_TXS_PER_BLOCK,
       maxTxsPerBlock: NUM_TXS_PER_BLOCK,
       p2pEnabled: true,
-      p2pBlockCheckIntervalMS: 1000,
-      p2pL2QueueSize: 1,
+      blockCheckIntervalMS: 1000,
+      l2QueueSize: 1,
       transactionProtocol: '',
       dataDirectory,
       bootstrapNodes: bootstrapNode ? [bootstrapNode] : [],

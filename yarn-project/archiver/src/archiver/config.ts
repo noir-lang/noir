@@ -1,4 +1,5 @@
-import { type L1ContractAddresses, getL1ContractAddressesFromEnv } from '@aztec/ethereum';
+import { type L1ContractAddresses, type L1ReaderConfig, l1ReaderConfigMappings } from '@aztec/ethereum';
+import { type ConfigMappingsType, getConfigFromMappings, numberConfigHelper } from '@aztec/foundation/config';
 
 /**
  * There are 2 polling intervals used in this configuration. The first is the archiver polling interval, archiverPollingIntervalMS.
@@ -10,26 +11,11 @@ import { type L1ContractAddresses, getL1ContractAddressesFromEnv } from '@aztec/
 /**
  * The archiver configuration.
  */
-export interface ArchiverConfig {
+export type ArchiverConfig = {
   /**
    * URL for an archiver service. If set, will return an archiver client as opposed to starting a new one.
    */
   archiverUrl?: string;
-
-  /**
-   * The url of the Ethereum RPC node.
-   */
-  rpcUrl: string;
-
-  /**
-   * The key for the ethereum node.
-   */
-  apiKey?: string;
-
-  /**
-   * The L1 chain's ID
-   */
-  l1ChainId: number;
 
   /**
    * The polling interval in ms for retrieving new L2 blocks and encrypted logs.
@@ -53,7 +39,35 @@ export interface ArchiverConfig {
 
   /** The max number of logs that can be obtained in 1 "getUnencryptedLogs" call. */
   maxLogs?: number;
-}
+} & L1ReaderConfig;
+
+export const archiverConfigMappings: ConfigMappingsType<ArchiverConfig> = {
+  archiverUrl: {
+    env: 'ARCHIVER_URL',
+    description:
+      'URL for an archiver service. If set, will return an archiver client as opposed to starting a new one.',
+  },
+  archiverPollingIntervalMS: {
+    env: 'ARCHIVER_POLLING_INTERVAL_MS',
+    description: 'The polling interval in ms for retrieving new L2 blocks and encrypted logs.',
+    ...numberConfigHelper(1000),
+  },
+  viemPollingIntervalMS: {
+    env: 'ARCHIVER_VIEM_POLLING_INTERVAL_MS',
+    description: 'The polling interval viem uses in ms',
+    ...numberConfigHelper(1000),
+  },
+  dataDirectory: {
+    env: 'DATA_DIRECTORY',
+    description: 'Optional dir to store data. If omitted will store in memory.',
+  },
+  maxLogs: {
+    env: 'ARCHIVER_MAX_LOGS',
+    description: 'The max number of logs that can be obtained in 1 "getUnencryptedLogs" call.',
+    ...numberConfigHelper(1_000),
+  },
+  ...l1ReaderConfigMappings,
+};
 
 /**
  * Returns the archiver configuration from the environment variables.
@@ -61,23 +75,5 @@ export interface ArchiverConfig {
  * @returns The archiver configuration.
  */
 export function getArchiverConfigFromEnv(): ArchiverConfig {
-  const {
-    ETHEREUM_HOST,
-    L1_CHAIN_ID,
-    ARCHIVER_POLLING_INTERVAL_MS,
-    ARCHIVER_VIEM_POLLING_INTERVAL_MS,
-    API_KEY,
-    DATA_DIRECTORY,
-    ARCHIVER_URL,
-  } = process.env;
-  return {
-    rpcUrl: ETHEREUM_HOST || '',
-    l1ChainId: L1_CHAIN_ID ? +L1_CHAIN_ID : 31337, // 31337 is the default chain id for anvil
-    archiverPollingIntervalMS: ARCHIVER_POLLING_INTERVAL_MS ? +ARCHIVER_POLLING_INTERVAL_MS : 1_000,
-    viemPollingIntervalMS: ARCHIVER_VIEM_POLLING_INTERVAL_MS ? +ARCHIVER_VIEM_POLLING_INTERVAL_MS : 1_000,
-    apiKey: API_KEY,
-    l1Contracts: getL1ContractAddressesFromEnv(),
-    dataDirectory: DATA_DIRECTORY,
-    archiverUrl: ARCHIVER_URL,
-  };
+  return getConfigFromMappings<ArchiverConfig>(archiverConfigMappings);
 }

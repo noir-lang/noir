@@ -134,7 +134,7 @@ export class P2PClient implements P2P {
     private keepProvenTxsFor: number,
     private log = createDebugLogger('aztec:p2p'),
   ) {
-    const { p2pBlockCheckIntervalMS: checkInterval, p2pL2QueueSize } = getP2PConfigEnvVars();
+    const { blockCheckIntervalMS: checkInterval, l2QueueSize: p2pL2QueueSize } = getP2PConfigEnvVars();
     const l2DownloaderOpts = { maxQueueSize: p2pL2QueueSize, pollIntervalMS: checkInterval };
     // TODO(palla/prover-node): This effectively downloads blocks twice from the archiver, which is an issue
     // if the archiver is remote. We should refactor this so the downloader keeps a single queue and handles

@@ -9,7 +9,13 @@ export function createStore(
   rollupAddress: EthAddress,
   log: Logger = createDebugLogger('aztec:kv-store'),
 ) {
-  return initStoreForRollup(AztecLmdbStore.open(config.dataDirectory, false, log), rollupAddress, log);
+  if (config.dataDirectory) {
+    log.info(`Using data directory: ${config.dataDirectory}`);
+  } else {
+    log.info('Using ephemeral data directory');
+  }
+
+  return initStoreForRollup(AztecLmdbStore.open(config.dataDirectory, false), rollupAddress, log);
 }
 
 /**
@@ -24,6 +30,9 @@ export async function initStoreForRollup<T extends AztecKVStore>(
   rollupAddress: EthAddress,
   log?: Logger,
 ): Promise<T> {
+  if (!rollupAddress) {
+    throw new Error('Rollup address is required');
+  }
   const rollupAddressValue = store.openSingleton<ReturnType<EthAddress['toString']>>('rollupAddress');
   const rollupAddressString = rollupAddress.toString();
   const storedRollupAddressString = rollupAddressValue.get();

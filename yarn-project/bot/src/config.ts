@@ -1,5 +1,10 @@
 import { Fr } from '@aztec/circuits.js';
-import { compact } from '@aztec/foundation/collection';
+import {
+  type ConfigMappingsType,
+  getConfigFromMappings,
+  getDefaultConfig,
+  numberConfigHelper,
+} from '@aztec/foundation/config';
 
 export type BotConfig = {
   /** URL to the PXE for sending txs, or undefined if an in-proc PXE is used. */
@@ -26,53 +31,73 @@ export type BotConfig = {
   noWaitForTransfers: boolean;
 };
 
-export function getBotConfigFromEnv(): BotConfig {
-  const {
-    BOT_FEE_PAYMENT_METHOD,
-    BOT_PRIVATE_KEY,
-    BOT_TOKEN_SALT,
-    BOT_RECIPIENT_ENCRYPTION_SECRET,
-    BOT_TX_INTERVAL_SECONDS,
-    BOT_PRIVATE_TRANSFERS_PER_TX,
-    BOT_PUBLIC_TRANSFERS_PER_TX,
-    BOT_NO_START,
-    BOT_TX_MINED_WAIT_SECONDS,
-    BOT_NO_WAIT_FOR_TRANSFERS,
-  } = process.env;
-  if (BOT_FEE_PAYMENT_METHOD && !['native', 'none'].includes(BOT_FEE_PAYMENT_METHOD)) {
-    throw new Error(`Invalid bot fee payment method: ${BOT_FEE_PAYMENT_METHOD}`);
-  }
+export const botConfigMappings: ConfigMappingsType<BotConfig> = {
+  pxeUrl: {
+    env: 'BOT_PXE_URL',
+    description: 'URL to the PXE for sending txs, or undefined if an in-proc PXE is used.',
+  },
+  senderPrivateKey: {
+    env: 'BOT_PRIVATE_KEY',
+    description: 'Signing private key for the sender account.',
+    parseEnv: (val: string) => Fr.fromString(val),
+    default: Fr.random(),
+  },
+  recipientEncryptionSecret: {
+    env: 'BOT_RECIPIENT_ENCRYPTION_SECRET',
+    description: 'Encryption secret for a recipient account.',
+    parseEnv: (val: string) => Fr.fromString(val),
+    default: Fr.fromString('0xcafecafe'),
+  },
+  tokenSalt: {
+    env: 'BOT_TOKEN_SALT',
+    description: 'Salt for the token contract deployment.',
+    parseEnv: (val: string) => Fr.fromString(val),
+    default: Fr.fromString('1'),
+  },
+  txIntervalSeconds: {
+    env: 'BOT_TX_INTERVAL_SECONDS',
+    description: 'Every how many seconds should a new tx be sent.',
+    ...numberConfigHelper(60),
+  },
+  privateTransfersPerTx: {
+    env: 'BOT_PRIVATE_TRANSFERS_PER_TX',
+    description: 'How many private token transfers are executed per tx.',
+    ...numberConfigHelper(1),
+  },
+  publicTransfersPerTx: {
+    env: 'BOT_PUBLIC_TRANSFERS_PER_TX',
+    description: 'How many public token transfers are executed per tx.',
+    ...numberConfigHelper(1),
+  },
+  feePaymentMethod: {
+    env: 'BOT_FEE_PAYMENT_METHOD',
+    description: 'How to handle fee payments. (Options: native, none)',
+    parseEnv: val => (val as 'native' | 'none') || undefined,
+    default: 'none',
+  },
+  noStart: {
+    env: 'BOT_NO_START',
+    description: 'True to not automatically setup or start the bot on initialization.',
+    parseEnv: val => ['1', 'true'].includes(val),
+    default: false,
+  },
+  txMinedWaitSeconds: {
+    env: 'BOT_TX_MINED_WAIT_SECONDS',
+    description: 'How long to wait for a tx to be mined before reporting an error.',
+    ...numberConfigHelper(180),
+  },
+  noWaitForTransfers: {
+    env: 'BOT_NO_WAIT_FOR_TRANSFERS',
+    description: "Don't wait for transfer transactions.",
+    parseEnv: val => ['1', 'true'].includes(val),
+    default: false,
+  },
+};
 
-  return getBotDefaultConfig({
-    pxeUrl: process.env.BOT_PXE_URL,
-    senderPrivateKey: BOT_PRIVATE_KEY ? Fr.fromString(BOT_PRIVATE_KEY) : undefined,
-    recipientEncryptionSecret: BOT_RECIPIENT_ENCRYPTION_SECRET
-      ? Fr.fromString(BOT_RECIPIENT_ENCRYPTION_SECRET)
-      : undefined,
-    tokenSalt: BOT_TOKEN_SALT ? Fr.fromString(BOT_TOKEN_SALT) : undefined,
-    txIntervalSeconds: BOT_TX_INTERVAL_SECONDS ? parseInt(BOT_TX_INTERVAL_SECONDS) : undefined,
-    privateTransfersPerTx: BOT_PRIVATE_TRANSFERS_PER_TX ? parseInt(BOT_PRIVATE_TRANSFERS_PER_TX) : undefined,
-    publicTransfersPerTx: BOT_PUBLIC_TRANSFERS_PER_TX ? parseInt(BOT_PUBLIC_TRANSFERS_PER_TX) : undefined,
-    feePaymentMethod: BOT_FEE_PAYMENT_METHOD ? (BOT_FEE_PAYMENT_METHOD as 'native' | 'none') : undefined,
-    noStart: BOT_NO_START ? ['1', 'true'].includes(BOT_NO_START) : undefined,
-    txMinedWaitSeconds: BOT_TX_MINED_WAIT_SECONDS ? parseInt(BOT_TX_MINED_WAIT_SECONDS) : undefined,
-    noWaitForTransfers: BOT_NO_WAIT_FOR_TRANSFERS ? ['1', 'true'].includes(BOT_NO_WAIT_FOR_TRANSFERS) : undefined,
-  });
+export function getBotConfigFromEnv(): BotConfig {
+  return getConfigFromMappings<BotConfig>(botConfigMappings);
 }
 
-export function getBotDefaultConfig(overrides: Partial<BotConfig> = {}): BotConfig {
-  return {
-    pxeUrl: undefined,
-    senderPrivateKey: Fr.random(),
-    recipientEncryptionSecret: Fr.fromString('0xcafecafe'),
-    tokenSalt: Fr.fromString('1'),
-    txIntervalSeconds: 60,
-    privateTransfersPerTx: 1,
-    publicTransfersPerTx: 1,
-    feePaymentMethod: 'none',
-    noStart: false,
-    txMinedWaitSeconds: 180,
-    noWaitForTransfers: false,
-    ...compact(overrides),
-  };
+export function getBotDefaultConfig(): BotConfig {
+  return getDefaultConfig<BotConfig>(botConfigMappings);
 }

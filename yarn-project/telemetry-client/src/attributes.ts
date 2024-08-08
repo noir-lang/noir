@@ -15,7 +15,7 @@
  */
 
 /** The Aztec network identifier */
-export const NETWORK_ID = 'aztec.network.id';
+export const NETWORK_NAME = 'aztec.network_name';
 
 /**
  * The name of the protocol circuit being run (e.g. public-kernel-setup or base-rollup)

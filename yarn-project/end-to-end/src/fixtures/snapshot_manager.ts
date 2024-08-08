@@ -151,7 +151,7 @@ class SnapshotManager implements ISnapshotManager {
     await restore(snapshotData, context);
 
     // Save the snapshot data.
-    const ethCheatCodes = new EthCheatCodes(context.aztecNodeConfig.rpcUrl);
+    const ethCheatCodes = new EthCheatCodes(context.aztecNodeConfig.l1RpcUrl);
     const anvilStateFile = `${this.livePath}/anvil.dat`;
     await ethCheatCodes.dumpChainState(anvilStateFile);
     writeFileSync(`${this.livePath}/${name}.json`, JSON.stringify(snapshotData || {}, resolver));
@@ -244,7 +244,7 @@ async function setupFromFresh(
   const anvil = await retry(
     async () => {
       const ethereumHostPort = await getPort();
-      aztecNodeConfig.rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
+      aztecNodeConfig.l1RpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
       const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
       await anvil.start();
       return anvil;
@@ -258,7 +258,7 @@ async function setupFromFresh(
   const hdAccount = mnemonicToAccount(MNEMONIC);
   const privKeyRaw = hdAccount.getHdKey().privateKey;
   const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
-  const deployL1ContractsValues = await setupL1Contracts(aztecNodeConfig.rpcUrl, hdAccount, logger);
+  const deployL1ContractsValues = await setupL1Contracts(aztecNodeConfig.l1RpcUrl, hdAccount, logger);
   aztecNodeConfig.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
   aztecNodeConfig.l1Contracts = deployL1ContractsValues.l1ContractAddresses;
   aztecNodeConfig.l1PublishRetryIntervalMS = 100;
@@ -324,12 +324,12 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
 
   // Start anvil. We go via a wrapper script to ensure if the parent dies, anvil dies.
   const ethereumHostPort = await getPort();
-  aztecNodeConfig.rpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
+  aztecNodeConfig.l1RpcUrl = `http://127.0.0.1:${ethereumHostPort}`;
   const anvil = createAnvil({ anvilBinary: './scripts/anvil_kill_wrapper.sh', port: ethereumHostPort });
   await anvil.start();
   // Load anvil state.
   const anvilStateFile = `${statePath}/anvil.dat`;
-  const ethCheatCodes = new EthCheatCodes(aztecNodeConfig.rpcUrl);
+  const ethCheatCodes = new EthCheatCodes(aztecNodeConfig.l1RpcUrl);
   await ethCheatCodes.loadChainState(anvilStateFile);
 
   // TODO: Encapsulate this in a NativeAcvm impl.
@@ -346,7 +346,7 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
   }
 
   logger.verbose('Creating ETH clients...');
-  const { publicClient, walletClient } = createL1Clients(aztecNodeConfig.rpcUrl, mnemonicToAccount(MNEMONIC));
+  const { publicClient, walletClient } = createL1Clients(aztecNodeConfig.l1RpcUrl, mnemonicToAccount(MNEMONIC));
 
   logger.verbose('Creating aztec node...');
   const telemetry = createAndStartTelemetryClient(getTelemetryConfig());

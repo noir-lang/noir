@@ -4,6 +4,7 @@ import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { type Command } from 'commander';
 
 import {
+  createPrivateKeyOption,
   logJson,
   parseAztecAddress,
   parseEthereumAddress,
@@ -169,7 +170,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       "A compiled Aztec.nr contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts.js",
     )
     .requiredOption('-ca, --contract-address <address>', 'Aztec address of the contract.', parseAztecAddress)
-    .option('-f, --from <string>', 'Aztec address of the caller. If empty, will use the first account from RPC.')
+    .addOption(createPrivateKeyOption("The sender's private key.", false))
     .addOption(pxeOption)
     .action(async (functionName, options) => {
       const { call } = await import('./call.js');
@@ -178,7 +179,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         options.args,
         options.contractArtifact,
         options.contractAddress,
-        options.from,
+        options.privateKey,
         options.rpcUrl,
         debugLogger,
         log,

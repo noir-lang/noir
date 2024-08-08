@@ -52,7 +52,6 @@ export async function bootstrapNetwork(
   const fpc = await deployFPC(wallet, token.address);
 
   const counter = await deployCounter(wallet);
-
   await fundFPC(counter.address, wallet, l1Clients, fpc.address, debugLog);
 
   if (json) {

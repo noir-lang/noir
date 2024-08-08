@@ -11,12 +11,20 @@ import {
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { HostMetrics } from '@opentelemetry/host-metrics';
-import { Resource } from '@opentelemetry/resources';
+import { awsEc2Detector, awsEcsDetector } from '@opentelemetry/resource-detector-aws';
+import {
+  type IResource,
+  detectResourcesSync,
+  envDetectorSync,
+  osDetectorSync,
+  processDetectorSync,
+  serviceInstanceIdDetectorSync,
+} from '@opentelemetry/resources';
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { BatchSpanProcessor, NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
-import { NETWORK_ID } from './attributes.js';
+import { aztecDetector } from './aztec_resource_detector.js';
 import { type Gauge, type TelemetryClient } from './telemetry.js';
 
 export class OpenTelemetryClient implements TelemetryClient {
@@ -24,7 +32,7 @@ export class OpenTelemetryClient implements TelemetryClient {
   targetInfo: Gauge | undefined;
 
   protected constructor(
-    private resource: Resource,
+    private resource: IResource,
     private meterProvider: MeterProvider,
     private traceProvider: TracerProvider,
     private log: DebugLogger,
@@ -53,7 +61,14 @@ export class OpenTelemetryClient implements TelemetryClient {
     this.targetInfo = this.meterProvider.getMeter('target').createGauge('target_info', {
       description: 'Target information',
     });
-    this.targetInfo.record(1, this.resource.attributes);
+
+    if (this.resource.asyncAttributesPending) {
+      void this.resource.waitForAsyncAttributes!().then(() => {
+        this.targetInfo!.record(1, this.resource.attributes);
+      });
+    } else {
+      this.targetInfo.record(1, this.resource.attributes);
+    }
 
     this.hostMetrics.start();
   }
@@ -62,17 +77,17 @@ export class OpenTelemetryClient implements TelemetryClient {
     await Promise.all([this.meterProvider.shutdown()]);
   }
 
-  public static createAndStart(
-    name: string,
-    version: string,
-    networkIdentifier: string,
-    collectorBaseUrl: URL,
-    log: DebugLogger,
-  ): OpenTelemetryClient {
-    const resource = new Resource({
-      [SEMRESATTRS_SERVICE_NAME]: name,
-      [SEMRESATTRS_SERVICE_VERSION]: version,
-      [NETWORK_ID]: networkIdentifier,
+  public static createAndStart(collectorBaseUrl: URL, log: DebugLogger): OpenTelemetryClient {
+    const resource = detectResourcesSync({
+      detectors: [
+        osDetectorSync,
+        envDetectorSync,
+        processDetectorSync,
+        serviceInstanceIdDetectorSync,
+        awsEc2Detector,
+        awsEcsDetector,
+        aztecDetector,
+      ],
     });
 
     const tracerProvider = new NodeTracerProvider({

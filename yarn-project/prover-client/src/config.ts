@@ -1,7 +1,5 @@
-import { type ProverConfig } from '@aztec/circuit-types';
-import { Fr } from '@aztec/circuits.js';
-
-import { tmpdir } from 'os';
+import { type ProverConfig, proverConfigMappings } from '@aztec/circuit-types';
+import { type ConfigMappingsType, getConfigFromMappings } from '@aztec/foundation/config';
 
 /**
  * The prover configuration.
@@ -19,61 +17,37 @@ export type ProverClientConfig = ProverConfig & {
   disableProver: boolean;
 };
 
+export const proverClientConfigMappings: ConfigMappingsType<ProverClientConfig> = {
+  acvmWorkingDirectory: {
+    env: 'ACVM_WORKING_DIRECTORY',
+    description: 'The working directory to use for simulation/proving',
+  },
+  acvmBinaryPath: {
+    env: 'ACVM_BINARY_PATH',
+    description: 'The path to the ACVM binary',
+  },
+  bbWorkingDirectory: {
+    env: 'BB_WORKING_DIRECTORY',
+    description: 'The working directory to for proving',
+  },
+  bbBinaryPath: {
+    env: 'BB_BINARY_PATH',
+    description: 'The path to the bb binary',
+  },
+  disableProver: {
+    env: 'PROVER_DISABLED',
+    parseEnv: (val: string) => ['1', 'true'].includes(val),
+    default: false,
+    description: 'Whether to disable proving.',
+  },
+  ...proverConfigMappings,
+};
+
 /**
  * Returns the prover configuration from the environment variables.
  * Note: If an environment variable is not set, the default value is used.
  * @returns The prover configuration.
  */
 export function getProverEnvVars(): ProverClientConfig {
-  const {
-    AZTEC_NODE_URL,
-    ACVM_WORKING_DIRECTORY = tmpdir(),
-    ACVM_BINARY_PATH = '',
-    BB_WORKING_DIRECTORY = tmpdir(),
-    BB_BINARY_PATH = '',
-    PROVER_DISABLED = '',
-    /** @deprecated */
-    PROVER_AGENTS = '1',
-    PROVER_AGENT_ENABLED = '1',
-    PROVER_AGENT_CONCURRENCY = PROVER_AGENTS,
-    PROVER_AGENT_POLL_INTERVAL_MS = '100',
-    PROVER_REAL_PROOFS = '',
-    PROVER_JOB_TIMEOUT_MS = '60000',
-    PROVER_JOB_POLL_INTERVAL_MS = '1000',
-    PROVER_ID,
-  } = process.env;
-
-  const realProofs = ['1', 'true'].includes(PROVER_REAL_PROOFS);
-  const proverAgentEnabled = ['1', 'true'].includes(PROVER_AGENT_ENABLED);
-  const proverAgentConcurrency = safeParseNumber(PROVER_AGENT_CONCURRENCY, 1);
-  const proverAgentPollInterval = safeParseNumber(PROVER_AGENT_POLL_INTERVAL_MS, 100);
-  const proverJobTimeoutMs = safeParseNumber(PROVER_JOB_TIMEOUT_MS, 60000);
-  const proverJobPollIntervalMs = safeParseNumber(PROVER_JOB_POLL_INTERVAL_MS, 1000);
-  const disableProver = ['1', 'true'].includes(PROVER_DISABLED);
-  const proverId = PROVER_ID ? parseProverId(PROVER_ID) : undefined;
-
-  return {
-    acvmWorkingDirectory: ACVM_WORKING_DIRECTORY,
-    acvmBinaryPath: ACVM_BINARY_PATH,
-    bbBinaryPath: BB_BINARY_PATH,
-    bbWorkingDirectory: BB_WORKING_DIRECTORY,
-    realProofs,
-    disableProver,
-    proverAgentEnabled,
-    proverAgentPollInterval,
-    proverAgentConcurrency,
-    nodeUrl: AZTEC_NODE_URL,
-    proverJobPollIntervalMs,
-    proverJobTimeoutMs,
-    proverId,
-  };
-}
-
-function parseProverId(str: string) {
-  return Fr.fromString(str.startsWith('0x') ? str : Buffer.from(str, 'utf8').toString('hex'));
-}
-
-function safeParseNumber(value: string, defaultValue: number): number {
-  const parsedValue = parseInt(value, 10);
-  return Number.isSafeInteger(parsedValue) ? parsedValue : defaultValue;
+  return getConfigFromMappings<ProverClientConfig>(proverClientConfigMappings);
 }

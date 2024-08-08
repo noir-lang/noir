@@ -2,19 +2,19 @@
 set -euo pipefail
 
 # Colors
-g="\033[32m"  # Green
-y="\033[33m"  # Yellow
-b="\033[34m"  # Blue
-p="\033[35m"  # Purple
-r="\033[0m"   # Reset
+g="\033[32m" # Green
+y="\033[33m" # Yellow
+b="\033[34m" # Blue
+p="\033[35m" # Purple
+r="\033[0m"  # Reset
 bold="\033[1m"
 
 # Function to replace characters and add color
 function print_colored() {
-  local b=$'\033[34m'  # Blue
-  local y=$'\033[33m'  # Yellow
-  local r=$'\033[0m'   # Reset
-    echo "$1" | sed -E "s/(█+)/${b}\1${y}/g"
+  local b=$'\033[34m' # Blue
+  local y=$'\033[33m' # Yellow
+  local r=$'\033[0m'  # Reset
+  echo "$1" | sed -E "s/(█+)/${b}\1${y}/g"
 }
 
 function title() {
@@ -32,11 +32,11 @@ function title() {
   echo
   if [ "$(uname -s)" == "Darwin" ]; then
     echo -e "${y}WARNING: For best performance we recommend adjusting your default docker settings:"
-    echo -e     "         - Under general, enable VirtioFS."
-    echo -e     "         - Under resources, set CPUs to ~80% your maximum."
-    echo -e     "         - Under resources, set Memory to ~80% your maximum."
-    echo -e     "You may receive a warning about your home directory being mounted into a container."
-    echo -e     "This is requested so we can read and write project files, that is all."
+    echo -e "         - Under general, enable VirtioFS."
+    echo -e "         - Under resources, set CPUs to ~80% your maximum."
+    echo -e "         - Under resources, set Memory to ~80% your maximum."
+    echo -e "You may receive a warning about your home directory being mounted into a container."
+    echo -e "This is requested so we can read and write project files, that is all."
     echo -e "${r}"
   fi
   echo -e "This will install the following scripts and update your PATH if necessary:"
@@ -126,6 +126,7 @@ install_bin aztec
 install_bin aztec-up
 install_bin aztec-nargo
 install_bin aztec-wallet
+install_bin .aztec_cli_vars
 
 function update_path_env_var {
   TARGET_DIR="${1}"
@@ -159,7 +160,7 @@ function update_path_env_var {
     fi
 
     # Add the target directory to the user's PATH in their profile.
-    echo "export PATH=\"\$PATH:$TARGET_DIR\"" >> "$SHELL_PROFILE"
+    echo "export PATH=\"\$PATH:$TARGET_DIR\"" >>"$SHELL_PROFILE"
 
     if [ -z "${NON_INTERACTIVE:-}" ]; then
       info "Done! Starting fresh shell..."

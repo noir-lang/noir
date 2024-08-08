@@ -42,12 +42,16 @@ export class AztecKVTxPool implements TxPool {
 
   public markAsMined(txHashes: TxHash[]): Promise<void> {
     return this.#store.transaction(() => {
+      let deleted = 0;
       for (const hash of txHashes) {
         const key = hash.toString();
         void this.#minedTxs.add(key);
-        void this.#pendingTxs.delete(key);
+        if (this.#pendingTxs.has(key)) {
+          deleted++;
+          void this.#pendingTxs.delete(key);
+        }
       }
-      this.#metrics.recordRemovedTxs('pending', txHashes.length);
+      this.#metrics.recordRemovedTxs('pending', deleted);
       this.#metrics.recordAddedTxs('mined', txHashes.length);
     });
   }

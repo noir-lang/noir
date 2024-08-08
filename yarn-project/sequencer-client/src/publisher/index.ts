@@ -5,7 +5,7 @@ import { L1Publisher } from './l1-publisher.js';
 import { ViemTxSender } from './viem-tx-sender.js';
 
 export { L1Publisher } from './l1-publisher.js';
-export { PublisherConfig, TxSenderConfig, getTxSenderConfigFromEnv } from './config.js';
+export * from './config.js';
 
 /**
  * Returns a new instance of the L1Publisher.

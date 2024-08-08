@@ -1,5 +1,5 @@
 import { createDebugLogger } from '@aztec/foundation/log';
-import { BootstrapNode, type P2PConfig } from '@aztec/p2p';
+import { type BootnodeConfig, BootstrapNode } from '@aztec/p2p';
 
 import Koa from 'koa';
 import Router from 'koa-router';
@@ -11,7 +11,7 @@ const { HTTP_PORT } = process.env;
 /**
  * The application entry point.
  */
-async function main(config: P2PConfig, logger = debugLogger) {
+async function main(config: BootnodeConfig, logger = debugLogger) {
   const bootstrapNode = new BootstrapNode(logger);
   await bootstrapNode.start(config);
   logger.info('DiscV5 Bootnode started');

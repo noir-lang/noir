@@ -102,7 +102,7 @@ export class PublicCrossChainMessagingContractTest {
         this.logger.verbose(`Public deploy accounts...`);
         await publicDeployAccounts(this.wallets[0], this.accounts.slice(0, 3));
 
-        const { publicClient, walletClient } = createL1Clients(this.aztecNodeConfig.rpcUrl, MNEMONIC);
+        const { publicClient, walletClient } = createL1Clients(this.aztecNodeConfig.l1RpcUrl, MNEMONIC);
 
         this.logger.verbose(`Setting up cross chain harness...`);
         this.crossChainTestHarness = await CrossChainTestHarness.new(
@@ -127,7 +127,7 @@ export class PublicCrossChainMessagingContractTest {
         this.ownerAddress = AztecAddress.fromString(crossChainContext.ownerAddress.toString());
         const tokenPortalAddress = EthAddress.fromString(crossChainContext.tokenPortal.toString());
 
-        const { publicClient, walletClient } = createL1Clients(this.aztecNodeConfig.rpcUrl, MNEMONIC);
+        const { publicClient, walletClient } = createL1Clients(this.aztecNodeConfig.l1RpcUrl, MNEMONIC);
 
         const inbox = getContract({
           address: this.aztecNodeConfig.l1Contracts.inboxAddress.toString(),

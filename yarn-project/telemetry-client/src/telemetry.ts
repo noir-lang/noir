@@ -3,6 +3,8 @@ import {
   type MetricOptions,
   type Gauge as OtelGauge,
   type Histogram as OtelHistogram,
+  type ObservableGauge as OtelObservableGauge,
+  type ObservableUpDownCounter as OtelObservableUpDownCounter,
   type UpDownCounter as OtelUpDownCounter,
   type Span,
   SpanStatusCode,
@@ -27,6 +29,8 @@ export { Metrics };
 export type Gauge = OtelGauge<Attributes>;
 export type Histogram = OtelHistogram<Attributes>;
 export type UpDownCounter = OtelUpDownCounter<Attributes>;
+export type ObservableGauge = OtelObservableGauge<Attributes>;
+export type ObservableUpDownCounter = OtelObservableUpDownCounter<Attributes>;
 
 export { Tracer };
 
@@ -43,6 +47,13 @@ export interface Meter {
   createGauge(name: Metrics, options?: MetricOptions): Gauge;
 
   /**
+   * Creates a new gauge instrument. A gauge is a metric that represents a single numerical value that can arbitrarily go up and down.
+   * @param name - The name of the gauge
+   * @param options - The options for the gauge
+   */
+  createObservableGauge(name: Metrics, options?: MetricOptions): ObservableGauge;
+
+  /**
    * Creates a new histogram instrument. A histogram is a metric that samples observations (usually things like request durations or response sizes) and counts them in configurable buckets.
    * @param name - The name of the histogram
    * @param options - The options for the histogram
@@ -55,6 +66,13 @@ export interface Meter {
    * @param options - The options for the counter
    */
   createUpDownCounter(name: Metrics, options?: MetricOptions): UpDownCounter;
+
+  /**
+   * Creates a new gauge instrument. A gauge is a metric that represents a single numerical value that can arbitrarily go up and down.
+   * @param name - The name of the gauge
+   * @param options - The options for the gauge
+   */
+  createObservableUpDownCounter(name: Metrics, options?: MetricOptions): ObservableUpDownCounter;
 }
 
 /**

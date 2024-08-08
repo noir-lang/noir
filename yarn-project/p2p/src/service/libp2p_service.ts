@@ -101,7 +101,7 @@ export class LibP2PService implements P2PService {
     // Start running promise for peer discovery
     this.discoveryRunningPromise = new RunningPromise(() => {
       this.peerManager.discover();
-    }, this.config.p2pPeerCheckIntervalMS);
+    }, this.config.peerCheckIntervalMS);
     this.discoveryRunningPromise.start();
   }
 
@@ -140,20 +140,6 @@ export class LibP2PService implements P2PService {
     const announceAddrTcp = convertToMultiaddr(tcpAnnounceAddress!, 'tcp');
 
     const datastore = new AztecDatastore(store);
-
-    // The autonat service seems quite problematic in that using it seems to cause a lot of attempts
-    // to dial ephemeral ports. I suspect that it works better if you can get the uPNPnat service to
-    // work as then you would have a permanent port to be dialled.
-    // Alas, I struggled to get this to work reliably either. I find there is a race between the
-    // service that reads our listener addresses and the uPnP service.
-    // The result being the uPnP service can't find an address to use for the port forward.
-    // Need to investigate further.
-    // if (enableNat) {
-    //   services.autoNAT = autoNATService({
-    //     protocolPrefix: 'aztec',
-    //   });
-    //   services.uPnPNAT = uPnPNATService();
-    // }
 
     const node = await createLibp2p({
       start: false,

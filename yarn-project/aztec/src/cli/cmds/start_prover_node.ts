@@ -7,7 +7,7 @@ import {
   type ProverNodeConfig,
   createProverNode,
   createProverNodeRpcServer,
-  getProverNodeConfigFromEnv,
+  proverNodeConfigMappings,
 } from '@aztec/prover-node';
 import {
   createAndStartTelemetryClient,
@@ -16,8 +16,7 @@ import {
 
 import { mnemonicToAccount } from 'viem/accounts';
 
-import { MNEMONIC } from '../../sandbox.js';
-import { mergeEnvVarsAndCliOptions, parseModuleOptions } from '../util.js';
+import { extractRelevantOptions } from '../util.js';
 
 export const startProverNode = async (
   options: any,
@@ -27,33 +26,32 @@ export const startProverNode = async (
   // Services that will be started in a single multi-rpc server
   const services: ServerList = [];
 
-  const envVars = getProverNodeConfigFromEnv();
-  const cliOptions = parseModuleOptions(options.proverNode);
-  let proverConfig = mergeEnvVarsAndCliOptions<ProverNodeConfig>(envVars, cliOptions);
-
   if (options.node || options.sequencer || options.pxe || options.p2pBootstrap || options.txe) {
     userLog(`Starting a prover-node with --node, --sequencer, --pxe, --p2p-bootstrap, or --txe is not supported.`);
     process.exit(1);
   }
 
-  if (options.archiver) {
-    proverConfig = mergeEnvVarsAndCliOptions<ProverNodeConfig>(proverConfig, parseModuleOptions(options.archiver));
-  } else if (!proverConfig.archiverUrl) {
-    userLog('Archiver URL is required to start a Prover Node without --archiver option');
+  const proverConfig = extractRelevantOptions<ProverNodeConfig>(options, proverNodeConfigMappings);
+
+  if (!options.archiver && !proverConfig.archiverUrl) {
+    userLog('--archiver.archiverUrl is required to start a Prover Node without --archiver option');
     process.exit(1);
   }
 
   if (options.prover) {
     userLog(`Running prover node with local prover agent.`);
-    proverConfig = mergeEnvVarsAndCliOptions<ProverNodeConfig>(proverConfig, parseModuleOptions(options.prover));
     proverConfig.proverAgentEnabled = true;
   } else {
     userLog(`Running prover node without local prover agent. Connect one or more prover agents to this node.`);
     proverConfig.proverAgentEnabled = false;
   }
 
-  if (proverConfig.publisherPrivateKey === NULL_KEY || !proverConfig.publisherPrivateKey) {
-    const hdAccount = mnemonicToAccount(MNEMONIC);
+  if (!proverConfig.publisherPrivateKey || proverConfig.publisherPrivateKey === NULL_KEY) {
+    if (!options.l1Mnemonic) {
+      userLog(`--l1-mnemonic is required to start a Prover Node without --node.publisherPrivateKey`);
+      process.exit(1);
+    }
+    const hdAccount = mnemonicToAccount(options.l1Mnemonic);
     const privKey = hdAccount.getHdKey().privateKey;
     proverConfig.publisherPrivateKey = `0x${Buffer.from(privKey!).toString('hex')}`;
   }

@@ -23,7 +23,7 @@ const log = createDebugLogger('aztec:archiver');
 // eslint-disable-next-line require-await
 async function main() {
   const config = getArchiverConfigFromEnv();
-  const { rpcUrl, l1Contracts } = config;
+  const { l1RpcUrl: rpcUrl, l1Contracts } = config;
 
   const publicClient = createPublicClient({
     chain: localhost,

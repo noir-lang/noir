@@ -220,18 +220,18 @@ async function setupWithRemoteEnvironment(
   const walletClient = createWalletClient<HttpTransport, Chain, HDAccount>({
     account,
     chain: foundry,
-    transport: http(config.rpcUrl),
+    transport: http(config.l1RpcUrl),
   });
   const publicClient = createPublicClient({
     chain: foundry,
-    transport: http(config.rpcUrl),
+    transport: http(config.l1RpcUrl),
   });
   const deployL1ContractsValues: DeployL1Contracts = {
     l1ContractAddresses: l1Contracts,
     walletClient,
     publicClient,
   };
-  const cheatCodes = CheatCodes.create(config.rpcUrl, pxeClient!);
+  const cheatCodes = CheatCodes.create(config.l1RpcUrl, pxeClient!);
   const teardown = () => Promise.resolve();
 
   const { l1ChainId: chainId, protocolVersion } = await pxeClient.getNodeInfo();
@@ -326,7 +326,7 @@ export async function setup(
 
   let anvil: Anvil | undefined;
 
-  if (!config.rpcUrl) {
+  if (!config.l1RpcUrl) {
     if (PXE_URL) {
       throw new Error(
         `PXE_URL provided but no ETHEREUM_HOST set. Refusing to run, please set both variables so tests can deploy L1 contracts to the same Anvil instance`,
@@ -335,7 +335,7 @@ export async function setup(
 
     const res = await startAnvil();
     anvil = res.anvil;
-    config.rpcUrl = res.rpcUrl;
+    config.l1RpcUrl = res.rpcUrl;
   }
 
   // Enable logging metrics to a local file named after the test suite
@@ -346,7 +346,7 @@ export async function setup(
   }
 
   if (opts.stateLoad) {
-    const ethCheatCodes = new EthCheatCodes(config.rpcUrl);
+    const ethCheatCodes = new EthCheatCodes(config.l1RpcUrl);
     await ethCheatCodes.loadChainState(opts.stateLoad);
   }
 
@@ -360,7 +360,7 @@ export async function setup(
   }
 
   const deployL1ContractsValues =
-    opts.deployL1ContractsValues ?? (await setupL1Contracts(config.rpcUrl, hdAccount, logger));
+    opts.deployL1ContractsValues ?? (await setupL1Contracts(config.l1RpcUrl, hdAccount, logger));
 
   config.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
   config.l1Contracts = deployL1ContractsValues.l1ContractAddresses;
@@ -405,7 +405,7 @@ export async function setup(
   }
 
   const wallets = await createAccounts(pxe, numberOfAccounts);
-  const cheatCodes = CheatCodes.create(config.rpcUrl, pxe!);
+  const cheatCodes = CheatCodes.create(config.l1RpcUrl, pxe!);
 
   const teardown = async () => {
     if (aztecNode instanceof AztecNodeService) {

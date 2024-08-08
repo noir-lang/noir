@@ -1,5 +1,6 @@
 import { type TxHash } from '@aztec/circuit-types';
-import { type Fr } from '@aztec/circuits.js';
+import { Fr } from '@aztec/circuits.js';
+import { type ConfigMappingsType, numberConfigHelper } from '@aztec/foundation/config';
 
 import { type BlockProver } from './block-prover.js';
 import { type MerkleTreeOperations } from './merkle_tree_operations.js';
@@ -26,6 +27,54 @@ export type ProverConfig = {
   /** Identifier of the prover */
   proverId?: Fr;
 };
+
+export const proverConfigMappings: ConfigMappingsType<ProverConfig> = {
+  nodeUrl: {
+    env: 'AZTEC_NODE_URL',
+    description: 'The URL to the Aztec node to take proving jobs from',
+  },
+  realProofs: {
+    env: 'PROVER_REAL_PROOFS',
+    parseEnv: (val: string) => ['1', 'true'].includes(val),
+    default: false,
+    description: 'Whether to construct real proofs',
+  },
+  proverAgentEnabled: {
+    env: 'PROVER_AGENT_ENABLED',
+    parseEnv: (val: string) => ['1', 'true'].includes(val),
+    default: true,
+    description: 'Whether this prover has a local prover agent',
+  },
+  proverAgentPollInterval: {
+    env: 'PROVER_AGENT_POLL_INTERVAL_MS',
+    description: 'The interval agents poll for jobs at',
+    ...numberConfigHelper(100),
+  },
+  proverAgentConcurrency: {
+    env: 'PROVER_AGENT_CONCURRENCY',
+    description: 'The maximum number of proving jobs to be run in parallel',
+    ...numberConfigHelper(1),
+  },
+  proverJobTimeoutMs: {
+    env: 'PROVER_JOB_TIMEOUT_MS',
+    description: 'Jobs are retried if not kept alive for this long',
+    ...numberConfigHelper(60_000),
+  },
+  proverJobPollIntervalMs: {
+    env: 'PROVER_JOB_POLL_INTERVAL_MS',
+    description: 'The interval to check job health status',
+    ...numberConfigHelper(1_000),
+  },
+  proverId: {
+    env: 'PROVER_ID',
+    parseEnv: (val: string) => parseProverId(val),
+    description: 'Identifier of the prover',
+  },
+};
+
+function parseProverId(str: string) {
+  return Fr.fromString(str.startsWith('0x') ? str : Buffer.from(str, 'utf8').toString('hex'));
+}
 
 /**
  * The interface to the prover client.

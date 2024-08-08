@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Directory of env_var file
+TS_ENV_VAR_FILE=/usr/src/yarn-project/foundation/src/config/env_var.ts
+LOCAL_TS_FILE=./env_var.ts
+NETWORK=${NETWORK:-}
+VERSION=${VERSION:-${NETWORK:-"latest"}}
+LOCAL_ENV_VAR_FILE="./.${VERSION}_aztec_cli_vars"
+
 function get_compose {
   # Favour 'docker compose', falling back on docker-compose.
   CMD="docker compose"
   $CMD &>/dev/null || CMD="docker-compose"
   $CMD $@
+}
+
+# Function to parse the TypeScript file
+function parse_ts_file {
+  grep -oE "\| '[^']+'" "$LOCAL_TS_FILE" | sed "s/| '//; s/'//g" >"$LOCAL_ENV_VAR_FILE"
 }
 
 CALLED_FROM=$PWD
@@ -24,7 +36,7 @@ elif [ $# == 2 ] && [ "$1" == "start" ] && [ "$2" == "--sandbox" ]; then
   # Compose file to use
   FILE_ARG="-f $HOME/.aztec/docker-compose.sandbox.yml"
 
-   # Function to be executed when SIGINT is received.
+  # Function to be executed when SIGINT is received.
   cleanup() {
     get_compose $FILE_ARG down
   }
@@ -32,9 +44,29 @@ elif [ $# == 2 ] && [ "$1" == "start" ] && [ "$2" == "--sandbox" ]; then
   # Set trap to catch SIGINT and call the cleanup function.
   trap cleanup SIGINT
 
- get_compose -p sandbox $FILE_ARG up --force-recreate --remove-orphans
+  get_compose -p sandbox $FILE_ARG up --force-recreate --remove-orphans
 elif [ "${1:-}" == "start" ]; then
-  $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
+  # export ENV_VARS_TO_INJECT=$(<.aztec_cli_vars)
+
+  # Grab env vars from aztec project
+  if [[ ! -f "$LOCAL_ENV_VAR_FILE" ]]; then
+    echo "No env vars file found, creating one..."
+    # Create temp container
+    temp_container_id=$(docker create aztecprotocol/aztec:$VERSION)
+    # Copy env vars file from container
+    docker cp ${temp_container_id}:$TS_ENV_VAR_FILE $LOCAL_TS_FILE &> /dev/null
+    # Remove temp container
+    docker rm $temp_container_id &> /dev/null
+
+    # Parse the TypeScript file
+    parse_ts_file
+    rm $LOCAL_TS_FILE
+  fi
+
+  # Read env vars from file
+  readarray -t ENV_VARS_TO_INJECT <"$LOCAL_ENV_VAR_FILE"
+  export ENV_VARS_TO_INJECT="${ENV_VARS_TO_INJECT[*]}"
+  ENV_VARS_TO_INJECT="${ENV_VARS_TO_INJECT[*]}" INHERIT_USER=0 $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
 else
   SKIP_PORT_ASSIGNMENT=1 $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
 fi

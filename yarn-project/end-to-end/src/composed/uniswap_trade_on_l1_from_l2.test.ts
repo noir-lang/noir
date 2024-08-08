@@ -21,7 +21,7 @@ const testSetup = async (): Promise<UniswapSetupContext> => {
     config,
   } = await e2eSetup(2, { stateLoad: dumpedState });
 
-  const walletClient = getL1WalletClient(config.rpcUrl, 1);
+  const walletClient = getL1WalletClient(config.l1RpcUrl, 1);
   const publicClient = deployL1ContractsValues.publicClient;
 
   const ownerWallet = wallets[0];

@@ -1,3 +1,10 @@
+import {
+  type ConfigMappingsType,
+  getConfigFromMappings,
+  numberConfigHelper,
+  pickConfigMappings,
+} from '@aztec/foundation/config';
+
 /**
  * P2P client configuration values.
  */
@@ -10,17 +17,17 @@ export interface P2PConfig {
   /**
    * The frequency in which to check for new L2 blocks.
    */
-  p2pBlockCheckIntervalMS: number;
+  blockCheckIntervalMS: number;
 
   /**
    * The frequency in which to check for new peers.
    */
-  p2pPeerCheckIntervalMS: number;
+  peerCheckIntervalMS: number;
 
   /**
    * Size of queue of L2 blocks to store.
    */
-  p2pL2QueueSize: number;
+  l2QueueSize: number;
 
   /**
    * The announce address for TCP.
@@ -58,11 +65,6 @@ export interface P2PConfig {
   transactionProtocol: string;
 
   /**
-   * Whether to enable NAT from libp2p (ignored for bootstrap node).
-   */
-  enableNat?: boolean;
-
-  /**
    * The minimum number of peers (a peer count below this will cause the node to look for more peers)
    */
   minPeerCount: number;
@@ -86,50 +88,112 @@ export interface P2PConfig {
   keepProvenTxsInPoolFor: number;
 }
 
+export const p2pConfigMappings: ConfigMappingsType<P2PConfig> = {
+  p2pEnabled: {
+    env: 'P2P_ENABLED',
+    parseEnv: (val: string) => ['1', 'true'].includes(val),
+    description: 'A flag dictating whether the P2P subsystem should be enabled.',
+  },
+  blockCheckIntervalMS: {
+    env: 'P2P_BLOCK_CHECK_INTERVAL_MS',
+    description: 'The frequency in which to check for new L2 blocks.',
+    ...numberConfigHelper(100),
+  },
+  peerCheckIntervalMS: {
+    env: 'P2P_PEER_CHECK_INTERVAL_MS',
+    description: 'The frequency in which to check for new peers.',
+    ...numberConfigHelper(1_000),
+  },
+  l2QueueSize: {
+    env: 'P2P_L2_QUEUE_SIZE',
+    description: 'Size of queue of L2 blocks to store.',
+    ...numberConfigHelper(1_000),
+  },
+  tcpListenAddress: {
+    env: 'TCP_LISTEN_ADDR',
+    default: '0.0.0.0:40400',
+    description: 'The listen address for TCP. Format: <IP_ADDRESS>:<PORT>.',
+  },
+  udpListenAddress: {
+    env: 'UDP_LISTEN_ADDR',
+    default: '0.0.0.0:40400',
+    description: 'The listen address for UDP. Format: <IP_ADDRESS>:<PORT>.',
+  },
+  tcpAnnounceAddress: {
+    env: 'P2P_TCP_ANNOUNCE_ADDR',
+    description:
+      'The announce address for TCP. Format: <IP_ADDRESS>:<PORT>. Leave IP_ADDRESS blank to query for public IP.',
+  },
+  udpAnnounceAddress: {
+    env: 'P2P_UDP_ANNOUNCE_ADDR',
+    description:
+      'The announce address for UDP. Format: <IP_ADDRESS>:<PORT>. Leave IP_ADDRESS blank to query for public IP.',
+  },
+  peerIdPrivateKey: {
+    env: 'PEER_ID_PRIVATE_KEY',
+    description: 'An optional peer id private key. If blank, will generate a random key.',
+  },
+  bootstrapNodes: {
+    env: 'BOOTSTRAP_NODES',
+    parseEnv: (val: string) => val.split(','),
+    description: 'A list of bootstrap peer ENRs to connect to. Separated by commas.',
+  },
+  transactionProtocol: {
+    env: 'P2P_TX_PROTOCOL',
+    description: 'Protocol identifier for transaction gossiping.',
+    default: '/aztec/0.1.0',
+  },
+  minPeerCount: {
+    env: 'P2P_MIN_PEERS',
+    description: 'The minimum number of peers to connect to.',
+    ...numberConfigHelper(10),
+  },
+  maxPeerCount: {
+    env: 'P2P_MAX_PEERS',
+    description: 'The maximum number of peers to connect to.',
+    ...numberConfigHelper(100),
+  },
+  dataDirectory: {
+    env: 'DATA_DIRECTORY',
+    description: 'Data directory for peer & tx databases. Will use temporary location if not set.',
+  },
+  queryForIp: {
+    env: 'P2P_QUERY_FOR_IP',
+    description:
+      'If announceUdpAddress or announceTcpAddress are not provided, query for the IP address of the machine. Default is false.',
+    parseEnv: (val: string) => ['1', 'true'].includes(val),
+  },
+  keepProvenTxsInPoolFor: {
+    env: 'P2P_TX_POOL_KEEP_PROVEN_FOR',
+    description:
+      'How many blocks have to pass after a block is proven before its txs are deleted (zero to delete immediately once proven)',
+    ...numberConfigHelper(0),
+  },
+};
+
 /**
  * Gets the config values for p2p client from environment variables.
  * @returns The config values for p2p client.
  */
 export function getP2PConfigEnvVars(): P2PConfig {
-  const {
-    P2P_ENABLED,
-    P2P_BLOCK_CHECK_INTERVAL_MS,
-    P2P_PEER_CHECK_INTERVAL_MS,
-    P2P_L2_BLOCK_QUEUE_SIZE,
-    P2P_TCP_LISTEN_ADDR,
-    P2P_UDP_LISTEN_ADDR,
-    P2P_TCP_ANNOUNCE_ADDR,
-    P2P_UDP_ANNOUNCE_ADDR,
-    PEER_ID_PRIVATE_KEY,
-    BOOTSTRAP_NODES,
-    P2P_NAT_ENABLED,
-    P2P_MIN_PEERS,
-    P2P_MAX_PEERS,
-    DATA_DIRECTORY,
-    P2P_TX_PROTOCOL,
-    P2P_QUERY_FOR_IP,
-    P2P_TX_POOL_KEEP_PROVEN_FOR,
-  } = process.env;
-  // P2P listen & announce addresses passed in format: <IP_ADDRESS>:<PORT>
-  // P2P announce multiaddrs passed in format: /ip4/<IP_ADDRESS>/<protocol>/<PORT>
-  const envVars: P2PConfig = {
-    tcpAnnounceAddress: P2P_TCP_ANNOUNCE_ADDR,
-    udpAnnounceAddress: P2P_UDP_ANNOUNCE_ADDR,
-    tcpListenAddress: P2P_TCP_LISTEN_ADDR || '0.0.0.0:40400',
-    udpListenAddress: P2P_UDP_LISTEN_ADDR || '0.0.0.0:40400',
-    p2pEnabled: P2P_ENABLED === 'true',
-    p2pBlockCheckIntervalMS: P2P_BLOCK_CHECK_INTERVAL_MS ? +P2P_BLOCK_CHECK_INTERVAL_MS : 100,
-    p2pPeerCheckIntervalMS: P2P_PEER_CHECK_INTERVAL_MS ? +P2P_PEER_CHECK_INTERVAL_MS : 1000,
-    p2pL2QueueSize: P2P_L2_BLOCK_QUEUE_SIZE ? +P2P_L2_BLOCK_QUEUE_SIZE : 1000,
-    peerIdPrivateKey: PEER_ID_PRIVATE_KEY,
-    bootstrapNodes: BOOTSTRAP_NODES ? BOOTSTRAP_NODES.split(',') : [],
-    transactionProtocol: P2P_TX_PROTOCOL ? P2P_TX_PROTOCOL : '/aztec/0.1.0',
-    enableNat: P2P_NAT_ENABLED === 'true',
-    minPeerCount: P2P_MIN_PEERS ? +P2P_MIN_PEERS : 10,
-    maxPeerCount: P2P_MAX_PEERS ? +P2P_MAX_PEERS : 100,
-    dataDirectory: DATA_DIRECTORY,
-    queryForIp: P2P_QUERY_FOR_IP === 'true',
-    keepProvenTxsInPoolFor: P2P_TX_POOL_KEEP_PROVEN_FOR ? +P2P_TX_POOL_KEEP_PROVEN_FOR : 0,
-  };
-  return envVars;
+  return getConfigFromMappings<P2PConfig>(p2pConfigMappings);
 }
+
+/**
+ * Required P2P config values for a bootstrap node.
+ */
+export type BootnodeConfig = Pick<
+  P2PConfig,
+  'udpAnnounceAddress' | 'peerIdPrivateKey' | 'minPeerCount' | 'maxPeerCount'
+> &
+  Required<Pick<P2PConfig, 'udpListenAddress'>>;
+
+const bootnodeConfigKeys: (keyof BootnodeConfig)[] = [
+  'udpAnnounceAddress',
+  'peerIdPrivateKey',
+  'minPeerCount',
+  'maxPeerCount',
+  'udpListenAddress',
+];
+
+export const bootnodeConfigMappings = pickConfigMappings(p2pConfigMappings, bootnodeConfigKeys);

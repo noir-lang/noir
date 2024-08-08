@@ -1,6 +1,7 @@
 import { Fr, type PXE } from '@aztec/aztec.js';
-import { Bot, type BotConfig, getBotDefaultConfig } from '@aztec/bot';
+import { Bot, type BotConfig } from '@aztec/bot';
 
+import { getBotDefaultConfig } from '../../bot/src/config.js';
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_bot', () => {
@@ -13,7 +14,10 @@ describe('e2e_bot', () => {
   beforeAll(async () => {
     ({ teardown, pxe } = await setup(0));
     const senderPrivateKey = Fr.random();
-    config = getBotDefaultConfig({ senderPrivateKey });
+    config = {
+      ...getBotDefaultConfig(),
+      ...senderPrivateKey,
+    };
     bot = await Bot.create(config, { pxe });
   });
 

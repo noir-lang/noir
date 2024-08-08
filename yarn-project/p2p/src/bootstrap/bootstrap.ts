@@ -5,17 +5,10 @@ import { SignableENR } from '@chainsafe/enr';
 import type { PeerId } from '@libp2p/interface';
 import { type Multiaddr, multiaddr } from '@multiformats/multiaddr';
 
-import { type P2PConfig } from '../config.js';
+import type { BootnodeConfig } from '../config.js';
 import { AZTEC_ENR_KEY, AZTEC_NET } from '../service/discV5_service.js';
 import { createLibP2PPeerId } from '../service/index.js';
 import { convertToMultiaddr } from '../util.js';
-
-/**
- * Required P2P config values for a bootstrap node.
- */
-export type BootNodeConfig = Partial<P2PConfig> &
-  Pick<P2PConfig, 'udpAnnounceAddress'> &
-  Required<Pick<P2PConfig, 'udpListenAddress'>>;
 
 /**
  * Encapsulates a 'Bootstrap' node, used for the purpose of assisting new joiners in acquiring peers.
@@ -31,7 +24,7 @@ export class BootstrapNode {
    * @param config - A partial P2P configuration. No need for TCP values as well as aztec node specific values.
    * @returns An empty promise.
    */
-  public async start(config: BootNodeConfig) {
+  public async start(config: BootnodeConfig) {
     const { peerIdPrivateKey, udpListenAddress, udpAnnounceAddress } = config;
     const peerId = await createLibP2PPeerId(peerIdPrivateKey);
     this.peerId = peerId;
