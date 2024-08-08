@@ -8,7 +8,8 @@ use builtin_helpers::{
     check_argument_count, check_function_not_yet_resolved, check_one_argument,
     check_three_arguments, check_two_arguments, get_function_def, get_module, get_quoted,
     get_slice, get_struct, get_trait_constraint, get_trait_def, get_tuple, get_type, get_u32,
-    hir_pattern_to_tokens,
+    hir_pattern_to_tokens, mutate_func_meta_type, parse, parse_tokens,
+    replace_func_meta_parameters, replace_func_meta_return_type,
 };
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -20,11 +21,11 @@ use crate::{
         Visibility,
     },
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
-    hir_def::function::{FuncMeta, FunctionBody},
+    hir_def::function::FunctionBody,
     macros_api::{ModuleDefId, NodeInterner, Signedness},
-    node_interner::{DefinitionKind, FuncId},
-    parser::{self, NoirParser},
-    token::{SpannedToken, Token, Tokens},
+    node_interner::DefinitionKind,
+    parser::{self},
+    token::{SpannedToken, Token},
     QuotedType, Shared, Type,
 };
 
@@ -987,60 +988,4 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     assert_eq!(struct_type.name.0.contents, "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
-}
-
-fn parse<T>(
-    (value, location): (Value, Location),
-    parser: impl NoirParser<T>,
-    rule: &'static str,
-) -> IResult<T> {
-    let tokens = get_quoted((value, location))?;
-    let quoted = add_token_spans(tokens.clone(), location.span);
-    parse_tokens(tokens, quoted, location, parser, rule)
-}
-
-fn parse_tokens<T>(
-    tokens: Rc<Vec<Token>>,
-    quoted: Tokens,
-    location: Location,
-    parser: impl NoirParser<T>,
-    rule: &'static str,
-) -> IResult<T> {
-    parser.parse(quoted).map_err(|mut errors| {
-        let error = errors.swap_remove(0);
-        InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
-    })
-}
-
-fn mutate_func_meta_type<F>(interner: &mut NodeInterner, func_id: FuncId, f: F)
-where
-    F: FnOnce(&mut FuncMeta),
-{
-    let (name_id, function_type) = {
-        let func_meta = interner.function_meta_mut(&func_id);
-        f(func_meta);
-        (func_meta.name.id, func_meta.typ.clone())
-    };
-
-    interner.push_definition_type(name_id, function_type);
-}
-
-fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<Type>) {
-    match typ {
-        Type::Function(parameters, _, _) => {
-            *parameters = parameter_types;
-        }
-        Type::Forall(_, typ) => replace_func_meta_parameters(typ, parameter_types),
-        _ => {}
-    }
-}
-
-fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
-    match typ {
-        Type::Function(_, ret, _) => {
-            *ret = Box::new(return_type);
-        }
-        Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
-        _ => {}
-    }
 }
