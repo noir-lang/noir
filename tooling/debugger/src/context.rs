@@ -1115,7 +1115,7 @@ mod tests {
         let circuit_two = Circuit {
             opcodes: vec![
                 Opcode::BrilligCall {
-                    id: BrilligFunctionId(0),
+                    id: BrilligFunctionId(1),
                     inputs: vec![],
                     outputs: vec![],
                     predicate: None,
