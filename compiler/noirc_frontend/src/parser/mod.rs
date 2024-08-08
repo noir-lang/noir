@@ -24,7 +24,9 @@ pub use errors::ParserErrorReason;
 use noirc_errors::Span;
 pub use parser::path::path_no_turbofish;
 pub use parser::traits::trait_bound;
-pub use parser::{expression, parse_program, parse_type, top_level_items};
+pub use parser::{
+    block, expression, fresh_statement, parse_program, parse_type, pattern, top_level_items,
+};
 
 #[derive(Debug, Clone)]
 pub enum TopLevelStatement {

@@ -373,7 +373,7 @@ fn block_expr<'a>(
     block(statement).map(ExpressionKind::Block).map_with_span(Expression::new)
 }
 
-fn block<'a>(
+pub fn block<'a>(
     statement: impl NoirParser<StatementKind> + 'a,
 ) -> impl NoirParser<BlockExpression> + 'a {
     use Token::*;
@@ -475,7 +475,7 @@ where
     })
 }
 
-fn fresh_statement() -> impl NoirParser<StatementKind> {
+pub fn fresh_statement() -> impl NoirParser<StatementKind> {
     statement(expression(), expression_no_constructors(expression()))
 }
 
@@ -539,7 +539,7 @@ where
     let_statement(expr_parser).map(StatementKind::new_let)
 }
 
-fn pattern() -> impl NoirParser<Pattern> {
+pub fn pattern() -> impl NoirParser<Pattern> {
     recursive(|pattern| {
         let ident_pattern = ident().map(Pattern::Identifier).map_err(|mut error| {
             if matches!(error.found(), Token::IntType(..)) {

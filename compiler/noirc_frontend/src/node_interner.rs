@@ -980,6 +980,10 @@ impl NodeInterner {
         self.func_meta.get(func_id).expect("ice: all function ids should have metadata")
     }
 
+    pub fn function_meta_mut(&mut self, func_id: &FuncId) -> &mut FuncMeta {
+        self.func_meta.get_mut(func_id).expect("ice: all function ids should have metadata")
+    }
+
     pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {
         self.func_meta.get(func_id)
     }
