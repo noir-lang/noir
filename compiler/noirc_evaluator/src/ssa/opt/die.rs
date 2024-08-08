@@ -466,6 +466,8 @@ fn handle_array_get_group(
     }
 }
 
+// Given `lhs` and `rhs` values, if there's a side effects condition this will
+// return (`lhs * condition`, `rhs * condition`), otherwise just (`lhs`, `rhs`)
 fn apply_side_effects(
     side_effects_condition: Option<ValueId>,
     lhs: ValueId,
