@@ -118,7 +118,7 @@ impl<'a> NodeFinder<'a> {
                 self.find_in_use_tree_path(&use_tree.prefix, ident, alias, span)
             }
             UseTreeKind::List(..) => {
-                // TODO: handle
+                // For now we don't offer autocompletion in use trees
                 None
             }
         }
@@ -158,7 +158,11 @@ impl<'a> NodeFinder<'a> {
             // Otherwise we must complete the last segment
             if segments.is_empty() {
                 // We are at the start of the use segment and completing the first segment
-                self.complete_in_module(self.module_id, prefix, true)
+                self.complete_in_module(
+                    self.module_id,
+                    prefix,
+                    use_tree_prefix.kind != PathKind::Crate,
+                )
             } else {
                 self.resolve_module(segments)
                     .and_then(|module_id| self.complete_in_module(module_id, prefix, false))
@@ -170,7 +174,7 @@ impl<'a> NodeFinder<'a> {
         &self,
         module_id: ModuleId,
         prefix: String,
-        first_segment: bool,
+        suggest_crates: bool,
     ) -> Option<CompletionResponse> {
         let def_map = &self.def_maps[&module_id.krate];
         let module_data = def_map.modules().get(module_id.local_id.0)?;
@@ -194,7 +198,7 @@ impl<'a> NodeFinder<'a> {
         }
 
         // If this is the first segment, also find in all crates
-        if first_segment {
+        if suggest_crates {
             for dependency in self.dependencies {
                 let dependency_name = dependency.as_name();
                 if name_matches(&dependency_name, &prefix) {
@@ -476,5 +480,15 @@ mod completion_tests {
             )],
         )
         .await;
+    }
+
+    #[test]
+    async fn test_use_after_crate_and_letter() {
+        let src = r#"
+            mod foo {}
+            use crate::f>|<
+        "#;
+
+        assert_completion(src, vec![module_completion_item("foo")]).await;
     }
 }
