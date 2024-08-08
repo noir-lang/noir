@@ -187,7 +187,8 @@ impl Context {
                 continue;
             };
 
-            // If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type.
+            // If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type,
+            // and adjust `next_out_of_bounds_index` and `possible_index_out_of_bounds_indexes` accordingly
             if let Instruction::ArrayGet { array, .. } = instruction {
                 handle_array_get_group(
                     function,
@@ -211,13 +212,13 @@ impl Context {
             }
 
             // This is an instruction that might be out of bounds: let's add a constrain.
-            let call_stack = function.dfg.get_call_stack(instruction_id);
-
             let (array, index) = match instruction {
                 Instruction::ArrayGet { array, index }
                 | Instruction::ArraySet { array, index, .. } => (array, index),
                 _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
             };
+
+            let call_stack = function.dfg.get_call_stack(instruction_id);
 
             let (lhs, rhs) = if function.dfg.get_numeric_constant(*index).is_some() {
                 // If we are here it means the index is known but out of bounds. That's always an error!
