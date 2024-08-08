@@ -102,7 +102,9 @@ impl<'a> NodeFinder<'a> {
 
         match &item.kind {
             ItemKind::Import(use_tree) => {
-                if let Some(completion) = self.find_in_use_tree(use_tree, item.span) {
+                let mut prefixes = Vec::new();
+                if let Some(completion) = self.find_in_use_tree(use_tree, item.span, &mut prefixes)
+                {
                     return Some(completion);
                 }
             }
@@ -112,13 +114,27 @@ impl<'a> NodeFinder<'a> {
         None
     }
 
-    fn find_in_use_tree(&self, use_tree: &UseTree, span: Span) -> Option<CompletionResponse> {
+    fn find_in_use_tree(
+        &self,
+        use_tree: &UseTree,
+        span: Span,
+        prefixes: &mut Vec<Path>,
+    ) -> Option<CompletionResponse> {
         match &use_tree.kind {
             UseTreeKind::Path(ident, alias) => {
-                self.find_in_use_tree_path(&use_tree.prefix, ident, alias, span)
+                prefixes.push(use_tree.prefix.clone());
+                let response = self.find_in_use_tree_path(&prefixes, ident, alias, span);
+                prefixes.pop();
+                response
             }
-            UseTreeKind::List(..) => {
-                // For now we don't offer autocompletion in use trees
+            UseTreeKind::List(use_trees) => {
+                prefixes.push(use_tree.prefix.clone());
+                for use_tree in use_trees {
+                    if let Some(completion) = self.find_in_use_tree(use_tree, span, prefixes) {
+                        return Some(completion);
+                    }
+                }
+                prefixes.pop();
                 None
             }
         }
@@ -126,7 +142,7 @@ impl<'a> NodeFinder<'a> {
 
     fn find_in_use_tree_path(
         &self,
-        use_tree_prefix: &Path,
+        prefixes: &Vec<Path>,
         ident: &Ident,
         alias: &Option<Ident>,
         span: Span,
@@ -136,13 +152,18 @@ impl<'a> NodeFinder<'a> {
             return None;
         }
 
-        if self.byte_index != span.end() as usize {
+        if self.byte_index != ident.span().end() as usize && self.byte_index != span.end() as usize
+        {
             // Won't handle autocomplete if we are not at the end of the use statement
             return None;
         }
 
-        let mut segments: Vec<Ident> =
-            use_tree_prefix.segments.iter().map(|segment| segment.ident.clone()).collect();
+        let mut segments: Vec<Ident> = Vec::new();
+        for prefix in prefixes {
+            for segment in &prefix.segments {
+                segments.push(segment.ident.clone());
+            }
+        }
 
         if let Some(b':') = self.byte {
             // We are after the colon
@@ -161,7 +182,7 @@ impl<'a> NodeFinder<'a> {
                 self.complete_in_module(
                     self.module_id,
                     prefix,
-                    use_tree_prefix.kind != PathKind::Crate,
+                    prefixes.first().unwrap().kind != PathKind::Crate,
                 )
             } else {
                 self.resolve_module(segments)
@@ -514,5 +535,17 @@ mod completion_tests {
             vec![simple_completion_item("crate::", CompletionItemKind::KEYWORD, None)],
         )
         .await;
+    }
+
+    #[test]
+    async fn test_use_in_tree() {
+        let src = r#"
+            mod foo {
+                mod bar {}
+            }
+            use foo::{b>|<}
+        "#;
+
+        assert_completion(src, vec![module_completion_item("bar")]).await;
     }
 }
