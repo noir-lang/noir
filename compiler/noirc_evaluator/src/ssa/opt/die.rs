@@ -223,7 +223,7 @@ impl Context {
 
     /// Replaces unused ArrayGet/ArraySet instructions with out of bounds checks.
     /// Returns `true` if at least one check was inserted.
-    /// Becuase some ArrayGet might happen in groups (for composite types), if just
+    /// Because some ArrayGet might happen in groups (for composite types), if just
     /// some of the instructions in a group are used but not all of them, no check
     /// is inserted, so this method might return `false`.
     fn replace_array_instructions_with_out_of_bounds_checks(
@@ -449,7 +449,7 @@ fn handle_array_get_group(
                     // Since we popped all of the group indexes, and given that we
                     // are analyzing the first instruction in the group, we can
                     // set `next_out_of_bounds_index` to the current index:
-                    // then a check will be inserted, and no other checkk will be
+                    // then a check will be inserted, and no other check will be
                     // inserted for the rest of the group.
                     *next_out_of_bounds_index = Some(index);
                     break;
