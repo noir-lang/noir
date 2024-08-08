@@ -1,5 +1,6 @@
 import { aztecNodeConfigMappings, createAztecNodeRpcServer } from '@aztec/aztec-node';
 import { type PXE } from '@aztec/circuit-types';
+import { NULL_KEY } from '@aztec/ethereum';
 import { type ServerList } from '@aztec/foundation/json-rpc/server';
 import { type LogFn } from '@aztec/foundation/log';
 import { createProvingJobSourceServer } from '@aztec/prover-client/prover-agent';
@@ -40,7 +41,7 @@ export const startNode = async (
   }
 
   // Deploy contracts if needed
-  if (options.deployAztecContracts) {
+  if (nodeSpecificOptions.deployAztecContracts) {
     let account;
     if (nodeSpecificOptions.publisherPrivateKey) {
       account = privateKeyToAccount(nodeSpecificOptions.publisherPrivateKey);
@@ -68,7 +69,7 @@ export const startNode = async (
   } else {
     const sequencerConfig = extractNamespacedOptions(options, 'sequencer');
     let account;
-    if (!sequencerConfig.publisherPrivateKey) {
+    if (!sequencerConfig.publisherPrivateKey || sequencerConfig.publisherPrivateKey === NULL_KEY) {
       if (!options.l1Mnemonic) {
         userLog(
           '--sequencer.publisherPrivateKey or --l1-mnemonic is required to start Aztec Node with --sequencer option',

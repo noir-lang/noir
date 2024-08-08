@@ -8,6 +8,8 @@ import { proverNodeConfigMappings } from '@aztec/prover-node';
 import { allPxeConfigMappings } from '@aztec/pxe';
 import { telemetryClientConfigMappings } from '@aztec/telemetry-client/start';
 
+import { defaultMnemonic } from '../sandbox.js';
+
 // Define an interface for options
 export interface AztecStartOption {
   flag: string;
@@ -89,14 +91,14 @@ export const aztecStartOptions: { [key: string]: AztecStartOption[] } = {
     {
       flag: '--l1-chain-id <value>',
       description: 'The L1 chain ID',
-      defaultValue: 1337,
+      defaultValue: 31337,
       envVar: 'L1_CHAIN_ID',
       parseVal: val => parseInt(val, 10),
     },
     {
       flag: '--l1-mnemonic <value>',
       description: 'Mnemonic for L1 accounts. Will be used if no publisher private keys are provided',
-      defaultValue: undefined,
+      defaultValue: defaultMnemonic,
       envVar: 'MNEMONIC',
     },
   ],
