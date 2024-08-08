@@ -957,6 +957,79 @@ fn sha256_compression_op(
     }
 }
 
+// 32 + N inputs
+// N outputs
+fn aes128_encrypt_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let mut function_inputs = function_inputs.into_iter();
+    let iv = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    let key = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    let inputs = function_inputs.collect();
+    BlackBoxFuncCall::AES128Encrypt {
+        inputs,
+        iv,
+        key,
+        outputs,
+    }
+}
+
+// SchnorrVerify {
+//     public_key_x: FunctionInput<F>,
+//     public_key_y: FunctionInput<F>,
+//     #[serde(
+//         serialize_with = "serialize_big_array",
+//         deserialize_with = "deserialize_big_array_into_box"
+//     )]
+//     signature: Box<[FunctionInput<F>; 64]>,
+//     message: Vec<FunctionInput<F>>,
+//     output: Witness,
+// },
+// EcdsaSecp256k1 {
+//     public_key_x: Box<[FunctionInput<F>; 32]>,
+//     public_key_y: Box<[FunctionInput<F>; 32]>,
+//     #[serde(
+//         serialize_with = "serialize_big_array",
+//         deserialize_with = "deserialize_big_array_into_box"
+//     )]
+//     signature: Box<[FunctionInput<F>; 64]>,
+//     hashed_message: Box<[FunctionInput<F>; 32]>,
+//     output: Witness,
+// },
+// EcdsaSecp256r1 {
+//     public_key_x: Box<[FunctionInput<F>; 32]>,
+//     public_key_y: Box<[FunctionInput<F>; 32]>,
+//     #[serde(
+//         serialize_with = "serialize_big_array",
+//         deserialize_with = "deserialize_big_array_into_box"
+//     )]
+//     signature: Box<[FunctionInput<F>; 64]>,
+//     hashed_message: Box<[FunctionInput<F>; 32]>,
+//     output: Witness,
+// },
+
+// RANGE {
+//     input: FunctionInput<F>,
+// },
+// MultiScalarMul {
+//     points: Vec<FunctionInput<F>>,
+//     scalars: Vec<FunctionInput<F>>,
+//     outputs: (Witness, Witness, Witness),
+// },
+// EmbeddedCurveAdd {
+//     input1: Box<[FunctionInput<F>; 3]>,
+//     input2: Box<[FunctionInput<F>; 3]>,
+//     outputs: (Witness, Witness, Witness),
+// },
+
+
+
+
+
+
+
+
 fn into_repr_vec<T>(xs: T) -> Vec<ark_bn254::Fr>
 where
     T: IntoIterator<Item = FieldElement>,
@@ -1104,21 +1177,25 @@ prop_compose! {
 }
 
 prop_compose! {
-    fn any_distinct_inputs(min_size: usize, max_size: usize)
+    fn any_distinct_inputs(max_input_bits: Option<usize>, min_size: usize, max_size: usize)
         (size_and_patch in any::<(usize, usize, usize)>()) // NOTE: macro ambiguity when using (x: T)
         (inputs_distinct_inputs in
-            (proptest::collection::vec(any::<(u128, bool)>(), std::cmp::max(min_size, size_and_patch.0) % max_size),
-             proptest::collection::vec(any::<(u128, bool)>(), std::cmp::max(min_size, size_and_patch.0) % max_size)),
+            (proptest::collection::vec(any::<(u128, bool)>(), std::cmp::max(min_size, size_and_patch.0 % max_size)),
+             proptest::collection::vec(any::<(u128, bool)>(), std::cmp::max(min_size, size_and_patch.0 % max_size))),
             size_and_patch in Just(size_and_patch))
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>) {
         let (_size, patch_location, patch_value) = size_and_patch;
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let inputs: Vec<_> = inputs.into_iter().map(|(x, use_constant)| {
-            (FieldElement::from(x), use_constant)
-        }).collect();
-        let mut distinct_inputs: Vec<_> = distinct_inputs.into_iter().map(|(x, use_constant)| {
-            (FieldElement::from(x), use_constant)
-        }).collect();
+        let to_input = |(x, use_constant)| {
+            let modulus = if let Some(max_input_bits) = max_input_bits {
+                2u128 << max_input_bits
+            } else {
+                1
+            };
+            (FieldElement::from(x % modulus), use_constant)
+        };
+        let inputs: Vec<_> = inputs.into_iter().map(to_input).collect();
+        let mut distinct_inputs: Vec<_> = distinct_inputs.into_iter().map(to_input).collect();
 
         // if equivalent w/o use_constant, patch with the patch_value
         if drop_use_constant_eq(&inputs, &distinct_inputs) {
@@ -1256,6 +1333,19 @@ fn keccak256_injective_regression() {
     assert!(result, "{}", message);
 }
 
+#[test]
+fn aes128_zeros() {
+    let results = solve_array_input_blackbox_call([(FieldElement::zero(), false); 64].into(), 32, aes128_encrypt_op);
+    let expected_results: Vec<_> = vec![
+        102, 233, 75, 212, 239, 138, 44, 59, 136, 76, 250, 89, 202, 52, 43, 46, 247, 149, 189, 74, 82, 226, 158, 215, 19, 211, 19, 250, 32, 233, 141, 188
+    ]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+
 proptest! {
 
     #[test]
@@ -1328,14 +1418,14 @@ proptest! {
     }
 
     #[test]
-    fn sha256_injective(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
+    fn sha256_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, sha256_op);
         prop_assert!(result, "{}", message);
     }
 
     #[test]
-    fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(24, 24)) {
+    fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(None, 24, 24)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         if inputs.len() == 24 && distinct_inputs.len() == 24 {
             let (result, message) = prop_assert_injective(inputs, distinct_inputs, 8, sha256_compression_op);
@@ -1344,14 +1434,14 @@ proptest! {
     }
 
     #[test]
-    fn blake2s_injective(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
+    fn blake2s_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, blake2s_op);
         prop_assert!(result, "{}", message);
     }
 
     #[test]
-    fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
+    fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, blake3_op);
         prop_assert!(result, "{}", message);
@@ -1360,7 +1450,7 @@ proptest! {
     // TODO(https://github.com/noir-lang/noir/issues/5690): expected to be injective
     #[test]
     #[should_panic(expected = "not injective")]
-    fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
+    fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, keccak256_op);
         prop_assert!(result, "{}", message);
@@ -1369,7 +1459,7 @@ proptest! {
     // TODO(https://github.com/noir-lang/noir/issues/5689): doesn't fail with an error, returns constant output
     #[test]
     #[should_panic(expected = "Test failed: not injective")]
-    fn keccak256_invalid_message_size_fails(inputs_distinct_inputs in any_distinct_inputs(0, 32)) {
+    fn keccak256_invalid_message_size_fails(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, keccak256_invalid_message_size_op);
         prop_assert!(result, "{}", message);
@@ -1378,7 +1468,7 @@ proptest! {
     // TODO(https://github.com/noir-lang/noir/issues/5687): internal error when calling Keccakf1600
     #[test]
     #[should_panic(expected = "assertion `left == right` failed")]
-    fn keccakf1600_injective(inputs_distinct_inputs in any_distinct_inputs(25, 25)) {
+    fn keccakf1600_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 25, 25)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         assert_eq!(inputs.len(), 25);
         assert_eq!(distinct_inputs.len(), 25);
@@ -1387,12 +1477,31 @@ proptest! {
         // prop_assert!(result, "{}", message);
     }
 
-    // TODO: wrong failure message? The number of inputs appears to be correct
+    // TODO(https://github.com/noir-lang/noir/issues/5699): wrong failure message
     #[test]
-    #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 0 != 1\"))")]
-    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(6, 6)) {
+    // #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 6 != 7\"))")]
+    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 7, 7)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, poseidon2_permutation_invalid_len_op);
+        prop_assert!(result, "{}", message);
+    }
+
+    #[test]
+    fn aes128_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 34, 64)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        assert!(inputs.len() >= 32, "inputs len: {:?}", inputs.len());
+        let outputs_len = inputs.len() - 32;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, outputs_len, aes128_encrypt_op);
+        prop_assert!(result, "{}", message);
+    }
+
+    #[test]
+    #[should_panic(expected = "Test failed: not injective")]
+    fn aes128_not_injective_on_singleton_inputs(inputs_distinct_inputs in any_distinct_inputs(Some(8), 33, 33)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        assert!(inputs.len() >= 32, "inputs len: {:?}", inputs.len());
+        let outputs_len = inputs.len() - 32;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, outputs_len, aes128_encrypt_op);
         prop_assert!(result, "{}", message);
     }
 
