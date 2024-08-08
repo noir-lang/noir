@@ -5,9 +5,10 @@ use std::{
 
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
-    check_argument_count, check_one_argument, check_three_arguments, check_two_arguments,
-    get_function_def, get_module, get_quoted, get_slice, get_struct, get_trait_constraint,
-    get_trait_def, get_tuple, get_type, get_u32, hir_pattern_to_tokens,
+    check_argument_count, check_function_not_yet_resolved, check_one_argument,
+    check_three_arguments, check_two_arguments, get_function_def, get_module, get_quoted,
+    get_slice, get_struct, get_trait_constraint, get_trait_def, get_tuple, get_type, get_u32,
+    hir_pattern_to_tokens,
 };
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -986,20 +987,6 @@ pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     assert_eq!(struct_type.name.0.contents, "Option");
 
     generics.pop().expect("Expected Option to have a T generic type")
-}
-
-fn check_function_not_yet_resolved(
-    interpreter: &Interpreter,
-    func_id: FuncId,
-    location: Location,
-) -> Result<(), InterpreterError> {
-    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
-    match func_meta.function_body {
-        FunctionBody::Unresolved(_, _, _) => Ok(()),
-        FunctionBody::Resolving | FunctionBody::Resolved => {
-            Err(InterpreterError::FunctionAlreadyResolved { location })
-        }
-    }
 }
 
 fn parse<T>(

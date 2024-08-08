@@ -6,10 +6,10 @@ use noirc_errors::Location;
 use crate::{
     ast::{IntegerBitSize, Signedness},
     hir::{
-        comptime::{errors::IResult, InterpreterError, Value},
+        comptime::{errors::IResult, Interpreter, InterpreterError, Value},
         def_map::ModuleId,
     },
-    hir_def::stmt::HirPattern,
+    hir_def::{function::FunctionBody, stmt::HirPattern},
     macros_api::{NodeInterner, StructId},
     node_interner::{FuncId, TraitId},
     token::Token,
@@ -287,6 +287,20 @@ fn gather_hir_pattern_tokens(
                 }
             }
             tokens.push(Token::RightBrace);
+        }
+    }
+}
+
+pub(super) fn check_function_not_yet_resolved(
+    interpreter: &Interpreter,
+    func_id: FuncId,
+    location: Location,
+) -> Result<(), InterpreterError> {
+    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    match func_meta.function_body {
+        FunctionBody::Unresolved(_, _, _) => Ok(()),
+        FunctionBody::Resolving | FunctionBody::Resolved => {
+            Err(InterpreterError::FunctionAlreadyResolved { location })
         }
     }
 }
