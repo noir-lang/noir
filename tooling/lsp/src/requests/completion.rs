@@ -394,8 +394,11 @@ mod completion_tests {
             panic!("Expected response to be CompletionResponse::Array");
         };
 
-        let items = items.clone().sort_by_key(|item| item.label.clone());
-        let expected = expected.clone().sort_by_key(|item| item.label.clone());
+        let mut items = items.clone();
+        items.sort_by_key(|item| item.label.clone());
+
+        let mut expected = expected.clone();
+        expected.sort_by_key(|item| item.label.clone());
 
         assert_eq!(items, expected);
     }
