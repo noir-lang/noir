@@ -5,7 +5,10 @@ use std::{
 
 use async_lsp::ResponseError;
 use fm::PathString;
-use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
+use lsp_types::{
+    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
+    CompletionResponse,
+};
 use noirc_errors::Span;
 use noirc_frontend::{
     ast::{Ident, Path, PathKind, PathSegment, UseTree, UseTreeKind},
@@ -14,7 +17,8 @@ use noirc_frontend::{
         def_map::{CrateDefMap, ModuleId},
         resolution::path_resolver::{PathResolver, StandardPathResolver},
     },
-    macros_api::ModuleDefId,
+    macros_api::{ModuleDefId, NodeInterner, StructId},
+    node_interner::{FuncId, GlobalId, TraitId, TypeAliasId},
     parser::{Item, ItemKind},
     ParsedModule,
 };
@@ -27,8 +31,6 @@ pub(crate) fn on_completion_request(
     state: &mut LspState,
     params: CompletionParams,
 ) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> {
-    noirc_frontend::log("Completion Request");
-
     let uri = params.text_document_position.clone().text_document.uri;
 
     let result = process_request(state, params.text_document_position.clone(), |args| {
@@ -51,6 +53,7 @@ pub(crate) fn on_completion_request(
                     args.root_crate_id,
                     args.def_maps,
                     args.root_crate_dependencies,
+                    args.interner,
                 );
                 finder.find(&parsed_module)
             })
@@ -65,6 +68,7 @@ struct NodeFinder<'a> {
     module_id: ModuleId,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     dependencies: &'a Vec<Dependency>,
+    interner: &'a NodeInterner,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -74,10 +78,11 @@ impl<'a> NodeFinder<'a> {
         krate: CrateId,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
         dependencies: &'a Vec<Dependency>,
+        interner: &'a NodeInterner,
     ) -> Self {
         let def_map = &def_maps[&krate];
         let current_module_id = ModuleId { krate: krate, local_id: def_map.root() };
-        Self { byte_index, byte, module_id: current_module_id, def_maps, dependencies }
+        Self { byte_index, byte, module_id: current_module_id, def_maps, dependencies, interner }
     }
 
     fn find(&self, parsed_module: &ParsedModule) -> Option<CompletionResponse> {
@@ -171,10 +176,27 @@ impl<'a> NodeFinder<'a> {
         let module_data = def_map.modules().get(module_id.local_id.0)?;
         let mut completion_items = Vec::new();
 
-        // Find in the target module
-        for child in module_data.children.keys() {
-            if name_matches(&child.0.contents, &prefix) {
-                completion_items.push(module_completion_item(child.0.contents.clone()));
+        // module_data.value_definitions()
+
+        // Find in the target module types and values
+        let type_idents = module_data.children.keys();
+        let value_idents = module_data.value_idents();
+        let all_idents = type_idents.chain(value_idents);
+
+        for ident in all_idents {
+            let name = &ident.0.contents;
+
+            if name_matches(name, &prefix) {
+                let per_ns = module_data.find_name(ident);
+                if let Some((module_def_id, _, _)) = per_ns.types {
+                    completion_items
+                        .push(self.module_def_id_completion_item(module_def_id, name.clone()));
+                }
+
+                if let Some((module_def_id, _, _)) = per_ns.values {
+                    completion_items
+                        .push(self.module_def_id_completion_item(module_def_id, name.clone()));
+                }
             }
         }
 
@@ -189,6 +211,64 @@ impl<'a> NodeFinder<'a> {
         }
 
         Some(CompletionResponse::Array(completion_items))
+    }
+
+    fn module_def_id_completion_item(
+        &self,
+        module_def_id: ModuleDefId,
+        name: String,
+    ) -> CompletionItem {
+        match module_def_id {
+            ModuleDefId::ModuleId(_) => module_completion_item(name),
+            ModuleDefId::FunctionId(func_id) => self.function_completion_item(func_id),
+            ModuleDefId::TypeId(struct_id) => self.struct_completion_item(struct_id),
+            ModuleDefId::TypeAliasId(type_alias_id) => {
+                self.type_alias_completion_item(type_alias_id)
+            }
+            ModuleDefId::TraitId(trait_id) => self.trait_completion_item(trait_id),
+            ModuleDefId::GlobalId(global_id) => self.global_completion_item(global_id),
+        }
+    }
+
+    fn function_completion_item(&self, func_id: FuncId) -> CompletionItem {
+        let name = self.interner.function_name(&func_id).to_string();
+        let description = self.interner.function_meta(&func_id).typ.to_string();
+
+        simple_completion_item(name, CompletionItemKind::FUNCTION, Some(description))
+    }
+
+    fn struct_completion_item(&self, struct_id: StructId) -> CompletionItem {
+        let struct_type = self.interner.get_struct(struct_id);
+        let struct_type = struct_type.borrow();
+        let name = struct_type.name.to_string();
+
+        simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name))
+    }
+
+    fn type_alias_completion_item(&self, type_alias_id: TypeAliasId) -> CompletionItem {
+        let type_alias = self.interner.get_type_alias(type_alias_id);
+        let type_alias = type_alias.borrow();
+        let name = type_alias.name.to_string();
+
+        simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name))
+    }
+
+    fn trait_completion_item(&self, trait_id: TraitId) -> CompletionItem {
+        let trait_ = self.interner.get_trait(trait_id);
+        let name = trait_.name.to_string();
+
+        simple_completion_item(name.clone(), CompletionItemKind::INTERFACE, Some(name))
+    }
+
+    fn global_completion_item(&self, global_id: GlobalId) -> CompletionItem {
+        let global_definition = self.interner.get_global_definition(global_id);
+        let name = global_definition.name.clone();
+
+        let global = self.interner.get_global(global_id);
+        let typ = self.interner.definition_type(global.definition_id);
+        let description = typ.to_string();
+
+        simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description))
     }
 
     fn resolve_module(&self, segments: Vec<Ident>) -> Option<ModuleId> {
@@ -220,10 +300,22 @@ fn name_matches(name: &str, prefix: &str) -> bool {
 }
 
 fn module_completion_item(name: String) -> CompletionItem {
+    simple_completion_item(name, CompletionItemKind::MODULE, None)
+}
+
+fn crate_completion_item(name: String) -> CompletionItem {
+    simple_completion_item(name, CompletionItemKind::MODULE, None)
+}
+
+fn simple_completion_item(
+    label: String,
+    kind: CompletionItemKind,
+    description: Option<String>,
+) -> CompletionItem {
     CompletionItem {
-        label: name,
-        label_details: None,
-        kind: Some(CompletionItemKind::MODULE),
+        label,
+        label_details: Some(CompletionItemLabelDetails { detail: None, description: description }),
+        kind: Some(kind),
         detail: None,
         documentation: None,
         deprecated: None,
@@ -240,8 +332,4 @@ fn module_completion_item(name: String) -> CompletionItem {
         data: None,
         tags: None,
     }
-}
-
-fn crate_completion_item(name: String) -> CompletionItem {
-    module_completion_item(name)
 }
