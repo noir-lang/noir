@@ -221,11 +221,13 @@ impl Scoped<EncryptedLogHash> for ScopedEncryptedLogHash {
 }
 
 impl ScopedEncryptedLogHash {
-    pub fn expose_to_public(self) -> LogHash {
+    pub fn expose_to_public(self) -> ScopedLogHash {
         // Hide the secret randomness and counter when exposing to public
-        // Expose as a LogHash rather than EncryptedLogHash to avoid bringing an unnec. 0 value around
-        // The log hash will already be silo'd when we call this
-        LogHash { value: self.log_hash.value, counter: 0, length: self.log_hash.length }
+        // Expose as a ScopedLogHash. The contract address is assumed to be masked before calling this.
+        ScopedLogHash {
+            contract_address: self.contract_address,
+            log_hash: LogHash { value: self.log_hash.value, counter: 0, length: self.log_hash.length }
+        }
     }
 }
 

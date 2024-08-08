@@ -43,8 +43,8 @@ impl TailOutputComposer {
         data.note_hashes = source.note_hashes.storage.map(|n: ScopedNoteHash| n.note_hash.value);
         data.nullifiers = source.nullifiers.storage.map(|n: ScopedNullifier| n.nullifier.value);
         data.l2_to_l1_msgs = source.l2_to_l1_msgs.storage.map(|m: ScopedL2ToL1Message| m.expose_to_public());
-        data.note_encrypted_logs_hash = compute_tx_note_logs_hash(source.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| l.expose_to_public()));
-        data.encrypted_logs_hash = compute_tx_logs_hash(source.encrypted_logs_hashes.storage.map(|l: ScopedEncryptedLogHash| l.expose_to_public()));
+        data.note_encrypted_logs_hashes = source.note_encrypted_logs_hashes.storage.map(|l: NoteLogHash| l.expose_to_public());
+        data.encrypted_logs_hashes = source.encrypted_logs_hashes.storage.map(|l: ScopedEncryptedLogHash| l.expose_to_public());
         data.unencrypted_logs_hashes = source.unencrypted_logs_hashes.storage.map(|l: ScopedLogHash| l.expose_to_public());
         data.note_encrypted_log_preimages_length = source.note_encrypted_logs_hashes.storage.fold(0, |len, l: NoteLogHash| len + l.length);
         data.encrypted_log_preimages_length = source.encrypted_logs_hashes.storage.fold(0, |len, l: ScopedEncryptedLogHash| len + l.log_hash.length);

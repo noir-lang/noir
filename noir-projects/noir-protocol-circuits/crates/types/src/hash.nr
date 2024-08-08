@@ -90,27 +90,26 @@ pub fn silo_nullifier(nullifier: ScopedNullifier) -> Field {
     }
 }
 
-pub fn compute_siloed_encrypted_log_hash(address: AztecAddress, randomness: Field, log_hash: Field) -> Field {
-    // TODO: Using 0 GENERATOR_INDEX here as interim before we move to posiedon
-    // NB: A unique separator will be needed for masked_contract_address
-    let mut masked_contract_address = poseidon2_hash_with_separator([address.to_field(), randomness], 0);
-    if randomness == 0 {
-        // In some cases, we actually want to reveal the contract address we are siloing with:
-        // e.g. 'handshaking' contract w/ known address
-        // An app providing randomness = 0 signals to not mask the address.
-        masked_contract_address = address.to_field();
-    }
-    accumulate_sha256([masked_contract_address, log_hash])
-}
-
-pub fn silo_encrypted_log_hash(log_hash: ScopedEncryptedLogHash) -> Field {
+pub fn silo_encrypted_log_hash(log_hash: ScopedLogHash) -> Field {
+    // We assume contract address has already been masked
     if log_hash.contract_address.is_zero() {
         0
     } else {
-        compute_siloed_encrypted_log_hash(
-            log_hash.contract_address,
-            log_hash.log_hash.randomness,
-            log_hash.log_hash.value
+        accumulate_sha256([log_hash.contract_address.to_field(), log_hash.log_hash.value])
+    }
+}
+
+pub fn mask_encrypted_log_hash(scoped_log: ScopedEncryptedLogHash) -> AztecAddress {
+    if scoped_log.contract_address.is_zero() {
+        AztecAddress::from_field(0)
+    } else if (scoped_log.log_hash.randomness == 0) {
+        scoped_log.contract_address
+    } else {
+        AztecAddress::from_field(
+            poseidon2_hash_with_separator(
+                [scoped_log.contract_address.to_field(), scoped_log.log_hash.randomness],
+                0
+            )
         )
     }
 }

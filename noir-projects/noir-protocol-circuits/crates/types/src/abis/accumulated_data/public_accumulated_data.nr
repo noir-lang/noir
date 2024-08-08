@@ -19,7 +19,7 @@ struct PublicAccumulatedData {
     l2_to_l1_msgs: [ScopedL2ToL1Message; MAX_L2_TO_L1_MSGS_PER_TX],
 
     note_encrypted_logs_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
-    encrypted_logs_hashes: [LogHash; MAX_ENCRYPTED_LOGS_PER_TX],
+    encrypted_logs_hashes: [ScopedLogHash; MAX_ENCRYPTED_LOGS_PER_TX],
     unencrypted_logs_hashes: [ScopedLogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
 
     public_data_update_requests: [PublicDataUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
@@ -36,7 +36,7 @@ impl Empty for PublicAccumulatedData {
             nullifiers: [Nullifier::empty(); MAX_NULLIFIERS_PER_TX],
             l2_to_l1_msgs: [ScopedL2ToL1Message::empty(); MAX_L2_TO_L1_MSGS_PER_TX],
             note_encrypted_logs_hashes: [LogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
-            encrypted_logs_hashes: [LogHash::empty(); MAX_ENCRYPTED_LOGS_PER_TX],
+            encrypted_logs_hashes: [ScopedLogHash::empty(); MAX_ENCRYPTED_LOGS_PER_TX],
             unencrypted_logs_hashes: [ScopedLogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_TX],
             public_data_update_requests: [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
             public_call_stack: [PublicCallRequest::empty(); MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX],
@@ -98,7 +98,7 @@ impl Deserialize<PUBLIC_ACCUMULATED_DATA_LENGTH> for PublicAccumulatedData {
         nullifiers: reader.read_struct_array(Nullifier::deserialize, [Nullifier::empty(); MAX_NULLIFIERS_PER_TX]),
         l2_to_l1_msgs: reader.read_struct_array(ScopedL2ToL1Message::deserialize, [ScopedL2ToL1Message::empty(); MAX_L2_TO_L1_MSGS_PER_TX]),
         note_encrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_TX]),
-        encrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_ENCRYPTED_LOGS_PER_TX]),
+        encrypted_logs_hashes: reader.read_struct_array(ScopedLogHash::deserialize, [ScopedLogHash::empty(); MAX_ENCRYPTED_LOGS_PER_TX]),
         unencrypted_logs_hashes: reader.read_struct_array(ScopedLogHash::deserialize, [ScopedLogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_TX]),
         public_data_update_requests: reader.read_struct_array(PublicDataUpdateRequest::deserialize, [PublicDataUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX]),
         public_call_stack: reader.read_struct_array(PublicCallRequest::deserialize, [PublicCallRequest::empty(); MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX]),

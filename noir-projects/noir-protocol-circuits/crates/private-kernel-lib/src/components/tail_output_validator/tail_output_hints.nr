@@ -7,7 +7,7 @@ use dep::types::{
     MAX_ENCRYPTED_LOGS_PER_TX, MAX_L2_TO_L1_MSGS_PER_TX, MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX,
     MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    hash::{silo_encrypted_log_hash, silo_note_hash, silo_nullifier},
+    hash::{silo_note_hash, silo_nullifier, mask_encrypted_log_hash},
     messaging::l2_to_l1_message::ScopedL2ToL1Message, traits::{Empty, is_empty},
     utils::arrays::{OrderHint, sort_by_counters_asc, sort_get_order_hints_asc}
 };
@@ -21,13 +21,11 @@ struct TailOutputHints {
     // L2 to l1 msgs.
     sorted_l2_to_l1_msg_hints: [OrderHint; MAX_L2_TO_L1_MSGS_PER_TX],
     // Note encrypted log hashes.
-    note_encrypted_log_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
-    sorted_note_encrypted_log_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
+    sorted_note_encrypted_log_hashes: [NoteLogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
     sorted_note_encrypted_log_hash_hints: [OrderHint; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
     // Encrypted log hashes.
-    siloed_encrypted_log_hashes: [LogHash; MAX_ENCRYPTED_LOGS_PER_TX],
-    sorted_siloed_encrypted_log_hashes: [LogHash; MAX_ENCRYPTED_LOGS_PER_TX],
-    sorted_encrypted_log_hash_hints: [OrderHint; MAX_ENCRYPTED_LOGS_PER_TX],
+    masked_encrypted_log_hashes: [ScopedLogHash; MAX_ENCRYPTED_LOGS_PER_TX],
+    sorted_masked_encrypted_log_hash_hints: [OrderHint; MAX_ENCRYPTED_LOGS_PER_TX],
     // Unencrypted log hashes.
     sorted_unencrypted_log_hashes: [ScopedLogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
     sorted_unencrypted_log_hash_hints: [OrderHint; MAX_UNENCRYPTED_LOGS_PER_TX],
@@ -45,18 +43,16 @@ unconstrained pub fn generate_tail_output_hints(previous_kernel: PrivateKernelCi
     let sorted_l2_to_l1_msg_hints = sort_get_order_hints_asc(previous_kernel.end.l2_to_l1_msgs);
 
     // note_encrypted_logs
-    let note_encrypted_log_hashes = previous_kernel.end.note_encrypted_logs_hashes.map(|h: NoteLogHash| h.expose_to_public());
-    let sorted_note_encrypted_log_hashes = sort_by_counters_asc(previous_kernel.end.note_encrypted_logs_hashes).map(|h: NoteLogHash| h.expose_to_public());
+    let sorted_note_encrypted_log_hashes = sort_by_counters_asc(previous_kernel.end.note_encrypted_logs_hashes);
     let sorted_note_encrypted_log_hash_hints = sort_get_order_hints_asc(previous_kernel.end.note_encrypted_logs_hashes);
 
     // encrypted_logs
-    let mut siloed_log_hashes = previous_kernel.end.encrypted_logs_hashes;
-    for i in 0..siloed_log_hashes.len() {
-        siloed_log_hashes[i].log_hash.value = silo_encrypted_log_hash(previous_kernel.end.encrypted_logs_hashes[i]);
+    let mut masked_log_hashes = previous_kernel.end.encrypted_logs_hashes;
+    for i in 0..masked_log_hashes.len() {
+        masked_log_hashes[i].contract_address = mask_encrypted_log_hash(previous_kernel.end.encrypted_logs_hashes[i]);
     }
-    let sorted_siloed_encrypted_log_hashes = sort_by_counters_asc(siloed_log_hashes).map(|h: ScopedEncryptedLogHash| h.expose_to_public());
-    let siloed_encrypted_log_hashes = siloed_log_hashes.map(|h: ScopedEncryptedLogHash| h.expose_to_public());
-    let sorted_encrypted_log_hash_hints = sort_get_order_hints_asc(previous_kernel.end.encrypted_logs_hashes);
+    let masked_encrypted_log_hashes = masked_log_hashes.map(|h: ScopedEncryptedLogHash| h.expose_to_public());
+    let sorted_masked_encrypted_log_hash_hints = sort_get_order_hints_asc(previous_kernel.end.encrypted_logs_hashes);
 
     // unencrypted_logs
     let sorted_unencrypted_log_hashes = sort_by_counters_asc(previous_kernel.end.unencrypted_logs_hashes);
@@ -67,12 +63,10 @@ unconstrained pub fn generate_tail_output_hints(previous_kernel: PrivateKernelCi
         sorted_nullifier_hints,
         siloed_nullifiers,
         sorted_l2_to_l1_msg_hints,
-        note_encrypted_log_hashes,
         sorted_note_encrypted_log_hashes,
-        sorted_siloed_encrypted_log_hashes,
         sorted_note_encrypted_log_hash_hints,
-        siloed_encrypted_log_hashes,
-        sorted_encrypted_log_hash_hints,
+        masked_encrypted_log_hashes,
+        sorted_masked_encrypted_log_hash_hints,
         sorted_unencrypted_log_hashes,
         sorted_unencrypted_log_hash_hints
     }

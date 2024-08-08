@@ -296,7 +296,7 @@ export class Tx extends Gossipable {
    * @param out the output to put passing logs in, to keep this function abstract
    */
   public filterRevertedLogs(kernelOutput: PublicKernelCircuitPublicInputs) {
-    this.encryptedLogs = this.encryptedLogs.filter(
+    this.encryptedLogs = this.encryptedLogs.filterScoped(
       kernelOutput.endNonRevertibleData.encryptedLogsHashes,
       EncryptedTxL2Logs.empty(),
     );

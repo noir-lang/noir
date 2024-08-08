@@ -284,7 +284,11 @@ export function toTxEffect(tx: ProcessedTx, gasFees: GasFees): TxEffect {
 
 function validateProcessedTxLogs(tx: ProcessedTx): void {
   const noteEncryptedLogs = tx.noteEncryptedLogs || EncryptedNoteTxL2Logs.empty();
-  let kernelHash = tx.data.end.noteEncryptedLogsHash;
+  let kernelHash = Fr.fromBuffer(
+    EncryptedNoteTxL2Logs.hashNoteLogs(
+      tx.data.end.noteEncryptedLogsHashes.filter(hash => !hash.isEmpty()).map(h => h.value.toBuffer()),
+    ),
+  );
   let referenceHash = Fr.fromBuffer(noteEncryptedLogs.hash());
   if (!referenceHash.equals(kernelHash)) {
     throw new Error(
@@ -293,7 +297,11 @@ function validateProcessedTxLogs(tx: ProcessedTx): void {
     );
   }
   const encryptedLogs = tx.encryptedLogs || EncryptedTxL2Logs.empty();
-  kernelHash = tx.data.end.encryptedLogsHash;
+  kernelHash = kernelHash = Fr.fromBuffer(
+    EncryptedTxL2Logs.hashSiloedLogs(
+      tx.data.end.encryptedLogsHashes.filter(hash => !hash.isEmpty()).map(h => h.getSiloedHash()),
+    ),
+  );
   referenceHash = Fr.fromBuffer(encryptedLogs.hash());
   if (!referenceHash.equals(kernelHash)) {
     throw new Error(

@@ -29,7 +29,7 @@ fn tail_to_public_output_composer_succeeds() {
     builder.previous_kernel.add_note_encrypted_log_hash(1002, 8, 0);
 
     builder.previous_kernel.add_encrypted_log_hash(2001, 2);
-    siloed_data_builder.add_siloed_encrypted_log_hash(2001, 2);
+    siloed_data_builder.add_masked_encrypted_log_hash(2001, 2);
 
     builder.previous_kernel.add_unencrypted_log_hash(3001, 51);
 
@@ -50,9 +50,9 @@ fn tail_to_public_output_composer_succeeds() {
     builder.previous_kernel.add_note_encrypted_log_hash(1003, 20, 0);
 
     builder.previous_kernel.add_encrypted_log_hash(2002, 6);
-    siloed_data_builder.add_siloed_encrypted_log_hash(2002, 6);
+    siloed_data_builder.add_masked_encrypted_log_hash(2002, 6);
     builder.previous_kernel.add_encrypted_log_hash(2003, 24);
-    siloed_data_builder.add_siloed_encrypted_log_hash(2003, 24);
+    siloed_data_builder.add_masked_encrypted_log_hash(2003, 24);
 
     builder.previous_kernel.add_unencrypted_log_hash(3002, 4);
 

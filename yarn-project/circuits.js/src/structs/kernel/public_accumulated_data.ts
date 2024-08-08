@@ -46,7 +46,7 @@ export class PublicAccumulatedData {
      * Accumulated encrypted logs hashes from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
      */
-    public readonly encryptedLogsHashes: Tuple<LogHash, typeof MAX_ENCRYPTED_LOGS_PER_TX>,
+    public readonly encryptedLogsHashes: Tuple<ScopedLogHash, typeof MAX_ENCRYPTED_LOGS_PER_TX>,
     /**
      * Accumulated unencrypted logs hashes from all the previous kernel iterations.
      * Note: Truncated to 31 bytes to fit in Fr.
@@ -165,7 +165,7 @@ export class PublicAccumulatedData {
       reader.readArray(MAX_NULLIFIERS_PER_TX, Nullifier),
       reader.readArray(MAX_L2_TO_L1_MSGS_PER_TX, ScopedL2ToL1Message),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash),
-      reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
+      reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, PublicCallRequest),
@@ -180,7 +180,7 @@ export class PublicAccumulatedData {
       reader.readArray(MAX_NULLIFIERS_PER_TX, Nullifier),
       reader.readArray(MAX_L2_TO_L1_MSGS_PER_TX, ScopedL2ToL1Message),
       reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash),
-      reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, LogHash),
+      reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, PublicCallRequest),
@@ -203,7 +203,7 @@ export class PublicAccumulatedData {
       makeTuple(MAX_NULLIFIERS_PER_TX, Nullifier.empty),
       makeTuple(MAX_L2_TO_L1_MSGS_PER_TX, ScopedL2ToL1Message.empty),
       makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash.empty),
-      makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, LogHash.empty),
+      makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, ScopedLogHash.empty),
       makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash.empty),
       makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest.empty),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, PublicCallRequest.empty),

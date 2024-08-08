@@ -301,8 +301,6 @@ describe('e2e_block_building', () => {
       );
       // Setting randomness = 0 in app means 'do not mask the address'
       expect(encryptedLogs[2].maskedContractAddress).toEqual(testContract.address.toField());
-      const expectedEncryptedLogsHash = tx.encryptedLogs.hash();
-      expect(tx.data.forRollup?.end.encryptedLogsHash).toEqual(new Fr(expectedEncryptedLogsHash));
 
       // TODO(1139 | 6408): We currently encrypted generic event logs the same way as notes, so the below
       // will likely not be useful when complete.

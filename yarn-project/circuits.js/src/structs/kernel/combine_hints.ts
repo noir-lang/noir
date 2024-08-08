@@ -6,6 +6,7 @@ import { inspect } from 'util';
 
 import {
   MAX_ENCRYPTED_LOGS_PER_TX,
+  MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
   MAX_NOTE_HASHES_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_UNENCRYPTED_LOGS_PER_TX,
@@ -17,7 +18,7 @@ import {
   sortByCounterGetSortedHints,
   sortByPositionThenCounterGetSortedHints,
 } from '../../utils/index.js';
-import { ScopedLogHash } from '../log_hash.js';
+import { LogHash, ScopedLogHash } from '../log_hash.js';
 import { ScopedNoteHash } from '../note_hash.js';
 import { PublicDataUpdateRequest } from '../public_data_update_request.js';
 import { type PublicAccumulatedData } from './public_accumulated_data.js';
@@ -26,6 +27,10 @@ export class CombineHints {
   constructor(
     public readonly sortedNoteHashes: Tuple<ScopedNoteHash, typeof MAX_NOTE_HASHES_PER_TX>,
     public readonly sortedNoteHashesIndexes: Tuple<number, typeof MAX_NOTE_HASHES_PER_TX>,
+    public readonly sortedNoteEncryptedLogsHashes: Tuple<LogHash, typeof MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
+    public readonly sortedNoteEncryptedLogsHashesIndexes: Tuple<number, typeof MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
+    public readonly sortedEncryptedLogsHashes: Tuple<ScopedLogHash, typeof MAX_ENCRYPTED_LOGS_PER_TX>,
+    public readonly sortedEncryptedLogsHashesIndexes: Tuple<number, typeof MAX_ENCRYPTED_LOGS_PER_TX>,
     public readonly sortedUnencryptedLogsHashes: Tuple<ScopedLogHash, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     public readonly sortedUnencryptedLogsHashesIndexes: Tuple<number, typeof MAX_UNENCRYPTED_LOGS_PER_TX>,
     public readonly sortedPublicDataUpdateRequests: Tuple<
@@ -44,6 +49,10 @@ export class CombineHints {
     return [
       fields.sortedNoteHashes,
       fields.sortedNoteHashesIndexes,
+      fields.sortedNoteEncryptedLogsHashes,
+      fields.sortedNoteEncryptedLogsHashesIndexes,
+      fields.sortedEncryptedLogsHashes,
+      fields.sortedEncryptedLogsHashesIndexes,
       fields.sortedUnencryptedLogsHashes,
       fields.sortedUnencryptedLogsHashesIndexes,
       fields.sortedPublicDataUpdateRequests,
@@ -66,6 +75,10 @@ export class CombineHints {
     return new CombineHints(
       reader.readArray(MAX_NOTE_HASHES_PER_TX, ScopedNoteHash),
       reader.readNumbers(MAX_NOTE_HASHES_PER_TX),
+      reader.readArray(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, LogHash),
+      reader.readNumbers(MAX_NOTE_ENCRYPTED_LOGS_PER_TX),
+      reader.readArray(MAX_ENCRYPTED_LOGS_PER_TX, ScopedLogHash),
+      reader.readNumbers(MAX_ENCRYPTED_LOGS_PER_TX),
       reader.readArray(MAX_UNENCRYPTED_LOGS_PER_TX, ScopedLogHash),
       reader.readNumbers(MAX_UNENCRYPTED_LOGS_PER_TX),
       reader.readArray(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PublicDataUpdateRequest),
@@ -91,6 +104,26 @@ export class CombineHints {
     const [sortedNoteHashes, sortedNoteHashesIndexes] = sortByCounterGetSortedHints(
       mergedNoteHashes,
       MAX_NOTE_HASHES_PER_TX,
+    );
+
+    const mergedNoteEncryptedLogsHashes = mergeAccumulatedData(
+      nonRevertibleData.noteEncryptedLogsHashes,
+      revertibleData.noteEncryptedLogsHashes,
+      MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
+    );
+    const [sortedNoteEncryptedLogsHashes, sortedNoteEncryptedLogsHashesIndexes] = sortByCounterGetSortedHints(
+      mergedNoteEncryptedLogsHashes,
+      MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
+    );
+
+    const mergedEncryptedLogsHashes = mergeAccumulatedData(
+      nonRevertibleData.encryptedLogsHashes,
+      revertibleData.encryptedLogsHashes,
+      MAX_ENCRYPTED_LOGS_PER_TX,
+    );
+    const [sortedEncryptedLogsHashes, sortedEncryptedLogsHashesIndexes] = sortByCounterGetSortedHints(
+      mergedEncryptedLogsHashes,
+      MAX_ENCRYPTED_LOGS_PER_TX,
     );
 
     const unencryptedLogHashes = mergeAccumulatedData(
@@ -133,6 +166,10 @@ export class CombineHints {
     return CombineHints.from({
       sortedNoteHashes,
       sortedNoteHashesIndexes,
+      sortedNoteEncryptedLogsHashes,
+      sortedNoteEncryptedLogsHashesIndexes,
+      sortedEncryptedLogsHashes,
+      sortedEncryptedLogsHashesIndexes,
       sortedUnencryptedLogsHashes,
       sortedUnencryptedLogsHashesIndexes,
       sortedPublicDataUpdateRequests,

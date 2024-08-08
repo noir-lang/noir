@@ -1304,7 +1304,7 @@ export function mapPublicAccumulatedDataFromNoir(
       MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
       mapLogHashFromNoir,
     ),
-    mapTupleFromNoir(publicAccumulatedData.encrypted_logs_hashes, MAX_ENCRYPTED_LOGS_PER_TX, mapLogHashFromNoir),
+    mapTupleFromNoir(publicAccumulatedData.encrypted_logs_hashes, MAX_ENCRYPTED_LOGS_PER_TX, mapScopedLogHashFromNoir),
     mapTupleFromNoir(
       publicAccumulatedData.unencrypted_logs_hashes,
       MAX_UNENCRYPTED_LOGS_PER_TX,
@@ -1332,7 +1332,7 @@ export function mapPublicAccumulatedDataToNoir(
     nullifiers: mapTuple(publicAccumulatedData.nullifiers, mapNullifierToNoir),
     l2_to_l1_msgs: mapTuple(publicAccumulatedData.l2ToL1Msgs, mapScopedL2ToL1MessageToNoir),
     note_encrypted_logs_hashes: mapTuple(publicAccumulatedData.noteEncryptedLogsHashes, mapLogHashToNoir),
-    encrypted_logs_hashes: mapTuple(publicAccumulatedData.encryptedLogsHashes, mapLogHashToNoir),
+    encrypted_logs_hashes: mapTuple(publicAccumulatedData.encryptedLogsHashes, mapScopedLogHashToNoir),
     unencrypted_logs_hashes: mapTuple(publicAccumulatedData.unencryptedLogsHashes, mapScopedLogHashToNoir),
     public_data_update_requests: mapTuple(
       publicAccumulatedData.publicDataUpdateRequests,
@@ -1396,8 +1396,16 @@ export function mapCombinedAccumulatedDataFromNoir(
     mapTupleFromNoir(combinedAccumulatedData.note_hashes, MAX_NOTE_HASHES_PER_TX, mapFieldFromNoir),
     mapTupleFromNoir(combinedAccumulatedData.nullifiers, MAX_NULLIFIERS_PER_TX, mapFieldFromNoir),
     mapTupleFromNoir(combinedAccumulatedData.l2_to_l1_msgs, MAX_L2_TO_L1_MSGS_PER_TX, mapScopedL2ToL1MessageFromNoir),
-    mapFieldFromNoir(combinedAccumulatedData.note_encrypted_logs_hash),
-    mapFieldFromNoir(combinedAccumulatedData.encrypted_logs_hash),
+    mapTupleFromNoir(
+      combinedAccumulatedData.note_encrypted_logs_hashes,
+      MAX_NOTE_ENCRYPTED_LOGS_PER_TX,
+      mapLogHashFromNoir,
+    ),
+    mapTupleFromNoir(
+      combinedAccumulatedData.encrypted_logs_hashes,
+      MAX_ENCRYPTED_LOGS_PER_TX,
+      mapScopedLogHashFromNoir,
+    ),
     mapTupleFromNoir(
       combinedAccumulatedData.unencrypted_logs_hashes,
       MAX_UNENCRYPTED_LOGS_PER_TX,
@@ -1422,8 +1430,8 @@ export function mapCombinedAccumulatedDataToNoir(
     note_hashes: mapTuple(combinedAccumulatedData.noteHashes, mapFieldToNoir),
     nullifiers: mapTuple(combinedAccumulatedData.nullifiers, mapFieldToNoir),
     l2_to_l1_msgs: mapTuple(combinedAccumulatedData.l2ToL1Msgs, mapScopedL2ToL1MessageToNoir),
-    note_encrypted_logs_hash: mapFieldToNoir(combinedAccumulatedData.noteEncryptedLogsHash),
-    encrypted_logs_hash: mapFieldToNoir(combinedAccumulatedData.encryptedLogsHash),
+    note_encrypted_logs_hashes: mapTuple(combinedAccumulatedData.noteEncryptedLogsHashes, mapLogHashToNoir),
+    encrypted_logs_hashes: mapTuple(combinedAccumulatedData.encryptedLogsHashes, mapScopedLogHashToNoir),
     unencrypted_logs_hashes: mapTuple(combinedAccumulatedData.unencryptedLogsHashes, mapScopedLogHashToNoir),
     note_encrypted_log_preimages_length: mapFieldToNoir(combinedAccumulatedData.noteEncryptedLogPreimagesLength),
     encrypted_log_preimages_length: mapFieldToNoir(combinedAccumulatedData.encryptedLogPreimagesLength),
@@ -1713,6 +1721,13 @@ export function mapCombineHintsToNoir(combineHints: CombineHints): CombineHintsN
   return {
     sorted_note_hashes: mapTuple(combineHints.sortedNoteHashes, mapScopedNoteHashToNoir),
     sorted_note_hashes_indexes: mapTuple(combineHints.sortedNoteHashesIndexes, mapNumberToNoir),
+    sorted_note_encrypted_logs_hashes: mapTuple(combineHints.sortedNoteEncryptedLogsHashes, mapLogHashToNoir),
+    sorted_note_encrypted_logs_hashes_indexes: mapTuple(
+      combineHints.sortedNoteEncryptedLogsHashesIndexes,
+      mapNumberToNoir,
+    ),
+    sorted_encrypted_logs_hashes: mapTuple(combineHints.sortedEncryptedLogsHashes, mapScopedLogHashToNoir),
+    sorted_encrypted_logs_hashes_indexes: mapTuple(combineHints.sortedEncryptedLogsHashesIndexes, mapNumberToNoir),
     sorted_unencrypted_logs_hashes: mapTuple(combineHints.sortedUnencryptedLogsHashes, mapScopedLogHashToNoir),
     sorted_unencrypted_logs_hashes_indexes: mapTuple(combineHints.sortedUnencryptedLogsHashesIndexes, mapNumberToNoir),
     sorted_public_data_update_requests: mapTuple(

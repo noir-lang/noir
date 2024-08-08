@@ -9,7 +9,6 @@ impl TailOutputValidatorBuilder {
 
         builder.previous_kernel.append_note_encrypted_log_hashes(3);
         builder.output.append_note_encrypted_log_hashes(3);
-        builder.output.hash_note_encrypted_log_hashes();
 
         builder
     }

@@ -8,7 +8,7 @@ use dep::types::{
     MAX_ENCRYPTED_LOGS_PER_TX, MAX_L2_TO_L1_MSGS_PER_TX, MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX,
     MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, MAX_UNENCRYPTED_LOGS_PER_TX
 },
-    hash::{silo_encrypted_log_hash, silo_note_hash, silo_nullifier},
+    hash::{silo_note_hash, silo_nullifier, mask_encrypted_log_hash},
     messaging::l2_to_l1_message::ScopedL2ToL1Message,
     utils::arrays::{sort_get_split_order_hints_asc, sort_get_split_order_hints_desc, SplitOrderHints}
 };
@@ -25,7 +25,7 @@ struct TailToPublicOutputHints {
     note_encrypted_logs_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
     sorted_note_encrypted_log_hash_hints: SplitOrderHints<MAX_NOTE_ENCRYPTED_LOGS_PER_TX>,
     // Encrypted log hashes.
-    siloed_encrypted_logs_hashes: [LogHash; MAX_ENCRYPTED_LOGS_PER_TX],
+    masked_encrypted_logs_hashes: [ScopedLogHash; MAX_ENCRYPTED_LOGS_PER_TX],
     sorted_encrypted_log_hash_hints: SplitOrderHints<MAX_ENCRYPTED_LOGS_PER_TX>,
     // Unencrypted log hashes.
     sorted_unencrypted_log_hash_hints: SplitOrderHints<MAX_UNENCRYPTED_LOGS_PER_TX>,
@@ -59,11 +59,12 @@ unconstrained pub fn generate_tail_to_public_output_hints(previous_kernel: Priva
     let sorted_note_encrypted_log_hash_hints = sort_get_split_order_hints_asc(previous_kernel.end.note_encrypted_logs_hashes, split_counter);
 
     // encrypted_logs
-    let mut siloed_log_hashes = previous_kernel.end.encrypted_logs_hashes;
-    for i in 0..siloed_log_hashes.len() {
-        siloed_log_hashes[i].log_hash.value = silo_encrypted_log_hash(previous_kernel.end.encrypted_logs_hashes[i]);
+    let masked_encrypted_logs_hashes = previous_kernel.end.encrypted_logs_hashes.map(
+        |mut h: ScopedEncryptedLogHash| {
+        h.contract_address = mask_encrypted_log_hash(h);
+        h.expose_to_public()
     }
-    let siloed_encrypted_logs_hashes = siloed_log_hashes.map(|h: ScopedEncryptedLogHash| h.expose_to_public());
+    );
     let sorted_encrypted_log_hash_hints = sort_get_split_order_hints_asc(previous_kernel.end.encrypted_logs_hashes, split_counter);
 
     // unencrypted_logs
@@ -80,7 +81,7 @@ unconstrained pub fn generate_tail_to_public_output_hints(previous_kernel: Priva
         sorted_l2_to_l1_msg_hints,
         note_encrypted_logs_hashes,
         sorted_note_encrypted_log_hash_hints,
-        siloed_encrypted_logs_hashes,
+        masked_encrypted_logs_hashes,
         sorted_encrypted_log_hash_hints,
         sorted_unencrypted_log_hash_hints,
         public_call_requests,

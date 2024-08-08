@@ -30,7 +30,7 @@ export class PublicAccumulatedDataBuilder {
   private nullifiers: Nullifier[] = [];
   private l2ToL1Msgs: ScopedL2ToL1Message[] = [];
   private noteEncryptedLogsHashes: LogHash[] = [];
-  private encryptedLogsHashes: LogHash[] = [];
+  private encryptedLogsHashes: ScopedLogHash[] = [];
   private unencryptedLogsHashes: ScopedLogHash[] = [];
   private publicDataUpdateRequests: PublicDataUpdateRequest[] = [];
   private publicCallStack: PublicCallRequest[] = [];
@@ -76,12 +76,12 @@ export class PublicAccumulatedDataBuilder {
     return this;
   }
 
-  pushEncryptedLogsHash(encryptedLogsHash: LogHash) {
+  pushEncryptedLogsHash(encryptedLogsHash: ScopedLogHash) {
     this.encryptedLogsHashes.push(encryptedLogsHash);
     return this;
   }
 
-  withEncryptedLogsHashes(encryptedLogsHashes: LogHash[]) {
+  withEncryptedLogsHashes(encryptedLogsHashes: ScopedLogHash[]) {
     this.encryptedLogsHashes = encryptedLogsHashes;
     return this;
   }
@@ -127,7 +127,7 @@ export class PublicAccumulatedDataBuilder {
       padArrayEnd(this.nullifiers, Nullifier.empty(), MAX_NULLIFIERS_PER_TX),
       padArrayEnd(this.l2ToL1Msgs, ScopedL2ToL1Message.empty(), MAX_L2_TO_L1_MSGS_PER_TX),
       padArrayEnd(this.noteEncryptedLogsHashes, LogHash.empty(), MAX_NOTE_ENCRYPTED_LOGS_PER_TX),
-      padArrayEnd(this.encryptedLogsHashes, LogHash.empty(), MAX_ENCRYPTED_LOGS_PER_TX),
+      padArrayEnd(this.encryptedLogsHashes, ScopedLogHash.empty(), MAX_ENCRYPTED_LOGS_PER_TX),
       padArrayEnd(this.unencryptedLogsHashes, ScopedLogHash.empty(), MAX_UNENCRYPTED_LOGS_PER_TX),
       padArrayEnd(
         this.publicDataUpdateRequests,

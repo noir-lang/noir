@@ -9,7 +9,7 @@ use crate::{
     constants::{
     MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX, MAX_L2_TO_L1_MSGS_PER_TX,
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, COMBINED_ACCUMULATED_DATA_LENGTH,
-    MAX_UNENCRYPTED_LOGS_PER_TX
+    MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX
 },
     hash::silo_note_hash,
     utils::{arrays::{array_merge, assert_sorted_array, assert_deduped_array, check_permutation}, reader::Reader},
@@ -19,6 +19,10 @@ use crate::{
 struct CombineHints {
     sorted_note_hashes: [ScopedNoteHash; MAX_NOTE_HASHES_PER_TX],
     sorted_note_hashes_indexes: [u32; MAX_NOTE_HASHES_PER_TX],
+    sorted_note_encrypted_logs_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
+    sorted_note_encrypted_logs_hashes_indexes: [u32; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
+    sorted_encrypted_logs_hashes: [ScopedLogHash; MAX_ENCRYPTED_LOGS_PER_TX],
+    sorted_encrypted_logs_hashes_indexes: [u32; MAX_ENCRYPTED_LOGS_PER_TX],
     sorted_unencrypted_logs_hashes: [ScopedLogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
     sorted_unencrypted_logs_hashes_indexes: [u32; MAX_UNENCRYPTED_LOGS_PER_TX],
     // the public data update requests are sorted by their leaf index AND counter
@@ -34,8 +38,8 @@ struct CombinedAccumulatedData {
     nullifiers: [Field; MAX_NULLIFIERS_PER_TX],
     l2_to_l1_msgs: [ScopedL2ToL1Message; MAX_L2_TO_L1_MSGS_PER_TX],
 
-    note_encrypted_logs_hash: Field,
-    encrypted_logs_hash: Field,
+    note_encrypted_logs_hashes: [LogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
+    encrypted_logs_hashes: [ScopedLogHash; MAX_ENCRYPTED_LOGS_PER_TX], 
     unencrypted_logs_hashes: [ScopedLogHash; MAX_UNENCRYPTED_LOGS_PER_TX],
 
     // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
@@ -98,18 +102,26 @@ impl CombinedAccumulatedData {
             combine_hints.deduped_public_data_update_requests_runs
         );
 
-        // TODO(Miranda): Hash here or elsewhere?
-        let note_encrypted_logs_hash = compute_tx_note_logs_hash(
-            array_merge(
-                non_revertible.note_encrypted_logs_hashes,
-                revertible.note_encrypted_logs_hashes
-            )
+        let merged_note_encrypted_logs_hashes = array_merge(
+            non_revertible.note_encrypted_logs_hashes,
+            revertible.note_encrypted_logs_hashes
         );
-        let encrypted_logs_hash = compute_tx_logs_hash(
-            array_merge(
-                non_revertible.encrypted_logs_hashes,
-                revertible.encrypted_logs_hashes
-            )
+        assert_sorted_array(
+            merged_note_encrypted_logs_hashes,
+            combine_hints.sorted_note_encrypted_logs_hashes,
+            combine_hints.sorted_note_encrypted_logs_hashes_indexes,
+            asc_sort_by_counters
+        );
+
+        let merged_encrypted_logs_hashes = array_merge(
+            non_revertible.encrypted_logs_hashes,
+            revertible.encrypted_logs_hashes
+        );
+        assert_sorted_array(
+            merged_encrypted_logs_hashes,
+            combine_hints.sorted_encrypted_logs_hashes,
+            combine_hints.sorted_encrypted_logs_hashes_indexes,
+            asc_sort_by_counters
         );
 
         let merged_unencrypted_logs_hashes = array_merge(
@@ -125,16 +137,16 @@ impl CombinedAccumulatedData {
 
         let note_encrypted_log_preimages_length = non_revertible.note_encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
             + revertible.note_encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length);
-        let encrypted_log_preimages_length = non_revertible.encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length)
-            + revertible.encrypted_logs_hashes.fold(0, |a, b: LogHash| a + b.length);
+        let encrypted_log_preimages_length = non_revertible.encrypted_logs_hashes.fold(0, |a, b: ScopedLogHash| a + b.log_hash.length)
+            + revertible.encrypted_logs_hashes.fold(0, |a, b: ScopedLogHash| a + b.log_hash.length);
         let unencrypted_log_preimages_length = non_revertible.unencrypted_logs_hashes.fold(0, |a, b: ScopedLogHash| a + b.log_hash.length)
             + revertible.unencrypted_logs_hashes.fold(0, |a, b: ScopedLogHash| a + b.log_hash.length);
         CombinedAccumulatedData {
             note_hashes: siloed_note_hashes,
             nullifiers: array_merge(non_revertible.nullifiers, revertible.nullifiers).map(|n: Nullifier| n.value),
             l2_to_l1_msgs: array_merge(non_revertible.l2_to_l1_msgs, revertible.l2_to_l1_msgs),
-            note_encrypted_logs_hash,
-            encrypted_logs_hash,
+            note_encrypted_logs_hashes: combine_hints.sorted_note_encrypted_logs_hashes,
+            encrypted_logs_hashes: combine_hints.sorted_encrypted_logs_hashes,
             unencrypted_logs_hashes: combine_hints.sorted_unencrypted_logs_hashes,
             note_encrypted_log_preimages_length,
             encrypted_log_preimages_length,
@@ -151,8 +163,8 @@ impl Empty for CombinedAccumulatedData {
             note_hashes: [0; MAX_NOTE_HASHES_PER_TX],
             nullifiers: [0; MAX_NULLIFIERS_PER_TX],
             l2_to_l1_msgs: [ScopedL2ToL1Message::empty(); MAX_L2_TO_L1_MSGS_PER_TX],
-            note_encrypted_logs_hash: 0,
-            encrypted_logs_hash: 0,
+            note_encrypted_logs_hashes: [LogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
+            encrypted_logs_hashes: [ScopedLogHash::empty(); MAX_ENCRYPTED_LOGS_PER_TX],
             unencrypted_logs_hashes: [ScopedLogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_TX],
             note_encrypted_log_preimages_length: 0,
             encrypted_log_preimages_length: 0,
@@ -172,8 +184,12 @@ impl Serialize<COMBINED_ACCUMULATED_DATA_LENGTH> for CombinedAccumulatedData {
     for i in 0..self.l2_to_l1_msgs.len() {
         fields.extend_from_array(self.l2_to_l1_msgs[i].serialize());
     }
-    fields.push(self.note_encrypted_logs_hash);
-    fields.push(self.encrypted_logs_hash);
+    for i in 0..self.note_encrypted_logs_hashes.len() {
+      fields.extend_from_array(self.note_encrypted_logs_hashes[i].serialize());
+    }
+    for i in 0..self.encrypted_logs_hashes.len() {
+      fields.extend_from_array(self.encrypted_logs_hashes[i].serialize());
+    }
     for i in 0..self.unencrypted_logs_hashes.len() {
       fields.extend_from_array(self.unencrypted_logs_hashes[i].serialize());
     }
@@ -201,8 +217,8 @@ impl Deserialize<COMBINED_ACCUMULATED_DATA_LENGTH> for CombinedAccumulatedData {
         note_hashes: reader.read_array([0; MAX_NOTE_HASHES_PER_TX]),
         nullifiers: reader.read_array([0; MAX_NULLIFIERS_PER_TX]),
         l2_to_l1_msgs: reader.read_struct_array(ScopedL2ToL1Message::deserialize,[ScopedL2ToL1Message::empty(); MAX_L2_TO_L1_MSGS_PER_TX]),
-        note_encrypted_logs_hash: reader.read(),
-        encrypted_logs_hash: reader.read(),
+        note_encrypted_logs_hashes: reader.read_struct_array(LogHash::deserialize, [LogHash::empty(); MAX_NOTE_ENCRYPTED_LOGS_PER_TX]),
+        encrypted_logs_hashes: reader.read_struct_array(ScopedLogHash::deserialize, [ScopedLogHash::empty(); MAX_ENCRYPTED_LOGS_PER_TX]),
         unencrypted_logs_hashes: reader.read_struct_array(ScopedLogHash::deserialize, [ScopedLogHash::empty(); MAX_UNENCRYPTED_LOGS_PER_TX]),
         note_encrypted_log_preimages_length: reader.read(),
         encrypted_log_preimages_length: reader.read(),
@@ -220,8 +236,8 @@ impl Eq for CombinedAccumulatedData {
     (self.note_hashes == other.note_hashes) &
     (self.nullifiers == other.nullifiers) &
     (self.l2_to_l1_msgs == other.l2_to_l1_msgs) &
-    (self.note_encrypted_logs_hash == other.note_encrypted_logs_hash) &
-    (self.encrypted_logs_hash == other.encrypted_logs_hash) &
+    (self.note_encrypted_logs_hashes == other.note_encrypted_logs_hashes) &
+    (self.encrypted_logs_hashes == other.encrypted_logs_hashes) &
     (self.unencrypted_logs_hashes == other.unencrypted_logs_hashes) &
     (self.note_encrypted_log_preimages_length == other.note_encrypted_log_preimages_length) &
     (self.encrypted_log_preimages_length == other.encrypted_log_preimages_length) &

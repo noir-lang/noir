@@ -336,8 +336,8 @@ export function makeCombinedAccumulatedData(seed = 1, full = false): CombinedAcc
     tupleGenerator(MAX_NOTE_HASHES_PER_TX, fr, seed + 0x120, Fr.zero),
     tupleGenerator(MAX_NULLIFIERS_PER_TX, fr, seed + 0x200, Fr.zero),
     tupleGenerator(MAX_L2_TO_L1_MSGS_PER_TX, makeScopedL2ToL1Message, seed + 0x600, ScopedL2ToL1Message.empty),
-    fr(seed + 0x700), // note encrypted logs hash
-    fr(seed + 0x800), // encrypted logs hash
+    tupleGenerator(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x700, LogHash.empty),
+    tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x800, ScopedLogHash.empty),
     tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x900, ScopedLogHash.empty), // unencrypted logs
     fr(seed + 0xa00), // note_encrypted_log_preimages_length
     fr(seed + 0xb00), // encrypted_log_preimages_length
@@ -369,7 +369,7 @@ function makePublicAccumulatedData(seed = 1, full = false): PublicAccumulatedDat
     tupleGenerator(MAX_NULLIFIERS_PER_TX, makeNullifier, seed + 0x200, Nullifier.empty),
     tupleGenerator(MAX_L2_TO_L1_MSGS_PER_TX, makeScopedL2ToL1Message, seed + 0x600, ScopedL2ToL1Message.empty),
     tupleGenerator(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x700, LogHash.empty), // note encrypted logs hashes
-    tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x800, LogHash.empty), // encrypted logs hashes
+    tupleGenerator(MAX_ENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x800, ScopedLogHash.empty), // encrypted logs hashes
     tupleGenerator(MAX_UNENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x900, ScopedLogHash.empty), // unencrypted logs hashes
     tupleGenerator(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -671,20 +671,24 @@ export function makeCombineHints(seed = 1): CombineHints {
   return CombineHints.from({
     sortedNoteHashes: makeTuple(MAX_NOTE_HASHES_PER_TX, makeScopedNoteHash, seed + 0x100),
     sortedNoteHashesIndexes: makeTuple(MAX_NOTE_HASHES_PER_TX, i => i, seed + 0x200),
-    sortedUnencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x300),
-    sortedUnencryptedLogsHashesIndexes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, i => i, seed + 0x400),
+    sortedNoteEncryptedLogsHashes: makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x300),
+    sortedNoteEncryptedLogsHashesIndexes: makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, i => i, seed + 0x400),
+    sortedEncryptedLogsHashes: makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x500),
+    sortedEncryptedLogsHashesIndexes: makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, i => i, seed + 0x600),
+    sortedUnencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x700),
+    sortedUnencryptedLogsHashesIndexes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, i => i, seed + 0x800),
     sortedPublicDataUpdateRequests: makeTuple(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
       makePublicDataUpdateRequest,
-      seed + 0x300,
+      seed + 0x900,
     ),
-    sortedPublicDataUpdateRequestsIndexes: makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, seed + 0x400),
+    sortedPublicDataUpdateRequestsIndexes: makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, seed + 0x1000),
     dedupedPublicDataUpdateRequests: makeTuple(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
       makePublicDataUpdateRequest,
-      seed + 0x500,
+      seed + 0x1100,
     ),
-    dedupedPublicDataUpdateRequestsRuns: makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, seed + 0x600),
+    dedupedPublicDataUpdateRequestsRuns: makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, seed + 0x1200),
   });
 }
 

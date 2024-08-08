@@ -10,7 +10,7 @@ use dep::types::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL
 },
-    hash::{silo_encrypted_log_hash, silo_note_hash, silo_nullifier}, traits::is_empty,
+    hash::{silo_note_hash, silo_nullifier, mask_encrypted_log_hash}, traits::is_empty,
     transaction::tx_request::TxRequest,
     utils::arrays::{array_length, array_to_bounded_vec, sort_by_counters_asc, sort_by_counters_desc}
 };
@@ -276,7 +276,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
     fn silo_scoped_values(&mut self) {
         self.silo_note_hashes();
         self.silo_nullifiers();
-        self.silo_encrypted_logs();
+        self.mask_encrypted_logs();
     }
 
     fn silo_note_hashes(&mut self) {
@@ -298,10 +298,10 @@ impl PrivateKernelCircuitPublicInputsComposer {
         }
     }
 
-    fn silo_encrypted_logs(&mut self) {
+    fn mask_encrypted_logs(&mut self) {
         let logs = self.public_inputs.end.encrypted_logs_hashes.storage;
         for i in 0..logs.len() {
-            self.public_inputs.end.encrypted_logs_hashes.storage[i].log_hash.value = silo_encrypted_log_hash(logs[i]);
+            self.public_inputs.end.encrypted_logs_hashes.storage[i].contract_address = mask_encrypted_log_hash(logs[i]);
         }
     }
 }

@@ -15,7 +15,7 @@ use dep::types::{
     log_hash::{LogHash, NoteLogHash, ScopedEncryptedLogHash, ScopedLogHash}
 },
     messaging::l2_to_l1_message::ScopedL2ToL1Message,
-    hash::{compute_tx_logs_hash, compute_tx_note_logs_hash, silo_encrypted_log_hash, silo_note_hash, silo_nullifier},
+    hash::{compute_tx_logs_hash, compute_tx_note_logs_hash, silo_note_hash, silo_nullifier, mask_encrypted_log_hash},
     traits::is_empty,
     utils::arrays::{assert_sorted_transformed_value_array, assert_sorted_array_with_order_hints}
 };
@@ -107,38 +107,33 @@ impl TailOutputValidator {
 
     fn validate_accumulated_values(self) {
         // note_encrypted_log_hashes
-        validate_value_transformation(
+        assert_sorted_array_with_order_hints(
             self.previous_kernel.end.note_encrypted_logs_hashes,
-            self.hints.note_encrypted_log_hashes,
-            |nlh: NoteLogHash, lh: LogHash| (nlh.value == lh.value) & (nlh.length == lh.length)
-        );
-
-        assert_sorted_transformed_value_array(
-            self.previous_kernel.end.note_encrypted_logs_hashes,
-            self.hints.note_encrypted_log_hashes,
             self.hints.sorted_note_encrypted_log_hashes,
             self.hints.sorted_note_encrypted_log_hash_hints
         );
 
-        let hash = compute_tx_note_logs_hash(self.hints.sorted_note_encrypted_log_hashes);
-        assert_eq(hash, self.output.end.note_encrypted_logs_hash, "mismatch note_encrypted_logs_hash");
+        assert_eq(
+            self.hints.sorted_note_encrypted_log_hashes.map(|log: NoteLogHash| log.expose_to_public()), self.output.end.note_encrypted_logs_hashes, "mismatch note_encrypted_logs_hashes"
+        );
 
         // encrypted_log_hashes
         validate_value_transformation(
             self.previous_kernel.end.encrypted_logs_hashes,
-            self.hints.siloed_encrypted_log_hashes,
-            |slh: ScopedEncryptedLogHash, lh: LogHash| (lh.value == silo_encrypted_log_hash(slh)) & (lh.length == slh.log_hash.length)
+            self.hints.masked_encrypted_log_hashes,
+            |lh: ScopedEncryptedLogHash, mlh: ScopedLogHash| 
+            (mlh.contract_address == mask_encrypted_log_hash(lh)) & 
+            (lh.log_hash.value == mlh.log_hash.value) & 
+            (lh.log_hash.length == mlh.log_hash.length) &
+            (mlh.log_hash.counter == 0)
         );
 
         assert_sorted_transformed_value_array(
             self.previous_kernel.end.encrypted_logs_hashes,
-            self.hints.siloed_encrypted_log_hashes,
-            self.hints.sorted_siloed_encrypted_log_hashes,
-            self.hints.sorted_encrypted_log_hash_hints
+            self.hints.masked_encrypted_log_hashes,
+            self.output.end.encrypted_logs_hashes,
+            self.hints.sorted_masked_encrypted_log_hash_hints
         );
-
-        let hash = compute_tx_logs_hash(self.hints.sorted_siloed_encrypted_log_hashes);
-        assert_eq(hash, self.output.end.encrypted_logs_hash, "mismatch encrypted_logs_hash");
 
         // unencrypted_log_hashes
         assert_sorted_array_with_order_hints(

@@ -13,7 +13,7 @@ use dep::types::{
     nullifier::Nullifier, public_call_request::PublicCallRequest
 },
     messaging::l2_to_l1_message::ScopedL2ToL1Message, address::AztecAddress,
-    hash::{silo_encrypted_log_hash, silo_note_hash, silo_nullifier},
+    hash::{silo_note_hash, silo_nullifier, mask_encrypted_log_hash},
     traits::{Empty, is_empty, is_empty_array},
     utils::arrays::{
     array_length, assert_split_sorted_transformed_value_arrays_asc,
@@ -157,13 +157,17 @@ impl TailToPublicOutputValidator {
         // encrypted_logs_hashes
         validate_value_transformation(
             prev_data.encrypted_logs_hashes,
-            hints.siloed_encrypted_logs_hashes,
-            |slh: ScopedEncryptedLogHash, lh: LogHash| (lh.value == silo_encrypted_log_hash(slh)) & (lh.length == slh.log_hash.length) & (lh.counter == 0)
+            hints.masked_encrypted_logs_hashes,
+            |lh: ScopedEncryptedLogHash, mlh: ScopedLogHash| 
+            (mlh.contract_address == mask_encrypted_log_hash(lh)) & 
+            (lh.log_hash.value == mlh.log_hash.value) & 
+            (lh.log_hash.length == mlh.log_hash.length) & 
+            (mlh.log_hash.counter == 0)
         );
 
         assert_split_sorted_transformed_value_arrays_asc(
             prev_data.encrypted_logs_hashes,
-            hints.siloed_encrypted_logs_hashes,
+            hints.masked_encrypted_logs_hashes,
             split_counter,
             output_non_revertible.encrypted_logs_hashes,
             output_revertible.encrypted_logs_hashes,

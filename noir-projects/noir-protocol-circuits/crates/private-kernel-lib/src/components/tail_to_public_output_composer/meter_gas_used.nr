@@ -28,7 +28,7 @@ fn meter_gas_used(data: PublicAccumulatedData) -> Gas {
     metered_da_bytes += note_encrypted_log_preimages_length as u32;
     metered_l2_gas += note_encrypted_log_preimages_length as u32 * L2_GAS_PER_LOG_BYTE;
 
-    let encrypted_log_preimages_length = data.encrypted_logs_hashes.fold(0, |len, l: LogHash| len + l.length);
+    let encrypted_log_preimages_length = data.encrypted_logs_hashes.fold(0, |len, l: ScopedLogHash| len + l.log_hash.length);
     metered_da_bytes += encrypted_log_preimages_length as u32;
     metered_l2_gas += encrypted_log_preimages_length as u32 * L2_GAS_PER_LOG_BYTE;
 
