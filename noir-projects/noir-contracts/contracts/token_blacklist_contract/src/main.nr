@@ -162,20 +162,19 @@ contract TokenBlacklist {
         let to_roles = storage.roles.at(to).get_current_value_in_private();
         assert(!to_roles.is_blacklisted, "Blacklisted: Recipient");
 
-        let pending_shields = storage.pending_shields;
         let secret_hash = compute_secret_hash(secret);
-        // Get 1 note (set_limit(1)) which has amount stored in field with index 0 (select(0, amount)) and secret_hash
-        // stored in field with index 1 (select(1, secret_hash)).
+
+        // Pop 1 note (set_limit(1)) which has an amount stored in a field with index 0 (select(0, amount)) and
+        // a secret_hash stored in a field with index 1 (select(1, secret_hash)).
         let mut options = NoteGetterOptions::new();
         options = options.select(TransparentNote::properties().amount, amount, Option::none()).select(
             TransparentNote::properties().secret_hash,
             secret_hash,
             Option::none()
         ).set_limit(1);
-        let notes = pending_shields.get_notes(options);
-        let note = notes.get(0);
-        // Remove the note from the pending shields set
-        pending_shields.remove(note);
+
+        let notes = storage.pending_shields.pop_notes(options);
+        assert(notes.len() == 1, "note not popped");
 
         // Add the token note to user's balances set
         let caller = context.msg_sender();

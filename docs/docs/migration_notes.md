@@ -19,6 +19,42 @@ The name of the canonical Gas contract has changed to Fee Juice. Update noir cod
 
 Additionally, `NativePaymentMethod` and `NativePaymentMethodWithClaim` have been renamed to `FeeJuicePaymentMethod` and `FeeJuicePaymentMethodWithClaim`.
 
+### PrivateSet::pop_notes(...)
+
+The most common flow when working with notes is obtaining them from a `PrivateSet` via `get_notes(...)` and then removing them via `PrivateSet::remove(...)`.
+This is cumbersome and it results in unnecessary constraints due to a redundant note read request checks in the remove function.
+
+For this reason we've implemented `pop_notes(...)` which gets the notes, removes them from the set and returns them.
+This tight coupling of getting notes and removing them allowed us to safely remove the redundant read request check.
+
+Token contract diff:
+
+```diff
+-let options = NoteGetterOptions::with_filter(filter_notes_min_sum, target_amount).set_limit(max_notes);
+-let notes = self.map.at(owner).get_notes(options);
+-let mut subtracted = U128::from_integer(0);
+-for i in 0..options.limit {
+-    if i < notes.len() {
+-        let note = notes.get_unchecked(i);
+-        self.map.at(owner).remove(note);
+-        subtracted = subtracted + note.get_amount();
+-    }
+-}
+-assert(minuend >= subtrahend, "Balance too low");
++let options = NoteGetterOptions::with_filter(filter_notes_min_sum, target_amount).set_limit(max_notes);
++let notes = self.map.at(owner).pop_notes(options);
++let mut subtracted = U128::from_integer(0);
++for i in 0..options.limit {
++    if i < notes.len() {
++        let note = notes.get_unchecked(i);
++        subtracted = subtracted + note.get_amount();
++    }
++}
++assert(minuend >= subtrahend, "Balance too low");
+```
+
+Note that `pop_notes` may not have obtained and removed any notes! The caller must place checks on the returned notes, e.g. in the example above by checking a sum of balances, or by checking the number of returned notes (`assert_eq(notes.len(), expected_num_notes)`).
+
 ## 0.47.0
 
 # [Aztec sandbox] TXE deployment changes

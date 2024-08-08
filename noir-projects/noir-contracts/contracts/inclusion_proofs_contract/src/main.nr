@@ -149,10 +149,8 @@ contract InclusionProofs {
         let private_values = storage.private_values.at(owner);
         let mut options = NoteGetterOptions::new();
         options = options.set_limit(1);
-        let notes = private_values.get_notes(options);
-        let note = notes.get(0);
-
-        private_values.remove(note);
+        let notes = private_values.pop_notes(options);
+        assert(notes.len() == 1, "note not popped");
     }
     // docs:end:nullify_note
 

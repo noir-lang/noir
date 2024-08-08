@@ -120,9 +120,9 @@ impl Deck<&mut PrivateContext> {
         inserted_cards
     }
 
-    pub fn get_cards<N>(&mut self, cards: [Card; N]) -> [CardNote; N] {
+    pub fn remove_cards<N>(&mut self, cards: [Card; N]) {
         let options = NoteGetterOptions::with_filter(filter_cards, cards);
-        let notes = self.set.get_notes(options);
+        let notes = self.set.pop_notes(options);
 
         // This array will hold the notes that correspond to each of the requested cards. It begins empty (with all the
         // options being none) and we gradually fill it up as we find the matching notes.
@@ -144,18 +144,8 @@ impl Deck<&mut PrivateContext> {
         }
 
         // And then we assert that we did indeed find all cards, since found_cards and cards have the same length.
-        found_cards.map(
-            |card_note: Option<CardNote>| {
-            assert(card_note.is_some(), "Card not found");
-            card_note.unwrap_unchecked()
-        }
-        )
-    }
-
-    pub fn remove_cards<N>(&mut self, cards: [Card; N]) {
-        let card_notes = self.get_cards(cards);
-        for card_note in card_notes {
-            self.set.remove(card_note.note);
+        for i in 0..found_cards.len() {
+            assert(found_cards[i].is_some(), "Card not found");
         }
     }
 }
