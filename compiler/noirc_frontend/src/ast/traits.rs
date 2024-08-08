@@ -10,6 +10,8 @@ use crate::ast::{
 use crate::macros_api::SecondaryAttribute;
 use crate::node_interner::TraitId;
 
+use super::GenericTypeArgs;
+
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
 #[derive(Clone, Debug)]
@@ -88,7 +90,7 @@ pub struct UnresolvedTraitConstraint {
 pub struct TraitBound {
     pub trait_path: Path,
     pub trait_id: Option<TraitId>, // initially None, gets assigned during DC
-    pub trait_generics: Vec<UnresolvedType>,
+    pub trait_generics: GenericTypeArgs,
 }
 
 #[derive(Clone, Debug)]

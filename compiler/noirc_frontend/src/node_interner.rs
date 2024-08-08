@@ -1609,7 +1609,7 @@ impl NodeInterner {
         if let Ok((TraitImplKind::Normal(existing), _)) = self.try_lookup_trait_implementation(
             &instantiated_object_type,
             trait_id,
-            &trait_generics,
+            trait_generics,
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();

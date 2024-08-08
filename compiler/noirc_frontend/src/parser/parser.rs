@@ -36,10 +36,10 @@ use super::{
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
-    BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
-    InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
-    Recoverable, Statement, TraitBound, TypeImpl, UnaryRhsMemberAccess, UnaryRhsMethodCall,
-    UseTree, UseTreeKind, Visibility,
+    BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
+    IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path,
+    Pattern, Recoverable, Statement, TraitBound, TypeImpl, UnaryRhsMemberAccess,
+    UnaryRhsMethodCall, UseTree, UseTreeKind, Visibility,
 };
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
@@ -319,7 +319,9 @@ fn self_parameter() -> impl NoirParser<Param> {
         .map(|(pattern_keyword, ident_span)| {
             let ident = Ident::new("self".to_string(), ident_span);
             let path = Path::from_single("Self".to_owned(), ident_span);
-            let mut self_type = UnresolvedTypeData::Named(path, vec![], true).with_span(ident_span);
+            let no_args = GenericTypeArgs::default();
+            let mut self_type =
+                UnresolvedTypeData::Named(path, no_args, true).with_span(ident_span);
             let mut pattern = Pattern::Identifier(ident);
 
             match pattern_keyword {

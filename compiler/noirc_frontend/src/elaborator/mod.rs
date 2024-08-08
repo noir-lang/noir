@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, UnresolvedTraitConstraint},
+    ast::{FunctionKind, GenericTypeArg, UnresolvedTraitConstraint},
     hir::{
         def_collector::dc_crate::{
             filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal, UnresolvedStruct,
@@ -18,7 +18,7 @@ use crate::{
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         function::{FunctionBody, Parameters},
-        traits::TraitConstraint,
+        traits::{TraitConstraint, TraitType},
         types::{Generics, Kind, ResolvedGeneric},
     },
     macros_api::{
@@ -40,7 +40,7 @@ use crate::{
         Context,
     },
     hir_def::function::{FuncMeta, HirFunction},
-    macros_api::{Param, Path, UnresolvedType, UnresolvedTypeData},
+    macros_api::{Param, Path, UnresolvedTypeData},
     node_interner::TraitImplId,
 };
 use crate::{
@@ -504,7 +504,7 @@ impl<'context> Elaborator<'context> {
     fn desugar_impl_trait_arg(
         &mut self,
         trait_path: Path,
-        trait_generics: Vec<UnresolvedType>,
+        trait_generics: Vec<GenericTypeArg>,
         generics: &mut Vec<TypeVariable>,
         trait_constraints: &mut Vec<TraitConstraint>,
     ) -> Type {
@@ -672,7 +672,7 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
 
         let resolved_generics = &the_trait.generics.clone();
-        assert_eq!(resolved_generics.len(), bound.trait_generics.len());
+
         let generics_with_types = resolved_generics.iter().zip(&bound.trait_generics);
         let trait_generics = vecmap(generics_with_types, |(generic, typ)| {
             self.resolve_type_inner(typ.clone(), &generic.kind)
@@ -696,7 +696,13 @@ impl<'context> Elaborator<'context> {
             });
         }
 
-        Some(TraitConstraint { typ, trait_id, trait_generics, span })
+        // Associated types can't be explicitly specified yet so they're all implicitly introduced
+        let associated_types = vecmap(&the_trait.associated_types, |typ| TraitType {
+            name: typ.name.clone(),
+            typ: self.interner.next_type_variable(),
+        });
+
+        Some(TraitConstraint { typ, trait_id, trait_generics, span, associated_types })
     }
 
     /// Extract metadata from a NoirFunction
@@ -1007,11 +1013,7 @@ impl<'context> Elaborator<'context> {
         if let Some(trait_id) = trait_impl.trait_id {
             self.generics = trait_impl.resolved_generics.clone();
 
-            let where_clause = trait_impl
-                .where_clause
-                .iter()
-                .flat_map(|item| self.resolve_trait_constraint(item))
-                .collect::<Vec<_>>();
+            let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause);
 
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 

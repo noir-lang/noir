@@ -87,11 +87,19 @@ pub struct TraitConstraint {
     pub trait_id: TraitId,
     pub trait_generics: Vec<Type>,
     pub span: Span,
+
+    pub associated_types: Vec<TraitType>,
 }
 
 impl TraitConstraint {
-    pub fn new(typ: Type, trait_id: TraitId, trait_generics: Vec<Type>, span: Span) -> Self {
-        Self { typ, trait_id, trait_generics, span }
+    pub fn new(
+        typ: Type,
+        trait_id: TraitId,
+        trait_generics: Vec<Type>,
+        span: Span,
+        associated_types: Vec<TraitType>,
+    ) -> Self {
+        Self { typ, trait_id, trait_generics, span, associated_types }
     }
 
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {

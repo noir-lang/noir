@@ -1,11 +1,12 @@
 use super::path::{as_trait_path, path_no_turbofish};
-use super::primitives::token_kind;
+use super::primitives::{ident, token_kind};
 use super::{
     expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
     ParserErrorReason, Precedence,
 };
 use crate::ast::{
-    Expression, Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Expression, GenericTypeArg, GenericTypeArgs, Recoverable, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression,
 };
 use crate::QuotedType;
 
@@ -207,25 +208,32 @@ pub(super) fn named_trait<'a>(
 
 pub(super) fn generic_type_args<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
+) -> impl NoirParser<GenericTypeArgs> + 'a {
     required_generic_type_args(type_parser).or_not().map(Option::unwrap_or_default)
 }
 
 pub(super) fn required_generic_type_args<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
+) -> impl NoirParser<GenericTypeArgs> + 'a {
+    let named_arg = ident()
+        .then_ignore(just(Token::Equal))
+        .then(type_parser.clone())
+        .map(|(name, typ)| GenericTypeArg::Named(name, typ));
+
     type_parser
-        .clone()
+        .map(GenericTypeArg::Ordered)
         // Without checking for a terminating ',' or '>' here we may incorrectly
         // parse a generic `N * 2` as just the type `N` then fail when there is no
         // separator afterward. Failing early here ensures we try the `type_expression`
         // parser afterward.
         .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(type_expression_validated())
+        .or(type_expression_validated().map(GenericTypeArg::Ordered))
+        .or(named_arg)
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)
         .delimited_by(just(Token::Less), just(Token::Greater))
+        .map(GenericTypeArgs::from)
 }
 
 pub(super) fn array_type<'a>(

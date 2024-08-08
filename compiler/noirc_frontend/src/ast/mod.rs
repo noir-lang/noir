@@ -112,10 +112,10 @@ pub enum UnresolvedTypeData {
     Parenthesized(Box<UnresolvedType>),
 
     /// A Named UnresolvedType can be a struct type or a type variable
-    Named(Path, Vec<UnresolvedType>, /*is_synthesized*/ bool),
+    Named(Path, GenericTypeArgs, /*is_synthesized*/ bool),
 
     /// A Trait as return type or parameter of function, including its generics
-    TraitAsType(Path, Vec<UnresolvedType>),
+    TraitAsType(Path, GenericTypeArgs),
 
     /// &mut T
     MutableReference(Box<UnresolvedType>),
@@ -154,6 +154,40 @@ pub struct UnresolvedType {
     pub span: Option<Span>,
 }
 
+/// An argument to a generic type or trait.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum GenericTypeArg {
+    /// An ordered argument, e.g. `<A, B, C>`
+    Ordered(UnresolvedType),
+
+    /// A named argument, e.g. `<A = B, C = D, E = F>`.
+    /// Used for associated types.
+    Named(Ident, UnresolvedType),
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]
+pub struct GenericTypeArgs {
+    /// Each ordered argument, e.g. `<A, B, C>`
+    pub ordered_args: Vec<UnresolvedType>,
+
+    /// All named arguments, e.g. `<A = B, C = D, E = F>`.
+    /// Used for associated types.
+    pub named_args: Vec<(Ident, UnresolvedType)>,
+}
+
+impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
+    fn from(args: Vec<GenericTypeArg>) -> Self {
+        let mut this = GenericTypeArgs::default();
+        for arg in args {
+            match arg {
+                GenericTypeArg::Ordered(typ) => this.ordered_args.push(typ),
+                GenericTypeArg::Named(name, typ) => this.named_args.push((name, typ)),
+            }
+        }
+        this
+    }
+}
+
 /// Type wrapper for a member access
 pub struct UnaryRhsMemberAccess {
     pub method_or_field: Ident,
@@ -187,6 +221,32 @@ impl Recoverable for UnresolvedType {
     }
 }
 
+impl std::fmt::Display for GenericTypeArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GenericTypeArg::Ordered(typ) => typ.fmt(f),
+            GenericTypeArg::Named(name, typ) => write!(f, "{name} = {typ}"),
+        }
+    }
+}
+
+impl std::fmt::Display for GenericTypeArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.ordered_args.is_empty() && self.named_args.is_empty() {
+            Ok(())
+        } else {
+            let mut args = vecmap(&self.ordered_args, ToString::to_string).join(", ");
+
+            if !self.ordered_args.is_empty() && !self.named_args.is_empty() {
+                args += ", ";
+            }
+
+            args += &vecmap(&self.named_args, |(name, typ)| format!("{name} = {typ}")).join(", ");
+            write!(f, "<{args}>")
+        }
+    }
+}
+
 impl std::fmt::Display for UnresolvedTypeData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use UnresolvedTypeData::*;
@@ -198,22 +258,8 @@ impl std::fmt::Display for UnresolvedTypeData {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
-            Named(s, args, _) => {
-                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
-                if args.is_empty() {
-                    write!(f, "{s}")
-                } else {
-                    write!(f, "{}<{}>", s, args.join(", "))
-                }
-            }
-            TraitAsType(s, args) => {
-                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
-                if args.is_empty() {
-                    write!(f, "impl {s}")
-                } else {
-                    write!(f, "impl {}<{}>", s, args.join(", "))
-                }
-            }
+            Named(s, args, _) => write!(f, "{s}{args}"),
+            TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))

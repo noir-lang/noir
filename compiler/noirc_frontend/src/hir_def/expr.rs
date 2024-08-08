@@ -226,6 +226,7 @@ impl HirMethodCallExpression {
                     typ: object_type,
                     trait_id: method_id.trait_id,
                     trait_generics: generics.clone(),
+                    associated_types: Vec::new(),
                     span: location.span,
                 };
                 (id, ImplKind::TraitMethod(*method_id, constraint, false))
