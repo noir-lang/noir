@@ -970,40 +970,74 @@ fn aes128_encrypt_op(
     BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
 }
 
-// SchnorrVerify {
-//     public_key_x: FunctionInput<F>,
-//     public_key_y: FunctionInput<F>,
-//     #[serde(
-//         serialize_with = "serialize_big_array",
-//         deserialize_with = "deserialize_big_array_into_box"
-//     )]
-//     signature: Box<[FunctionInput<F>; 64]>,
-//     message: Vec<FunctionInput<F>>,
-//     output: Witness,
-// },
-// EcdsaSecp256k1 {
-//     public_key_x: Box<[FunctionInput<F>; 32]>,
-//     public_key_y: Box<[FunctionInput<F>; 32]>,
-//     #[serde(
-//         serialize_with = "serialize_big_array",
-//         deserialize_with = "deserialize_big_array_into_box"
-//     )]
-//     signature: Box<[FunctionInput<F>; 64]>,
-//     hashed_message: Box<[FunctionInput<F>; 32]>,
-//     output: Witness,
-// },
-// EcdsaSecp256r1 {
-//     public_key_x: Box<[FunctionInput<F>; 32]>,
-//     public_key_y: Box<[FunctionInput<F>; 32]>,
-//     #[serde(
-//         serialize_with = "serialize_big_array",
-//         deserialize_with = "deserialize_big_array_into_box"
-//     )]
-//     signature: Box<[FunctionInput<F>; 64]>,
-//     hashed_message: Box<[FunctionInput<F>; 32]>,
-//     output: Witness,
-// },
 
+// 66 + N inputs
+// 1 output
+fn schnorr_verify_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let mut function_inputs = function_inputs.into_iter();
+
+    let public_key_x = function_inputs.next().unwrap();
+    let public_key_y = function_inputs.next().unwrap();
+    let signature = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    let message = function_inputs.collect();
+    assert_eq!(outputs.len(), 1);
+    BlackBoxFuncCall::SchnorrVerify {
+        public_key_x,
+        public_key_y,
+        signature,
+        message,
+        output: outputs[0],
+    }
+}
+
+// 160 inputs
+// 1 output
+fn ecdsa_secp256k1_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let mut function_inputs = function_inputs.into_iter();
+    let public_key_x = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    let public_key_y = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    let signature = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    let hashed_message = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    assert_eq!(function_inputs.next(), None);
+    assert_eq!(outputs.len(), 1);
+    BlackBoxFuncCall::EcdsaSecp256k1 {
+        public_key_x,
+        public_key_y,
+        signature,
+        hashed_message,
+        output: outputs[0],
+    }
+}
+
+// 160 inputs
+// 1 output
+fn ecdsa_secp256r1_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let mut function_inputs = function_inputs.into_iter();
+    let public_key_x = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    let public_key_y = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    let signature = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    let hashed_message = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
+    assert_eq!(function_inputs.next(), None);
+    assert_eq!(outputs.len(), 1);
+    BlackBoxFuncCall::EcdsaSecp256r1 {
+        public_key_x,
+        public_key_y,
+        signature,
+        hashed_message,
+        output: outputs[0],
+    }
+}
+
+// TODO
 // RANGE {
 //     input: FunctionInput<F>,
 // },
@@ -1338,6 +1372,48 @@ fn aes128_zeros() {
     assert_eq!(results, expected_results);
 }
 
+#[test]
+fn schnorr_verify_zeros() {
+    let results = solve_array_input_blackbox_call(
+        [(FieldElement::zero(), false); 66].into(),
+        1,
+        schnorr_verify_op,
+    );
+    let expected_results: Vec<_> = vec![0]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+#[test]
+fn ecdsa_secp256k1_zeros() {
+    let results = solve_array_input_blackbox_call(
+        [(FieldElement::zero(), false); 160].into(),
+        1,
+        ecdsa_secp256k1_op,
+    );
+    let expected_results: Vec<_> = vec![0]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+#[test]
+fn ecdsa_secp256r1_zeros() {
+    let results = solve_array_input_blackbox_call(
+        [(FieldElement::zero(), false); 160].into(),
+        1,
+        ecdsa_secp256r1_op,
+    );
+    let expected_results: Vec<_> = vec![0]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
 proptest! {
 
     #[test]
@@ -1471,8 +1547,8 @@ proptest! {
 
     // TODO(https://github.com/noir-lang/noir/issues/5699): wrong failure message
     #[test]
-    // #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 6 != 7\"))")]
-    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 7, 7)) {
+    #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 6 != 7\"))")]
+    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 6, 6)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, poseidon2_permutation_invalid_len_op);
         prop_assert!(result, "{}", message);
