@@ -1,7 +1,0 @@
-[package]
-name = "brillig_debug_metadata"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.32.0"
-
-[dependencies]

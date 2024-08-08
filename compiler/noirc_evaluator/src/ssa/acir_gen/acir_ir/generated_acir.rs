@@ -583,6 +583,10 @@ impl<F: AcirField> GeneratedAcir<F> {
         if let Some(stdlib_func) = stdlib_func {
             self.brillig_stdlib_func_locations
                 .insert(self.last_acir_opcode_location(), stdlib_func);
+            // The Brillig stdlib functions are handwritten and do not have any locations or assert messages.
+            // To avoid inserting the `PLACEHOLDER_BRILLIG_INDEX` into `self.brillig_locations` before the first
+            // user-specified Brillig call we can simply return after the Brillig stdlib function call.
+            return;
         }
 
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
