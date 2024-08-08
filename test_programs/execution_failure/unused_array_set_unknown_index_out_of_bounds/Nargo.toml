@@ -1,5 +1,5 @@
 [package]
-name = "slice_get_unknown_index_out_of_bounds"
+name = "unused_array_set_unknown_index_out_of_bounds"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.31.0"
