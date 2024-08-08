@@ -176,14 +176,7 @@ impl<'a> NodeFinder<'a> {
         let module_data = def_map.modules().get(module_id.local_id.0)?;
         let mut completion_items = Vec::new();
 
-        // module_data.value_definitions()
-
-        // Find in the target module types and values
-        let type_idents = module_data.children.keys();
-        let value_idents = module_data.value_idents();
-        let all_idents = type_idents.chain(value_idents);
-
-        for ident in all_idents {
+        for ident in module_data.scope().names() {
             let name = &ident.0.contents;
 
             if name_matches(name, &prefix) {
