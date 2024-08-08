@@ -129,7 +129,6 @@ fn extract_locations_from_error<F: AcirField>(
         _ => None,
     }?;
 
-    // dbg!(opcode_locations.clone());
     // Insert the top-level Acir location where the Brillig function failed
     for (i, resolved_location) in opcode_locations.iter().enumerate() {
         if let ResolvedOpcodeLocation {

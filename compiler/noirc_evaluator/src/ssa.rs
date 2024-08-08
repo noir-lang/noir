@@ -269,7 +269,7 @@ fn convert_generated_acir_into_circuit(
         name,
         ..
     } = generated_acir;
-    dbg!(locations.len());
+
     let (public_parameter_witnesses, private_parameters) =
         split_public_and_private_inputs(&func_sig, &input_witnesses);
 
