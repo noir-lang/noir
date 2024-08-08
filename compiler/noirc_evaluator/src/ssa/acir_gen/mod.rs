@@ -2875,6 +2875,7 @@ mod test {
         } else {
             builder.new_brillig_function("foo".into(), foo_id);
         }
+        // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
         builder.set_call_stack(vector![Location::dummy(), Location::dummy()]);
 
         let foo_v0 = builder.add_parameter(Type::field());
