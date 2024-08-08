@@ -4,14 +4,14 @@ struct Foo<T> {
     x: T
 }
 
-trait SomeTrait {
+trait SomeTrait<T> {
 
 }
 struct StructImplementsSomeTrait {
 
 }
 
-impl SomeTrait for StructImplementsSomeTrait {
+impl SomeTrait<i32> for StructImplementsSomeTrait {
 
 }
 
@@ -98,10 +98,15 @@ fn main() {
         assert_eq(generics.len(), 1);
         assert_eq(generics[0], field_type_1);
 
-        let some_trait = quote { SomeTrait }.as_trait_constraint();
+        // Check Type::implements
+        let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
         let struct_implements_some_trait = quote { StructImplementsSomeTrait }.as_type();
         let struct_does_not_implement_some_trait = quote { StructDoesNotImplementSomeTrait }.as_type();
-        assert(struct_implements_some_trait.implements(some_trait));
-        assert(!struct_does_not_implement_some_trait.implements(some_trait));
+        assert(struct_implements_some_trait.implements(some_trait_i32));
+        assert(!struct_does_not_implement_some_trait.implements(some_trait_i32));
+
+        let some_trait_field = quote { SomeTrait<Field> }.as_trait_constraint();
+        assert(!struct_implements_some_trait.implements(some_trait_field));
+        assert(!struct_does_not_implement_some_trait.implements(some_trait_field));
     }
 }
