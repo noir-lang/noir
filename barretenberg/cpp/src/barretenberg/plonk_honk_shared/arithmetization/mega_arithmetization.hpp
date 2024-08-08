@@ -56,7 +56,7 @@ template <typename FF_> class MegaArith {
             this->lookup = FIXED_SIZE;
             this->busread = FIXED_SIZE;
             this->poseidon_external = FIXED_SIZE;
-            this->poseidon_internal = FIXED_SIZE;
+            this->poseidon_internal = 1 << 15;
         }
     };
 

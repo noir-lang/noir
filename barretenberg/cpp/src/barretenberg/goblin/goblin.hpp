@@ -40,8 +40,10 @@ class GoblinProver {
     using TranslatorProver = bb::TranslatorProver;
     using TranslatorProvingKey = bb::TranslatorFlavor::ProvingKey;
     using RecursiveMergeVerifier = bb::stdlib::recursion::goblin::MergeRecursiveVerifier_<MegaCircuitBuilder>;
+    using PairingPoints = RecursiveMergeVerifier::PairingPoints;
     using MergeProver = bb::MergeProver_<MegaFlavor>;
     using VerificationKey = MegaFlavor::VerificationKey;
+    using MergeProof = std::vector<FF>;
     /**
      * @brief Output of goblin::accumulate; an Ultra proof and the corresponding verification key
      *
@@ -49,7 +51,7 @@ class GoblinProver {
 
     std::shared_ptr<OpQueue> op_queue = std::make_shared<OpQueue>();
 
-    HonkProof merge_proof;
+    MergeProof merge_proof;
     GoblinProof goblin_proof;
 
     // on the first call to accumulate there is no merge proof to verify
@@ -115,13 +117,36 @@ class GoblinProver {
      */
     void merge(MegaCircuitBuilder& circuit_builder)
     {
-        BB_OP_COUNT_TIME_NAME("Goblin::merge");
-        // Complete the circuit logic by recursively verifying previous merge proof if it exists
+        // Append a recursive merge verification of the merge proof
         if (merge_proof_exists) {
-            RecursiveMergeVerifier merge_verifier{ &circuit_builder };
-            [[maybe_unused]] auto pairing_points = merge_verifier.verify_proof(merge_proof);
+            [[maybe_unused]] auto pairing_points = verify_merge(circuit_builder, merge_proof);
         }
 
+        // Construct a merge proof for the present circuit
+        merge_proof = prove_merge(circuit_builder);
+    };
+
+    /**
+     * @brief Append recursive verification of a merge proof to a provided circuit
+     *
+     * @param circuit_builder
+     * @return PairingPoints
+     */
+    PairingPoints verify_merge(MegaCircuitBuilder& circuit_builder, MergeProof& proof) const
+    {
+        BB_OP_COUNT_TIME_NAME("Goblin::merge");
+        RecursiveMergeVerifier merge_verifier{ &circuit_builder };
+        return merge_verifier.verify_proof(proof);
+    };
+
+    /**
+     * @brief Construct a merge proof for the goblin ECC ops in the provided circuit
+     *
+     * @param circuit_builder
+     */
+    MergeProof prove_merge(MegaCircuitBuilder& circuit_builder)
+    {
+        BB_OP_COUNT_TIME_NAME("Goblin::merge");
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/993): Some circuits (particularly on the first call
         // to accumulate) may not have any goblin ecc ops prior to the call to merge(), so the commitment to the new
         // contribution (C_t_shift) in the merge prover will be the point at infinity. (Note: Some dummy ops are added
@@ -131,13 +156,12 @@ class GoblinProver {
             MockCircuits::construct_goblin_ecc_op_circuit(circuit_builder); // Add some arbitrary goblin ECC ops
         }
 
-        // Construct and store the merge proof to be recursively verified on the next call to accumulate
-        MergeProver merge_prover{ circuit_builder.op_queue };
-        merge_proof = merge_prover.construct_proof();
-
         if (!merge_proof_exists) {
             merge_proof_exists = true;
         }
+
+        MergeProver merge_prover{ circuit_builder.op_queue };
+        return merge_prover.construct_proof();
     };
 
     /**
@@ -171,9 +195,9 @@ class GoblinProver {
      *
      * @return Proof
      */
-    GoblinProof prove()
+    GoblinProof prove(MergeProof merge_proof_in = {})
     {
-        goblin_proof.merge_proof = std::move(merge_proof);
+        goblin_proof.merge_proof = merge_proof_in.empty() ? std::move(merge_proof) : std::move(merge_proof_in);
         prove_eccvm();
         prove_translator();
         return goblin_proof;

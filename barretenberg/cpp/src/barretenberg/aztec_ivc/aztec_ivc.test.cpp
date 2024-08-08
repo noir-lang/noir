@@ -32,8 +32,10 @@ class AztecIVCTests : public ::testing::Test {
 
     /**
      * @brief Construct mock circuit with arithmetic gates and goblin ops
-     * @details Currently default sized to 2^16 to match kernel. (Note: dummy op gates added to avoid non-zero
-     * polynomials will bump size to next power of 2)
+     * @details Defaulted to add 2^16 gates (which will bump to next power of two with the addition of dummy gates).
+     * The size of the baseline circuit needs to be ~2x the number of gates appended to the kernel circuits via
+     * recursive verifications (currently ~60k) to ensure that the circuits being folded are equal in size. (This is
+     * only necessary if the structured trace is not in use).
      *
      */
     static Builder create_mock_circuit(AztecIVC& ivc, size_t log2_num_gates = 16)
@@ -88,10 +90,8 @@ TEST_F(AztecIVCTests, Basic)
 
 /**
  * @brief Check that the IVC fails to verify if an intermediate fold proof is invalid
- * @details When accumulating 4 circuits, there are 3 fold proofs to verify (the first two are recursively verfied
- and
- * the 3rd is verified as part of the IVC proof). Check that if any of one of these proofs is invalid, the IVC will
- fail
+ * @details When accumulating 4 circuits, there are 3 fold proofs to verify (the first two are recursively verfied and
+ * the 3rd is verified as part of the IVC proof). Check that if any of one of these proofs is invalid, the IVC will fail
  * to verify.
  *
  */
@@ -192,8 +192,6 @@ TEST_F(AztecIVCTests, BasicLarge)
     for (auto& circuit : circuits) {
         ivc.accumulate(circuit);
     }
-
-    info(ivc.goblin.op_queue->get_current_size());
 
     EXPECT_TRUE(ivc.prove_and_verify());
 };
