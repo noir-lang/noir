@@ -38,8 +38,12 @@ impl ModuleData {
         }
     }
 
-    pub fn scope(&self) -> &ItemScope {
+    pub(crate) fn scope(&self) -> &ItemScope {
         &self.scope
+    }
+
+    pub fn definitions(&self) -> &ItemScope {
+        &self.definitions
     }
 
     fn declare(

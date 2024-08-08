@@ -176,7 +176,7 @@ impl<'a> NodeFinder<'a> {
         let module_data = def_map.modules().get(module_id.local_id.0)?;
         let mut completion_items = Vec::new();
 
-        for ident in module_data.scope().names() {
+        for ident in module_data.definitions().names() {
             let name = &ident.0.contents;
 
             if name_matches(name, &prefix) {
