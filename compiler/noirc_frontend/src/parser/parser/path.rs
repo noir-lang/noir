@@ -19,7 +19,14 @@ pub fn path_no_turbofish() -> impl NoirParser<Path> {
 }
 
 fn path_inner<'a>(segment: impl NoirParser<PathSegment> + 'a) -> impl NoirParser<Path> + 'a {
-    let segments = segment.separated_by(just(Token::DoubleColon)).at_least(1);
+    let segments = segment
+        .separated_by(just(Token::DoubleColon))
+        .at_least(1)
+        .then(just(Token::DoubleColon).then_ignore(none_of(Token::LeftBrace).rewind()).or_not())
+        .map(|(path_segments, _trailing_colons)| {
+            // TODO: give an error if there are trailing colons
+            path_segments
+        });
     let make_path = |kind| move |segments, span| Path { segments, kind, span };
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
@@ -92,4 +99,13 @@ mod test {
             vec!["crate", "crate::std::crate", "foo::bar::crate", "foo::dep"],
         );
     }
+
+    // TODO
+    // #[test]
+    // fn parse_path_with_trailing_colons() {
+    //     let src = "foo::bar::";
+
+    //     let x = parse_with(path_no_turbofish(), src);
+    //     dbg!(x);
+    // }
 }
