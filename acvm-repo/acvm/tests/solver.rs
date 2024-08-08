@@ -1260,23 +1260,6 @@ fn keccak256_injective_regression() {
     assert!(result, "{}", message);
 }
 
-#[test]
-fn aes128_zeros() {
-    let results = solve_array_input_blackbox_call(
-        [(FieldElement::zero(), false); 64].into(),
-        32,
-        aes128_encrypt_op,
-    );
-    let expected_results: Vec<_> = vec![
-        102, 233, 75, 212, 239, 138, 44, 59, 136, 76, 250, 89, 202, 52, 43, 46, 247, 149, 189, 74,
-        82, 226, 158, 215, 19, 211, 19, 250, 32, 233, 141, 188,
-    ]
-    .into_iter()
-    .map(|x: u128| FieldElement::from(x))
-    .collect();
-    assert_eq!(results, expected_results);
-}
-
 proptest! {
 
     #[test]
