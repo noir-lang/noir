@@ -4,6 +4,21 @@ struct Foo<T> {
     x: T
 }
 
+trait SomeTrait {
+
+}
+struct StructImplementsSomeTrait {
+
+}
+
+impl SomeTrait for StructImplementsSomeTrait {
+
+}
+
+struct StructDoesNotImplementSomeTrait {
+
+}
+
 fn main() {
     comptime
     {
@@ -82,5 +97,11 @@ fn main() {
 
         assert_eq(generics.len(), 1);
         assert_eq(generics[0], field_type_1);
+
+        let some_trait = quote { SomeTrait }.as_trait_constraint();
+        let struct_implements_some_trait = quote { StructImplementsSomeTrait }.as_type();
+        let struct_does_not_implement_some_trait = quote { StructDoesNotImplementSomeTrait }.as_type();
+        assert(struct_implements_some_trait.implements(some_trait));
+        assert(!struct_does_not_implement_some_trait.implements(some_trait));
     }
 }
