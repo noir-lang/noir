@@ -20,7 +20,7 @@ use noirc_frontend::{
     macros_api::{ModuleDefId, NodeInterner, StructId},
     node_interner::{FuncId, GlobalId, TraitId, TypeAliasId},
     parser::{Item, ItemKind},
-    ParsedModule,
+    ParsedModule, Type,
 };
 
 use crate::{utils, LspState};
@@ -225,7 +225,11 @@ impl<'a> NodeFinder<'a> {
 
     fn function_completion_item(&self, func_id: FuncId) -> CompletionItem {
         let name = self.interner.function_name(&func_id).to_string();
-        let description = self.interner.function_meta(&func_id).typ.to_string();
+        let mut typ = &self.interner.function_meta(&func_id).typ;
+        if let Type::Forall(_, typ_) = typ {
+            typ = typ_;
+        }
+        let description = typ.to_string();
 
         simple_completion_item(name, CompletionItemKind::FUNCTION, Some(description))
     }
