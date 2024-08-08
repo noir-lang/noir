@@ -179,76 +179,13 @@ impl Context {
 
             // If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type.
             if let Instruction::ArrayGet { array, .. } = instruction {
-                if let Some(array_length) = function.dfg.try_get_array_length(*array) {
-                    let flattened_size = function.dfg.type_of_value(*array).flattened_size();
-                    let element_size = flattened_size / array_length;
-                    if element_size > 1 {
-                        // It's a composite type.
-                        // When doing ArrayGet on a composite type, this **always** results in instructions like these
-                        // (assuming element_size == 3):
-                        //
-                        // 1.    v27 = array_get v1, index v26
-                        // 2.    v28 = add v26, u32 1
-                        // 3.    v29 = array_get v1, index v28
-                        // 4.    v30 = add v26, u32 2
-                        // 5.    v31 = array_get v1, index v30
-                        //
-                        // That means that after this instructions, (element_size - 1) instructions will be
-                        // part of this composite array get, and they'll be two instructions apart.
-                        //
-                        // Now three things can happen:
-                        // a) none of the array_get instructions are unused: in this case they won't be in
-                        //    `possible_index_out_of_bounds_indexes` and they won't be removed, nothing to do here
-                        // b) all of the array_get instructions are unused: in this case we can replace **all**
-                        //    of them with just one constrain: no need to do one per array_get
-                        // c) some of the array_get instructions are unused, but not all: in this case
-                        //    we don't need to insert any constrain, because on a later stage array bound checks
-                        //    will be performed anyway. We'll let DIE remove the unused ones, without replacing
-                        //    them with bounds checks, and leave the used ones.
-                        //
-                        // To check in which scenario we are we can get from `possible_index_out_of_bounds_indexes`
-                        // (starting from `next_out_of_bounds_index`) while we are in the group ranges
-                        // (1..=5 in the example above)
-
-                        if let Some(out_of_bounds_index) = next_out_of_bounds_index {
-                            if index == out_of_bounds_index {
-                                // What's the last instruction that's part of the group? (5 in the example above)
-                                let last_instruction_index = index + 2 * (element_size - 1);
-                                // How many unused instructions are in this group?
-                                let mut unused_count = 1;
-                                loop {
-                                    next_out_of_bounds_index =
-                                        possible_index_out_of_bounds_indexes.pop();
-                                    if let Some(out_of_bounds_index) = next_out_of_bounds_index {
-                                        if out_of_bounds_index <= last_instruction_index {
-                                            unused_count += 1;
-                                            if unused_count == element_size {
-                                                // We are in case b): we need to insert just one constrain.
-                                                // Since we popped all of the group indexes, and given that we
-                                                // are analyzing the first instruction in the group, we can
-                                                // set `next_out_of_bounds_index` to the current index:
-                                                // then a check will be inserted, and no other checkk will be
-                                                // inserted for the rest of the group.
-                                                next_out_of_bounds_index = Some(index);
-                                                break;
-                                            } else {
-                                                continue;
-                                            }
-                                        }
-                                    }
-
-                                    // We are in case c): some of the instructions are unused.
-                                    // We don't need to insert any checks, and given that we already popped
-                                    // all of the indexes in the group, there's nothing else to do here.
-                                    break;
-                                }
-                            }
-                        }
-
-                        // else (for any of the if's above): the next index is not the one for the current instructions,
-                        // so we are in case a), and nothing needs to be done here.
-                    }
-                }
+                handle_array_get_group(
+                    function,
+                    array,
+                    index,
+                    &mut next_out_of_bounds_index,
+                    possible_index_out_of_bounds_indexes,
+                );
             }
 
             let Some(out_of_bounds_index) = next_out_of_bounds_index else {
@@ -424,6 +361,94 @@ fn instruction_might_result_in_out_of_bounds(
             }
         }
         _ => false,
+    }
+}
+
+fn handle_array_get_group(
+    function: &Function,
+    array: &ValueId,
+    index: usize,
+    next_out_of_bounds_index: &mut Option<usize>,
+    possible_index_out_of_bounds_indexes: &mut Vec<usize>,
+) {
+    let Some(array_length) = function.dfg.try_get_array_length(*array) else {
+        // Nothing to do for slices
+        return;
+    };
+
+    let flattened_size = function.dfg.type_of_value(*array).flattened_size();
+    let element_size = flattened_size / array_length;
+    if element_size <= 1 {
+        // Not a composite type
+        return;
+    };
+
+    // It's a composite type.
+    // When doing ArrayGet on a composite type, this **always** results in instructions like these
+    // (assuming element_size == 3):
+    //
+    // 1.    v27 = array_get v1, index v26
+    // 2.    v28 = add v26, u32 1
+    // 3.    v29 = array_get v1, index v28
+    // 4.    v30 = add v26, u32 2
+    // 5.    v31 = array_get v1, index v30
+    //
+    // That means that after this instructions, (element_size - 1) instructions will be
+    // part of this composite array get, and they'll be two instructions apart.
+    //
+    // Now three things can happen:
+    // a) none of the array_get instructions are unused: in this case they won't be in
+    //    `possible_index_out_of_bounds_indexes` and they won't be removed, nothing to do here
+    // b) all of the array_get instructions are unused: in this case we can replace **all**
+    //    of them with just one constrain: no need to do one per array_get
+    // c) some of the array_get instructions are unused, but not all: in this case
+    //    we don't need to insert any constrain, because on a later stage array bound checks
+    //    will be performed anyway. We'll let DIE remove the unused ones, without replacing
+    //    them with bounds checks, and leave the used ones.
+    //
+    // To check in which scenario we are we can get from `possible_index_out_of_bounds_indexes`
+    // (starting from `next_out_of_bounds_index`) while we are in the group ranges
+    // (1..=5 in the example above)
+
+    let Some(out_of_bounds_index) = *next_out_of_bounds_index else {
+        // No next unused instruction, so this is case a) and nothing needs to be done here
+        return;
+    };
+
+    if index != out_of_bounds_index {
+        // The next index is not the one for the current instructions,
+        // so we are in case a), and nothing needs to be done here
+        return;
+    }
+
+    // What's the last instruction that's part of the group? (5 in the example above)
+    let last_instruction_index = index + 2 * (element_size - 1);
+    // How many unused instructions are in this group?
+    let mut unused_count = 1;
+    loop {
+        *next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
+        if let Some(out_of_bounds_index) = *next_out_of_bounds_index {
+            if out_of_bounds_index <= last_instruction_index {
+                unused_count += 1;
+                if unused_count == element_size {
+                    // We are in case b): we need to insert just one constrain.
+                    // Since we popped all of the group indexes, and given that we
+                    // are analyzing the first instruction in the group, we can
+                    // set `next_out_of_bounds_index` to the current index:
+                    // then a check will be inserted, and no other checkk will be
+                    // inserted for the rest of the group.
+                    *next_out_of_bounds_index = Some(index);
+                    break;
+                } else {
+                    continue;
+                }
+            }
+        }
+
+        // We are in case c): some of the instructions are unused.
+        // We don't need to insert any checks, and given that we already popped
+        // all of the indexes in the group, there's nothing else to do here.
+        break;
     }
 }
 
