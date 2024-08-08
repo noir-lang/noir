@@ -11,12 +11,6 @@
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
-        "target": {
-          "limit": 100,
-          "matchAny": false,
-          "tags": [],
-          "type": "dashboard"
-        },
         "type": "dashboard"
       }
     ]
@@ -24,9 +18,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 4,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -36,9 +29,9 @@
         "x": 0,
         "y": 0
       },
-      "id": 1,
+      "id": 2,
       "panels": [],
-      "title": "Node",
+      "title": "Node system resources",
       "type": "row"
     },
     {
@@ -46,154 +39,6 @@
         "type": "prometheus",
         "uid": "-qqguYXIk"
       },
-      "description": "Percentage of total CPU bused",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "fieldMinMax": false,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 0,
-        "y": 1
-      },
-      "id": 4,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "sum by(exported_job) (system_cpu_utilization{system_cpu_state=\"user\", exported_job=\"$node\"}) / count by(exported_job) (system_cpu_utilization{system_cpu_state=\"user\", exported_job=\"$node\"})",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "CPU utilization",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "description": "Percentage of total system memory being used",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 6,
-        "y": 1
-      },
-      "id": 8,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "system_memory_utilization{exported_job=\"$node\", system_memory_state=\"used\"}",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Memory utilization",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -232,6 +77,8 @@
             }
           },
           "mappings": [],
+          "max": 1,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -245,17 +92,17 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "percentunit"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 1
       },
-      "id": 10,
+      "id": 1,
       "options": {
         "legend": {
           "calcs": [],
@@ -272,21 +119,21 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "-qqguyxik"
           },
           "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "increase(system_network_io_total{exported_job=\"$node\"}[$__rate_interval])",
+          "editorMode": "code",
+          "expr": "1 - avg by(exported_job, exported_instance) (system_cpu_utilization{system_cpu_state=\"idle\", exported_instance=~\"$instance\"})",
           "fullMetaSearch": false,
-          "includeNullMetadata": false,
+          "includeNullMetadata": true,
           "instant": false,
-          "legendFormat": "{{exported_job}} - {{network_io_direction}}",
+          "legendFormat": "{{exported_job}}-{{exported_instance}}",
           "range": true,
           "refId": "A",
           "useBackend": false
         }
       ],
-      "title": "Network IO",
+      "title": "CPU utilization",
       "type": "timeseries"
     },
     {
@@ -294,109 +141,115 @@
         "type": "prometheus",
         "uid": "-qqguYXIk"
       },
-      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
-          "decimals": 0,
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "mappings": [],
+          "max": 1,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
-          "unit": "none"
+          "unit": "percentunit"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "false"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Rejected"
-              },
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "true"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Accepted"
-              },
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 0,
-        "y": 9
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 1
       },
-      "id": 14,
+      "id": 3,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["sum"],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "pluginVersion": "11.1.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "-qqguyxik"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "rate(aztec_node_receive_tx_count{exported_job=\"$node\"}[$__rate_interval])",
+          "expr": "avg by(exported_job, exported_instance) (system_memory_utilization{exported_instance=~\"$instance\", system_memory_state=\"used\"})",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
-          "legendFormat": "{{aztec_ok}}",
+          "legendFormat": "{{exported_job}}-{{exported_instance}}",
           "range": true,
           "refId": "A",
           "useBackend": false
         }
       ],
-      "title": "Transactions",
-      "type": "stat"
+      "title": "Memory utilization",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 4,
+      "panels": [],
+      "title": "L2 network status",
+      "type": "row"
     },
     {
       "datasource": {
@@ -410,7 +263,7 @@
           },
           "mappings": [],
           "thresholds": {
-            "mode": "percentage",
+            "mode": "absolute",
             "steps": [
               {
                 "color": "green",
@@ -424,14 +277,14 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 6,
-        "x": 6,
-        "y": 9
+        "w": 5,
+        "x": 0,
+        "y": 12
       },
-      "id": 120,
+      "id": 5,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -449,11 +302,11 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "-qqguyxik"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "aztec_mempool_tx_count{exported_job=\"$node\"}",
+          "expr": "max(aztec_archiver_block_height{exported_instance=~\"$instance\"})",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -463,7 +316,95 @@
           "useBackend": false
         }
       ],
-      "title": "Tx in mempool",
+      "title": "Last block number",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "fieldMinMax": false,
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 5,
+        "y": 12
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "last_over_time(aztec_archiver_block_size{exported_instance=~\"$instance\"}[$__interval])",
+          "fullMetaSearch": false,
+          "includeNullMetadata": false,
+          "instant": false,
+          "legendFormat": "Last block size",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "avg (aztec_archiver_block_size)",
+          "fullMetaSearch": false,
+          "hide": true,
+          "includeNullMetadata": false,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B",
+          "useBackend": false
+        }
+      ],
+      "title": "Block size",
       "type": "stat"
     },
     {
@@ -499,7 +440,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": true,
+            "spanNulls": false,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -528,11 +469,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 9
+        "w": 13,
+        "x": 11,
+        "y": 12
       },
-      "id": 15,
+      "id": 23,
       "options": {
         "legend": {
           "calcs": [],
@@ -549,155 +490,23 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "-qqguyxik"
           },
           "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "rate(aztec_node_receive_tx_duration_milliseconds_sum{exported_job=\"$node\"}[$__rate_interval]) / on(aztec_ok) rate(aztec_node_receive_tx_duration_milliseconds_count{exported_job=\"$node\"}[$__rate_interval])",
-          "fullMetaSearch": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "AVG",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(aztec_node_receive_tx_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "95th Perc",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.5, sum by(le) (rate(aztec_node_receive_tx_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "50th Perc",
-          "range": true,
-          "refId": "C",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(1, sum by(le) (rate(aztec_node_receive_tx_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "MAX",
-          "range": true,
-          "refId": "D",
-          "useBackend": false
-        }
-      ],
-      "title": "Tx process time",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 17
-      },
-      "id": 2,
-      "panels": [],
-      "title": "Sequencer",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "description": "Total blocks produced and accepted by the rollup",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 0,
-        "y": 18
-      },
-      "id": 17,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "aztec_sequencer_block_build_ok_count{exported_job=\"$node\", aztec_ok=\"true\"}",
+          "editorMode": "code",
+          "expr": "avg (rate(aztec_archiver_sync_duration_milliseconds_sum{exported_instance=~\"$instance\"}[$interval]) / rate(aztec_archiver_sync_duration_milliseconds_count{exported_instance=~\"$instance\"}[$interval])) by (exported_job, exported_instance)",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "AVG - {{exported_job}}-{{exported_instance}}",
           "range": true,
           "refId": "A",
           "useBackend": false
         }
       ],
-      "title": "Blocks produced",
-      "type": "stat"
+      "timeShift": "6h",
+      "title": "Block synch",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -732,7 +541,190 @@
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": true,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "true"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Accepted"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 7,
+        "x": 0,
+        "y": 20
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "increase(aztec_node_receive_tx_count{exported_instance=~\"$instance\"}[$__rate_interval])",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "{{aztec_ok}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Incoming transactions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 7,
+        "y": 20
+      },
+      "id": 6,
+      "options": {
+        "displayLabels": ["name", "value"],
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.1.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "avg by(aztec_status) (aztec_mempool_tx_count{exported_instance=~\"$instance\"})",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Mempool status",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -762,10 +754,11 @@
       "gridPos": {
         "h": 8,
         "w": 7,
-        "x": 5,
-        "y": 18
+        "x": 12,
+        "y": 20
       },
-      "id": 16,
+      "id": 22,
+      "interval": "5m",
       "options": {
         "legend": {
           "calcs": [],
@@ -782,21 +775,21 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "-qqguyxik"
           },
           "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(aztec_sequencer_block_build_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
+          "editorMode": "code",
+          "expr": "avg (rate(aztec_node_receive_tx_duration_milliseconds_sum{exported_instance=~\"$instance\"}[$__rate_interval]) / rate(aztec_node_receive_tx_duration_milliseconds_count{exported_instance=~\"$instance\"}[$__rate_interval]))",
           "fullMetaSearch": false,
           "includeNullMetadata": false,
           "instant": false,
-          "legendFormat": "95th perc",
+          "legendFormat": "AVG",
           "range": true,
           "refId": "A",
           "useBackend": false
         }
       ],
-      "title": "Block building duration",
+      "title": "Tx receive time",
       "type": "timeseries"
     },
     {
@@ -804,6 +797,440 @@
         "type": "prometheus",
         "uid": "-qqguYXIk"
       },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 19,
+        "y": 20
+      },
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "avg(rate(aztec_mempool_tx_size_bytes_sum{exported_instance=~\"$instance\"}[$interval]) / rate(aztec_mempool_tx_size_bytes_count{exported_instance=~\"$instance\"}[$interval]))",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": false,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Tx size",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "id": 9,
+      "panels": [],
+      "title": "Sequencer",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "index": 0,
+                  "text": "Idle"
+                },
+                "1": {
+                  "index": 1,
+                  "text": "Waiting for txs"
+                },
+                "2": {
+                  "index": 2,
+                  "text": "Creating block"
+                },
+                "3": {
+                  "index": 3,
+                  "text": "Publishing contract data"
+                },
+                "4": {
+                  "index": 4,
+                  "text": "Publishing block"
+                },
+                "5": {
+                  "index": 5,
+                  "text": "Stopped"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 7,
+        "x": 0,
+        "y": 29
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "aztec_sequencer_current_state{exported_instance=~\"$instance\"}",
+          "format": "time_series",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": true,
+          "legendFormat": "__auto",
+          "range": false,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Sequencer state",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 9,
+        "x": 7,
+        "y": 29
+      },
+      "id": 13,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "aztec_sequencer_current_block_number{exported_instance=~\"$instance\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": true,
+          "legendFormat": "Next block number",
+          "range": false,
+          "refId": "A",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "aztec_sequencer_current_block_size{exported_instance=~\"$instance\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": true,
+          "legendFormat": "Next block size",
+          "range": false,
+          "refId": "B",
+          "useBackend": false
+        }
+      ],
+      "title": "Next block",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 16,
+        "y": 29
+      },
+      "hideTimeOverride": true,
+      "id": 26,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "/^Time$/",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguYXIk"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "changes(aztec_sequencer_current_block_number{exported_instance=~\"$instance\"}[1h])",
+          "format": "time_series",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "timeFrom": "6h",
+      "title": "Next block started at",
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": 0
+                  }
+                },
+                "fieldName": "{exported_instance=\"22828b91-92ae-4b04-a5e0-56ebf866edef\", exported_job=\"alphanet-aztec-node-1\", instance=\"aztec-otel.local:8889\", job=\"aztec\"}"
+              }
+            ],
+            "match": "any",
+            "type": "exclude"
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 29
+      },
+      "id": 25,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "avg(rate(aztec_public_processor_deploy_bytecode_size_bytes_sum{exported_instance=~\"$instance\"}[$interval]) / rate(aztec_public_processor_deploy_bytecode_size_bytes_count{exported_instance=~\"$instance\"}[$interval]))",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "AVG",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Deployed bytecode",
+      "type": "stat"
+    },
+    {
+      "datasource": {},
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -817,7 +1244,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 30,
+            "fillOpacity": 25,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -841,7 +1268,6 @@
               "mode": "off"
             }
           },
-          "decimals": 0,
           "mappings": [],
           "min": 0,
           "thresholds": {
@@ -850,6 +1276,10 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
@@ -859,11 +1289,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 6,
-        "x": 12,
-        "y": 18
+        "w": 8,
+        "x": 0,
+        "y": 35
       },
-      "id": 99,
+      "id": 14,
       "options": {
         "legend": {
           "calcs": [],
@@ -880,35 +1310,17 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aztec-node-metrics"
+            "uid": "-qqguyxik"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "exemplar": false,
-          "expr": "increase(aztec_l1_publisher_tx_count{aztec_ok=\"true\"}[$__rate_interval])",
+          "expr": "increase(aztec_l1_publisher_tx_count{exported_instance=~\"$instance\"}[$__rate_interval])",
           "fullMetaSearch": false,
-          "includeNullMetadata": true,
+          "includeNullMetadata": false,
           "instant": false,
-          "legendFormat": "L1 Tx \"{{aztec_l1_tx_type}}\"",
+          "legendFormat": "{{aztec_l1_tx_type}}",
           "range": true,
           "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "aztec-node-metrics"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "sum(increase(aztec_l1_publisher_tx_count{aztec_ok=\"false\"}[$__rate_interval]))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Failed L1 txs",
-          "range": true,
-          "refId": "B",
           "useBackend": false
         }
       ],
@@ -916,101 +1328,6 @@
       "type": "timeseries"
     },
     {
-      "datasource": {},
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "min": 0,
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 18
-      },
-      "id": 98,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "aztec-node-metrics"
-          },
-          "editorMode": "builder",
-          "expr": "rate(aztec_l1_publisher_gas_price_gwei_sum[$__rate_interval]) / rate(aztec_l1_publisher_gas_price_gwei_count[$__rate_interval])",
-          "instant": false,
-          "legendFormat": "Avg gas price gwei",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Average gas cost gwei",
-      "type": "timeseries"
-    },
-    {
       "datasource": {
         "type": "prometheus",
         "uid": "-qqguYXIk"
@@ -1029,810 +1346,6 @@
             "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 26
-      },
-      "id": 96,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(aztec_public_executor_simulation_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "95th Perc",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(1, sum by(le) (rate(aztec_public_executor_simulation_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "MAX",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.5, sum by(le) (rate(aztec_public_executor_simulation_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "50th Perc",
-          "range": true,
-          "refId": "C",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "rate(aztec_public_executor_simulation_duration_milliseconds_sum{exported_job=\"$node\"}[$__rate_interval])/rate(aztec_public_executor_simulation_duration_milliseconds_count{exported_job=\"$node\"}[$__rate_interval])",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "AVG",
-          "range": true,
-          "refId": "D",
-          "useBackend": false
-        }
-      ],
-      "title": "Public function simuation",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 26
-      },
-      "id": 58,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(aztec_public_processor_tx_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "95th Perc",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.5, sum by(le) (rate(aztec_public_processor_tx_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "50th Perc",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(aztec_public_processor_tx_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "MAX",
-          "range": true,
-          "refId": "C",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "rate(aztec_public_processor_tx_duration_milliseconds_sum{exported_job=\"$node\"}[$__rate_interval]) / rate(aztec_public_processor_tx_duration_milliseconds_count{exported_job=\"$node\"}[$__rate_interval])",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "AVG",
-          "range": true,
-          "refId": "E",
-          "useBackend": false
-        }
-      ],
-      "title": "Public processor duration",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 26
-      },
-      "id": 57,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "rate(aztec_public_processor_phase_duration_milliseconds_sum[$__rate_interval]) / rate(aztec_public_processor_phase_duration_milliseconds_count[$__rate_interval])",
-          "fullMetaSearch": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "Avg {{aztec_tx_phase_name}}",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Tx phase duration",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 34
-      },
-      "id": 56,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "rate(aztec_public_executor_simulation_bytecode_size_bytes_sum[$__rate_interval]) / rate(aztec_public_executor_simulation_bytecode_size_bytes_count[$__rate_interval])",
-          "fullMetaSearch": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "Avg bytes",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Deployed bytecode ",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 34
-      },
-      "id": 97,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(aztec_proving_orchestrator_base_rollup_inputs_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": true,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "95th Perc",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(1, sum by(le) (rate(aztec_proving_orchestrator_base_rollup_inputs_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": true,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "MAX",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.5, sum by(le) (rate(aztec_proving_orchestrator_base_rollup_inputs_duration_milliseconds_bucket{exported_job=\"$node\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": true,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "50th Perc",
-          "range": true,
-          "refId": "C",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "rate(aztec_proving_orchestrator_base_rollup_inputs_duration_milliseconds_sum{exported_job=\"$node\"}[$__rate_interval]) / rate(aztec_proving_orchestrator_base_rollup_inputs_duration_milliseconds_count{exported_job=\"$node\"}[$__rate_interval])",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "AVG",
-          "range": true,
-          "refId": "D",
-          "useBackend": false
-        }
-      ],
-      "title": "Merkle tree insertions before Base Rollup",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 42
-      },
-      "id": 3,
-      "panels": [],
-      "title": "Prover Agent",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "description": "CPU usage as a percentage of all cores",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 0,
-        "y": 43
-      },
-      "id": 6,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "sum by(exported_job) (system_cpu_utilization{system_cpu_state=\"user\", exported_job=\"$prover\"}) / count by(exported_job) (system_cpu_utilization{system_cpu_state=\"user\", exported_job=\"$prover\"})",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "CPU utilization",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "description": "Percentage of total system memory being used",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 6,
-        "y": 43
-      },
-      "id": 11,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "11.1.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "system_memory_utilization{exported_job=\"$prover\", system_memory_state=\"used\"}",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Memory utilization",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "-qqguYXIk"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1870,17 +1383,17 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "ms"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 43
+        "w": 13,
+        "x": 8,
+        "y": 35
       },
-      "id": 13,
+      "id": 11,
       "options": {
         "legend": {
           "calcs": [],
@@ -1897,21 +1410,190 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "-qqguyxik"
           },
           "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "increase(system_network_io_total{exported_job=\"$prover\"}[$__rate_interval])",
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by(le) (rate(aztec_sequencer_block_build_duration_milliseconds_bucket{exported_instance=~\"$instance\"}[$interval])))",
           "fullMetaSearch": false,
+          "hide": false,
           "includeNullMetadata": false,
           "instant": false,
-          "legendFormat": "{{exported_job}} - {{network_io_direction}}",
+          "interval": "",
+          "legendFormat": "Median",
           "range": true,
           "refId": "A",
           "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(aztec_sequencer_block_build_duration_milliseconds_bucket{exported_instance=~\"$instance\"}[$interval])))",
+          "fullMetaSearch": false,
+          "hide": true,
+          "includeNullMetadata": false,
+          "instant": false,
+          "legendFormat": "95th percentile",
+          "range": true,
+          "refId": "B",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "histogram_quantile(1, sum by(le) (rate(aztec_sequencer_block_build_duration_milliseconds_bucket{exported_instance=~\"$instance\"}[$interval])))",
+          "fullMetaSearch": false,
+          "hide": true,
+          "includeNullMetadata": false,
+          "instant": false,
+          "legendFormat": "MAX",
+          "range": true,
+          "refId": "C",
+          "useBackend": false
         }
       ],
-      "title": "Network IO",
+      "timeShift": "6h",
+      "title": "Block building duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 0,
+        "y": 43
+      },
+      "id": 24,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "avg(rate(aztec_public_processor_tx_duration_milliseconds_sum{exported_instance=~\"$instance\"}[$__rate_interval]) / rate(aztec_public_processor_tx_duration_milliseconds_count{exported_instance=~\"$instance\"}[$__rate_interval]))",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "interval": "5m",
+          "legendFormat": "AVG - tx",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "avg by (aztec_tx_phase_name) (rate(aztec_public_processor_phase_duration_milliseconds_sum{exported_instance=~\"$instance\"}[$__rate_interval]) / rate(aztec_public_processor_phase_duration_milliseconds_count{exported_instance=~\"$instance\"}[$__rate_interval]))",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "interval": "5m",
+          "legendFormat": "AVG - {{aztec_tx_phase_name}}",
+          "range": true,
+          "refId": "B",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "avg(rate(aztec_public_executor_simulation_duration_milliseconds_sum{exported_instance=~\"$instance\"}[$__rate_interval]) / rate(aztec_public_executor_simulation_duration_milliseconds_count{exported_instance=~\"$instance\"}[$__rate_interval]))",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "interval": "5m",
+          "legendFormat": "AVG - fn",
+          "range": true,
+          "refId": "C",
+          "useBackend": false
+        }
+      ],
+      "title": "Tx simulation",
       "type": "timeseries"
     },
     {
@@ -1922,9 +1604,9 @@
         "x": 0,
         "y": 51
       },
-      "id": 22,
+      "id": 16,
       "panels": [],
-      "title": "Witness generation",
+      "title": "Prover",
       "type": "row"
     },
     {
@@ -1960,7 +1642,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": true,
+            "spanNulls": false,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -1970,13 +1652,183 @@
             }
           },
           "mappings": [],
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 9,
+        "x": 0,
+        "y": 52
+      },
+      "id": 19,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "aztec_proving_queue_size{exported_instance=~\"$instance\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "{{__name__}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Queue depth",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 15,
+        "x": 9,
+        "y": 52
+      },
+      "id": 20,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguyxik"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "avg by (aztec_proving_job_type) (rate(aztec_proving_queue_job_size_by_sum{exported_instance=~\"$instance\"}[$interval]) / rate(aztec_proving_queue_job_size_by_count{exported_instance=~\"$instance\"}[$interval]))",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": false,
+          "instant": false,
+          "legendFormat": "{{aztec_proving_job_type}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Job size",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
@@ -1986,12 +1838,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 52
+        "y": 61
       },
-      "id": 23,
-      "maxPerRow": 3,
+      "id": 15,
       "options": {
         "legend": {
           "calcs": [],
@@ -2004,61 +1855,25 @@
           "sort": "none"
         }
       },
-      "repeat": "protocol_circuit",
-      "repeatDirection": "h",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "-qqguyxik"
           },
           "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "rate(aztec_circuit_witness_generation_duration_milliseconds_sum{exported_job=\"$prover\", aztec_circuit_protocol_circuit_name=\"$protocol_circuit\"}[$__rate_interval]) / rate(aztec_circuit_witness_generation_duration_milliseconds_count{exported_job=\"$prover\"}[$__rate_interval])",
+          "editorMode": "builder",
+          "expr": "rate(aztec_proving_orchestrator_base_rollup_inputs_duration_milliseconds_sum{exported_instance=~\"$instance\"}[$interval]) / rate(aztec_proving_orchestrator_base_rollup_inputs_duration_milliseconds_count{exported_instance=~\"$instance\"}[$interval])",
           "fullMetaSearch": false,
           "includeNullMetadata": false,
           "instant": false,
-          "legendFormat": "Avg",
+          "legendFormat": "AVG",
           "range": true,
           "refId": "A",
           "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.95, sum by(le) (rate(aztec_circuit_witness_generation_duration_milliseconds_bucket{exported_job=\"$prover\", aztec_circuit_protocol_circuit_name=\"$protocol_circuit\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "95th Perc",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "-qqguYXIk"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "histogram_quantile(0.5, sum by(le) (rate(aztec_circuit_witness_generation_duration_milliseconds_bucket{exported_job=\"$prover\", aztec_circuit_protocol_circuit_name=\"$protocol_circuit\"}[$__rate_interval])))",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": false,
-          "instant": false,
-          "legendFormat": "50th Perc",
-          "range": true,
-          "refId": "C",
-          "useBackend": false
         }
       ],
-      "title": "Witness generation - $protocol_circuit",
+      "title": "Tree updates",
       "type": "timeseries"
     },
     {
@@ -2067,12 +1882,127 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 84
+        "y": 69
       },
-      "id": 30,
+      "id": 17,
       "panels": [],
-      "title": "Proving",
+      "repeat": "protocol_circuit",
+      "repeatDirection": "h",
+      "title": "Circuits stats - $protocol_circuit",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "aztec_circuit_public_inputs_count"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "displayName",
+                "value": "Public inputs counts"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "aztec_circuit_proving_proof_size_bytes"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Proof size"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 70
+      },
+      "id": 47,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.1.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguYXIk"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "aztec_circuit_proving_proof_size_bytes{exported_instance=~\"$instance\", aztec_circuit_protocol_circuit_name=\"$protocol_circuit\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "{{__name__}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguYXIk"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "aztec_circuit_public_inputs_count{exported_instance=~\"$instance\", aztec_circuit_protocol_circuit_name=\"$protocol_circuit\"}",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "{{__name__}}",
+          "range": true,
+          "refId": "B",
+          "useBackend": false
+        }
+      ],
+      "title": "Stats - $protocol_circuit",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -2117,13 +2047,15 @@
             }
           },
           "mappings": [],
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
@@ -2132,13 +2064,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 7,
         "w": 8,
-        "x": 0,
-        "y": 85
+        "x": 6,
+        "y": 70
       },
-      "id": 37,
-      "maxPerRow": 3,
+      "id": 27,
       "options": {
         "legend": {
           "calcs": [],
@@ -2151,8 +2082,6 @@
           "sort": "none"
         }
       },
-      "repeat": "protocol_circuit",
-      "repeatDirection": "h",
       "targets": [
         {
           "datasource": {
@@ -2160,18 +2089,121 @@
             "uid": "-qqguYXIk"
           },
           "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "rate(aztec_circuit_proving_duration_milliseconds_sum{exported_job=\"$prover\", aztec_circuit_protocol_circuit_name=\"$protocol_circuit\"}[$__rate_interval]) / rate(aztec_circuit_proving_duration_milliseconds_count{exported_job=\"$prover\"}[$__rate_interval])",
+          "editorMode": "code",
+          "expr": "avg(rate(aztec_circuit_witness_generation_duration_milliseconds_sum{aztec_circuit_protocol_circuit_name=\"$protocol_circuit\", exported_instance=~\"$instance\"}[$interval])/rate(aztec_circuit_witness_generation_duration_milliseconds_count{aztec_circuit_protocol_circuit_name=\"$protocol_circuit\", exported_instance=~\"$instance\"}[$interval]))",
           "fullMetaSearch": false,
-          "includeNullMetadata": false,
+          "hide": false,
+          "includeNullMetadata": true,
           "instant": false,
-          "legendFormat": "Avg",
+          "interval": "",
+          "legendFormat": "AVG",
+          "range": true,
+          "refId": "B",
+          "useBackend": false
+        }
+      ],
+      "title": "Witness generation - $protocol_circuit",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "-qqguYXIk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 10,
+        "x": 14,
+        "y": 70
+      },
+      "id": 46,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "-qqguYXIk"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "avg(rate(aztec_circuit_proving_duration_milliseconds_sum{aztec_circuit_protocol_circuit_name=\"$protocol_circuit\", exported_instance=~\"$instance\"}[$interval])/rate(aztec_circuit_proving_duration_milliseconds_count{aztec_circuit_protocol_circuit_name=\"$protocol_circuit\", exported_instance=~\"$instance\"}[$interval]))",
+          "fullMetaSearch": false,
+          "hide": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "AVG",
           "range": true,
           "refId": "A",
           "useBackend": false
         }
       ],
-      "title": "Circuit proving - $protocol_circuit",
+      "title": "Proving - $protocol_circuit",
       "type": "timeseries"
     }
   ],
@@ -2183,15 +2215,14 @@
       {
         "current": {
           "selected": false,
-          "text": "devnet",
-          "value": "devnet"
+          "text": "alphanet",
+          "value": "alphanet"
         },
         "datasource": {
           "type": "prometheus",
           "uid": "-qqguYXIk"
         },
-        "definition": "label_values(exported_job)",
-        "description": "The network",
+        "definition": "label_values(target_info,aztec_network_name)",
         "hide": 0,
         "includeAll": false,
         "label": "Network",
@@ -2200,74 +2231,16 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(exported_job)",
+          "query": "label_values(target_info,aztec_network_name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
-        "regex": "^(?<value>\\w+)-.+",
+        "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
       },
       {
-        "current": {
-          "selected": true,
-          "text": ["devnet-aztec-node-1"],
-          "value": ["devnet-aztec-node-1"]
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "-qqguYXIk"
-        },
-        "definition": "label_values(exported_job)",
-        "hide": 2,
-        "includeAll": true,
-        "label": "Node",
-        "multi": true,
-        "name": "node",
-        "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(exported_job)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "$network-aztec-node-\\d+",
-        "skipUrlSync": false,
-        "sort": 7,
-        "type": "query"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "-qqguYXIk"
-        },
-        "definition": "label_values(exported_job)",
-        "description": "The prover agents in the network",
-        "hide": 2,
-        "includeAll": true,
-        "label": "Prover",
-        "multi": true,
-        "name": "prover",
-        "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(exported_job)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "$network-aztec-proving-agent-group-\\d+",
-        "skipUrlSync": false,
-        "sort": 7,
-        "type": "query"
-      },
-      {
-        "allValue": "",
         "current": {
           "selected": false,
           "text": "All",
@@ -2277,8 +2250,67 @@
           "type": "prometheus",
           "uid": "-qqguYXIk"
         },
+        "definition": "label_values(target_info{aztec_network_name=\"$network\"},exported_instance)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": false,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(target_info{aztec_network_name=\"$network\"},exported_instance)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "4h",
+          "value": "4h"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "interval",
+        "options": [
+          {
+            "selected": true,
+            "text": "4h",
+            "value": "4h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": false,
+            "text": "24h",
+            "value": "24h"
+          }
+        ],
+        "query": "4h, 12h, 24h",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "-qqguYXIk"
+        },
         "definition": "label_values(aztec_circuit_protocol_circuit_name)",
-        "hide": 2,
+        "hide": 0,
         "includeAll": true,
         "label": "Protocol circuit",
         "multi": false,
@@ -2298,13 +2330,13 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
-  "title": "New dashboard",
-  "uid": "bi4a3LXIz",
-  "version": 24,
+  "timezone": "browser",
+  "title": "New new new dashboard",
+  "uid": "cdtxao66xa1ogc",
+  "version": 31,
   "weekStart": ""
 }

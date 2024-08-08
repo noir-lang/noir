@@ -328,6 +328,7 @@ export class Archiver implements ArchiveSource {
     if (provenBlockNumber > currentProvenBlockNumber) {
       this.log.verbose(`Updated last proven block number from ${currentProvenBlockNumber} to ${provenBlockNumber}`);
       await this.store.setProvenL2BlockNumber(Number(provenBlockNumber));
+      this.instrumentation.updateLastProvenBlock(Number(provenBlockNumber));
     }
   }
 

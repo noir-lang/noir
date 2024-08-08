@@ -1,5 +1,6 @@
 import { type L2Block } from '@aztec/circuit-types';
 import {
+  Attributes,
   type Gauge,
   type Histogram,
   Metrics,
@@ -41,5 +42,9 @@ export class ArchiverInstrumentation {
     for (const block of blocks) {
       this.blockSize.record(block.body.txEffects.length);
     }
+  }
+
+  public updateLastProvenBlock(blockNumber: number) {
+    this.blockHeight.record(blockNumber, { [Attributes.STATUS]: 'proven' });
   }
 }

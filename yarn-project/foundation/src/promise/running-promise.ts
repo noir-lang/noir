@@ -44,4 +44,12 @@ export class RunningPromise {
   public isRunning() {
     return this.running;
   }
+
+  /**
+   * Updates the polling interval. The new interval will take effect after the next poll.
+   * @param pollingIntervalMS The polling interval in milliseconds.
+   */
+  setPollingIntervalMS(pollingIntervalMS: number) {
+    this.pollingIntervalMS = pollingIntervalMS;
+  }
 }
