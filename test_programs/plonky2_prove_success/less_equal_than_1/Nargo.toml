@@ -1,0 +1,7 @@
+[package]
+name = "less_equal_than_1"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]
