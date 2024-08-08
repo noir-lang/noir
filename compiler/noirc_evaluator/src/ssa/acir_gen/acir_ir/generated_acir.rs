@@ -49,10 +49,11 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
     /// All witness indices which are inputs to the main function
     pub(crate) input_witnesses: Vec<Witness>,
 
-    /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
-    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
+    pub(crate) locations: OpcodeToLocationsMap,
 
-    pub(crate) brillig_locations: BTreeMap<u32, BTreeMap<OpcodeLocation, CallStack>>,
+    /// Brillig function id -> Opcodes locations map
+    /// This map is used to prevent redundant locations being stored for the same Brillig entry point.
+    pub(crate) brillig_locations: BTreeMap<u32, OpcodeToLocationsMap>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
@@ -72,6 +73,9 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
     /// we can instead keep this map and resolve the Brillig calls at the end of code generation.
     pub(crate) brillig_stdlib_func_locations: BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
 }
+
+/// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
+pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStack>;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum BrilligStdlibFunc {
@@ -569,6 +573,10 @@ impl<F: AcirField> GeneratedAcir<F> {
         brillig_function_index: u32,
         stdlib_func: Option<BrilligStdlibFunc>,
     ) {
+        // Check whether we have a call to this Brillig function already exists.
+        // This helps us optimize the Brillig metadata to only be stored once per Brillig entry point.
+        let inserted_func_before = self.brillig_locations.get(&brillig_function_index).is_some();
+
         let opcode =
             AcirOpcode::BrilligCall { id: brillig_function_index, inputs, outputs, predicate };
         self.push_opcode(opcode);
@@ -576,39 +584,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             self.brillig_stdlib_func_locations
                 .insert(self.last_acir_opcode_location(), stdlib_func);
         }
-        let seen_func_before = self.opcodes.iter().any(|opcode| {
-            if let AcirOpcode::BrilligCall { id, .. } = opcode {
-                // dbg!(id);
-                *id == brillig_function_index
-            } else { 
-                false
-            }
-        });
-        // dbg!(seen_func_before);
-        for (brillig_index, call_stack) in generated_brillig.locations.iter() {
-            // if self.brillig_locations.get(&brillig_function_index).is_some() {
-            //     break;
-            // }
-            if seen_func_before {
-                // dbg!("got here");
-                break;
-            }
-            self.brillig_locations.entry(brillig_function_index).or_default().insert(
-                OpcodeLocation::Brillig {
-                    acir_index: self.opcodes.len() - 1,
-                    brillig_index: *brillig_index,
-                },
-                call_stack.clone(),
-            );
-            // self.locations.insert(
-            //     OpcodeLocation::Brillig {
-            //         acir_index: self.opcodes.len() - 1,
-            //         brillig_index: *brillig_index,
-            //     },
-            //     call_stack.clone(),
-            // );
-        }
-        // dbg!(self.brillig_locations.len());
+
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
             self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
@@ -616,6 +592,20 @@ impl<F: AcirField> GeneratedAcir<F> {
                     brillig_index: *brillig_index,
                 },
                 AssertionPayload::StaticString(message.clone()),
+            );
+        }
+
+        if inserted_func_before {
+            return;
+        }
+
+        for (brillig_index, call_stack) in generated_brillig.locations.iter() {
+            self.brillig_locations.entry(brillig_function_index).or_default().insert(
+                OpcodeLocation::Brillig {
+                    acir_index: self.opcodes.len() - 1,
+                    brillig_index: *brillig_index,
+                },
+                call_stack.clone(),
             );
         }
     }

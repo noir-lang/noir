@@ -128,6 +128,7 @@ fn extract_locations_from_error<F: AcirField>(
         },
         _ => None,
     }?;
+
     // dbg!(opcode_locations.clone());
     // Insert the top-level Acir location where the Brillig function failed
     for (i, resolved_location) in opcode_locations.iter().enumerate() {
@@ -149,7 +150,13 @@ fn extract_locations_from_error<F: AcirField>(
         }
     }
 
-    // dbg!(debug.clone());
+    let brillig_function_id = match error {
+        ExecutionError::SolvingError(
+            OpcodeResolutionError::BrilligFunctionFailed { function_id, .. },
+            _,
+        ) => Some(*function_id),
+        _ => None,
+    };
 
     Some(
         opcode_locations
@@ -158,12 +165,19 @@ fn extract_locations_from_error<F: AcirField>(
                 debug[resolved_location.acir_function_index]
                     .opcode_location(&resolved_location.opcode_location)
                     .unwrap_or_else(|| {
-                        // dbg!(resolved_location.opcode_location.clone());
-                        // dbg!(debug[resolved_location.acir_function_index].brillig_locations.clone());
-                        // debug[resolved_location.acir_function_index].brillig_locations.get(&2).unwrap().get(&resolved_location.opcode_location).cloned().unwrap_or_default()
-                        vec![]
+                        if let Some(brillig_function_id) = brillig_function_id {
+                            let brillig_locations = debug[resolved_location.acir_function_index]
+                                .brillig_locations
+                                .get(&brillig_function_id);
+                            brillig_locations
+                                .unwrap()
+                                .get(&resolved_location.opcode_location)
+                                .cloned()
+                                .unwrap_or_default()
+                        } else {
+                            vec![]
+                        }
                     })
-                    // .unwrap_or_default()
             })
             .collect(),
     )

@@ -132,6 +132,7 @@ pub enum OpcodeResolutionError<F> {
     BlackBoxFunctionFailed(BlackBoxFunc, String),
     #[error("Failed to solve brillig function")]
     BrilligFunctionFailed {
+        function_id: u32,
         call_stack: Vec<OpcodeLocation>,
         payload: Option<ResolvedAssertionPayload<F>>,
     },
@@ -478,13 +479,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 &self.unconstrained_functions[*id as usize].bytecode,
                 self.backend,
                 self.instruction_pointer,
+                *id,
             )?,
         };
 
-        let result = solver.solve().map_err(|err| {
-            dbg!(id);
-            self.map_brillig_error(err)
-        })?;
+        let result = solver.solve().map_err(|err| self.map_brillig_error(err))?;
 
         match result {
             BrilligSolverStatus::ForeignCallWait(foreign_call) => {
@@ -505,7 +504,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     fn map_brillig_error(&self, mut err: OpcodeResolutionError<F>) -> OpcodeResolutionError<F> {
         match &mut err {
-            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload } => {
+            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload, .. } => {
                 // Some brillig errors have static strings as payloads, we can resolve them here
                 let last_location =
                     call_stack.last().expect("Call stacks should have at least one item");
@@ -552,6 +551,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             &self.unconstrained_functions[*id as usize].bytecode,
             self.backend,
             self.instruction_pointer,
+            *id,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),

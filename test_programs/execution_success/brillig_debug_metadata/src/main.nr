@@ -5,8 +5,6 @@ unconstrained fn some_unconstrained_fn(x: Field, y: Field) -> Field {
     let x_u128 = U128::from_integer(x);
     let y_u128 = U128::from_integer(y);
     (x_u128 / y_u128).to_integer()
-    // assert(x == y);
-    // x / y
 }
 
 fn main(data: [Field; ITERATION_COUNT]) -> pub Field {
