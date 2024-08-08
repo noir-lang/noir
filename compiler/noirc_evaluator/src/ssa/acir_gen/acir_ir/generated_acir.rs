@@ -580,6 +580,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let opcode =
             AcirOpcode::BrilligCall { id: brillig_function_index, inputs, outputs, predicate };
         self.push_opcode(opcode);
+
         if let Some(stdlib_func) = stdlib_func {
             self.brillig_stdlib_func_locations
                 .insert(self.last_acir_opcode_location(), stdlib_func);

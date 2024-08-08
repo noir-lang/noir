@@ -2837,8 +2837,6 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeMap;
-
     use acvm::{
         acir::{
             circuit::{ExpressionWidth, Opcode, OpcodeLocation},
@@ -2846,7 +2844,10 @@ mod test {
         },
         FieldElement,
     };
+    use im::vector;
+    use noirc_errors::Location;
     use noirc_frontend::monomorphization::ast::InlineType;
+    use std::collections::BTreeMap;
 
     use crate::{
         brillig::Brillig,
@@ -2874,6 +2875,8 @@ mod test {
         } else {
             builder.new_brillig_function("foo".into(), foo_id);
         }
+        builder.set_call_stack(vector![Location::dummy(), Location::dummy()]);
+
         let foo_v0 = builder.add_parameter(Type::field());
         let foo_v1 = builder.add_parameter(Type::field());
 
@@ -3257,6 +3260,12 @@ mod test {
                 _ => panic!("Expected only Brillig call opcode"),
             }
         }
+
+        // We have two normal Brillig functions that was called multiple times.
+        // We should have a single locations map for each function's debug metadata.
+        assert_eq!(main_acir.brillig_locations.len(), 2);
+        assert!(main_acir.brillig_locations.get(&0).is_some());
+        assert!(main_acir.brillig_locations.get(&1).is_some());
     }
 
     // Test that given multiple primitive operations that are represented by Brillig directives (e.g. invert/quotient),
@@ -3312,6 +3321,8 @@ mod test {
             4,
             0,
         );
+
+        assert_eq!(main_acir.brillig_locations.len(), 0);
     }
 
     // Test that given both hardcoded Brillig directives and calls to normal Brillig functions,
@@ -3382,13 +3393,12 @@ mod test {
 
         let main_acir = &acir_functions[0];
         let main_opcodes = main_acir.opcodes();
-        check_brillig_calls(
-            &acir_functions[0].brillig_stdlib_func_locations,
-            main_opcodes,
-            1,
-            4,
-            2,
-        );
+        check_brillig_calls(&main_acir.brillig_stdlib_func_locations, main_opcodes, 1, 4, 2);
+
+        // We have one normal Brillig functions that was called twice.
+        // We should have a single locations map for each function's debug metadata.
+        assert_eq!(main_acir.brillig_locations.len(), 1);
+        assert!(main_acir.brillig_locations.get(&0).is_some());
     }
 
     // Test that given both normal Brillig calls, Brillig stdlib calls, and non-inlined ACIR calls, that we accurately generate ACIR.
@@ -3479,9 +3489,14 @@ mod test {
             2,
         );
 
+        assert_eq!(main_acir.brillig_locations.len(), 1);
+        assert!(main_acir.brillig_locations.get(&0).is_some());
+
         let foo_acir = &acir_functions[1];
         let foo_opcodes = foo_acir.opcodes();
         check_brillig_calls(&acir_functions[1].brillig_stdlib_func_locations, foo_opcodes, 1, 1, 0);
+
+        assert_eq!(foo_acir.brillig_locations.len(), 0);
     }
 
     fn check_brillig_calls(
