@@ -123,7 +123,7 @@ docker run \
   -ti \
   --rm \
   --workdir "$PWD" \
-  -v $HOME:$HOME -v cache:/cache \
+  -v $HOME:$HOME -v cache:/cache -v $(readlink $SSH_AUTH_SOCK):$SSH_AUTH_SOCK \
   $port_assignment \
   ${DOCKER_ENV:-} \
   ${DOCKER_HOST_BINDS:-} \

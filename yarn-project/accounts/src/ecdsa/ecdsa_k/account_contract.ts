@@ -4,16 +4,16 @@ import { Ecdsa } from '@aztec/circuits.js/barretenberg';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { type Fr } from '@aztec/foundation/fields';
 
-import { DefaultAccountContract } from '../defaults/account_contract.js';
-import { EcdsaAccountContractArtifact } from './artifact.js';
+import { DefaultAccountContract } from '../../defaults/account_contract.js';
+import { EcdsaKAccountContractArtifact } from './artifact.js';
 
 /**
  * Account contract that authenticates transactions using ECDSA signatures
  * verified against a secp256k1 public key stored in an immutable encrypted note.
  */
-export class EcdsaAccountContract extends DefaultAccountContract {
+export class EcdsaKAccountContract extends DefaultAccountContract {
   constructor(private signingPrivateKey: Buffer) {
-    super(EcdsaAccountContractArtifact as ContractArtifact);
+    super(EcdsaKAccountContractArtifact as ContractArtifact);
   }
 
   getDeploymentArgs() {
@@ -22,12 +22,12 @@ export class EcdsaAccountContract extends DefaultAccountContract {
   }
 
   getAuthWitnessProvider(_address: CompleteAddress): AuthWitnessProvider {
-    return new EcdsaAuthWitnessProvider(this.signingPrivateKey);
+    return new EcdsaKAuthWitnessProvider(this.signingPrivateKey);
   }
 }
 
 /** Creates auth witnesses using ECDSA signatures. */
-class EcdsaAuthWitnessProvider implements AuthWitnessProvider {
+class EcdsaKAuthWitnessProvider implements AuthWitnessProvider {
   constructor(private signingPrivateKey: Buffer) {}
 
   createAuthWit(messageHash: Fr): Promise<AuthWitness> {

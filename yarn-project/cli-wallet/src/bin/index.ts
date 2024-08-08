@@ -26,7 +26,7 @@ async function main() {
     .description('Aztec wallet')
     .version(walletVersion)
     .option('-d, --data-dir <string>', 'Storage directory for wallet data', WALLET_DATA_DIRECTORY)
-    .hook('preAction', command => {
+    .hook('preSubcommand', command => {
       const dataDir = command.optsWithGlobals().dataDir;
       db.init(AztecLmdbStore.open(dataDir));
     });

@@ -4,7 +4,7 @@ import { GITHUB_TAG_PREFIX, encodeArgs, getContractArtifact } from '@aztec/cli/u
 import { getInitializer } from '@aztec/foundation/abi';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
-import { type IFeeOpts, printGasEstimates } from '../utils/fees.js';
+import { type IFeeOpts, printGasEstimates } from '../utils/options/fees.js';
 
 export async function deploy(
   client: PXE,
@@ -110,4 +110,5 @@ export async function deploy(
       log(`Deployer: ${instance.deployer.toString()}`);
     }
   }
+  return deploy.address;
 }

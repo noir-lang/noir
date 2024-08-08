@@ -1,4 +1,4 @@
-import { EcdsaAccountContract } from '@aztec/accounts/ecdsa';
+import { EcdsaKAccountContract } from '@aztec/accounts/ecdsa';
 import { SchnorrAccountContract } from '@aztec/accounts/schnorr';
 import { SingleKeyAccountContract } from '@aztec/accounts/single_key';
 import {
@@ -93,6 +93,6 @@ describe('e2e_account_contracts', () => {
   });
 
   describe('ecdsa stored-key account', () => {
-    itShouldBehaveLikeAnAccountContract(() => new EcdsaAccountContract(randomBytes(32)), walletSetup, walletAt);
+    itShouldBehaveLikeAnAccountContract(() => new EcdsaKAccountContract(randomBytes(32)), walletSetup, walletAt);
   });
 });

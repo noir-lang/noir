@@ -1,0 +1,10 @@
+[package]
+name = "ecdsa_r_account_contract"
+authors = [""]
+compiler_version = ">=0.25.0"
+type = "contract"
+
+[dependencies]
+aztec = { path = "../../../aztec-nr/aztec" }
+authwit = { path = "../../../aztec-nr/authwit" }
+ecdsa_public_key_note = { path = "../ecdsa_public_key_note" }

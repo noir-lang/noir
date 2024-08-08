@@ -4,7 +4,7 @@ import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { type Command } from 'commander';
 
 import {
-  createPrivateKeyOption,
+  createSecretKeyOption,
   logJson,
   parseAztecAddress,
   parseEthereumAddress,
@@ -170,7 +170,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       "A compiled Aztec.nr contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts.js",
     )
     .requiredOption('-ca, --contract-address <address>', 'Aztec address of the contract.', parseAztecAddress)
-    .addOption(createPrivateKeyOption("The sender's private key.", false))
+    .addOption(createSecretKeyOption("The sender's private key.", false))
     .addOption(pxeOption)
     .action(async (functionName, options) => {
       const { call } = await import('./call.js');

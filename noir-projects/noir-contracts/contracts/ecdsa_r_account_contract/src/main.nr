@@ -1,8 +1,5 @@
-mod ecdsa_public_key_note;
-
-// Account contract that uses ECDSA signatures for authentication on the same curve as Ethereum.
-// The signing key is stored in an immutable private note and should be different from the signing key.
-contract EcdsaAccount {
+// Account contract that uses ECDSA signatures for authentication on random version of the p256 curve (to use with touchID).
+contract EcdsaRAccount {
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, NoteHeader, NoteGetterOptions, PrivateContext, PrivateImmutable};
     use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note;
 
@@ -14,7 +11,7 @@ contract EcdsaAccount {
         auth_witness::get_auth_witness
     };
 
-    use crate::ecdsa_public_key_note::EcdsaPublicKeyNote;
+    use dep::ecdsa_public_key_note::EcdsaPublicKeyNote;
 
     #[aztec(storage)]
     struct Storage {
@@ -68,7 +65,7 @@ contract EcdsaAccount {
         // Note that noir expects the hash of the message/challenge as input to the ECDSA verification.
         let outer_hash_bytes: [u8; 32] = outer_hash.to_be_bytes(32).as_array();
         let hashed_message: [u8; 32] = std::hash::sha256(outer_hash_bytes);
-        let verification = std::ecdsa_secp256k1::verify_signature(public_key.x, public_key.y, signature, hashed_message);
+        let verification = std::ecdsa_secp256r1::verify_signature(public_key.x, public_key.y, signature, hashed_message);
         assert(verification == true);
 
         true

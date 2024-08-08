@@ -2,7 +2,7 @@ import { type AccountWalletWithSecretKey, type AztecAddress, Contract } from '@a
 import { prepTx } from '@aztec/cli/utils';
 import { type LogFn } from '@aztec/foundation/log';
 
-import { type IFeeOpts, printGasEstimates } from '../utils/fees.js';
+import { type IFeeOpts, printGasEstimates } from '../utils/options/fees.js';
 
 export async function send(
   wallet: AccountWalletWithSecretKey,

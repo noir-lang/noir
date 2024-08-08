@@ -45,10 +45,10 @@ export const l1ChainIdOption = new Option('-c, --l1-chain-id <number>', 'Chain I
     return parsedValue;
   });
 
-export const createPrivateKeyOption = (description: string, mandatory: boolean) =>
-  new Option('-pk, --private-key <string>', description)
-    .env('PRIVATE_KEY')
-    .argParser(parsePrivateKey)
+export const createSecretKeyOption = (description: string, mandatory: boolean) =>
+  new Option('-sk, --secret-key <string>', description)
+    .env('SECRET_KEY')
+    .argParser(parseSecretKey)
     .makeOptionMandatory(mandatory);
 
 export const logJson = (log: LogFn) => (obj: object) => log(JSON.stringify(obj, null, 2));
@@ -299,16 +299,16 @@ export function parsePartialAddress(address: string): Fr {
 }
 
 /**
- * Parses a private key from a string.
+ * Parses a secret key from a string.
  * @param privateKey - A string
- * @returns A private key
+ * @returns A secret key
  * @throws InvalidArgumentError if the input string is not valid.
  */
-export function parsePrivateKey(privateKey: string): Fr {
+export function parseSecretKey(secretKey: string): Fr {
   try {
-    return Fr.fromString(privateKey);
+    return Fr.fromString(secretKey);
   } catch (err) {
-    throw new InvalidArgumentError(`Invalid encryption private key: ${privateKey}`);
+    throw new InvalidArgumentError(`Invalid encryption secret key: ${secretKey}`);
   }
 }
 

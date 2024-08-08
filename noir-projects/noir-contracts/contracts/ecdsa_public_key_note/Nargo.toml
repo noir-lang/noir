@@ -1,0 +1,8 @@
+[package]
+name = "ecdsa_public_key_note"
+authors = ["aztec-labs"]
+compiler_version = ">=0.25.0"
+type = "lib"
+
+[dependencies]
+aztec = { path = "../../../aztec-nr/aztec" }

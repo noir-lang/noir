@@ -9,7 +9,8 @@
     "./ecdsa": "./dest/ecdsa/index.js",
     "./schnorr": "./dest/schnorr/index.js",
     "./single_key": "./dest/single_key/index.js",
-    "./testing": "./dest/testing/index.js"
+    "./testing": "./dest/testing/index.js",
+    "./utils": "./dest/utils/index.js"
   },
   "typedocOptions": {
     "entryPoints": [
