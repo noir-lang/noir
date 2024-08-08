@@ -804,7 +804,12 @@ pub(crate) enum TerminatorInstruction {
     ///
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
-    JmpIf { condition: ValueId, then_destination: BasicBlockId, else_destination: BasicBlockId },
+    JmpIf {
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+        call_stack: CallStack,
+    },
 
     /// Unconditional Jump
     ///
@@ -831,10 +836,11 @@ impl TerminatorInstruction {
     ) -> TerminatorInstruction {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, then_destination, else_destination } => JmpIf {
+            JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
                 condition: f(*condition),
                 then_destination: *then_destination,
                 else_destination: *else_destination,
+                call_stack: call_stack.clone(),
             },
             Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
