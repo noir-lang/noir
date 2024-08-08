@@ -206,7 +206,6 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_sel_gas_accounting_active[i] = rows[i].main_sel_gas_accounting_active;
         polys.main_sel_last[i] = rows[i].main_sel_last;
         polys.main_sel_mem_op_a[i] = rows[i].main_sel_mem_op_a;
-        polys.main_sel_mem_op_activate_gas[i] = rows[i].main_sel_mem_op_activate_gas;
         polys.main_sel_mem_op_b[i] = rows[i].main_sel_mem_op_b;
         polys.main_sel_mem_op_c[i] = rows[i].main_sel_mem_op_c;
         polys.main_sel_mem_op_d[i] = rows[i].main_sel_mem_op_d;

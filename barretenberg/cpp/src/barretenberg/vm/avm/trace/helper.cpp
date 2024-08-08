@@ -85,7 +85,6 @@ void log_avm_trace([[maybe_unused]] std::vector<Row> const& trace,
         info("diff_lo:            ", trace.at(i).mem_diff_lo);
 
         info("=======GAS ACCOUNTING================================================================");
-        info("opcode active:      ", trace.at(i).main_sel_mem_op_activate_gas);
         info("l2_gas_remaining:   ", trace.at(i).main_l2_gas_remaining);
         info("da_gas_remaining:   ", trace.at(i).main_da_gas_remaining);
         info("l2_gas_op_cost:     ", trace.at(i).main_l2_gas_op_cost);

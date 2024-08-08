@@ -100,10 +100,11 @@ namespace main(256);
     da_out_of_gas * (1 - da_out_of_gas) = 0;
 
     // Constrain that the gas decrements correctly per instruction
+    // TODO: Special-case for external call.
     #[L2_GAS_REMAINING_DECREMENT]
-    sel_gas_accounting_active * (l2_gas_remaining' - l2_gas_remaining + l2_gas_op_cost) = 0;
+    sel_gas_accounting_active * (1 - sel_op_external_call) * (l2_gas_remaining' - l2_gas_remaining + l2_gas_op_cost) = 0;
     #[DA_GAS_REMAINING_DECREMENT]
-    sel_gas_accounting_active * (da_gas_remaining' - da_gas_remaining + da_gas_op_cost) = 0;
+    sel_gas_accounting_active * (1 - sel_op_external_call) * (da_gas_remaining' - da_gas_remaining + da_gas_op_cost) = 0;
 
     // Constrain that the remaining gas is unchanged otherwise (multi-line operations)
     #[L2_GAS_INACTIVE]
@@ -497,11 +498,11 @@ namespace main(256);
     //       Alternatively, we introduce a boolean selector for the three opcodes mentioned above.
     //       Note: External call gas cost is not constrained
     pol commit sel_gas_accounting_active;
-    pol commit sel_mem_op_activate_gas; // TODO: remove this one
     // TODO: remove sload and sstore from here
     // This temporarily disables gas tracking for sload and sstore because our gas
     // tracking doesn't work properly for instructions that span multiple rows
-    sel_gas_accounting_active - OPCODE_SELECTORS - SEL_ALL_CTRL_FLOW - sel_op_sload - sel_op_sstore - sel_mem_op_activate_gas = 0;
+    // TODO: disabling this until PR in stack.
+    // sel_gas_accounting_active - OPCODE_SELECTORS - SEL_ALL_CTRL_FLOW - sel_op_sload - sel_op_sstore - sel_mem_op_activate_gas = 0;
 
     // Program counter must increment if not jumping or returning
     // TODO: support for muli-rows opcode in execution trace such as

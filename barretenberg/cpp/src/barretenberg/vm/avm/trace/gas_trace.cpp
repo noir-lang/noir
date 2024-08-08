@@ -38,7 +38,7 @@ uint32_t AvmGasTraceBuilder::get_da_gas_left()
     return gas_trace.back().remaining_da_gas;
 }
 
-void AvmGasTraceBuilder::constrain_gas_lookup(uint32_t clk, OpCode opcode)
+void AvmGasTraceBuilder::constrain_gas(uint32_t clk, OpCode opcode, [[maybe_unused]] uint32_t dyn_gas_multiplier)
 {
     // TODO: increase lookup counter for the opcode we are looking up into
     gas_opcode_lookup_counter[opcode]++;
@@ -72,7 +72,7 @@ void AvmGasTraceBuilder::constrain_gas_for_external_call(uint32_t clk,
     const OpCode opcode = OpCode::CALL;
 
     // TODO: increase lookup counter for the opcode we are looking up into
-    // gas_opcode_lookup_counter[opcode]++;
+    gas_opcode_lookup_counter[opcode]++;
 
     // Get the gas prices for this opcode
     const auto& GAS_COST_TABLE = FixedGasTable::get();
@@ -87,10 +87,8 @@ void AvmGasTraceBuilder::constrain_gas_for_external_call(uint32_t clk,
     GasTraceEntry entry = {
         .clk = clk,
         .opcode = OpCode::CALL,
-        .l2_gas_cost = 0, // We need 0 in this case because we do not activate the gas_cost_active selector to satisfy
-                          // #[L2_GAS_INACTIVE].
-        .da_gas_cost = 0, // We need 0 in this case because we do not activate the gas_cost_active selector to satisfy
-                          // #[DA_GAS_INACTIVE].
+        .l2_gas_cost = opcode_l2_gas_cost,
+        .da_gas_cost = opcode_da_gas_cost,
         .remaining_l2_gas = remaining_l2_gas,
         .remaining_da_gas = remaining_da_gas,
     };

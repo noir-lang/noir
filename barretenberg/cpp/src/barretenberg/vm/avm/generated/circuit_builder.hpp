@@ -20,8 +20,8 @@ class AvmCircuitBuilder {
     using Polynomial = Flavor::Polynomial;
     using ProverPolynomials = Flavor::ProverPolynomials;
 
-    static constexpr size_t num_fixed_columns = 704;
-    static constexpr size_t num_polys = 704 + 74;
+    static constexpr size_t num_fixed_columns = 703;
+    static constexpr size_t num_polys = 703 + 74;
     std::vector<Row> rows;
 
     void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }

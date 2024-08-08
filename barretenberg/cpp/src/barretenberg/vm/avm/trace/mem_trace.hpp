@@ -108,6 +108,9 @@ class AvmMemTraceBuilder {
                              uint32_t direct_dst_offset);
     std::vector<FF> read_return_opcode(uint32_t clk, uint8_t space_id, uint32_t direct_ret_offset, uint32_t ret_size);
 
+    // DO NOT USE FOR REAL OPERATIONS
+    FF unconstrained_read(uint8_t space_id, uint32_t addr) { return memory[space_id][addr].val; }
+
   private:
     std::vector<MemoryTraceEntry> mem_trace; // Entries will be sorted by m_clk, m_sub_clk after finalize().
 

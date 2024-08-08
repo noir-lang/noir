@@ -131,6 +131,8 @@ impl RelationBuilder for BBFiles {
             .enumerate()
             .filter(|(_, id)| id.label.is_some())
             .map(|(idx, id)| (idx, id.label.clone().unwrap()))
+            // Useful for debugging
+            // .map(|(idx, id)| (idx, id.label.as_ref().unwrap_or(&id.identity).clone()))
             .collect_vec();
 
         let data = &json!({
