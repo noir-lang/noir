@@ -27,6 +27,7 @@ use crate::{
     QuotedType, Shared, Type,
 };
 
+use self::builtin_helpers::{get_array, get_u8};
 use super::{Interpreter, ValueAndLocation};
 
 pub(crate) mod builtin_helpers;
@@ -41,6 +42,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
     ) -> IResult<Value> {
         let interner = &mut self.elaborator.interner;
         match name {
+            "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
@@ -119,6 +121,19 @@ fn array_len(
             Err(InterpreterError::TypeMismatch { expected, actual, location: argument_location })
         }
     }
+}
+
+fn array_as_str_unchecked(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+
+    let array = get_array(interner, argument)?.0;
+    let string_bytes = try_vecmap(array, |byte| get_u8((byte, location)))?;
+    let string = String::from_utf8_lossy(&string_bytes).into_owned();
+    Ok(Value::String(Rc::new(string)))
 }
 
 fn as_slice(
