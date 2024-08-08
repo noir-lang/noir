@@ -3,7 +3,11 @@ on:
   # push:
   #   branches: [devnet, provernet, alphanet]
   workflow_dispatch:
-    inputs: {}
+    inputs:
+      rebuild_images:
+        description: "Rebuild images"
+        required: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -208,8 +212,13 @@ jobs:
       - name: Check if only workflow flows have changed
         id: check_only_workflow_changes
         uses: actions/github-script@v7
+        env:
+          REBUILD_IMAGES: ${{ github.event.inputs.rebuild_images }}
         with:
           script: |
+            if (process.env.REBUILD_IMAGES === 'true') {
+              return false;
+            }
             const { execSync } = require('child_process');
             const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}')
               .toString()
