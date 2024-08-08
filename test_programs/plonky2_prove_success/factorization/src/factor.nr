@@ -4,11 +4,6 @@ pub fn print_factors(mut number: u32) {
     // the maximum factor limits the input to 256*256 - 1 = 65535
     assert(number < 65536);
     let mut factor_is_first = true;
-    //if number < 0 {
-    //    number = number * -1;
-    //    println(-1);
-    //    factor_is_first = false;
-    //}
 
     // at most 16 primes
     let mut primes: [u32; 0x10] = [0; 0x10];
