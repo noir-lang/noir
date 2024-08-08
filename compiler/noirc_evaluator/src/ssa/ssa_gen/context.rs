@@ -715,10 +715,19 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, location, .. } => {
-                let (_array_or_slice, index, lvalue_ref, length) =
+                let (array, index, lvalue_ref, length) =
                     self.index_lvalue(array, index, location)?;
 
-                self.codegen_slice_access_check(index, length);
+                let array_type = &self.builder.type_of_value(array);
+                match array_type {
+                    Type::Slice(_) => {
+                        self.codegen_slice_access_check(index, length);
+                    }
+                    Type::Array(..) => {
+                        // Nothing needs to done to prepare an array access on an array
+                    }
+                    _ => unreachable!("must have array or slice but got {array_type}"),
+                }
 
                 lvalue_ref
             }
