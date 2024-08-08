@@ -205,6 +205,14 @@ impl<'a> NodeFinder<'a> {
                     completion_items.push(crate_completion_item(dependency_name));
                 }
             }
+
+            if name_matches("crate::", &prefix) {
+                completion_items.push(simple_completion_item(
+                    "crate::",
+                    CompletionItemKind::KEYWORD,
+                    None,
+                ));
+            }
         }
 
         Some(CompletionResponse::Array(completion_items))
@@ -493,5 +501,18 @@ mod completion_tests {
         "#;
 
         assert_completion(src, vec![module_completion_item("foo")]).await;
+    }
+
+    #[test]
+    async fn test_use_suggests_hardcoded_crate() {
+        let src = r#"
+            use c>|<
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item("crate::", CompletionItemKind::KEYWORD, None)],
+        )
+        .await;
     }
 }
