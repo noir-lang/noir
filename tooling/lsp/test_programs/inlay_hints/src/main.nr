@@ -104,3 +104,19 @@ fn hint_on_lambda_parameter() {
     let value: i32 = 1;
     let _: i32 = some_map(value, |x| x + 1);
 }
+
+trait SomeTrait {
+
+}
+
+impl SomeTrait for SomeStruct {
+
+}
+
+mod some_module {
+
+}
+
+contract some_contract {
+
+}
