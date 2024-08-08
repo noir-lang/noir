@@ -103,8 +103,7 @@ impl<'a> NodeFinder<'a> {
         match &item.kind {
             ItemKind::Import(use_tree) => {
                 let mut prefixes = Vec::new();
-                if let Some(completion) = self.find_in_use_tree(use_tree, item.span, &mut prefixes)
-                {
+                if let Some(completion) = self.find_in_use_tree(use_tree, &mut prefixes) {
                     return Some(completion);
                 }
             }
@@ -117,20 +116,19 @@ impl<'a> NodeFinder<'a> {
     fn find_in_use_tree(
         &self,
         use_tree: &UseTree,
-        span: Span,
         prefixes: &mut Vec<Path>,
     ) -> Option<CompletionResponse> {
         match &use_tree.kind {
             UseTreeKind::Path(ident, alias) => {
                 prefixes.push(use_tree.prefix.clone());
-                let response = self.find_in_use_tree_path(&prefixes, ident, alias, span);
+                let response = self.find_in_use_tree_path(&prefixes, ident, alias);
                 prefixes.pop();
                 response
             }
             UseTreeKind::List(use_trees) => {
                 prefixes.push(use_tree.prefix.clone());
                 for use_tree in use_trees {
-                    if let Some(completion) = self.find_in_use_tree(use_tree, span, prefixes) {
+                    if let Some(completion) = self.find_in_use_tree(use_tree, prefixes) {
                         return Some(completion);
                     }
                 }
@@ -145,7 +143,6 @@ impl<'a> NodeFinder<'a> {
         prefixes: &Vec<Path>,
         ident: &Ident,
         alias: &Option<Ident>,
-        span: Span,
     ) -> Option<CompletionResponse> {
         if let Some(_alias) = alias {
             // Won't handle completion if there's an alias (for now)
@@ -153,12 +150,11 @@ impl<'a> NodeFinder<'a> {
         }
 
         let after_colons = self.byte == Some(b':');
-        let at_use_end = self.byte_index != span.end() as usize;
         let at_ident_end = self.byte_index == ident.span().end() as usize;
         let at_ident_colons_end =
             after_colons && self.byte_index - 2 == ident.span().end() as usize;
 
-        if !(at_use_end || at_ident_end || at_ident_colons_end) {
+        if !(at_ident_end || at_ident_colons_end) {
             return None;
         }
 
@@ -565,5 +561,18 @@ mod completion_tests {
         "#;
 
         assert_completion(src, vec![module_completion_item("baz")]).await;
+    }
+
+    #[test]
+    async fn test_use_in_tree_after_colons_after_another_segment() {
+        let src = r#"
+            mod foo {
+                mod bar {}
+                mod qux {}
+            }
+            use foo::{bar, q>|<}
+        "#;
+
+        assert_completion(src, vec![module_completion_item("qux")]).await;
     }
 }
