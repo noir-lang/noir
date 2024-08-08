@@ -1,6 +1,7 @@
 ---
 title: Private Execution Environment (PXE)
 sidebar_position: 6
+tags: [PXE]
 ---
 
 The Private Execution Environment (or PXE, pronounced 'pixie') is a client-side library for the execution of private operations. It is a TypeScript library and can be run within Node, such as when you run the sandbox. In the future it could be run inside wallet software or a browser.
@@ -63,11 +64,11 @@ The keystore is a secure storage for private and public keys.
 
 ## Oracles
 
-Oracles are pieces of data that are injected into a smart contract function from the client side. You can read more about why and how they work in the [functions section](../smart_contracts/oracles/index.md).
+Oracles are pieces of data that are injected into a smart contract function from the client side. You can read more about why and how they work in the [smart contracts section](../../smart_contracts/oracles/index.md).
 
 ## For developers
 
 To learn how to develop on top of the PXE, refer to these guides:
 
-- [Run more than one PXE on your local machine](../../../guides/local_env/run_more_than_one_pxe_sandbox.md)
-- [Use in-built oracles including oracles for arbitrary data](guides/smart_contracts/writing_contracts/how_to_pop_capsules.md)
+- [Run more than one PXE on your local machine](../../../guides/developer_guides/local_env/run_more_than_one_pxe_sandbox.md)
+- [Use in-built oracles including oracles for arbitrary data](../../../guides/developer_guides/smart_contracts/writing_contracts/how_to_pop_capsules.md)

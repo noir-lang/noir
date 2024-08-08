@@ -2,7 +2,7 @@
 title: Cryptography Roadmap
 sidebar_position: 2
 ---
----
+
 
 The cryptography team is currently working on [Barretenberg here.](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg)
 

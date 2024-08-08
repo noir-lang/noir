@@ -323,7 +323,7 @@ function processFiles(baseDir, outputBaseDir) {
 let baseDir = path.resolve(__dirname, "../../../noir-projects/aztec-nr");
 let outputBaseDir = path.resolve(
   __dirname,
-  "../../docs/reference/smart_contract_reference/aztec-nr"
+  "../../docs/reference/developer_references/smart_contract_reference/aztec-nr"
 );
 console.log(outputBaseDir);
 processFiles(baseDir, outputBaseDir);

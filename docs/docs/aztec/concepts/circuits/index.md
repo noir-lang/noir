@@ -1,6 +1,7 @@
 ---
 title: Circuits
 sidebar_position: 7
+tags: [protocol, circuits]
 ---
 
 Central to Aztec's operations are 'circuits' derived both from the core protocol and the developer-written Aztec.nr contracts.
@@ -62,11 +63,11 @@ So what kinds of core protocol circuits does Aztec have?
 
 ### Kernel Circuits
 
-Read more about the Kernel circuits in the protocol specs [here](../../../protocol-specs/circuits/high-level-topology).
+Read more about the Kernel circuits in the protocol specs [here](../../../protocol-specs/circuits/high-level-topology.md).
 
 ### Rollup Circuits
 
-- [Rollup Circuits](../../../protocol-specs/rollup-circuits)
+- [Rollup Circuits](../../../protocol-specs/rollup-circuits/index.md)
 
 #### Squisher Circuits
 

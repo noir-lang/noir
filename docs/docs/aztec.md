@@ -1,5 +1,5 @@
 ---
-title: Programmable Privacy
+title: Building in Public
 sidebar_position: 0
 ---
 
@@ -22,7 +22,7 @@ Aztec is inspired on Ethereum. We believe in transparency for the protocol, but 
 
 To allow for this, we focus on two main components:
 
-- **Noir** - We started developing Noir long before Aztec came into being. As an easy, open-source domain specific programming language for writing zero-knowledge circuits, it became the perfect language for writing [Aztec Smart Contracts](aztec/concepts/smart_contracts/index.md). Read about standalone Noir in the [Noir Lang Documentation](https://noir-lang.org).
+- **Noir** - We started developing Noir long before Aztec came into being. As an easy, open-source domain specific programming language for writing zero-knowledge circuits, it became the perfect language for writing [Aztec Smart Contracts](aztec/smart_contracts_overview.md). Read about standalone Noir in the [Noir Lang Documentation](https://noir-lang.org).
 - **Honk** - A collection of cutting-edge cryptography, from proving systems, to compilers, and other sidecars. These will support Aztec's rollup and allow for fast, private, client-side proving.
 
 ## Media

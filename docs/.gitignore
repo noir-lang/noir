@@ -22,6 +22,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-docs/reference/aztecjs
-docs/reference/smart_contract_reference/aztec-nr
+/docs/reference/developer_references/aztecjs
+/docs/reference/developer_references/smart_contract_reference/aztec-nr
 test-results

@@ -1,18 +1,18 @@
 [[redirects]]
     from = "/developers/tutorials/*"
-    to = "/tutorials/contract_tutorials/private_voting_contract"
+    to = "/tutorials/codealong/contract_tutorials/private_voting_contract"
 
 [[redirects]]
     from = "/developers/sandbox/*"
-    to = "/reference/sandbox_reference"
+    to = "/reference/developer_references/sandbox_reference"
 
 [[redirects]]
     from = "/developers/contracts/*"
-    to = "/reference/smart_contract_reference"
+    to = "/reference/developer_references/smart_contract_reference"
 
 [[redirects]]
     from = "/dev_docs/*"
-    to = "/getting_started"
+    to = "/guides/developer_guides/getting_started/quickstart"
 
 [[redirects]]
     from = "/aztec/cryptography/cryptography-roadmap"

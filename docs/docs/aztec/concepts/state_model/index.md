@@ -1,6 +1,7 @@
 ---
 title: State Model
 sidebar_position: 4
+tags: [state]
 ---
 
 Aztec has a hybrid public/private state model. Aztec contract developers can specify which data is public and which data is private, as well as the functions that can operate on that data.

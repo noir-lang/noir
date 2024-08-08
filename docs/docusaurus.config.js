@@ -131,7 +131,7 @@ const config = {
         entryPoints: ["../yarn-project/circuit-types/src/interfaces/pxe.ts"],
         tsconfig: "../yarn-project/circuit-types/tsconfig.json",
         entryPointStrategy: "expand",
-        out: "reference/aztecjs/pxe",
+        out: "reference/developer_references/aztecjs/pxe",
         readme: "none",
         sidebar: {
           categoryLabel: "Private Execution Environment (PXE)",
@@ -149,7 +149,7 @@ const config = {
         ],
         tsconfig: "../yarn-project/aztec.js/tsconfig.json",
         entryPointStrategy: "resolve",
-        out: "reference/aztecjs/aztec-js",
+        out: "reference/developer_references/aztecjs/aztec-js",
         readme: "none",
         sidebar: {
           categoryLabel: "Aztec.js",
@@ -170,7 +170,7 @@ const config = {
         ],
         tsconfig: "../yarn-project/accounts/tsconfig.json",
         entryPointStrategy: "resolve",
-        out: "reference/aztecjs/accounts",
+        out: "reference/developer_references/aztecjs/accounts",
         readme: "none",
         sidebar: {
           categoryLabel: "Accounts",
@@ -219,15 +219,111 @@ const config = {
         items: [
           {
             type: "doc",
-            docId: "index",
+            docId: "aztec/overview",
             position: "left",
-            label: "Aztec Protocol",
+            label: "Concepts",
           },
           {
             type: "docSidebar",
-            sidebarId: "protocolSpecSidebar",
+            sidebarId: "guidesSidebar",
             position: "left",
-            label: "Protocol Specification",
+            label: "Guides",
+          },
+          {
+            type: "docSidebar",
+            sidebarId: "tutorialsSidebar",
+            position: "left",
+            label: "Examples",
+          },
+          {
+            type: "docSidebar",
+            sidebarId: "referenceSidebar",
+            position: "left",
+            label: "References",
+          },
+          {
+            type: "dropdown",
+            label: "Resources",
+            position: "left",
+            items: [
+              {
+                type: "html",
+                value: '<span class="dropdown-subtitle">GitHub</span>',
+                className: "dropdown-subtitle",
+              },
+              {
+                to: "https://github.com/AztecProtocol/aztec-packages",
+                label: "Aztec Monorepo",
+                target: "_blank",
+                rel: "noopener noreferrer",
+                className: "github-item",
+              },
+              {
+                to: "https://github.com/AztecProtocol/aztec-nr",
+                label: "Aztec.nr",
+                target: "_blank",
+                rel: "noopener noreferrer",
+                className: "github-item",
+              },
+              {
+                to: "https://github.com/AztecProtocol/awesome-aztec",
+                label: "Awesome Aztec",
+                target: "_blank",
+                rel: "noopener noreferrer",
+                className: "github-item",
+              },
+              {
+                type: "html",
+                value: '<span class="dropdown-subtitle">Other Docs</span>',
+                className: "dropdown-subtitle",
+              },
+              {
+                to: "/migration_notes",
+                label: "Migration Notes",
+                className: "no-external-icon",
+              },
+              {
+                to: "/aztec_connect_sunset",
+                label: "Aztec Connect Sunset",
+                className: "no-external-icon",
+              },
+              {
+                type: "docSidebar",
+                sidebarId: "protocolSpecSidebar",
+                target: "_blank",
+                label: "Protocol Specification",
+              },
+              {
+                type: "docSidebar",
+                sidebarId: "roadmapSidebar",
+                target: "_blank",
+                label: "Roadmap",
+              },
+              {
+                to: "https://noir-lang.org/docs",
+                label: "Noir docs",
+                target: "_blank",
+                rel: "noopener noreferrer",
+              },
+              {
+                type: "html",
+                value: '<span class="dropdown-subtitle">Support</span>',
+                className: "dropdown-subtitle",
+              },
+              {
+                to: "https://airtable.com/appMhZd7lsZS3v27R/pagxWYAHYYrnrrXmm/form",
+                label: "Join community",
+                target: "_blank",
+                rel: "noopener noreferrer",
+              },
+              {
+                to: "https://twitter.com/aztecprotocol",
+                label: "X/Twitter",
+                target: "_blank",
+                rel: "noopener noreferrer",
+                className: "twitter-item",
+              },
+            ],
           },
         ],
       },
@@ -243,7 +339,7 @@ const config = {
               },
               {
                 label: "Developer Quickstart",
-                to: "/getting_started",
+                to: "/guides/developer_guides/getting_started/quickstart",
               },
               {
                 label: "Aztec.nr",
@@ -263,7 +359,7 @@ const config = {
                 href: "https://discord.gg/DgWG2DBMyB",
               },
               {
-                label: "Twitter",
+                label: "X/Twitter",
                 href: "https://twitter.com/aztecnetwork",
               },
               {
@@ -293,8 +389,9 @@ const config = {
         copyright: `Copyright © ${new Date().getFullYear()} Aztec, built with Docusaurus, powered by <a target="_blank" href="https://netlify.com">Netlify.</a>`,
       },
       prism: {
-        theme: lightTheme,
-        darkTheme: darkTheme,
+        theme: themes.nightOwlLight,
+        darkTheme: themes.shadesOfPurple,
+        // darkTheme: themes.dracula,
         // https://prismjs.com/#supported-languages
         // Commented-out languages exists in `node_modules/prismjs/components/` so I'm not sure why they don't work.
         additionalLanguages: [
@@ -306,7 +403,6 @@ const config = {
           // "typescript",
           "json",
           // "bash",
-          // "solidity",
           "toml",
           "markdown",
           "docker",

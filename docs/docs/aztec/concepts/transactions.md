@@ -1,6 +1,7 @@
 ---
 title: Transactions
 sidebar_position: 3
+tags: [protocol]
 ---
 
 import Image from '@theme/IdealImage';
@@ -48,7 +49,7 @@ Transactions on Aztec start with a call from Aztec.js, which creates a request c
 
 See [this diagram](https://raw.githubusercontent.com/AztecProtocol/aztec-packages/2fa143e4d88b3089ebbe2a9e53645edf66157dc8/docs/static/img/sandbox_sending_a_tx.svg) for a more detailed overview of the transaction execution process. It highlights 3 different types of transaction execution: contract deployments, private transactions and public transactions.
 
-See the page on [contract communication](smart_contracts/communication/index.md) for more context on transaction execution.
+See the page on [contract communication](../smart_contracts/communication/index.md) for more context on transaction execution.
 
 ### Enabling Transaction Semantics: The Aztec Kernel
 
