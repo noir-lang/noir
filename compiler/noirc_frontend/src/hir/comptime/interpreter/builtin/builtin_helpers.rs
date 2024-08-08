@@ -50,6 +50,7 @@ pub(crate) fn check_two_arguments(
     Ok((argument1, argument2))
 }
 
+#[allow(clippy::type_complexity)]
 pub(crate) fn check_three_arguments(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
