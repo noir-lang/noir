@@ -533,7 +533,8 @@ impl<'f> Context<'f> {
                 .first()
         });
 
-        self.merge_stores(cond_context.then_branch, cond_context.else_branch);
+        let call_stack = cond_context.call_stack;
+        self.merge_stores(cond_context.then_branch, cond_context.else_branch, call_stack);
         self.arguments_stack.pop();
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
@@ -633,7 +634,7 @@ impl<'f> Context<'f> {
                 else_condition,
                 else_value: *else_case,
             };
-            let dfg = self.inserter.function.dfg;
+            let dfg = &mut self.inserter.function.dfg;
             let value = dfg
                 .insert_instruction_and_results(instruction, block, None, call_stack.clone())
                 .first();
@@ -870,7 +871,7 @@ impl<'f> Context<'f> {
             let value = store.old_value;
             let instruction = Instruction::Store { address, value };
             // Considering the location of undoing a store to be the same as the original store.
-            self.insert_instruction_with_typevars(instruction, None, store.call_stack);
+            self.insert_instruction_with_typevars(instruction, None, store.call_stack.clone());
         }
     }
 }

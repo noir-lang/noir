@@ -258,7 +258,8 @@ fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Va
                 Err(location.clone())
             }
         }
-        _ => Err(CallStack::new()),
+        Some(terminator) => Err(terminator.call_stack()),
+        None => Err(CallStack::new()),
     }
 }
 

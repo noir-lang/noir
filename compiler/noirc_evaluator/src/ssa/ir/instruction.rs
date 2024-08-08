@@ -1,3 +1,4 @@
+use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -906,6 +907,14 @@ impl TerminatorInstruction {
                 *destination = f(*destination);
             }
             Return { .. } => (),
+        }
+    }
+
+    pub(crate) fn call_stack(&self) -> im::Vector<Location> {
+        match self {
+            TerminatorInstruction::JmpIf { call_stack, .. }
+            | TerminatorInstruction::Jmp { call_stack, .. }
+            | TerminatorInstruction::Return { call_stack, .. } => call_stack.clone(),
         }
     }
 }
