@@ -137,12 +137,15 @@ impl Context {
         // first add constrain checks. Then run the DIE pass again, which will remove those
         // but leave the constrains (any any value needed by those constrains)
         if !possible_index_out_of_bounds_indexes.is_empty() {
-            self.insert_out_of_bounds_checks(
+            let inserted_check = self.replace_array_instructions_with_out_of_bounds_checks(
                 function,
                 block_id,
                 &mut possible_index_out_of_bounds_indexes,
             );
-            return true;
+            // There's a slight chance we didn't insert any checks, so we could proceed with DIE.
+            if inserted_check {
+                return true;
+            }
         }
 
         function.dfg[block_id]
@@ -152,12 +155,19 @@ impl Context {
         false
     }
 
-    fn insert_out_of_bounds_checks(
+    /// Replaces unused ArrayGet/ArraySet instructions with out of bounds checks.
+    /// Returns `true` if at least one check was inserted.
+    /// Becuase some ArrayGet might happen in groups (for composite types), if just
+    /// some of the instructions in a group are used but not all of them, no check
+    /// is inserted, so this method might return `false`.
+    fn replace_array_instructions_with_out_of_bounds_checks(
         &mut self,
         function: &mut Function,
         block_id: BasicBlockId,
         possible_index_out_of_bounds_indexes: &mut Vec<usize>,
-    ) {
+    ) -> bool {
+        let mut inserted_check = false;
+
         // Keep track of the current side effects condition
         let mut side_effects_condition = None;
 
@@ -265,9 +275,12 @@ impl Context {
                 None,
                 call_stack,
             );
+            inserted_check = true;
 
             next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
         }
+
+        inserted_check
     }
 
     /// Returns true if an instruction can be removed.
