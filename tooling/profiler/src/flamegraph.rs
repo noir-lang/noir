@@ -269,6 +269,7 @@ mod tests {
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
+            BTreeMap::default(),
         );
 
         let samples_per_opcode = vec![10, 20, 30];
