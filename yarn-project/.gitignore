@@ -20,6 +20,7 @@ circuits.js/fixtures/*.json
 circuits.js/src/structs/kernel/private_kernel_reset_circuit_private_inputs_variants.ts
 docs/dist
 end-to-end/addresses.json
+end-to-end/flame_graph
 end-to-end/log
 end-to-end/data
 end-to-end/src/web/main.js

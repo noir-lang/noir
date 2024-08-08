@@ -16,6 +16,8 @@
     "formatting": "run -T prettier --check ./src \"!src/web/main.js\" && run -T eslint ./src",
     "formatting:fix": "run -T eslint --fix ./src && run -T prettier -w ./src",
     "test": "LOG_LEVEL=${LOG_LEVEL:-verbose} DEBUG_COLORS=1 NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --testTimeout=300000 --forceExit",
+    "test:profile": "LOG_LEVEL=${LOG_LEVEL:-verbose} DEBUG_COLORS=1 NODE_NO_WARNINGS=1 0x --output-dir \"flame_graph/{pid}.0x\" -- node --experimental-vm-modules ../node_modules/jest/bin/jest.js --runInBand --testTimeout=300000 --forceExit",
+    "serve:flames": "python3 -m http.server --directory \"flame_graph\" 8000",
     "test:debug": "LOG_LEVEL=${LOG_LEVEL:-verbose} DEBUG_COLORS=1 NODE_NO_WARNINGS=1 node --inspect --experimental-vm-modules ../node_modules/.bin/jest --testTimeout=300000 --forceExit",
     "test:integration": "concurrently -k -s first -c reset,dim -n test,anvil \"yarn test:integration:run\" \"anvil\"",
     "test:integration:run": "NODE_NO_WARNINGS=1 node --experimental-vm-modules ../node_modules/.bin/jest --no-cache --runInBand --config jest.integration.config.json"
@@ -92,6 +94,7 @@
     "winston": "^3.10.0"
   },
   "devDependencies": {
+    "0x": "^5.7.0",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
     "@types/lodash.chunk": "^4.2.9",
