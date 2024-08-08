@@ -10,7 +10,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Binary, BinaryOp, Instruction, InstructionId, Intrinsic},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
         post_order::PostOrder,
         types::Type,
         value::{Value, ValueId},
@@ -312,11 +312,7 @@ impl Context {
                 let is_index_out_of_bounds = function
                     .dfg
                     .insert_instruction_and_results(
-                        Instruction::Binary(Binary {
-                            operator: BinaryOp::Lt,
-                            lhs: index,
-                            rhs: array_length,
-                        }),
+                        Instruction::binary(BinaryOp::Lt, index, array_length),
                         block_id,
                         None,
                         call_stack.clone(),
