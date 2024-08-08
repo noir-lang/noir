@@ -296,8 +296,8 @@ fn name_matches(name: &str, prefix: &str) -> bool {
     name.starts_with(prefix)
 }
 
-fn module_completion_item(name: String) -> CompletionItem {
-    simple_completion_item(name, CompletionItemKind::MODULE, None)
+fn module_completion_item(name: impl Into<String>) -> CompletionItem {
+    simple_completion_item(name.into(), CompletionItemKind::MODULE, None)
 }
 
 fn crate_completion_item(name: String) -> CompletionItem {
@@ -328,5 +328,86 @@ fn simple_completion_item(
         commit_characters: None,
         data: None,
         tags: None,
+    }
+}
+
+#[cfg(test)]
+mod completion_tests {
+    use crate::{notifications::on_did_open_text_document, test_utils};
+
+    use super::*;
+    use lsp_types::{
+        DidOpenTextDocumentParams, PartialResultParams, Position, TextDocumentIdentifier,
+        TextDocumentItem, TextDocumentPositionParams, WorkDoneProgressParams,
+    };
+    use tokio::test;
+
+    async fn assert_completion(src: &str, expected: Vec<CompletionItem>) {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
+
+        let (line, column) = src
+            .lines()
+            .enumerate()
+            .filter_map(|(line_index, line)| {
+                line.find(">|<").map(|char_index| (line_index, char_index))
+            })
+            .nth(0)
+            .expect("Expected to find one >|< in the source code");
+
+        let src = src.replace(">|<", "");
+
+        on_did_open_text_document(
+            &mut state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: noir_text_document.clone(),
+                    language_id: "noir".to_string(),
+                    version: 0,
+                    text: src.to_string(),
+                },
+            },
+        );
+
+        // Get inlay hints. These should now be relative to the changed text,
+        // not the saved file's text.
+        let response = on_completion_request(
+            &mut state,
+            CompletionParams {
+                text_document_position: TextDocumentPositionParams {
+                    text_document: TextDocumentIdentifier { uri: noir_text_document },
+                    position: Position { line: line as u32, character: column as u32 },
+                },
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+                partial_result_params: PartialResultParams { partial_result_token: None },
+                context: None,
+            },
+        )
+        .await
+        .expect("Could not execute on_completion_request")
+        .unwrap();
+
+        let CompletionResponse::Array(items) = response else {
+            panic!("Expected response to be CompletionResponse::Array");
+        };
+
+        let items = items.clone().sort_by_key(|item| item.label.clone());
+        let expected = expected.clone().sort_by_key(|item| item.label.clone());
+
+        assert_eq!(items, expected);
+    }
+
+    #[test]
+    async fn test_use_first_segment() {
+        let src = r#"
+            mod foo {}
+            mod foobar {}
+            use f>|<
+        "#;
+
+        assert_completion(
+            src,
+            vec![module_completion_item("foo"), module_completion_item("foobar")],
+        )
+        .await;
     }
 }

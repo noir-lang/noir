@@ -30,7 +30,7 @@ pub(super) fn on_did_change_configuration(
     ControlFlow::Continue(())
 }
 
-pub(super) fn on_did_open_text_document(
+pub(crate) fn on_did_open_text_document(
     state: &mut LspState,
     params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
