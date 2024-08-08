@@ -305,12 +305,12 @@ fn crate_completion_item(name: String) -> CompletionItem {
 }
 
 fn simple_completion_item(
-    label: String,
+    label: impl Into<String>,
     kind: CompletionItemKind,
     description: Option<String>,
 ) -> CompletionItem {
     CompletionItem {
-        label,
+        label: label.into(),
         label_details: Some(CompletionItemLabelDetails { detail: None, description: description }),
         kind: Some(kind),
         detail: None,
@@ -407,6 +407,73 @@ mod completion_tests {
         assert_completion(
             src,
             vec![module_completion_item("foo"), module_completion_item("foobar")],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_use_second_segment() {
+        let src = r#"
+            mod foo {
+                mod bar {}
+                mod baz {}
+            }
+            use foo::>|<
+        "#;
+
+        assert_completion(src, vec![module_completion_item("bar"), module_completion_item("baz")])
+            .await;
+    }
+
+    #[test]
+    async fn test_use_second_segment_after_typing() {
+        let src = r#"
+            mod foo {
+                mod bar {}
+                mod brave {}
+            }
+            use foo::ba>|<
+        "#;
+
+        assert_completion(src, vec![module_completion_item("bar")]).await;
+    }
+
+    #[test]
+    async fn test_use_struct() {
+        let src = r#"
+            mod foo {
+                struct Foo {}
+            }
+            use foo::>|<
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Foo",
+                CompletionItemKind::STRUCT,
+                Some("Foo".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_use_function() {
+        let src = r#"
+            mod foo {
+                fn bar(x: i32) -> u64 { 0 }
+            }
+            use foo::>|<
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "bar",
+                CompletionItemKind::FUNCTION,
+                Some("fn(i32) -> u64".to_string()),
+            )],
         )
         .await;
     }
