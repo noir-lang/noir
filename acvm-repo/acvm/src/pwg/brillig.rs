@@ -65,7 +65,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         brillig_bytecode: &'b [BrilligOpcode<F>],
         bb_solver: &'b B,
         acir_index: usize,
-        brillig_function_id: u32,
+        brillig_function_id: BrilligFunctionId,
     ) -> Result<Self, OpcodeResolutionError<F>> {
         let vm =
             Self::setup_brillig_vm(initial_witness, memory, inputs, brillig_bytecode, bb_solver)?;

@@ -132,7 +132,7 @@ pub enum OpcodeResolutionError<F> {
     BlackBoxFunctionFailed(BlackBoxFunc, String),
     #[error("Failed to solve brillig function")]
     BrilligFunctionFailed {
-        function_id: u32,
+        function_id: BrilligFunctionId,
         call_stack: Vec<OpcodeLocation>,
         payload: Option<ResolvedAssertionPayload<F>>,
     },
