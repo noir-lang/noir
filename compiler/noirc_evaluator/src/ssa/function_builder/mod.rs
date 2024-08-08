@@ -371,10 +371,12 @@ impl FunctionBuilder {
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) {
+        let call_stack = self.call_stack.clone();
         self.terminate_block_with(TerminatorInstruction::JmpIf {
             condition,
             then_destination,
             else_destination,
+            call_stack,
         });
     }
 
