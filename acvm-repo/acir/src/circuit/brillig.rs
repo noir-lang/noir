@@ -27,3 +27,6 @@ pub enum BrilligOutputs {
 pub struct BrilligBytecode<F> {
     pub bytecode: Vec<BrilligOpcode<F>>,
 }
+
+/// Id for the function being called.
+pub type BrilligFunctionId = u32;

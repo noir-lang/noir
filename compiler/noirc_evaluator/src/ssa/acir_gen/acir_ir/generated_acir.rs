@@ -9,7 +9,7 @@ use crate::{
 };
 use acvm::acir::{
     circuit::{
-        brillig::{BrilligInputs, BrilligOutputs},
+        brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         AssertionPayload, OpcodeLocation,
     },
@@ -27,7 +27,7 @@ use num_bigint::BigUint;
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the
 /// correct function index after code generation.
-pub(crate) const PLACEHOLDER_BRILLIG_INDEX: u32 = 0;
+pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = 0;
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
@@ -53,7 +53,7 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
 
     /// Brillig function id -> Opcodes locations map
     /// This map is used to prevent redundant locations being stored for the same Brillig entry point.
-    pub(crate) brillig_locations: BTreeMap<u32, OpcodeToLocationsMap>,
+    pub(crate) brillig_locations: BTreeMap<BrilligFunctionId, OpcodeToLocationsMap>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
@@ -570,7 +570,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         generated_brillig: &GeneratedBrillig<F>,
         inputs: Vec<BrilligInputs<F>>,
         outputs: Vec<BrilligOutputs>,
-        brillig_function_index: u32,
+        brillig_function_index: BrilligFunctionId,
         stdlib_func: Option<BrilligStdlibFunc>,
     ) {
         // Check whether we have a call to this Brillig function already exists.

@@ -32,7 +32,7 @@ pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::acir::circuit::opcodes::BlockType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
-use acvm::acir::circuit::brillig::BrilligBytecode;
+use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 use acvm::acir::circuit::{AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
@@ -54,15 +54,16 @@ struct SharedContext<F> {
     /// This mapping is necessary to use the correct function pointer for a Brillig call.
     /// This uses the brillig parameters in the map since using slices with different lengths
     /// needs to create different brillig entrypoints
-    brillig_generated_func_pointers: BTreeMap<(FunctionId, Vec<BrilligParameter>), u32>,
+    brillig_generated_func_pointers:
+        BTreeMap<(FunctionId, Vec<BrilligParameter>), BrilligFunctionId>,
 
     /// Maps a Brillig std lib function (a handwritten primitive such as for inversion) -> Final generated Brillig artifact index.
     /// A separate mapping from normal Brillig calls is necessary as these methods do not have an associated function id from SSA.
-    brillig_stdlib_func_pointer: HashMap<BrilligStdlibFunc, u32>,
+    brillig_stdlib_func_pointer: HashMap<BrilligStdlibFunc, BrilligFunctionId>,
 
     /// Keeps track of Brillig std lib calls per function that need to still be resolved
     /// with the correct function pointer from the `brillig_stdlib_func_pointer` map.
-    brillig_stdlib_calls_to_resolve: HashMap<FunctionId, Vec<(OpcodeLocation, u32)>>,
+    brillig_stdlib_calls_to_resolve: HashMap<FunctionId, Vec<(OpcodeLocation, BrilligFunctionId)>>,
 }
 
 impl<F: AcirField> SharedContext<F> {
@@ -70,7 +71,7 @@ impl<F: AcirField> SharedContext<F> {
         &self,
         func_id: FunctionId,
         arguments: Vec<BrilligParameter>,
-    ) -> Option<&u32> {
+    ) -> Option<&BrilligFunctionId> {
         self.brillig_generated_func_pointers.get(&(func_id, arguments))
     }
 
@@ -82,14 +83,14 @@ impl<F: AcirField> SharedContext<F> {
         &mut self,
         func_id: FunctionId,
         arguments: Vec<BrilligParameter>,
-        generated_pointer: u32,
+        generated_pointer: BrilligFunctionId,
         code: GeneratedBrillig<F>,
     ) {
         self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
         self.generated_brillig.push(code);
     }
 
-    fn new_generated_pointer(&self) -> u32 {
+    fn new_generated_pointer(&self) -> BrilligFunctionId {
         self.generated_brillig.len() as u32
     }
 
@@ -120,7 +121,7 @@ impl<F: AcirField> SharedContext<F> {
     fn insert_generated_brillig_stdlib(
         &mut self,
         brillig_stdlib_func: BrilligStdlibFunc,
-        generated_pointer: u32,
+        generated_pointer: BrilligFunctionId,
         func_id: FunctionId,
         opcode_location: OpcodeLocation,
         code: GeneratedBrillig<F>,
@@ -130,7 +131,11 @@ impl<F: AcirField> SharedContext<F> {
         self.generated_brillig.push(code);
     }
 
-    fn add_call_to_resolve(&mut self, func_id: FunctionId, call_to_resolve: (OpcodeLocation, u32)) {
+    fn add_call_to_resolve(
+        &mut self,
+        func_id: FunctionId,
+        call_to_resolve: (OpcodeLocation, BrilligFunctionId),
+    ) {
         self.brillig_stdlib_calls_to_resolve.entry(func_id).or_default().push(call_to_resolve);
     }
 }
