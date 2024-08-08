@@ -6,8 +6,8 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     check_argument_count, check_one_argument, check_three_arguments, check_two_arguments,
-    get_function_def, get_quoted, get_slice, get_trait_constraint, get_trait_def, get_type,
-    get_u32, hir_pattern_to_tokens,
+    get_function_def, get_module, get_quoted, get_slice, get_trait_constraint, get_trait_def,
+    get_type, get_u32, hir_pattern_to_tokens,
 };
 use chumsky::Parser;
 use iter_extended::{try_vecmap, vecmap};
@@ -17,11 +17,13 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::IntegerBitSize,
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
-    macros_api::{NodeInterner, Signedness},
+    macros_api::{ModuleDefId, NodeInterner, Signedness},
     parser,
     token::Token,
     QuotedType, Shared, Type,
 };
+
+use self::builtin_helpers::{get_array, get_u8};
 
 use super::Interpreter;
 
@@ -37,16 +39,22 @@ impl<'local, 'context> Interpreter<'local, 'context> {
     ) -> IResult<Value> {
         let interner = &mut self.elaborator.interner;
         match name {
+            "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
+            "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
+            "module_functions" => module_functions(self, arguments, location),
+            "module_is_contract" => module_is_contract(self, arguments, location),
+            "module_name" => module_name(interner, arguments, location),
             "modulus_be_bits" => modulus_be_bits(interner, arguments, location),
             "modulus_be_bytes" => modulus_be_bytes(interner, arguments, location),
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
             "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
+            "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(arguments, location),
@@ -105,6 +113,19 @@ fn array_len(
             Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
     }
+}
+
+fn array_as_str_unchecked(
+    interner: &NodeInterner,
+    mut arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(1, &arguments, location)?;
+
+    let array = get_array(interner, arguments.pop().unwrap().0, location)?.0;
+    let string_bytes = try_vecmap(array, |byte| get_u8(byte, location))?;
+    let string = String::from_utf8_lossy(&string_bytes).into_owned();
+    Ok(Value::String(Rc::new(string)))
 }
 
 fn as_slice(
@@ -305,6 +326,29 @@ fn slice_insert(
     let (mut values, typ) = get_slice(interner, slice, location)?;
     values.insert(index, element);
     Ok(Value::Slice(values, typ))
+}
+
+// fn as_module(quoted: Quoted) -> Option<Module>
+fn quoted_as_module(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+
+    let tokens = get_quoted(argument, location)?;
+    let quoted = add_token_spans(tokens.clone(), location.span);
+
+    let path = parser::path_no_turbofish().parse(quoted).ok();
+    let option_value = path.and_then(|path| {
+        let module = interpreter.elaborate_item(interpreter.current_function, |elaborator| {
+            elaborator.resolve_module_by_path(path)
+        });
+        module.map(Value::ModuleDefinition)
+    });
+
+    option(return_type, option_value)
 }
 
 // fn as_trait_constraint(quoted: Quoted) -> TraitConstraint
@@ -652,6 +696,19 @@ fn zeroed(return_type: Type) -> IResult<Value> {
     }
 }
 
+// fn name(self) -> Quoted
+fn function_def_name(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument, location)?;
+    let name = interner.function_name(&func_id).to_string();
+    let tokens = Rc::new(vec![Token::Ident(name)]);
+    Ok(Value::Quoted(tokens))
+}
+
 // fn parameters(self) -> [(Quoted, Type)]
 fn function_def_parameters(
     interner: &NodeInterner,
@@ -691,6 +748,54 @@ fn function_def_return_type(
     let func_meta = interner.function_meta(&func_id);
 
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
+}
+
+// fn functions(self) -> [FunctionDefinition]
+fn module_functions(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument, location)?;
+    let module_data = interpreter.elaborator.get_module(module_id);
+    let func_ids = module_data
+        .value_definitions()
+        .filter_map(|module_def_id| {
+            if let ModuleDefId::FunctionId(func_id) = module_def_id {
+                Some(Value::FunctionDefinition(func_id))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
+    Ok(Value::Slice(func_ids, slice_type))
+}
+
+// fn is_contract(self) -> bool
+fn module_is_contract(
+    interpreter: &Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument, location)?;
+    Ok(Value::Bool(interpreter.elaborator.module_is_contract(module_id)))
+}
+
+// fn name(self) -> Quoted
+fn module_name(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let module_id = get_module(self_argument, location)?;
+    let name = &interner.module_attributes(&module_id).name;
+    let tokens = Rc::new(vec![Token::Ident(name.clone())]);
+    Ok(Value::Quoted(tokens))
 }
 
 fn modulus_be_bits(
