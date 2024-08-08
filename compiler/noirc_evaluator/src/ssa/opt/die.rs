@@ -155,6 +155,72 @@ impl Context {
         false
     }
 
+    /// Returns true if an instruction can be removed.
+    ///
+    /// An instruction can be removed as long as it has no side-effects, and none of its result
+    /// values have been referenced.
+    fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
+        let instruction = &function.dfg[instruction_id];
+
+        if instruction.can_eliminate_if_unused(&function.dfg) {
+            let results = function.dfg.instruction_results(instruction_id);
+            results.iter().all(|result| !self.used_values.contains(result))
+        } else if let Instruction::Call { func, arguments } = instruction {
+            // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
+            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
+            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
+        } else {
+            // If the instruction has side effects we should never remove it.
+            false
+        }
+    }
+
+    /// Adds values referenced by the terminator to the set of used values.
+    fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
+        block.unwrap_terminator().for_each_value(|value| {
+            self.mark_used_instruction_results(&function.dfg, value);
+        });
+    }
+
+    /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
+    /// results as used.
+    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
+        let value_id = dfg.resolve(value_id);
+        match &dfg[value_id] {
+            Value::Instruction { .. } => {
+                self.used_values.insert(value_id);
+            }
+            Value::Array { array, .. } => {
+                for elem in array {
+                    self.mark_used_instruction_results(dfg, *elem);
+                }
+            }
+            Value::Param { .. } => {
+                self.used_values.insert(value_id);
+            }
+            _ => {
+                // Does not comprise of any instruction results
+            }
+        }
+    }
+
+    fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
+        for (rc, block) in self.rc_instructions {
+            let value = match &dfg[rc] {
+                Instruction::IncrementRc { value } => *value,
+                Instruction::DecrementRc { value } => *value,
+                other => {
+                    unreachable!("Expected IncrementRc or DecrementRc instruction, found {other:?}")
+                }
+            };
+
+            // This could be more efficient if we have to remove multiple instructions in a single block
+            if !self.used_values.contains(&value) {
+                dfg[block].instructions_mut().retain(|instruction| *instruction != rc);
+            }
+        }
+    }
+
     /// Replaces unused ArrayGet/ArraySet instructions with out of bounds checks.
     /// Returns `true` if at least one check was inserted.
     /// Becuase some ArrayGet might happen in groups (for composite types), if just
@@ -282,72 +348,6 @@ impl Context {
         }
 
         inserted_check
-    }
-
-    /// Returns true if an instruction can be removed.
-    ///
-    /// An instruction can be removed as long as it has no side-effects, and none of its result
-    /// values have been referenced.
-    fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
-        let instruction = &function.dfg[instruction_id];
-
-        if instruction.can_eliminate_if_unused(&function.dfg) {
-            let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
-        } else if let Instruction::Call { func, arguments } = instruction {
-            // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
-            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
-        } else {
-            // If the instruction has side effects we should never remove it.
-            false
-        }
-    }
-
-    /// Adds values referenced by the terminator to the set of used values.
-    fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
-        block.unwrap_terminator().for_each_value(|value| {
-            self.mark_used_instruction_results(&function.dfg, value);
-        });
-    }
-
-    /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
-    /// results as used.
-    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
-        let value_id = dfg.resolve(value_id);
-        match &dfg[value_id] {
-            Value::Instruction { .. } => {
-                self.used_values.insert(value_id);
-            }
-            Value::Array { array, .. } => {
-                for elem in array {
-                    self.mark_used_instruction_results(dfg, *elem);
-                }
-            }
-            Value::Param { .. } => {
-                self.used_values.insert(value_id);
-            }
-            _ => {
-                // Does not comprise of any instruction results
-            }
-        }
-    }
-
-    fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
-        for (rc, block) in self.rc_instructions {
-            let value = match &dfg[rc] {
-                Instruction::IncrementRc { value } => *value,
-                Instruction::DecrementRc { value } => *value,
-                other => {
-                    unreachable!("Expected IncrementRc or DecrementRc instruction, found {other:?}")
-                }
-            };
-
-            // This could be more efficient if we have to remove multiple instructions in a single block
-            if !self.used_values.contains(&value) {
-                dfg[block].instructions_mut().retain(|instruction| *instruction != rc);
-            }
-        }
     }
 }
 
