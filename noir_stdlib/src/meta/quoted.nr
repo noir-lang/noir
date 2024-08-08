@@ -1,6 +1,10 @@
 use crate::cmp::Eq;
+use crate::option::Option;
 
 impl Quoted {
+    #[builtin(quoted_as_module)]
+    fn as_module(self) -> Option<Module> {}
+
     #[builtin(quoted_as_trait_constraint)]
     fn as_trait_constraint(self) -> TraitConstraint {}
 
