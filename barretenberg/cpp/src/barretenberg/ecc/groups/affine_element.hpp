@@ -1,4 +1,5 @@
 #pragma once
+
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/ecc/curves/bn254/fq2.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
@@ -62,6 +63,8 @@ template <typename Fq_, typename Fr_, typename Params> class alignas(64) affine_
     constexpr affine_element& operator=(affine_element&& other) noexcept = default;
 
     constexpr affine_element operator+(const affine_element& other) const noexcept;
+
+    constexpr affine_element operator*(const Fr& exponent) const noexcept;
 
     template <typename BaseField = Fq,
               typename CompileTimeEnabled = std::enable_if_t<(BaseField::modulus >> 255) == uint256_t(0), void>>
