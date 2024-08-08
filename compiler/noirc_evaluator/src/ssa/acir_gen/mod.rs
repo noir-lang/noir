@@ -91,7 +91,7 @@ impl<F: AcirField> SharedContext<F> {
     }
 
     fn new_generated_pointer(&self) -> BrilligFunctionId {
-        self.generated_brillig.len() as u32
+        BrilligFunctionId(self.generated_brillig.len() as u32)
     }
 
     fn generate_brillig_calls_to_resolve(
@@ -485,10 +485,15 @@ impl<'a> Context<'a> {
             false,
             true,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
-            0,
+            BrilligFunctionId(0),
             None,
         )?;
-        self.shared_context.insert_generated_brillig(main_func.id(), arguments, 0, code);
+        self.shared_context.insert_generated_brillig(
+            main_func.id(),
+            arguments,
+            BrilligFunctionId(0),
+            code,
+        );
 
         let return_witnesses: Vec<Witness> = output_values
             .iter()
@@ -805,7 +810,7 @@ impl<'a> Context<'a> {
                                 {
                                     let code = self
                                         .shared_context
-                                        .generated_brillig(*generated_pointer as usize);
+                                        .generated_brillig(generated_pointer.as_usize());
                                     self.acir_context.brillig_call(
                                         self.current_side_effects_enabled_var,
                                         code,
@@ -2859,7 +2864,7 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 mod test {
     use acvm::{
         acir::{
-            circuit::{ExpressionWidth, Opcode, OpcodeLocation},
+            circuit::{brillig::BrilligFunctionId, ExpressionWidth, Opcode, OpcodeLocation},
             native_types::Witness,
         },
         FieldElement,
@@ -3276,6 +3281,7 @@ mod test {
             match opcode {
                 Opcode::BrilligCall { id, .. } => {
                     let expected_id = if i == 3 || i == 5 { 1 } else { 0 };
+                    let expected_id = BrilligFunctionId(expected_id);
                     assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
                 }
                 _ => panic!("Expected only Brillig call opcode"),
@@ -3285,8 +3291,8 @@ mod test {
         // We have two normal Brillig functions that was called multiple times.
         // We should have a single locations map for each function's debug metadata.
         assert_eq!(main_acir.brillig_locations.len(), 2);
-        assert!(main_acir.brillig_locations.get(&0).is_some());
-        assert!(main_acir.brillig_locations.get(&1).is_some());
+        assert!(main_acir.brillig_locations.get(&BrilligFunctionId(0)).is_some());
+        assert!(main_acir.brillig_locations.get(&BrilligFunctionId(1)).is_some());
     }
 
     // Test that given multiple primitive operations that are represented by Brillig directives (e.g. invert/quotient),
@@ -3419,7 +3425,7 @@ mod test {
         // We have one normal Brillig functions that was called twice.
         // We should have a single locations map for each function's debug metadata.
         assert_eq!(main_acir.brillig_locations.len(), 1);
-        assert!(main_acir.brillig_locations.get(&0).is_some());
+        assert!(main_acir.brillig_locations.get(&BrilligFunctionId(0)).is_some());
     }
 
     // Test that given both normal Brillig calls, Brillig stdlib calls, and non-inlined ACIR calls, that we accurately generate ACIR.
@@ -3511,7 +3517,7 @@ mod test {
         );
 
         assert_eq!(main_acir.brillig_locations.len(), 1);
-        assert!(main_acir.brillig_locations.get(&0).is_some());
+        assert!(main_acir.brillig_locations.get(&BrilligFunctionId(0)).is_some());
 
         let foo_acir = &acir_functions[1];
         let foo_opcodes = foo_acir.opcodes();
@@ -3548,6 +3554,7 @@ mod test {
                             // IDs are expected to always reference Brillig bytecode at the end of the Brillig functions list.
                             // We have one normal Brillig call so we add one here to the std lib function's index within the std lib.
                             let expected_id = stdlib_func_index + num_normal_brillig_functions;
+                            let expected_id = BrilligFunctionId(expected_id);
                             assert_eq!(id, expected_id, "Expected {expected_id} but got {id}");
                             num_brillig_stdlib_calls += 1;
                         }
@@ -3573,7 +3580,7 @@ mod test {
                     continue;
                 }
                 // We only generate one normal Brillig call so we should expect a function ID of `0`
-                let expected_id = 0u32;
+                let expected_id = BrilligFunctionId(0);
                 assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
                 num_normal_brillig_calls += 1;
             }
