@@ -8,15 +8,12 @@ use crate::{
     macros_api::NodeInterner,
 };
 
-use super::{
-    builtin::builtin_helpers::{check_two_arguments, get_array, get_field, get_u32},
-    ValueAndLocation,
-};
+use super::builtin::builtin_helpers::{check_two_arguments, get_array, get_field, get_u32};
 
 pub(super) fn call_foreign(
     interner: &mut NodeInterner,
     name: &str,
-    arguments: Vec<ValueAndLocation>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     match name {
@@ -31,7 +28,7 @@ pub(super) fn call_foreign(
 // poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]
 fn poseidon2_permutation(
     interner: &mut NodeInterner,
-    arguments: Vec<ValueAndLocation>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (input, state_length) = check_two_arguments(arguments, location)?;
