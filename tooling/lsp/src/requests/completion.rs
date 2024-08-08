@@ -8,9 +8,13 @@ use fm::PathString;
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use noirc_errors::Span;
 use noirc_frontend::{
-    ast::{UseTree, UseTreeKind},
+    ast::{Ident, Path, PathKind, PathSegment, UseTree, UseTreeKind},
     graph::{CrateId, Dependency},
-    hir::def_map::{CrateDefMap, ModuleId},
+    hir::{
+        def_map::{CrateDefMap, ModuleId},
+        resolution::path_resolver::{PathResolver, StandardPathResolver},
+    },
+    macros_api::ModuleDefId,
     parser::{Item, ItemKind},
     ParsedModule,
 };
@@ -58,8 +62,7 @@ pub(crate) fn on_completion_request(
 struct NodeFinder<'a> {
     byte_index: usize,
     byte: Option<u8>,
-    krate: CrateId,
-    current_module_id: ModuleId,
+    module_id: ModuleId,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     dependencies: &'a Vec<Dependency>,
 }
@@ -74,7 +77,7 @@ impl<'a> NodeFinder<'a> {
     ) -> Self {
         let def_map = &def_maps[&krate];
         let current_module_id = ModuleId { krate: krate, local_id: def_map.root() };
-        Self { byte_index, byte, krate, current_module_id, def_maps, dependencies }
+        Self { byte_index, byte, module_id: current_module_id, def_maps, dependencies }
     }
 
     fn find(&self, parsed_module: &ParsedModule) -> Option<CompletionResponse> {
@@ -107,46 +110,53 @@ impl<'a> NodeFinder<'a> {
     fn find_in_use_tree(&self, use_tree: &UseTree, span: Span) -> Option<CompletionResponse> {
         match &use_tree.kind {
             UseTreeKind::Path(ident, alias) => {
-                if let Some(_alias) = alias {
-                    // TODO: handle
-                    None
-                } else {
-                    // If we are at the end of the use statement (likely the most common scenario)...
-                    if self.byte_index == span.end() as usize {
-                        if let Some(b':') = self.byte {
-                            let mut segments: Vec<_> = use_tree
-                                .prefix
-                                .segments
-                                .iter()
-                                .map(|segment| &segment.ident)
-                                .collect();
-                            segments.push(ident);
-
-                            // If we are after a colon, find inside the last segment
-                            // TODO: handle
-                            None
-                        } else {
-                            // Otherwise we must complete the last segment
-                            if use_tree.prefix.segments.is_empty() {
-                                // We are at the start of the use segment and completing the first segment,
-                                // let's start here.
-                                return self.complete_in_module(
-                                    self.current_module_id,
-                                    ident.to_string(),
-                                    true,
-                                );
-                            }
-                            None
-                        }
-                    } else {
-                        // TODO: handle
-                        None
-                    }
-                }
+                self.find_in_use_tree_path(&use_tree.prefix, ident, alias, span)
             }
             UseTreeKind::List(..) => {
                 // TODO: handle
                 None
+            }
+        }
+    }
+
+    fn find_in_use_tree_path(
+        &self,
+        use_tree_prefix: &Path,
+        ident: &Ident,
+        alias: &Option<Ident>,
+        span: Span,
+    ) -> Option<CompletionResponse> {
+        if let Some(_alias) = alias {
+            // Won't handle completion if there's an alias (for now)
+            return None;
+        }
+
+        if self.byte_index != span.end() as usize {
+            // Won't handle autocomplete if we are not at the end of the use statement
+            return None;
+        }
+
+        let mut segments: Vec<Ident> =
+            use_tree_prefix.segments.iter().map(|segment| segment.ident.clone()).collect();
+
+        if let Some(b':') = self.byte {
+            // We are after the colon
+            segments.push(ident.clone());
+
+            self.resolve_module(segments).and_then(|module_id| {
+                let prefix = String::new();
+                self.complete_in_module(module_id, prefix, false)
+            })
+        } else {
+            let prefix = ident.to_string();
+
+            // Otherwise we must complete the last segment
+            if segments.is_empty() {
+                // We are at the start of the use segment and completing the first segment
+                self.complete_in_module(self.module_id, prefix, true)
+            } else {
+                self.resolve_module(segments)
+                    .and_then(|module_id| self.complete_in_module(module_id, prefix, false))
             }
         }
     }
@@ -179,6 +189,25 @@ impl<'a> NodeFinder<'a> {
         }
 
         Some(CompletionResponse::Array(completion_items))
+    }
+
+    fn resolve_module(&self, segments: Vec<Ident>) -> Option<ModuleId> {
+        if let Some(ModuleDefId::ModuleId(module_id)) = self.resolve_path(segments) {
+            Some(module_id)
+        } else {
+            None
+        }
+    }
+
+    fn resolve_path(&self, segments: Vec<Ident>) -> Option<ModuleDefId> {
+        let path_segments = segments.into_iter().map(PathSegment::from).collect();
+        let path = Path { segments: path_segments, kind: PathKind::Plain, span: Span::default() };
+
+        let path_resolver = StandardPathResolver::new(self.module_id);
+        match path_resolver.resolve(&self.def_maps, path, &mut None) {
+            Ok(path_resolution) => Some(path_resolution.module_def_id),
+            Err(_) => None,
+        }
     }
 
     fn includes_span(&self, span: Span) -> bool {
