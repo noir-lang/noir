@@ -1,3 +1,4 @@
+use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -51,6 +52,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
+    ArrayAsStrUnchecked,
     AsSlice,
     AssertConstant,
     StaticAssert,
@@ -76,6 +78,7 @@ impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::ArrayAsStrUnchecked => write!(f, "array_as_str_unchecked"),
             Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::StaticAssert => write!(f, "static_assert"),
@@ -116,6 +119,7 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
@@ -144,6 +148,7 @@ impl Intrinsic {
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
+            "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
             "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "static_assert" => Some(Intrinsic::StaticAssert),
@@ -804,7 +809,12 @@ pub(crate) enum TerminatorInstruction {
     ///
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
-    JmpIf { condition: ValueId, then_destination: BasicBlockId, else_destination: BasicBlockId },
+    JmpIf {
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+        call_stack: CallStack,
+    },
 
     /// Unconditional Jump
     ///
@@ -831,10 +841,11 @@ impl TerminatorInstruction {
     ) -> TerminatorInstruction {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, then_destination, else_destination } => JmpIf {
+            JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
                 condition: f(*condition),
                 then_destination: *then_destination,
                 else_destination: *else_destination,
+                call_stack: call_stack.clone(),
             },
             Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
@@ -900,6 +911,14 @@ impl TerminatorInstruction {
                 *destination = f(*destination);
             }
             Return { .. } => (),
+        }
+    }
+
+    pub(crate) fn call_stack(&self) -> im::Vector<Location> {
+        match self {
+            TerminatorInstruction::JmpIf { call_stack, .. }
+            | TerminatorInstruction::Jmp { call_stack, .. }
+            | TerminatorInstruction::Return { call_stack, .. } => call_stack.clone(),
         }
     }
 }

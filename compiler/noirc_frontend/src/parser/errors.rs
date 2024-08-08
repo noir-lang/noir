@@ -26,6 +26,8 @@ pub enum ParserErrorReason {
     EarlyReturn,
     #[error("Patterns aren't allowed in a trait's function declarations")]
     PatternInTraitFunctionParameter,
+    #[error("Patterns aren't allowed in a trait impl's associated constants")]
+    PatternInAssociatedConstant,
     #[error("Modifiers are ignored on a trait impl method")]
     TraitImplFunctionModifiers,
     #[error("comptime keyword is deprecated")]
