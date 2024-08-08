@@ -83,7 +83,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
                         let brillig_bytecode =
                             if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index] {
-                                &self.unconstrained_functions[id as usize].bytecode
+                                &self.unconstrained_functions[id.as_usize()].bytecode
                             } else {
                                 unreachable!("Brillig location does not contain Brillig opcodes");
                             };
@@ -111,7 +111,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
                 let brillig_bytecode = if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index]
                 {
-                    &self.unconstrained_functions[id as usize].bytecode
+                    &self.unconstrained_functions[id.as_usize()].bytecode
                 } else {
                     unreachable!("Brillig location does not contain Brillig opcodes");
                 };
@@ -207,7 +207,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                         circuit_id, acir_index, marker, id, inputs
                     );
                     println!("          |       outputs={:?}", outputs);
-                    let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
+                    let bytecode = &self.unconstrained_functions[id.as_usize()].bytecode;
                     print_brillig_bytecode(acir_index, bytecode);
                 }
                 _ => println!("{:>2}:{:>3} {:2} {:?}", circuit_id, acir_index, marker, opcode),
