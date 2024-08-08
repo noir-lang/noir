@@ -152,9 +152,13 @@ impl<'a> NodeFinder<'a> {
             return None;
         }
 
-        if self.byte_index != ident.span().end() as usize && self.byte_index != span.end() as usize
-        {
-            // Won't handle autocomplete if we are not at the end of the use statement
+        let after_colons = self.byte == Some(b':');
+        let at_use_end = self.byte_index != span.end() as usize;
+        let at_ident_end = self.byte_index == ident.span().end() as usize;
+        let at_ident_colons_end =
+            after_colons && self.byte_index - 2 == ident.span().end() as usize;
+
+        if !(at_use_end || at_ident_end || at_ident_colons_end) {
             return None;
         }
 
@@ -165,7 +169,7 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
-        if let Some(b':') = self.byte {
+        if after_colons {
             // We are after the colon
             segments.push(ident.clone());
 
@@ -538,7 +542,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_use_in_tree() {
+    async fn test_use_in_tree_after_letter() {
         let src = r#"
             mod foo {
                 mod bar {}
@@ -547,5 +551,19 @@ mod completion_tests {
         "#;
 
         assert_completion(src, vec![module_completion_item("bar")]).await;
+    }
+
+    #[test]
+    async fn test_use_in_tree_after_colons() {
+        let src = r#"
+            mod foo {
+                mod bar {
+                    mod baz {}
+                }
+            }
+            use foo::{bar::>|<}
+        "#;
+
+        assert_completion(src, vec![module_completion_item("baz")]).await;
     }
 }
