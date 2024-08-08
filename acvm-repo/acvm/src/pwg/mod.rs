@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use acir::{
     brillig::ForeignCallResult,
     circuit::{
-        brillig::BrilligBytecode,
+        brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{BlockId, ConstantOrWitnessEnum, FunctionInput},
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
