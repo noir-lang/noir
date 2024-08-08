@@ -105,6 +105,17 @@ pub(crate) fn get_field(value: Value, location: Location) -> IResult<FieldElemen
     }
 }
 
+pub(crate) fn get_u8(value: Value, location: Location) -> IResult<u8> {
+    match value {
+        Value::U8(value) => Ok(value),
+        value => {
+            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
 pub(crate) fn get_u32(value: Value, location: Location) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
