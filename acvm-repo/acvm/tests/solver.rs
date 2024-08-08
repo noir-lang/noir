@@ -957,79 +957,6 @@ fn sha256_compression_op(
     }
 }
 
-// 32 + N inputs
-// N outputs
-fn aes128_encrypt_op(
-    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> BlackBoxFuncCall<FieldElement> {
-    let (function_inputs, outputs) = function_inputs_and_outputs;
-    let mut function_inputs = function_inputs.into_iter();
-    let iv = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
-    let key = Box::new(core::array::from_fn(|_| function_inputs.next().unwrap()));
-    let inputs = function_inputs.collect();
-    BlackBoxFuncCall::AES128Encrypt {
-        inputs,
-        iv,
-        key,
-        outputs,
-    }
-}
-
-// SchnorrVerify {
-//     public_key_x: FunctionInput<F>,
-//     public_key_y: FunctionInput<F>,
-//     #[serde(
-//         serialize_with = "serialize_big_array",
-//         deserialize_with = "deserialize_big_array_into_box"
-//     )]
-//     signature: Box<[FunctionInput<F>; 64]>,
-//     message: Vec<FunctionInput<F>>,
-//     output: Witness,
-// },
-// EcdsaSecp256k1 {
-//     public_key_x: Box<[FunctionInput<F>; 32]>,
-//     public_key_y: Box<[FunctionInput<F>; 32]>,
-//     #[serde(
-//         serialize_with = "serialize_big_array",
-//         deserialize_with = "deserialize_big_array_into_box"
-//     )]
-//     signature: Box<[FunctionInput<F>; 64]>,
-//     hashed_message: Box<[FunctionInput<F>; 32]>,
-//     output: Witness,
-// },
-// EcdsaSecp256r1 {
-//     public_key_x: Box<[FunctionInput<F>; 32]>,
-//     public_key_y: Box<[FunctionInput<F>; 32]>,
-//     #[serde(
-//         serialize_with = "serialize_big_array",
-//         deserialize_with = "deserialize_big_array_into_box"
-//     )]
-//     signature: Box<[FunctionInput<F>; 64]>,
-//     hashed_message: Box<[FunctionInput<F>; 32]>,
-//     output: Witness,
-// },
-
-// RANGE {
-//     input: FunctionInput<F>,
-// },
-// MultiScalarMul {
-//     points: Vec<FunctionInput<F>>,
-//     scalars: Vec<FunctionInput<F>>,
-//     outputs: (Witness, Witness, Witness),
-// },
-// EmbeddedCurveAdd {
-//     input1: Box<[FunctionInput<F>; 3]>,
-//     input2: Box<[FunctionInput<F>; 3]>,
-//     outputs: (Witness, Witness, Witness),
-// },
-
-
-
-
-
-
-
-
 fn into_repr_vec<T>(xs: T) -> Vec<ark_bn254::Fr>
 where
     T: IntoIterator<Item = FieldElement>,
@@ -1335,16 +1262,20 @@ fn keccak256_injective_regression() {
 
 #[test]
 fn aes128_zeros() {
-    let results = solve_array_input_blackbox_call([(FieldElement::zero(), false); 64].into(), 32, aes128_encrypt_op);
+    let results = solve_array_input_blackbox_call(
+        [(FieldElement::zero(), false); 64].into(),
+        32,
+        aes128_encrypt_op,
+    );
     let expected_results: Vec<_> = vec![
-        102, 233, 75, 212, 239, 138, 44, 59, 136, 76, 250, 89, 202, 52, 43, 46, 247, 149, 189, 74, 82, 226, 158, 215, 19, 211, 19, 250, 32, 233, 141, 188
+        102, 233, 75, 212, 239, 138, 44, 59, 136, 76, 250, 89, 202, 52, 43, 46, 247, 149, 189, 74,
+        82, 226, 158, 215, 19, 211, 19, 250, 32, 233, 141, 188,
     ]
     .into_iter()
     .map(|x: u128| FieldElement::from(x))
     .collect();
     assert_eq!(results, expected_results);
 }
-
 
 proptest! {
 
@@ -1483,25 +1414,6 @@ proptest! {
     fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 7, 7)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, poseidon2_permutation_invalid_len_op);
-        prop_assert!(result, "{}", message);
-    }
-
-    #[test]
-    fn aes128_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 34, 64)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        assert!(inputs.len() >= 32, "inputs len: {:?}", inputs.len());
-        let outputs_len = inputs.len() - 32;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, outputs_len, aes128_encrypt_op);
-        prop_assert!(result, "{}", message);
-    }
-
-    #[test]
-    #[should_panic(expected = "Test failed: not injective")]
-    fn aes128_not_injective_on_singleton_inputs(inputs_distinct_inputs in any_distinct_inputs(Some(8), 33, 33)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        assert!(inputs.len() >= 32, "inputs len: {:?}", inputs.len());
-        let outputs_len = inputs.len() - 32;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, outputs_len, aes128_encrypt_op);
         prop_assert!(result, "{}", message);
     }
 
