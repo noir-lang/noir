@@ -1,4 +1,5 @@
 use acvm::{acir::AcirField, FieldElement};
+use serde::{Deserialize, Serialize};
 
 use super::{
     DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, ValueId,
@@ -11,7 +12,7 @@ use super::{
 /// All binary operators are also only for numeric types. To implement
 /// e.g. equality for a compound type like a struct, one must add a
 /// separate Eq operation for each field and combine them later with And.
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
 pub(crate) enum BinaryOp {
     /// Addition of lhs + rhs.
     Add,
@@ -64,7 +65,7 @@ impl std::fmt::Display for BinaryOp {
 }
 
 /// A binary instruction in the IR.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) struct Binary {
     /// Left hand side of the binary operation
     pub(crate) lhs: ValueId,

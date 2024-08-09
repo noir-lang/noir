@@ -1,5 +1,5 @@
 comptime fn derive_default(typ: StructDefinition) -> Quoted {
-    let generics: [Quoted] = typ.generics();
+    let generics = typ.generics();
     assert_eq(
         generics.len(), 0, "derive_default: Deriving Default on generic types is currently unimplemented"
     );
@@ -27,7 +27,7 @@ struct Foo {
 #[derive_default]
 struct Bar {}
 
-comptime fn make_field_exprs(fields: [(Quoted, Quoted)]) -> [Quoted] {
+comptime fn make_field_exprs(fields: [(Quoted, Type)]) -> [Quoted] {
     let mut result = &[];
     for my_field in fields {
         let name = my_field.0;

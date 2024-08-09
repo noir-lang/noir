@@ -242,7 +242,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
             ast::Type::Bool => Type::unsigned(1),
-            ast::Type::String(len) => Type::Array(Rc::new(vec![Type::char()]), *len as usize),
+            ast::Type::String(len) => Type::str(*len as usize),
             ast::Type::FmtString(_, _) => {
                 panic!("convert_non_tuple_type called on a fmt string: {typ}")
             }

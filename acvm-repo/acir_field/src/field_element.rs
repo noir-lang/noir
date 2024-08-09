@@ -139,17 +139,25 @@ impl<'de, T: ark_ff::PrimeField> Deserialize<'de> for FieldElement<T> {
 
 impl<F: PrimeField> From<u128> for FieldElement<F> {
     fn from(a: u128) -> FieldElement<F> {
-        let result = match F::from_str(&a.to_string()) {
-            Ok(result) => result,
-            Err(_) => panic!("Cannot convert u128 as a string to a field element"),
-        };
-        FieldElement(result)
+        FieldElement(F::from(a))
     }
 }
 
 impl<F: PrimeField> From<usize> for FieldElement<F> {
     fn from(a: usize) -> FieldElement<F> {
-        FieldElement::from(a as u128)
+        FieldElement::from(a as u64)
+    }
+}
+
+impl<F: PrimeField> From<u64> for FieldElement<F> {
+    fn from(a: u64) -> FieldElement<F> {
+        FieldElement(F::from(a))
+    }
+}
+
+impl<F: PrimeField> From<u32> for FieldElement<F> {
+    fn from(a: u32) -> FieldElement<F> {
+        FieldElement(F::from(a))
     }
 }
 
@@ -265,8 +273,16 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     fn to_u128(self) -> u128 {
-        let bytes = self.to_be_bytes();
-        u128::from_be_bytes(bytes[16..32].try_into().unwrap())
+        let as_bigint = self.0.into_bigint();
+        let limbs = as_bigint.as_ref();
+
+        let mut result = limbs[0] as u128;
+        if limbs.len() > 1 {
+            let high_limb = limbs[1] as u128;
+            result += high_limb << 64;
+        }
+
+        result
     }
 
     fn try_into_u128(self) -> Option<u128> {

@@ -15,7 +15,7 @@ use crate::{
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    Shared, StructType, Type, TypeBindings,
+    ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };
 
 use super::{Elaborator, ResolverMeta};
@@ -39,7 +39,7 @@ impl<'context> Elaborator<'context> {
 
     /// Equivalent to `elaborate_pattern`, this version just also
     /// adds any new DefinitionIds that were created to the given Vec.
-    pub(super) fn elaborate_pattern_and_store_ids(
+    pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
         expected_type: Type,
@@ -157,8 +157,12 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
-        let name_span = name.last_segment().span();
-        let is_self_type = name.last_segment().is_self_type_name();
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&name, exclude_last_segment);
+
+        let last_segment = name.last_segment();
+        let name_span = last_segment.ident.span();
+        let is_self_type = last_segment.ident.is_self_type_name();
 
         let error_identifier = |this: &mut Self| {
             // Must create a name here to return a HirPattern::Identifier. Allowing
@@ -177,6 +181,15 @@ impl<'context> Elaborator<'context> {
                 return error_identifier(self);
             }
         };
+
+        let turbofish_span = last_segment.turbofish_span();
+
+        let generics = self.resolve_struct_turbofish_generics(
+            &struct_type.borrow(),
+            generics,
+            last_segment.generics,
+            turbofish_span,
+        );
 
         let actual_type = Type::Struct(struct_type.clone(), generics);
         let location = Location::new(span, self.file);
@@ -404,7 +417,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Resolve generics using the expected kinds of the function we are calling
-    pub(super) fn resolve_turbofish_generics(
+    pub(super) fn resolve_function_turbofish_generics(
         &mut self,
         func_id: &FuncId,
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
@@ -412,28 +425,61 @@ impl<'context> Elaborator<'context> {
     ) -> Option<Vec<Type>> {
         let direct_generics = self.interner.function_meta(func_id).direct_generics.clone();
 
-        unresolved_turbofish.map(|option_inner| {
-            if option_inner.len() != direct_generics.len() {
+        unresolved_turbofish.map(|unresolved_turbofish| {
+            if unresolved_turbofish.len() != direct_generics.len() {
                 let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                     expected_count: direct_generics.len(),
-                    actual_count: option_inner.len(),
+                    actual_count: unresolved_turbofish.len(),
                     span,
                 };
                 self.push_err(type_check_err);
             }
 
-            let generics_with_types = direct_generics.iter().zip(option_inner);
-            vecmap(generics_with_types, |(generic, unresolved_type)| {
-                self.resolve_type_inner(unresolved_type, &generic.kind)
-            })
+            self.resolve_turbofish_generics(&direct_generics, unresolved_turbofish)
         })
     }
 
-    pub(super) fn elaborate_variable(
+    pub(super) fn resolve_struct_turbofish_generics(
         &mut self,
-        variable: Path,
+        struct_type: &StructType,
+        generics: Vec<Type>,
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
-    ) -> (ExprId, Type) {
+        span: Span,
+    ) -> Vec<Type> {
+        let Some(turbofish_generics) = unresolved_turbofish else {
+            return generics;
+        };
+
+        if turbofish_generics.len() != generics.len() {
+            self.push_err(TypeCheckError::GenericCountMismatch {
+                item: format!("struct {}", struct_type.name),
+                expected: generics.len(),
+                found: turbofish_generics.len(),
+                span,
+            });
+            return generics;
+        }
+
+        self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics)
+    }
+
+    pub(super) fn resolve_turbofish_generics(
+        &mut self,
+        generics: &[ResolvedGeneric],
+        turbofish_generics: Vec<UnresolvedType>,
+    ) -> Vec<Type> {
+        let generics_with_types = generics.iter().zip(turbofish_generics);
+        vecmap(generics_with_types, |(generic, unresolved_type)| {
+            self.resolve_type_inner(unresolved_type, &generic.kind)
+        })
+    }
+
+    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&variable, exclude_last_segment);
+
+        let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
+
         let span = variable.span;
         let expr = self.resolve_variable(variable);
         let definition_id = expr.id;
@@ -445,7 +491,7 @@ impl<'context> Elaborator<'context> {
         // and if the turbofish operator was used.
         let generics = definition_kind.and_then(|definition_kind| match &definition_kind {
             DefinitionKind::Function(function) => {
-                self.resolve_turbofish_generics(function, unresolved_turbofish, span)
+                self.resolve_function_turbofish_generics(function, unresolved_turbofish, span)
             }
             _ => None,
         });
@@ -648,7 +694,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
-        let location = Location::new(path.last_segment().span(), self.file);
+        let location = Location::new(path.last_ident().span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return found,

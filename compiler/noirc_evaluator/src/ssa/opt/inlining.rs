@@ -625,8 +625,16 @@ impl<'function> PerFunctionContext<'function> {
                     .terminate_with_jmp(destination, arguments);
                 None
             }
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => {
                 let condition = self.translate_value(*condition);
+
+                let mut new_call_stack = self.context.call_stack.clone();
+                new_call_stack.append(call_stack.clone());
 
                 // See if the value of the condition is known, and if so only inline the reachable
                 // branch. This lets us inline some recursive functions without recurring forever.
@@ -635,14 +643,19 @@ impl<'function> PerFunctionContext<'function> {
                     Some(constant) => {
                         let next_block =
                             if constant.is_zero() { *else_destination } else { *then_destination };
+
                         let next_block = self.translate_block(next_block, block_queue);
-                        self.context.builder.terminate_with_jmp(next_block, vec![]);
+                        self.context
+                            .builder
+                            .set_call_stack(new_call_stack)
+                            .terminate_with_jmp(next_block, vec![]);
                     }
                     None => {
                         let then_block = self.translate_block(*then_destination, block_queue);
                         let else_block = self.translate_block(*else_destination, block_queue);
                         self.context
                             .builder
+                            .set_call_stack(new_call_stack)
                             .terminate_with_jmpif(condition, then_block, else_block);
                     }
                 }

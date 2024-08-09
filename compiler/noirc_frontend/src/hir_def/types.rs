@@ -21,7 +21,7 @@ use crate::{
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
-#[derive(PartialEq, Eq, Clone, Hash)]
+#[derive(PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
 pub enum Type {
     /// A primitive Field type
     FieldElement,
@@ -112,6 +112,8 @@ pub enum Type {
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
 
+    InfixExpr(Box<Type>, BinaryTypeOperator, Box<Type>),
+
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
     /// an invalid type would otherwise issue a new error each time it is called
@@ -125,7 +127,7 @@ pub enum Type {
 /// For example, the type of a struct field or a function parameter is expected to be
 /// a type of kind * (represented here as `Normal`). Types used in positions where a number
 /// is expected (such as in an array length position) are expected to be of kind `Kind::Numeric`.
-#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+#[derive(PartialEq, Eq, Clone, Hash, Debug, PartialOrd, Ord)]
 pub enum Kind {
     Normal,
     Numeric(Box<Type>),
@@ -140,7 +142,7 @@ impl std::fmt::Display for Kind {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
 pub enum QuotedType {
     Expr,
     Quoted,
@@ -196,6 +198,12 @@ pub struct ResolvedGeneric {
     pub span: Span,
 }
 
+impl ResolvedGeneric {
+    pub fn as_named_generic(self) -> Type {
+        Type::NamedGeneric(self.type_var, self.name, self.kind)
+    }
+}
+
 impl std::hash::Hash for StructType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
@@ -205,6 +213,18 @@ impl std::hash::Hash for StructType {
 impl PartialEq for StructType {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl PartialOrd for StructType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for StructType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
     }
 }
 
@@ -338,6 +358,18 @@ impl PartialEq for TypeAlias {
     }
 }
 
+impl Ord for TypeAlias {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for TypeAlias {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl std::fmt::Display for TypeAlias {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
@@ -430,7 +462,7 @@ impl<T> Shared<T> {
 
 /// A restricted subset of binary operators useable on
 /// type level integers for use in the array length positions of types.
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BinaryTypeOperator {
     Addition,
     Subtraction,
@@ -439,7 +471,7 @@ pub enum BinaryTypeOperator {
     Modulo,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum TypeVariableKind {
     /// Can bind to any type
     Normal,
@@ -463,7 +495,7 @@ pub enum TypeVariableKind {
 
 /// A TypeVariable is a mutable reference that is either
 /// bound to some type, or unbound with a given TypeVariableId.
-#[derive(PartialEq, Eq, Clone, Hash)]
+#[derive(PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub struct TypeVariable(TypeVariableId, Shared<TypeBinding>);
 
 impl TypeVariable {
@@ -532,7 +564,7 @@ impl TypeVariable {
 
 /// TypeBindings are the mutable insides of a TypeVariable.
 /// They are either bound to some type, or are unbound.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId),
@@ -545,7 +577,7 @@ impl TypeBinding {
 }
 
 /// A unique ID used to differentiate different type variables
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TypeVariableId(pub usize);
 
 impl std::fmt::Display for Type {
@@ -653,6 +685,16 @@ impl std::fmt::Display for Type {
                 write!(f, "&mut {element}")
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
+            Type::InfixExpr(lhs, op, rhs) => {
+                let this = self.canonicalize();
+
+                // Prevent infinite recursion
+                if this != *self {
+                    write!(f, "{this}")
+                } else {
+                    write!(f, "({lhs} {op} {rhs})")
+                }
+            }
         }
     }
 }
@@ -847,6 +889,9 @@ impl Type {
                 elements.contains_numeric_typevar(target_id)
                     || named_generic_id_matches_target(length)
             }
+            Type::InfixExpr(lhs, _op, rhs) => {
+                lhs.contains_numeric_typevar(target_id) || rhs.contains_numeric_typevar(target_id)
+            }
         }
     }
 
@@ -926,6 +971,10 @@ impl Type {
                 elements.find_numeric_type_vars(found_names);
                 named_generic_is_numeric(length, found_names);
             }
+            Type::InfixExpr(lhs, _op, rhs) => {
+                lhs.find_numeric_type_vars(found_names);
+                rhs.find_numeric_type_vars(found_names);
+            }
         }
     }
 
@@ -955,6 +1004,7 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_)
             | Type::Slice(_)
+            | Type::InfixExpr(_, _, _)
             | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
@@ -992,6 +1042,7 @@ impl Type {
             | Type::Constant(_)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _, _)
+            | Type::InfixExpr(..)
             | Type::Error => true,
 
             Type::FmtString(_, _)
@@ -1037,6 +1088,7 @@ impl Type {
             | Type::NamedGeneric(_, _, _)
             | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
+            | Type::InfixExpr(..)
             | Type::Error => true,
 
             // Quoted objects only exist at compile-time where the only execution
@@ -1171,6 +1223,7 @@ impl Type {
             | Type::Constant(_)
             | Type::Quoted(_)
             | Type::Slice(_)
+            | Type::InfixExpr(..)
             | Type::Error => unreachable!("This type cannot exist as a parameter to main"),
         }
     }
@@ -1425,7 +1478,17 @@ impl Type {
         use Type::*;
         use TypeVariableKind as Kind;
 
-        match (self, other) {
+        let lhs = match self {
+            Type::InfixExpr(..) => Cow::Owned(self.canonicalize()),
+            other => Cow::Borrowed(other),
+        };
+
+        let rhs = match other {
+            Type::InfixExpr(..) => Cow::Owned(other.canonicalize()),
+            other => Cow::Borrowed(other),
+        };
+
+        match (lhs.as_ref(), rhs.as_ref()) {
             (Error, _) | (_, Error) => Ok(()),
 
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
@@ -1542,6 +1605,27 @@ impl Type {
                 elem_a.try_unify(elem_b, bindings)
             }
 
+            (InfixExpr(lhs_a, op_a, rhs_a), InfixExpr(lhs_b, op_b, rhs_b)) => {
+                if op_a == op_b {
+                    lhs_a.try_unify(lhs_b, bindings)?;
+                    rhs_a.try_unify(rhs_b, bindings)
+                } else {
+                    Err(UnificationError)
+                }
+            }
+
+            (Constant(value), other) | (other, Constant(value)) => {
+                if let Some(other_value) = other.evaluate_to_u32() {
+                    if *value == other_value {
+                        Ok(())
+                    } else {
+                        Err(UnificationError)
+                    }
+                } else {
+                    Err(UnificationError)
+                }
+            }
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1549,6 +1633,107 @@ impl Type {
                     Err(UnificationError)
                 }
             }
+        }
+    }
+
+    /// Try to canonicalize the representation of this type.
+    /// Currently the only type with a canonical representation is
+    /// `Type::Infix` where for each consecutive commutative operator
+    /// we sort the non-constant operands by `Type: Ord` and place all constant
+    /// operands at the end, constant folded.
+    ///
+    /// For example:
+    /// - `canonicalize[((1 + N) + M) + 2] = (M + N) + 3`
+    /// - `canonicalize[A + 2 * B + 3 - 2] = A + (B * 2) + 3 - 2`
+    pub fn canonicalize(&self) -> Type {
+        match self.follow_bindings() {
+            Type::InfixExpr(lhs, op, rhs) => {
+                if let Some(value) = self.evaluate_to_u32() {
+                    return Type::Constant(value);
+                }
+
+                let lhs = lhs.canonicalize();
+                let rhs = rhs.canonicalize();
+
+                if let Some(result) = Self::try_simplify_subtraction(&lhs, op, &rhs) {
+                    return result;
+                }
+
+                if op.is_commutative() {
+                    return Self::sort_commutative(&lhs, op, &rhs);
+                }
+
+                Type::InfixExpr(Box::new(lhs), op, Box::new(rhs))
+            }
+            other => other,
+        }
+    }
+
+    fn sort_commutative(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
+        let mut queue = vec![lhs.clone(), rhs.clone()];
+
+        let mut sorted = BTreeSet::new();
+
+        let zero_value = if op == BinaryTypeOperator::Addition { 0 } else { 1 };
+        let mut constant = zero_value;
+
+        // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
+        while let Some(item) = queue.pop() {
+            match item.canonicalize() {
+                Type::InfixExpr(lhs, new_op, rhs) if new_op == op => {
+                    queue.push(*lhs);
+                    queue.push(*rhs);
+                }
+                Type::Constant(new_constant) => {
+                    constant = op.function(constant, new_constant);
+                }
+                other => {
+                    sorted.insert(other);
+                }
+            }
+        }
+
+        if let Some(first) = sorted.pop_first() {
+            let mut typ = first.clone();
+
+            for rhs in sorted {
+                typ = Type::InfixExpr(Box::new(typ), op, Box::new(rhs.clone()));
+            }
+
+            if constant != zero_value {
+                typ = Type::InfixExpr(Box::new(typ), op, Box::new(Type::Constant(constant)));
+            }
+
+            typ
+        } else {
+            // Every type must have been a constant
+            Type::Constant(constant)
+        }
+    }
+
+    /// Try to simplify a subtraction expression of `lhs - rhs`.
+    ///
+    /// - Simplifies `(a + C1) - C2` to `a + (C1 - C2)` if C1 and C2 are constants.
+    fn try_simplify_subtraction(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Option<Type> {
+        use BinaryTypeOperator::*;
+        match lhs {
+            Type::InfixExpr(l_lhs, l_op, l_rhs) => {
+                // Simplify `(N + 2) - 1`
+                if op == Subtraction && *l_op == Addition {
+                    if let (Some(lhs_const), Some(rhs_const)) =
+                        (l_rhs.evaluate_to_u32(), rhs.evaluate_to_u32())
+                    {
+                        if lhs_const > rhs_const {
+                            let constant = Box::new(Type::Constant(lhs_const - rhs_const));
+                            return Some(
+                                Type::InfixExpr(l_lhs.clone(), *l_op, constant).canonicalize(),
+                            );
+                        }
+                    }
+                }
+                None
+            }
+            _ => None,
         }
     }
 
@@ -1701,6 +1886,11 @@ impl Type {
             Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(*size),
             Type::Array(len, _elem) => len.evaluate_to_u32(),
             Type::Constant(x) => Some(*x),
+            Type::InfixExpr(lhs, op, rhs) => {
+                let lhs = lhs.evaluate_to_u32()?;
+                let rhs = rhs.evaluate_to_u32()?;
+                Some(op.function(lhs, rhs))
+            }
             _ => None,
         }
     }
@@ -1962,6 +2152,11 @@ impl Type {
                 });
                 Type::TraitAsType(*s, name.clone(), args)
             }
+            Type::InfixExpr(lhs, op, rhs) => {
+                let lhs = lhs.substitute_helper(type_bindings, substitute_bound_typevars);
+                let rhs = rhs.substitute_helper(type_bindings, substitute_bound_typevars);
+                Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs))
+            }
 
             Type::FieldElement
             | Type::Integer(_, _)
@@ -2007,6 +2202,7 @@ impl Type {
                     || env.occurs(target_id)
             }
             Type::MutableReference(element) => element.occurs(target_id),
+            Type::InfixExpr(lhs, _op, rhs) => lhs.occurs(target_id) || rhs.occurs(target_id),
 
             Type::FieldElement
             | Type::Integer(_, _)
@@ -2066,6 +2262,11 @@ impl Type {
             TraitAsType(s, name, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 TraitAsType(*s, name.clone(), args)
+            }
+            InfixExpr(lhs, op, rhs) => {
+                let lhs = lhs.follow_bindings();
+                let rhs = rhs.follow_bindings();
+                InfixExpr(Box::new(lhs), *op, Box::new(rhs))
             }
 
             // Expect that this function should only be called on instantiated types
@@ -2154,6 +2355,17 @@ impl Type {
             }
             Type::MutableReference(elem) => elem.replace_named_generics_with_type_variables(),
             Type::Forall(_, typ) => typ.replace_named_generics_with_type_variables(),
+            Type::InfixExpr(lhs, _op, rhs) => {
+                lhs.replace_named_generics_with_type_variables();
+                rhs.replace_named_generics_with_type_variables();
+            }
+        }
+    }
+
+    pub fn slice_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Slice(element) => Some(element),
+            _ => None,
         }
     }
 }
@@ -2192,15 +2404,19 @@ fn convert_array_expression_to_slice(
 }
 
 impl BinaryTypeOperator {
-    /// Return the actual rust numeric function associated with this operator
-    pub fn function(self) -> fn(u32, u32) -> u32 {
+    /// Perform the actual rust numeric operation associated with this operator
+    pub fn function(self, a: u32, b: u32) -> u32 {
         match self {
-            BinaryTypeOperator::Addition => |a, b| a.wrapping_add(b),
-            BinaryTypeOperator::Subtraction => |a, b| a.wrapping_sub(b),
-            BinaryTypeOperator::Multiplication => |a, b| a.wrapping_mul(b),
-            BinaryTypeOperator::Division => |a, b| a.wrapping_div(b),
-            BinaryTypeOperator::Modulo => |a, b| a.wrapping_rem(b), // % b,
+            BinaryTypeOperator::Addition => a.wrapping_add(b),
+            BinaryTypeOperator::Subtraction => a.wrapping_sub(b),
+            BinaryTypeOperator::Multiplication => a.wrapping_mul(b),
+            BinaryTypeOperator::Division => a.wrapping_div(b),
+            BinaryTypeOperator::Modulo => a.wrapping_rem(b),
         }
+    }
+
+    fn is_commutative(self) -> bool {
+        matches!(self, BinaryTypeOperator::Addition | BinaryTypeOperator::Multiplication)
     }
 }
 
@@ -2285,6 +2501,7 @@ impl From<&Type> for PrintableType {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
             }
             Type::Quoted(_) => unreachable!(),
+            Type::InfixExpr(..) => unreachable!(),
         }
     }
 }
@@ -2381,6 +2598,7 @@ impl std::fmt::Debug for Type {
                 write!(f, "&mut {element:?}")
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
+            Type::InfixExpr(lhs, op, rhs) => write!(f, "({lhs:?} {op} {rhs:?})"),
         }
     }
 }

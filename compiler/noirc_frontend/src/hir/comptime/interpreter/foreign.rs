@@ -4,11 +4,11 @@ use iter_extended::try_vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    hir::comptime::{errors::IResult, interpreter::builtin::get_field, InterpreterError, Value},
+    hir::comptime::{errors::IResult, InterpreterError, Value},
     macros_api::NodeInterner,
 };
 
-use super::builtin::{check_argument_count, get_array, get_u32};
+use super::builtin::builtin_helpers::{check_two_arguments, get_array, get_field, get_u32};
 
 pub(super) fn call_foreign(
     interner: &mut NodeInterner,
@@ -28,15 +28,16 @@ pub(super) fn call_foreign(
 // poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]
 fn poseidon2_permutation(
     interner: &mut NodeInterner,
-    mut arguments: Vec<(Value, Location)>,
+    arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    check_argument_count(2, &arguments, location)?;
+    let (input, state_length) = check_two_arguments(arguments, location)?;
+    let input_location = input.1;
 
-    let state_length = get_u32(arguments.pop().unwrap().0, location)?;
-    let (input, typ) = get_array(interner, arguments.pop().unwrap().0, location)?;
+    let (input, typ) = get_array(interner, input)?;
+    let state_length = get_u32(state_length)?;
 
-    let input = try_vecmap(input, |integer| get_field(integer, location))?;
+    let input = try_vecmap(input, |integer| get_field((integer, input_location)))?;
 
     // Currently locked to only bn254!
     let fields = Bn254BlackBoxSolver

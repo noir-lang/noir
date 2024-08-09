@@ -100,16 +100,16 @@ impl U128 {
     }
 
     fn decode_ascii(ascii: u8) -> Field {
-        if ascii < 58 {
+        (if ascii < 58 {
             ascii - 48
         } else {
-            unsafe {
-                let ascii = ascii + 32 * (U128::uconstrained_check_is_upper_ascii(ascii) as u8);
-                assert(ascii >= 97); // enforce >= 'a'
-                assert(ascii <= 102); // enforce <= 'f'
-                ascii - 87
-            }
-        } as Field
+            let ascii = ascii + 32 * (unsafe {
+                        U128::uconstrained_check_is_upper_ascii(ascii) as u8
+                    });
+            assert(ascii >= 97); // enforce >= 'a'
+            assert(ascii <= 102); // enforce <= 'f'
+            ascii - 87
+        }) as Field
     }
 
     // TODO: Replace with a faster version. 

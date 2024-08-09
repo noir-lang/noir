@@ -7,7 +7,7 @@ use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
-use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
+use acvm::acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, BlockType, MemOp};
 use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode};
 use acvm::blackbox_solver;
@@ -830,7 +830,7 @@ impl<F: AcirField> AcirContext<F> {
         let [q_value, r_value]: [AcirValue; 2] = self
             .brillig_call(
                 predicate,
-                &brillig_directive::directive_quotient(bit_size + 1),
+                &brillig_directive::directive_quotient(),
                 vec![
                     AcirValue::Var(lhs, AcirType::unsigned(bit_size)),
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
@@ -839,7 +839,7 @@ impl<F: AcirField> AcirContext<F> {
                 true,
                 false,
                 PLACEHOLDER_BRILLIG_INDEX,
-                Some(BrilligStdlibFunc::Quotient(bit_size + 1)),
+                Some(BrilligStdlibFunc::Quotient),
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -1612,7 +1612,7 @@ impl<F: AcirField> AcirContext<F> {
         outputs: Vec<AcirType>,
         attempt_execution: bool,
         unsafe_return_values: bool,
-        brillig_function_index: u32,
+        brillig_function_index: BrilligFunctionId,
         brillig_stdlib_func: Option<BrilligStdlibFunc>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         let predicate = self.var_to_expression(predicate)?;

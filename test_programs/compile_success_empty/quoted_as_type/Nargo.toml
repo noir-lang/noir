@@ -1,0 +1,7 @@
+[package]
+name = "quoted_as_type"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]

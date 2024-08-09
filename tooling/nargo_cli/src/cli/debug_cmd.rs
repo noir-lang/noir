@@ -113,13 +113,21 @@ pub(crate) fn compile_bin_package_for_debugging(
         compile_program_with_debug_instrumenter(
             &workspace_file_manager,
             &parsed_files,
+            workspace,
             package,
             &compile_options,
             None,
             debug_state,
         )
     } else {
-        compile_program(&workspace_file_manager, &parsed_files, package, &compile_options, None)
+        compile_program(
+            &workspace_file_manager,
+            &parsed_files,
+            workspace,
+            package,
+            &compile_options,
+            None,
+        )
     };
 
     report_errors(

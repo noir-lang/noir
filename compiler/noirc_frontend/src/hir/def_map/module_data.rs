@@ -42,6 +42,10 @@ impl ModuleData {
         &self.scope
     }
 
+    pub fn definitions(&self) -> &ItemScope {
+        &self.definitions
+    }
+
     fn declare(
         &mut self,
         name: Ident,
