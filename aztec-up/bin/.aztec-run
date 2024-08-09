@@ -120,7 +120,7 @@ if [[ -z "${SKIP_PORT_ASSIGNMENT:-}" ]]; then
 fi
 
 ssh_agent_forwarding=""
-if [ -n "${!env:-}" ]; then
+if [ -n "${SSH_AUTH_SOCK:-}" ]; then
   ssh_agent_forwarding="-v $(realpath $SSH_AUTH_SOCK):$SSH_AUTH_SOCK"
 fi
 
