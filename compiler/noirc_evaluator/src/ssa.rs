@@ -330,6 +330,7 @@ fn convert_generated_acir_into_circuit(
     let GeneratedAcir {
         return_witnesses,
         locations,
+        brillig_locations,
         input_witnesses,
         assertion_payloads: assert_messages,
         warnings,
@@ -360,7 +361,19 @@ fn convert_generated_acir_into_circuit(
         .map(|(index, locations)| (index, locations.into_iter().collect()))
         .collect();
 
-    let mut debug_info = DebugInfo::new(locations, debug_variables, debug_functions, debug_types);
+    let brillig_locations = brillig_locations
+        .into_iter()
+        .map(|(function_index, locations)| {
+            let locations = locations
+                .into_iter()
+                .map(|(index, locations)| (index, locations.into_iter().collect()))
+                .collect();
+            (function_index, locations)
+        })
+        .collect();
+
+    let mut debug_info =
+        DebugInfo::new(locations, brillig_locations, debug_variables, debug_functions, debug_types);
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);

@@ -23,6 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
+use self::path::as_trait_path;
 use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
 use self::types::{generic_type_args, maybe_comp_time};
 pub use types::parse_type;
@@ -372,7 +373,7 @@ fn block_expr<'a>(
     block(statement).map(ExpressionKind::Block).map_with_span(Expression::new)
 }
 
-fn block<'a>(
+pub fn block<'a>(
     statement: impl NoirParser<StatementKind> + 'a,
 ) -> impl NoirParser<BlockExpression> + 'a {
     use Token::*;
@@ -474,7 +475,7 @@ where
     })
 }
 
-fn fresh_statement() -> impl NoirParser<StatementKind> {
+pub fn fresh_statement() -> impl NoirParser<StatementKind> {
     statement(expression(), expression_no_constructors(expression()))
 }
 
@@ -518,7 +519,9 @@ where
         .map(|(block, span)| ExpressionKind::Comptime(block, span))
 }
 
-fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
+fn let_statement<'a, P>(
+    expr_parser: P,
+) -> impl NoirParser<((Pattern, UnresolvedType), Expression)> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -526,11 +529,17 @@ where
         ignore_then_commit(keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement), pattern());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, expr_parser);
-    p.map(StatementKind::new_let)
+    then_commit(p, expr_parser)
 }
 
-fn pattern() -> impl NoirParser<Pattern> {
+fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
+where
+    P: ExprParser + 'a,
+{
+    let_statement(expr_parser).map(StatementKind::new_let)
+}
+
+pub fn pattern() -> impl NoirParser<Pattern> {
     recursive(|pattern| {
         let ident_pattern = ident().map(Pattern::Identifier).map_err(|mut error| {
             if matches!(error.found(), Token::IntType(..)) {
@@ -1076,6 +1085,7 @@ where
         unquote(expr_parser.clone()),
         variable(),
         literal(),
+        as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
         macro_quote_marker(),
     ))
     .map_with_span(Expression::new)

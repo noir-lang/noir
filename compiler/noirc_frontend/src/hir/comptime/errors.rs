@@ -185,6 +185,9 @@ pub enum InterpreterError {
     FailedToResolveTraitDefinition {
         location: Location,
     },
+    FunctionAlreadyResolved {
+        location: Location,
+    },
 
     Unimplemented {
         item: String,
@@ -255,6 +258,7 @@ impl InterpreterError {
             | InterpreterError::TraitDefinitionMustBeAPath { location }
             | InterpreterError::FailedToResolveTraitDefinition { location }
             | InterpreterError::FailedToResolveTraitBound { location, .. } => *location,
+            InterpreterError::FunctionAlreadyResolved { location, .. } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -515,6 +519,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::FailedToResolveTraitDefinition { location } => {
                 let msg = "Failed to resolve to a trait definition".to_string();
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::FunctionAlreadyResolved { location } => {
+                let msg = "Function already resolved".to_string();
+                let secondary =
+                    "The function was previously called at compile-time or is in another crate"
+                        .to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
         }
     }

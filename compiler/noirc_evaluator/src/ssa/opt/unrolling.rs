@@ -258,7 +258,8 @@ fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Va
                 Err(location.clone())
             }
         }
-        _ => Err(CallStack::new()),
+        Some(terminator) => Err(terminator.call_stack()),
+        None => Err(CallStack::new()),
     }
 }
 
@@ -286,9 +287,9 @@ fn unroll_loop_header<'a>(
     context.inline_instructions_from_block();
 
     match context.dfg()[fresh_block].unwrap_terminator() {
-        TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+        TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
             let condition = *condition;
-            let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination);
+            let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, call_stack.clone());
 
             // If there is only 1 next block the jmpif evaluated to a single known block.
             // This is the expected case and lets us know if we should loop again or not.
@@ -392,9 +393,17 @@ impl<'f> LoopIteration<'f> {
         self.visited_blocks.insert(self.source_block);
 
         match self.inserter.function.dfg[self.insert_block].unwrap_terminator() {
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
-                self.handle_jmpif(*condition, *then_destination, *else_destination)
-            }
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => self.handle_jmpif(
+                *condition,
+                *then_destination,
+                *else_destination,
+                call_stack.clone(),
+            ),
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     assert_eq!(arguments.len(), 1);
@@ -414,6 +423,7 @@ impl<'f> LoopIteration<'f> {
         condition: ValueId,
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
+        call_stack: CallStack,
     ) -> Vec<BasicBlockId> {
         let condition = self.inserter.resolve(condition);
 
@@ -425,11 +435,7 @@ impl<'f> LoopIteration<'f> {
                 self.source_block = self.get_original_block(destination);
 
                 let arguments = Vec::new();
-                let jmp = TerminatorInstruction::Jmp {
-                    destination,
-                    arguments,
-                    call_stack: CallStack::new(),
-                };
+                let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
             }
