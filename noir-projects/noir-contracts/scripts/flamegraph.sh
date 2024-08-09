@@ -51,6 +51,7 @@ function sed_wrapper() {
 
 # convert contract name to following format: token_bridge_contract-TokenBridge.json
 ARTIFACT=$(echo "$CONTRACT" | sed_wrapper -r 's/^([A-Z])/\L\1/; s/([a-z0-9])([A-Z])/\1_\L\2/g')
+ARTIFACT=$(echo "$ARTIFACT" | tr '[:upper:]' '[:lower:]')
 ARTIFACT_NAME="${ARTIFACT}_contract-${CONTRACT}"
 
 # Extract artifact for the specific function
