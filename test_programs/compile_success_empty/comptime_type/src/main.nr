@@ -112,7 +112,8 @@ fn main() {
 }
 
 fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
-    comptime {
+    comptime
+    {
         let t = quote { T }.as_type();
         let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
         assert(t.implements(some_trait_i32));
