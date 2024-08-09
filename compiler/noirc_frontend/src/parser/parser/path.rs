@@ -28,7 +28,7 @@ fn path_inner<'a>(segment: impl NoirParser<PathSegment> + 'a) -> impl NoirParser
                 emit_error(ParserError::with_reason(
                     ParserErrorReason::ExpectedIdentifierAfterColons,
                     span,
-                ))
+                ));
             }
             path_segments
         });
