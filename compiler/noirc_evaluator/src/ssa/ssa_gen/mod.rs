@@ -407,21 +407,21 @@ impl<'a> FunctionContext<'a> {
         let base_index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
+        let array_type = &self.builder.type_of_value(array);
+        match array_type {
+            Type::Slice(_) => {
+                self.codegen_slice_access_check(index, length);
+            }
+            Type::Array(..) => {
+                // Nothing needs to done to prepare an array access on an array
+            }
+            _ => unreachable!("must have array or slice but got {array_type}"),
+        }
+
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
-
-            let array_type = &self.builder.type_of_value(array);
-            match array_type {
-                Type::Slice(_) => {
-                    self.codegen_slice_access_check(index, length);
-                }
-                Type::Array(..) => {
-                    // Nothing needs to done to prepare an array access on an array
-                }
-                _ => unreachable!("must have array or slice but got {array_type}"),
-            }
 
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
