@@ -66,8 +66,7 @@ describe('e2e_deploy_contract private initialization', () => {
     expect(await contracts[1].methods.summed_values(owner).simulate()).toEqual(52n);
   });
 
-  // TODO(@spalladino): This won't work until we can read a nullifier in the same tx in which it was emitted.
-  it.skip('initializes and calls a private function in a single tx', async () => {
+  it('initializes and calls a private function in a single tx', async () => {
     const owner = await t.registerRandomAccount();
     const initArgs: StatefulContractCtorArgs = [owner, owner, 42];
     const contract = await t.registerContract(wallet, StatefulTestContract, { initArgs });
@@ -104,7 +103,7 @@ describe('e2e_deploy_contract private initialization', () => {
     // TODO(@spalladino): It'd be nicer to be able to fail the assert with a more descriptive message.
     const outgoingViewer = owner;
     await expect(contract.methods.create_note(owner, outgoingViewer, 10).send().wait()).rejects.toThrow(
-      /nullifier witness not found/i,
+      /Cannot find the leaf for nullifier/i,
     );
   });
 
