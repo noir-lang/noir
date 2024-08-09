@@ -64,6 +64,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
             "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
+            "quoted_as_expr" => quoted_as_expr(arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
@@ -310,6 +311,20 @@ fn slice_insert(
     let index = get_u32(index)? as usize;
     values.insert(index, element);
     Ok(Value::Slice(values, typ))
+}
+
+// fn as_expr(quoted: Quoted) -> Option<Expr>
+fn quoted_as_expr(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+
+    let expr = parse(argument, parser::expression(), "an expression").ok();
+    let value = expr.map(|expr| Value::Expr(expr.kind));
+
+    option(return_type, value)
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>
