@@ -110,3 +110,11 @@ fn main() {
         assert(!struct_does_not_implement_some_trait.implements(some_trait_field));
     }
 }
+
+fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
+    comptime {
+        let t = quote { T }.as_type();
+        let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
+        assert(t.implements(some_trait_i32));
+    }
+}
