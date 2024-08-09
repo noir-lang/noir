@@ -4,14 +4,15 @@ use std::collections::HashSet;
 
 use crate::ssa::{
     ir::{
-        basic_block::{BasicBlock, BasicBlockId},
+        basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Instruction, InstructionId, Intrinsic},
+        instruction::{Instruction, InstructionId},
         post_order::PostOrder,
-        value::{Value, ValueId},
+        value::ValueId,
     },
     ssa_gen::Ssa,
+    unused::{is_unused, mark_terminator_values_as_used, mark_used_instruction_results},
 };
 
 impl Ssa {
@@ -35,7 +36,7 @@ impl Ssa {
 fn dead_instruction_elimination(function: &mut Function) {
     let mut context = Context::default();
     for call_data in &function.dfg.data_bus.call_data {
-        context.mark_used_instruction_results(&function.dfg, call_data.array_id);
+        mark_used_instruction_results(&mut context.used_values, &function.dfg, call_data.array_id);
     }
 
     let blocks = PostOrder::with_function(function);
@@ -77,10 +78,10 @@ impl Context {
         block_id: BasicBlockId,
     ) {
         let block = &function.dfg[block_id];
-        self.mark_terminator_values_as_used(function, block);
+        mark_terminator_values_as_used(&mut self.used_values, function, block);
 
         for instruction_id in block.instructions().iter().rev() {
-            if self.is_unused(*instruction_id, function) {
+            if is_unused(&self.used_values, *instruction_id, function) {
                 self.instructions_to_remove.insert(*instruction_id);
             } else {
                 let instruction = &function.dfg[*instruction_id];
@@ -90,7 +91,7 @@ impl Context {
                     self.rc_instructions.push((*instruction_id, block_id));
                 } else {
                     instruction.for_each_value(|value| {
-                        self.mark_used_instruction_results(&function.dfg, value);
+                        mark_used_instruction_results(&mut self.used_values, &function.dfg, value);
                     });
                 }
             }
@@ -99,55 +100,6 @@ impl Context {
         function.dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
-    }
-
-    /// Returns true if an instruction can be removed.
-    ///
-    /// An instruction can be removed as long as it has no side-effects, and none of its result
-    /// values have been referenced.
-    fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
-        let instruction = &function.dfg[instruction_id];
-
-        if instruction.can_eliminate_if_unused(&function.dfg) {
-            let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
-        } else if let Instruction::Call { func, arguments } = instruction {
-            // TODO: make this more general for instructions which don't have results but have side effects "sometimes" like `Intrinsic::AsWitness`
-            let as_witness_id = function.dfg.get_intrinsic(Intrinsic::AsWitness);
-            as_witness_id == Some(func) && !self.used_values.contains(&arguments[0])
-        } else {
-            // If the instruction has side effects we should never remove it.
-            false
-        }
-    }
-
-    /// Adds values referenced by the terminator to the set of used values.
-    fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
-        block.unwrap_terminator().for_each_value(|value| {
-            self.mark_used_instruction_results(&function.dfg, value);
-        });
-    }
-
-    /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
-    /// results as used.
-    fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
-        let value_id = dfg.resolve(value_id);
-        match &dfg[value_id] {
-            Value::Instruction { .. } => {
-                self.used_values.insert(value_id);
-            }
-            Value::Array { array, .. } => {
-                for elem in array {
-                    self.mark_used_instruction_results(dfg, *elem);
-                }
-            }
-            Value::Param { .. } => {
-                self.used_values.insert(value_id);
-            }
-            _ => {
-                // Does not comprise of any instruction results
-            }
-        }
     }
 
     fn remove_rc_instructions(self, dfg: &mut DataFlowGraph) {
