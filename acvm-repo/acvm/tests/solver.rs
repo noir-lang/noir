@@ -772,56 +772,56 @@ type ConstantOrWitness = (FieldElement, bool);
 //
 // Both use FieldElement::max_num_bits as the number of bits.
 fn constant_or_witness_to_function_inputs(
-    xs: Vec<ConstantOrWitness>,
+    inputs: Vec<ConstantOrWitness>,
     offset: usize,
 ) -> Vec<FunctionInput<FieldElement>> {
-    xs.into_iter()
+    inputs.into_iter()
         .enumerate()
-        .map(|(i, (x, use_constant))| {
+        .map(|(index, (input, use_constant))| {
             if use_constant {
-                FunctionInput::constant(x, FieldElement::max_num_bits())
+                FunctionInput::constant(input, FieldElement::max_num_bits())
             } else {
-                FunctionInput::witness(Witness((i + offset) as u32), FieldElement::max_num_bits())
+                FunctionInput::witness(Witness((index + offset) as u32), FieldElement::max_num_bits())
             }
         })
         .collect()
 }
 
 // Convert ConstantOrWitness's back to FieldElement's by dropping the bool's
-fn drop_use_constant(input: &[ConstantOrWitness]) -> Vec<FieldElement> {
-    input.iter().map(|x| x.0).collect()
+fn drop_use_constant(inputs: &[ConstantOrWitness]) -> Vec<FieldElement> {
+    inputs.iter().map(|input| input.0).collect()
 }
 
 prop_compose! {
     fn bigint_with_modulus()(modulus in select(allowed_bigint_moduli()))
-        (input in proptest::collection::vec(any::<(u8, bool)>(), modulus.len()), modulus in Just(modulus))
+        (inputs in proptest::collection::vec(any::<(u8, bool)>(), modulus.len()), modulus in Just(modulus))
         -> (Vec<ConstantOrWitness>, Vec<u8>) {
-        let input = input.into_iter().zip(modulus.iter()).map(|((x, use_constant), modulus_byte)| {
-            (FieldElement::from(x.clamp(0, *modulus_byte) as u128), use_constant)
+        let inputs = inputs.into_iter().zip(modulus.iter()).map(|((input, use_constant), modulus_byte)| {
+            (FieldElement::from(input.clamp(0, *modulus_byte) as u128), use_constant)
         }).collect();
-        (input, modulus)
+        (inputs, modulus)
     }
 }
 
 prop_compose! {
-    fn bigint_pair_with_modulus()(input_modulus in bigint_with_modulus())
-        (ys in proptest::collection::vec(any::<(u8, bool)>(), input_modulus.1.len()), input_modulus in Just(input_modulus))
+    fn bigint_pair_with_modulus()(inputs_modulus in bigint_with_modulus())
+        (second_inputs in proptest::collection::vec(any::<(u8, bool)>(), inputs_modulus.1.len()), inputs_modulus in Just(inputs_modulus))
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
-        let ys = ys.into_iter().zip(input_modulus.1.iter()).map(|((x, use_constant), modulus_byte)| {
-            (FieldElement::from(x.clamp(0, *modulus_byte) as u128), use_constant)
+        let second_inputs = second_inputs.into_iter().zip(inputs_modulus.1.iter()).map(|((input, use_constant), modulus_byte)| {
+            (FieldElement::from(input.clamp(0, *modulus_byte) as u128), use_constant)
         }).collect();
-        (input_modulus.0, ys, input_modulus.1)
+        (inputs_modulus.0, second_inputs, inputs_modulus.1)
     }
 }
 
 prop_compose! {
-    fn bigint_triple_with_modulus()(xs_ys_modulus in bigint_pair_with_modulus())
-        (zs in proptest::collection::vec(any::<(u8, bool)>(), xs_ys_modulus.2.len()), xs_ys_modulus in Just(xs_ys_modulus))
+    fn bigint_triple_with_modulus()(input_pair_modulus in bigint_pair_with_modulus())
+        (third_inputs in proptest::collection::vec(any::<(u8, bool)>(), input_pair_modulus.2.len()), input_pair_modulus in Just(input_pair_modulus))
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
-        let zs = zs.into_iter().zip(xs_ys_modulus.2.iter()).map(|((x, use_constant), modulus_byte)| {
-            (FieldElement::from(x.clamp(0, *modulus_byte) as u128), use_constant)
+        let third_inputs = third_inputs.into_iter().zip(input_pair_modulus.2.iter()).map(|((input, use_constant), modulus_byte)| {
+            (FieldElement::from(input.clamp(0, *modulus_byte) as u128), use_constant)
         }).collect();
-        (xs_ys_modulus.0, xs_ys_modulus.1, zs, xs_ys_modulus.2)
+        (input_pair_modulus.0, input_pair_modulus.1, third_inputs, input_pair_modulus.2)
     }
 }
 
@@ -844,15 +844,16 @@ fn bigint_div_op() -> BlackBoxFuncCall<FieldElement> {
 // Input is a BigInt, represented as a LE Vec of u8-range FieldElement's along
 // with their use_constant values.
 //
-// Output is a zeroed BigInt with the same byte-length and use_constant values
-// as the input.
-fn bigint_zeroed(input: &[ConstantOrWitness]) -> Vec<ConstantOrWitness> {
-    input.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect()
+// Output is a zeroed BigInt that matches the input BigInt's
+// - Byte length
+// - use_constant values
+fn bigint_zeroed(inputs: &[ConstantOrWitness]) -> Vec<ConstantOrWitness> {
+    inputs.iter().map(|(_, use_constant)| (FieldElement::zero(), *use_constant)).collect()
 }
 
 // bigint_zeroed, but returns one
-fn bigint_to_one(input: &[ConstantOrWitness]) -> Vec<ConstantOrWitness> {
-    let mut one = bigint_zeroed(input);
+fn bigint_to_one(inputs: &[ConstantOrWitness]) -> Vec<ConstantOrWitness> {
+    let mut one = bigint_zeroed(inputs);
     // little-endian
     one[0] = (FieldElement::one(), one[0].1);
     one
@@ -869,31 +870,31 @@ fn bigint_to_one(input: &[ConstantOrWitness]) -> Vec<ConstantOrWitness> {
 fn bigint_solve_binary_op_opt(
     middle_op: Option<BlackBoxFuncCall<FieldElement>>,
     modulus: Vec<u8>,
-    xs: Vec<ConstantOrWitness>,
-    ys: Vec<ConstantOrWitness>,
+    lhs: Vec<ConstantOrWitness>,
+    rhs: Vec<ConstantOrWitness>,
 ) -> Vec<FieldElement> {
     let initial_witness_vec: Vec<_> =
-        xs.iter().chain(ys.iter()).enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
+        lhs.iter().chain(rhs.iter()).enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
     let output_witnesses: Vec<_> = initial_witness_vec
         .iter()
-        .take(xs.len())
+        .take(lhs.len())
         .enumerate()
-        .map(|(i, _)| Witness((i + 2 * xs.len()) as u32)) // offset past the indices of xs, ys
+        .map(|(index, _)| Witness((index + 2 * lhs.len()) as u32)) // offset past the indices of lhs, rhs
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
-    let xs = constant_or_witness_to_function_inputs(xs, 0);
-    let ys = constant_or_witness_to_function_inputs(ys, xs.len());
+    let lhs = constant_or_witness_to_function_inputs(lhs, 0);
+    let rhs = constant_or_witness_to_function_inputs(rhs, lhs.len());
 
     let to_op_input = if middle_op.is_some() { 2 } else { 0 };
 
-    let bigint_from_x_op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::BigIntFromLeBytes {
-        inputs: xs,
+    let bigint_from_lhs_op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::BigIntFromLeBytes {
+        inputs: lhs,
         modulus: modulus.clone(),
         output: 0,
     });
-    let bigint_from_y_op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::BigIntFromLeBytes {
-        inputs: ys,
+    let bigint_from_rhs_op = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::BigIntFromLeBytes {
+        inputs: rhs,
         modulus: modulus.clone(),
         output: 1,
     });
@@ -902,7 +903,7 @@ fn bigint_solve_binary_op_opt(
         outputs: output_witnesses.clone(),
     });
 
-    let mut opcodes = vec![bigint_from_x_op, bigint_from_y_op];
+    let mut opcodes = vec![bigint_from_lhs_op, bigint_from_rhs_op];
     if let Some(middle_op) = middle_op {
         opcodes.push(Opcode::BlackBoxFuncCall(middle_op));
     }
@@ -928,25 +929,25 @@ fn solve_blackbox_func_call(
         Option<FieldElement>,
         Option<FieldElement>,
     ) -> BlackBoxFuncCall<FieldElement>,
-    x: (FieldElement, bool), // if false, use a Witness
-    y: (FieldElement, bool), // if false, use a Witness
+    lhs: (FieldElement, bool), // if false, use a Witness
+    rhs: (FieldElement, bool), // if false, use a Witness
 ) -> FieldElement {
-    let (x, x_constant) = x;
-    let (y, y_constant) = y;
+    let (lhs, lhs_constant) = lhs;
+    let (rhs, rhs_constant) = rhs;
 
-    let initial_witness = WitnessMap::from(BTreeMap::from_iter([(Witness(1), x), (Witness(2), y)]));
+    let initial_witness = WitnessMap::from(BTreeMap::from_iter([(Witness(1), lhs), (Witness(2), rhs)]));
 
-    let mut lhs = None;
-    if x_constant {
-        lhs = Some(x);
+    let mut lhs_opt = None;
+    if lhs_constant {
+        lhs_opt = Some(lhs);
     }
 
-    let mut rhs = None;
-    if y_constant {
-        rhs = Some(y);
+    let mut rhs_opt = None;
+    if rhs_constant {
+        rhs_opt = Some(rhs);
     }
 
-    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs, rhs));
+    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs_opt, rhs_opt));
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm =
@@ -968,10 +969,10 @@ fn solve_blackbox_func_call(
 fn bigint_solve_binary_op(
     middle_op: BlackBoxFuncCall<FieldElement>,
     modulus: Vec<u8>,
-    xs: Vec<ConstantOrWitness>,
-    ys: Vec<ConstantOrWitness>,
+    lhs: Vec<ConstantOrWitness>,
+    rhs: Vec<ConstantOrWitness>,
 ) -> Vec<FieldElement> {
-    bigint_solve_binary_op_opt(Some(middle_op), modulus, xs, ys)
+    bigint_solve_binary_op_opt(Some(middle_op), modulus, lhs, rhs)
 }
 
 // Using the given BigInt modulus, solve the following circuit:
@@ -980,9 +981,9 @@ fn bigint_solve_binary_op(
 // - Output the resulting Vec of LE bytes
 fn bigint_solve_from_to_le_bytes(
     modulus: Vec<u8>,
-    input: Vec<ConstantOrWitness>,
+    inputs: Vec<ConstantOrWitness>,
 ) -> Vec<FieldElement> {
-    bigint_solve_binary_op_opt(None, modulus, input, vec![])
+    bigint_solve_binary_op_opt(None, modulus, inputs, vec![])
 }
 
 fn function_input_from_option(
