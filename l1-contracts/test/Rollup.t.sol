@@ -180,6 +180,24 @@ contract RollupTest is DecoderBase {
     rollup.process(header, archive);
   }
 
+  function testBlocksWithAssumeProven() public setUpFor("mixed_block_1") {
+    rollup.setAssumeProvenUntilBlockNumber(2);
+    _testBlock("mixed_block_1", false);
+    _testBlock("mixed_block_2", false);
+
+    assertEq(rollup.pendingBlockCount(), 3, "Invalid pending block count");
+    assertEq(rollup.provenBlockCount(), 2, "Invalid proven block count");
+  }
+
+  function testSetAssumeProvenAfterBlocksProcessed() public setUpFor("mixed_block_1") {
+    _testBlock("mixed_block_1", false);
+    _testBlock("mixed_block_2", false);
+    rollup.setAssumeProvenUntilBlockNumber(2);
+
+    assertEq(rollup.pendingBlockCount(), 3, "Invalid pending block count");
+    assertEq(rollup.provenBlockCount(), 2, "Invalid proven block count");
+  }
+
   function testSubmitProofNonExistantBlock() public setUpFor("empty_block_1") {
     DecoderBase.Data memory data = load("empty_block_1").block;
     bytes memory header = data.header;

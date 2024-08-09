@@ -50,7 +50,9 @@ export const startNode = async (
     } else {
       throw new Error('--node.publisherPrivateKey or --l1-mnemonic is required to deploy L1 contracts');
     }
-    await deployContractsToL1(nodeConfig, account!);
+    await deployContractsToL1(nodeConfig, account!, undefined, {
+      assumeProvenUntilBlockNumber: nodeSpecificOptions.assumeProvenUntilBlockNumber,
+    });
   }
 
   // if no publisher private key, then use l1Mnemonic

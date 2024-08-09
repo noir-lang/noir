@@ -62,6 +62,10 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   //        timeliness requirements.
   bool public isDevNet = Constants.IS_DEV_NET == 1;
 
+  // @note  Assume that all blocks up to this value are automatically proven. Speeds up bootstrapping.
+  //        Testing only. This should be removed eventually.
+  uint256 private assumeProvenUntilBlockNumber;
+
   constructor(
     IRegistry _registry,
     IAvailabilityOracle _availabilityOracle,
@@ -81,6 +85,21 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     blocks[0] = BlockLog({archive: bytes32(0), slotNumber: 0, isProven: true});
     pendingBlockCount = 1;
     provenBlockCount = 1;
+  }
+
+  /**
+   * Sets the assumeProvenUntilBlockNumber. Only the contract deployer can set it.
+   * @param blockNumber - New value.
+   */
+  function setAssumeProvenUntilBlockNumber(uint256 blockNumber) external onlyOwner {
+    if (blockNumber > provenBlockCount && blockNumber <= pendingBlockCount) {
+      for (uint256 i = provenBlockCount; i < blockNumber; i++) {
+        blocks[i].isProven = true;
+        emit L2ProofVerified(i, "CHEAT");
+      }
+      _progressState();
+    }
+    assumeProvenUntilBlockNumber = blockNumber;
   }
 
   /**
@@ -309,6 +328,13 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     }
 
     emit L2BlockProcessed(header.globalVariables.blockNumber);
+
+    // Automatically flag the block as proven if we have cheated and set assumeProvenUntilBlockNumber.
+    if (header.globalVariables.blockNumber < assumeProvenUntilBlockNumber) {
+      blocks[header.globalVariables.blockNumber].isProven = true;
+      emit L2ProofVerified(header.globalVariables.blockNumber, "CHEAT");
+      _progressState();
+    }
   }
 
   /**

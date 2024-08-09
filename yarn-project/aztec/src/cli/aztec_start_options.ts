@@ -174,6 +174,14 @@ export const aztecStartOptions: { [key: string]: AztecStartOption[] } = {
       parseVal: val => ['1', true].includes(val),
     },
     {
+      flag: '--node.assumeProvenUntilBlockNumber',
+      description:
+        'Cheats the rollup contract into assuming every block until this one is proven. Useful for speeding up bootstraps.',
+      envVar: 'ASSUME_PROVEN_UNTIL_BLOCK_NUMBER',
+      parseVal: (val: string) => parseInt(val, 10),
+      defaultValue: 0,
+    },
+    {
       flag: '--node.publisherPrivateKey <value>',
       description: 'Private key of account for publishing L1 contracts',
       defaultValue: undefined,
