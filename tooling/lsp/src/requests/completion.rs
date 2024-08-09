@@ -384,10 +384,10 @@ fn name_matches(name: &str, prefix: &str) -> bool {
 }
 
 fn module_completion_item(name: impl Into<String>) -> CompletionItem {
-    simple_completion_item(name.into(), CompletionItemKind::MODULE, None)
+    simple_completion_item(name, CompletionItemKind::MODULE, None)
 }
 
-fn crate_completion_item(name: String) -> CompletionItem {
+fn crate_completion_item(name: impl Into<String>) -> CompletionItem {
     simple_completion_item(name, CompletionItemKind::MODULE, None)
 }
 
@@ -585,7 +585,7 @@ mod completion_tests {
         let src = r#"
             use s>|<
         "#;
-        assert_completion(src, vec![module_completion_item("std")]).await;
+        assert_completion(src, vec![crate_completion_item("std")]).await;
 
         // "std" doesn't show up anymore because of the "crate::" prefix
         let src = r#"
@@ -661,7 +661,7 @@ mod completion_tests {
             src,
             vec![
                 module_completion_item("something"),
-                module_completion_item("std"),
+                crate_completion_item("std"),
                 simple_completion_item("super::", CompletionItemKind::KEYWORD, None),
             ],
         )
