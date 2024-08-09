@@ -792,6 +792,11 @@ fn drop_use_constant(inputs: &[ConstantOrWitness]) -> Vec<FieldElement> {
     inputs.iter().map(|input| input.0).collect()
 }
 
+// Convert FieldElement's to ConstantOrWitness's by making all of them witnesses
+fn use_witnesses(inputs: Vec<FieldElement>) -> Vec<ConstantOrWitness> {
+    inputs.into_iter().map(|input| (input, false)).collect()
+}
+
 prop_compose! {
     fn bigint_with_modulus()(modulus in select(allowed_bigint_moduli()))
         (inputs in proptest::collection::vec(any::<(u8, bool)>(), modulus.len()), modulus in Just(modulus))
@@ -1222,12 +1227,12 @@ proptest! {
     fn bigint_add_associative((xs, ys, zs, modulus) in bigint_triple_with_modulus()) {
         // f(f(xs, ys), zs) ==
         let op_xs_ys = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs.clone(), ys.clone());
-        let xs_ys: Vec<_> = op_xs_ys.into_iter().map(|x| (x, false)).collect();
+        let xs_ys = use_witnesses(op_xs_ys);
         let op_xs_ys_op_zs = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs_ys, zs.clone());
 
         // f(xs, f(ys, zs))
         let op_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), ys.clone(), zs.clone());
-        let ys_zs: Vec<_> = op_ys_zs.into_iter().map(|x| (x, false)).collect();
+        let ys_zs = use_witnesses(op_ys_zs);
         let op_xs_op_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus, xs, ys_zs);
 
         prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs)
@@ -1237,12 +1242,12 @@ proptest! {
     fn bigint_mul_associative((xs, ys, zs, modulus) in bigint_triple_with_modulus()) {
         // f(f(xs, ys), zs) ==
         let op_xs_ys = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), ys.clone());
-        let xs_ys: Vec<_> = op_xs_ys.into_iter().map(|x| (x, false)).collect();
+        let xs_ys = use_witnesses(op_xs_ys);
         let op_xs_ys_op_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs_ys, zs.clone());
 
         // f(xs, f(ys, zs))
         let op_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), ys.clone(), zs.clone());
-        let ys_zs: Vec<_> = op_ys_zs.into_iter().map(|x| (x, false)).collect();
+        let ys_zs = use_witnesses(op_ys_zs);
         let op_xs_op_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus, xs, ys_zs);
 
         prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs)
@@ -1252,14 +1257,14 @@ proptest! {
     fn bigint_mul_add_distributive((xs, ys, zs, modulus) in bigint_triple_with_modulus()) {
         // xs * (ys + zs) ==
         let add_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), ys.clone(), zs.clone());
-        let add_ys_zs: Vec<_> = add_ys_zs.into_iter().map(|x| (x, false)).collect();
+        let add_ys_zs = use_witnesses(add_ys_zs);
         let mul_xs_add_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), add_ys_zs);
 
         // xs * ys + xs * zs
         let mul_xs_ys = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), ys);
-        let mul_xs_ys: Vec<_> = mul_xs_ys.into_iter().map(|x| (x, false)).collect();
+        let mul_xs_ys = use_witnesses(mul_xs_ys);
         let mul_xs_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs, zs);
-        let mul_xs_zs: Vec<_> = mul_xs_zs.into_iter().map(|x| (x, false)).collect();
+        let mul_xs_zs = use_witnesses(mul_xs_zs);
         let add_mul_xs_ys_mul_xs_zs = bigint_solve_binary_op(bigint_add_op(), modulus, mul_xs_ys, mul_xs_zs);
 
         prop_assert_eq!(mul_xs_add_ys_zs, add_mul_xs_ys_mul_xs_zs)
@@ -1350,7 +1355,7 @@ proptest! {
     fn bigint_add_sub((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let add_results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs, ys.clone());
-        let add_bigint: Vec<_> = add_results.into_iter().map(|x| (x, false)).collect();
+        let add_bigint = use_witnesses(add_results);
         let results = bigint_solve_binary_op(bigint_sub_op(), modulus, add_bigint, ys);
 
         prop_assert_eq!(results, expected_results)
@@ -1360,7 +1365,7 @@ proptest! {
     fn bigint_sub_add((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let sub_results = bigint_solve_binary_op(bigint_sub_op(), modulus.clone(), xs, ys.clone());
-        let add_bigint: Vec<_> = sub_results.into_iter().map(|x| (x, false)).collect();
+        let add_bigint = use_witnesses(sub_results);
         let results = bigint_solve_binary_op(bigint_add_op(), modulus, add_bigint, ys);
 
         prop_assert_eq!(results, expected_results)
@@ -1370,7 +1375,7 @@ proptest! {
     fn bigint_div_mul((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let div_results = bigint_solve_binary_op(bigint_div_op(), modulus.clone(), xs, ys.clone());
-        let div_bigint: Vec<_> = div_results.into_iter().map(|x| (x, false)).collect();
+        let div_bigint = use_witnesses(div_results);
         let results = bigint_solve_binary_op(bigint_mul_op(), modulus, div_bigint, ys);
 
         prop_assert_eq!(results, expected_results)
@@ -1380,7 +1385,7 @@ proptest! {
     fn bigint_mul_div((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
         let mul_results = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs, ys.clone());
-        let mul_bigint: Vec<_> = mul_results.into_iter().map(|x| (x, false)).collect();
+        let mul_bigint = use_witnesses(mul_results);
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, mul_bigint, ys);
 
         prop_assert_eq!(results, expected_results)
