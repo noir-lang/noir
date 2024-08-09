@@ -20,6 +20,9 @@ impl Type {
     #[builtin(type_as_tuple)]
     fn as_tuple(self) -> Option<[Type]> {}
 
+    #[builtin(type_implements)]
+    fn implements(self, constraint: TraitConstraint) -> bool {}
+
     #[builtin(type_is_bool)]
     fn is_bool(self) -> bool {}
 
