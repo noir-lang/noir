@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use acir::{
     acir_field::GenericFieldElement,
@@ -14,13 +15,13 @@ use acir::{
 
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
+use bn254_blackbox_solver::{field_from_hex, Bn254BlackBoxSolver, POSEIDON2_CONFIG};
 use brillig_vm::brillig::HeapValueType;
 
 use proptest::arbitrary::any;
 use proptest::prelude::*;
 use proptest::result::maybe_ok;
-
-// Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
+use zkhash::poseidon2::poseidon2_params::Poseidon2Params;
 
 #[test]
 fn bls12_381_circuit() {
@@ -728,6 +729,75 @@ fn memory_operations() {
     assert_eq!(witness_map[&Witness(8)], FieldElement::from(6u128));
 }
 
+/// Whether to use a FunctionInput::constant or FunctionInput::witness:
+///
+/// (value, use_constant)
+type ConstantOrWitness = (FieldElement, bool);
+
+// For each ConstantOrWitness,
+// - If use_constant, then convert to a FunctionInput::constant
+// - Otherwise, convert to FunctionInput::witness
+//   + With the Witness index as (input_index + offset)
+//
+// Both use FieldElement::max_num_bits as the number of bits.
+fn constant_or_witness_to_function_inputs(
+    xs: Vec<ConstantOrWitness>,
+    offset: usize,
+) -> Vec<FunctionInput<FieldElement>> {
+    xs.into_iter()
+        .enumerate()
+        .map(|(i, (x, use_constant))| {
+            if use_constant {
+                FunctionInput::constant(x, FieldElement::max_num_bits())
+            } else {
+                FunctionInput::witness(Witness((i + offset) as u32), FieldElement::max_num_bits())
+            }
+        })
+        .collect()
+}
+
+// Convert ConstantOrWitness's back to FieldElement's by dropping the bool's
+fn drop_use_constant(input: &[ConstantOrWitness]) -> Vec<FieldElement> {
+    input.iter().map(|x| x.0).collect()
+}
+
+// equivalent values (ignoring use_constant)
+fn drop_use_constant_eq(x: &[ConstantOrWitness], y: &[ConstantOrWitness]) -> bool {
+    drop_use_constant(x) == drop_use_constant(y)
+}
+
+fn solve_array_input_blackbox_call<F>(
+    inputs: Vec<ConstantOrWitness>,
+    num_outputs: usize,
+    f: F,
+) -> Vec<FieldElement>
+where
+    F: FnOnce((Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement>,
+{
+    let initial_witness_vec: Vec<_> =
+        inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
+    let outputs: Vec<_> = (0..num_outputs)
+        .map(|i| Witness((i + inputs.len()) as u32)) // offset past the indices of inputs
+        .collect();
+    let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
+
+    let inputs = constant_or_witness_to_function_inputs(inputs, 0);
+    let op = Opcode::BlackBoxFuncCall(f((inputs.clone(), outputs.clone())));
+    let opcodes = vec![op];
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&Bn254BlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+
+    let solver_status = acvm.solve();
+    assert_eq!(solver_status, ACVMStatus::Solved);
+    let witness_map = acvm.finalize();
+
+    outputs
+        .iter()
+        .map(|witness| *witness_map.get(witness).expect("all witnesses to be set"))
+        .collect()
+}
+
 // Solve the given BlackBoxFuncCall with witnesses: 1, 2 as x, y, resp.
 #[cfg(test)]
 fn solve_blackbox_func_call(
@@ -763,6 +833,174 @@ fn solve_blackbox_func_call(
     let witness_map = acvm.finalize();
 
     witness_map[&Witness(3)]
+}
+
+// N inputs
+// 32 outputs
+fn sha256_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    BlackBoxFuncCall::SHA256 {
+        inputs: function_inputs,
+        outputs: outputs.try_into().expect("SHA256 returns 32 outputs"),
+    }
+}
+
+// N inputs
+// 32 outputs
+fn blake2s_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    BlackBoxFuncCall::Blake2s {
+        inputs: function_inputs,
+        outputs: outputs.try_into().expect("Blake2s returns 32 outputs"),
+    }
+}
+
+// N inputs
+// 32 outputs
+fn blake3_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    BlackBoxFuncCall::Blake3 {
+        inputs: function_inputs,
+        outputs: outputs.try_into().expect("Blake3 returns 32 outputs"),
+    }
+}
+
+// variable inputs
+// 32 outputs
+fn keccak256_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let function_inputs_len = function_inputs.len();
+    BlackBoxFuncCall::Keccak256 {
+        inputs: function_inputs,
+        var_message_size: FunctionInput::constant(
+            function_inputs_len.into(),
+            FieldElement::max_num_bits(),
+        ),
+        outputs: outputs.try_into().expect("Keccak256 returns 32 outputs"),
+    }
+}
+
+// var_message_size is the number of bytes to take
+// from the input. Note: if `var_message_size`
+// is more than the number of bytes in the input,
+// then an error is returned.
+//
+// variable inputs
+// 32 outputs
+fn keccak256_invalid_message_size_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let function_inputs_len = function_inputs.len();
+    BlackBoxFuncCall::Keccak256 {
+        inputs: function_inputs,
+        var_message_size: FunctionInput::constant(
+            (function_inputs_len - 1).into(),
+            FieldElement::max_num_bits(),
+        ),
+        outputs: outputs.try_into().expect("Keccak256 returns 32 outputs"),
+    }
+}
+
+// 25 inputs
+// 25 outputs
+fn keccakf1600_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    BlackBoxFuncCall::Keccakf1600 {
+        inputs: function_inputs.try_into().expect("Keccakf1600 expects 25 inputs"),
+        outputs: outputs.try_into().expect("Keccakf1600 returns 25 outputs"),
+    }
+}
+
+// N inputs
+// N outputs
+fn poseidon2_permutation_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (inputs, outputs) = function_inputs_and_outputs;
+    let len = inputs.len() as u32;
+    BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len }
+}
+
+// N inputs
+// N outputs
+fn poseidon2_permutation_invalid_len_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (inputs, outputs) = function_inputs_and_outputs;
+    let len = (inputs.len() as u32) + 1;
+    BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len }
+}
+
+// 24 inputs (16 + 8)
+// 8 outputs
+fn sha256_compression_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let mut function_inputs = function_inputs.into_iter();
+    let inputs = core::array::from_fn(|_| function_inputs.next().unwrap());
+    let hash_values = core::array::from_fn(|_| function_inputs.next().unwrap());
+    BlackBoxFuncCall::Sha256Compression {
+        inputs: Box::new(inputs),
+        hash_values: Box::new(hash_values),
+        outputs: outputs.try_into().unwrap(),
+    }
+}
+
+fn into_repr_vec<T>(xs: T) -> Vec<ark_bn254::Fr>
+where
+    T: IntoIterator<Item = FieldElement>,
+{
+    xs.into_iter().map(|x| x.into_repr()).collect()
+}
+
+fn into_repr_mat<T, U>(xs: T) -> Vec<Vec<ark_bn254::Fr>>
+where
+    T: IntoIterator<Item = U>,
+    U: IntoIterator<Item = FieldElement>,
+{
+    xs.into_iter().map(|x| into_repr_vec(x)).collect()
+}
+
+fn run_both_poseidon2_permutations(
+    inputs: Vec<ConstantOrWitness>,
+) -> (Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>) {
+    let result =
+        solve_array_input_blackbox_call(inputs.clone(), inputs.len(), poseidon2_permutation_op);
+
+    let poseidon2_t = POSEIDON2_CONFIG.t as usize;
+    let poseidon2_d = 5;
+    let rounds_f = POSEIDON2_CONFIG.rounds_f as usize;
+    let rounds_p = POSEIDON2_CONFIG.rounds_p as usize;
+    let mat_internal_diag_m_1 = into_repr_vec(POSEIDON2_CONFIG.internal_matrix_diagonal);
+    let mat_internal = vec![];
+    let round_constants = into_repr_mat(POSEIDON2_CONFIG.round_constant);
+
+    let external_poseidon2 =
+        zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(Poseidon2Params::new(
+            poseidon2_t,
+            poseidon2_d,
+            rounds_f,
+            rounds_p,
+            &mat_internal_diag_m_1,
+            &mat_internal,
+            &round_constants,
+        )));
+
+    let expected_result =
+        external_poseidon2.permutation(&into_repr_vec(drop_use_constant(&inputs)));
+    (into_repr_vec(result), expected_result)
 }
 
 fn function_input_from_option(
@@ -827,6 +1065,31 @@ fn prop_assert_zero_l(
     (solve_blackbox_func_call(op, op_zero, x), FieldElement::zero())
 }
 
+// Test that varying one of the inputs produces a different result
+//
+// (is the op injective for the given inputs?, failure string)
+fn prop_assert_injective<F>(
+    inputs: Vec<ConstantOrWitness>,
+    distinct_inputs: Vec<ConstantOrWitness>,
+    num_outputs: usize,
+    op: F,
+) -> (bool, String)
+where
+    F: FnOnce((Vec<FunctionInput<FieldElement>>, Vec<Witness>)) -> BlackBoxFuncCall<FieldElement>
+        + Clone,
+{
+    let equal_inputs = drop_use_constant_eq(&inputs, &distinct_inputs);
+    let message = format!("not injective:\n{:?}\n{:?}", &inputs, &distinct_inputs);
+    let outputs_not_equal = solve_array_input_blackbox_call(inputs, num_outputs, op.clone())
+        != solve_array_input_blackbox_call(distinct_inputs, num_outputs, op);
+    (equal_inputs || outputs_not_equal, message)
+}
+
+fn field_element_ones() -> FieldElement {
+    let exponent: FieldElement = (253_u128).into();
+    FieldElement::from(2u128).pow(&exponent) - FieldElement::one()
+}
+
 prop_compose! {
     // Use both `u128` and hex proptest strategies
     fn field_element()
@@ -841,9 +1104,161 @@ prop_compose! {
     }
 }
 
-fn field_element_ones() -> FieldElement {
-    let exponent: FieldElement = (253_u128).into();
-    FieldElement::from(2u128).pow(&exponent) - FieldElement::one()
+prop_compose! {
+    fn any_distinct_inputs(max_input_bits: Option<usize>, min_size: usize, max_size: usize)
+        (size_and_patch in any::<(usize, usize, usize)>()) // NOTE: macro ambiguity when using (x: T)
+        (inputs_distinct_inputs in
+            (proptest::collection::vec(any::<(u128, bool)>(), std::cmp::max(min_size, size_and_patch.0 % max_size)),
+             proptest::collection::vec(any::<(u128, bool)>(), std::cmp::max(min_size, size_and_patch.0 % max_size))),
+            size_and_patch in Just(size_and_patch))
+        -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>) {
+        let (_size, patch_location, patch_value) = size_and_patch;
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        let to_input = |(x, use_constant)| {
+            let modulus = if let Some(max_input_bits) = max_input_bits {
+                2u128 << max_input_bits
+            } else {
+                1
+            };
+            (FieldElement::from(x % modulus), use_constant)
+        };
+        let inputs: Vec<_> = inputs.into_iter().map(to_input).collect();
+        let mut distinct_inputs: Vec<_> = distinct_inputs.into_iter().map(to_input).collect();
+
+        // if equivalent w/o use_constant, patch with the patch_value
+        if drop_use_constant_eq(&inputs, &distinct_inputs) {
+            let distinct_inputs_len = distinct_inputs.len();
+            let positive_patch_value = std::cmp::max(patch_value, 1);
+            if distinct_inputs_len != 0 {
+                distinct_inputs[patch_location % distinct_inputs_len].0 += FieldElement::from(positive_patch_value)
+            } else {
+                distinct_inputs.push((FieldElement::zero(), true))
+            }
+        }
+
+        (inputs, distinct_inputs)
+    }
+}
+
+#[test]
+fn poseidon2_permutation_zeroes() {
+    let use_constants: [bool; 4] = [false; 4];
+    let inputs: Vec<_> = [FieldElement::zero(); 4].into_iter().zip(use_constants).collect();
+    let (result, expected_result) = run_both_poseidon2_permutations(inputs);
+
+    let internal_expected_result = vec![
+        field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),
+        field_from_hex("095C230D1D37A246E8D2D5A63B165FE0FADE040D442F61E25F0590E5FB76F839"),
+        field_from_hex("0BB9545846E1AFA4FA3C97414A60A20FC4949F537A68CCECA34C5CE71E28AA59"),
+        field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
+    ];
+
+    assert_eq!(expected_result, into_repr_vec(internal_expected_result));
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn sha256_zeros() {
+    let results = solve_array_input_blackbox_call(vec![], 32, sha256_op);
+    let expected_results: Vec<_> = vec![
+        227, 176, 196, 66, 152, 252, 28, 20, 154, 251, 244, 200, 153, 111, 185, 36, 39, 174, 65,
+        228, 100, 155, 147, 76, 164, 149, 153, 27, 120, 82, 184, 85,
+    ]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+#[test]
+fn sha256_compression_zeros() {
+    let results = solve_array_input_blackbox_call(
+        [(FieldElement::zero(), false); 24].try_into().unwrap(),
+        8,
+        sha256_compression_op,
+    );
+    let expected_results: Vec<_> = vec![
+        2091193876, 1113340840, 3461668143, 3254913767, 3068490961, 2551409935, 2927503052,
+        3205228454,
+    ]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+#[test]
+fn blake2s_zeros() {
+    let results = solve_array_input_blackbox_call(vec![], 32, blake2s_op);
+    let expected_results: Vec<_> = vec![
+        105, 33, 122, 48, 121, 144, 128, 148, 225, 17, 33, 208, 66, 53, 74, 124, 31, 85, 182, 72,
+        44, 161, 165, 30, 27, 37, 13, 253, 30, 208, 238, 249,
+    ]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+#[test]
+fn blake3_zeros() {
+    let results = solve_array_input_blackbox_call(vec![], 32, blake3_op);
+    let expected_results: Vec<_> = vec![
+        175, 19, 73, 185, 245, 249, 161, 166, 160, 64, 77, 234, 54, 220, 201, 73, 155, 203, 37,
+        201, 173, 193, 18, 183, 204, 154, 147, 202, 228, 31, 50, 98,
+    ]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+#[test]
+fn keccak256_zeros() {
+    let results = solve_array_input_blackbox_call(vec![], 32, keccak256_op);
+    let expected_results: Vec<_> = vec![
+        197, 210, 70, 1, 134, 247, 35, 60, 146, 126, 125, 178, 220, 199, 3, 192, 229, 0, 182, 83,
+        202, 130, 39, 59, 123, 250, 216, 4, 93, 133, 164, 112,
+    ]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/5687): internal error when calling Keccakf1600
+#[test]
+#[should_panic(expected = "assertion `left == right` failed")]
+fn keccakf1600_zeros() {
+    assert_eq!(FieldElement::zero().num_bits(), 0);
+
+    let _results = solve_array_input_blackbox_call(
+        [(FieldElement::zero(), false); 25].into(),
+        25,
+        keccakf1600_op,
+    );
+    // TODO(https://github.com/noir-lang/noir/issues/5687): re-enable once internal error is resolved
+    // assert_eq!(results, vec![]);
+}
+
+// TODO(https://github.com/noir-lang/noir/issues/5690): expected to be injective
+#[test]
+#[should_panic(expected = "not injective")]
+fn keccak256_injective_regression() {
+    // 2⁸×61916068613087029720904767285796661
+    let x = FieldElement::from(15850513564950279608551620425163945216u128);
+
+    // 2⁸×220343640628484768581538005104492351
+    let y = FieldElement::from(56407972000892100756873729306750041856u128);
+    assert!(x != y);
+
+    let inputs = vec![(x, false)];
+    let distinct_inputs = vec![(y, false)];
+    let num_outputs = 32;
+    let (result, message) =
+        prop_assert_injective(inputs.clone(), distinct_inputs.clone(), num_outputs, keccak256_op);
+
+    assert!(result, "{}", message);
 }
 
 proptest! {
@@ -910,4 +1325,80 @@ proptest! {
         let (lhs, rhs) = prop_assert_zero_l(and_op, zero, x);
         prop_assert_eq!(lhs, rhs);
     }
+
+    #[test]
+    fn poseidon2_permutation_matches_external_impl(inputs in proptest::collection::vec(field_element(), 4)) {
+        let (result, expected_result) = run_both_poseidon2_permutations(inputs);
+        prop_assert_eq!(result, expected_result)
+    }
+
+    #[test]
+    fn sha256_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, sha256_op);
+        prop_assert!(result, "{}", message);
+    }
+
+    #[test]
+    fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(None, 24, 24)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        if inputs.len() == 24 && distinct_inputs.len() == 24 {
+            let (result, message) = prop_assert_injective(inputs, distinct_inputs, 8, sha256_compression_op);
+            prop_assert!(result, "{}", message);
+        }
+    }
+
+    #[test]
+    fn blake2s_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, blake2s_op);
+        prop_assert!(result, "{}", message);
+    }
+
+    #[test]
+    fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, blake3_op);
+        prop_assert!(result, "{}", message);
+    }
+
+    // TODO(https://github.com/noir-lang/noir/issues/5690): expected to be injective
+    #[test]
+    #[should_panic(expected = "not injective")]
+    fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, keccak256_op);
+        prop_assert!(result, "{}", message);
+    }
+
+    // TODO(https://github.com/noir-lang/noir/issues/5689): doesn't fail with an error, returns constant output
+    #[test]
+    #[should_panic(expected = "Test failed: not injective")]
+    fn keccak256_invalid_message_size_fails(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, keccak256_invalid_message_size_op);
+        prop_assert!(result, "{}", message);
+    }
+
+    // TODO(https://github.com/noir-lang/noir/issues/5687): internal error when calling Keccakf1600
+    #[test]
+    #[should_panic(expected = "assertion `left == right` failed")]
+    fn keccakf1600_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 25, 25)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        assert_eq!(inputs.len(), 25);
+        assert_eq!(distinct_inputs.len(), 25);
+        let (_result, _message) = prop_assert_injective(inputs, distinct_inputs, 25, keccakf1600_op);
+        // TODO(https://github.com/noir-lang/noir/issues/5687): re-enable once internal error is resolved
+        // prop_assert!(result, "{}", message);
+    }
+
+    // TODO(https://github.com/noir-lang/noir/issues/5699): wrong failure message
+    #[test]
+    // #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 6 != 7\"))")]
+    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 7, 7)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, poseidon2_permutation_invalid_len_op);
+        prop_assert!(result, "{}", message);
+    }
+
 }

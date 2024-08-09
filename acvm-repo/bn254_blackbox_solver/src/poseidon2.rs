@@ -16,26 +16,26 @@ pub(crate) struct Poseidon2<'a> {
     config: &'a Poseidon2Config,
 }
 
-struct Poseidon2Config {
-    t: u32,
-    rounds_f: u32,
-    rounds_p: u32,
-    internal_matrix_diagonal: [FieldElement; 4],
-    round_constant: [[FieldElement; 4]; 64],
+pub struct Poseidon2Config {
+    pub t: u32,
+    pub rounds_f: u32,
+    pub rounds_p: u32,
+    pub internal_matrix_diagonal: [FieldElement; 4],
+    pub round_constant: [[FieldElement; 4]; 64],
 }
 
-fn field_from_hex(hex: &str) -> FieldElement {
+pub fn field_from_hex(hex: &str) -> FieldElement {
     FieldElement::from_be_bytes_reduce(&hex::decode(hex).expect("Should be passed only valid hex"))
 }
 
 lazy_static! {
-    static ref INTERNAL_MATRIX_DIAGONAL: [FieldElement; 4] = [
+    pub static ref INTERNAL_MATRIX_DIAGONAL: [FieldElement; 4] = [
         field_from_hex("10dc6e9c006ea38b04b1e03b4bd9490c0d03f98929ca1d7fb56821fd19d3b6e7"),
         field_from_hex("0c28145b6a44df3e0149b3d0a30b3bb599df9756d4dd9b84a86b38cfb45a740b"),
         field_from_hex("00544b8338791518b2c7645a50392798b21f75bb60e3596170067d00141cac15"),
         field_from_hex("222c01175718386f2e2e82eb122789e352e105a3b8fa852613bc534433ee428b"),
     ];
-    static ref ROUND_CONSTANT: [[FieldElement; 4]; 64] = [
+    pub static ref ROUND_CONSTANT: [[FieldElement; 4]; 64] = [
         [
             field_from_hex("19b849f69450b06848da1d39bd5e4a4302bb86744edc26238b0878e269ed23e5"),
             field_from_hex("265ddfe127dd51bd7239347b758f0a1320eb2cc7450acc1dad47f80c8dcf34d6"),
@@ -421,7 +421,7 @@ lazy_static! {
             field_from_hex("176563472456aaa746b694c60e1823611ef39039b2edc7ff391e6f2293d2c404"),
         ],
     ];
-    static ref POSEIDON2_CONFIG: Poseidon2Config = Poseidon2Config {
+    pub static ref POSEIDON2_CONFIG: Poseidon2Config = Poseidon2Config {
         t: 4,
         rounds_f: 8,
         rounds_p: 56,
