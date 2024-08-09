@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -eu
 
+# Function to clean up and exit
+cleanup_and_exit() {
+    echo "Cleaning up..."
+    rm -f "$SCRIPT_DIR/../target/$FUNCTION_ARTIFACT"
+    exit 0
+}
+
+# Trap SIGINT (Ctrl+C) and call cleanup_and_exit
+trap cleanup_and_exit SIGINT
+
 # If first  arg is -h or --help, print usage
 if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     echo "Usage: $0 <contract> <function>"
@@ -57,3 +67,6 @@ $PROFILER gates-flamegraph --artifact-path "$SCRIPT_DIR/../target/$FUNCTION_ARTI
 # serve the file over http
 echo "Serving flamegraph at http://0.0.0.0:8000/main_gates.svg"
 python3 -m http.server --directory "$SCRIPT_DIR/../dest" 8000
+
+# Clean up before exiting
+cleanup_and_exit
