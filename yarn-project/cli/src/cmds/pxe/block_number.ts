@@ -5,5 +5,5 @@ export async function blockNumber(rpcUrl: string, debugLogger: DebugLogger, log:
   const client = await createCompatibleClient(rpcUrl, debugLogger);
   const [latestNum, provenNum] = await Promise.all([client.getBlockNumber(), client.getProvenBlockNumber()]);
   log(`Latest block: ${latestNum}`);
-  log(`Proven block: ${provenNum}\n`);
+  log(`Proven block: ${provenNum}`);
 }

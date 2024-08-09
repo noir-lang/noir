@@ -121,7 +121,7 @@ export class ProverAgent {
 
   private async work(jobSource: ProvingJobSource, job: ProvingJob<ProvingRequest>): Promise<void> {
     try {
-      this.log.info(`Picked up proving job id=${job.id} type=${ProvingRequestType[job.request.type]}`);
+      this.log.debug(`Picked up proving job id=${job.id} type=${ProvingRequestType[job.request.type]}`);
       const [time, result] = await elapsed(this.getProof(job.request));
       if (this.isRunning()) {
         this.log.verbose(
@@ -129,7 +129,7 @@ export class ProverAgent {
         );
         await jobSource.resolveProvingJob(job.id, result);
       } else {
-        this.log.debug(
+        this.log.verbose(
           `Dropping proving job id=${job.id} type=${
             ProvingRequestType[job.request.type]
           } duration=${time}ms: agent stopped`,
@@ -145,7 +145,7 @@ export class ProverAgent {
         );
         await jobSource.rejectProvingJob(job.id, new ProvingError((err as any)?.message ?? String(err)));
       } else {
-        this.log.info(
+        this.log.verbose(
           `Dropping proving job id=${job.id} type=${ProvingRequestType[job.request.type]}: agent stopped: ${
             (err as any).stack || err
           }`,

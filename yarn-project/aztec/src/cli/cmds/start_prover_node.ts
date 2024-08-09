@@ -66,6 +66,7 @@ export const startProverNode = async (
     proverConfig.l1Contracts?.rollupAddress && !proverConfig.l1Contracts.rollupAddress.isZero();
   const nodeUrl = proverConfig.nodeUrl ?? proverConfig.txProviderNodeUrl;
   if (nodeUrl && !isRollupAddressSet) {
+    userLog(`Loading L1 contract addresses from aztec node at ${nodeUrl}`);
     proverConfig.l1Contracts = await createAztecNodeClient(nodeUrl).getL1ContractAddresses();
   }
 
