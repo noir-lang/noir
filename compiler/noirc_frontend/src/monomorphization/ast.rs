@@ -367,7 +367,7 @@ impl Program {
     }
 
     pub fn take_main_body(&mut self) -> Expression {
-        self.take_function_body(FuncId::Dummy)
+        self.take_function_body(self.main_id())
     }
 
     /// Takes a function body by replacing it with `false` and
