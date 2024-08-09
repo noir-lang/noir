@@ -67,7 +67,6 @@ pub struct LocalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-// pub struct FuncId(pub u32);
 pub enum FuncId {
     Dummy,
     Interned(u32),
