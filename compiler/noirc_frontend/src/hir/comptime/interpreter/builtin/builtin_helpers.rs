@@ -5,11 +5,18 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{IntegerBitSize, Signedness},
-    hir::comptime::{errors::IResult, InterpreterError, Value},
-    hir_def::stmt::HirPattern,
-    macros_api::NodeInterner,
+    hir::{
+        comptime::{errors::IResult, value::add_token_spans, Interpreter, InterpreterError, Value},
+        def_map::ModuleId,
+    },
+    hir_def::{
+        function::{FuncMeta, FunctionBody},
+        stmt::HirPattern,
+    },
+    macros_api::{NodeInterner, StructId},
     node_interner::{FuncId, TraitId},
-    token::Token,
+    parser::NoirParser,
+    token::{Token, Tokens},
     QuotedType, Type,
 };
 
@@ -29,41 +36,41 @@ pub(crate) fn check_argument_count(
 pub(crate) fn check_one_argument(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> IResult<Value> {
+) -> IResult<(Value, Location)> {
     check_argument_count(1, &arguments, location)?;
 
-    Ok(arguments.pop().unwrap().0)
+    Ok(arguments.pop().unwrap())
 }
 
 pub(crate) fn check_two_arguments(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> IResult<(Value, Value)> {
+) -> IResult<((Value, Location), (Value, Location))> {
     check_argument_count(2, &arguments, location)?;
 
-    let argument2 = arguments.pop().unwrap().0;
-    let argument1 = arguments.pop().unwrap().0;
+    let argument2 = arguments.pop().unwrap();
+    let argument1 = arguments.pop().unwrap();
 
     Ok((argument1, argument2))
 }
 
+#[allow(clippy::type_complexity)]
 pub(crate) fn check_three_arguments(
     mut arguments: Vec<(Value, Location)>,
     location: Location,
-) -> IResult<(Value, Value, Value)> {
+) -> IResult<((Value, Location), (Value, Location), (Value, Location))> {
     check_argument_count(3, &arguments, location)?;
 
-    let argument3 = arguments.pop().unwrap().0;
-    let argument2 = arguments.pop().unwrap().0;
-    let argument1 = arguments.pop().unwrap().0;
+    let argument3 = arguments.pop().unwrap();
+    let argument2 = arguments.pop().unwrap();
+    let argument1 = arguments.pop().unwrap();
 
     Ok((argument1, argument2, argument3))
 }
 
 pub(crate) fn get_array(
     interner: &NodeInterner,
-    value: Value,
-    location: Location,
+    (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
         Value::Array(values, typ) => Ok((values, typ)),
@@ -78,8 +85,7 @@ pub(crate) fn get_array(
 
 pub(crate) fn get_slice(
     interner: &NodeInterner,
-    value: Value,
-    location: Location,
+    (value, location): (Value, Location),
 ) -> IResult<(im::Vector<Value>, Type)> {
     match value {
         Value::Slice(values, typ) => Ok((values, typ)),
@@ -92,7 +98,22 @@ pub(crate) fn get_slice(
     }
 }
 
-pub(crate) fn get_field(value: Value, location: Location) -> IResult<FieldElement> {
+pub(crate) fn get_tuple(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<Vec<Value>> {
+    match value {
+        Value::Tuple(values) => Ok(values),
+        value => {
+            let type_var = interner.next_type_variable();
+            let expected = Type::Tuple(vec![type_var]);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
     match value {
         Value::Field(value) => Ok(value),
         value => {
@@ -102,7 +123,18 @@ pub(crate) fn get_field(value: Value, location: Location) -> IResult<FieldElemen
     }
 }
 
-pub(crate) fn get_u32(value: Value, location: Location) -> IResult<u32> {
+pub(crate) fn get_u8((value, location): (Value, Location)) -> IResult<u8> {
+    match value {
+        Value::U8(value) => Ok(value),
+        value => {
+            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
+pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     match value {
         Value::U32(value) => Ok(value),
         value => {
@@ -113,7 +145,7 @@ pub(crate) fn get_u32(value: Value, location: Location) -> IResult<u32> {
     }
 }
 
-pub(crate) fn get_function_def(value: Value, location: Location) -> IResult<FuncId> {
+pub(crate) fn get_function_def((value, location): (Value, Location)) -> IResult<FuncId> {
     match value {
         Value::FunctionDefinition(id) => Ok(id),
         value => {
@@ -124,9 +156,30 @@ pub(crate) fn get_function_def(value: Value, location: Location) -> IResult<Func
     }
 }
 
+pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<ModuleId> {
+    match value {
+        Value::ModuleDefinition(module_id) => Ok(module_id),
+        value => {
+            let expected = Type::Quoted(QuotedType::Module);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
+pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<StructId> {
+    match value {
+        Value::StructDefinition(id) => Ok(id),
+        _ => {
+            let expected = Type::Quoted(QuotedType::StructDefinition);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, location, actual })
+        }
+    }
+}
+
 pub(crate) fn get_trait_constraint(
-    value: Value,
-    location: Location,
+    (value, location): (Value, Location),
 ) -> IResult<(TraitId, Vec<Type>)> {
     match value {
         Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
@@ -138,7 +191,7 @@ pub(crate) fn get_trait_constraint(
     }
 }
 
-pub(crate) fn get_trait_def(value: Value, location: Location) -> IResult<TraitId> {
+pub(crate) fn get_trait_def((value, location): (Value, Location)) -> IResult<TraitId> {
     match value {
         Value::TraitDefinition(id) => Ok(id),
         value => {
@@ -149,7 +202,7 @@ pub(crate) fn get_trait_def(value: Value, location: Location) -> IResult<TraitId
     }
 }
 
-pub(crate) fn get_type(value: Value, location: Location) -> IResult<Type> {
+pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
         Value::Type(typ) => Ok(typ),
         value => {
@@ -160,7 +213,7 @@ pub(crate) fn get_type(value: Value, location: Location) -> IResult<Type> {
     }
 }
 
-pub(crate) fn get_quoted(value: Value, location: Location) -> IResult<Rc<Vec<Token>>> {
+pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<Token>>> {
     match value {
         Value::Quoted(tokens) => Ok(tokens),
         value => {
@@ -238,5 +291,75 @@ fn gather_hir_pattern_tokens(
             }
             tokens.push(Token::RightBrace);
         }
+    }
+}
+
+pub(super) fn check_function_not_yet_resolved(
+    interpreter: &Interpreter,
+    func_id: FuncId,
+    location: Location,
+) -> Result<(), InterpreterError> {
+    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    match func_meta.function_body {
+        FunctionBody::Unresolved(_, _, _) => Ok(()),
+        FunctionBody::Resolving | FunctionBody::Resolved => {
+            Err(InterpreterError::FunctionAlreadyResolved { location })
+        }
+    }
+}
+
+pub(super) fn parse<T>(
+    (value, location): (Value, Location),
+    parser: impl NoirParser<T>,
+    rule: &'static str,
+) -> IResult<T> {
+    let tokens = get_quoted((value, location))?;
+    let quoted = add_token_spans(tokens.clone(), location.span);
+    parse_tokens(tokens, quoted, location, parser, rule)
+}
+
+pub(super) fn parse_tokens<T>(
+    tokens: Rc<Vec<Token>>,
+    quoted: Tokens,
+    location: Location,
+    parser: impl NoirParser<T>,
+    rule: &'static str,
+) -> IResult<T> {
+    parser.parse(quoted).map_err(|mut errors| {
+        let error = errors.swap_remove(0);
+        InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
+    })
+}
+
+pub(super) fn mutate_func_meta_type<F>(interner: &mut NodeInterner, func_id: FuncId, f: F)
+where
+    F: FnOnce(&mut FuncMeta),
+{
+    let (name_id, function_type) = {
+        let func_meta = interner.function_meta_mut(&func_id);
+        f(func_meta);
+        (func_meta.name.id, func_meta.typ.clone())
+    };
+
+    interner.push_definition_type(name_id, function_type);
+}
+
+pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<Type>) {
+    match typ {
+        Type::Function(parameters, _, _) => {
+            *parameters = parameter_types;
+        }
+        Type::Forall(_, typ) => replace_func_meta_parameters(typ, parameter_types),
+        _ => {}
+    }
+}
+
+pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
+    match typ {
+        Type::Function(_, ret, _) => {
+            *ret = Box::new(return_type);
+        }
+        Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
+        _ => {}
     }
 }

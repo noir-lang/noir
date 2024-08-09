@@ -155,6 +155,7 @@ impl<'context> Elaborator<'context> {
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
+            AsTraitPath(_) => todo!("Resolve AsTraitPath"),
         };
 
         if let Some(unresolved_span) = typ.span {

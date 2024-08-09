@@ -4,7 +4,7 @@ use acir::{
     acir_field::GenericFieldElement,
     brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
-        brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
+        brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         Opcode, OpcodeLocation,
     },
@@ -81,7 +81,7 @@ fn inversion_brillig_oracle_equivalence() {
 
     let opcodes = vec![
         Opcode::BrilligCall {
-            id: 0,
+            id: BrilligFunctionId(0),
             inputs: vec![
                 BrilligInputs::Single(Expression {
                     // Input Register 0
@@ -210,7 +210,7 @@ fn double_inversion_brillig_oracle() {
 
     let opcodes = vec![
         Opcode::BrilligCall {
-            id: 0,
+            id: BrilligFunctionId(0),
             inputs: vec![
                 BrilligInputs::Single(Expression {
                     // Input Register 0
@@ -405,7 +405,7 @@ fn oracle_dependent_execution() {
     let opcodes = vec![
         Opcode::AssertZero(equality_check),
         Opcode::BrilligCall {
-            id: 0,
+            id: BrilligFunctionId(0),
             inputs: vec![
                 BrilligInputs::Single(w_x.into()),            // Input Register 0
                 BrilligInputs::Single(Expression::default()), // Input Register 1
@@ -513,7 +513,7 @@ fn brillig_oracle_predicate() {
     };
 
     let opcodes = vec![Opcode::BrilligCall {
-        id: 0,
+        id: BrilligFunctionId(0),
         inputs: vec![
             BrilligInputs::Single(Expression {
                 mul_terms: vec![],
@@ -649,7 +649,7 @@ fn unsatisfied_opcode_resolved_brillig() {
 
     let opcodes = vec![
         Opcode::BrilligCall {
-            id: 0,
+            id: BrilligFunctionId(0),
             inputs: vec![
                 BrilligInputs::Single(Expression {
                     mul_terms: vec![],
@@ -674,6 +674,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     assert_eq!(
         solver_status,
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
+            function_id: BrilligFunctionId(0),
             payload: None,
             call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 }]
         }),

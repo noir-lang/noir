@@ -268,6 +268,11 @@ fn empty_expression(expression: &mut Expression) {
             empty_block_expression(block_expression);
         }
         ExpressionKind::Quote(..) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
+        ExpressionKind::AsTraitPath(path) => {
+            empty_unresolved_type(&mut path.typ);
+            empty_path(&mut path.trait_path);
+            empty_ident(&mut path.impl_item);
+        }
     }
 }
 
@@ -323,6 +328,11 @@ fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
         UnresolvedTypeData::Function(args, ret, _env) => {
             empty_unresolved_types(args);
             empty_unresolved_type(ret);
+        }
+        UnresolvedTypeData::AsTraitPath(path) => {
+            empty_unresolved_type(&mut path.typ);
+            empty_path(&mut path.trait_path);
+            empty_ident(&mut path.impl_item);
         }
         UnresolvedTypeData::FieldElement
         | UnresolvedTypeData::Integer(_, _)

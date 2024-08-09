@@ -8,6 +8,7 @@ use crate::uint128::U128;
 use crate::sha256::{digest, sha256_var};
 use crate::collections::vec::Vec;
 use crate::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_slice};
+use crate::meta::derive_via;
 
 #[foreign(sha256)]
 // docs:start:sha256
@@ -141,8 +142,16 @@ pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
 // Partially ported and impacted by rust.
 
 // Hash trait shall be implemented per type.
-trait Hash{
+#[derive_via(derive_hash)]
+trait Hash {
     fn hash<H>(self, state: &mut H) where H: Hasher;
+}
+
+comptime fn derive_hash(s: StructDefinition) -> Quoted {
+    let name = quote { Hash };
+    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher };
+    let for_each_field = |name| quote { _self.$name.hash(_state); };
+    crate::meta::make_trait_impl(s, name, signature, for_each_field, quote {}, |fields| fields)
 }
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
