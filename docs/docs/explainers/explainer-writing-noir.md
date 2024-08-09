@@ -136,6 +136,18 @@ Use arrays and indices that are known at compile time where possible.
 Using `assert_constant(i);` before an index, `i`, is used in an array will give a compile error if `i` is NOT known at compile time.
 :::
 
+### Reduce what is inside loops and conditional logic
+
+Putting less logic  inside an `if` (`else`, etc) paths, or inside a loop, translates to less gates required to represent the program.
+
+A loop duplicates the gates for each iteration of the loop, or put another way, "unwraps" or "flattens" the loop. Any calculations/calls that are unchanged in the loop should be calculated once before, and the result used in the loop.
+
+An `if` will create gates representing each path even though execution will use only one. Furthermore, there are additional operations required for each path. Sometimes this can have a multiplying effect on the operations in the `if` and `else` etc.
+
+:::tip
+Only have essential computation inside conditional logic and loops, and calculate anything else once (before, or after, depending).
+:::
+
 ### Leverage unconstrained execution
 
 Constrained verification can leverage unconstrained execution, this is especially useful for operations that are represented by many gates.
@@ -148,6 +160,17 @@ Use `  if is_unconstrained() { /`, to conditionally execute code if being called
 ## Advanced
 
 Unless you're well into the depth of gate optimization, this advanced section can be ignored.
+
+### `#[no_predicates]` over for "pure" functions
+
+When conditional logic is compiled into gates, it is predicated with boolean expressions like X, where `X * V1() + (1-X) * V2()` is calculated. This returns `V1()` when `X` is true or `V2()` if `X` is false.
+
+If a function is guaranteed to never fail an assertion no matter the inputs, or roughly considered "pure", it can use the macro `#[no_predicates]`, telling the compiler to not add such predicates. This can beneficially be used in say hashing functions to reduce the gate count when they intuitively must be written/used inside an `if`.
+
+:::note
+If a function may call other predicated functions, do not mark it with `#[no_predicates]`.
+:::
+Having a `#[no_predicates]` function call a regular function severely breaks the intended representation, proof generation, and verification of the program.
 
 ### Combine arithmetic operations
 
