@@ -5,7 +5,7 @@ use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
+use noirc_frontend::monomorphization::ast::{self, InlineType, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 
 use crate::errors::RuntimeError;
@@ -121,9 +121,14 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Note that the previous function cannot be resumed after calling this. Developers should
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
-    pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
+    pub(super) fn new_function(
+        &mut self,
+        id: IrFunctionId,
+        func: &ast::Function,
+        force_brillig_runtime: bool,
+    ) {
         self.definitions.clear();
-        if func.unconstrained {
+        if func.unconstrained || (force_brillig_runtime && func.inline_type != InlineType::Inline) {
             self.builder.new_brillig_function(func.name.clone(), id);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
@@ -237,7 +242,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
             ast::Type::Bool => Type::unsigned(1),
-            ast::Type::String(len) => Type::Array(Rc::new(vec![Type::char()]), *len as usize),
+            ast::Type::String(len) => Type::str(*len as usize),
             ast::Type::FmtString(_, _) => {
                 panic!("convert_non_tuple_type called on a fmt string: {typ}")
             }
@@ -272,11 +277,12 @@ impl<'a> FunctionContext<'a> {
         let value = value.into();
 
         if let Type::Numeric(numeric_type) = typ {
-            if !numeric_type.value_is_within_limits(value, negative) {
+            if let Some(range) = numeric_type.value_is_outside_limits(value, negative) {
                 let call_stack = self.builder.get_call_stack();
                 return Err(RuntimeError::IntegerOutOfBounds {
-                    value,
+                    value: if negative { -value } else { value },
                     typ: numeric_type,
+                    range,
                     call_stack,
                 });
             }

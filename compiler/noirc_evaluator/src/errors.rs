@@ -19,12 +19,15 @@ use serde::{Deserialize, Serialize};
 pub enum RuntimeError {
     #[error(transparent)]
     InternalError(#[from] InternalError),
-    #[error("Index out of bounds, array has size {array_size}, but index was {index}")]
-    IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
-    #[error("{value} does not fit within the type bounds for {typ}")]
-    IntegerOutOfBounds { value: FieldElement, typ: NumericType, call_stack: CallStack },
+    #[error("The value `{value:?}` cannot fit into `{typ}` which has range `{range}`")]
+    IntegerOutOfBounds {
+        value: FieldElement,
+        typ: NumericType,
+        range: String,
+        call_stack: CallStack,
+    },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error("{name:?} is not initialized")]
@@ -56,6 +59,7 @@ pub enum RuntimeError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SsaReport {
     Warning(InternalWarning),
+    Bug(InternalBug),
 }
 
 impl From<SsaReport> for FileDiagnostic {
@@ -78,6 +82,19 @@ impl From<SsaReport> for FileDiagnostic {
                     Diagnostic::simple_warning(message, secondary_message, location.span);
                 diagnostic.in_file(file_id).with_call_stack(call_stack)
             }
+            SsaReport::Bug(bug) => {
+                let message = bug.to_string();
+                let (secondary_message, call_stack) = match bug {
+                    InternalBug::IndependentSubgraph { call_stack } => {
+                        ("There is no path from the output of this brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(),call_stack)
+                    }
+                };
+                let call_stack = vecmap(call_stack, |location| location);
+                let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
+                let location = call_stack.last().expect("Expected RuntimeError to have a location");
+                let diagnostic = Diagnostic::simple_bug(message, secondary_message, location.span);
+                diagnostic.in_file(file_id).with_call_stack(call_stack)
+            }
         }
     }
 }
@@ -88,6 +105,12 @@ pub enum InternalWarning {
     ReturnConstant { call_stack: CallStack },
     #[error("Calling std::verify_proof(...) does not verify a proof")]
     VerifyProof { call_stack: CallStack },
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize)]
+pub enum InternalBug {
+    #[error("Input to brillig function is in a separate subgraph to output")]
+    IndependentSubgraph { call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -120,7 +143,6 @@ impl RuntimeError {
                 | InternalError::UndeclaredAcirVar { call_stack }
                 | InternalError::Unexpected { call_stack, .. },
             )
-            | RuntimeError::IndexOutOfBounds { call_stack, .. }
             | RuntimeError::InvalidRangeConstraint { call_stack, .. }
             | RuntimeError::TypeConversion { call_stack, .. }
             | RuntimeError::UnInitialized { call_stack, .. }

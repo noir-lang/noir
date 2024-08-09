@@ -7,13 +7,12 @@ use crate::{
     },
     hir_def::expr::HirIdent,
     macros_api::{
-        HirExpression, HirLiteral, NodeInterner, NoirFunction, UnaryOp, UnresolvedTypeData,
-        Visibility,
+        HirExpression, HirLiteral, NodeInterner, NoirFunction, Signedness, UnaryOp,
+        UnresolvedTypeData, Visibility,
     },
     node_interner::{DefinitionKind, ExprId, FuncId},
     Type,
 };
-use acvm::AcirField;
 
 use noirc_errors::Span;
 
@@ -196,8 +195,8 @@ pub(super) fn unnecessary_pub_argument(
 }
 
 /// Check if an assignment is overflowing with respect to `annotated_type`
-/// in a declaration statement where `annotated_type` is an unsigned integer
-pub(crate) fn overflowing_uint(
+/// in a declaration statement where `annotated_type` is a signed or unsigned integer
+pub(crate) fn overflowing_int(
     interner: &NodeInterner,
     rhs_expr: &ExprId,
     annotated_type: &Type,
@@ -207,23 +206,36 @@ pub(crate) fn overflowing_uint(
 
     let mut errors = Vec::with_capacity(2);
     match expr {
-        HirExpression::Literal(HirLiteral::Integer(value, false)) => {
-            let v = value.to_u128();
-            if let Type::Integer(_, bit_count) = annotated_type {
+        HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
+            Type::Integer(Signedness::Unsigned, bit_count) => {
                 let bit_count: u32 = (*bit_count).into();
-                let max = 1 << bit_count;
-                if v >= max {
+                let max = 2u128.pow(bit_count) - 1;
+                if value > max.into() || negative {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: value,
+                        expr: if negative { -value } else { value },
                         ty: annotated_type.clone(),
-                        range: format!("0..={}", max - 1),
+                        range: format!("0..={}", max),
                         span,
                     });
-                };
-            };
-        }
+                }
+            }
+            Type::Integer(Signedness::Signed, bit_count) => {
+                let bit_count: u32 = (*bit_count).into();
+                let min = 2u128.pow(bit_count - 1);
+                let max = 2u128.pow(bit_count - 1) - 1;
+                if (negative && value > min.into()) || (!negative && value > max.into()) {
+                    errors.push(TypeCheckError::OverflowingAssignment {
+                        expr: if negative { -value } else { value },
+                        ty: annotated_type.clone(),
+                        range: format!("-{}..={}", min, max),
+                        span,
+                    });
+                }
+            }
+            _ => (),
+        },
         HirExpression::Prefix(expr) => {
-            overflowing_uint(interner, &expr.rhs, annotated_type);
+            overflowing_int(interner, &expr.rhs, annotated_type);
             if expr.operator == UnaryOp::Minus {
                 errors.push(TypeCheckError::InvalidUnaryOp {
                     kind: "annotated_type".to_string(),
@@ -232,8 +244,8 @@ pub(crate) fn overflowing_uint(
             }
         }
         HirExpression::Infix(expr) => {
-            errors.extend(overflowing_uint(interner, &expr.lhs, annotated_type));
-            errors.extend(overflowing_uint(interner, &expr.rhs, annotated_type));
+            errors.extend(overflowing_int(interner, &expr.lhs, annotated_type));
+            errors.extend(overflowing_int(interner, &expr.rhs, annotated_type));
         }
         _ => {}
     }

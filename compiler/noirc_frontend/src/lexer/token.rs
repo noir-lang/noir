@@ -635,6 +635,10 @@ impl Attributes {
     pub fn is_no_predicates(&self) -> bool {
         self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
     }
+
+    pub fn is_varargs(&self) -> bool {
+        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -728,6 +732,7 @@ impl Attribute {
                     name.trim_matches('"').to_string().into(),
                 ))
             }
+            ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
                 Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
@@ -825,6 +830,9 @@ pub enum SecondaryAttribute {
     Field(String),
     Custom(String),
     Abi(String),
+
+    /// A variable-argument comptime function.
+    Varargs,
 }
 
 impl fmt::Display for SecondaryAttribute {
@@ -839,6 +847,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
             SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
+            SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
         }
     }
 }
@@ -867,6 +876,7 @@ impl AsRef<str> for SecondaryAttribute {
             | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
+            SecondaryAttribute::Varargs => "",
         }
     }
 }
@@ -895,12 +905,14 @@ pub enum Keyword {
     Fn,
     For,
     FormatString,
+    FunctionDefinition,
     Global,
     If,
     Impl,
     In,
     Let,
     Mod,
+    Module,
     Mut,
     Pub,
     Quoted,
@@ -908,12 +920,14 @@ pub enum Keyword {
     ReturnData,
     String,
     Struct,
+    StructDefinition,
     Super,
     TopLevelItem,
     Trait,
+    TraitConstraint,
+    TraitDefinition,
     Type,
     TypeType,
-    StructDefinition,
     Unchecked,
     Unconstrained,
     Use,
@@ -943,12 +957,14 @@ impl fmt::Display for Keyword {
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
             Keyword::FormatString => write!(f, "fmtstr"),
+            Keyword::FunctionDefinition => write!(f, "FunctionDefinition"),
             Keyword::Global => write!(f, "global"),
             Keyword::If => write!(f, "if"),
             Keyword::Impl => write!(f, "impl"),
             Keyword::In => write!(f, "in"),
             Keyword::Let => write!(f, "let"),
             Keyword::Mod => write!(f, "mod"),
+            Keyword::Module => write!(f, "Module"),
             Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
             Keyword::Quoted => write!(f, "Quoted"),
@@ -956,12 +972,14 @@ impl fmt::Display for Keyword {
             Keyword::ReturnData => write!(f, "return_data"),
             Keyword::String => write!(f, "str"),
             Keyword::Struct => write!(f, "struct"),
+            Keyword::StructDefinition => write!(f, "StructDefinition"),
             Keyword::Super => write!(f, "super"),
             Keyword::TopLevelItem => write!(f, "TopLevelItem"),
             Keyword::Trait => write!(f, "trait"),
+            Keyword::TraitConstraint => write!(f, "TraitConstraint"),
+            Keyword::TraitDefinition => write!(f, "TraitDefinition"),
             Keyword::Type => write!(f, "type"),
             Keyword::TypeType => write!(f, "Type"),
-            Keyword::StructDefinition => write!(f, "StructDefinition"),
             Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
@@ -994,12 +1012,14 @@ impl Keyword {
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
             "fmtstr" => Keyword::FormatString,
+            "FunctionDefinition" => Keyword::FunctionDefinition,
             "global" => Keyword::Global,
             "if" => Keyword::If,
             "impl" => Keyword::Impl,
             "in" => Keyword::In,
             "let" => Keyword::Let,
             "mod" => Keyword::Mod,
+            "Module" => Keyword::Module,
             "mut" => Keyword::Mut,
             "pub" => Keyword::Pub,
             "Quoted" => Keyword::Quoted,
@@ -1010,6 +1030,8 @@ impl Keyword {
             "super" => Keyword::Super,
             "TopLevelItem" => Keyword::TopLevelItem,
             "trait" => Keyword::Trait,
+            "TraitConstraint" => Keyword::TraitConstraint,
+            "TraitDefinition" => Keyword::TraitDefinition,
             "type" => Keyword::Type,
             "Type" => Keyword::TypeType,
             "StructDefinition" => Keyword::StructDefinition,

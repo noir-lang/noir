@@ -68,12 +68,14 @@ impl Context {
                     let typ = function.dfg.type_of_value(then_value);
                     assert!(!matches!(typ, Type::Numeric(_)));
 
+                    let call_stack = function.dfg.get_call_stack(instruction);
                     let mut value_merger = ValueMerger::new(
                         &mut function.dfg,
                         block,
                         &mut self.slice_sizes,
                         &mut self.array_set_conditionals,
                         Some(current_conditional),
+                        call_stack,
                     );
 
                     let value = value_merger.merge_values(
@@ -229,6 +231,7 @@ fn slice_capacity_change(
         | Intrinsic::StaticAssert
         | Intrinsic::ApplyRangeConstraint
         | Intrinsic::ArrayLen
+        | Intrinsic::ArrayAsStrUnchecked
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
         | Intrinsic::FromField

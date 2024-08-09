@@ -1,7 +1,7 @@
 use crate::hash::Hasher;
 use crate::default::Default;
 
-global RATE: u32 = 3;
+comptime global RATE: u32 = 3;
 
 struct Poseidon2 {
     cache: [Field;3],
@@ -11,6 +11,7 @@ struct Poseidon2 {
 }
 
 impl Poseidon2 {
+    #[no_predicates]
     pub fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field {
         if message_size == N {
             Poseidon2::hash_internal(input, N, false)

@@ -3,7 +3,6 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{AssignStatement, ConstrainStatement, LValue},
     hir::{
-        comptime::Interpreter,
         resolution::errors::ResolverError,
         type_check::{Source, TypeCheckError},
     },
@@ -86,8 +85,8 @@ impl<'context> Elaborator<'context> {
                     expr_span,
                 }
             });
-            if annotated_type.is_unsigned() {
-                let errors = lints::overflowing_uint(self.interner, &expression, &annotated_type);
+            if annotated_type.is_integer() {
+                let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
                 for error in errors {
                     self.push_err(error);
                 }
@@ -256,6 +255,9 @@ impl<'context> Elaborator<'context> {
                     typ.follow_bindings()
                 };
 
+                let reference_location = Location::new(span, self.file);
+                self.interner.add_local_reference(ident.id, reference_location);
+
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }
             LValue::MemberAccess { object, field_name, span } => {
@@ -377,6 +379,9 @@ impl<'context> Elaborator<'context> {
             Type::Struct(s, args) => {
                 let s = s.borrow();
                 if let Some((field, index)) = s.get_field(field_name, args) {
+                    let reference_location = Location::new(span, self.file);
+                    self.interner.add_struct_member_reference(s.id, index, reference_location);
+
                     return Some((field, index));
                 }
             }
@@ -440,11 +445,13 @@ impl<'context> Elaborator<'context> {
         let span = statement.span;
         let (hir_statement, _typ) = self.elaborate_statement(statement);
         self.check_and_pop_function_context();
-
-        let mut interpreter =
-            Interpreter::new(self.interner, &mut self.comptime_scopes, self.crate_id);
+        let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);
+
+        let location = self.interner.id_location(hir_statement);
+        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+
         (HirStatement::Expression(expr), typ)
     }
 }

@@ -5,15 +5,15 @@ use acir::{
 };
 use acvm_blackbox_solver::{sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
 
-use crate::pwg::{insert_value, witness_to_value};
+use crate::pwg::{input_to_value, insert_value};
 use crate::OpcodeResolutionError;
 
 /// Attempts to solve a 256 bit hash function opcode.
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.
 pub(super) fn solve_generic_256_hash_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
-    inputs: &[FunctionInput],
-    var_message_size: Option<&FunctionInput>,
+    inputs: &[FunctionInput<F>],
+    var_message_size: Option<&FunctionInput<F>>,
     outputs: &[Witness; 32],
     hash_function: fn(data: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
 ) -> Result<(), OpcodeResolutionError<F>> {
@@ -26,16 +26,15 @@ pub(super) fn solve_generic_256_hash_opcode<F: AcirField>(
 /// Reads the hash function input from a [`WitnessMap`].
 fn get_hash_input<F: AcirField>(
     initial_witness: &WitnessMap<F>,
-    inputs: &[FunctionInput],
-    message_size: Option<&FunctionInput>,
+    inputs: &[FunctionInput<F>],
+    message_size: Option<&FunctionInput<F>>,
 ) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
     // Read witness assignments.
     let mut message_input = Vec::new();
     for input in inputs.iter() {
-        let witness = input.witness;
-        let num_bits = input.num_bits as usize;
+        let num_bits = input.num_bits() as usize;
 
-        let witness_assignment = witness_to_value(initial_witness, witness)?;
+        let witness_assignment = input_to_value(initial_witness, *input)?;
         let bytes = witness_assignment.fetch_nearest_bytes(num_bits);
         message_input.extend(bytes);
     }
@@ -43,8 +42,7 @@ fn get_hash_input<F: AcirField>(
     // Truncate the message if there is a `message_size` parameter given
     match message_size {
         Some(input) => {
-            let num_bytes_to_take =
-                witness_to_value(initial_witness, input.witness)?.to_u128() as usize;
+            let num_bytes_to_take = input_to_value(initial_witness, *input)?.to_u128() as usize;
 
             // If the number of bytes to take is more than the amount of bytes available
             // in the message, then we error.
@@ -76,11 +74,11 @@ fn write_digest_to_outputs<F: AcirField>(
 
 fn to_u32_array<const N: usize, F: AcirField>(
     initial_witness: &WitnessMap<F>,
-    inputs: &[FunctionInput; N],
+    inputs: &[FunctionInput<F>; N],
 ) -> Result<[u32; N], OpcodeResolutionError<F>> {
     let mut result = [0; N];
     for (it, input) in result.iter_mut().zip(inputs) {
-        let witness_value = witness_to_value(initial_witness, input.witness)?;
+        let witness_value = input_to_value(initial_witness, *input)?;
         *it = witness_value.to_u128() as u32;
     }
     Ok(result)
@@ -88,8 +86,8 @@ fn to_u32_array<const N: usize, F: AcirField>(
 
 pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
-    inputs: &[FunctionInput; 16],
-    hash_values: &[FunctionInput; 8],
+    inputs: &[FunctionInput<F>; 16],
+    hash_values: &[FunctionInput<F>; 8],
     outputs: &[Witness; 8],
 ) -> Result<(), OpcodeResolutionError<F>> {
     let message = to_u32_array(initial_witness, inputs)?;
@@ -107,7 +105,7 @@ pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
 pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
-    inputs: &[FunctionInput],
+    inputs: &[FunctionInput<F>],
     outputs: &[Witness],
     len: u32,
 ) -> Result<(), OpcodeResolutionError<F>> {
@@ -135,8 +133,8 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     // Read witness assignments
     let mut state = Vec::new();
     for input in inputs.iter() {
-        let witness_assignment = witness_to_value(initial_witness, input.witness)?;
-        state.push(*witness_assignment);
+        let witness_assignment = input_to_value(initial_witness, *input)?;
+        state.push(witness_assignment);
     }
 
     let state = backend.poseidon2_permutation(&state, len)?;

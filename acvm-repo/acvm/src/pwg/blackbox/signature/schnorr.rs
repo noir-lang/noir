@@ -1,7 +1,7 @@
 use crate::{
     pwg::{
         blackbox::utils::{to_u8_array, to_u8_vec},
-        insert_value, witness_to_value, OpcodeResolutionError,
+        input_to_value, insert_value, OpcodeResolutionError,
     },
     BlackBoxFunctionSolver,
 };
@@ -15,14 +15,14 @@ use acir::{
 pub(crate) fn schnorr_verify<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
-    public_key_x: FunctionInput,
-    public_key_y: FunctionInput,
-    signature: &[FunctionInput; 64],
-    message: &[FunctionInput],
+    public_key_x: FunctionInput<F>,
+    public_key_y: FunctionInput<F>,
+    signature: &[FunctionInput<F>; 64],
+    message: &[FunctionInput<F>],
     output: Witness,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    let public_key_x: &F = witness_to_value(initial_witness, public_key_x.witness)?;
-    let public_key_y: &F = witness_to_value(initial_witness, public_key_y.witness)?;
+    let public_key_x: &F = &input_to_value(initial_witness, public_key_x)?;
+    let public_key_y: &F = &input_to_value(initial_witness, public_key_y)?;
 
     let signature = to_u8_array(initial_witness, signature)?;
     let message = to_u8_vec(initial_witness, message)?;

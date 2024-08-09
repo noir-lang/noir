@@ -4,7 +4,7 @@ use crate::lexer::token::BorrowedToken;
 use crate::lexer::token as noir_token;
 use crate::lexer::errors::LexerErrorKind;
 use crate::parser::TopLevelStatement;
-use crate::ast::{Ident, Path, PathKind, UseTree, UseTreeKind};
+use crate::ast::{Ident, Path, PathKind, PathSegment, UseTree, UseTreeKind};
 
 use lalrpop_util::ErrorRecovery;
 
@@ -110,7 +110,7 @@ pub(crate) TopLevelStatement: TopLevelStatement = {
 UseTree: UseTree = {
     // path::to::ident as SomeAlias
     <mut prefix:Path> <alias:Alias?> => {
-        let ident = prefix.pop();
+        let ident = prefix.pop().ident;
         let kind = UseTreeKind::Path(ident, alias);
         UseTree { prefix, kind }
     },
@@ -129,7 +129,7 @@ pub(crate) Path: Path = {
         Path { segments, kind, span }
     },
 
-    <lo:@L> <id:Ident> <mut segments:PathSegments> <hi:@R> => {
+    <lo:@L> <id:PathSegment> <mut segments:PathSegments> <hi:@R> => {
         segments.insert(0, id);
         let kind = PathKind::Plain;
         let span = Span::from(lo as u32..hi as u32);
@@ -137,10 +137,18 @@ pub(crate) Path: Path = {
     },
 }
 
-PathSegments: Vec<Ident> = {
-    <lo:@L> <segments:("::" <Ident>)*> <hi:@R> => {
+PathSegments: Vec<PathSegment> = {
+    <lo:@L> <segments:("::" <PathSegment>)*> <hi:@R> => {
         segments
     }
+}
+
+PathSegment: PathSegment = {
+    <lo:@L> <i:ident> <hi:@R> => {
+        let token = noir_token::Token::Ident(i.to_string());
+        let span = Span::from(lo as u32..hi as u32);
+        PathSegment::from(Ident::from_token(token, span))
+    },
 }
 
 Alias: Ident = {

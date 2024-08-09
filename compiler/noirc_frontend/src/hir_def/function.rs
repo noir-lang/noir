@@ -1,37 +1,41 @@
+use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
-
-use std::rc::Rc;
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::ast::{FunctionKind, FunctionReturnType, Visibility};
 use crate::graph::CrateId;
-use crate::macros_api::BlockExpression;
-use crate::node_interner::{ExprId, NodeInterner, TraitImplId};
-use crate::{ResolvedGeneric, Type, TypeVariable};
+use crate::hir::def_map::LocalModuleId;
+use crate::macros_api::{BlockExpression, StructId};
+use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId};
+use crate::{ResolvedGeneric, Type};
 
-/// A Hir function is a block expression
-/// with a list of statements
+/// A Hir function is a block expression with a list of statements.
+/// If the function has yet to be resolved, the body starts off empty (None).
 #[derive(Debug, Clone)]
-pub struct HirFunction(ExprId);
+pub struct HirFunction(Option<ExprId>);
 
 impl HirFunction {
     pub fn empty() -> HirFunction {
-        HirFunction(ExprId::empty_block_id())
+        HirFunction(None)
     }
 
     pub const fn unchecked_from_expr(expr_id: ExprId) -> HirFunction {
-        HirFunction(expr_id)
+        HirFunction(Some(expr_id))
     }
 
-    pub const fn as_expr(&self) -> ExprId {
+    pub fn as_expr(&self) -> ExprId {
+        self.0.expect("Function has yet to be elaborated, cannot get an ExprId of its body!")
+    }
+
+    pub fn try_as_expr(&self) -> Option<ExprId> {
         self.0
     }
 
     pub fn block(&self, interner: &NodeInterner) -> HirBlockExpression {
-        match interner.expression(&self.0) {
+        match interner.expression(&self.as_expr()) {
             HirExpression::Block(block_expr) => block_expr,
             _ => unreachable!("ice: functions can only be block expressions"),
         }
@@ -113,7 +117,7 @@ pub struct FuncMeta {
     /// This does not include generics from an outer scope, like those introduced by
     /// an `impl<T>` block. This also does not include implicit generics added by the compiler
     /// such as a trait's `Self` type variable.
-    pub direct_generics: Vec<(Rc<String>, TypeVariable)>,
+    pub direct_generics: Vec<ResolvedGeneric>,
 
     /// All the generics used by this function, which includes any implicit generics or generics
     /// from outer scopes, such as those introduced by an impl.
@@ -128,17 +132,18 @@ pub struct FuncMeta {
 
     pub trait_constraints: Vec<TraitConstraint>,
 
+    /// The struct this function belongs to, if any
+    pub struct_id: Option<StructId>,
+
+    // The trait this function belongs to, if any
+    pub trait_id: Option<TraitId>,
+
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
 
     /// True if this function is an entry point to the program.
     /// For non-contracts, this means the function is `main`.
     pub is_entry_point: bool,
-
-    /// True if this function was defined within a trait (not a trait impl!).
-    /// Trait functions are just stubs and shouldn't have their return type checked
-    /// against their body type, nor should unused variables be checked.
-    pub is_trait_function: bool,
 
     /// True if this function is marked with an attribute
     /// that indicates it should be inlined differently than the default (inline everything).
@@ -149,6 +154,16 @@ pub struct FuncMeta {
 
     /// The crate this function was defined in
     pub source_crate: CrateId,
+
+    /// The module this function was defined in
+    pub source_module: LocalModuleId,
+
+    /// THe file this function was defined in
+    pub source_file: FileId,
+
+    /// If this function is from an impl (trait or regular impl), this
+    /// is the object type of the impl. Otherwise this is None.
+    pub self_type: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
@@ -165,7 +180,7 @@ impl FuncMeta {
     /// We don't check the return type of these functions since it will always have
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
-        self.kind.can_ignore_return_type() || self.is_trait_function
+        self.kind.can_ignore_return_type() || self.trait_id.is_some()
     }
 
     pub fn function_signature(&self) -> FunctionSignature {

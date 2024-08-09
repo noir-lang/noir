@@ -1,13 +1,13 @@
 use noirc_errors::Location;
 
 use crate::{
-    hir::comptime::{errors::IResult, value::unwrap_rc, Value},
-    token::{SpannedToken, Token, Tokens},
+    hir::comptime::errors::IResult,
+    token::{Token, Tokens},
 };
 
 use super::Interpreter;
 
-impl<'a> Interpreter<'a> {
+impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Evaluates any expressions within UnquoteMarkers in the given token list
     /// and replaces the expression held by the marker with the evaluated value
     /// in expression form.
@@ -15,28 +15,20 @@ impl<'a> Interpreter<'a> {
         &mut self,
         tokens: Tokens,
         location: Location,
-    ) -> IResult<Tokens> {
+    ) -> IResult<Vec<Token>> {
         let mut new_tokens = Vec::with_capacity(tokens.0.len());
 
         for token in tokens.0 {
-            let span = token.to_span();
-            match token.token() {
+            match token.into_token() {
                 Token::UnquoteMarker(id) => {
-                    match self.evaluate(*id)? {
-                        // If the value is already quoted we don't want to change the token stream by
-                        // turning it into a Quoted block (which would add `quote`, `{`, and `}` tokens).
-                        Value::Code(stream) => new_tokens.extend(unwrap_rc(stream).0),
-                        value => {
-                            let new_id = value.into_hir_expression(self.interner, location)?;
-                            let new_token = Token::UnquoteMarker(new_id);
-                            new_tokens.push(SpannedToken::new(new_token, span));
-                        }
-                    }
+                    let value = self.evaluate(id)?;
+                    let tokens = value.into_tokens(self.elaborator.interner, location)?;
+                    new_tokens.extend(tokens);
                 }
-                _ => new_tokens.push(token),
+                token => new_tokens.push(token),
             }
         }
 
-        Ok(Tokens(new_tokens))
+        Ok(new_tokens)
     }
 }

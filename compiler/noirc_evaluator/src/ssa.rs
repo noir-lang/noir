@@ -7,7 +7,12 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use crate::errors::{RuntimeError, SsaReport};
 use acvm::{
@@ -36,10 +41,32 @@ use self::{
 };
 
 mod acir_gen;
+mod checks;
 pub(super) mod function_builder;
 pub mod ir;
 mod opt;
 pub mod ssa_gen;
+
+pub struct SsaEvaluatorOptions {
+    /// Emit debug information for the intermediate SSA IR
+    pub enable_ssa_logging: bool,
+
+    pub enable_brillig_logging: bool,
+
+    /// Force Brillig output (for step debugging)
+    pub force_brillig_output: bool,
+
+    /// Pretty print benchmark times of each code generation pass
+    pub print_codegen_timings: bool,
+
+    /// Width of expressions to be used for ACIR
+    pub expression_width: ExpressionWidth,
+
+    /// Dump the unoptimized SSA to the supplied path if it exists
+    pub emit_ssa: Option<PathBuf>,
+}
+
+pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
 
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
@@ -49,14 +76,15 @@ pub mod ssa_gen;
 pub(crate) fn optimize_into_acir(
     program: Program,
     options: &SsaEvaluatorOptions,
-) -> Result<Artifacts, RuntimeError> {
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let ssa = SsaBuilder::new(
+    let mut ssa = SsaBuilder::new(
         program,
         options.enable_ssa_logging,
         options.force_brillig_output,
         options.print_codegen_timings,
+        &options.emit_ssa,
     )?
     .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
     .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
@@ -89,13 +117,17 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
+    let ssa_level_warnings = ssa.check_for_underconstrained_values();
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });
 
     drop(ssa_gen_span_guard);
 
-    time("SSA to ACIR", options.print_codegen_timings, || ssa.into_acir(&brillig))
+    let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
+        ssa.into_acir(&brillig, options.expression_width)
+    })?;
+    Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
 }
 
 // Helper to time SSA passes
@@ -149,19 +181,10 @@ impl SsaProgramArtifact {
         }
         self.names.push(circuit_artifact.name);
     }
-}
 
-pub struct SsaEvaluatorOptions {
-    /// Emit debug information for the intermediate SSA IR
-    pub enable_ssa_logging: bool,
-
-    pub enable_brillig_logging: bool,
-
-    /// Force Brillig output (for step debugging)
-    pub force_brillig_output: bool,
-
-    /// Pretty print benchmark times of each code generation pass
-    pub print_codegen_timings: bool,
+    fn add_warnings(&mut self, mut warnings: Vec<SsaReport>) {
+        self.warnings.append(&mut warnings);
+    }
 }
 
 /// Compiles the [`Program`] into [`ACIR``][acvm::acir::circuit::Program].
@@ -179,14 +202,25 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let (generated_acirs, generated_brillig, error_types) = optimize_into_acir(program, options)?;
-    assert_eq!(
-        generated_acirs.len(),
-        func_sigs.len(),
-        "The generated ACIRs should match the supplied function signatures"
-    );
-
+    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
+        optimize_into_acir(program, options)?;
+    if options.force_brillig_output {
+        assert_eq!(
+            generated_acirs.len(),
+            1,
+            "Only the main ACIR is expected when forcing Brillig output"
+        );
+    } else {
+        assert_eq!(
+            generated_acirs.len(),
+            func_sigs.len(),
+            "The generated ACIRs should match the supplied function signatures"
+        );
+    }
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
+
+    // Add warnings collected at the Ssa stage
+    program_artifact.add_warnings(ssa_level_warnings);
     // For setting up the ABI we need separately specify main's input and return witnesses
     let mut is_main = true;
     for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
@@ -228,6 +262,7 @@ fn convert_generated_acir_into_circuit(
     let GeneratedAcir {
         return_witnesses,
         locations,
+        brillig_locations,
         input_witnesses,
         assertion_payloads: assert_messages,
         warnings,
@@ -258,7 +293,19 @@ fn convert_generated_acir_into_circuit(
         .map(|(index, locations)| (index, locations.into_iter().collect()))
         .collect();
 
-    let mut debug_info = DebugInfo::new(locations, debug_variables, debug_functions, debug_types);
+    let brillig_locations = brillig_locations
+        .into_iter()
+        .map(|(function_index, locations)| {
+            let locations = locations
+                .into_iter()
+                .map(|(index, locations)| (index, locations.into_iter().collect()))
+                .collect();
+            (function_index, locations)
+        })
+        .collect();
+
+    let mut debug_info =
+        DebugInfo::new(locations, brillig_locations, debug_variables, debug_functions, debug_types);
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
@@ -321,8 +368,18 @@ impl SsaBuilder {
         print_ssa_passes: bool,
         force_brillig_runtime: bool,
         print_codegen_timings: bool,
+        emit_ssa: &Option<PathBuf>,
     ) -> Result<SsaBuilder, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
+        if let Some(emit_ssa) = emit_ssa {
+            let mut emit_ssa_dir = emit_ssa.clone();
+            // We expect the full package artifact path to be passed in here,
+            // and attempt to create the target directory if it does not exist.
+            emit_ssa_dir.pop();
+            create_named_dir(emit_ssa_dir.as_ref(), "target");
+            let ssa_path = emit_ssa.with_extension("ssa.json");
+            write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
+        }
         Ok(SsaBuilder { print_ssa_passes, print_codegen_timings, ssa }.print("Initial SSA:"))
     }
 
@@ -351,5 +408,25 @@ impl SsaBuilder {
             println!("{msg}\n{}", self.ssa);
         }
         self
+    }
+}
+
+fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
+    std::fs::create_dir_all(named_dir)
+        .unwrap_or_else(|_| panic!("could not create the `{name}` directory"));
+
+    PathBuf::from(named_dir)
+}
+
+fn write_to_file(bytes: &[u8], path: &Path) {
+    let display = path.display();
+
+    let mut file = match File::create(path) {
+        Err(why) => panic!("couldn't create {display}: {why}"),
+        Ok(file) => file,
+    };
+
+    if let Err(why) = file.write_all(bytes) {
+        panic!("couldn't write to {display}: {why}");
     }
 }

@@ -85,6 +85,8 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        // Strings are already arrays of bytes in SSA
+        Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
         Intrinsic::AsSlice => {
             let array = dfg.get_array_constant(arguments[0]);
             if let Some((array, array_type)) = array {
@@ -124,7 +126,14 @@ pub(super) fn simplify_call(
                     return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
                 }
 
-                simplify_slice_push_back(slice, element_type, arguments, dfg, block)
+                simplify_slice_push_back(
+                    slice,
+                    element_type,
+                    arguments,
+                    dfg,
+                    block,
+                    call_stack.clone(),
+                )
             } else {
                 SimplifyResult::None
             }
@@ -147,7 +156,7 @@ pub(super) fn simplify_call(
         Intrinsic::SlicePopBack => {
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((_, typ)) = slice {
-                simplify_slice_pop_back(typ, arguments, dfg, block)
+                simplify_slice_pop_back(typ, arguments, dfg, block, call_stack.clone())
             } else {
                 SimplifyResult::None
             }
@@ -346,12 +355,12 @@ fn simplify_slice_push_back(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
+    call_stack: CallStack,
 ) -> SimplifyResult {
     // The capacity must be an integer so that we can compare it against the slice length
     let capacity = dfg.make_constant((slice.len() as u128).into(), Type::length_type());
     let len_equals_capacity_instr =
         Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
-    let call_stack = dfg.get_value_call_stack(arguments[0]);
     let len_equals_capacity = dfg
         .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack.clone())
         .first();
@@ -382,7 +391,7 @@ fn simplify_slice_push_back(
     };
 
     let set_last_slice_value = dfg
-        .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
+        .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack.clone())
         .first();
 
     let mut slice_sizes = HashMap::default();
@@ -390,7 +399,8 @@ fn simplify_slice_push_back(
     slice_sizes.insert(new_slice, slice_size / element_size);
 
     let unknown = &mut HashMap::default();
-    let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None);
+    let mut value_merger =
+        ValueMerger::new(dfg, block, &mut slice_sizes, unknown, None, call_stack);
 
     let new_slice = value_merger.merge_values(
         len_not_equals_capacity,
@@ -407,6 +417,7 @@ fn simplify_slice_pop_back(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
+    call_stack: CallStack,
 ) -> SimplifyResult {
     let element_types = match element_type.clone() {
         Type::Slice(element_types) | Type::Array(element_types, _) => element_types,
@@ -423,7 +434,7 @@ fn simplify_slice_pop_back(
     let element_size = dfg.make_constant((element_count as u128).into(), Type::length_type());
     let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
     let mut flattened_len = dfg
-        .insert_instruction_and_results(flattened_len_instr, block, None, CallStack::new())
+        .insert_instruction_and_results(flattened_len_instr, block, None, call_stack.clone())
         .first();
     flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
 
@@ -436,7 +447,7 @@ fn simplify_slice_pop_back(
                 get_last_elem_instr,
                 block,
                 Some(element_types.to_vec()),
-                CallStack::new(),
+                call_stack.clone(),
             )
             .first();
         results.push_front(get_last_elem);
@@ -461,27 +472,36 @@ fn simplify_black_box_func(
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
         BlackBoxFunc::Blake3 => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3),
-        BlackBoxFunc::PedersenCommitment
-        | BlackBoxFunc::PedersenHash
-        | BlackBoxFunc::Keccakf1600 => SimplifyResult::None, //TODO(Guillaume)
-        BlackBoxFunc::Keccak256 => {
-            match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
-                (Some((input, _)), Some(num_bytes)) if array_is_constant(dfg, &input) => {
-                    let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
+        BlackBoxFunc::PedersenCommitment | BlackBoxFunc::PedersenHash => SimplifyResult::None,
+        BlackBoxFunc::Keccakf1600 => {
+            if let Some((array_input, _)) = dfg.get_array_constant(arguments[0]) {
+                if array_is_constant(dfg, &array_input) {
+                    let const_input: Vec<u64> = array_input
+                        .iter()
+                        .map(|id| {
+                            let field = dfg
+                                .get_numeric_constant(*id)
+                                .expect("value id from array should point at constant");
+                            field.to_u128() as u64
+                        })
+                        .collect();
 
-                    let num_bytes = num_bytes.to_u128() as usize;
-                    let truncated_input_bytes = &input_bytes[0..num_bytes];
-                    let hash = acvm::blackbox_solver::keccak256(truncated_input_bytes)
-                        .expect("Rust solvable black box function should not fail");
-
-                    let hash_values =
-                        vecmap(hash, |byte| FieldElement::from_be_bytes_reduce(&[byte]));
-
-                    let result_array = make_constant_array(dfg, hash_values, Type::unsigned(8));
+                    let state = acvm::blackbox_solver::keccakf1600(
+                        const_input.try_into().expect("Keccakf1600 input should have length of 25"),
+                    )
+                    .expect("Rust solvable black box function should not fail");
+                    let state_values = vecmap(state, |x| FieldElement::from(x as u128));
+                    let result_array = make_constant_array(dfg, state_values, Type::unsigned(64));
                     SimplifyResult::SimplifiedTo(result_array)
+                } else {
+                    SimplifyResult::None
                 }
-                _ => SimplifyResult::None,
+            } else {
+                SimplifyResult::None
             }
+        }
+        BlackBoxFunc::Keccak256 => {
+            unreachable!("Keccak256 should have been replaced by calls to Keccakf1600")
         }
         BlackBoxFunc::Poseidon2Permutation => SimplifyResult::None, //TODO(Guillaume)
         BlackBoxFunc::EcdsaSecp256k1 => {

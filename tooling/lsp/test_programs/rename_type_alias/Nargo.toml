@@ -1,0 +1,6 @@
+[package]
+name = "rename_type_alias"
+type = "bin"
+authors = [""]
+
+[dependencies]

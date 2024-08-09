@@ -16,7 +16,9 @@ use serde::Serialize;
 use crate::errors::CliError;
 
 use super::{
-    compile_cmd::compile_workspace_full, fs::program::read_program_from_file, NargoConfig,
+    compile_cmd::{compile_workspace_full, get_target_width},
+    fs::program::read_program_from_file,
+    NargoConfig,
 };
 
 /// Provides detailed information on each of a program's function (represented by a single circuit)
@@ -84,11 +86,9 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
         .into_iter()
         .par_bridge()
         .map(|(package, program)| {
-            count_opcodes_and_gates_in_program(
-                program,
-                &package,
-                args.compile_options.expression_width,
-            )
+            let target_width =
+                get_target_width(package.expression_width, args.compile_options.expression_width);
+            count_opcodes_and_gates_in_program(program, &package, target_width)
         })
         .collect();
 
