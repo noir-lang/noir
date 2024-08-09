@@ -18,7 +18,7 @@ pub(crate) fn filter_relevant_files(
     debug_symbols: &[DebugInfo],
     file_manager: &FileManager,
 ) -> BTreeMap<FileId, DebugFile> {
-    let files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
+    let mut files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
         .iter()
         .flat_map(|function_symbols| {
             function_symbols
@@ -27,6 +27,21 @@ pub(crate) fn filter_relevant_files(
                 .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
         })
         .collect();
+
+    let files_with_brillig_debug_symbols: BTreeSet<FileId> = debug_symbols
+        .iter()
+        .flat_map(|function_symbols| {
+            let brillig_location_maps =
+                function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
+                    brillig_location_map
+                        .values()
+                        .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+                });
+            brillig_location_maps
+        })
+        .collect();
+
+    files_with_debug_symbols.extend(files_with_brillig_debug_symbols);
 
     let mut file_map = BTreeMap::new();
 
