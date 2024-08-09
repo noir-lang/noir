@@ -958,19 +958,19 @@ fn sha256_compression_op(
     }
 }
 
-fn into_repr_vec<T>(xs: T) -> Vec<ark_bn254::Fr>
+fn into_repr_vec<T>(fields: T) -> Vec<ark_bn254::Fr>
 where
     T: IntoIterator<Item = FieldElement>,
 {
-    xs.into_iter().map(|x| x.into_repr()).collect()
+    fields.into_iter().map(|field| field.into_repr()).collect()
 }
 
-fn into_repr_mat<T, U>(xs: T) -> Vec<Vec<ark_bn254::Fr>>
+fn into_repr_mat<T, U>(fields: T) -> Vec<Vec<ark_bn254::Fr>>
 where
     T: IntoIterator<Item = U>,
     U: IntoIterator<Item = FieldElement>,
 {
-    xs.into_iter().map(|x| into_repr_vec(x)).collect()
+    fields.into_iter().map(|field| into_repr_vec(field)).collect()
 }
 
 fn run_both_poseidon2_permutations(
@@ -1394,8 +1394,8 @@ proptest! {
 
     // TODO(https://github.com/noir-lang/noir/issues/5699): wrong failure message
     #[test]
-    // #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 6 != 7\"))")]
-    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 7, 7)) {
+    #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 6 != 7\"))")]
+    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 6, 6)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, poseidon2_permutation_invalid_len_op);
         prop_assert!(result, "{}", message);
