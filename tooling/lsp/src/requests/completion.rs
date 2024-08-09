@@ -47,12 +47,12 @@ pub(crate) fn on_completion_request(
                 let byte = source.bytes().nth(byte_index - 1);
                 let (parsed_module, _errors) = noirc_frontend::parse_program(source);
 
-                let finder = NodeFinder::new(
+                let mut finder = NodeFinder::new(
                     byte_index,
                     byte,
-                    args.root_crate_id,
+                    args.crate_id,
                     args.def_maps,
-                    args.root_crate_dependencies,
+                    args.dependencies,
                     args.interner,
                 );
                 finder.find(&parsed_module)
@@ -85,7 +85,14 @@ impl<'a> NodeFinder<'a> {
         Self { byte_index, byte, module_id: current_module_id, def_maps, dependencies, interner }
     }
 
-    fn find(&self, parsed_module: &ParsedModule) -> Option<CompletionResponse> {
+    fn find(&mut self, parsed_module: &ParsedModule) -> Option<CompletionResponse> {
+        self.find_in_parsed_module(parsed_module)
+    }
+
+    fn find_in_parsed_module(
+        &mut self,
+        parsed_module: &ParsedModule,
+    ) -> Option<CompletionResponse> {
         for item in &parsed_module.items {
             if let Some(response) = self.find_in_item(item) {
                 return Some(response);
@@ -95,7 +102,7 @@ impl<'a> NodeFinder<'a> {
         None
     }
 
-    fn find_in_item(&self, item: &Item) -> Option<CompletionResponse> {
+    fn find_in_item(&mut self, item: &Item) -> Option<CompletionResponse> {
         if !self.includes_span(item.span) {
             return None;
         }
@@ -104,6 +111,26 @@ impl<'a> NodeFinder<'a> {
             ItemKind::Import(use_tree) => {
                 let mut prefixes = Vec::new();
                 if let Some(completion) = self.find_in_use_tree(use_tree, &mut prefixes) {
+                    return Some(completion);
+                }
+            }
+            ItemKind::Submodules(parsed_sub_module) => {
+                // Switch `self.module_id` to the submodule
+                let previous_module_id = self.module_id;
+
+                let def_map = &self.def_maps[&self.module_id.krate];
+                let module_data = def_map.modules().get(self.module_id.local_id.0)?;
+                if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
+                    self.module_id =
+                        ModuleId { krate: self.module_id.krate, local_id: *child_module };
+                }
+
+                let completion = self.find_in_parsed_module(&parsed_sub_module.contents);
+
+                // Restore the old module before continuing
+                self.module_id = previous_module_id;
+
+                if let Some(completion) = completion {
                     return Some(completion);
                 }
             }
@@ -230,6 +257,14 @@ impl<'a> NodeFinder<'a> {
             if name_matches("crate::", &prefix) {
                 completion_items.push(simple_completion_item(
                     "crate::",
+                    CompletionItemKind::KEYWORD,
+                    None,
+                ));
+            }
+
+            if module_data.parent.is_some() && name_matches("super::", &prefix) {
+                completion_items.push(simple_completion_item(
+                    "super::",
                     CompletionItemKind::KEYWORD,
                     None,
                 ));
@@ -429,6 +464,17 @@ mod completion_tests {
         let mut expected = expected.clone();
         expected.sort_by_key(|item| item.label.clone());
 
+        if items != expected {
+            println!(
+                "Items: {:?}",
+                items.iter().map(|item| item.label.clone()).collect::<Vec<_>>()
+            );
+            println!(
+                "Expected: {:?}",
+                expected.iter().map(|item| item.label.clone()).collect::<Vec<_>>()
+            );
+        }
+
         assert_eq!(items, expected);
     }
 
@@ -574,5 +620,26 @@ mod completion_tests {
         "#;
 
         assert_completion(src, vec![module_completion_item("qux")]).await;
+    }
+
+    #[test]
+    async fn test_use_in_nested_module() {
+        let src = r#"
+            mod foo {
+                mod something {}
+
+                use s>|<
+            }
+        "#;
+
+        assert_completion(
+            src,
+            vec![
+                module_completion_item("something"),
+                module_completion_item("std"),
+                simple_completion_item("super::", CompletionItemKind::KEYWORD, None),
+            ],
+        )
+        .await;
     }
 }

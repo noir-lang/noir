@@ -388,9 +388,9 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     files: &'a FileMap,
     interner: &'a NodeInterner,
     interners: &'a HashMap<String, NodeInterner>,
-    root_crate_id: CrateId,
-    root_crate_name: String,
-    root_crate_dependencies: &'a Vec<Dependency>,
+    crate_id: CrateId,
+    crate_name: String,
+    dependencies: &'a Vec<Dependency>,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
 }
 
@@ -450,9 +450,9 @@ where
         files,
         interner,
         interners: &state.cached_definitions,
-        root_crate_id: crate_id,
-        root_crate_name: package.name.to_string(),
-        root_crate_dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
+        crate_id,
+        crate_name: package.name.to_string(),
+        dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
         def_maps,
     }))
 }
