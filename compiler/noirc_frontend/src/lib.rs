@@ -84,18 +84,3 @@ pub mod macros_api {
         ) -> Result<(), (MacroError, FileId)>;
     }
 }
-
-pub fn log(contents: &str) {
-    use std::fs::OpenOptions;
-    use std::io::prelude::*;
-
-    let mut file = OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open("/Users/asterite/Sandbox/output/lsp.txt")
-        .unwrap();
-
-    if let Err(e) = writeln!(file, "{}", contents) {
-        eprintln!("Couldn't write to file: {}", e);
-    }
-}
