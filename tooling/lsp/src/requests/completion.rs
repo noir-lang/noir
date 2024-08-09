@@ -205,7 +205,7 @@ impl<'a> NodeFinder<'a> {
         }
 
         if after_colons {
-            // We are after the colon
+            // We are right after "::"
             segments.push(ident.clone());
 
             self.resolve_module(segments).and_then(|module_id| {
@@ -214,9 +214,8 @@ impl<'a> NodeFinder<'a> {
                 self.complete_in_module(module_id, prefix, is_super, suggest_crates)
             })
         } else {
+            // We are right after the last segment
             let prefix = ident.to_string();
-
-            // Otherwise we must complete the last segment
             if segments.is_empty() {
                 // We are at the start of the use segment and completing the first segment
                 let suggest_crates = prefixes.first().unwrap().kind != PathKind::Crate;
@@ -264,7 +263,6 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
-        // If this is the first segment, also find in all crates
         if suggest_crates {
             for dependency in self.dependencies {
                 let dependency_name = dependency.as_name();
