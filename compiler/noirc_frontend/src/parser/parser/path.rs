@@ -19,7 +19,19 @@ pub fn path_no_turbofish() -> impl NoirParser<Path> {
 }
 
 fn path_inner<'a>(segment: impl NoirParser<PathSegment> + 'a) -> impl NoirParser<Path> + 'a {
-    let segments = segment.separated_by(just(Token::DoubleColon)).at_least(1);
+    let segments = segment
+        .separated_by(just(Token::DoubleColon))
+        .at_least(1)
+        .then(just(Token::DoubleColon).then_ignore(none_of(Token::LeftBrace).rewind()).or_not())
+        .validate(|(path_segments, trailing_colons), span, emit_error| {
+            if trailing_colons.is_some() {
+                emit_error(ParserError::with_reason(
+                    ParserErrorReason::ExpectedIdentifierAfterColons,
+                    span,
+                ));
+            }
+            path_segments
+        });
     let make_path = |kind| move |segments, span| Path { segments, kind, span };
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
@@ -69,7 +81,7 @@ mod test {
     use super::*;
     use crate::parser::{
         parse_type,
-        parser::test_helpers::{parse_all_failing, parse_with},
+        parser::test_helpers::{parse_all_failing, parse_recover, parse_with},
     };
 
     #[test]
@@ -110,5 +122,19 @@ mod test {
             path(parse_type()),
             vec!["crate", "crate::std::crate", "foo::bar::crate", "foo::dep"],
         );
+    }
+
+    #[test]
+    fn parse_path_with_trailing_colons() {
+        let src = "foo::bar::";
+
+        let (path, errors) = parse_recover(path_no_turbofish(), src);
+        let path = path.unwrap();
+        assert_eq!(path.segments.len(), 2);
+        assert_eq!(path.segments[0].ident.0.contents, "foo");
+        assert_eq!(path.segments[1].ident.0.contents, "bar");
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected an identifier after ::");
     }
 }

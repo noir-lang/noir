@@ -91,6 +91,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_as_struct" => type_as_struct(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
+            "type_implements" => type_implements(interner, arguments, location),
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
@@ -488,6 +489,21 @@ fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
     let other_type = get_type(other_type)?;
 
     Ok(Value::Bool(self_type == other_type))
+}
+
+// fn implements(self, constraint: TraitConstraint) -> bool
+fn type_implements(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (typ, constraint) = check_two_arguments(arguments, location)?;
+
+    let typ = get_type(typ)?;
+    let (trait_id, generics) = get_trait_constraint(constraint)?;
+
+    let implements = interner.try_lookup_trait_implementation(&typ, trait_id, &generics).is_ok();
+    Ok(Value::Bool(implements))
 }
 
 // fn is_bool(self) -> bool
