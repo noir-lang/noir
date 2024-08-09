@@ -44,7 +44,7 @@ pub(crate) fn on_completion_request(
             .and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let byte = source.bytes().nth(byte_index - 1);
+                let byte = source.as_bytes().get(byte_index - 1).copied();
                 let (parsed_module, _errors) = noirc_frontend::parse_program(source);
 
                 let mut finder = NodeFinder::new(
@@ -158,7 +158,7 @@ impl<'a> NodeFinder<'a> {
         match &use_tree.kind {
             UseTreeKind::Path(ident, alias) => {
                 prefixes.push(use_tree.prefix.clone());
-                let response = self.find_in_use_tree_path(&prefixes, ident, alias);
+                let response = self.find_in_use_tree_path(prefixes, ident, alias);
                 prefixes.pop();
                 response
             }
@@ -368,7 +368,7 @@ impl<'a> NodeFinder<'a> {
         let path = Path { segments: path_segments, kind: PathKind::Plain, span: Span::default() };
 
         let path_resolver = StandardPathResolver::new(self.module_id);
-        match path_resolver.resolve(&self.def_maps, path, &mut None) {
+        match path_resolver.resolve(self.def_maps, path, &mut None) {
             Ok(path_resolution) => Some(path_resolution.module_def_id),
             Err(_) => None,
         }
@@ -398,7 +398,7 @@ fn simple_completion_item(
 ) -> CompletionItem {
     CompletionItem {
         label: label.into(),
-        label_details: Some(CompletionItemLabelDetails { detail: None, description: description }),
+        label_details: Some(CompletionItemLabelDetails { detail: None, description }),
         kind: Some(kind),
         detail: None,
         documentation: None,
@@ -438,7 +438,7 @@ mod completion_tests {
             .filter_map(|(line_index, line)| {
                 line.find(">|<").map(|char_index| (line_index, char_index))
             })
-            .nth(0)
+            .next()
             .expect("Expected to find one >|< in the source code");
 
         let src = src.replace(">|<", "");
