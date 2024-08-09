@@ -1660,7 +1660,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok((block_let_stmt, closure_ident))
     }
 
-    /// Implements std::unsafe::zeroed by returning an appropriate zeroed
+    /// Implements std::unsafe_func::zeroed by returning an appropriate zeroed
     /// ast literal or collection node for the given type. Note that for functions
     /// there is no obvious zeroed value so this should be considered unsafe to use.
     fn zeroed_value_of_type(
@@ -1723,7 +1723,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     // Creating a zeroed function value is almost always an error if it is used later,
-    // Hence why std::unsafe::zeroed is unsafe.
+    // Hence why std::unsafe_func::zeroed is unsafe.
     //
     // To avoid confusing later passes, we arbitrarily choose to construct a function
     // that satisfies the input type by discarding all its parameters and returning a
