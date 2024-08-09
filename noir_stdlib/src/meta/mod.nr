@@ -2,6 +2,7 @@ use crate::collections::umap::UHashMap;
 use crate::hash::BuildHasherDefault;
 use crate::hash::poseidon2::Poseidon2Hasher;
 
+mod expr;
 mod function_def;
 mod module;
 mod struct_def;

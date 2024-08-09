@@ -6,7 +6,7 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     check_argument_count, check_function_not_yet_resolved, check_one_argument,
-    check_three_arguments, check_two_arguments, get_function_def, get_module, get_quoted,
+    check_three_arguments, check_two_arguments, get_expr, get_function_def, get_module, get_quoted,
     get_slice, get_struct, get_trait_constraint, get_trait_def, get_tuple, get_type, get_u32,
     hir_pattern_to_tokens, mutate_func_meta_type, parse, parse_tokens,
     replace_func_meta_parameters, replace_func_meta_return_type,
@@ -17,8 +17,8 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        FunctionKind, FunctionReturnType, IntegerBitSize, UnresolvedType, UnresolvedTypeData,
-        Visibility,
+        ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, UnresolvedType,
+        UnresolvedTypeData, Visibility,
     },
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     hir_def::function::FunctionBody,
@@ -47,6 +47,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
+            "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -685,6 +686,28 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::TraitAsType(_, _, _)
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
+}
+
+// fn as_function_call(self) -> Option<(Expr, [Expr])>
+fn expr_as_function_call(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr = get_expr(self_argument)?;
+
+    let option_value = if let ExpressionKind::Call(call_expression) = expr {
+        let function = Value::Expr(call_expression.func.kind);
+        let arguments = call_expression.arguments.into_iter();
+        let arguments = arguments.map(|argument| Value::Expr(argument.kind)).collect();
+        let arguments = Value::Slice(arguments, Type::Quoted(QuotedType::Expr));
+        Some(Value::Tuple(vec![function, arguments]))
+    } else {
+        None
+    };
+
+    option(return_type, option_value)
 }
 
 // fn name(self) -> Quoted
