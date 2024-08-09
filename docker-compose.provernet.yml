@@ -1,0 +1,140 @@
+# Template for simulating a provernet-like setup using docker-compose, currently unused except for development or testing.
+# Spins up an aztec node with a sequencer, a transactions bot, and a prover node with a separate prover agent.
+# Logs latest block numbers every 10 seconds.
+name: aztec-provernet
+services:
+  ethereum:
+    image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
+    command: >
+      'anvil --host 0.0.0.0 --chain-id 31337 --port 8545 --silent'
+    ports:
+      - 8545:8545
+
+  aztec-node:
+    image: "aztecprotocol/aztec:${VERSION:-master}"
+    ports:
+      - "8080:80"
+    environment:
+      LOG_LEVEL: info
+      ETHEREUM_HOST: http://ethereum:8545
+      L1_CHAIN_ID: 31337
+      AZTEC_PORT: 80
+      DEPLOY_AZTEC_CONTRACTS: true
+      ARCHIVER_POLLING_INTERVAL: 10000
+      SEQ_MAX_TX_PER_BLOCK: 4
+      SEQ_MIN_TX_PER_BLOCK: 1
+      SEQ_MAX_SECONDS_BETWEEN_BLOCKS: 120
+      SEQ_MIN_SECONDS_BETWEEN_BLOCKS: 5
+      SEQ_RETRY_INTERVAL: 10000
+      SEQ_PUBLISHER_PRIVATE_KEY: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a"
+      SEQ_SKIP_SUBMIT_PROOFS: true
+      P2P_ENABLED: false
+      IS_DEV_NET: true
+    volumes:
+      - ./log/aztec-node/:/usr/src/yarn-project/aztec/log:rw
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/status" ]
+      interval: 3s
+      timeout: 30s
+      start_period: 10s
+    depends_on:
+      - ethereum
+    command:
+      - "start"
+      - "--node"
+      - "--archiver"
+      - "--sequencer"
+      - "--prover"
+
+  aztec-bot:
+    image: "aztecprotocol/aztec:${VERSION:-master}"
+    ports:
+      - "8081:80"
+    environment:
+      LOG_LEVEL: info
+      ETHEREUM_HOST: http://ethereum:8545
+      AZTEC_NODE_URL: http://aztec-node
+      L1_CHAIN_ID: 31337
+      AZTEC_PORT: 80
+      PXE_PROVER_ENABLED: false
+      BOT_PRIVATE_KEY: 0xcafe
+      BOT_TX_INTERVAL_SECONDS: 10
+      BOT_PRIVATE_TRANSFERS_PER_TX: 1
+      BOT_PUBLIC_TRANSFERS_PER_TX: 0
+      BOT_NO_WAIT_FOR_TRANSFERS: true
+      BOT_NO_START: false
+      IS_DEV_NET: true
+    volumes:
+      - ./log/aztec-bot/:/usr/src/yarn-project/aztec/log:rw
+    depends_on:
+      aztec-node:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/status" ]
+      interval: 3s
+      timeout: 30s
+      start_period: 10s
+    restart: on-failure:5
+    command: [ "start", "--bot", "--pxe" ]
+
+  aztec-prover:
+    image: "aztecprotocol/aztec:${VERSION:-master}"
+    ports:
+      - "8082:80"
+    environment:
+      LOG_LEVEL: verbose
+      ETHEREUM_HOST: http://ethereum:8545
+      TX_PROVIDER_NODE_URL: http://aztec-node
+      L1_CHAIN_ID: 31337
+      AZTEC_PORT: 80
+      PROVER_AGENT_ENABLED: false
+      PROVER_PUBLISHER_PRIVATE_KEY: "0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97"
+      PROVER_REAL_PROOFS: false
+      IS_DEV_NET: true
+    volumes:
+      - ./log/aztec-prover/:/usr/src/yarn-project/aztec/log:rw
+    depends_on:
+      aztec-node:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/status" ]
+      interval: 3s
+      timeout: 30s
+      start_period: 10s
+    command: [ "start", "--prover-node", "--archiver" ]
+    restart: on-failure:5
+
+  aztec-prover-agent:
+    image: "aztecprotocol/aztec:${VERSION:-master}"
+    ports:
+      - "8083:80"
+    environment:
+      LOG_LEVEL: verbose
+      ETHEREUM_HOST: http://ethereum:8545
+      AZTEC_NODE_URL: http://aztec-prover
+      L1_CHAIN_ID: 31337
+      AZTEC_PORT: 80
+      PROVER_REAL_PROOFS: false
+      PROVER_TEST_DELAY_MS: 200
+      IS_DEV_NET: true
+    volumes:
+      - ./log/aztec-prover-agent/:/usr/src/yarn-project/aztec/log:rw
+    depends_on:
+      aztec-prover:
+        condition: service_healthy
+    command: [ "start", "--prover" ]
+    restart: on-failure:5
+
+  aztec-block-watcher:
+    image: "aztecprotocol/aztec:${VERSION:-master}"
+    environment:
+      ETHEREUM_HOST: http://ethereum:8545
+      L1_CHAIN_ID: 31337
+    depends_on:
+      aztec-bot:
+        condition: service_healthy
+    entrypoint: '/bin/bash -c'
+    command: >
+      'while true; do node --no-warnings ./node_modules/.bin/aztec block-number -u http://aztec-bot | head -n2; sleep 10; done'
+    restart: on-failure:5
+    stop_grace_period: 1s
