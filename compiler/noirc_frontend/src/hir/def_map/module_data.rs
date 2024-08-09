@@ -137,8 +137,4 @@ impl ModuleData {
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
         self.definitions.values().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
     }
-
-    pub fn value_idents(&self) -> impl Iterator<Item = &Ident> + '_ {
-        self.definitions.values().keys()
-    }
 }
