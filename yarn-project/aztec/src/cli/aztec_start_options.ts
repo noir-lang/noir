@@ -134,16 +134,16 @@ export const aztecStartOptions: { [key: string]: AztecStartOption[] } = {
       envVar: 'AVAILABILITY_ORACLE_CONTRACT_ADDRESS',
     },
     {
-      flag: '--gas-token-address <value>',
+      flag: '--fee-juice-address <value>',
       description: 'The deployed L1 gas token contract address',
       defaultValue: undefined,
-      envVar: 'GAS_TOKEN_CONTRACT_ADDRESS',
+      envVar: 'FEE_JUICE_CONTRACT_ADDRESS',
     },
     {
-      flag: '--gas-portal-address <value>',
+      flag: '--fee-juice-portal-address <value>',
       description: 'The deployed L1 gas portal contract address',
       defaultValue: undefined,
-      envVar: 'GAS_PORTAL_CONTRACT_ADDRESS',
+      envVar: 'FEE_JUICE_PORTAL_CONTRACT_ADDRESS',
     },
   ],
   // We can't easily auto-generate node options as they're parts of modules defined below

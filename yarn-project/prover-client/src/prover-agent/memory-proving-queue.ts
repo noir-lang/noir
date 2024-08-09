@@ -164,7 +164,8 @@ export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource
       return Promise.resolve();
     }
 
-    if (job.attempts < MAX_RETRIES) {
+    // every job should be retried with the exception of the public VM since its in development and can fail
+    if (job.attempts < MAX_RETRIES && job.request.type !== ProvingRequestType.PUBLIC_VM) {
       job.attempts++;
       this.log.warn(
         `Job id=${job.id} type=${ProvingRequestType[job.request.type]} failed with error: ${err}. Retry ${
