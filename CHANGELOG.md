@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.33.1](https://github.com/noir-lang/noir/compare/v0.33.0...v0.33.1) (2024-08-09)
+
+
+### Features
+
+* Add `Type::implements` ([#5701](https://github.com/noir-lang/noir/issues/5701)) ([2166c94](https://github.com/noir-lang/noir/commit/2166c9441c739ab6a3ee029ed051f1857bd27170))
+* Add array_to_str_lossy ([#5613](https://github.com/noir-lang/noir/issues/5613)) ([af5acf4](https://github.com/noir-lang/noir/commit/af5acf4eb4af38fd346b6365a45d8e7e83899542))
+* Add mutating FunctionDefinition functions ([#5685](https://github.com/noir-lang/noir/issues/5685)) ([2882eae](https://github.com/noir-lang/noir/commit/2882eaeb176988bb3d216d091c0e239f5b80f276))
+* Add some `Module` comptime functions ([#5684](https://github.com/noir-lang/noir/issues/5684)) ([eefd69b](https://github.com/noir-lang/noir/commit/eefd69b1d72a9f5cb2e7bbd3e554925a7670a2f3))
+* LSP autocompletion for use statement ([#5704](https://github.com/noir-lang/noir/issues/5704)) ([226aeb1](https://github.com/noir-lang/noir/commit/226aeb1400adc6d9028e9ad9f496783606fd9e11))
+
+
+### Bug Fixes
+
+* Add locations to most SSA instructions ([#5697](https://github.com/noir-lang/noir/issues/5697)) ([85d5c85](https://github.com/noir-lang/noir/commit/85d5c8532acb21c39f3db466982039d1415d9300))
+* Do not duplicate redundant Brillig debug metadata ([#5696](https://github.com/noir-lang/noir/issues/5696)) ([e4f7dbe](https://github.com/noir-lang/noir/commit/e4f7dbe63b55807b3ff0b4d6f47a8b7f847299fb))
+
 ## [0.33.0](https://github.com/noir-lang/noir/compare/v0.32.0...v0.33.0) (2024-08-06)
 
 
