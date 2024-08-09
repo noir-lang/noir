@@ -24,6 +24,8 @@ export type ProverConfig = {
   proverJobTimeoutMs: number;
   /** The interval to check job health status */
   proverJobPollIntervalMs: number;
+  /** Artificial delay to introduce to all operations to the test prover. */
+  proverTestDelayMs: number;
   /** Identifier of the prover */
   proverId?: Fr;
 };
@@ -69,6 +71,11 @@ export const proverConfigMappings: ConfigMappingsType<ProverConfig> = {
     env: 'PROVER_ID',
     parseEnv: (val: string) => parseProverId(val),
     description: 'Identifier of the prover',
+  },
+  proverTestDelayMs: {
+    env: 'PROVER_TEST_DELAY_MS',
+    description: 'Artificial delay to introduce to all operations to the test prover.',
+    ...numberConfigHelper(0),
   },
 };
 

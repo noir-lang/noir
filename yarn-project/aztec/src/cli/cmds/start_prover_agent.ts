@@ -28,18 +28,9 @@ export const startProverAgent: ServiceStarter = async (options, signalHandlers, 
     if (!proverConfig.acvmBinaryPath || !proverConfig.bbBinaryPath) {
       throw new Error('Cannot start prover without simulation or native prover options');
     }
-
-    circuitProver = await BBNativeRollupProver.new(
-      {
-        acvmBinaryPath: proverConfig.acvmBinaryPath,
-        bbBinaryPath: proverConfig.bbBinaryPath,
-        acvmWorkingDirectory: proverConfig.acvmWorkingDirectory,
-        bbWorkingDirectory: proverConfig.bbWorkingDirectory,
-      },
-      telemetry,
-    );
+    circuitProver = await BBNativeRollupProver.new(proverConfig, telemetry);
   } else {
-    circuitProver = new TestCircuitProver(telemetry);
+    circuitProver = new TestCircuitProver(telemetry, undefined, proverConfig);
   }
 
   const agent = new ProverAgent(
