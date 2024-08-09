@@ -327,7 +327,7 @@ impl Instruction {
 
         match self {
             // These either have side-effects or interact with memory
-            | EnableSideEffectsIf { .. }
+            EnableSideEffectsIf { .. }
             | Allocate
             | Load { .. }
             | Store { .. }
