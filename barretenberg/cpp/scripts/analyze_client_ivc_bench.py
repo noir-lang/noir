@@ -1,9 +1,17 @@
 import json
+import argparse
 from pathlib import Path
 
-PREFIX = Path("build-op-count-time")
-IVC_BENCH_JSON = Path("client_ivc_bench.json")
-BENCHMARK = "ClientIVCBench/Full/6"
+# Define command-line arguments with defaults
+parser = argparse.ArgumentParser(description="Analyze benchmark JSON data.")
+parser.add_argument("--json", type=Path, default=Path("client_ivc_bench.json"), help="Benchmark JSON file name.")
+parser.add_argument("--benchmark", type=str, default="ClientIVCBench/Full/6", help="Benchmark name to analyze.")
+parser.add_argument("--prefix", type=Path, default=Path("build-op-count-time"), help="Prefix path for benchmark files.")
+args = parser.parse_args()
+
+IVC_BENCH_JSON = args.json
+BENCHMARK = args.benchmark
+PREFIX = args.prefix
 
 # Single out an independent set of functions accounting for most of BENCHMARK's real_time
 to_keep = [
@@ -16,25 +24,27 @@ to_keep = [
     "TranslatorProver::construct_proof(t)",
     "Goblin::merge(t)"
 ]
-with open(PREFIX/IVC_BENCH_JSON, "r") as read_file:
+
+with open(PREFIX / IVC_BENCH_JSON, "r") as read_file:
     read_result = json.load(read_file)
     for _bench in read_result["benchmarks"]:
         if _bench["name"] == BENCHMARK:
             bench = _bench
+
 bench_components = dict(filter(lambda x: x[0] in to_keep, bench.items()))
 
 # For each kept time, get the proportion over all kept times.
-sum_of_kept_times_ms = sum(float(time)
-                           for _, time in bench_components.items())/1e6
+sum_of_kept_times_ms = sum(float(time) for _, time in bench_components.items()) / 1e6
+
 max_label_length = max(len(label) for label in to_keep)
 column = {"function": "function", "ms": "ms", "%": "% sum"}
-print(
-    f"{column['function']:<{max_label_length}}{column['ms']:>8}  {column['%']:>8}")
+print(f"{column['function']:<{max_label_length}}{column['ms']:>8}  {column['%']:>8}")
+
 for key in to_keep:
     if key not in bench:
         time_ms = 0
     else:
-        time_ms = bench[key]/1e6
+        time_ms = bench[key] / 1e6
     print(f"{key:<{max_label_length}}{time_ms:>8.0f}  {time_ms/sum_of_kept_times_ms:>8.2%}")
 
 # Validate that kept times account for most of the total measured time.
@@ -69,7 +79,6 @@ for key in protogalaxy_round_labels:
         time_ms = bench[key]/1e6
     total_time_ms = bench["ProtogalaxyProver::fold_instances(t)"]/1e6
     print(f"{key:<{max_label_length}}{time_ms:>8.0f}  {time_ms/total_time_ms:>8.2%}")
-
 
 # Extract a set of components from the benchmark data and display timings and relative percentages 
 def print_contributions(prefix, ivc_bench_json, bench_name, components):

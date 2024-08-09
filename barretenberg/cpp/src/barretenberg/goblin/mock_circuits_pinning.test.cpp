@@ -33,3 +33,20 @@ TEST_F(MegaMockCircuitsPinning, FunctionSizes)
     run_test(true);
     run_test(false);
 }
+
+TEST_F(MegaMockCircuitsPinning, AppCircuitSizes)
+{
+    const auto run_test = [](bool large) {
+        GoblinProver goblin;
+        MegaCircuitBuilder app_circuit{ goblin.op_queue };
+        GoblinMockCircuits::construct_mock_app_circuit(app_circuit, large);
+        auto instance = std::make_shared<ProverInstance>(app_circuit);
+        if (large) {
+            EXPECT_EQ(instance->proving_key.log_circuit_size, 19);
+        } else {
+            EXPECT_EQ(instance->proving_key.log_circuit_size, 17);
+        };
+    };
+    run_test(true);
+    run_test(false);
+}

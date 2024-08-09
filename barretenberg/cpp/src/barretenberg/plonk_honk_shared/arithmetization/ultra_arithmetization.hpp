@@ -90,6 +90,7 @@ template <typename FF_> class UltraArith {
             // We don't use Ultra in ClientIvc so no need for anything other than sizing for simple unit tests
             case TraceStructure::SMALL_TEST:
             case TraceStructure::CLIENT_IVC_BENCH:
+            case TraceStructure::AZTEC_IVC_BENCH:
             case TraceStructure::E2E_FULL_TEST:
                 fixed_block_sizes = SmallTestStructuredBlockSizes();
                 break;
