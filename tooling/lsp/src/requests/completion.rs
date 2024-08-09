@@ -195,6 +195,8 @@ impl<'a> NodeFinder<'a> {
             return None;
         }
 
+        let is_super = prefixes.get(0).map(|prefix| prefix.kind) == Some(PathKind::Super);
+
         let mut segments: Vec<Ident> = Vec::new();
         for prefix in prefixes {
             for segment in &prefix.segments {
@@ -208,7 +210,8 @@ impl<'a> NodeFinder<'a> {
 
             self.resolve_module(segments).and_then(|module_id| {
                 let prefix = String::new();
-                self.complete_in_module(module_id, prefix, false)
+                let suggest_crates = false;
+                self.complete_in_module(module_id, prefix, is_super, suggest_crates)
             })
         } else {
             let prefix = ident.to_string();
@@ -216,14 +219,13 @@ impl<'a> NodeFinder<'a> {
             // Otherwise we must complete the last segment
             if segments.is_empty() {
                 // We are at the start of the use segment and completing the first segment
-                self.complete_in_module(
-                    self.module_id,
-                    prefix,
-                    prefixes.first().unwrap().kind != PathKind::Crate,
-                )
+                let suggest_crates = prefixes.first().unwrap().kind != PathKind::Crate;
+                self.complete_in_module(self.module_id, prefix, is_super, suggest_crates)
             } else {
-                self.resolve_module(segments)
-                    .and_then(|module_id| self.complete_in_module(module_id, prefix, false))
+                self.resolve_module(segments).and_then(|module_id| {
+                    let suggest_crates = false;
+                    self.complete_in_module(module_id, prefix, is_super, suggest_crates)
+                })
             }
         }
     }
@@ -232,10 +234,17 @@ impl<'a> NodeFinder<'a> {
         &self,
         module_id: ModuleId,
         prefix: String,
-        suggest_crates: bool,
+        is_super: bool,
+        mut suggest_crates: bool,
     ) -> Option<CompletionResponse> {
         let def_map = &self.def_maps[&module_id.krate];
-        let module_data = def_map.modules().get(module_id.local_id.0)?;
+        let mut module_data = def_map.modules().get(module_id.local_id.0)?;
+
+        if is_super {
+            module_data = def_map.modules().get(module_data.parent?.0)?;
+            suggest_crates = false;
+        }
+
         let mut completion_items = Vec::new();
 
         for ident in module_data.definitions().names() {
@@ -657,5 +666,20 @@ mod completion_tests {
             ],
         )
         .await;
+    }
+
+    #[test]
+    async fn test_use_after_super() {
+        let src = r#"
+            mod foo {}
+
+            mod bar {
+                mod something {}
+
+                use super::f>|<
+            }
+        "#;
+
+        assert_completion(src, vec![module_completion_item("foo")]).await;
     }
 }
