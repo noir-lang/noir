@@ -46,6 +46,7 @@ pub(super) mod function_builder;
 pub mod ir;
 mod opt;
 pub mod ssa_gen;
+mod unused;
 
 pub struct SsaEvaluatorOptions {
     /// Emit debug information for the intermediate SSA IR
@@ -113,6 +114,10 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::fold_constants, "After Constant Folding:")
     .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
     .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
+    .run_pass(
+        Ssa::replace_unused_array_instructions_with_bounds_checks,
+        "After replacing unused array instructions with bounds checks:",
+    )
     .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
