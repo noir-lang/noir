@@ -1,7 +1,7 @@
 use crate::cmp::Ord;
+use crate::option::Option;
+use crate::convert::From;
 
-// TODO: Once we fully move to the new SSA pass this module can be removed and replaced
-// by the methods in the `slice` module
 impl<T, let N: u32> [T; N] {
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
@@ -108,6 +108,13 @@ impl<T, let N: u32> [T; N] {
     }
 }
 
+impl<let N: u32> [u8; N] {
+    /// Convert a sequence of bytes as-is into a string.
+    /// This function performs no UTF-8 validation or similar.
+    #[builtin(array_as_str_unchecked)]
+    pub fn as_str_unchecked(self) -> str<N> {}
+}
+
 // helper function used to look up the position of a value in an array of Field
 // Note that function returns 0 if the value is not found
 unconstrained fn find_index<let N: u32>(a: [u32; N], find: u32) -> u32 {
@@ -118,4 +125,10 @@ unconstrained fn find_index<let N: u32>(a: [u32; N], find: u32) -> u32 {
         }
     }
     result
+}
+
+impl<let N: u32> From<str<N>> for [u8; N] {
+    fn from(s: str<N>) -> Self {
+        s.as_bytes()
+    }
 }

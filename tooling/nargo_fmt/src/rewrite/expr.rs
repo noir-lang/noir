@@ -179,6 +179,10 @@ pub(crate) fn rewrite(
                 format!("$({})", rewrite_sub_expr(visitor, shape, *expr))
             }
         }
+        ExpressionKind::AsTraitPath(path) => {
+            let trait_path = rewrite_path(visitor, shape, path.trait_path);
+            format!("<{} as {}>::{}", path.typ, trait_path, path.impl_item)
+        }
     }
 }
 
