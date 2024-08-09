@@ -2,6 +2,8 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
+import {Ownable} from "@oz/access/Ownable.sol";
+
 // Interfaces
 import {IRegistry} from "../interfaces/messagebridge/IRegistry.sol";
 import {IRollup} from "../interfaces/IRollup.sol";
@@ -19,14 +21,14 @@ import {Errors} from "../libraries/Errors.sol";
  * Used as the source of truth for finding the "head" of the rollup chain. Very important information
  * for L1<->L2 communication.
  */
-contract Registry is IRegistry {
+contract Registry is IRegistry, Ownable {
   uint256 public override(IRegistry) numberOfVersions;
 
   DataStructures.RegistrySnapshot internal currentSnapshot;
   mapping(uint256 version => DataStructures.RegistrySnapshot snapshot) internal snapshots;
   mapping(address rollup => uint256 version) internal rollupToVersion;
 
-  constructor() {
+  constructor() Ownable(msg.sender) {
     // Inserts a "dead" rollup and message boxes at version 0
     // This is simply done to make first version 1, which fits better with the rest of the system
     upgrade(address(0xdead), address(0xdead), address(0xdead));
