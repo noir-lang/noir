@@ -328,7 +328,7 @@ void client_ivc_prove_output_all_msgpack(const std::string& bytecodePath,
     using TranslatorVK = TranslatorFlavor::VerificationKey;
 
     init_bn254_crs(1 << 24);
-    init_grumpkin_crs(1 << 14);
+    init_grumpkin_crs(1 << 15);
 
     auto gzippedBincodes = unpack_from_file<std::vector<std::string>>(bytecodePath);
     auto witnessMaps = unpack_from_file<std::vector<std::string>>(witnessPath);
@@ -410,7 +410,7 @@ bool verify_client_ivc(const std::filesystem::path& proof_path,
                        const std::filesystem::path& translator_vk_path)
 {
     init_bn254_crs(1);
-    init_grumpkin_crs(1 << 14);
+    init_grumpkin_crs(1 << 15);
 
     const auto proof = from_buffer<ClientIVC::Proof>(read_file(proof_path));
     const auto accumulator = read_to_shared_ptr<ClientIVC::VerifierInstance>(accumulator_path);
