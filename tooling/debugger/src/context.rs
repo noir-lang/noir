@@ -894,7 +894,7 @@ fn build_source_to_opcode_debug_mappings(
 
         for (brillig_function_id, brillig_locations_map) in &debug_symbols.brillig_locations {
             add_opcode_locations_map(
-                &brillig_locations_map,
+                brillig_locations_map,
                 &mut result,
                 &simple_files,
                 circuit_id,
