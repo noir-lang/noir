@@ -93,7 +93,6 @@ impl AddressMap {
 
         let mut addresses = Vec::with_capacity(circuits.len());
         let mut next_address = 0usize;
-        // let mut brillig_addresses = BTreeMap::default();
         let mut brillig_addresses = Vec::new();
 
         for circuit in circuits {
@@ -927,7 +926,6 @@ fn add_opcode_locations_map(
             };
             let line_number = line_index + 1;
 
-            // TODO
             let debug_location = DebugLocation {
                 circuit_id: circuit_id as u32,
                 opcode_location: *opcode_location,
