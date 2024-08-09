@@ -160,6 +160,8 @@ rust-embed = "6.6.0"
 # See https://ritik-mishra.medium.com/resolving-the-wasm-pack-error-locals-exceed-maximum-ec3a9d96685b
 opt-level = 1
 
+[profile.release]
+overflow-checks = true
 
 [profile.size]
 inherits = "release"
