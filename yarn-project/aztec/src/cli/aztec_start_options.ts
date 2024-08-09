@@ -171,6 +171,7 @@ export const aztecStartOptions: { [key: string]: AztecStartOption[] } = {
       description: 'Deploys L1 Aztec contracts before starting the node. Needs mnemonic or private key to be set',
       defaultValue: false,
       envVar: 'DEPLOY_AZTEC_CONTRACTS',
+      parseVal: val => ['1', true].includes(val),
     },
     {
       flag: '--node.publisherPrivateKey <value>',
