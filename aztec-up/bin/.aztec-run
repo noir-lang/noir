@@ -119,11 +119,17 @@ if [[ -z "${SKIP_PORT_ASSIGNMENT:-}" ]]; then
   port_assignment="-p $AZTEC_PORT:$AZTEC_PORT"
 fi
 
+ssh_agent_forwarding=""
+if [ -n "${!env:-}" ]; then
+  ssh_agent_forwarding="-v $(realpath $SSH_AUTH_SOCK):$SSH_AUTH_SOCK"
+fi
+
 docker run \
   -ti \
   --rm \
   --workdir "$PWD" \
-  -v $HOME:$HOME -v cache:/cache -v $(readlink $SSH_AUTH_SOCK):$SSH_AUTH_SOCK \
+  -v $HOME:$HOME -v cache:/cache \
+  $ssh_agent_forwarding \
   $port_assignment \
   ${DOCKER_ENV:-} \
   ${DOCKER_HOST_BINDS:-} \
