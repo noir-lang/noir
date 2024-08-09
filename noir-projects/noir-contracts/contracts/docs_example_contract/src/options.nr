@@ -10,7 +10,7 @@ use dep::aztec::note::note_getter_options::{Sort, SortOrder};
 pub fn create_points_card_getter_options(
     points: Field,
     offset: u32
-) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN, Field> {
+) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN, Field, Field> {
     let mut options = NoteGetterOptions::new();
     options.select(CardNote::properties().points, points, Option::none()).sort(CardNote::properties().points, SortOrder.DESC).set_offset(offset)
 }
@@ -21,7 +21,7 @@ pub fn create_exact_card_getter_options(
     points: u8,
     secret: Field,
     account_npk_m_hash: Field
-) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN, Field> {
+) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN, Field, Field> {
     let mut options = NoteGetterOptions::new();
     options.select(CardNote::properties().points, points as Field, Option::none()).select(CardNote::properties().randomness, secret, Option::none()).select(
         CardNote::properties().npk_m_hash,
@@ -49,13 +49,13 @@ pub fn filter_min_points(
 // docs:end:state_vars-OptionFilter
 
 // docs:start:state_vars-NoteGetterOptionsFilter
-pub fn create_cards_with_min_points_getter_options(min_points: u8) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN, u8> {
+pub fn create_cards_with_min_points_getter_options(min_points: u8) -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN, Field, u8> {
     NoteGetterOptions::with_filter(filter_min_points, min_points).sort(CardNote::properties().points, SortOrder.ASC)
 }
 // docs:end:state_vars-NoteGetterOptionsFilter
 
 // docs:start:state_vars-NoteGetterOptionsPickOne
-pub fn create_largest_card_getter_options() -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN, Field> {
+pub fn create_largest_card_getter_options() -> NoteGetterOptions<CardNote, CARD_NOTE_LEN, CARD_NOTE_BYTES_LEN, Field, Field> {
     let mut options = NoteGetterOptions::new();
     options.sort(CardNote::properties().points, SortOrder.DESC).set_limit(1)
 }

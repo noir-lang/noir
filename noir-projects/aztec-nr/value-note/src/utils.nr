@@ -5,7 +5,7 @@ use crate::{filter::filter_notes_min_sum, value_note::{ValueNote, VALUE_NOTE_LEN
 
 // Sort the note values (0th field) in descending order.
 // Pick the fewest notes whose sum is equal to or greater than `amount`.
-pub fn create_note_getter_options_for_decreasing_balance(amount: Field) -> NoteGetterOptions<ValueNote, VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN, Field> {
+pub fn create_note_getter_options_for_decreasing_balance(amount: Field) -> NoteGetterOptions<ValueNote, VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN, Field, Field> {
     NoteGetterOptions::with_filter(filter_notes_min_sum, amount).sort(ValueNote::properties().value, SortOrder.DESC)
 }
 

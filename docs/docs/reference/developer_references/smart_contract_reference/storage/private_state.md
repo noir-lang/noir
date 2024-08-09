@@ -269,9 +269,21 @@ When the `limit` is set to a non-zero value, the data oracle will return a maxim
 
 This setting enables us to skip the first `offset` notes. It's particularly useful for pagination.
 
+### `preprocessor: fn ([Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL], PREPROCESSOR_ARGS) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL]`
+
+Developers have the option to provide a custom preprocessor.
+This allows specific logic to be applied to notes that meet the criteria outlined above.
+The preprocessor takes the notes returned from the oracle and `preprocessor_args` as its parameters.
+
+An important distinction from the filter function described below is that preprocessor is applied first and unlike filter it is applied in an unconstrained context.
+
+### `preprocessor_args: PREPROCESSOR_ARGS`
+
+`preprocessor_args` provides a means to furnish additional data or context to the custom preprocessor.
+
 ### `filter: fn ([Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL], FILTER_ARGS) -> [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL]`
 
-Developers have the option to provide a custom filter. This allows specific logic to be applied to notes that meet the criteria outlined above. The filter takes the notes returned from the oracle and `filter_args` as its parameters.
+Just like preprocessor just applied in a constrained context (correct execution is proven) and applied after the preprocessor.
 
 ### `filter_args: FILTER_ARGS`
 

@@ -41,9 +41,9 @@ impl<Note, let N: u32, let M: u32> PrivateSet<Note, &mut PrivateContext> where N
     }
     // docs:end:insert
 
-    pub fn pop_notes<FILTER_ARGS>(
+    pub fn pop_notes<PREPROCESSOR_ARGS, FILTER_ARGS>(
         self,
-        options: NoteGetterOptions<Note, N, M, FILTER_ARGS>
+        options: NoteGetterOptions<Note, N, M, PREPROCESSOR_ARGS, FILTER_ARGS>
     ) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> {
         let notes = get_notes(self.context, self.storage_slot, options);
         // We iterate in a range 0..options.limit instead of 0..notes.len() because options.limit is known at compile
@@ -73,9 +73,9 @@ impl<Note, let N: u32, let M: u32> PrivateSet<Note, &mut PrivateContext> where N
 
     /// Note that if you later on remove the note it's much better to use `pop_notes` as `pop_notes` results
     /// in significantly less constrains due to avoiding 1 read request check.
-    pub fn get_notes<FILTER_ARGS>(
+    pub fn get_notes<PREPROCESSOR_ARGS, FILTER_ARGS>(
         self,
-        options: NoteGetterOptions<Note, N, M, FILTER_ARGS>
+        options: NoteGetterOptions<Note, N, M, PREPROCESSOR_ARGS, FILTER_ARGS>
     ) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> {
         get_notes(self.context, self.storage_slot, options)
     }

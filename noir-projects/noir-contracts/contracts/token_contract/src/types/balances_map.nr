@@ -107,7 +107,12 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
         target_amount: U128,
         max_notes: u32
     ) -> U128 where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote + Eq {
-        let options = NoteGetterOptions::with_filter(filter_notes_min_sum, target_amount).set_limit(max_notes);
+        // We are using a preprocessor here (filter applied in an unconstrained context) instead of a filter because
+        // we do not need to prove correct execution of the preprocessor.
+        // Because the `min_sum` notes is not constrained, users could choose to e.g. not call it. However, all this
+        // might result in is simply higher DA costs due to more nullifiers being emitted. Since we don't care
+        // about proving optimal note usage, we can save these constraints and make the circuit smaller.
+        let options = NoteGetterOptions::with_preprocessor(preprocess_notes_min_sum, target_amount).set_limit(max_notes);
         let notes = self.map.at(owner).pop_notes(options);
 
         let mut subtracted = U128::from_integer(0);
@@ -124,10 +129,10 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
 
 // Computes the partial sum of the notes array, stopping once 'min_sum' is reached. This can be used to minimize the
 // number of notes read that add to some value, e.g. when transferring some amount of tokens.
-// The filter does not check if total sum is larger or equal to 'min_sum' - all it does is remove extra notes if it does
-// reach that value.
-// Note that proper usage of this filter requires for notes to be sorted in descending order.
-pub fn filter_notes_min_sum<T, T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
+// The preprocessor (a filter applied in an unconstrained context) does not check if total sum is larger or equal to
+// 'min_sum' - all it does is remove extra notes if it does reach that value.
+// Note that proper usage of this preprocessor requires for notes to be sorted in descending order.
+pub fn preprocess_notes_min_sum<T, T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
     notes: [Option<T>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     min_sum: U128
 ) -> [Option<T>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL] where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote {
