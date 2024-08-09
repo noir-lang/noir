@@ -66,6 +66,7 @@ pub(crate) fn on_completion_request(
 struct NodeFinder<'a> {
     byte_index: usize,
     byte: Option<u8>,
+    root_module_id: ModuleId,
     module_id: ModuleId,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     dependencies: &'a Vec<Dependency>,
@@ -84,6 +85,7 @@ impl<'a> NodeFinder<'a> {
     ) -> Self {
         // Find the module the current file belongs to
         let def_map = &def_maps[&krate];
+        let root_module_id = ModuleId { krate, local_id: def_map.root() };
         let local_id = if let Some((module_index, _)) =
             def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
@@ -92,7 +94,7 @@ impl<'a> NodeFinder<'a> {
             def_map.root()
         };
         let module_id = ModuleId { krate, local_id };
-        Self { byte_index, byte, module_id, def_maps, dependencies, interner }
+        Self { byte_index, byte, root_module_id, module_id, def_maps, dependencies, interner }
     }
 
     fn find(&mut self, parsed_module: &ParsedModule) -> Option<CompletionResponse> {
@@ -195,7 +197,7 @@ impl<'a> NodeFinder<'a> {
             return None;
         }
 
-        let is_super = prefixes.get(0).map(|prefix| prefix.kind) == Some(PathKind::Super);
+        let path_kind = prefixes[0].kind;
 
         let mut segments: Vec<Ident> = Vec::new();
         for prefix in prefixes {
@@ -210,20 +212,19 @@ impl<'a> NodeFinder<'a> {
 
             self.resolve_module(segments).and_then(|module_id| {
                 let prefix = String::new();
-                let suggest_crates = false;
-                self.complete_in_module(module_id, prefix, is_super, suggest_crates)
+                let at_root = false;
+                self.complete_in_module(module_id, prefix, path_kind, at_root)
             })
         } else {
             // We are right after the last segment
             let prefix = ident.to_string();
             if segments.is_empty() {
-                // We are at the start of the use segment and completing the first segment
-                let suggest_crates = prefixes.first().unwrap().kind != PathKind::Crate;
-                self.complete_in_module(self.module_id, prefix, is_super, suggest_crates)
+                let at_root = true;
+                self.complete_in_module(self.module_id, prefix, path_kind, at_root)
             } else {
+                let at_root = false;
                 self.resolve_module(segments).and_then(|module_id| {
-                    let suggest_crates = false;
-                    self.complete_in_module(module_id, prefix, is_super, suggest_crates)
+                    self.complete_in_module(module_id, prefix, path_kind, at_root)
                 })
             }
         }
@@ -233,15 +234,23 @@ impl<'a> NodeFinder<'a> {
         &self,
         module_id: ModuleId,
         prefix: String,
-        is_super: bool,
-        mut suggest_crates: bool,
+        path_kind: PathKind,
+        at_root: bool,
     ) -> Option<CompletionResponse> {
         let def_map = &self.def_maps[&module_id.krate];
         let mut module_data = def_map.modules().get(module_id.local_id.0)?;
 
-        if is_super {
-            module_data = def_map.modules().get(module_data.parent?.0)?;
-            suggest_crates = false;
+        if at_root {
+            match path_kind {
+                PathKind::Crate => {
+                    module_data = def_map.modules().get(def_map.root().0)?;
+                }
+                PathKind::Super => {
+                    module_data = def_map.modules().get(module_data.parent?.0)?;
+                }
+                PathKind::Dep => (),
+                PathKind::Plain => (),
+            }
         }
 
         let mut completion_items = Vec::new();
@@ -263,7 +272,7 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
-        if suggest_crates {
+        if at_root && path_kind == PathKind::Plain {
             for dependency in self.dependencies {
                 let dependency_name = dependency.as_name();
                 if name_matches(&dependency_name, &prefix) {
@@ -365,7 +374,7 @@ impl<'a> NodeFinder<'a> {
         let path_segments = segments.into_iter().map(PathSegment::from).collect();
         let path = Path { segments: path_segments, kind: PathKind::Plain, span: Span::default() };
 
-        let path_resolver = StandardPathResolver::new(self.module_id);
+        let path_resolver = StandardPathResolver::new(self.root_module_id);
         match path_resolver.resolve(self.def_maps, path, &mut None) {
             Ok(path_resolution) => Some(path_resolution.module_def_id),
             Err(_) => None,
@@ -679,5 +688,29 @@ mod completion_tests {
         "#;
 
         assert_completion(src, vec![module_completion_item("foo")]).await;
+    }
+
+    #[test]
+    async fn test_use_after_crate_and_letter_nested_in_module() {
+        let src = r#"
+            mod something {
+                mod something_else {}
+                use crate::s>|<
+            }
+            
+        "#;
+        assert_completion(src, vec![module_completion_item("something")]).await;
+    }
+    #[test]
+
+    async fn test_use_after_crate_segment_and_letter_nested_in_module() {
+        let src = r#"
+            mod something {
+                mod something_else {}
+                use crate::something::s>|<
+            }
+            
+        "#;
+        assert_completion(src, vec![module_completion_item("something_else")]).await;
     }
 }
