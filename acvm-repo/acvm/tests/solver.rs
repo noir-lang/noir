@@ -775,13 +775,17 @@ fn constant_or_witness_to_function_inputs(
     inputs: Vec<ConstantOrWitness>,
     offset: usize,
 ) -> Vec<FunctionInput<FieldElement>> {
-    inputs.into_iter()
+    inputs
+        .into_iter()
         .enumerate()
         .map(|(index, (input, use_constant))| {
             if use_constant {
                 FunctionInput::constant(input, FieldElement::max_num_bits())
             } else {
-                FunctionInput::witness(Witness((index + offset) as u32), FieldElement::max_num_bits())
+                FunctionInput::witness(
+                    Witness((index + offset) as u32),
+                    FieldElement::max_num_bits(),
+                )
             }
         })
         .collect()
@@ -880,8 +884,12 @@ fn bigint_solve_binary_op_opt(
     lhs: Vec<ConstantOrWitness>,
     rhs: Vec<ConstantOrWitness>,
 ) -> Vec<FieldElement> {
-    let initial_witness_vec: Vec<_> =
-        lhs.iter().chain(rhs.iter()).enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
+    let initial_witness_vec: Vec<_> = lhs
+        .iter()
+        .chain(rhs.iter())
+        .enumerate()
+        .map(|(i, (x, _))| (Witness(i as u32), *x))
+        .collect();
     let output_witnesses: Vec<_> = initial_witness_vec
         .iter()
         .take(lhs.len())
@@ -942,7 +950,8 @@ fn solve_blackbox_func_call(
     let (lhs, lhs_constant) = lhs;
     let (rhs, rhs_constant) = rhs;
 
-    let initial_witness = WitnessMap::from(BTreeMap::from_iter([(Witness(1), lhs), (Witness(2), rhs)]));
+    let initial_witness =
+        WitnessMap::from(BTreeMap::from_iter([(Witness(1), lhs), (Witness(2), rhs)]));
 
     let mut lhs_opt = None;
     if lhs_constant {
