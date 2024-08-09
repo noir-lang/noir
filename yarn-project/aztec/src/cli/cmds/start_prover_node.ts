@@ -16,7 +16,7 @@ import {
 
 import { mnemonicToAccount } from 'viem/accounts';
 
-import { extractRelevantOptions } from '../util.js';
+import { extractL1ContractAddresses, extractRelevantOptions } from '../util.js';
 
 export const startProverNode = async (
   options: any,
@@ -31,7 +31,10 @@ export const startProverNode = async (
     process.exit(1);
   }
 
-  const proverConfig = extractRelevantOptions<ProverNodeConfig>(options, proverNodeConfigMappings);
+  const proverConfig = {
+    ...extractRelevantOptions<ProverNodeConfig>(options, proverNodeConfigMappings),
+    l1Contracts: extractL1ContractAddresses(options),
+  };
 
   if (!options.archiver && !proverConfig.archiverUrl) {
     userLog('--archiver.archiverUrl is required to start a Prover Node without --archiver option');
@@ -59,8 +62,11 @@ export const startProverNode = async (
   // TODO(palla/prover-node) L1 contract addresses should not silently default to zero,
   // they should be undefined if not set and fail loudly.
   // Load l1 contract addresses from aztec node if not set.
-  if (proverConfig.nodeUrl && proverConfig.l1Contracts.rollupAddress.isZero()) {
-    proverConfig.l1Contracts = await createAztecNodeClient(proverConfig.nodeUrl).getL1ContractAddresses();
+  const isRollupAddressSet =
+    proverConfig.l1Contracts?.rollupAddress && !proverConfig.l1Contracts.rollupAddress.isZero();
+  const nodeUrl = proverConfig.nodeUrl ?? proverConfig.txProviderNodeUrl;
+  if (nodeUrl && !isRollupAddressSet) {
+    proverConfig.l1Contracts = await createAztecNodeClient(nodeUrl).getL1ContractAddresses();
   }
 
   const telemetry = createAndStartTelemetryClient(getTelemetryClientConfig());
