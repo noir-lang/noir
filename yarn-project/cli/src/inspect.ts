@@ -44,22 +44,21 @@ export async function inspectTx(
     pxe.getTxEffect(txHash),
     pxe.getIncomingNotes({ txHash, status: NoteStatus.ACTIVE_OR_NULLIFIED }),
   ]);
+  // Base tx data
+  log(`Tx ${txHash.toString()}`);
+  log(` Status: ${receipt.status} ${effects ? `(${effects.revertCode.getDescription()}})` : ''})`);
+  if (receipt.error) {
+    log(` Error: ${receipt.error}`);
+  }
 
-  if (!receipt || !effects) {
-    log(`No receipt or effects found for transaction hash ${txHash.toString()}`);
+  if (!effects) {
     return;
   }
 
   const artifactMap = opts?.artifactMap ?? (await getKnownArtifacts(pxe));
 
-  // Base tx data
-  log(`Tx ${txHash.toString()}`);
   if (opts.includeBlockInfo) {
     log(` Block: ${receipt.blockNumber} (${receipt.blockHash?.toString('hex')})`);
-  }
-  log(` Status: ${receipt.status} (${effects.revertCode.getDescription()})`);
-  if (receipt.error) {
-    log(` Error: ${receipt.error}`);
   }
   if (receipt.transactionFee) {
     log(` Fee: ${receipt.transactionFee.toString()}`);
