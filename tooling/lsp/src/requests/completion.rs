@@ -4,7 +4,7 @@ use std::{
 };
 
 use async_lsp::ResponseError;
-use fm::PathString;
+use fm::{FileId, PathString};
 use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
     CompletionResponse,
@@ -14,7 +14,7 @@ use noirc_frontend::{
     ast::{Ident, Path, PathKind, PathSegment, UseTree, UseTreeKind},
     graph::{CrateId, Dependency},
     hir::{
-        def_map::{CrateDefMap, ModuleId},
+        def_map::{CrateDefMap, LocalModuleId, ModuleId},
         resolution::path_resolver::{PathResolver, StandardPathResolver},
     },
     macros_api::{ModuleDefId, NodeInterner, StructId},
@@ -48,6 +48,7 @@ pub(crate) fn on_completion_request(
                 let (parsed_module, _errors) = noirc_frontend::parse_program(source);
 
                 let mut finder = NodeFinder::new(
+                    file_id,
                     byte_index,
                     byte,
                     args.crate_id,
@@ -73,6 +74,7 @@ struct NodeFinder<'a> {
 
 impl<'a> NodeFinder<'a> {
     fn new(
+        file: FileId,
         byte_index: usize,
         byte: Option<u8>,
         krate: CrateId,
@@ -80,9 +82,17 @@ impl<'a> NodeFinder<'a> {
         dependencies: &'a Vec<Dependency>,
         interner: &'a NodeInterner,
     ) -> Self {
+        // Find the module the current file belongs to
         let def_map = &def_maps[&krate];
-        let current_module_id = ModuleId { krate: krate, local_id: def_map.root() };
-        Self { byte_index, byte, module_id: current_module_id, def_maps, dependencies, interner }
+        let local_id = if let Some((module_index, _)) =
+            def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
+        {
+            LocalModuleId(module_index)
+        } else {
+            def_map.root()
+        };
+        let module_id = ModuleId { krate, local_id };
+        Self { byte_index, byte, module_id, def_maps, dependencies, interner }
     }
 
     fn find(&mut self, parsed_module: &ParsedModule) -> Option<CompletionResponse> {
