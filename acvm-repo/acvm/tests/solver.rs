@@ -807,21 +807,23 @@ prop_compose! {
     fn bigint_pair_with_modulus()(inputs_modulus in bigint_with_modulus())
         (second_inputs in proptest::collection::vec(any::<(u8, bool)>(), inputs_modulus.1.len()), inputs_modulus in Just(inputs_modulus))
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
-        let second_inputs = second_inputs.into_iter().zip(inputs_modulus.1.iter()).map(|((input, use_constant), modulus_byte)| {
+        let (inputs, modulus) = inputs_modulus;
+        let second_inputs = second_inputs.into_iter().zip(modulus.iter()).map(|((input, use_constant), modulus_byte)| {
             (FieldElement::from(input.clamp(0, *modulus_byte) as u128), use_constant)
         }).collect();
-        (inputs_modulus.0, second_inputs, inputs_modulus.1)
+        (inputs, second_inputs, modulus)
     }
 }
 
 prop_compose! {
-    fn bigint_triple_with_modulus()(input_pair_modulus in bigint_pair_with_modulus())
-        (third_inputs in proptest::collection::vec(any::<(u8, bool)>(), input_pair_modulus.2.len()), input_pair_modulus in Just(input_pair_modulus))
+    fn bigint_triple_with_modulus()(inputs_pair_modulus in bigint_pair_with_modulus())
+        (third_inputs in proptest::collection::vec(any::<(u8, bool)>(), inputs_pair_modulus.2.len()), inputs_pair_modulus in Just(inputs_pair_modulus))
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
-        let third_inputs = third_inputs.into_iter().zip(input_pair_modulus.2.iter()).map(|((input, use_constant), modulus_byte)| {
+        let (inputs, second_inputs, modulus) = inputs_pair_modulus;
+        let third_inputs = third_inputs.into_iter().zip(modulus.iter()).map(|((input, use_constant), modulus_byte)| {
             (FieldElement::from(input.clamp(0, *modulus_byte) as u128), use_constant)
         }).collect();
-        (input_pair_modulus.0, input_pair_modulus.1, third_inputs, input_pair_modulus.2)
+        (inputs, second_inputs, third_inputs, modulus)
     }
 }
 
