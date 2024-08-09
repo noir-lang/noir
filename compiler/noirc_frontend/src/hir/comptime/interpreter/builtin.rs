@@ -694,19 +694,32 @@ fn expr_as_function_call(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Call(call_expression) = expr {
+            let function = Value::Expr(call_expression.func.kind);
+            let arguments = call_expression.arguments.into_iter();
+            let arguments = arguments.map(|argument| Value::Expr(argument.kind)).collect();
+            let arguments = Value::Slice(arguments, Type::Quoted(QuotedType::Expr));
+            Some(Value::Tuple(vec![function, arguments]))
+        } else {
+            None
+        }
+    })
+}
+
+// Helper function for implementing the `expr_as_...` functions.
+fn expr_as<F>(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    f: F,
+) -> IResult<Value>
+where
+    F: FnOnce(ExpressionKind) -> Option<Value>,
+{
     let self_argument = check_one_argument(arguments, location)?;
     let expr = get_expr(self_argument)?;
-
-    let option_value = if let ExpressionKind::Call(call_expression) = expr {
-        let function = Value::Expr(call_expression.func.kind);
-        let arguments = call_expression.arguments.into_iter();
-        let arguments = arguments.map(|argument| Value::Expr(argument.kind)).collect();
-        let arguments = Value::Slice(arguments, Type::Quoted(QuotedType::Expr));
-        Some(Value::Tuple(vec![function, arguments]))
-    } else {
-        None
-    };
-
+    let option_value = f(expr);
     option(return_type, option_value)
 }
 
