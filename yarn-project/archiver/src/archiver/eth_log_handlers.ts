@@ -5,7 +5,16 @@ import { Fr } from '@aztec/foundation/fields';
 import { numToUInt32BE } from '@aztec/foundation/serialize';
 import { AvailabilityOracleAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 
-import { type Hex, type Log, type PublicClient, decodeFunctionData, getAbiItem, getAddress, hexToBytes } from 'viem';
+import {
+  type Hex,
+  type Log,
+  type PublicClient,
+  decodeFunctionData,
+  getAbiItem,
+  getAddress,
+  hexToBytes,
+  slice,
+} from 'viem';
 
 /**
  * Processes newly received MessageSent (L1 to L2) logs.
@@ -88,7 +97,7 @@ async function getBlockMetadataFromRollupTx(
     data,
   });
 
-  if (functionName !== 'process') {
+  if (!(functionName === 'process' || functionName === 'publishAndProcess')) {
     throw new Error(`Unexpected method called ${functionName}`);
   }
   const [headerHex, archiveRootHex] = args! as readonly [Hex, Hex];
@@ -113,7 +122,7 @@ async function getBlockMetadataFromRollupTx(
 
 /**
  * Gets block bodies from calldata of an L1 transaction, and deserializes them into Body objects.
- * Assumes that the block was published from an EOA.
+ * @note Assumes that the block was published using `publishAndProcess` or `publish`.
  * TODO: Add retries and error management.
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param txHash - Hash of the tx that published it.
@@ -124,20 +133,41 @@ async function getBlockBodiesFromAvailabilityOracleTx(
   txHash: `0x${string}`,
 ): Promise<Body> {
   const { input: data } = await publicClient.getTransaction({ hash: txHash });
-  const { functionName, args } = decodeFunctionData({
-    abi: AvailabilityOracleAbi,
-    data,
-  });
+  const DATA_INDEX = [3, 2, 0];
 
-  if (functionName !== 'publish') {
-    throw new Error(`Unexpected method called ${functionName}`);
+  // @note  Use `forge inspect Rollup methodIdentifiers to get this,
+  //        If using `forge sig` you will get an INVALID value for the case with a struct.
+  // [
+  //   "publishAndProcess(bytes calldata _header,bytes32 _archive,SignatureLib.Signature[] memory _signatures,bytes calldata _body)",
+  //   "publishAndProcess(bytes calldata _header,bytes32 _archive,bytes calldata _body)",
+  //   "publish(bytes calldata _body)"
+  // ]
+  const SUPPORTED_SIGS = ['0xe4e90c26', '0xe86e3595', '0x7fd28346'];
+
+  const signature = slice(data, 0, 4);
+
+  if (!SUPPORTED_SIGS.includes(signature)) {
+    throw new Error(`Unexpected method called ${signature}`);
   }
 
-  const [bodyHex] = args! as [Hex];
-
-  const blockBody = Body.fromBuffer(Buffer.from(hexToBytes(bodyHex)));
-
-  return blockBody;
+  if (signature === SUPPORTED_SIGS[2]) {
+    const { args } = decodeFunctionData({
+      abi: AvailabilityOracleAbi,
+      data,
+    });
+    const [bodyHex] = args! as [Hex];
+    const blockBody = Body.fromBuffer(Buffer.from(hexToBytes(bodyHex)));
+    return blockBody;
+  } else {
+    const { args } = decodeFunctionData({
+      abi: RollupAbi,
+      data,
+    });
+    const index = SUPPORTED_SIGS.indexOf(signature);
+    const bodyHex = args![DATA_INDEX[index]] as Hex;
+    const blockBody = Body.fromBuffer(Buffer.from(hexToBytes(bodyHex)));
+    return blockBody;
+  }
 }
 
 /**

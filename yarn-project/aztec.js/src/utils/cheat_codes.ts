@@ -95,6 +95,18 @@ export class EthCheatCodes {
   }
 
   /**
+   * Set the interval between blocks (block time)
+   * @param interval - The interval to use between blocks
+   */
+  public async setBlockInterval(interval: number): Promise<void> {
+    const res = await this.rpcCall('anvil_setBlockTimestampInterval', [interval]);
+    if (res.error) {
+      throw new Error(`Error setting block interval: ${res.error.message}`);
+    }
+    this.logger.info(`Set block interval to ${interval}`);
+  }
+
+  /**
    * Set the next block timestamp
    * @param timestamp - The timestamp to set the next block to
    */
@@ -104,6 +116,19 @@ export class EthCheatCodes {
       throw new Error(`Error setting next block timestamp: ${res.error.message}`);
     }
     this.logger.info(`Set next block timestamp to ${timestamp}`);
+  }
+
+  /**
+   * Set the next block timestamp and mines the block
+   * @param timestamp - The timestamp to set the next block to
+   */
+  public async warp(timestamp: number): Promise<void> {
+    const res = await this.rpcCall('evm_setNextBlockTimestamp', [timestamp]);
+    if (res.error) {
+      throw new Error(`Error warping: ${res.error.message}`);
+    }
+    await this.mine();
+    this.logger.info(`Warped to ${timestamp}`);
   }
 
   /**
@@ -257,18 +282,12 @@ export class AztecCheatCodes {
   }
 
   /**
-   * Set time of the next execution on aztec.
-   * It also modifies time on eth for next execution and stores this time as the last rollup block on the rollup contract.
-   * @param to - The timestamp to set the next block to (must be greater than current time)
+   * Get the current timestamp
+   * @returns The current timestamp
    */
-  public async warp(to: number): Promise<void> {
-    const rollupContract = (await this.pxe.getNodeInfo()).l1ContractAddresses.rollupAddress;
-    await this.eth.setNextBlockTimestamp(to);
-    // also store this time on the rollup contract (slot 2 tracks `lastBlockTs`).
-    // This is because when the sequencer executes public functions, it uses the timestamp stored in the rollup contract.
-    await this.eth.store(rollupContract, 6n, BigInt(to));
-    // also store this on slot of the rollup contract (`lastWarpedBlockTs`) which tracks the last time warp was used.
-    await this.eth.store(rollupContract, 7n, BigInt(to));
+  public async timestamp(): Promise<number> {
+    const res = await this.pxe.getBlock(await this.blockNumber());
+    return res?.header.globalVariables.timestamp.toNumber() ?? 0;
   }
 
   /**

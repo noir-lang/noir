@@ -160,8 +160,9 @@ export class ProvingOrchestrator implements BlockProver {
 
     // Cancel any currently proving block before starting a new one
     this.cancelBlock();
-
-    logger.info(`Starting new block with ${numTxs} transactions`);
+    logger.info(
+      `Starting block ${globalVariables.blockNumber} for slot ${globalVariables.slotNumber} with ${numTxs} transactions`,
+    );
     // we start the block by enqueueing all of the base parity circuits
     let baseParityInputs: BaseParityInputs[] = [];
     let l1ToL2MessagesPadded: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>;

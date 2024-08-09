@@ -9,19 +9,9 @@ import {
   type Wallet,
   computeSecretHash,
 } from '@aztec/aztec.js';
-import { RollupAbi } from '@aztec/l1-artifacts';
-import { TestContract, TokenContract } from '@aztec/noir-contracts.js';
+import { TokenContract } from '@aztec/noir-contracts.js';
 
-import {
-  type Account,
-  type Chain,
-  type HttpTransport,
-  type PublicClient,
-  type WalletClient,
-  getAddress,
-  getContract,
-  parseEther,
-} from 'viem';
+import { type Account, type Chain, type HttpTransport, type PublicClient, type WalletClient, parseEther } from 'viem';
 
 import { setup } from './fixtures/utils.js';
 
@@ -34,7 +24,6 @@ describe('e2e_cheat_codes', () => {
 
   let walletClient: WalletClient<HttpTransport, Chain, Account>;
   let publicClient: PublicClient<HttpTransport, Chain>;
-  let rollupAddress: EthAddress;
   let token: TokenContract;
 
   beforeAll(async () => {
@@ -43,7 +32,6 @@ describe('e2e_cheat_codes', () => {
 
     walletClient = deployL1ContractsValues.walletClient;
     publicClient = deployL1ContractsValues.publicClient;
-    rollupAddress = deployL1ContractsValues.l1ContractAddresses.rollupAddress;
     admin = wallet.getCompleteAddress();
 
     token = await TokenContract.deploy(wallet, admin, 'TokenName', 'TokenSymbol', 18).send().deployed();
@@ -158,45 +146,6 @@ describe('e2e_cheat_codes', () => {
   });
 
   describe('L2 cheatcodes', () => {
-    describe('warp L2 Block Time', () => {
-      it('can modify L2 block time', async () => {
-        const contract = await TestContract.deploy(wallet).send().deployed();
-
-        // now update time:
-        const timestamp = await cc.eth.timestamp();
-        const newTimestamp = timestamp + 100_000_000;
-        await cc.aztec.warp(newTimestamp);
-
-        // ensure rollup contract is correctly updated
-        const rollup = getContract({
-          address: getAddress(rollupAddress.toString()),
-          abi: RollupAbi,
-          client: publicClient,
-        });
-        expect(Number(await rollup.read.lastBlockTs())).toEqual(newTimestamp);
-        expect(Number(await rollup.read.lastWarpedBlockTs())).toEqual(newTimestamp);
-
-        await contract.methods.is_time_equal(newTimestamp).send().wait({ interval: 0.1 });
-
-        // Since last rollup block was warped, txs for this rollup will have time incremented by 1
-        // See https://github.com/AztecProtocol/aztec-packages/issues/1614 for details
-        await contract.methods
-          .is_time_equal(newTimestamp + 1)
-          .send()
-          .wait({ interval: 0.1 });
-        // block is published at t >= newTimestamp + 1.
-        expect(Number(await rollup.read.lastBlockTs())).toBeGreaterThanOrEqual(newTimestamp + 1);
-      });
-
-      it('should throw if setting L2 block time to a past timestamp', async () => {
-        const timestamp = await cc.eth.timestamp();
-        const pastTimestamp = timestamp - 1000;
-        await expect(async () => await cc.aztec.warp(pastTimestamp)).rejects.toThrow(
-          `Error setting next block timestamp: Timestamp error: ${pastTimestamp} is lower than or equal to previous block's timestamp`,
-        );
-      });
-    });
-
     it('load public', async () => {
       expect(await cc.aztec.loadPublic(token.address, 1n)).toEqual(admin.address.toField());
     });

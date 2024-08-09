@@ -111,29 +111,6 @@ describe('guides/dapp/testing', () => {
       });
     });
 
-    describe('cheats', () => {
-      let pxe: PXE;
-      let owner: AccountWallet;
-      let testContract: TestContract;
-      let cheats: CheatCodes;
-
-      beforeAll(async () => {
-        pxe = createPXEClient(PXE_URL);
-        owner = await createAccount(pxe);
-        testContract = await TestContract.deploy(owner).send().deployed();
-        cheats = CheatCodes.create(ETHEREUM_HOST, pxe);
-      });
-
-      // TODO(@spalladino) Disabled due to flakiness after #7347. Note that warp is already tested in e2e_cheat_codes.
-      it.skip('warps time to 1h into the future', async () => {
-        // docs:start:warp
-        const newTimestamp = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
-        await cheats.aztec.warp(newTimestamp);
-        await testContract.methods.is_time_equal(newTimestamp).send().wait();
-        // docs:end:warp
-      });
-    });
-
     describe('assertions', () => {
       let pxe: PXE;
       let owner: AccountWallet;

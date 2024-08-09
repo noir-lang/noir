@@ -133,13 +133,12 @@ The [`CheatCodes`](../../../reference/developer_references/sandbox_reference/che
 
 ### Set next block timestamp
 
-The `warp` method sets the time for next execution, both on L1 and L2. We can test this using an `isTimeEqual` function in a `Test` contract defined like the following:
+Since the rollup time is dependent on what "slot" the block is included in, time can be progressed by progressing slots.
+The duration of a slot is available by calling `SLOT_DURATION()` on the Rollup (code in Leonidas.sol).
 
-#include_code is-time-equal noir-projects/noir-contracts/contracts/test_contract/src/main.nr rust
+You can then use the `warp` function on the EthCheatCodes to progress the underlying chain.
 
-We can then call `warp` and rely on the `isTimeEqual` function to check that the timestamp was properly modified.
-
-#include_code warp /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript
+<!--#include_code warp /yarn-project/end-to-end/src/guides/dapp_testing.test.ts typescript-->
 
 ## Further reading
 

@@ -177,14 +177,10 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @param txsEffectsHashes - A list of txsEffectsHashes (body hashes).
    * @returns The requested L2 block bodies
    */
-  getBlockBodies(txsEffectsHashes: Buffer[]): Promise<Body[]> {
-    const blockBodies = txsEffectsHashes.map(txsEffectsHash => this.l2BlockBodies.get(txsEffectsHash.toString('hex')));
-
-    if (blockBodies.some(bodyBuffer => bodyBuffer === undefined)) {
-      throw new Error('Block body is undefined');
-    }
-
-    return Promise.resolve(blockBodies as Body[]);
+  getBlockBodies(txsEffectsHashes: Buffer[]): Promise<(Body | undefined)[]> {
+    return Promise.resolve(
+      txsEffectsHashes.map(txsEffectsHash => this.l2BlockBodies.get(txsEffectsHash.toString('hex'))),
+    );
   }
 
   /**

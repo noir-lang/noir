@@ -5,7 +5,6 @@ pragma solidity >=0.8.18;
 // Libraries
 import {Errors} from "./Errors.sol";
 import {Constants} from "./ConstantsGen.sol";
-import {Hash} from "./Hash.sol";
 
 /**
  * @title Header Library
@@ -107,53 +106,6 @@ library HeaderLib {
   }
 
   uint256 private constant HEADER_LENGTH = 0x268; // Header byte length
-
-  /**
-   * @notice Validates the header
-   * @param _header - The decoded header
-   * @param _version - The expected version
-   * @param _slot - The expected slot number
-   * @dev     @todo currently unused, but must be constrained and used to
-   *          constrain the timestamp instead of `lastBlockTs`
-   * @param _lastBlockTs - The timestamp of the last block
-   * @param _archive - The expected archive root
-   */
-  function validate(
-    Header memory _header,
-    uint256 _version,
-    uint256 _slot,
-    uint256 _lastBlockTs,
-    bytes32 _archive
-  ) internal view {
-    if (block.chainid != _header.globalVariables.chainId) {
-      revert Errors.Rollup__InvalidChainId(block.chainid, _header.globalVariables.chainId);
-    }
-
-    if (_header.globalVariables.version != _version) {
-      revert Errors.Rollup__InvalidVersion(_version, _header.globalVariables.version);
-    }
-
-    // block number already constrained by archive root check
-
-    // @todo Constrain slot number + update timestamp to be linked to slot number
-
-    if (_header.globalVariables.timestamp > block.timestamp) {
-      revert Errors.Rollup__TimestampInFuture();
-    }
-
-    // @todo @LHerskind consider if this is too strict
-    // This will make multiple l2 blocks in the same l1 block impractical.
-    // e.g., the first block will update timestamp which will make the second fail.
-    // Could possibly allow multiple blocks if in same l1 block
-    if (_header.globalVariables.timestamp < _lastBlockTs) {
-      revert Errors.Rollup__TimestampTooOld();
-    }
-
-    // TODO(#4148) Proper genesis state. If the state is empty, we allow anything for now.
-    if (_archive != bytes32(0) && _archive != _header.lastArchive.root) {
-      revert Errors.Rollup__InvalidArchive(_archive, _header.lastArchive.root);
-    }
-  }
 
   /**
    * @notice Decodes the header

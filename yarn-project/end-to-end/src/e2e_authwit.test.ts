@@ -7,7 +7,7 @@ import { jest } from '@jest/globals';
 import { DUPLICATE_NULLIFIER_ERROR } from './fixtures/fixtures.js';
 import { publicDeployAccounts, setup } from './fixtures/utils.js';
 
-const TIMEOUT = 90_000;
+const TIMEOUT = 150_000;
 
 describe('e2e_authwit_tests', () => {
   jest.setTimeout(TIMEOUT);

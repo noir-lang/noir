@@ -13,7 +13,7 @@ import {
   type ProverClient,
 } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
-import { AztecAddress, EthAddress, type GlobalVariables, type Header } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, type GlobalVariables, type Header, IS_DEV_NET } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
@@ -24,7 +24,7 @@ import { Attributes, type TelemetryClient, type Tracer, trackSpan } from '@aztec
 import { type WorldStateStatus, type WorldStateSynchronizer } from '@aztec/world-state';
 
 import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
-import { type L1Publisher } from '../publisher/l1-publisher.js';
+import { type Attestation, type L1Publisher } from '../publisher/l1-publisher.js';
 import { type TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
 import { type SequencerConfig } from './config.js';
 import { SequencerMetrics } from './metrics.js';
@@ -174,14 +174,15 @@ export class Sequencer {
     try {
       // Update state when the previous block has been synced
       const prevBlockSynced = await this.isBlockSynced();
+      // Do not go forward with new block if the previous one has not been mined and processed
+      if (!prevBlockSynced) {
+        this.log.debug('Previous block has not been mined and processed yet');
+        return;
+      }
+
       if (prevBlockSynced && this.state === SequencerState.PUBLISHING_BLOCK) {
         this.log.debug(`Block has been synced`);
         this.state = SequencerState.IDLE;
-      }
-
-      // Do not go forward with new block if the previous one has not been mined and processed
-      if (!prevBlockSynced) {
-        return;
       }
 
       const historicalHeader = (await this.l2BlockSource.getBlock(-1))?.header;
@@ -234,6 +235,8 @@ export class Sequencer {
         this._coinbase,
         this._feeRecipient,
       );
+
+      // @todo @LHerskind Include some logic to consider slots
 
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
       const allValidTxs = await this.takeValidTxs(
@@ -297,6 +300,8 @@ export class Sequencer {
       if (!(await this.publisher.isItMyTurnToSubmit())) {
         throw new Error(`Not this sequencer turn to submit block`);
       }
+
+      // @todo @LHerskind Should take into account, block number, proposer and slot number
     };
 
     // Get l1 to l2 messages from the contract
@@ -356,19 +361,27 @@ export class Sequencer {
     await assertBlockHeight();
 
     const workDuration = workTimer.ms();
-    this.log.verbose(`Assembled block ${block.number}`, {
-      eventName: 'l2-block-built',
-      duration: workDuration,
-      publicProcessDuration: publicProcessorDuration,
-      rollupCircuitsDuration: blockBuildingTimer.ms(),
-      ...block.getStats(),
-    } satisfies L2BlockBuiltStats);
+    this.log.verbose(
+      `Assembled block ${block.number} (txEffectsHash: ${block.header.contentCommitment.txsEffectsHash.toString(
+        'hex',
+      )})`,
+      {
+        eventName: 'l2-block-built',
+        duration: workDuration,
+        publicProcessDuration: publicProcessorDuration,
+        rollupCircuitsDuration: blockBuildingTimer.ms(),
+        ...block.getStats(),
+      } satisfies L2BlockBuiltStats,
+    );
 
     try {
-      await this.publishL2Block(block);
+      const attestations = await this.collectAttestations(block);
+      await this.publishL2Block(block, attestations);
       this.metrics.recordPublishedBlock(workDuration);
       this.log.info(
-        `Submitted rollup block ${block.number} with ${processedTxs.length} transactions duration=${workDuration}ms`,
+        `Submitted rollup block ${block.number} with ${
+          processedTxs.length
+        } transactions duration=${workDuration}ms (Submitter: ${await this.publisher.senderAddress()})`,
       );
     } catch (err) {
       this.metrics.recordFailedBlock();
@@ -390,6 +403,28 @@ export class Sequencer {
     }
   }
 
+  protected async collectAttestations(block: L2Block): Promise<Attestation[] | undefined> {
+    // @todo  This should collect attestations properly and fix the ordering of them to make sense
+    //        the current implementation is a PLACEHOLDER and should be nuked from orbit.
+    //        It is assuming that there will only be ONE (1) validator, so only one attestation
+    //        is needed.
+    // @note  This is quite a sin, but I'm committing war crimes in this code already.
+    //            _ ._  _ , _ ._
+    //          (_ ' ( `  )_  .__)
+    //       ( (  (    )   `)  ) _)
+    //      (__ (_   (_ . _) _) ,__)
+    //           `~~`\ ' . /`~~`
+    //                ;   ;
+    //                /   \
+    //  _____________/_ __ \_____________
+    if (IS_DEV_NET) {
+      return undefined;
+    }
+
+    const myAttestation = await this.publisher.attest(block.archive.root.toString());
+    return [myAttestation];
+  }
+
   /**
    * Publishes the L2Block to the rollup contract.
    * @param block - The L2Block to be published.
@@ -397,10 +432,10 @@ export class Sequencer {
   @trackSpan('Sequencer.publishL2Block', block => ({
     [Attributes.BLOCK_NUMBER]: block.number,
   }))
-  protected async publishL2Block(block: L2Block) {
+  protected async publishL2Block(block: L2Block, attestations?: Attestation[]) {
     // Publishes new block to the network and awaits the tx to be mined
     this.state = SequencerState.PUBLISHING_BLOCK;
-    const publishedL2Block = await this.publisher.processL2Block(block);
+    const publishedL2Block = await this.publisher.processL2Block(block, attestations);
     if (publishedL2Block) {
       this.lastPublishedBlock = block.number;
     } else {

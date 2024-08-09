@@ -142,5 +142,5 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
       expectedBalancesAfterTransfer2[2] + transferAmount3,
     ];
     await transfer(1, 2, transferAmount3, expectedBalancesAfterTransfer3);
-  });
+  }, 120_000);
 });

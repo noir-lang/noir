@@ -38,10 +38,6 @@ export class ViemReader implements L1GlobalReader {
     });
   }
 
-  public async getLastTimestamp(): Promise<bigint> {
-    return BigInt(await this.rollupContract.read.lastBlockTs());
-  }
-
   public async getVersion(): Promise<bigint> {
     return BigInt(await this.rollupContract.read.VERSION());
   }
@@ -54,11 +50,15 @@ export class ViemReader implements L1GlobalReader {
     return await Promise.resolve((await this.publicClient.getBlock()).timestamp);
   }
 
-  public async getLastWarpedBlockTs(): Promise<bigint> {
-    return BigInt(await this.rollupContract.read.lastWarpedBlockTs());
-  }
-
   public async getCurrentSlot(): Promise<bigint> {
     return BigInt(await this.rollupContract.read.getCurrentSlot());
+  }
+
+  public async getSlotAt(timestamp: readonly [bigint]): Promise<bigint> {
+    return BigInt(await this.rollupContract.read.getSlotAt(timestamp));
+  }
+
+  public async getTimestampForSlot(slot: readonly [bigint]): Promise<bigint> {
+    return BigInt(await this.rollupContract.read.getTimestampForSlot(slot));
   }
 }

@@ -98,23 +98,33 @@ The state transitioner is the heart of the validating light node for the L2.
 The contract keeps track of the current state of the L2 and progresses this state when a valid L2 block is received.
 It also facilitates cross-chain communication (communication between the L1 inbox and outbox contracts).
 
+:::info
+The following example shows a simplified case where proof and block are provided in the same transaction.
+:::
+
 ```python
 class StateTransitioner:
+
+    struct BlockLog:
+      archive: bytes32
+      slot_number: uint128
 
     VERIFIER: immutable(IVerifier)
     AVAILABILITY_ORACLE: immutable(IAvailabilityOracle)
     INBOX: immutable(IInbox)
     OUTBOX: immutable(IOutbox)
     VERSION: immutable(uint256)
+    GENESIS_TIME: immutable(uint256)
+    SLOT_DURATION: immutable(uint256)
 
-    archive: TreeSnapshot
-    block_number: uint256
-    last_block_ts: uint256
+    blocks: BlockLog[]
 
     def __init__(self, ...):
         '''
         Initialize the state transitioner
         '''
+        self.blocks.append(BlockLog({archive: bytes32(0), slot_number: 0}))
+        self.GENESIS_TIME = block.timestamp
 
     def process(
         self,
@@ -131,6 +141,10 @@ class StateTransitioner:
             header.content_commitment.out_hash,
             header.content_commitment.tx_tree_height + math.ceil(log2(MAX_L2_TO_L1_MSGS_PER_TX))
         )
+        self.blocks.append(BlockLog({
+          archive: archive,
+          slot_number: header.global_variables.slot_number
+        }))
         self.archive = archive
         emit BlockProcessed(block_number)
 
@@ -138,12 +152,13 @@ class StateTransitioner:
         self,
         header: Header
     ) -> bool:
-        assert header.global_variables.block_number = self.block_number + 1
+        assert header.global_variables.block_number = len(self.blocks)
         assert header.global_variables.chain_id == block.chain_id
-        assert header.global_variables.version == self.version
-        assert header.global_variables.timestamp < block.timestamp
-        assert header.global_variables.timestamp > self.last_block_ts
-        assert header.archive == self.archive
+        assert header.global_variables.version == self.VERSION
+        assert header.global_variables.timestamp == self.GENESIS_TIME + self.SLOT_DURATION * header.global_variables.slot_number
+        last_block = self.blocks[-1]
+        assert header.global_variables.slot_number > last_block.slot_number
+        assert header.archive == last_block.archive
         return True
 ```
 

@@ -1,4 +1,10 @@
-import { type AztecAddress, type EthAddress, GasFees, GlobalVariables } from '@aztec/circuits.js';
+import {
+  type AztecAddress,
+  ETHEREUM_SLOT_DURATION,
+  type EthAddress,
+  GasFees,
+  GlobalVariables,
+} from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
@@ -6,11 +12,6 @@ import { createDebugLogger } from '@aztec/foundation/log';
  * Reads values from L1 state that is used for the global values.
  */
 export interface L1GlobalReader {
-  /**
-   * Fetches the last timestamp that a block was processed by the contract.
-   * @returns The last timestamp that a block was processed by the contract.
-   */
-  getLastTimestamp(): Promise<bigint>;
   /**
    * Fetches the version of the rollup contract.
    * @returns The version of the rollup contract.
@@ -29,16 +30,23 @@ export interface L1GlobalReader {
   getL1CurrentTime(): Promise<bigint>;
 
   /**
-   * Gets the last time L2 was warped as tracked by the rollup contract.
-   * @returns The warped time.
-   */
-  getLastWarpedBlockTs(): Promise<bigint>;
-
-  /**
    * Gets the current slot.
    * @returns The current slot.
    */
   getCurrentSlot(): Promise<bigint>;
+
+  /**
+   * Get the slot for a specific timestamp.
+   * @param timestamp - The timestamp to get the slot for.
+   */
+  getSlotAt(timestamp: readonly [bigint]): Promise<bigint>;
+
+  /**
+   * Gets the timestamp for a slot
+   * @param slot - The slot to get the timestamp for.
+   * @returns The timestamp for the slot.
+   */
+  getTimestampForSlot(slot: readonly [bigint]): Promise<bigint>;
 }
 
 /**
@@ -75,37 +83,30 @@ export class SimpleTestGlobalVariableBuilder implements GlobalVariableBuilder {
     coinbase: EthAddress,
     feeRecipient: AztecAddress,
   ): Promise<GlobalVariables> {
-    let lastTimestamp = new Fr(await this.reader.getLastTimestamp());
+    // Not just the current slot, the slot of the next block.
+    const ts = (await this.reader.getL1CurrentTime()) + BigInt(ETHEREUM_SLOT_DURATION);
+
+    const slot = await this.reader.getSlotAt([ts]);
+    const timestamp = await this.reader.getTimestampForSlot([slot]);
+
+    const slotFr = new Fr(slot);
+    const timestampFr = new Fr(timestamp);
+
     const version = new Fr(await this.reader.getVersion());
     const chainId = new Fr(await this.reader.getChainId());
-
-    // TODO(rahul) - fix #1614. By using the cheatcode warp to modify L2 time,
-    // txs in the next rollup would have same time as the txs in the current rollup (i.e. the rollup that was warped).
-    // So, for now you check if L2 time was warped and if so, serve warpedTime + 1 to txs in the new rollup.
-    // Check if L2 time was warped in the last rollup by checking if current L1 time is same as the warpedTime (stored on the rollup contract).
-    // more details at https://github.com/AztecProtocol/aztec-packages/issues/1614
-
-    const currTimestamp = await this.reader.getL1CurrentTime();
-    const rollupWarpTime = await this.reader.getLastWarpedBlockTs();
-    const isLastBlockWarped = rollupWarpTime === currTimestamp;
-    if (isLastBlockWarped) {
-      lastTimestamp = new Fr(lastTimestamp.value + 1n);
-    }
-
-    const slot = new Fr(await this.reader.getCurrentSlot());
 
     const gasFees = GasFees.default();
     const globalVariables = new GlobalVariables(
       chainId,
       version,
       blockNumber,
-      slot,
-      lastTimestamp,
+      slotFr,
+      timestampFr,
       coinbase,
       feeRecipient,
       gasFees,
     );
     this.log.debug(`Built global variables for block ${blockNumber}`, globalVariables.toJSON());
-    return new GlobalVariables(chainId, version, blockNumber, slot, lastTimestamp, coinbase, feeRecipient, gasFees);
+    return globalVariables;
   }
 }

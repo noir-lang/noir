@@ -61,7 +61,7 @@ export interface ArchiverDataStore {
    * @param txsEffectsHashes - A list of txsEffectsHashes.
    * @returns The requested L2 block bodies
    */
-  getBlockBodies(txsEffectsHashes: Buffer[]): Promise<Body[]>;
+  getBlockBodies(txsEffectsHashes: Buffer[]): Promise<(Body | undefined)[]>;
 
   /**
    * Gets up to `limit` amount of L2 blocks starting from `from`.

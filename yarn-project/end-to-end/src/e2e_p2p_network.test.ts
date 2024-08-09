@@ -4,6 +4,8 @@ import {
   type AztecAddress,
   CompleteAddress,
   type DebugLogger,
+  type DeployL1Contracts,
+  EthCheatCodes,
   Fr,
   GrumpkinScalar,
   type SentTx,
@@ -11,12 +13,15 @@ import {
   createDebugLogger,
   sleep,
 } from '@aztec/aztec.js';
+import { IS_DEV_NET } from '@aztec/circuits.js';
+import { RollupAbi } from '@aztec/l1-artifacts';
 import { type BootnodeConfig, BootstrapNode, createLibP2PPeerId } from '@aztec/p2p';
 import { type PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import fs from 'fs';
-import { mnemonicToAccount } from 'viem/accounts';
+import { getContract } from 'viem';
+import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
 import { MNEMONIC } from './fixtures/fixtures.js';
 import { setup } from './fixtures/utils.js';
@@ -47,9 +52,49 @@ describe('e2e_p2p_network', () => {
   let teardown: () => Promise<void>;
   let bootstrapNode: BootstrapNode;
   let bootstrapNodeEnr: string;
+  let deployL1ContractsValues: DeployL1Contracts;
 
   beforeEach(async () => {
-    ({ teardown, config, logger } = await setup(0));
+    ({ teardown, config, logger, deployL1ContractsValues } = await setup(0));
+    // It would likely be useful if we had the sequencers in such that they don't spam each other.
+    // However, even if they do, it should still work. Not sure what caused the failure
+    // Would be easier if I could see the errors from anvil as well, but those seem to be hidden.
+
+    const rollup = getContract({
+      address: deployL1ContractsValues.l1ContractAddresses.rollupAddress.toString(),
+      abi: RollupAbi,
+      client: deployL1ContractsValues.walletClient,
+    });
+
+    if (IS_DEV_NET) {
+      // Add just ONE of the peers as sequencer, he will be the proposer all blocks.
+      const hdAccount = mnemonicToAccount(MNEMONIC, { addressIndex: 1 });
+      const publisherPrivKey = Buffer.from(hdAccount.getHdKey().privateKey!);
+      const account = privateKeyToAccount(`0x${publisherPrivKey!.toString('hex')}`);
+      await rollup.write.addValidator([account.address]);
+      logger.info(`Adding sequencer ${account.address}`);
+    } else {
+      // @todo  Should be updated when we have attestations to add all the sequencers
+      //        Since it is currently a mess because sequencer selection needs attestations for
+      //        validity, but we currently have no way to collect them.
+      //        When attestations works, add all 4, and lets ROLL!
+
+      for (let i = 0; i < 1; i++) {
+        const hdAccount = mnemonicToAccount(MNEMONIC, { addressIndex: i + 1 });
+        const publisherPrivKey = Buffer.from(hdAccount.getHdKey().privateKey!);
+        const account = privateKeyToAccount(`0x${publisherPrivKey!.toString('hex')}`);
+        await rollup.write.addValidator([account.address]);
+        logger.info(`Adding sequencer ${account.address}`);
+      }
+    }
+
+    // Now we jump ahead to the next epoch, such that the next epoch begins
+    const timeToJump = (await rollup.read.EPOCH_DURATION()) * (await rollup.read.SLOT_DURATION());
+
+    const cheatCodes = new EthCheatCodes(config.l1RpcUrl);
+    const timestamp = (await cheatCodes.timestamp()) + Number(timeToJump);
+    await cheatCodes.warp(timestamp);
+
     bootstrapNode = await createBootstrapNode();
     bootstrapNodeEnr = bootstrapNode.getENR().encodeTxt();
   });

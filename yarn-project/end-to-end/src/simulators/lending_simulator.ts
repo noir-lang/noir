@@ -1,7 +1,11 @@
 // Convenience struct to hold an account's address and secret that can easily be passed around.
 import { type AztecAddress, type CheatCodes, Fr } from '@aztec/aztec.js';
+import { ETHEREUM_SLOT_DURATION } from '@aztec/circuits.js';
 import { pedersenHash } from '@aztec/foundation/crypto';
+import { type RollupAbi } from '@aztec/l1-artifacts';
 import { type LendingContract } from '@aztec/noir-contracts.js/Lending';
+
+import { type Chain, type GetContractReturnType, type HttpTransport, type PublicClient } from 'viem';
 
 import { type TokenSimulator } from './token_simulator.js';
 
@@ -76,6 +80,8 @@ export class LendingSimulator {
     private cc: CheatCodes,
     private account: LendingAccount,
     private rate: bigint,
+    /** the rollup contract */
+    public rollup: GetContractReturnType<typeof RollupAbi, PublicClient<HttpTransport, Chain>>,
     /** the lending contract */
     public lendingContract: LendingContract,
     /** the collateral asset used in the lending contract */
@@ -86,15 +92,25 @@ export class LendingSimulator {
 
   async prepare() {
     this.accumulator = BASE;
-    const ts = await this.cc.eth.timestamp();
-    this.time = ts + 10 + (ts % 10);
-    await this.cc.aztec.warp(this.time);
+    const slot = await this.rollup.read.getSlotAt([
+      BigInt(await this.cc.eth.timestamp()) + BigInt(ETHEREUM_SLOT_DURATION),
+    ]);
+    this.time = Number(await this.rollup.read.getTimestampForSlot([slot]));
   }
 
-  async progressTime(diff: number) {
-    this.time = this.time + diff;
-    await this.cc.aztec.warp(this.time);
-    this.accumulator = muldivDown(this.accumulator, computeMultiplier(this.rate, BigInt(diff)), BASE);
+  async progressSlots(diff: number) {
+    if (diff <= 1) {
+      return;
+    }
+
+    const slot = await this.rollup.read.getSlotAt([BigInt(await this.cc.eth.timestamp())]);
+    const ts = Number(await this.rollup.read.getTimestampForSlot([slot + BigInt(diff)]));
+    const timeDiff = ts - this.time;
+    this.time = ts;
+
+    // Mine ethereum blocks such that the next block will be in a new slot
+    await this.cc.eth.warp(this.time - ETHEREUM_SLOT_DURATION);
+    this.accumulator = muldivDown(this.accumulator, computeMultiplier(this.rate, BigInt(timeDiff)), BASE);
   }
 
   depositPrivate(from: AztecAddress, onBehalfOf: Fr, amount: bigint) {
