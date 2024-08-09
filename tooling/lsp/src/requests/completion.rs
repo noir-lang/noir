@@ -572,12 +572,18 @@ mod completion_tests {
 
     #[test]
     async fn test_use_after_crate_and_letter() {
+        // Prove that "std" shows up
         let src = r#"
-            mod foo {}
-            use crate::f>|<
+            use s>|<
         "#;
+        assert_completion(src, vec![module_completion_item("std")]).await;
 
-        assert_completion(src, vec![module_completion_item("foo")]).await;
+        // "std" doesn't show up anymore because of the "crate::" prefix
+        let src = r#"
+            mod something {}
+            use crate::s>|<
+        "#;
+        assert_completion(src, vec![module_completion_item("something")]).await;
     }
 
     #[test]
