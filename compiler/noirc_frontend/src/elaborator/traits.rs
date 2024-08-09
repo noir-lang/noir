@@ -13,7 +13,7 @@ use crate::{
     },
     hir_def::{
         function::Parameters,
-        traits::{TraitFunction, TraitType},
+        traits::{NamedType, TraitFunction},
     },
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
@@ -64,7 +64,7 @@ impl<'context> Elaborator<'context> {
         self.current_trait = None;
     }
 
-    fn resolve_trait_types(&mut self, unresolved_trait: &UnresolvedTrait) -> Vec<TraitType> {
+    fn resolve_trait_types(&mut self, unresolved_trait: &UnresolvedTrait) -> Vec<NamedType> {
         let mut types = Vec::new();
 
         for item in &unresolved_trait.trait_def.items {
@@ -72,14 +72,14 @@ impl<'context> Elaborator<'context> {
                 let type_variable = TypeVariable::unbound(self.interner.next_type_variable_id());
                 let name_string = Rc::new(name.to_string());
                 let typ = Type::NamedGeneric(type_variable, name_string, Kind::Normal);
-                types.push(TraitType { name: name.clone(), typ });
+                types.push(NamedType { name: name.clone(), typ });
             }
         }
 
         types
     }
 
-    fn resolve_trait_constants(&mut self, unresolved_trait: &UnresolvedTrait) -> Vec<TraitType> {
+    fn resolve_trait_constants(&mut self, unresolved_trait: &UnresolvedTrait) -> Vec<NamedType> {
         let mut types = Vec::new();
 
         for item in &unresolved_trait.trait_def.items {
@@ -88,7 +88,7 @@ impl<'context> Elaborator<'context> {
                 let name_string = Rc::new(name.to_string());
                 let typ = Box::new(self.resolve_type(typ.clone()));
                 let typ = Type::NamedGeneric(type_variable, name_string, Kind::Numeric(typ));
-                types.push(TraitType { name: name.clone(), typ });
+                types.push(NamedType { name: name.clone(), typ });
             }
         }
 

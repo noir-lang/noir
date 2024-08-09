@@ -175,6 +175,12 @@ pub struct GenericTypeArgs {
     pub named_args: Vec<(Ident, UnresolvedType)>,
 }
 
+impl GenericTypeArgs {
+    pub fn is_empty(&self) -> bool {
+        self.ordered_args.is_empty() && self.named_args.is_empty()
+    }
+}
+
 impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
     fn from(args: Vec<GenericTypeArg>) -> Self {
         let mut this = GenericTypeArgs::default();

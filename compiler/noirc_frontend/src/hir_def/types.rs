@@ -19,7 +19,10 @@ use crate::{
     node_interner::StructId,
 };
 
-use super::expr::{HirCallExpression, HirExpression, HirIdent};
+use super::{
+    expr::{HirCallExpression, HirExpression, HirIdent},
+    traits::NamedType,
+};
 
 #[derive(PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
 pub enum Type {
@@ -78,7 +81,12 @@ pub enum Type {
     /// `impl Trait` when used in a type position.
     /// These are only matched based on the TraitId. The trait name parameter is only
     /// used for displaying error messages using the name of the trait.
-    TraitAsType(TraitId, /*name:*/ Rc<String>, /*generics:*/ Vec<Type>),
+    TraitAsType(
+        TraitId,
+        /*name:*/ Rc<String>,
+        /*generics:*/ Vec<Type>,
+        /*associated types*/ Vec<NamedType>,
+    ),
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
@@ -633,10 +641,16 @@ impl std::fmt::Display for Type {
                     write!(f, "{}<{}>", alias.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(_id, name, generics) => {
+            Type::TraitAsType(_id, name, generics, associated_types) => {
                 write!(f, "impl {}", name)?;
-                if !generics.is_empty() {
-                    let generics = vecmap(generics, ToString::to_string).join(", ");
+                if !generics.is_empty() || !associated_types.is_empty() {
+                    let mut generics = vecmap(generics, ToString::to_string).join(", ");
+
+                    if !generics.is_empty() && !associated_types.is_empty() {
+                        generics += ", ";
+                    }
+
+                    generics += &vecmap(associated_types, ToString::to_string).join(", ");
                     write!(f, "<{generics}>")?;
                 }
                 Ok(())
@@ -843,8 +857,11 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_) => false,
 
-            Type::TraitAsType(_, _, args) => {
+            Type::TraitAsType(_, _, args, associated_types) => {
                 args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
+                    || associated_types
+                        .iter()
+                        .any(|typ| typ.typ.contains_numeric_typevar(target_id))
             }
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
@@ -918,9 +935,12 @@ impl Type {
                 named_generic_is_numeric(self, found_names);
             }
 
-            Type::TraitAsType(_, _, args) => {
+            Type::TraitAsType(_, _, args, associated_types) => {
                 for arg in args.iter() {
                     arg.find_numeric_type_vars(found_names);
+                }
+                for arg in associated_types {
+                    arg.typ.find_numeric_type_vars(found_names);
                 }
             }
             Type::Array(length, elem) => {
@@ -2082,11 +2102,15 @@ impl Type {
                 element.substitute_helper(type_bindings, substitute_bound_typevars),
             )),
 
-            Type::TraitAsType(s, name, args) => {
+            Type::TraitAsType(s, name, args, associated_types) => {
                 let args = vecmap(args, |arg| {
                     arg.substitute_helper(type_bindings, substitute_bound_typevars)
                 });
-                Type::TraitAsType(*s, name.clone(), args)
+                let associated_types = vecmap(associated_types, |arg| {
+                    let typ = arg.typ.substitute_helper(type_bindings, substitute_bound_typevars);
+                    NamedType { name: arg.name.clone(), typ }
+                });
+                Type::TraitAsType(*s, name.clone(), args, associated_types)
             }
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.substitute_helper(type_bindings, substitute_bound_typevars);
@@ -2115,10 +2139,12 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::Struct(_, generic_args)
-            | Type::Alias(_, generic_args)
-            | Type::TraitAsType(_, _, generic_args) => {
+            Type::Struct(_, generic_args) | Type::Alias(_, generic_args) => {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
+            }
+            Type::TraitAsType(_, _, generic_args, associated_types) => {
+                generic_args.iter().any(|arg| arg.occurs(target_id))
+                    || associated_types.iter().any(|arg| arg.typ.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(type_var, _, _) | Type::TypeVariable(type_var, _) => {
@@ -2195,9 +2221,13 @@ impl Type {
 
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
-            TraitAsType(s, name, args) => {
+            TraitAsType(s, name, args, associated_types) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
-                TraitAsType(*s, name.clone(), args)
+                let associated_types = vecmap(associated_types, |arg| NamedType {
+                    name: arg.name.clone(),
+                    typ: arg.typ.follow_bindings(),
+                });
+                TraitAsType(*s, name.clone(), args, associated_types)
             }
             InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.follow_bindings();
@@ -2265,9 +2295,12 @@ impl Type {
                     *self = binding;
                 }
             }
-            Type::TraitAsType(_, _, generics) => {
+            Type::TraitAsType(_, _, generics, associated_types) => {
                 for generic in generics {
                     generic.replace_named_generics_with_type_variables();
+                }
+                for generic in associated_types {
+                    generic.typ.replace_named_generics_with_type_variables();
                 }
             }
             Type::NamedGeneric(var, _, _) => {
@@ -2424,7 +2457,7 @@ impl From<&Type> for PrintableType {
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
             Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
-            Type::TraitAsType(_, _, _) => unreachable!(),
+            Type::TraitAsType(..) => unreachable!(),
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
@@ -2485,10 +2518,18 @@ impl std::fmt::Debug for Type {
                     write!(f, "{}<{}>", alias.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(_id, name, generics) => {
+            Type::TraitAsType(_id, name, generics, associated_types) => {
                 write!(f, "impl {}", name)?;
-                if !generics.is_empty() {
-                    let generics = vecmap(generics, |arg| format!("{:?}", arg)).join(", ");
+                if !generics.is_empty() || !associated_types.is_empty() {
+                    let mut generics = vecmap(generics, |arg| format!("{:?}", arg)).join(", ");
+
+                    if !generics.is_empty() {
+                        generics += ", ";
+                    }
+
+                    generics +=
+                        &vecmap(associated_types, |arg| format!("{} = {:?}", arg.name, arg.typ))
+                            .join(", ");
                     write!(f, "<{generics}>")?;
                 }
                 Ok(())

@@ -58,6 +58,8 @@ pub enum ResolverError {
     NonStructWithGenerics { span: Span },
     #[error("Cannot apply generics on Self type")]
     GenericsOnSelfType { span: Span },
+    #[error("Cannot apply generics on an associated type")]
+    GenericsOnAssociatedType { span: Span },
     #[error("Incorrect amount of arguments to {item_name}")]
     IncorrectGenericCount { span: Span, item_name: String, actual: usize, expected: usize },
     #[error("{0}")]
@@ -116,6 +118,8 @@ pub enum ResolverError {
     NonFunctionInAnnotation { span: Span },
     #[error("Type `{typ}` was inserted into the generics list from a macro, but is not a generic")]
     MacroResultInGenericsListNotAGeneric { span: Span, typ: Type },
+    #[error("Named type arguments aren't allowed in a {item_kind}")]
+    NamedTypeArgs { span: Span, item_kind: &'static str },
 }
 
 impl ResolverError {
@@ -279,6 +283,11 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::GenericsOnSelfType { span } => Diagnostic::simple_error(
                 "Cannot apply generics to Self type".into(),
                 "Use an explicit type name or apply the generics at the start of the impl instead".into(),
+                *span,
+            ),
+            ResolverError::GenericsOnAssociatedType { span } => Diagnostic::simple_error(
+                "Generic Associated Types (GATs) are currently unsupported in Noir".into(),
+                "Cannot apply generics to an associated type".into(),
                 *span,
             ),
             ResolverError::IncorrectGenericCount { span, item_name, actual, expected } => {
@@ -464,6 +473,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Type `{typ}` was inserted into a generics list from a macro, but it is not a generic"),
                     format!("Type `{typ}` is not a generic"),
+                    *span,
+                )
+            }
+            ResolverError::NamedTypeArgs { span, item_kind } => {
+                Diagnostic::simple_error(
+                    format!("Named type arguments aren't allowed on a {item_kind}"),
+                    format!("Named type arguments are only allowed for associated types on traits"),
                     *span,
                 )
             }

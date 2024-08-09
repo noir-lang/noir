@@ -3,17 +3,18 @@ use std::{collections::BTreeMap, rc::Rc};
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        BinaryOpKind, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
+        BinaryOpKind, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTypeExpression,
     },
     hir::{
         comptime::{Interpreter, Value},
         def_map::ModuleDefId,
         resolution::errors::ResolverError,
-        type_check::{NoMatchingImplFoundError, Source, TypeCheckError},
+        type_check::{Generic, NoMatchingImplFoundError, Source, TypeCheckError},
     },
     hir_def::{
         expr::{
@@ -21,11 +22,11 @@ use crate::{
             HirPrefixExpression,
         },
         function::{FuncMeta, Parameters},
-        traits::TraitConstraint,
+        traits::{NamedType, TraitConstraint},
     },
     macros_api::{
-        HirExpression, HirLiteral, HirStatement, NodeInterner, Path, PathKind, SecondaryAttribute,
-        Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        HirExpression, HirLiteral, HirStatement, Ident, NodeInterner, Path, PathKind,
+        SecondaryAttribute, Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
         DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TraitImplKind,
@@ -218,7 +219,7 @@ impl<'context> Elaborator<'context> {
             if let Some(trait_id) = self.current_trait {
                 let the_trait = self.interner.get_trait(trait_id);
                 if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
-                    return Some(typ.clone());
+                    return Some(typ.clone().as_named_generic());
                 }
             }
 
@@ -232,7 +233,7 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+    fn resolve_named_type(&mut self, path: Path, args: GenericTypeArgs) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
                 return typ;
@@ -255,29 +256,17 @@ impl<'context> Elaborator<'context> {
                 return self.interner.next_type_variable();
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
+            if !args.is_empty() {
+                self.push_err(ResolverError::GenericsOnAssociatedType { span: path.span() });
+            }
             return typ;
         }
 
         let span = path.span();
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
-            let type_alias = type_alias.borrow();
-            let actual_generic_count = args.len();
-            let expected_generic_count = type_alias.generics.len();
-            let type_alias_string = type_alias.to_string();
-            let id = type_alias.id;
-
-            let mut args = vecmap(type_alias.generics.iter().zip(args), |(generic, arg)| {
-                self.resolve_type_inner(arg, &generic.kind)
-            });
-
-            self.verify_generics_count(
-                expected_generic_count,
-                actual_generic_count,
-                &mut args,
-                span,
-                || type_alias_string,
-            );
+            let id = type_alias.borrow().id;
+            let (args, _) = self.resolve_type_args(args, id, path.span());
 
             if let Some(item) = self.current_item {
                 self.interner.add_type_alias_dependency(item, id);
@@ -292,8 +281,7 @@ impl<'context> Elaborator<'context> {
             // equal to another type alias. Fixing this fully requires an analysis to create a DFG
             // of definition ordering, but for now we have an explicit check here so that we at
             // least issue an error that the type was not found instead of silently passing.
-            let alias = self.interner.get_type_alias(id);
-            return Type::Alias(alias, args);
+            return Type::Alias(type_alias, args);
         }
 
         match self.lookup_struct_or_error(path) {
@@ -305,9 +293,6 @@ impl<'context> Elaborator<'context> {
 
                     return Type::Error;
                 }
-
-                let expected_generic_count = struct_type.borrow().generics.len();
-                let actual_generic_count = args.len();
 
                 if !self.in_contract()
                     && self
@@ -321,18 +306,7 @@ impl<'context> Elaborator<'context> {
                     });
                 }
 
-                let mut args =
-                    vecmap(struct_type.borrow().generics.iter().zip(args), |(generic, arg)| {
-                        self.resolve_type_inner(arg, &generic.kind)
-                    });
-
-                self.verify_generics_count(
-                    expected_generic_count,
-                    actual_generic_count,
-                    &mut args,
-                    span,
-                    || struct_type.borrow().to_string(),
-                );
+                let (args, _) = self.resolve_type_args(args, struct_type.borrow(), path.span());
 
                 if let Some(current_item) = self.current_item {
                     let dependency_id = struct_type.borrow().id;
@@ -345,44 +319,94 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+    fn resolve_trait_as_type(&mut self, path: Path, args: GenericTypeArgs) -> Type {
         // Fetch information needed from the trait as the closure for resolving all the `args`
         // requires exclusive access to `self`
-        let trait_as_type_info = self
-            .lookup_trait_or_error(path)
-            .map(|t| (t.id, Rc::new(t.name.to_string()), t.generics.clone()));
+        let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
 
-        if let Some((id, name, resolved_generics)) = trait_as_type_info {
-            assert_eq!(resolved_generics.len(), args.len());
-            let generics_with_types = resolved_generics.iter().zip(args);
-            let args = vecmap(generics_with_types, |(generic, typ)| {
-                self.resolve_type_inner(typ, &generic.kind)
-            });
-            Type::TraitAsType(id, Rc::new(name.to_string()), args)
+        if let Some(id) = trait_as_type_info {
+            let (ordered, named) = self.resolve_type_args(args, id, path.span());
+            let name = self.interner.get_trait(id).name.to_string();
+            Type::TraitAsType(id, Rc::new(name), ordered, named)
         } else {
             Type::Error
         }
     }
 
-    fn verify_generics_count(
+    fn resolve_type_args(
         &mut self,
-        expected_count: usize,
-        actual_count: usize,
-        args: &mut Vec<Type>,
+        args: GenericTypeArgs,
+        item: impl Generic,
         span: Span,
-        type_name: impl FnOnce() -> String,
-    ) {
-        if actual_count != expected_count {
-            self.push_err(ResolverError::IncorrectGenericCount {
-                span,
-                item_name: type_name(),
-                actual: actual_count,
-                expected: expected_count,
-            });
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        let expected_kinds = item.generics(self.interner);
 
-            // Fix the generic count so we can continue typechecking
-            args.resize_with(expected_count, || Type::Error);
+        if args.ordered_args.len() != expected_kinds.len() {
+            self.push_err(TypeCheckError::GenericCountMismatch {
+                item: item.item_name(self.interner),
+                expected: expected_kinds.len(),
+                found: args.ordered_args.len(),
+                span,
+            });
+            args.ordered_args.truncate(expected_kinds.len());
         }
+
+        let ordered_args = expected_kinds.iter().zip(args.ordered_args);
+        let ordered =
+            vecmap(ordered_args, |(generic, typ)| self.resolve_type_inner(typ, &generic.kind));
+
+        let mut associated = Vec::new();
+
+        if item.accepts_named_type_args() {
+            associated = self.resolve_associated_type_args(args.named_args, item, span);
+        } else if !args.named_args.is_empty() {
+            let item_kind = item.item_kind();
+            self.push_err(ResolverError::NamedTypeArgs { span, item_kind });
+        }
+
+        (ordered, associated)
+    }
+
+    fn resolve_associated_type_args(
+        &mut self,
+        args: Vec<(Ident, UnresolvedType)>,
+        item: impl Generic,
+        span: Span,
+    ) -> Vec<NamedType> {
+        let mut seen_args = HashMap::default();
+        let required_args = item.named_generics(self.interner);
+        let mut resolved = Vec::with_capacity(required_args.len());
+
+        for (name, typ) in args {
+            let index =
+                required_args.iter().position(|item| item.name.as_ref() == &name.0.contents);
+
+            let Some(index) = index else {
+                if let Some(prev_span) = seen_args.get(&name.0.contents).copied() {
+                    self.push_err(TypeCheckError::DuplicateNamedTypeArg { name, prev_span });
+                } else {
+                    let item = item.item_name(self.interner);
+                    self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item });
+                }
+                continue;
+            };
+
+            // Remove the argument from the required list so we remember that we already have it
+            let expected = required_args.remove(index);
+            seen_args.insert(name.0.contents.clone(), name.span());
+
+            let typ = self.resolve_type_inner(typ, &expected.kind);
+            resolved.push(NamedType { name, typ });
+        }
+
+        // Anything that hasn't been removed yet is missing
+        for generic in required_args {
+            let item = item.item_name(self.interner);
+            let name = generic.name.clone();
+            self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+        }
+
+        resolved
     }
 
     pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
@@ -462,12 +486,12 @@ impl<'context> Elaborator<'context> {
             if name == SELF_TYPE_NAME {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.0.contents.as_str())?;
+                let (trait_generics, associated_types) = the_trait.get_generics();
 
                 let constraint = TraitConstraint {
                     typ: self.self_type.clone()?,
-                    trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
-                        generic.type_var.clone()
-                    })),
+                    trait_generics,
+                    associated_types,
                     trait_id,
                     span: path.span(),
                 };

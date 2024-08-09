@@ -1,6 +1,8 @@
+use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{Ident, NoirFunction};
+use crate::ResolvedGeneric;
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
@@ -27,10 +29,16 @@ pub struct TraitConstant {
     pub span: Span,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TraitType {
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct NamedType {
     pub name: Ident,
     pub typ: Type,
+}
+
+impl std::fmt::Display for NamedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} = {}", self.name, self.typ)
+    }
 }
 
 /// Represents a trait in the type system. Each instance of this struct
@@ -52,7 +60,7 @@ pub struct Trait {
     /// the information needed to create the full TraitFunction.
     pub method_ids: HashMap<String, FuncId>,
 
-    pub associated_types: Vec<TraitType>,
+    pub associated_types: Generics,
 
     pub name: Ident,
     pub generics: Generics,
@@ -88,7 +96,7 @@ pub struct TraitConstraint {
     pub trait_generics: Vec<Type>,
     pub span: Span,
 
-    pub associated_types: Vec<TraitType>,
+    pub associated_types: Vec<NamedType>,
 }
 
 impl TraitConstraint {
@@ -97,7 +105,7 @@ impl TraitConstraint {
         trait_id: TraitId,
         trait_generics: Vec<Type>,
         span: Span,
-        associated_types: Vec<TraitType>,
+        associated_types: Vec<NamedType>,
     ) -> Self {
         Self { typ, trait_id, trait_generics, span, associated_types }
     }
@@ -137,15 +145,20 @@ impl Trait {
         None
     }
 
-    pub fn set_associated_types(&mut self, associated_types: Vec<TraitType>) {
+    pub fn set_associated_types(&mut self, associated_types: Generics) {
         self.associated_types = associated_types;
     }
 
-    pub fn get_associated_type(&self, last_name: &str) -> Option<&Type> {
-        self.associated_types
-            .iter()
-            .find(|typ| typ.name.0.contents == last_name)
-            .map(|typ| &typ.typ)
+    pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {
+        self.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)
+    }
+
+    /// Returns both the ordered generics of this type, and its named, associated types.
+    /// These types are all as-is and are not instantiated.
+    pub fn get_generics(&self) -> (Vec<Type>, Vec<Type>) {
+        let ordered = vecmap(&self.generics, |generic| generic.as_named_generic());
+        let named = vecmap(&self.associated_types, |generic| generic.as_named_generic());
+        (ordered, named)
     }
 }
 

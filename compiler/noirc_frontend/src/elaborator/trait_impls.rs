@@ -2,7 +2,7 @@ use crate::{
     ast::UnresolvedTypeExpression,
     graph::CrateId,
     hir::def_collector::{dc_crate::UnresolvedTraitImpl, errors::DefCollectorErrorKind},
-    hir_def::traits::TraitType,
+    hir_def::traits::NamedType,
     node_interner::TraitImplId,
     ResolvedGeneric,
 };
@@ -249,12 +249,12 @@ impl<'context> Elaborator<'context> {
                 }
             };
             let typ = self.convert_expression_type(expr);
-            associated_types.push(TraitType { name, typ });
+            associated_types.push(NamedType { name, typ });
         }
 
         for (name, typ) in trait_impl.associated_types.drain(..) {
             let typ = self.resolve_type(typ);
-            associated_types.push(TraitType { name, typ });
+            associated_types.push(NamedType { name, typ });
         }
 
         self.interner.set_associated_types_for_impl(impl_id, associated_types);

@@ -19,7 +19,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir_def::traits::TraitType;
+use crate::hir_def::traits::NamedType;
 use crate::macros_api::UnaryOp;
 use crate::QuotedType;
 
@@ -136,7 +136,7 @@ pub struct NodeInterner {
     /// The associated types for each trait impl.
     /// This is stored outside of the TraitImpl object since it is required before that object is
     /// created, when resolving the type signature of each method in the impl.
-    trait_impl_associated_types: HashMap<TraitImplId, Vec<TraitType>>,
+    trait_impl_associated_types: HashMap<TraitImplId, Vec<NamedType>>,
 
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
@@ -1996,12 +1996,12 @@ impl NodeInterner {
     pub fn set_associated_types_for_impl(
         &mut self,
         impl_id: TraitImplId,
-        associated_types: Vec<TraitType>,
+        associated_types: Vec<NamedType>,
     ) {
         self.trait_impl_associated_types.insert(impl_id, associated_types);
     }
 
-    pub fn get_associated_types_for_impl(&self, impl_id: TraitImplId) -> &[TraitType] {
+    pub fn get_associated_types_for_impl(&self, impl_id: TraitImplId) -> &[NamedType] {
         &self.trait_impl_associated_types[&impl_id]
     }
 

@@ -18,7 +18,7 @@ use crate::{
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         function::{FunctionBody, Parameters},
-        traits::{TraitConstraint, TraitType},
+        traits::{NamedType, TraitConstraint},
         types::{Generics, Kind, ResolvedGeneric},
     },
     macros_api::{
@@ -697,7 +697,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // Associated types can't be explicitly specified yet so they're all implicitly introduced
-        let associated_types = vecmap(&the_trait.associated_types, |typ| TraitType {
+        let associated_types = vecmap(&the_trait.associated_types, |typ| NamedType {
             name: typ.name.clone(),
             typ: self.interner.next_type_variable(),
         });

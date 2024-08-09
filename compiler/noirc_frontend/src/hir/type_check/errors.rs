@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
@@ -9,6 +11,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::Type;
+use crate::macros_api::Ident;
 use crate::macros_api::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -154,6 +157,12 @@ pub enum TypeCheckError {
     MacroReturningNonExpr { typ: Type, span: Span },
     #[error("turbofish (`::<_>`) usage at this position isn't supported yet")]
     UnsupportedTurbofishUsage { span: Span },
+    #[error("`{name}` has already been specified")]
+    DuplicateNamedTypeArg { name: Ident, prev_span: Span },
+    #[error("`{item}` has no associated type named `{name}`")]
+    NoSuchNamedTypeArg { name: Ident, item: String },
+    #[error("`{item}` is missing the associated type `{name}`")]
+    MissingNamedTypeArg { name: Rc<String>, item: String, span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -354,6 +363,20 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             ),
             TypeCheckError::UnsupportedTurbofishUsage { span } => {
                 let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
+                Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
+            },
+            TypeCheckError::DuplicateNamedTypeArg { name, prev_span } => {
+                let msg = format!("`{name}` has already been specified");
+                let error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span());
+                error.add_secondary(format!("`{name}` previously specified here"), *prev_span);
+                error
+            },
+            TypeCheckError::NoSuchNamedTypeArg { name, item } => {
+                let msg = format!("`{item}` has no associated type named `{name}`");
+                Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span())
+            },
+            TypeCheckError::MissingNamedTypeArg { name, item, span } => {
+                let msg = format!("`{item}` is missing the associated type `{name}`");
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
             },
         }
