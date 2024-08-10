@@ -115,7 +115,7 @@ impl<F: PrimeField> From<i128> for FieldElement<F> {
     }
 }
 
-impl<T: ark_ff::PrimeField> Serialize for FieldElement<T> {
+impl<T: PrimeField> Serialize for FieldElement<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -124,7 +124,7 @@ impl<T: ark_ff::PrimeField> Serialize for FieldElement<T> {
     }
 }
 
-impl<'de, T: ark_ff::PrimeField> Deserialize<'de> for FieldElement<T> {
+impl<'de, T: PrimeField> Deserialize<'de> for FieldElement<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

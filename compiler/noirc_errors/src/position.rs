@@ -16,7 +16,7 @@ pub struct Spanned<T> {
 
 /// This is important for tests. Two Spanned objects are equal if their content is equal
 /// They may not have the same span. Use into_span to test for Span being equal specifically
-impl<T: std::cmp::PartialEq> PartialEq<Spanned<T>> for Spanned<T> {
+impl<T: PartialEq> PartialEq<Spanned<T>> for Spanned<T> {
     fn eq(&self, other: &Spanned<T>) -> bool {
         self.contents == other.contents
     }

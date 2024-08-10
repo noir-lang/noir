@@ -51,7 +51,7 @@ impl JsExecutionError {
             None => JsValue::UNDEFINED,
         };
         let assertion_payload = match assertion_payload {
-            Some(raw) => <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&raw)
+            Some(raw) => <JsValue as JsValueSerdeExt>::from_serde(&raw)
                 .expect("Cannot serialize assertion payload"),
             None => JsValue::UNDEFINED,
         };

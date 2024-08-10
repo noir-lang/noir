@@ -277,7 +277,7 @@ pub fn check_crate(
     let macros: &[&dyn MacroProcessor] = if options.disable_macros {
         &[]
     } else {
-        &[&aztec_macros::AztecMacro as &dyn MacroProcessor]
+        &[&aztec_macros::AztecMacro]
     };
 
     let mut errors = vec![];
