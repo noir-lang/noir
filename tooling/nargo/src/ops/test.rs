@@ -1,5 +1,8 @@
 use acvm::{
-    acir::native_types::{WitnessMap, WitnessStack},
+    acir::{
+        circuit::Program,
+        native_types::{WitnessMap, WitnessStack},
+    },
     BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
@@ -31,23 +34,58 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     foreign_call_resolver_url: Option<&str>,
     config: &CompileOptions,
 ) -> TestStatus {
-    let compiled_program = compile_no_check(context, config, test_function.get_id(), None, false);
-    match compiled_program {
+    let test_function_has_no_arguments = context
+        .def_interner
+        .function_meta(&test_function.get_id())
+        .function_signature()
+        .0
+        .is_empty();
+
+    match compile_no_check(context, config, test_function.get_id(), None, false) {
         Ok(compiled_program) => {
-            // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
-            // otherwise constraints involving these expressions will not error.
-            let circuit_execution = execute_program(
-                &compiled_program.program,
-                WitnessMap::new(),
-                blackbox_solver,
-                &mut DefaultForeignCallExecutor::new(show_output, foreign_call_resolver_url),
-            );
-            test_status_program_compile_pass(
-                test_function,
-                compiled_program.abi,
-                compiled_program.debug,
-                circuit_execution,
-            )
+            if test_function_has_no_arguments {
+                // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
+                // otherwise constraints involving these expressions will not error.
+                let circuit_execution = execute_program(
+                    &compiled_program.program,
+                    WitnessMap::new(),
+                    blackbox_solver,
+                    &mut DefaultForeignCallExecutor::new(show_output, foreign_call_resolver_url),
+                );
+                test_status_program_compile_pass(
+                    test_function,
+                    compiled_program.abi,
+                    compiled_program.debug,
+                    circuit_execution,
+                )
+            } else {
+                use noir_fuzzer::FuzzedExecutor;
+                use proptest::test_runner::TestRunner;
+                let runner = TestRunner::default();
+
+                let executor = |program: &Program<FieldElement>,
+                                initial_witness: WitnessMap<FieldElement>|
+                 -> Result<WitnessStack<FieldElement>, String> {
+                    execute_program(
+                        program,
+                        initial_witness,
+                        blackbox_solver,
+                        &mut DefaultForeignCallExecutor::<FieldElement>::new(false, None),
+                    )
+                    .map_err(|err| err.to_string())
+                };
+                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
+
+                let result = fuzzer.fuzz();
+                if result.success {
+                    TestStatus::Pass
+                } else {
+                    TestStatus::Fail {
+                        message: result.reason.unwrap_or_default(),
+                        error_diagnostic: None,
+                    }
+                }
+            }
         }
         Err(err) => test_status_program_compile_fail(err, test_function),
     }
