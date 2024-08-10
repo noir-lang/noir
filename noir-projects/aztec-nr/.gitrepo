@@ -9,4 +9,4 @@ remote = https://github.com/AztecProtocol/aztec-nr
 	commit = 31a6a8ad8509997db8233bcdcb7f12d2602e9fe8
 	method = merge
 	cmdver = 0.4.6
-	parent = e7c9f37c478969a3baadf506d97a5cc88027de8e
+	parent = 44b33d99234c77295bac84359c8ba5e9b71f3366
