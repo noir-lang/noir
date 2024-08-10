@@ -1,7 +1,11 @@
 use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
+use acvm::acir::circuit::Program;
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
+use acvm::FieldElement;
 use fm::FileManager;
+use nargo::ops::{execute_program, DefaultForeignCallExecutor};
 use noirc_driver::{check_crate, compile_no_check, file_manager_with_stdlib, CompileOptions};
 use noirc_frontend::hir::FunctionNameMatch;
 
@@ -78,7 +82,16 @@ fn run_stdlib_tests() {
                     Ok(compiled_program) => {
                         let runner = TestRunner::default();
 
-                        let fuzzer = FuzzedExecutor::new(compiled_program.into(), runner);
+                        let executor = |program: &Program<FieldElement>, initial_witness: WitnessMap<FieldElement>| -> Result<WitnessStack<FieldElement>, String> {
+                            execute_program(
+                                program,
+                                initial_witness,
+                &bn254_blackbox_solver::Bn254BlackBoxSolver,
+                                &mut DefaultForeignCallExecutor::<FieldElement>::new(false, None),
+                            )
+                            .map_err(|err| err.to_string())
+                        };
+                        let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
 
                         let result = fuzzer.fuzz();
                         if result.success {

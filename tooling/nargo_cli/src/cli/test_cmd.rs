@@ -1,12 +1,20 @@
 use std::io::Write;
 
-use acvm::{BlackBoxFunctionSolver, FieldElement};
+use acvm::{
+    acir::{
+        circuit::Program,
+        native_types::{WitnessMap, WitnessStack},
+    },
+    BlackBoxFunctionSolver, FieldElement,
+};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
-    prepare_package,
+    insert_all_files_for_workspace_into_file_manager,
+    ops::{execute_program, DefaultForeignCallExecutor, TestStatus},
+    package::Package,
+    parse_all, prepare_package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
@@ -206,7 +214,18 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
             Ok(compiled_program) => {
                 let runner = TestRunner::default();
 
-                let fuzzer = FuzzedExecutor::new(compiled_program.into(), runner);
+                let executor = |program: &Program<FieldElement>,
+                                initial_witness: WitnessMap<FieldElement>|
+                 -> Result<WitnessStack<FieldElement>, String> {
+                    execute_program(
+                        program,
+                        initial_witness,
+                        &blackbox_solver,
+                        &mut DefaultForeignCallExecutor::<FieldElement>::new(false, None),
+                    )
+                    .map_err(|err| err.to_string())
+                };
+                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
 
                 let result = fuzzer.fuzz();
                 if result.success {
