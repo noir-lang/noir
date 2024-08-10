@@ -1,8 +1,18 @@
+use crate::meta::derive_via;
+
+#[derive_via(derive_eq)]
 // docs:start:eq-trait
 trait Eq {
     fn eq(self, other: Self) -> bool;
 }
 // docs:end:eq-trait
+
+comptime fn derive_eq(s: StructDefinition) -> Quoted {
+    let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
+    let for_each_field = |name| quote { (_self.$name == _other.$name) };
+    let body = |fields| fields;
+    crate::meta::make_trait_impl(s, quote { Eq }, signature, for_each_field, quote { & }, body)
+}
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
@@ -99,11 +109,27 @@ impl Ordering {
     }
 }
 
+#[derive_via(derive_ord)]
 // docs:start:ord-trait
 trait Ord {
     fn cmp(self, other: Self) -> Ordering;
 }
 // docs:end:ord-trait
+
+comptime fn derive_ord(s: StructDefinition) -> Quoted {
+    let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };
+    let for_each_field = |name| quote {
+        if result == std::cmp::Ordering::equal() {
+            result = _self.$name.cmp(_other.$name);
+        }
+    };
+    let body = |fields| quote {
+        let mut result = std::cmp::Ordering::equal();
+        $fields
+        result
+    };
+    crate::meta::make_trait_impl(s, quote { Ord }, signature, for_each_field, quote {}, body)
+}
 
 // Note: Field deliberately does not implement Ord
 

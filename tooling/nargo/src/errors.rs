@@ -149,13 +149,34 @@ fn extract_locations_from_error<F: AcirField>(
         }
     }
 
+    let brillig_function_id = match error {
+        ExecutionError::SolvingError(
+            OpcodeResolutionError::BrilligFunctionFailed { function_id, .. },
+            _,
+        ) => Some(*function_id),
+        _ => None,
+    };
+
     Some(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
                 debug[resolved_location.acir_function_index]
                     .opcode_location(&resolved_location.opcode_location)
-                    .unwrap_or_default()
+                    .unwrap_or_else(|| {
+                        if let Some(brillig_function_id) = brillig_function_id {
+                            let brillig_locations = debug[resolved_location.acir_function_index]
+                                .brillig_locations
+                                .get(&brillig_function_id);
+                            brillig_locations
+                                .unwrap()
+                                .get(&resolved_location.opcode_location)
+                                .cloned()
+                                .unwrap_or_default()
+                        } else {
+                            vec![]
+                        }
+                    })
             })
             .collect(),
     )

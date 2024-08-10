@@ -218,7 +218,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
             &test_dir,
             &format!(
                 r#"
-                nargo.arg("info").arg("--json").arg("--force");
+                nargo.arg("info").arg("--arithmetic-generics").arg("--json").arg("--force");
                 
                 {assert_zero_opcodes}"#,
             ),

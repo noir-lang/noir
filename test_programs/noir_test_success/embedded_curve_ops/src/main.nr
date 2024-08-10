@@ -10,28 +10,28 @@ use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_sca
 
     let s1 = EmbeddedCurveScalar { lo: 1, hi: 0 };
     let a = multi_scalar_mul([g1], [s1]);
-    assert(a[2] == 0);
+    assert(!a.is_infinite);
     assert(g1 + zero == g1);
     assert(g1 - g1 == zero);
     assert(g1 - zero == g1);
     assert(zero + zero == zero);
     assert(
         multi_scalar_mul([g1], [s1])
-        == [1, 17631683881184975370165255887551781615748388533673675138860, 0]
+        == EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false }
     );
-    assert(multi_scalar_mul([g1, g1], [s1, s1]) == [g2.x, g2.y, 0]);
+    assert(multi_scalar_mul([g1, g1], [s1, s1]) == g2);
     assert(
         multi_scalar_mul(
         [g1, zero],
         [EmbeddedCurveScalar { lo: 2, hi: 0 }, EmbeddedCurveScalar { lo: 42, hi: 25 }]
     )
-        == [g2.x, g2.y, 0]
+        == g2
     );
     assert(
         multi_scalar_mul(
         [g1, g1, zero],
         [s1, s1, EmbeddedCurveScalar { lo: 42, hi: 25 }]
     )
-        == [g2.x, g2.y, 0]
+        == g2
     );
 }

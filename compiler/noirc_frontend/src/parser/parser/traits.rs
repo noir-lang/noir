@@ -2,13 +2,16 @@ use chumsky::prelude::*;
 
 use super::attributes::{attributes, validate_secondary_attributes};
 use super::function::function_return_type;
-use super::types::maybe_comp_time;
-use super::{block, expression, fresh_statement, function, function_declaration_parameters};
+use super::path::path_no_turbofish;
+use super::{
+    block, expression, fresh_statement, function, function_declaration_parameters, let_statement,
+};
 
 use crate::ast::{
     Expression, ItemVisibility, NoirTrait, NoirTraitImpl, TraitBound, TraitImplItem, TraitItem,
     UnresolvedTraitConstraint, UnresolvedType,
 };
+use crate::macros_api::Pattern;
 use crate::{
     parser::{
         ignore_then_commit, parenthesized, parser::primitives::keyword, NoirParser, ParserError,
@@ -17,7 +20,7 @@ use crate::{
     token::{Keyword, Token},
 };
 
-use super::{generic_type_args, parse_type, path, primitives::ident};
+use super::{generic_type_args, parse_type, primitives::ident};
 
 pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
     attributes()
@@ -59,13 +62,7 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
         .then(parse_type())
         .then(optional_default_value())
         .then_ignore(just(Token::Semicolon))
-        .validate(|((name, typ), default_value), span, emit| {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("Associated constants"),
-                span,
-            ));
-            TraitItem::Constant { name, typ, default_value }
-        })
+        .map(|((name, typ), default_value)| TraitItem::Constant { name, typ, default_value })
 }
 
 /// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
@@ -104,10 +101,9 @@ fn trait_type_declaration() -> impl NoirParser<TraitItem> {
 ///
 /// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
 pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
-    maybe_comp_time()
-        .then_ignore(keyword(Keyword::Impl))
-        .then(function::generics())
-        .then(path())
+    keyword(Keyword::Impl)
+        .ignore_then(function::generics())
+        .then(path_no_turbofish())
         .then(generic_type_args(parse_type()))
         .then_ignore(keyword(Keyword::For))
         .then(parse_type())
@@ -117,7 +113,7 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::RightBrace))
         .map(|args| {
             let (((other_args, object_type), where_clause), items) = args;
-            let (((is_comptime, impl_generics), trait_name), trait_generics) = other_args;
+            let ((impl_generics, trait_name), trait_generics) = other_args;
 
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
@@ -126,7 +122,6 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
                 object_type,
                 items,
                 where_clause,
-                is_comptime,
             })
         })
 }
@@ -148,10 +143,20 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
         .then_ignore(just(Token::Semicolon))
         .map(|(name, alias)| TraitImplItem::Type { name, alias });
 
-    function.or(alias).repeated()
+    let let_statement = let_statement(expression()).then_ignore(just(Token::Semicolon)).try_map(
+        |((pattern, typ), expr), span| match pattern {
+            Pattern::Identifier(ident) => Ok(TraitImplItem::Constant(ident, typ, expr)),
+            _ => Err(ParserError::with_reason(
+                ParserErrorReason::PatternInTraitFunctionParameter,
+                span,
+            )),
+        },
+    );
+
+    choice((function, alias, let_statement)).repeated()
 }
 
-fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
+pub(super) fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
     struct MultiTraitConstraint {
         typ: UnresolvedType,
         trait_bounds: Vec<TraitBound>,
@@ -163,7 +168,7 @@ fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
         .map(|(typ, trait_bounds)| MultiTraitConstraint { typ, trait_bounds });
 
     keyword(Keyword::Where)
-        .ignore_then(constraints.separated_by(just(Token::Comma)))
+        .ignore_then(constraints.separated_by(just(Token::Comma)).allow_trailing())
         .or_not()
         .map(|option| option.unwrap_or_default())
         .map(|x: Vec<MultiTraitConstraint>| {
@@ -184,11 +189,9 @@ fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
     trait_bound().separated_by(just(Token::Plus)).at_least(1).allow_trailing()
 }
 
-fn trait_bound() -> impl NoirParser<TraitBound> {
-    path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
-        trait_path,
-        trait_generics,
-        trait_id: None,
+pub fn trait_bound() -> impl NoirParser<TraitBound> {
+    path_no_turbofish().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| {
+        TraitBound { trait_path, trait_generics, trait_id: None }
     })
 }
 
@@ -215,6 +218,7 @@ mod test {
                 "trait GenericTrait<T> { fn elem(&mut self, index: Field) -> T; }",
                 "trait GenericTraitWithConstraints<T> where T: SomeTrait { fn elem(self, index: Field) -> T; }",
                 "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C> { let Size: Field; fn zero() -> Self; }",
+                "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C>, { let Size: Field; fn zero() -> Self; }",
             ],
         );
 

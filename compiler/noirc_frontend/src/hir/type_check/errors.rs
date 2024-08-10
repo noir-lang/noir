@@ -152,6 +152,8 @@ pub enum TypeCheckError {
     StringIndexAssign { span: Span },
     #[error("Macro calls may only return `Quoted` values")]
     MacroReturningNonExpr { typ: Type, span: Span },
+    #[error("turbofish (`::<_>`) usage at this position isn't supported yet")]
+    UnsupportedTurbofishUsage { span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -350,6 +352,10 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 "Macro calls must return quoted values, otherwise there is no code to insert".into(),
                 *span,
             ),
+            TypeCheckError::UnsupportedTurbofishUsage { span } => {
+                let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
+                Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
+            },
         }
     }
 }

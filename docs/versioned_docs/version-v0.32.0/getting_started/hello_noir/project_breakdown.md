@@ -8,8 +8,7 @@ keywords:
 sidebar_position: 2 
 ---
 
-This section breaks down our hello world program from the previous section. We elaborate on the project
-structure and what the `prove` and `verify` commands did.
+This section breaks down our hello world program from the previous section.
 
 ## Anatomy of a Nargo Project
 

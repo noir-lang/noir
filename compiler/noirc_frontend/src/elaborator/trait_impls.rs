@@ -61,7 +61,7 @@ impl<'context> Elaborator<'context> {
                     let module = self.module_id();
                     let location = Location::new(default_impl.def.span, trait_impl.file_id);
                     self.interner.push_function(func_id, &default_impl.def, module, location);
-                    self.define_function_meta(&mut default_impl_clone, func_id, false);
+                    self.define_function_meta(&mut default_impl_clone, func_id, None);
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,

@@ -5,8 +5,8 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, Ident, IfExpression,
     IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
-    MemberAccessExpression, MethodCallExpression, Path, Pattern, PrefixExpression, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression,
+    MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent};
@@ -88,13 +88,19 @@ impl HirExpression {
     pub fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> Expression {
         let kind = match self {
             HirExpression::Ident(ident, generics) => {
-                let path = Path::from_ident(ident.to_display_ast(interner));
-                ExpressionKind::Variable(
-                    path,
-                    generics.as_ref().map(|option| {
+                let ident = ident.to_display_ast(interner);
+                let segment = PathSegment {
+                    ident,
+                    generics: generics.as_ref().map(|option| {
                         option.iter().map(|generic| generic.to_display_ast()).collect()
                     }),
-                )
+                    span,
+                };
+
+                let path =
+                    Path { segments: vec![segment], kind: crate::ast::PathKind::Plain, span };
+
+                ExpressionKind::Variable(path)
             }
             HirExpression::Literal(HirLiteral::Array(array)) => {
                 let array = array.to_display_ast(interner, span);
@@ -352,6 +358,13 @@ impl Type {
             Type::Constant(_) => panic!("Type::Constant where a type was expected: {self:?}"),
             Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
             Type::Error => UnresolvedTypeData::Error,
+            Type::InfixExpr(lhs, op, rhs) => {
+                let lhs = Box::new(lhs.to_type_expression());
+                let rhs = Box::new(rhs.to_type_expression());
+                let span = Span::default();
+                let expr = UnresolvedTypeExpression::BinaryOperation(lhs, *op, rhs, span);
+                UnresolvedTypeData::Expression(expr)
+            }
         };
 
         UnresolvedType { typ, span: None }

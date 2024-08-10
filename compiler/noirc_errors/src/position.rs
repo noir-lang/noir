@@ -43,6 +43,10 @@ impl<T> Spanned<T> {
     pub fn span(&self) -> Span {
         self.span
     }
+
+    pub fn set_span(&mut self, span: Span) {
+        self.span = span;
+    }
 }
 
 impl<T> std::borrow::Borrow<T> for Spanned<T> {
