@@ -375,6 +375,10 @@ impl<'a> NodeFinder<'a> {
         let_statement: &LetStatement,
         collect_local_variables: bool,
     ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_unresolved_type(&let_statement.r#type) {
+            return Some(response);
+        }
+
         if let Some(response) = self.find_in_expression(&let_statement.expression) {
             return Some(response);
         }
@@ -658,8 +662,13 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_lambda(&mut self, lambda: &Lambda) -> Option<CompletionResponse> {
-        let old_local_variables = self.local_variables.clone();
+        for (_, unresolved_type) in &lambda.parameters {
+            if let Some(response) = self.find_in_unresolved_type(unresolved_type) {
+                return Some(response);
+            }
+        }
 
+        let old_local_variables = self.local_variables.clone();
         for (pattern, _) in &lambda.parameters {
             self.collect_local_variables(pattern)
         }
@@ -1971,6 +1980,46 @@ mod completion_tests {
 
           trait Trait {
             fn foo() -> S>|<;
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Something",
+                CompletionItemKind::STRUCT,
+                Some("Something".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_type_in_let_type() {
+        let src = r#"
+          struct Something {}
+
+          fn main() {
+            let x: S>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Something",
+                CompletionItemKind::STRUCT,
+                Some("Something".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_type_in_lambda_parameter() {
+        let src = r#"
+          struct Something {}
+
+          fn main() {
+            foo(|s: S>|<| s)
           }
         "#;
         assert_completion(
