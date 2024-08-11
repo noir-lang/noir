@@ -1,8 +1,5 @@
 use acvm::{
-    acir::{
-        circuit::Program,
-        native_types::{WitnessMap, WitnessStack},
-    },
+    acir::native_types::{WitnessMap, WitnessStack},
     BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
@@ -59,30 +56,43 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                     circuit_execution,
                 )
             } else {
-                use noir_fuzzer::FuzzedExecutor;
-                use proptest::test_runner::TestRunner;
-                let runner = TestRunner::default();
-
-                let executor = |program: &Program<FieldElement>,
-                                initial_witness: WitnessMap<FieldElement>|
-                 -> Result<WitnessStack<FieldElement>, String> {
-                    execute_program(
-                        program,
-                        initial_witness,
-                        blackbox_solver,
-                        &mut DefaultForeignCallExecutor::<FieldElement>::new(false, None),
-                    )
-                    .map_err(|err| err.to_string())
-                };
-                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
-
-                let result = fuzzer.fuzz();
-                if result.success {
-                    TestStatus::Pass
-                } else {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    // We currently don't support fuzz testing on wasm32 as the u128 strategies do not exist on this platform.
                     TestStatus::Fail {
-                        message: result.reason.unwrap_or_default(),
+                        message: "Fuzz tests are not supported on wasm32".to_string(),
                         error_diagnostic: None,
+                    }
+                }
+
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    use acvm::acir::circuit::Program;
+                    use noir_fuzzer::FuzzedExecutor;
+                    use proptest::test_runner::TestRunner;
+                    let runner = TestRunner::default();
+    
+                    let executor = |program: &Program<FieldElement>,
+                                    initial_witness: WitnessMap<FieldElement>|
+                     -> Result<WitnessStack<FieldElement>, String> {
+                        execute_program(
+                            program,
+                            initial_witness,
+                            blackbox_solver,
+                            &mut DefaultForeignCallExecutor::<FieldElement>::new(false, foreign_call_resolver_url),
+                        )
+                        .map_err(|err| err.to_string())
+                    };
+                    let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
+    
+                    let result = fuzzer.fuzz();
+                    if result.success {
+                        TestStatus::Pass
+                    } else {
+                        TestStatus::Fail {
+                            message: result.reason.unwrap_or_default(),
+                            error_diagnostic: None,
+                        }
                     }
                 }
             }
