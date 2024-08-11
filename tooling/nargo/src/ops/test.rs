@@ -71,20 +71,24 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                     use noir_fuzzer::FuzzedExecutor;
                     use proptest::test_runner::TestRunner;
                     let runner = TestRunner::default();
-    
-                    let executor = |program: &Program<FieldElement>,
-                                    initial_witness: WitnessMap<FieldElement>|
-                     -> Result<WitnessStack<FieldElement>, String> {
-                        execute_program(
-                            program,
-                            initial_witness,
-                            blackbox_solver,
-                            &mut DefaultForeignCallExecutor::<FieldElement>::new(false, foreign_call_resolver_url),
-                        )
-                        .map_err(|err| err.to_string())
-                    };
+
+                    let executor =
+                        |program: &Program<FieldElement>,
+                         initial_witness: WitnessMap<FieldElement>|
+                         -> Result<WitnessStack<FieldElement>, String> {
+                            execute_program(
+                                program,
+                                initial_witness,
+                                blackbox_solver,
+                                &mut DefaultForeignCallExecutor::<FieldElement>::new(
+                                    false,
+                                    foreign_call_resolver_url,
+                                ),
+                            )
+                            .map_err(|err| err.to_string())
+                        };
                     let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
-    
+
                     let result = fuzzer.fuzz();
                     if result.success {
                         TestStatus::Pass
