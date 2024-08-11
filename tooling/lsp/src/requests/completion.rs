@@ -177,6 +177,10 @@ impl<'a> NodeFinder<'a> {
         noir_function: &NoirFunction,
     ) -> Option<CompletionResponse> {
         self.local_variables.clear();
+        for param in &noir_function.def.parameters {
+            self.collect_local_variables(&param.pattern);
+        }
+
         self.find_in_block_expression(&noir_function.def.body)
     }
 
@@ -1106,6 +1110,24 @@ mod completion_tests {
                 "local",
                 CompletionItemKind::VARIABLE,
                 Some("bool".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_complete_path_with_function_argument() {
+        let src = r#"
+          fn main(local: Field) {
+            l>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "local",
+                CompletionItemKind::VARIABLE,
+                Some("Field".to_string()),
             )],
         )
         .await;
