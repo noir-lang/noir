@@ -669,28 +669,23 @@ impl<'a> NodeFinder<'a> {
         let func_meta = self.interner.function_meta(&func_id);
         let name = self.interner.function_name(&func_id).to_string();
 
+        let mut typ = &func_meta.typ;
+        if let Type::Forall(_, typ_) = typ {
+            typ = typ_;
+        }
+        let description = typ.to_string();
+        let description = description.strip_suffix(" -> ()").unwrap_or(&description).to_string();
+
         match function_completion_kind {
             FunctionCompleteKind::Name => {
-                let mut typ = &func_meta.typ;
-                if let Type::Forall(_, typ_) = typ {
-                    typ = typ_;
-                }
-                let description = typ.to_string();
-
                 simple_completion_item(name, CompletionItemKind::FUNCTION, Some(description))
             }
             FunctionCompleteKind::NameAndParameters => {
-                let mut typ = &func_meta.typ;
-                if let Type::Forall(_, typ_) = typ {
-                    typ = typ_;
-                }
-
                 let label = format!("{}(…)", name);
                 let kind = CompletionItemKind::FUNCTION;
-                let description = Some(typ.to_string());
                 let insert_text = self.compute_function_insert_text(&func_meta, &name);
 
-                snippet_completion_item(label, kind, insert_text, description)
+                snippet_completion_item(label, kind, insert_text, Some(description))
             }
         }
     }
@@ -1292,7 +1287,7 @@ mod completion_tests {
                 "hello(…)",
                 CompletionItemKind::FUNCTION,
                 "hello(${1:x}, ${2:y})",
-                Some("fn(i32, Field) -> ()".to_string()),
+                Some("fn(i32, Field)".to_string()),
             )],
         )
         .await;
@@ -1318,7 +1313,7 @@ mod completion_tests {
                     "assert_constant(…)",
                     CompletionItemKind::FUNCTION,
                     "assert_constant(${1:x})",
-                    Some("fn(T) -> ()".to_string()),
+                    Some("fn(T)".to_string()),
                 ),
                 snippet_completion_item(
                     "assert_eq(…)",
