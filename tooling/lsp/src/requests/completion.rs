@@ -383,7 +383,7 @@ impl<'a> NodeFinder<'a> {
 
         let response = self.complete_in_module(
             module_id,
-            prefix.clone(),
+            &prefix,
             path.kind,
             at_root,
             module_completion_kind,
@@ -391,18 +391,23 @@ impl<'a> NodeFinder<'a> {
         );
 
         if is_single_segment {
-            let local_vars_response = self.local_variables_completion(prefix);
-            merge_completion_responses(response, local_vars_response)
+            let local_vars_response = self.local_variables_completion(&prefix);
+            let response = merge_completion_responses(response, local_vars_response);
+
+            let predefined_response = predefined_functions_completion(&prefix);
+            let response = merge_completion_responses(response, predefined_response);
+
+            response
         } else {
             response
         }
     }
 
-    fn local_variables_completion(&self, prefix: String) -> Option<CompletionResponse> {
+    fn local_variables_completion(&self, prefix: &String) -> Option<CompletionResponse> {
         let mut completion_items = Vec::new();
 
         for (name, span) in &self.local_variables {
-            if name_matches(name, &prefix) {
+            if name_matches(name, prefix) {
                 let location = Location::new(*span, self.file);
                 let description = if let Some(ReferenceId::Local(definition_id)) =
                     self.interner.reference_at_location(location)
@@ -494,7 +499,7 @@ impl<'a> NodeFinder<'a> {
                 let at_root = false;
                 self.complete_in_module(
                     module_id,
-                    prefix,
+                    &prefix,
                     path_kind,
                     at_root,
                     module_completion_kind,
@@ -508,7 +513,7 @@ impl<'a> NodeFinder<'a> {
                 let at_root = true;
                 self.complete_in_module(
                     self.module_id,
-                    prefix,
+                    &prefix,
                     path_kind,
                     at_root,
                     module_completion_kind,
@@ -519,7 +524,7 @@ impl<'a> NodeFinder<'a> {
                 self.resolve_module(segments).and_then(|module_id| {
                     self.complete_in_module(
                         module_id,
-                        prefix,
+                        &prefix,
                         path_kind,
                         at_root,
                         module_completion_kind,
@@ -552,7 +557,7 @@ impl<'a> NodeFinder<'a> {
     fn complete_in_module(
         &self,
         module_id: ModuleId,
-        prefix: String,
+        prefix: &String,
         path_kind: PathKind,
         at_root: bool,
         module_completion_kind: ModuleCompletionKind,
@@ -584,7 +589,7 @@ impl<'a> NodeFinder<'a> {
         for ident in items.names() {
             let name = &ident.0.contents;
 
-            if name_matches(name, &prefix) {
+            if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, _, _)) = per_ns.types {
                     completion_items.push(self.module_def_id_completion_item(
@@ -607,7 +612,7 @@ impl<'a> NodeFinder<'a> {
         if at_root && path_kind == PathKind::Plain {
             for dependency in self.dependencies {
                 let dependency_name = dependency.as_name();
-                if name_matches(&dependency_name, &prefix) {
+                if name_matches(&dependency_name, prefix) {
                     completion_items.push(crate_completion_item(dependency_name));
                 }
             }
@@ -779,6 +784,34 @@ impl<'a> NodeFinder<'a> {
 
 fn name_matches(name: &str, prefix: &str) -> bool {
     name.starts_with(prefix)
+}
+
+fn predefined_functions_completion(prefix: &String) -> Option<CompletionResponse> {
+    let mut completion_items = Vec::new();
+
+    if name_matches("assert", prefix) {
+        completion_items.push(snippet_completion_item(
+            "assert(…)",
+            CompletionItemKind::FUNCTION,
+            "assert(${1:predicate})",
+            None,
+        ));
+    }
+
+    if name_matches("assert_eq", prefix) {
+        completion_items.push(snippet_completion_item(
+            "assert_eq(…)",
+            CompletionItemKind::FUNCTION,
+            "assert_eq(${1:lhs}, ${2:rhs})",
+            None,
+        ));
+    }
+
+    if completion_items.is_empty() {
+        None
+    } else {
+        Some(CompletionResponse::Array(completion_items))
+    }
 }
 
 fn module_completion_item(name: impl Into<String>) -> CompletionItem {
@@ -1261,6 +1294,39 @@ mod completion_tests {
                 "hello(${1:x}, ${2:y})",
                 Some("fn(i32, Field) -> ()".to_string()),
             )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_complete_predefined_functions() {
+        let src = r#"
+          fn main() {
+            a>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                snippet_completion_item(
+                    "assert(…)",
+                    CompletionItemKind::FUNCTION,
+                    "assert(${1:predicate})",
+                    None,
+                ),
+                snippet_completion_item(
+                    "assert_constant(…)",
+                    CompletionItemKind::FUNCTION,
+                    "assert_constant(${1:x})",
+                    Some("fn(T) -> ()".to_string()),
+                ),
+                snippet_completion_item(
+                    "assert_eq(…)",
+                    CompletionItemKind::FUNCTION,
+                    "assert_eq(${1:lhs}, ${2:rhs})",
+                    None,
+                ),
+            ],
         )
         .await;
     }
