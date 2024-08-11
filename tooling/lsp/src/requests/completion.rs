@@ -13,11 +13,11 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
         ArrayLiteral, AsTraitPath, BlockExpression, CallExpression, CastExpression,
-        ConstrainStatement, ConstructorExpression, Expression, ForLoopStatement, ForRange, Ident,
-        IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
-        MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, NoirTrait,
-        NoirTraitImpl, NoirTypeAlias, Path, PathKind, PathSegment, Pattern, Statement,
-        TraitImplItem, TraitItem, TypeImpl, UnresolvedType, UseTree, UseTreeKind,
+        ConstrainStatement, ConstructorExpression, Expression, ForLoopStatement, ForRange,
+        FunctionReturnType, Ident, IfExpression, IndexExpression, InfixExpression, LValue, Lambda,
+        LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction,
+        NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind, PathSegment, Pattern,
+        Statement, TraitImplItem, TraitItem, TypeImpl, UnresolvedType, UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -196,6 +196,16 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         noir_function: &NoirFunction,
     ) -> Option<CompletionResponse> {
+        for param in &noir_function.def.parameters {
+            if let Some(response) = self.find_in_unresolved_type(&param.typ) {
+                return Some(response);
+            }
+        }
+
+        if let Some(response) = self.find_in_function_return_type(&noir_function.def.return_type) {
+            return Some(response);
+        }
+
         self.local_variables.clear();
         for param in &noir_function.def.parameters {
             self.collect_local_variables(&param.pattern);
@@ -236,9 +246,9 @@ impl<'a> NodeFinder<'a> {
 
     fn find_in_noir_type_alias(
         &mut self,
-        _noir_type_alias: &NoirTypeAlias,
+        noir_type_alias: &NoirTypeAlias,
     ) -> Option<CompletionResponse> {
-        None
+        self.find_in_unresolved_type(&noir_type_alias.typ)
     }
 
     fn find_in_noir_struct(&mut self, noir_struct: &NoirStruct) -> Option<CompletionResponse> {
@@ -266,10 +276,28 @@ impl<'a> NodeFinder<'a> {
                 name: _,
                 generics: _,
                 parameters,
-                return_type: _,
-                where_clause: _,
+                return_type,
+                where_clause,
                 body,
             } => {
+                for (_name, unresolved_type) in parameters {
+                    if let Some(response) = self.find_in_unresolved_type(unresolved_type) {
+                        return Some(response);
+                    }
+                }
+
+                if let Some(response) = self.find_in_function_return_type(return_type) {
+                    return Some(response);
+                }
+
+                for unresolved_trait_constraint in where_clause {
+                    if let Some(response) =
+                        self.find_in_unresolved_type(&unresolved_trait_constraint.typ)
+                    {
+                        return Some(response);
+                    }
+                }
+
                 if let Some(body) = body {
                     self.local_variables.clear();
                     for (name, _) in parameters {
@@ -280,7 +308,11 @@ impl<'a> NodeFinder<'a> {
                     None
                 }
             }
-            TraitItem::Constant { name: _, typ: _, default_value } => {
+            TraitItem::Constant { name: _, typ, default_value } => {
+                if let Some(response) = self.find_in_unresolved_type(typ) {
+                    return Some(response);
+                }
+
                 if let Some(default_value) = default_value {
                     self.find_in_expression(default_value)
                 } else {
@@ -641,6 +673,18 @@ impl<'a> NodeFinder<'a> {
 
     fn find_in_as_trait_path(&mut self, as_trait_path: &AsTraitPath) -> Option<CompletionResponse> {
         self.find_in_path(&as_trait_path.trait_path, PathCompletionKind::OnlyTypes)
+    }
+
+    fn find_in_function_return_type(
+        &mut self,
+        return_type: &FunctionReturnType,
+    ) -> Option<CompletionResponse> {
+        match return_type {
+            noirc_frontend::ast::FunctionReturnType::Default(_) => None,
+            noirc_frontend::ast::FunctionReturnType::Ty(unresolved_type) => {
+                self.find_in_unresolved_type(unresolved_type)
+            }
+        }
     }
 
     fn find_in_unresolved_types(
@@ -1833,6 +1877,100 @@ mod completion_tests {
 
           struct Another {
             some: S>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Something",
+                CompletionItemKind::STRUCT,
+                Some("Something".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_type_in_function_parameter() {
+        let src = r#"
+          struct Something {}
+
+          fn foo(x: S>|<) {}
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Something",
+                CompletionItemKind::STRUCT,
+                Some("Something".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_type_in_function_return_type() {
+        let src = r#"
+          struct Something {}
+
+          fn foo() -> S>|< {}
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Something",
+                CompletionItemKind::STRUCT,
+                Some("Something".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_type_in_type_alias() {
+        let src = r#"
+          struct Something {}
+
+          type Foo = S>|<
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Something",
+                CompletionItemKind::STRUCT,
+                Some("Something".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_type_in_trait_function() {
+        let src = r#"
+          struct Something {}
+
+          trait Trait {
+            fn foo(s: S>|<);
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Something",
+                CompletionItemKind::STRUCT,
+                Some("Something".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_type_in_trait_function_return_type() {
+        let src = r#"
+          struct Something {}
+
+          trait Trait {
+            fn foo() -> S>|<;
           }
         "#;
         assert_completion(
