@@ -838,7 +838,12 @@ impl<'a> NodeFinder<'a> {
 
                     response
                 }
-                PathCompletionKind::OnlyTypes => response,
+                PathCompletionKind::OnlyTypes => {
+                    let builtin_types_response = builtin_types_completion(&prefix);
+                    let response = merge_completion_responses(response, builtin_types_response);
+
+                    response
+                }
             }
         } else {
             response
@@ -1266,6 +1271,45 @@ fn predefined_functions_completion(prefix: &String) -> Option<CompletionResponse
             "assert_eq(${1:lhs}, ${2:rhs})",
             Some("fn(T, T)".to_string()),
         ));
+    }
+
+    if completion_items.is_empty() {
+        None
+    } else {
+        Some(CompletionResponse::Array(completion_items))
+    }
+}
+
+fn builtin_types_completion(prefix: &String) -> Option<CompletionResponse> {
+    let mut completion_items = Vec::new();
+
+    for typ in [
+        "bool",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "str",
+        "Expr",
+        "Field",
+        "FunctionDefinition",
+        "Quoted",
+        "StructDefinition",
+        "TraitConstraint",
+        "TraitDefinition",
+        "Type",
+    ] {
+        if name_matches(typ, prefix) {
+            completion_items.push(simple_completion_item(
+                typ,
+                CompletionItemKind::STRUCT,
+                Some(typ.to_string()),
+            ));
+        }
     }
 
     if completion_items.is_empty() {
@@ -2029,6 +2073,23 @@ mod completion_tests {
                 CompletionItemKind::STRUCT,
                 Some("Something".to_string()),
             )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_builtin_types() {
+        let src = r#"
+            fn foo(x: i>|<) {}
+        "#;
+        assert_completion(
+            src,
+            vec![
+                simple_completion_item("i8", CompletionItemKind::STRUCT, Some("i8".to_string())),
+                simple_completion_item("i16", CompletionItemKind::STRUCT, Some("i16".to_string())),
+                simple_completion_item("i32", CompletionItemKind::STRUCT, Some("i32".to_string())),
+                simple_completion_item("i64", CompletionItemKind::STRUCT, Some("i64".to_string())),
+            ],
         )
         .await;
     }
