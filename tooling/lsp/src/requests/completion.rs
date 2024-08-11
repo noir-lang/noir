@@ -320,11 +320,19 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         for_loop_statement: &ForLoopStatement,
     ) -> Option<CompletionResponse> {
+        let old_local_variables = self.local_variables.clone();
+        let ident = &for_loop_statement.identifier;
+        self.local_variables.insert(ident.to_string(), ident.span());
+
         if let Some(response) = self.find_in_for_range(&for_loop_statement.range) {
             return Some(response);
         }
 
-        self.find_in_expression(&for_loop_statement.block)
+        let response = self.find_in_expression(&for_loop_statement.block);
+
+        self.local_variables = old_local_variables;
+
+        response
     }
 
     fn find_in_lvalue(&mut self, lvalue: &LValue) -> Option<CompletionResponse> {
@@ -1588,6 +1596,46 @@ mod completion_tests {
                 "SomeStruct",
                 CompletionItemKind::STRUCT,
                 Some("SomeStruct".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_complete_path_with_for_argument() {
+        let src = r#"
+          fn main() {
+            for index in 0..10 {
+                i>|<
+            }
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "index",
+                CompletionItemKind::VARIABLE,
+                Some("u32".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_complete_path_with_lambda_argument() {
+        let src = r#"
+          fn lambda(f: fn(i32)) { }
+
+          fn main() {
+            lambda(|var| v>|<)
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "var",
+                CompletionItemKind::VARIABLE,
+                Some("_".to_string()),
             )],
         )
         .await;
