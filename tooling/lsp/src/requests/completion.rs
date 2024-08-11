@@ -15,8 +15,9 @@ use noirc_frontend::{
         ArrayLiteral, AsTraitPath, BlockExpression, CallExpression, CastExpression,
         ConstrainStatement, ConstructorExpression, Expression, ForLoopStatement, ForRange, Ident,
         IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
-        MemberAccessExpression, MethodCallExpression, NoirFunction, NoirTraitImpl, Path, PathKind,
-        PathSegment, Pattern, Statement, TraitImplItem, TypeImpl, UseTree, UseTreeKind,
+        MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, NoirTrait,
+        NoirTraitImpl, NoirTypeAlias, Path, PathKind, PathSegment, Pattern, Statement,
+        TraitImplItem, TraitItem, TypeImpl, UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -178,9 +179,9 @@ impl<'a> NodeFinder<'a> {
             ItemKind::TraitImpl(noir_trait_impl) => self.find_in_noir_trait_impl(noir_trait_impl),
             ItemKind::Impl(type_impl) => self.find_in_type_impl(type_impl),
             ItemKind::Global(let_statement) => self.find_in_let_statement(let_statement, false),
-            ItemKind::TypeAlias(_) => todo!(),
-            ItemKind::Struct(_) => todo!(),
-            ItemKind::Trait(_) => todo!(),
+            ItemKind::TypeAlias(noir_type_alias) => self.find_in_noir_type_alias(noir_type_alias),
+            ItemKind::Struct(noir_struct) => self.find_in_noir_struct(noir_struct),
+            ItemKind::Trait(noir_trait) => self.find_in_noir_trait(noir_trait),
             ItemKind::ModuleDecl(_) => None,
         }
     }
@@ -225,6 +226,57 @@ impl<'a> NodeFinder<'a> {
         }
 
         None
+    }
+
+    fn find_in_noir_type_alias(
+        &mut self,
+        _noir_type_alias: &NoirTypeAlias,
+    ) -> Option<CompletionResponse> {
+        None
+    }
+
+    fn find_in_noir_struct(&mut self, _noir_struct: &NoirStruct) -> Option<CompletionResponse> {
+        None
+    }
+
+    fn find_in_noir_trait(&mut self, noir_trait: &NoirTrait) -> Option<CompletionResponse> {
+        for item in &noir_trait.items {
+            if let Some(response) = self.find_in_trait_item(item) {
+                return Some(response);
+            }
+        }
+        None
+    }
+
+    fn find_in_trait_item(&mut self, trait_item: &TraitItem) -> Option<CompletionResponse> {
+        match trait_item {
+            TraitItem::Function {
+                name: _,
+                generics: _,
+                parameters,
+                return_type: _,
+                where_clause: _,
+                body,
+            } => {
+                if let Some(body) = body {
+                    self.local_variables.clear();
+                    for (name, _) in parameters {
+                        self.local_variables.insert(name.to_string(), name.span());
+                    }
+                    self.find_in_block_expression(body)
+                } else {
+                    None
+                }
+            }
+            TraitItem::Constant { name: _, typ: _, default_value } => {
+                if let Some(default_value) = default_value {
+                    self.find_in_expression(default_value)
+                } else {
+                    None
+                }
+            }
+            TraitItem::Type { name: _ } => None,
+        }
     }
 
     fn find_in_block_expression(
