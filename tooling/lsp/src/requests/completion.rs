@@ -48,8 +48,8 @@ enum FunctionCompleteKind {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum PathCompletionKind {
-    Everything,
+enum RequestedItems {
+    AnyItems,
     OnlyTypes,
 }
 
@@ -506,7 +506,7 @@ impl<'a> NodeFinder<'a> {
                 self.find_in_if_expression(if_expression)
             }
             noirc_frontend::ast::ExpressionKind::Variable(path) => {
-                self.find_in_path(path, PathCompletionKind::Everything)
+                self.find_in_path(path, RequestedItems::AnyItems)
             }
             noirc_frontend::ast::ExpressionKind::Tuple(expressions) => {
                 self.find_in_expressions(expressions)
@@ -603,7 +603,7 @@ impl<'a> NodeFinder<'a> {
         constructor_expression: &ConstructorExpression,
     ) -> Option<CompletionResponse> {
         if let Some(response) =
-            self.find_in_path(&constructor_expression.type_name, PathCompletionKind::OnlyTypes)
+            self.find_in_path(&constructor_expression.type_name, RequestedItems::OnlyTypes)
         {
             return Some(response);
         }
@@ -681,7 +681,7 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_as_trait_path(&mut self, as_trait_path: &AsTraitPath) -> Option<CompletionResponse> {
-        self.find_in_path(&as_trait_path.trait_path, PathCompletionKind::OnlyTypes)
+        self.find_in_path(&as_trait_path.trait_path, RequestedItems::OnlyTypes)
     }
 
     fn find_in_function_return_type(
@@ -730,14 +730,14 @@ impl<'a> NodeFinder<'a> {
                 self.find_in_unresolved_type(unresolved_type)
             }
             noirc_frontend::ast::UnresolvedTypeData::Named(path, unresolved_types, _) => {
-                if let Some(response) = self.find_in_path(path, PathCompletionKind::OnlyTypes) {
+                if let Some(response) = self.find_in_path(path, RequestedItems::OnlyTypes) {
                     return Some(response);
                 }
 
                 self.find_in_unresolved_types(unresolved_types)
             }
             noirc_frontend::ast::UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
-                if let Some(response) = self.find_in_path(path, PathCompletionKind::OnlyTypes) {
+                if let Some(response) = self.find_in_path(path, RequestedItems::OnlyTypes) {
                     return Some(response);
                 }
 
@@ -780,7 +780,7 @@ impl<'a> NodeFinder<'a> {
     fn find_in_path(
         &mut self,
         path: &Path,
-        path_completion_kind: PathCompletionKind,
+        requested_items: RequestedItems,
     ) -> Option<CompletionResponse> {
         // Only offer completions if we are right at the end of the path
         if self.byte_index != path.span.end() as usize {
@@ -824,12 +824,12 @@ impl<'a> NodeFinder<'a> {
             at_root,
             module_completion_kind,
             function_completion_kind,
-            path_completion_kind,
+            requested_items,
         );
 
         if is_single_segment {
-            match path_completion_kind {
-                PathCompletionKind::Everything => {
+            match requested_items {
+                RequestedItems::AnyItems => {
                     let local_vars_response = self.local_variables_completion(&prefix);
                     let response = merge_completion_responses(response, local_vars_response);
 
@@ -838,7 +838,7 @@ impl<'a> NodeFinder<'a> {
 
                     response
                 }
-                PathCompletionKind::OnlyTypes => {
+                RequestedItems::OnlyTypes => {
                     let builtin_types_response = builtin_types_completion(&prefix);
                     let response = merge_completion_responses(response, builtin_types_response);
 
@@ -936,7 +936,7 @@ impl<'a> NodeFinder<'a> {
 
         let module_completion_kind = ModuleCompletionKind::DirectChildren;
         let function_completion_kind = FunctionCompleteKind::Name;
-        let path_completion_kind = PathCompletionKind::Everything;
+        let requested_items = RequestedItems::AnyItems;
 
         if after_colons {
             // We are right after "::"
@@ -952,7 +952,7 @@ impl<'a> NodeFinder<'a> {
                     at_root,
                     module_completion_kind,
                     function_completion_kind,
-                    path_completion_kind,
+                    requested_items,
                 )
             })
         } else {
@@ -967,7 +967,7 @@ impl<'a> NodeFinder<'a> {
                     at_root,
                     module_completion_kind,
                     function_completion_kind,
-                    path_completion_kind,
+                    requested_items,
                 )
             } else {
                 let at_root = false;
@@ -979,7 +979,7 @@ impl<'a> NodeFinder<'a> {
                         at_root,
                         module_completion_kind,
                         function_completion_kind,
-                        path_completion_kind,
+                        requested_items,
                     )
                 })
             }
@@ -1013,7 +1013,7 @@ impl<'a> NodeFinder<'a> {
         at_root: bool,
         module_completion_kind: ModuleCompletionKind,
         function_completion_kind: FunctionCompleteKind,
-        path_completion_kind: PathCompletionKind,
+        requested_items: RequestedItems,
     ) -> Option<CompletionResponse> {
         let def_map = &self.def_maps[&module_id.krate];
         let mut module_data = def_map.modules().get(module_id.local_id.0)?;
@@ -1048,7 +1048,7 @@ impl<'a> NodeFinder<'a> {
                         module_def_id,
                         name.clone(),
                         function_completion_kind,
-                        path_completion_kind,
+                        requested_items,
                     ) {
                         completion_items.push(completion_item);
                     }
@@ -1059,7 +1059,7 @@ impl<'a> NodeFinder<'a> {
                         module_def_id,
                         name.clone(),
                         function_completion_kind,
-                        path_completion_kind,
+                        requested_items,
                     ) {
                         completion_items.push(completion_item);
                     }
@@ -1104,17 +1104,17 @@ impl<'a> NodeFinder<'a> {
         module_def_id: ModuleDefId,
         name: String,
         function_completion_kind: FunctionCompleteKind,
-        path_completion_kind: PathCompletionKind,
+        requested_items: RequestedItems,
     ) -> Option<CompletionItem> {
-        match path_completion_kind {
-            PathCompletionKind::OnlyTypes => match module_def_id {
+        match requested_items {
+            RequestedItems::OnlyTypes => match module_def_id {
                 ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) => return None,
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeId(_)
                 | ModuleDefId::TypeAliasId(_)
                 | ModuleDefId::TraitId(_) => (),
             },
-            PathCompletionKind::Everything => (),
+            RequestedItems::AnyItems => (),
         }
 
         let completion_item = match module_def_id {
