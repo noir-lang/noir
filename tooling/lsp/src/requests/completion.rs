@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     future::{self, Future},
 };
 
@@ -9,11 +9,11 @@ use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
     CompletionResponse,
 };
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
         BlockExpression, Expression, Ident, LetStatement, NoirFunction, Path, PathKind,
-        PathSegment, Statement, UseTree, UseTreeKind,
+        PathSegment, Pattern, Statement, UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -21,7 +21,7 @@ use noirc_frontend::{
         resolution::path_resolver::{PathResolver, StandardPathResolver},
     },
     macros_api::{ModuleDefId, NodeInterner, StructId},
-    node_interner::{FuncId, GlobalId, TraitId, TypeAliasId},
+    node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
     parser::{Item, ItemKind},
     ParsedModule, Type,
 };
@@ -73,6 +73,7 @@ pub(crate) fn on_completion_request(
 }
 
 struct NodeFinder<'a> {
+    file: FileId,
     byte_index: usize,
     byte: Option<u8>,
     root_module_id: ModuleId,
@@ -80,6 +81,7 @@ struct NodeFinder<'a> {
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     dependencies: &'a Vec<Dependency>,
     interner: &'a NodeInterner,
+    local_variables: HashMap<String, Span>,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -103,7 +105,18 @@ impl<'a> NodeFinder<'a> {
             def_map.root()
         };
         let module_id = ModuleId { krate, local_id };
-        Self { byte_index, byte, root_module_id, module_id, def_maps, dependencies, interner }
+        let local_variables = HashMap::new();
+        Self {
+            file,
+            byte_index,
+            byte,
+            root_module_id,
+            module_id,
+            def_maps,
+            dependencies,
+            interner,
+            local_variables,
+        }
     }
 
     fn find(&mut self, parsed_module: &ParsedModule) -> Option<CompletionResponse> {
@@ -163,6 +176,7 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         noir_function: &NoirFunction,
     ) -> Option<CompletionResponse> {
+        self.local_variables.clear();
         self.find_in_block_expression(&noir_function.def.body)
     }
 
@@ -179,10 +193,6 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_statement(&mut self, statement: &Statement) -> Option<CompletionResponse> {
-        if !self.includes_span(statement.span) {
-            return None;
-        }
-
         match &statement.kind {
             noirc_frontend::ast::StatementKind::Let(let_statement) => {
                 self.find_in_let_statement(let_statement)
@@ -229,14 +239,16 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         let_statement: &LetStatement,
     ) -> Option<CompletionResponse> {
-        self.find_in_expression(&let_statement.expression)
+        if let Some(response) = self.find_in_expression(&let_statement.expression) {
+            return Some(response);
+        }
+
+        self.collect_local_variables(&let_statement.pattern);
+
+        None
     }
 
     fn find_in_expression(&mut self, expression: &Expression) -> Option<CompletionResponse> {
-        if !self.includes_span(expression.span) {
-            return None;
-        }
-
         match &expression.kind {
             noirc_frontend::ast::ExpressionKind::Literal(_) => {
                 // TODO
@@ -343,6 +355,8 @@ impl<'a> NodeFinder<'a> {
             at_root = idents.is_empty();
         }
 
+        let is_single_segment = !after_colons && idents.is_empty() && path.kind == PathKind::Plain;
+
         let module_id =
             if idents.is_empty() { Some(self.module_id) } else { self.resolve_module(idents) };
         let Some(module_id) = module_id else {
@@ -355,7 +369,50 @@ impl<'a> NodeFinder<'a> {
             ModuleCompletionKind::AllVisibleItems
         };
 
-        self.complete_in_module(module_id, prefix, path.kind, at_root, module_completion_kind)
+        let response = self.complete_in_module(
+            module_id,
+            prefix.clone(),
+            path.kind,
+            at_root,
+            module_completion_kind,
+        );
+
+        if is_single_segment {
+            let local_vars_response = self.local_variables_completion(prefix);
+            merge_completion_responses(response, local_vars_response)
+        } else {
+            response
+        }
+    }
+
+    fn local_variables_completion(&self, prefix: String) -> Option<CompletionResponse> {
+        let mut completion_items = Vec::new();
+
+        for (name, span) in &self.local_variables {
+            if name_matches(name, &prefix) {
+                let location = Location::new(*span, self.file);
+                let description = if let Some(ReferenceId::Local(definition_id)) =
+                    self.interner.reference_at_location(location)
+                {
+                    let typ = self.interner.definition_type(definition_id);
+                    Some(typ.to_string())
+                } else {
+                    None
+                };
+
+                completion_items.push(simple_completion_item(
+                    name,
+                    CompletionItemKind::VARIABLE,
+                    description,
+                ));
+            }
+        }
+
+        if completion_items.is_empty() {
+            None
+        } else {
+            Some(CompletionResponse::Array(completion_items))
+        }
     }
 
     fn find_in_use_tree(
@@ -456,6 +513,17 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    fn collect_local_variables(&mut self, pattern: &Pattern) {
+        match pattern {
+            Pattern::Identifier(ident) => {
+                self.local_variables.insert(ident.to_string(), ident.span());
+            }
+            Pattern::Mutable(_, _, _) => todo!(),
+            Pattern::Tuple(_, _) => todo!(),
+            Pattern::Struct(_, _, _) => todo!(),
+        }
+    }
+
     fn complete_in_module(
         &self,
         module_id: ModuleId,
@@ -529,7 +597,11 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
-        Some(CompletionResponse::Array(completion_items))
+        if completion_items.is_empty() {
+            None
+        } else {
+            Some(CompletionResponse::Array(completion_items))
+        }
     }
 
     fn module_def_id_completion_item(
@@ -654,6 +726,20 @@ fn simple_completion_item(
         commit_characters: None,
         data: None,
         tags: None,
+    }
+}
+
+fn merge_completion_responses(
+    response1: Option<CompletionResponse>,
+    response2: Option<CompletionResponse>,
+) -> Option<CompletionResponse> {
+    match (response1, response2) {
+        (Some(CompletionResponse::Array(mut items1)), Some(CompletionResponse::Array(items2))) => {
+            items1.extend(items2);
+            Some(CompletionResponse::Array(items1))
+        }
+        (Some(response), None) | (None, Some(response)) => Some(response),
+        _ => None,
     }
 }
 
@@ -984,5 +1070,44 @@ mod completion_tests {
           }
         "#;
         assert_completion(src, vec![module_completion_item("bar")]).await;
+    }
+
+    #[test]
+    async fn test_complete_path_with_local_variable() {
+        let src = r#"
+          fn main() {
+            let local = 1;
+            l>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "local",
+                CompletionItemKind::VARIABLE,
+                Some("Field".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_complete_path_with_shadowed_local_variable() {
+        let src = r#"
+          fn main() {
+            let local = 1;
+            let local = true;
+            l>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "local",
+                CompletionItemKind::VARIABLE,
+                Some("bool".to_string()),
+            )],
+        )
+        .await;
     }
 }
