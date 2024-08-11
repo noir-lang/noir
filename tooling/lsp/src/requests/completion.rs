@@ -12,8 +12,11 @@ use lsp_types::{
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        BlockExpression, Expression, Ident, LetStatement, NoirFunction, NoirTraitImpl, Path,
-        PathKind, PathSegment, Pattern, Statement, TraitImplItem, TypeImpl, UseTree, UseTreeKind,
+        ArrayLiteral, AsTraitPath, BlockExpression, CallExpression, CastExpression,
+        ConstrainStatement, ConstructorExpression, Expression, ForLoopStatement, ForRange, Ident,
+        IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
+        MemberAccessExpression, MethodCallExpression, NoirFunction, NoirTraitImpl, Path, PathKind,
+        PathSegment, Pattern, Statement, TraitImplItem, TypeImpl, UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -173,12 +176,12 @@ impl<'a> NodeFinder<'a> {
             }
             ItemKind::Function(noir_function) => self.find_in_noir_function(noir_function),
             ItemKind::TraitImpl(noir_trait_impl) => self.find_in_noir_trait_impl(noir_trait_impl),
+            ItemKind::Impl(type_impl) => self.find_in_type_impl(type_impl),
+            ItemKind::Global(let_statement) => self.find_in_let_statement(let_statement, false),
+            ItemKind::TypeAlias(_) => todo!(),
             ItemKind::Struct(_) => todo!(),
             ItemKind::Trait(_) => todo!(),
-            ItemKind::Impl(type_impl) => self.find_in_type_impl(type_impl),
-            ItemKind::TypeAlias(_) => todo!(),
-            ItemKind::Global(_) => todo!(),
-            ItemKind::ModuleDecl(_) => todo!(),
+            ItemKind::ModuleDecl(_) => None,
         }
     }
 
@@ -239,143 +242,329 @@ impl<'a> NodeFinder<'a> {
     fn find_in_statement(&mut self, statement: &Statement) -> Option<CompletionResponse> {
         match &statement.kind {
             noirc_frontend::ast::StatementKind::Let(let_statement) => {
-                self.find_in_let_statement(let_statement)
+                self.find_in_let_statement(let_statement, true)
             }
-            noirc_frontend::ast::StatementKind::Constrain(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::StatementKind::Constrain(constrain_statement) => {
+                self.find_in_constrain_statement(constrain_statement)
             }
             noirc_frontend::ast::StatementKind::Expression(expression) => {
                 self.find_in_expression(expression)
             }
-            noirc_frontend::ast::StatementKind::Assign(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::StatementKind::Assign(assign_statement) => {
+                self.find_in_assign_statement(assign_statement)
             }
-            noirc_frontend::ast::StatementKind::For(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::StatementKind::For(for_loop_statement) => {
+                self.find_in_for_loop_statement(for_loop_statement)
             }
-            noirc_frontend::ast::StatementKind::Break => {
-                // TODO
-                None
+            noirc_frontend::ast::StatementKind::Comptime(statement) => {
+                // When entering a comptime block, regular local variables shouldn't be offered anymore
+                let old_local_variables = self.local_variables.clone();
+                self.local_variables.clear();
+
+                let response = self.find_in_statement(&statement);
+                self.local_variables = old_local_variables;
+                response
             }
-            noirc_frontend::ast::StatementKind::Continue => {
-                // TODO
-                None
+            noirc_frontend::ast::StatementKind::Semi(expression) => {
+                self.find_in_expression(expression)
             }
-            noirc_frontend::ast::StatementKind::Comptime(_) => {
-                // TODO
-                None
-            }
-            noirc_frontend::ast::StatementKind::Semi(_) => {
-                // TODO
-                None
-            }
-            noirc_frontend::ast::StatementKind::Error => {
-                // TODO
-                None
-            }
+            noirc_frontend::ast::StatementKind::Break
+            | noirc_frontend::ast::StatementKind::Continue
+            | noirc_frontend::ast::StatementKind::Error => None,
         }
     }
 
     fn find_in_let_statement(
         &mut self,
         let_statement: &LetStatement,
+        collect_local_variables: bool,
     ) -> Option<CompletionResponse> {
         if let Some(response) = self.find_in_expression(&let_statement.expression) {
             return Some(response);
         }
 
-        self.collect_local_variables(&let_statement.pattern);
+        if collect_local_variables {
+            self.collect_local_variables(&let_statement.pattern);
+        }
 
+        None
+    }
+
+    fn find_in_constrain_statement(
+        &mut self,
+        constrain_statement: &ConstrainStatement,
+    ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_expression(&constrain_statement.0) {
+            return Some(response);
+        }
+
+        if let Some(exp) = &constrain_statement.1 {
+            self.find_in_expression(exp)
+        } else {
+            None
+        }
+    }
+
+    fn find_in_assign_statement(
+        &mut self,
+        assign_statement: &noirc_frontend::ast::AssignStatement,
+    ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_lvalue(&assign_statement.lvalue) {
+            return Some(response);
+        }
+
+        self.find_in_expression(&assign_statement.expression)
+    }
+
+    fn find_in_for_loop_statement(
+        &mut self,
+        for_loop_statement: &ForLoopStatement,
+    ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_for_range(&for_loop_statement.range) {
+            return Some(response);
+        }
+
+        self.find_in_expression(&for_loop_statement.block)
+    }
+
+    fn find_in_lvalue(&mut self, lvalue: &LValue) -> Option<CompletionResponse> {
+        match lvalue {
+            LValue::Ident(_) => None,
+            LValue::MemberAccess { object, field_name: _, span: _ } => self.find_in_lvalue(object),
+            LValue::Index { array, index, span: _ } => {
+                if let Some(response) = self.find_in_lvalue(array) {
+                    return Some(response);
+                }
+
+                self.find_in_expression(index)
+            }
+            LValue::Dereference(lvalue, _) => self.find_in_lvalue(lvalue),
+        }
+    }
+
+    fn find_in_for_range(&mut self, for_range: &ForRange) -> Option<CompletionResponse> {
+        match for_range {
+            ForRange::Range(start, end) => {
+                if let Some(response) = self.find_in_expression(start) {
+                    return Some(response);
+                }
+
+                self.find_in_expression(end)
+            }
+            ForRange::Array(expression) => self.find_in_expression(expression),
+        }
+    }
+
+    fn find_in_expressions(&mut self, expressions: &[Expression]) -> Option<CompletionResponse> {
+        for expression in expressions {
+            if let Some(response) = self.find_in_expression(expression) {
+                return Some(response);
+            }
+        }
         None
     }
 
     fn find_in_expression(&mut self, expression: &Expression) -> Option<CompletionResponse> {
         match &expression.kind {
-            noirc_frontend::ast::ExpressionKind::Literal(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Literal(literal) => self.find_in_literal(literal),
+            noirc_frontend::ast::ExpressionKind::Block(block_expression) => {
+                self.find_in_block_expression(block_expression)
             }
-            noirc_frontend::ast::ExpressionKind::Block(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Prefix(prefix_expression) => {
+                self.find_in_expression(&prefix_expression.rhs)
             }
-            noirc_frontend::ast::ExpressionKind::Prefix(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Index(index_expression) => {
+                self.find_in_index_expression(&index_expression)
             }
-            noirc_frontend::ast::ExpressionKind::Index(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Call(call_expression) => {
+                self.find_in_call_expression(call_expression)
             }
-            noirc_frontend::ast::ExpressionKind::Call(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::MethodCall(method_call_expression) => {
+                self.find_in_method_call_expression(method_call_expression)
             }
-            noirc_frontend::ast::ExpressionKind::MethodCall(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Constructor(constructor_expression) => {
+                self.find_in_constructor_expression(constructor_expression)
             }
-            noirc_frontend::ast::ExpressionKind::Constructor(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::MemberAccess(member_access_expression) => {
+                self.find_in_member_access_expression(member_access_expression)
             }
-            noirc_frontend::ast::ExpressionKind::MemberAccess(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Cast(cast_expression) => {
+                self.find_in_cast_expression(cast_expression)
             }
-            noirc_frontend::ast::ExpressionKind::Cast(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Infix(infix_expression) => {
+                self.find_in_infix_expression(infix_expression)
             }
-            noirc_frontend::ast::ExpressionKind::Infix(_) => {
-                // TODO
-                None
-            }
-            noirc_frontend::ast::ExpressionKind::If(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::If(if_expression) => {
+                self.find_in_if_expression(if_expression)
             }
             noirc_frontend::ast::ExpressionKind::Variable(path) => self.find_in_path(path),
-            noirc_frontend::ast::ExpressionKind::Tuple(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Tuple(expressions) => {
+                self.find_in_expressions(expressions)
             }
-            noirc_frontend::ast::ExpressionKind::Lambda(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Lambda(lambda) => self.find_in_lambda(lambda),
+            noirc_frontend::ast::ExpressionKind::Parenthesized(expression) => {
+                self.find_in_expression(expression)
             }
-            noirc_frontend::ast::ExpressionKind::Parenthesized(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Unquote(expression) => {
+                self.find_in_expression(expression)
             }
-            noirc_frontend::ast::ExpressionKind::Quote(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Comptime(block_expression, _) => {
+                // When entering a comptime block, regular local variables shouldn't be offered anymore
+                let old_local_variables = self.local_variables.clone();
+                self.local_variables.clear();
+
+                let response = self.find_in_block_expression(&block_expression);
+                self.local_variables = old_local_variables;
+                response
             }
-            noirc_frontend::ast::ExpressionKind::Unquote(_) => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::AsTraitPath(as_trait_path) => {
+                self.find_in_as_trait_path(as_trait_path)
             }
-            noirc_frontend::ast::ExpressionKind::Comptime(_, _) => {
-                // TODO
-                None
-            }
-            noirc_frontend::ast::ExpressionKind::AsTraitPath(_) => {
-                // TODO
-                None
-            }
-            noirc_frontend::ast::ExpressionKind::Resolved(_) => {
-                // TODO
-                None
-            }
-            noirc_frontend::ast::ExpressionKind::Error => {
-                // TODO
-                None
+            noirc_frontend::ast::ExpressionKind::Quote(_)
+            | noirc_frontend::ast::ExpressionKind::Resolved(_)
+            | noirc_frontend::ast::ExpressionKind::Error => None,
+        }
+    }
+
+    fn find_in_literal(&mut self, literal: &Literal) -> Option<CompletionResponse> {
+        match literal {
+            Literal::Array(array_literal) => self.find_in_array_literal(array_literal),
+            Literal::Slice(array_literal) => self.find_in_array_literal(array_literal),
+            Literal::Bool(_)
+            | Literal::Integer(_, _)
+            | Literal::Str(_)
+            | Literal::RawStr(_, _)
+            | Literal::FmtStr(_)
+            | Literal::Unit => None,
+        }
+    }
+
+    fn find_in_array_literal(
+        &mut self,
+        array_literal: &ArrayLiteral,
+    ) -> Option<CompletionResponse> {
+        match array_literal {
+            ArrayLiteral::Standard(expressions) => self.find_in_expressions(expressions),
+            ArrayLiteral::Repeated { repeated_element, length } => {
+                if let Some(completion) = self.find_in_expression(repeated_element) {
+                    return Some(completion);
+                }
+
+                self.find_in_expression(length)
             }
         }
+    }
+
+    fn find_in_index_expression(
+        &mut self,
+        index_expression: &IndexExpression,
+    ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_expression(&index_expression.collection) {
+            return Some(response);
+        }
+
+        self.find_in_expression(&index_expression.index)
+    }
+
+    fn find_in_call_expression(
+        &mut self,
+        call_expression: &CallExpression,
+    ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_expression(&call_expression.func) {
+            return Some(response);
+        }
+
+        self.find_in_expressions(&call_expression.arguments)
+    }
+
+    fn find_in_method_call_expression(
+        &mut self,
+        method_call_expression: &MethodCallExpression,
+    ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_expression(&method_call_expression.object) {
+            return Some(response);
+        }
+
+        self.find_in_expressions(&method_call_expression.arguments)
+    }
+
+    fn find_in_constructor_expression(
+        &mut self,
+        constructor_expression: &ConstructorExpression,
+    ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_path(&constructor_expression.type_name) {
+            return Some(response);
+        }
+
+        for (_field_name, expression) in &constructor_expression.fields {
+            if let Some(response) = self.find_in_expression(expression) {
+                return Some(response);
+            }
+        }
+
+        None
+    }
+
+    fn find_in_member_access_expression(
+        &mut self,
+        member_access_expression: &MemberAccessExpression,
+    ) -> Option<CompletionResponse> {
+        self.find_in_expression(&member_access_expression.lhs)
+    }
+
+    fn find_in_cast_expression(
+        &mut self,
+        cast_expression: &CastExpression,
+    ) -> Option<CompletionResponse> {
+        self.find_in_expression(&cast_expression.lhs)
+    }
+
+    fn find_in_infix_expression(
+        &mut self,
+        infix_expression: &InfixExpression,
+    ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_expression(&infix_expression.lhs) {
+            return Some(response);
+        }
+
+        self.find_in_expression(&infix_expression.rhs)
+    }
+
+    fn find_in_if_expression(
+        &mut self,
+        if_expression: &IfExpression,
+    ) -> Option<CompletionResponse> {
+        if let Some(response) = self.find_in_expression(&if_expression.condition) {
+            return Some(response);
+        }
+
+        if let Some(response) = self.find_in_expression(&if_expression.consequence) {
+            return Some(response);
+        }
+
+        if let Some(alternative) = &if_expression.alternative {
+            self.find_in_expression(alternative)
+        } else {
+            None
+        }
+    }
+
+    fn find_in_lambda(&mut self, lambda: &Lambda) -> Option<CompletionResponse> {
+        let old_local_variables = self.local_variables.clone();
+
+        for (pattern, _) in &lambda.parameters {
+            self.collect_local_variables(pattern)
+        }
+
+        let response = self.find_in_expression(&lambda.body);
+
+        self.local_variables = old_local_variables;
+
+        response
+    }
+
+    fn find_in_as_trait_path(&mut self, as_trait_path: &AsTraitPath) -> Option<CompletionResponse> {
+        self.find_in_path(&as_trait_path.trait_path)
     }
 
     fn find_in_path(&mut self, path: &Path) -> Option<CompletionResponse> {
