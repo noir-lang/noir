@@ -794,7 +794,7 @@ fn predefined_functions_completion(prefix: &String) -> Option<CompletionResponse
             "assert(…)",
             CompletionItemKind::FUNCTION,
             "assert(${1:predicate})",
-            None,
+            Some("fn(T)".to_string()),
         ));
     }
 
@@ -803,7 +803,7 @@ fn predefined_functions_completion(prefix: &String) -> Option<CompletionResponse
             "assert_eq(…)",
             CompletionItemKind::FUNCTION,
             "assert_eq(${1:lhs}, ${2:rhs})",
-            None,
+            Some("fn(T, T)".to_string()),
         ));
     }
 
@@ -1312,7 +1312,7 @@ mod completion_tests {
                     "assert(…)",
                     CompletionItemKind::FUNCTION,
                     "assert(${1:predicate})",
-                    None,
+                    Some("fn(T)".to_string()),
                 ),
                 snippet_completion_item(
                     "assert_constant(…)",
@@ -1324,7 +1324,7 @@ mod completion_tests {
                     "assert_eq(…)",
                     CompletionItemKind::FUNCTION,
                     "assert_eq(${1:lhs}, ${2:rhs})",
-                    None,
+                    Some("fn(T, T)".to_string()),
                 ),
             ],
         )
