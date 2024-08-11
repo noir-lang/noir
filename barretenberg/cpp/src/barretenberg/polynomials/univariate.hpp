@@ -535,7 +535,7 @@ template <class Fr, size_t domain_end, size_t domain_start = 0, size_t skip_coun
 Univariate<Fr, domain_end, domain_start, skip_count> operator-(
     const Fr& ff, const Univariate<Fr, domain_end, domain_start, skip_count>& uv)
 {
-    return uv - ff;
+    return -uv + ff;
 }
 
 template <class Fr, size_t domain_end, size_t domain_start = 0, size_t skip_count = 0>
