@@ -11,7 +11,10 @@ use lsp_types::{
 };
 use noirc_errors::Span;
 use noirc_frontend::{
-    ast::{Ident, Path, PathKind, PathSegment, UseTree, UseTreeKind},
+    ast::{
+        BlockExpression, Expression, Ident, LetStatement, NoirFunction, Path, PathKind,
+        PathSegment, Statement, UseTree, UseTreeKind,
+    },
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
@@ -26,6 +29,12 @@ use noirc_frontend::{
 use crate::{utils, LspState};
 
 use super::process_request;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ModuleCompletionKind {
+    DirectChildren,
+    AllVisibleItems,
+}
 
 pub(crate) fn on_completion_request(
     state: &mut LspState,
@@ -122,9 +131,7 @@ impl<'a> NodeFinder<'a> {
         match &item.kind {
             ItemKind::Import(use_tree) => {
                 let mut prefixes = Vec::new();
-                if let Some(completion) = self.find_in_use_tree(use_tree, &mut prefixes) {
-                    return Some(completion);
-                }
+                self.find_in_use_tree(use_tree, &mut prefixes)
             }
             ItemKind::Submodules(parsed_sub_module) => {
                 // Switch `self.module_id` to the submodule
@@ -142,14 +149,213 @@ impl<'a> NodeFinder<'a> {
                 // Restore the old module before continuing
                 self.module_id = previous_module_id;
 
-                if let Some(completion) = completion {
-                    return Some(completion);
-                }
+                completion
             }
-            _ => (),
+            ItemKind::Function(noir_function) => self.find_in_noir_function(noir_function),
+            _ => {
+                // TODO
+                None
+            }
+        }
+    }
+
+    fn find_in_noir_function(
+        &mut self,
+        noir_function: &NoirFunction,
+    ) -> Option<CompletionResponse> {
+        self.find_in_block_expression(&noir_function.def.body)
+    }
+
+    fn find_in_block_expression(
+        &mut self,
+        block_expression: &BlockExpression,
+    ) -> Option<CompletionResponse> {
+        for statement in &block_expression.statements {
+            if let Some(completion) = self.find_in_statement(statement) {
+                return Some(completion);
+            }
+        }
+        None
+    }
+
+    fn find_in_statement(&mut self, statement: &Statement) -> Option<CompletionResponse> {
+        if !self.includes_span(statement.span) {
+            return None;
         }
 
-        None
+        match &statement.kind {
+            noirc_frontend::ast::StatementKind::Let(let_statement) => {
+                self.find_in_let_statement(let_statement)
+            }
+            noirc_frontend::ast::StatementKind::Constrain(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::StatementKind::Expression(expression) => {
+                self.find_in_expression(expression)
+            }
+            noirc_frontend::ast::StatementKind::Assign(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::StatementKind::For(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::StatementKind::Break => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::StatementKind::Continue => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::StatementKind::Comptime(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::StatementKind::Semi(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::StatementKind::Error => {
+                // TODO
+                None
+            }
+        }
+    }
+
+    fn find_in_let_statement(
+        &mut self,
+        let_statement: &LetStatement,
+    ) -> Option<CompletionResponse> {
+        self.find_in_expression(&let_statement.expression)
+    }
+
+    fn find_in_expression(&mut self, expression: &Expression) -> Option<CompletionResponse> {
+        if !self.includes_span(expression.span) {
+            return None;
+        }
+
+        match &expression.kind {
+            noirc_frontend::ast::ExpressionKind::Literal(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Block(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Prefix(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Index(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Call(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::MethodCall(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Constructor(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::MemberAccess(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Cast(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Infix(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::If(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Variable(path) => self.find_in_path(path),
+            noirc_frontend::ast::ExpressionKind::Tuple(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Lambda(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Parenthesized(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Quote(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Unquote(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Comptime(_, _) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::AsTraitPath(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Resolved(_) => {
+                // TODO
+                None
+            }
+            noirc_frontend::ast::ExpressionKind::Error => {
+                // TODO
+                None
+            }
+        }
+    }
+
+    fn find_in_path(&mut self, path: &Path) -> Option<CompletionResponse> {
+        // Only offer completions if we are right at the end of the path
+        if self.byte_index != path.span.end() as usize {
+            return None;
+        }
+
+        let after_colons = self.byte == Some(b':');
+
+        let mut idents: Vec<Ident> =
+            path.segments.iter().map(|segment| segment.ident.clone()).collect();
+        let prefix;
+        let at_root;
+
+        if after_colons {
+            prefix = String::new();
+            at_root = false;
+        } else {
+            prefix = idents.pop().unwrap().to_string();
+            at_root = idents.is_empty();
+        }
+
+        let module_id =
+            if idents.is_empty() { Some(self.module_id) } else { self.resolve_module(idents) };
+        let Some(module_id) = module_id else {
+            return None;
+        };
+
+        let module_completion_kind = if after_colons {
+            ModuleCompletionKind::DirectChildren
+        } else {
+            ModuleCompletionKind::AllVisibleItems
+        };
+
+        self.complete_in_module(module_id, prefix, path.kind, at_root, module_completion_kind)
     }
 
     fn find_in_use_tree(
@@ -206,6 +412,8 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
+        let module_completion_kind = ModuleCompletionKind::DirectChildren;
+
         if after_colons {
             // We are right after "::"
             segments.push(ident.clone());
@@ -213,18 +421,36 @@ impl<'a> NodeFinder<'a> {
             self.resolve_module(segments).and_then(|module_id| {
                 let prefix = String::new();
                 let at_root = false;
-                self.complete_in_module(module_id, prefix, path_kind, at_root)
+                self.complete_in_module(
+                    module_id,
+                    prefix,
+                    path_kind,
+                    at_root,
+                    module_completion_kind,
+                )
             })
         } else {
             // We are right after the last segment
             let prefix = ident.to_string();
             if segments.is_empty() {
                 let at_root = true;
-                self.complete_in_module(self.module_id, prefix, path_kind, at_root)
+                self.complete_in_module(
+                    self.module_id,
+                    prefix,
+                    path_kind,
+                    at_root,
+                    module_completion_kind,
+                )
             } else {
                 let at_root = false;
                 self.resolve_module(segments).and_then(|module_id| {
-                    self.complete_in_module(module_id, prefix, path_kind, at_root)
+                    self.complete_in_module(
+                        module_id,
+                        prefix,
+                        path_kind,
+                        at_root,
+                        module_completion_kind,
+                    )
                 })
             }
         }
@@ -236,6 +462,7 @@ impl<'a> NodeFinder<'a> {
         prefix: String,
         path_kind: PathKind,
         at_root: bool,
+        module_completion_kind: ModuleCompletionKind,
     ) -> Option<CompletionResponse> {
         let def_map = &self.def_maps[&module_id.krate];
         let mut module_data = def_map.modules().get(module_id.local_id.0)?;
@@ -255,7 +482,12 @@ impl<'a> NodeFinder<'a> {
 
         let mut completion_items = Vec::new();
 
-        for ident in module_data.definitions().names() {
+        let items = match module_completion_kind {
+            ModuleCompletionKind::DirectChildren => module_data.definitions(),
+            ModuleCompletionKind::AllVisibleItems => module_data.scope(),
+        };
+
+        for ident in items.names() {
             let name = &ident.0.contents;
 
             if name_matches(name, &prefix) {
@@ -701,8 +933,8 @@ mod completion_tests {
         "#;
         assert_completion(src, vec![module_completion_item("something")]).await;
     }
-    #[test]
 
+    #[test]
     async fn test_use_after_crate_segment_and_letter_nested_in_module() {
         let src = r#"
             mod something {
@@ -712,5 +944,45 @@ mod completion_tests {
             
         "#;
         assert_completion(src, vec![module_completion_item("something_else")]).await;
+    }
+
+    #[test]
+    async fn test_complete_path_shows_module() {
+        let src = r#"
+          mod foo {}
+
+          fn main() {
+            f>|<
+          }
+        "#;
+        assert_completion(src, vec![module_completion_item("foo")]).await;
+    }
+
+    #[test]
+    async fn test_complete_path_after_colons_shows_submodule() {
+        let src = r#"
+          mod foo {
+            mod bar {}
+          }
+
+          fn main() {
+            foo::>|<
+          }
+        "#;
+        assert_completion(src, vec![module_completion_item("bar")]).await;
+    }
+
+    #[test]
+    async fn test_complete_path_after_colons_and_letter_shows_submodule() {
+        let src = r#"
+          mod foo {
+            mod bar {}
+          }
+
+          fn main() {
+            foo::b>|<
+          }
+        "#;
+        assert_completion(src, vec![module_completion_item("bar")]).await;
     }
 }
