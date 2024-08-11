@@ -17,7 +17,7 @@ use noirc_frontend::{
         IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
         MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, NoirTrait,
         NoirTraitImpl, NoirTypeAlias, Path, PathKind, PathSegment, Pattern, Statement,
-        TraitImplItem, TraitItem, TypeImpl, UseTree, UseTreeKind,
+        TraitImplItem, TraitItem, TypeImpl, UnresolvedType, UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -45,6 +45,12 @@ enum ModuleCompletionKind {
 enum FunctionCompleteKind {
     Name,
     NameAndParameters,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum PathCompletionKind {
+    Everything,
+    OnlyTypes,
 }
 
 pub(crate) fn on_completion_request(
@@ -235,7 +241,13 @@ impl<'a> NodeFinder<'a> {
         None
     }
 
-    fn find_in_noir_struct(&mut self, _noir_struct: &NoirStruct) -> Option<CompletionResponse> {
+    fn find_in_noir_struct(&mut self, noir_struct: &NoirStruct) -> Option<CompletionResponse> {
+        for (_name, unresolved_type) in &noir_struct.fields {
+            if let Some(response) = self.find_in_unresolved_type(unresolved_type) {
+                return Some(response);
+            }
+        }
+
         None
     }
 
@@ -457,7 +469,9 @@ impl<'a> NodeFinder<'a> {
             noirc_frontend::ast::ExpressionKind::If(if_expression) => {
                 self.find_in_if_expression(if_expression)
             }
-            noirc_frontend::ast::ExpressionKind::Variable(path) => self.find_in_path(path),
+            noirc_frontend::ast::ExpressionKind::Variable(path) => {
+                self.find_in_path(path, PathCompletionKind::Everything)
+            }
             noirc_frontend::ast::ExpressionKind::Tuple(expressions) => {
                 self.find_in_expressions(expressions)
             }
@@ -552,7 +566,9 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         constructor_expression: &ConstructorExpression,
     ) -> Option<CompletionResponse> {
-        if let Some(response) = self.find_in_path(&constructor_expression.type_name) {
+        if let Some(response) =
+            self.find_in_path(&constructor_expression.type_name, PathCompletionKind::OnlyTypes)
+        {
             return Some(response);
         }
 
@@ -624,10 +640,95 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_as_trait_path(&mut self, as_trait_path: &AsTraitPath) -> Option<CompletionResponse> {
-        self.find_in_path(&as_trait_path.trait_path)
+        self.find_in_path(&as_trait_path.trait_path, PathCompletionKind::OnlyTypes)
     }
 
-    fn find_in_path(&mut self, path: &Path) -> Option<CompletionResponse> {
+    fn find_in_unresolved_types(
+        &mut self,
+        unresolved_type: &[UnresolvedType],
+    ) -> Option<CompletionResponse> {
+        for unresolved_type in unresolved_type {
+            if let Some(response) = self.find_in_unresolved_type(unresolved_type) {
+                return Some(response);
+            }
+        }
+
+        None
+    }
+
+    fn find_in_unresolved_type(
+        &mut self,
+        unresolved_type: &UnresolvedType,
+    ) -> Option<CompletionResponse> {
+        if let Some(span) = unresolved_type.span {
+            if !self.includes_span(span) {
+                return None;
+            }
+        }
+
+        match &unresolved_type.typ {
+            noirc_frontend::ast::UnresolvedTypeData::Array(_, unresolved_type) => {
+                self.find_in_unresolved_type(unresolved_type)
+            }
+            noirc_frontend::ast::UnresolvedTypeData::Slice(unresolved_type) => {
+                self.find_in_unresolved_type(unresolved_type)
+            }
+            noirc_frontend::ast::UnresolvedTypeData::Parenthesized(unresolved_type) => {
+                self.find_in_unresolved_type(unresolved_type)
+            }
+            noirc_frontend::ast::UnresolvedTypeData::Named(path, unresolved_types, _) => {
+                if let Some(response) = self.find_in_path(path, PathCompletionKind::OnlyTypes) {
+                    return Some(response);
+                }
+
+                self.find_in_unresolved_types(unresolved_types)
+            }
+            noirc_frontend::ast::UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
+                if let Some(response) = self.find_in_path(path, PathCompletionKind::OnlyTypes) {
+                    return Some(response);
+                }
+
+                self.find_in_unresolved_types(unresolved_types)
+            }
+            noirc_frontend::ast::UnresolvedTypeData::MutableReference(unresolved_type) => {
+                self.find_in_unresolved_type(unresolved_type)
+            }
+            noirc_frontend::ast::UnresolvedTypeData::Tuple(unresolved_types) => {
+                self.find_in_unresolved_types(unresolved_types)
+            }
+            noirc_frontend::ast::UnresolvedTypeData::Function(args, ret, env) => {
+                if let Some(response) = self.find_in_unresolved_types(args) {
+                    return Some(response);
+                }
+
+                if let Some(response) = self.find_in_unresolved_type(ret) {
+                    return Some(response);
+                }
+
+                self.find_in_unresolved_type(env)
+            }
+            noirc_frontend::ast::UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+                self.find_in_as_trait_path(as_trait_path)
+            }
+            noirc_frontend::ast::UnresolvedTypeData::Expression(_)
+            | noirc_frontend::ast::UnresolvedTypeData::FormatString(_, _)
+            | noirc_frontend::ast::UnresolvedTypeData::String(_)
+            | noirc_frontend::ast::UnresolvedTypeData::Unspecified
+            | noirc_frontend::ast::UnresolvedTypeData::Quoted(_)
+            | noirc_frontend::ast::UnresolvedTypeData::FieldElement
+            | noirc_frontend::ast::UnresolvedTypeData::Integer(_, _)
+            | noirc_frontend::ast::UnresolvedTypeData::Bool
+            | noirc_frontend::ast::UnresolvedTypeData::Unit
+            | noirc_frontend::ast::UnresolvedTypeData::Resolved(_)
+            | noirc_frontend::ast::UnresolvedTypeData::Error => None,
+        }
+    }
+
+    fn find_in_path(
+        &mut self,
+        path: &Path,
+        path_completion_kind: PathCompletionKind,
+    ) -> Option<CompletionResponse> {
         // Only offer completions if we are right at the end of the path
         if self.byte_index != path.span.end() as usize {
             return None;
@@ -670,16 +771,22 @@ impl<'a> NodeFinder<'a> {
             at_root,
             module_completion_kind,
             function_completion_kind,
+            path_completion_kind,
         );
 
         if is_single_segment {
-            let local_vars_response = self.local_variables_completion(&prefix);
-            let response = merge_completion_responses(response, local_vars_response);
+            match path_completion_kind {
+                PathCompletionKind::Everything => {
+                    let local_vars_response = self.local_variables_completion(&prefix);
+                    let response = merge_completion_responses(response, local_vars_response);
 
-            let predefined_response = predefined_functions_completion(&prefix);
-            let response = merge_completion_responses(response, predefined_response);
+                    let predefined_response = predefined_functions_completion(&prefix);
+                    let response = merge_completion_responses(response, predefined_response);
 
-            response
+                    response
+                }
+                PathCompletionKind::OnlyTypes => response,
+            }
         } else {
             response
         }
@@ -771,6 +878,7 @@ impl<'a> NodeFinder<'a> {
 
         let module_completion_kind = ModuleCompletionKind::DirectChildren;
         let function_completion_kind = FunctionCompleteKind::Name;
+        let path_completion_kind = PathCompletionKind::Everything;
 
         if after_colons {
             // We are right after "::"
@@ -786,6 +894,7 @@ impl<'a> NodeFinder<'a> {
                     at_root,
                     module_completion_kind,
                     function_completion_kind,
+                    path_completion_kind,
                 )
             })
         } else {
@@ -800,6 +909,7 @@ impl<'a> NodeFinder<'a> {
                     at_root,
                     module_completion_kind,
                     function_completion_kind,
+                    path_completion_kind,
                 )
             } else {
                 let at_root = false;
@@ -811,6 +921,7 @@ impl<'a> NodeFinder<'a> {
                         at_root,
                         module_completion_kind,
                         function_completion_kind,
+                        path_completion_kind,
                     )
                 })
             }
@@ -844,6 +955,7 @@ impl<'a> NodeFinder<'a> {
         at_root: bool,
         module_completion_kind: ModuleCompletionKind,
         function_completion_kind: FunctionCompleteKind,
+        path_completion_kind: PathCompletionKind,
     ) -> Option<CompletionResponse> {
         let def_map = &self.def_maps[&module_id.krate];
         let mut module_data = def_map.modules().get(module_id.local_id.0)?;
@@ -874,19 +986,25 @@ impl<'a> NodeFinder<'a> {
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, _, _)) = per_ns.types {
-                    completion_items.push(self.module_def_id_completion_item(
+                    if let Some(completion_item) = self.module_def_id_completion_item(
                         module_def_id,
                         name.clone(),
                         function_completion_kind,
-                    ));
+                        path_completion_kind,
+                    ) {
+                        completion_items.push(completion_item);
+                    }
                 }
 
                 if let Some((module_def_id, _, _)) = per_ns.values {
-                    completion_items.push(self.module_def_id_completion_item(
+                    if let Some(completion_item) = self.module_def_id_completion_item(
                         module_def_id,
                         name.clone(),
                         function_completion_kind,
-                    ));
+                        path_completion_kind,
+                    ) {
+                        completion_items.push(completion_item);
+                    }
                 }
             }
         }
@@ -928,8 +1046,20 @@ impl<'a> NodeFinder<'a> {
         module_def_id: ModuleDefId,
         name: String,
         function_completion_kind: FunctionCompleteKind,
-    ) -> CompletionItem {
-        match module_def_id {
+        path_completion_kind: PathCompletionKind,
+    ) -> Option<CompletionItem> {
+        match path_completion_kind {
+            PathCompletionKind::OnlyTypes => match module_def_id {
+                ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) => return None,
+                ModuleDefId::ModuleId(_)
+                | ModuleDefId::TypeId(_)
+                | ModuleDefId::TypeAliasId(_)
+                | ModuleDefId::TraitId(_) => (),
+            },
+            PathCompletionKind::Everything => (),
+        }
+
+        let completion_item = match module_def_id {
             ModuleDefId::ModuleId(_) => module_completion_item(name),
             ModuleDefId::FunctionId(func_id) => {
                 self.function_completion_item(func_id, function_completion_kind)
@@ -940,7 +1070,8 @@ impl<'a> NodeFinder<'a> {
             }
             ModuleDefId::TraitId(trait_id) => self.trait_completion_item(trait_id),
             ModuleDefId::GlobalId(global_id) => self.global_completion_item(global_id),
-        }
+        };
+        Some(completion_item)
     }
 
     fn function_completion_item(
@@ -1688,6 +1819,28 @@ mod completion_tests {
                 "var",
                 CompletionItemKind::VARIABLE,
                 Some("_".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_type_in_struct_field_type() {
+        let src = r#"
+          struct Something {}
+
+          fn SomeFunction() {}
+
+          struct Another {
+            some: S>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "Something",
+                CompletionItemKind::STRUCT,
+                Some("Something".to_string()),
             )],
         )
         .await;
