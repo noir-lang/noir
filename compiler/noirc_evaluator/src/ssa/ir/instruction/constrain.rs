@@ -2,6 +2,44 @@ use acvm::{acir::AcirField, FieldElement};
 
 use super::{Binary, BinaryOp, ConstrainError, DataFlowGraph, Instruction, Type, Value, ValueId};
 
+/// Try to simplify this constrain instruction. This function will inspect the inputs to the constraint such that
+/// it acts on variables as early in the DFG as possible.
+pub(super) fn simplify_constrain(
+    lhs: ValueId,
+    rhs: ValueId,
+    dfg: &mut DataFlowGraph,
+) -> (ValueId, ValueId) {
+    let lhs = dfg.resolve(lhs);
+    let rhs = dfg.resolve(rhs);
+
+    match (&dfg[lhs], &dfg[rhs]) {
+        (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, typ }) => {
+            let Instruction::Binary(Binary {
+                lhs: inner_lhs,
+                rhs: inner_rhs,
+                operator: BinaryOp::Add,
+            }) = dfg[*instruction].clone()
+            else {
+                return (lhs, rhs);
+            };
+
+            let Value::NumericConstant { constant: inner_constant, .. } = dfg[inner_rhs].clone()
+            else {
+                return (lhs, rhs);
+            };
+
+            if *constant > inner_constant {
+                let new_rhs = dfg.make_constant(*constant - inner_constant, typ.clone());
+                (inner_lhs, new_rhs)
+            } else {
+                (lhs, rhs)
+            }
+        }
+
+        _ => (lhs, rhs),
+    }
+}
+
 /// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
 /// all the values which are used to compute the values which were being constrained.
 pub(super) fn decompose_constrain(
