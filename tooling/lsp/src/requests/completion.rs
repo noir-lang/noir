@@ -12,8 +12,8 @@ use lsp_types::{
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        BlockExpression, Expression, Ident, LetStatement, NoirFunction, Path, PathKind,
-        PathSegment, Pattern, Statement, UseTree, UseTreeKind,
+        BlockExpression, Expression, Ident, LetStatement, NoirFunction, NoirTraitImpl, Path,
+        PathKind, PathSegment, Pattern, Statement, TraitImplItem, TypeImpl, UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -172,10 +172,13 @@ impl<'a> NodeFinder<'a> {
                 completion
             }
             ItemKind::Function(noir_function) => self.find_in_noir_function(noir_function),
-            _ => {
-                // TODO
-                None
-            }
+            ItemKind::TraitImpl(noir_trait_impl) => self.find_in_noir_trait_impl(noir_trait_impl),
+            ItemKind::Struct(_) => todo!(),
+            ItemKind::Trait(_) => todo!(),
+            ItemKind::Impl(type_impl) => self.find_in_type_impl(type_impl),
+            ItemKind::TypeAlias(_) => todo!(),
+            ItemKind::Global(_) => todo!(),
+            ItemKind::ModuleDecl(_) => todo!(),
         }
     }
 
@@ -189,6 +192,36 @@ impl<'a> NodeFinder<'a> {
         }
 
         self.find_in_block_expression(&noir_function.def.body)
+    }
+
+    fn find_in_noir_trait_impl(
+        &mut self,
+        noir_trait_impl: &NoirTraitImpl,
+    ) -> Option<CompletionResponse> {
+        for item in &noir_trait_impl.items {
+            if let Some(completion) = self.find_in_trait_impl_item(item) {
+                return Some(completion);
+            }
+        }
+        None
+    }
+
+    fn find_in_trait_impl_item(&mut self, item: &TraitImplItem) -> Option<CompletionResponse> {
+        match item {
+            TraitImplItem::Function(noir_function) => self.find_in_noir_function(noir_function),
+            TraitImplItem::Constant(_, _, _) => None,
+            TraitImplItem::Type { .. } => None,
+        }
+    }
+
+    fn find_in_type_impl(&mut self, type_impl: &TypeImpl) -> Option<CompletionResponse> {
+        for (method, _) in &type_impl.methods {
+            if let Some(completion) = self.find_in_noir_function(method) {
+                return Some(completion);
+            }
+        }
+
+        None
     }
 
     fn find_in_block_expression(
@@ -1322,6 +1355,51 @@ mod completion_tests {
                     Some("fn(T, T)".to_string()),
                 ),
             ],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_complete_path_in_impl() {
+        let src = r#"
+          struct SomeStruct {}
+
+          impl SomeStruct {
+            fn foo() {
+                S>|<
+            }
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "SomeStruct",
+                CompletionItemKind::STRUCT,
+                Some("SomeStruct".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_complete_path_in_trait_impl() {
+        let src = r#"
+          struct SomeStruct {}
+          trait Trait {}
+
+          impl Trait for SomeStruct {
+            fn foo() {
+                S>|<
+            }
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "SomeStruct",
+                CompletionItemKind::STRUCT,
+                Some("SomeStruct".to_string()),
+            )],
         )
         .await;
     }
