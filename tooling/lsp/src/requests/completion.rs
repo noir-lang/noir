@@ -522,9 +522,17 @@ impl<'a> NodeFinder<'a> {
             Pattern::Identifier(ident) => {
                 self.local_variables.insert(ident.to_string(), ident.span());
             }
-            Pattern::Mutable(_, _, _) => todo!(),
-            Pattern::Tuple(_, _) => todo!(),
-            Pattern::Struct(_, _, _) => todo!(),
+            Pattern::Mutable(pattern, _, _) => self.collect_local_variables(pattern),
+            Pattern::Tuple(patterns, _) => {
+                for pattern in patterns {
+                    self.collect_local_variables(pattern);
+                }
+            }
+            Pattern::Struct(_, patterns, _) => {
+                for (_, pattern) in patterns {
+                    self.collect_local_variables(pattern);
+                }
+            }
         }
     }
 
