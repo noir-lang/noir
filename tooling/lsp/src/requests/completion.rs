@@ -1273,6 +1273,16 @@ fn predefined_functions_completion(prefix: &String) -> Option<CompletionResponse
         ));
     }
 
+    for keyword in ["false", "true"] {
+        if name_matches(keyword, prefix) {
+            completion_items.push(simple_completion_item(
+                keyword,
+                CompletionItemKind::KEYWORD,
+                Some("bool".to_string()),
+            ));
+        }
+    }
+
     if completion_items.is_empty() {
         None
     } else {
@@ -2090,6 +2100,24 @@ mod completion_tests {
                 simple_completion_item("i32", CompletionItemKind::STRUCT, Some("i32".to_string())),
                 simple_completion_item("i64", CompletionItemKind::STRUCT, Some("i64".to_string())),
             ],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_true() {
+        let src = r#"
+            fn main() {
+                let x = t>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "true",
+                CompletionItemKind::KEYWORD,
+                Some("bool".to_string()),
+            )],
         )
         .await;
     }
