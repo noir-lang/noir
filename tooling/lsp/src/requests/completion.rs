@@ -31,7 +31,7 @@ use noirc_frontend::{
     node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
     parser::{Item, ItemKind},
     token::Keyword,
-    ParsedModule, Type,
+    ParsedModule, StructType, Type,
 };
 use strum::IntoEnumIterator;
 
@@ -572,6 +572,17 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         member_access_expression: &MemberAccessExpression,
     ) {
+        let ident = &member_access_expression.rhs;
+
+        if self.byte_index == ident.span().end() as usize {
+            // Assuming member_access_expression is of the form `foo.bar`, we are right after `bar`
+            let location = Location::new(member_access_expression.lhs.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let prefix = ident.to_string();
+                self.complete_type_fields_and_methods(&typ, &prefix, false)
+            }
+        }
+
         self.find_in_expression(&member_access_expression.lhs);
     }
 
@@ -911,6 +922,51 @@ impl<'a> NodeFinder<'a> {
             }
             UnresolvedGeneric::Resolved(..) => (),
         };
+    }
+
+    fn complete_type_fields_and_methods(&mut self, typ: &Type, prefix: &str, _mutable: bool) {
+        match typ {
+            Type::Struct(struct_type, generics) => {
+                self.complete_struct_fields(&struct_type.borrow(), generics, prefix);
+            }
+            Type::MutableReference(typ) => self.complete_type_fields_and_methods(typ, prefix, true),
+            Type::FieldElement
+            | Type::Array(_, _)
+            | Type::Slice(_)
+            | Type::Integer(_, _)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Tuple(_)
+            | Type::Alias(_, _)
+            | Type::TypeVariable(_, _)
+            | Type::TraitAsType(_, _, _)
+            | Type::NamedGeneric(_, _, _)
+            | Type::Function(_, _, _)
+            | Type::Forall(_, _)
+            | Type::Constant(_)
+            | Type::Quoted(_)
+            | Type::InfixExpr(_, _, _)
+            | Type::Error => (),
+        }
+    }
+
+    fn complete_struct_fields(
+        &mut self,
+        struct_type: &StructType,
+        generics: &[Type],
+        prefix: &str,
+    ) {
+        for (name, typ) in struct_type.get_fields(generics) {
+            if name_matches(&name, prefix) {
+                self.completion_items.push(simple_completion_item(
+                    name,
+                    CompletionItemKind::FIELD,
+                    Some(typ.to_string()),
+                ))
+            }
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2198,6 +2254,50 @@ mod completion_tests {
         assert_completion(
             src,
             vec![simple_completion_item("Context", CompletionItemKind::TYPE_PARAMETER, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_struct_field_after_dot_and_letter() {
+        let src = r#"
+            struct Some {
+                property: i32,
+            }
+
+            fn foo(s: Some) {
+                s.p>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "property",
+                CompletionItemKind::FIELD,
+                Some("i32".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_struct_field_after_dot_and_letter_for_generic_type() {
+        let src = r#"
+            struct Some<T> {
+                property: T,
+            }
+
+            fn foo(s: Some<i32>) {
+                s.p>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "property",
+                CompletionItemKind::FIELD,
+                Some("i32".to_string()),
+            )],
         )
         .await;
     }
