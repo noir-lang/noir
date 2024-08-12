@@ -1135,6 +1135,24 @@ impl NodeInterner {
         self.struct_methods.get(&id)
     }
 
+    fn get_primitive_methods(&self, key: TypeMethodKey) -> Option<&HashMap<String, Methods>> {
+        self.primitive_methods.get(&key)
+    }
+
+    pub fn get_type_methods(&self, typ: &Type) -> Option<&HashMap<String, Methods>> {
+        match typ {
+            Type::Struct(struct_type, _) => {
+                let struct_type = struct_type.borrow();
+                self.get_struct_methods(struct_type.id)
+            }
+            Type::Alias(type_alias, _) => {
+                let type_alias = type_alias.borrow();
+                self.get_type_methods(&type_alias.typ)
+            }
+            _ => get_type_method_key(typ).and_then(|key| self.get_primitive_methods(key)),
+        }
+    }
+
     pub fn get_trait(&self, id: TraitId) -> &Trait {
         &self.traits[&id]
     }
@@ -2009,7 +2027,7 @@ impl Methods {
     }
 
     /// Iterate through each method, starting with the direct methods
-    fn iter(&self) -> impl Iterator<Item = FuncId> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = FuncId> + '_ {
         self.direct.iter().copied().chain(self.trait_impl_methods.iter().copied())
     }
 

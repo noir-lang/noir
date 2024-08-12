@@ -55,11 +55,18 @@ enum ModuleCompletionKind {
 
 /// When suggest a function as a result of completion, whether to autocomplete its name or its name and parameters.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum FunctionCompleteKind {
+enum FunctionCompletionKind {
     // Only complete a function's name. This is used in use statement.
     Name,
     // Complete a function's name and parameters (as a snippet). This is used in regular code.
     NameAndParameters,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum FunctionSelfType {
+    Any,
+    SelfType,
+    NoSelfType,
 }
 
 /// When requesting completions, whether to list all items or just types.
@@ -741,7 +748,7 @@ impl<'a> NodeFinder<'a> {
         } else {
             ModuleCompletionKind::AllVisibleItems
         };
-        let function_completion_kind = FunctionCompleteKind::NameAndParameters;
+        let function_completion_kind = FunctionCompletionKind::NameAndParameters;
 
         self.complete_in_module(
             module_id,
@@ -849,7 +856,7 @@ impl<'a> NodeFinder<'a> {
         }
 
         let module_completion_kind = ModuleCompletionKind::DirectChildren;
-        let function_completion_kind = FunctionCompleteKind::Name;
+        let function_completion_kind = FunctionCompletionKind::Name;
         let requested_items = RequestedItems::AnyItems;
 
         if after_colons {
@@ -940,7 +947,9 @@ impl<'a> NodeFinder<'a> {
             Type::Struct(struct_type, generics) => {
                 self.complete_struct_fields(&struct_type.borrow(), generics, prefix);
             }
-            Type::MutableReference(typ) => self.complete_type_fields_and_methods(typ, prefix, true),
+            Type::MutableReference(typ) => {
+                return self.complete_type_fields_and_methods(typ, prefix, true)
+            }
             Type::FieldElement
             | Type::Array(_, _)
             | Type::Slice(_)
@@ -960,6 +969,28 @@ impl<'a> NodeFinder<'a> {
             | Type::Quoted(_)
             | Type::InfixExpr(_, _, _)
             | Type::Error => (),
+        }
+
+        self.complete_type_methods(typ, prefix);
+    }
+
+    fn complete_type_methods(&mut self, typ: &Type, prefix: &str) {
+        let Some(methods_by_name) = self.interner.get_type_methods(typ) else {
+            return;
+        };
+
+        for (name, methods) in methods_by_name {
+            for func_id in methods.iter() {
+                if name_matches(name, prefix) {
+                    if let Some(completion_item) = self.function_completion_item(
+                        func_id,
+                        FunctionCompletionKind::NameAndParameters,
+                        FunctionSelfType::SelfType,
+                    ) {
+                        self.completion_items.push(completion_item);
+                    }
+                }
+            }
         }
     }
 
@@ -988,7 +1019,7 @@ impl<'a> NodeFinder<'a> {
         path_kind: PathKind,
         at_root: bool,
         module_completion_kind: ModuleCompletionKind,
-        function_completion_kind: FunctionCompleteKind,
+        function_completion_kind: FunctionCompletionKind,
         requested_items: RequestedItems,
     ) {
         let def_map = &self.def_maps[&module_id.krate];
@@ -1018,6 +1049,8 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
+        let function_self_type = FunctionSelfType::Any;
+
         let items = match module_completion_kind {
             ModuleCompletionKind::DirectChildren => module_data.definitions(),
             ModuleCompletionKind::AllVisibleItems => module_data.scope(),
@@ -1033,6 +1066,7 @@ impl<'a> NodeFinder<'a> {
                         module_def_id,
                         name.clone(),
                         function_completion_kind,
+                        function_self_type,
                         requested_items,
                     ) {
                         self.completion_items.push(completion_item);
@@ -1044,6 +1078,7 @@ impl<'a> NodeFinder<'a> {
                         module_def_id,
                         name.clone(),
                         function_completion_kind,
+                        function_self_type,
                         requested_items,
                     ) {
                         self.completion_items.push(completion_item);
@@ -1082,7 +1117,8 @@ impl<'a> NodeFinder<'a> {
         &self,
         module_def_id: ModuleDefId,
         name: String,
-        function_completion_kind: FunctionCompleteKind,
+        function_completion_kind: FunctionCompletionKind,
+        function_self_type: FunctionSelfType,
         requested_items: RequestedItems,
     ) -> Option<CompletionItem> {
         match requested_items {
@@ -1096,28 +1132,50 @@ impl<'a> NodeFinder<'a> {
             RequestedItems::AnyItems => (),
         }
 
-        let completion_item = match module_def_id {
-            ModuleDefId::ModuleId(_) => module_completion_item(name),
+        match module_def_id {
+            ModuleDefId::ModuleId(_) => Some(module_completion_item(name)),
             ModuleDefId::FunctionId(func_id) => {
-                self.function_completion_item(func_id, function_completion_kind)
+                self.function_completion_item(func_id, function_completion_kind, function_self_type)
             }
-            ModuleDefId::TypeId(struct_id) => self.struct_completion_item(struct_id),
+            ModuleDefId::TypeId(struct_id) => Some(self.struct_completion_item(struct_id)),
             ModuleDefId::TypeAliasId(type_alias_id) => {
-                self.type_alias_completion_item(type_alias_id)
+                Some(self.type_alias_completion_item(type_alias_id))
             }
-            ModuleDefId::TraitId(trait_id) => self.trait_completion_item(trait_id),
-            ModuleDefId::GlobalId(global_id) => self.global_completion_item(global_id),
-        };
-        Some(completion_item)
+            ModuleDefId::TraitId(trait_id) => Some(self.trait_completion_item(trait_id)),
+            ModuleDefId::GlobalId(global_id) => Some(self.global_completion_item(global_id)),
+        }
     }
 
     fn function_completion_item(
         &self,
         func_id: FuncId,
-        function_completion_kind: FunctionCompleteKind,
-    ) -> CompletionItem {
+        function_completion_kind: FunctionCompletionKind,
+        function_self_type: FunctionSelfType,
+    ) -> Option<CompletionItem> {
         let func_meta = self.interner.function_meta(&func_id);
         let name = self.interner.function_name(&func_id).to_string();
+
+        match function_self_type {
+            FunctionSelfType::Any => (),
+            FunctionSelfType::SelfType | FunctionSelfType::NoSelfType => {
+                let first_param_name = func_meta
+                    .parameter_idents
+                    .get(0)
+                    .map(|ident| self.interner.definition_name(ident.id));
+
+                if function_self_type == FunctionSelfType::SelfType
+                    && first_param_name != Some("self")
+                {
+                    return None;
+                }
+
+                if function_self_type == FunctionSelfType::NoSelfType
+                    && first_param_name == Some("self")
+                {
+                    return None;
+                }
+            }
+        }
 
         let mut typ = &func_meta.typ;
         if let Type::Forall(_, typ_) = typ {
@@ -1126,34 +1184,57 @@ impl<'a> NodeFinder<'a> {
         let description = typ.to_string();
         let description = description.strip_suffix(" -> ()").unwrap_or(&description).to_string();
 
-        match function_completion_kind {
-            FunctionCompleteKind::Name => {
+        Some(match function_completion_kind {
+            FunctionCompletionKind::Name => {
                 simple_completion_item(name, CompletionItemKind::FUNCTION, Some(description))
             }
-            FunctionCompleteKind::NameAndParameters => {
+            FunctionCompletionKind::NameAndParameters => {
                 let label = format!("{}(…)", name);
                 let kind = CompletionItemKind::FUNCTION;
-                let insert_text = self.compute_function_insert_text(func_meta, &name);
+                let insert_text =
+                    self.compute_function_insert_text(func_meta, &name, function_self_type);
 
                 snippet_completion_item(label, kind, insert_text, Some(description))
             }
-        }
+        })
     }
 
-    fn compute_function_insert_text(&self, func_meta: &FuncMeta, name: &str) -> String {
+    fn compute_function_insert_text(
+        &self,
+        func_meta: &FuncMeta,
+        name: &str,
+        function_self_type: FunctionSelfType,
+    ) -> String {
         let mut text = String::new();
         text.push_str(name);
         text.push('(');
-        for (index, (pattern, _, _)) in func_meta.parameters.0.iter().enumerate() {
-            if index > 0 {
+
+        let mut index = 1;
+        for (pattern, _, _) in &func_meta.parameters.0 {
+            if index == 1 {
+                match function_self_type {
+                    FunctionSelfType::SelfType => {
+                        if let Some(name) = self.hir_pattern_to_str(pattern) {
+                            if name == "self" {
+                                continue;
+                            }
+                        }
+                    }
+                    FunctionSelfType::Any | FunctionSelfType::NoSelfType => (),
+                }
+            }
+
+            if index > 1 {
                 text.push_str(", ");
             }
 
             text.push_str("${");
-            text.push_str(&(index + 1).to_string());
+            text.push_str(&index.to_string());
             text.push(':');
             self.hir_pattern_to_argument(pattern, &mut text);
             text.push('}');
+
+            index += 1;
         }
         text.push(')');
         text
@@ -1166,6 +1247,14 @@ impl<'a> NodeFinder<'a> {
             }
             HirPattern::Mutable(pattern, _) => self.hir_pattern_to_argument(pattern, text),
             HirPattern::Tuple(_, _) | HirPattern::Struct(_, _, _) => text.push('_'),
+        }
+    }
+
+    fn hir_pattern_to_str(&self, pattern: &HirPattern) -> Option<&str> {
+        match pattern {
+            HirPattern::Identifier(hir_ident) => Some(self.interner.definition_name(hir_ident.id)),
+            HirPattern::Mutable(pattern, _) => self.hir_pattern_to_str(pattern),
+            HirPattern::Tuple(_, _) | HirPattern::Struct(_, _, _) => None,
         }
     }
 
@@ -2353,6 +2442,33 @@ mod completion_tests {
         assert_completion(
             src,
             vec![simple_completion_item("bar", CompletionItemKind::FIELD, Some("i32".to_string()))],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_struct_impl_method() {
+        let src = r#"
+            struct Some {
+            }
+
+            impl Some {
+                fn foobar(self, x: i32) {}
+                fn foobar2(y: i32) {}
+            }
+
+            fn foo(some: Some) {
+                some.f>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![snippet_completion_item(
+                "foobar(…)",
+                CompletionItemKind::FUNCTION,
+                "foobar(${1:x})",
+                Some("fn(Some, i32)".to_string()),
+            )],
         )
         .await;
     }
