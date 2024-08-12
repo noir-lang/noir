@@ -733,6 +733,7 @@ impl<'a> NodeFinder<'a> {
                 RequestedItems::AnyItems => {
                     self.local_variables_completion(&prefix);
                     self.builtin_functions_completion(&prefix);
+                    self.builtin_values_completion(&prefix);
                 }
                 RequestedItems::OnlyTypes => {
                     self.builtin_types_completion(&prefix);
@@ -1181,7 +1182,9 @@ impl<'a> NodeFinder<'a> {
                 Some("fn(T, T, str)".to_string()),
             ));
         }
+    }
 
+    fn builtin_values_completion(&mut self, prefix: &str) {
         for keyword in ["false", "true"] {
             if name_matches(keyword, prefix) {
                 self.completion_items.push(simple_completion_item(
