@@ -173,14 +173,11 @@ impl Trait {
     pub fn as_constraint(&self, span: Span) -> TraitConstraint {
         TraitConstraint {
             typ: Type::TypeVariable(self.self_type_typevar.clone(), TypeVariableKind::Normal),
-            trait_generics: Type::from_generics(&vecmap(&self.generics, |generic| {
-                generic.type_var.clone()
-            })),
+            trait_generics: vecmap(&self.generics, |generic| generic.clone().as_named_generic()),
             trait_id: self.id,
             span,
             associated_types: vecmap(&self.associated_types, |generic| {
                 let name = Ident::new(generic.name.to_string(), span);
-                // This may need to be a TypeVariable instead of a named generic
                 NamedType { name, typ: generic.clone().as_named_generic() }
             }),
         }

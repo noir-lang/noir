@@ -60,8 +60,6 @@ pub enum ResolverError {
     GenericsOnSelfType { span: Span },
     #[error("Cannot apply generics on an associated type")]
     GenericsOnAssociatedType { span: Span },
-    #[error("Incorrect amount of arguments to {item_name}")]
-    IncorrectGenericCount { span: Span, item_name: String, actual: usize, expected: usize },
     #[error("{0}")]
     ParserError(Box<ParserError>),
     #[error("Cannot create a mutable reference to {variable}, it was declared to be immutable")]
@@ -290,16 +288,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Cannot apply generics to an associated type".into(),
                 *span,
             ),
-            ResolverError::IncorrectGenericCount { span, item_name, actual, expected } => {
-                let expected_plural = if *expected == 1 { "" } else { "s" };
-                let actual_plural = if *actual == 1 { "is" } else { "are" };
-
-                Diagnostic::simple_error(
-                    format!("`{item_name}` has {expected} generic argument{expected_plural} but {actual} {actual_plural} given here"),
-                    "Incorrect number of generic arguments".into(),
-                    *span,
-                )
-            }
             ResolverError::ParserError(error) => error.as_ref().into(),
             ResolverError::MutableReferenceToImmutableVariable { variable, span } => {
                 Diagnostic::simple_error(format!("Cannot mutably reference the immutable variable {variable}"), format!("{variable} is immutable"), *span)

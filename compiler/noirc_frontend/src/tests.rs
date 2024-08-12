@@ -2694,8 +2694,8 @@ fn incorrect_generic_count_on_struct_impl() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
-        actual,
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        found,
         expected,
         ..
     }) = errors[0].0
@@ -2703,7 +2703,7 @@ fn incorrect_generic_count_on_struct_impl() {
         panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
     };
 
-    assert_eq!(actual, 1);
+    assert_eq!(found, 1);
     assert_eq!(expected, 0);
 }
 
@@ -2718,8 +2718,8 @@ fn incorrect_generic_count_on_type_alias() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
-        actual,
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        found,
         expected,
         ..
     }) = errors[0].0
@@ -2727,7 +2727,7 @@ fn incorrect_generic_count_on_type_alias() {
         panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
     };
 
-    assert_eq!(actual, 1);
+    assert_eq!(found, 1);
     assert_eq!(expected, 0);
 }
 

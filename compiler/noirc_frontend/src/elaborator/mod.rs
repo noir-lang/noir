@@ -751,7 +751,7 @@ impl<'context> Elaborator<'context> {
             };
 
             self.check_if_type_is_valid_for_program_input(
-                &typ,
+                dbg!(&typ),
                 is_entry_point,
                 has_inline_attribute,
                 type_span,

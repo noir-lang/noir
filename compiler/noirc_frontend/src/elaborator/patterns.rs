@@ -622,6 +622,7 @@ impl<'context> Elaborator<'context> {
 
         let span = self.interner.expr_span(&expr_id);
         let location = self.interner.expr_location(&expr_id);
+
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?

@@ -490,7 +490,7 @@ impl<'context> Elaborator<'context> {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.0.contents.as_str())?;
                 let constraint = the_trait.as_constraint(path.span);
-                return Some((method, constraint, false));
+                return Some((method, constraint, true));
             }
         }
         None
