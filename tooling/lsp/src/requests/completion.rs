@@ -1807,13 +1807,13 @@ mod completion_tests {
     #[test]
     async fn test_complete_path_shows_module() {
         let src = r#"
-          mod foo {}
+          mod foobar {}
 
           fn main() {
-            f>|<
+            fo>|<
           }
         "#;
-        assert_completion(src, vec![module_completion_item("foo")]).await;
+        assert_completion(src, vec![module_completion_item("foobar")]).await;
     }
 
     #[test]
@@ -2048,7 +2048,7 @@ mod completion_tests {
           fn SomeFunction() {}
 
           struct Another {
-            some: S>|<
+            some: So>|<
           }
         "#;
         assert_completion(
@@ -2067,7 +2067,7 @@ mod completion_tests {
         let src = r#"
           struct Something {}
 
-          fn foo(x: S>|<) {}
+          fn foo(x: So>|<) {}
         "#;
         assert_completion(
             src,
@@ -2085,7 +2085,7 @@ mod completion_tests {
         let src = r#"
           struct Something {}
 
-          fn foo() -> S>|< {}
+          fn foo() -> So>|< {}
         "#;
         assert_completion(
             src,
@@ -2103,7 +2103,7 @@ mod completion_tests {
         let src = r#"
           struct Something {}
 
-          type Foo = S>|<
+          type Foo = So>|<
         "#;
         assert_completion(
             src,
@@ -2122,7 +2122,7 @@ mod completion_tests {
           struct Something {}
 
           trait Trait {
-            fn foo(s: S>|<);
+            fn foo(s: So>|<);
           }
         "#;
         assert_completion(
@@ -2142,7 +2142,7 @@ mod completion_tests {
           struct Something {}
 
           trait Trait {
-            fn foo() -> S>|<;
+            fn foo() -> So>|<;
           }
         "#;
         assert_completion(
@@ -2162,7 +2162,7 @@ mod completion_tests {
           struct Something {}
 
           fn main() {
-            let x: S>|<
+            let x: So>|<
           }
         "#;
         assert_completion(
@@ -2182,7 +2182,7 @@ mod completion_tests {
           struct Something {}
 
           fn main() {
-            foo(|s: S>|<| s)
+            foo(|s: So>|<| s)
           }
         "#;
         assert_completion(
