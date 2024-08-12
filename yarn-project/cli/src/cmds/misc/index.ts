@@ -2,6 +2,8 @@ import { type LogFn } from '@aztec/foundation/log';
 
 import { type Command } from 'commander';
 
+import { prettyPrintJSON } from '../../utils/commands.js';
+
 export * from './deploy_contracts.js';
 
 export function injectCommands(program: Command, log: LogFn) {
@@ -9,10 +11,15 @@ export function injectCommands(program: Command, log: LogFn) {
     .command('generate-keys')
     .summary('Generates encryption and signing private keys.')
     .description('Generates and encryption and signing private key pair.')
-    .action(async _options => {
-      const { generateKeys } = await import('./generate_private_key.js');
-      const { privateEncryptionKey, privateSigningKey } = generateKeys();
-      log(`Encryption Private Key: ${privateEncryptionKey}\nSigning Private key: ${privateSigningKey}\n`);
+    .option('--json', 'Output the keys in JSON format')
+    .action(async ({ json }) => {
+      const { generateSecretKey } = await import('./generate_secret_key.js');
+      const { secretKey } = generateSecretKey();
+      if (json) {
+        log(prettyPrintJSON({ secretKey: secretKey.toString() }));
+      } else {
+        log(`Secret Key: ${secretKey}`);
+      }
     });
 
   program

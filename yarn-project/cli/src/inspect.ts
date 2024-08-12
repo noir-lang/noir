@@ -46,7 +46,7 @@ export async function inspectTx(
   ]);
   // Base tx data
   log(`Tx ${txHash.toString()}`);
-  log(` Status: ${receipt.status} ${effects ? `(${effects.revertCode.getDescription()}})` : ''})`);
+  log(` Status: ${receipt.status} ${effects ? `(${effects.revertCode.getDescription()})` : ''}`);
   if (receipt.error) {
     log(` Error: ${receipt.error}`);
   }

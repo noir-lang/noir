@@ -179,7 +179,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         options.args,
         options.contractArtifact,
         options.contractAddress,
-        options.privateKey,
+        options.secretKey,
         options.rpcUrl,
         debugLogger,
         log,

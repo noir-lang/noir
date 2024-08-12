@@ -68,5 +68,5 @@ elif [ "${1:-}" == "start" ]; then
   export ENV_VARS_TO_INJECT="${ENV_VARS_TO_INJECT[*]}"
   ENV_VARS_TO_INJECT="${ENV_VARS_TO_INJECT[*]}" INHERIT_USER=0 $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
 else
-  SKIP_PORT_ASSIGNMENT=1 $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
+  ENV_VARS_TO_INJECT="SECRET_KEY" SKIP_PORT_ASSIGNMENT=1 $(dirname $0)/.aztec-run aztecprotocol/aztec "$@"
 fi

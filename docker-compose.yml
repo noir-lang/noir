@@ -107,7 +107,7 @@ services:
     environment:
       PXE_URL: http://pxe:8080
       NODE_NO_WARNINGS: 1
-      PRIVATE_KEY:
+      SECRET_KEY:
       ETHEREUM_HOST:
     profiles:
       - cli
