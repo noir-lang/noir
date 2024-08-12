@@ -1778,18 +1778,16 @@ impl Type {
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
-        let Some(make_error) = self.try_fn_to_unconstrained_fn_coercion(
-            expected, expression, interner, errors, make_error,
-        ) else {
-            return;
-        };
-
         let mut bindings = TypeBindings::new();
 
         if let Err(UnificationError) = self.try_unify(expected, &mut bindings) {
             if !self.try_array_to_slice_coercion(expected, expression, interner) {
-                errors.push(make_error());
+                // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
+                if let Some(make_error) = self.try_fn_to_unconstrained_fn_coercion(
+                    expected, expression, interner, errors, make_error,
+                ) {
+                    errors.push(make_error());
+                }
             }
         } else {
             Type::apply_type_bindings(bindings);
