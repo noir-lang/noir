@@ -53,6 +53,7 @@ Prover get_prover(void (*test_circuit_function)(typename Prover::Flavor::Circuit
         Composer composer;
         return composer.create_prover(builder);
     } else {
+        ZoneScopedN("creating prover");
         return Prover(builder);
     }
 };

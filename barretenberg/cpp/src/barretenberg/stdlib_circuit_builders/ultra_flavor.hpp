@@ -239,6 +239,7 @@ class UltraFlavor {
         ProverPolynomials(size_t circuit_size)
         { // Initialize all unshifted polynomials to the zero polynomial and initialize the
           // shifted polys
+            ZoneScopedN("creating empty prover polys");
             for (auto& poly : get_unshifted()) {
                 poly = Polynomial{ circuit_size };
             }
