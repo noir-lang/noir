@@ -30,6 +30,10 @@ concept HasSubrelationLinearlyIndependentMember = requires(T) {
 
 template <typename T>
 concept HasParameterLengthAdjustmentsMember = requires { T::TOTAL_LENGTH_ADJUSTMENTS; };
+// The concept needed to adjust the sumcheck univariate lengths in the case of ZK Flavors and to avoid adding redundant
+// constants to the relations that are not used by ZK flavors
+template <typename T>
+concept HasWitnessDegrees = requires { T::SUBRELATION_WITNESS_DEGREES; };
 
 /**
  * @brief Check whether a given subrelation is linearly independent from the other subrelations.
@@ -60,6 +64,27 @@ consteval std::array<size_t, RelationImpl::SUBRELATION_PARTIAL_LENGTHS.size()> c
         std::array<size_t, NUM_SUBRELATIONS> result;
         for (size_t idx = 0; idx < NUM_SUBRELATIONS; idx++) {
             result[idx] = RelationImpl::SUBRELATION_PARTIAL_LENGTHS[idx] + RelationImpl::TOTAL_LENGTH_ADJUSTMENTS[idx];
+        }
+        return result;
+    } else {
+        return RelationImpl::SUBRELATION_PARTIAL_LENGTHS;
+    }
+};
+/**
+ * @brief This metod adjusts the subrelation partial lengths to ZK Flavors.
+ *
+ * @tparam RelationImpl
+ * @return consteval
+ */
+template <typename RelationImpl>
+consteval std::array<size_t, RelationImpl::SUBRELATION_PARTIAL_LENGTHS.size()> compute_zk_partial_subrelation_lengths()
+{
+    if constexpr (HasWitnessDegrees<RelationImpl>) {
+        constexpr size_t NUM_SUBRELATIONS = RelationImpl::SUBRELATION_PARTIAL_LENGTHS.size();
+        std::array<size_t, NUM_SUBRELATIONS> result;
+        for (size_t idx = 0; idx < NUM_SUBRELATIONS; idx++) {
+            result[idx] =
+                RelationImpl::SUBRELATION_PARTIAL_LENGTHS[idx] + RelationImpl::SUBRELATION_WITNESS_DEGREES[idx];
         }
         return result;
     } else {
@@ -139,12 +164,18 @@ template <typename RelationImpl> class Relation : public RelationImpl {
 
     static constexpr std::array<size_t, RelationImpl::SUBRELATION_PARTIAL_LENGTHS.size()> SUBRELATION_TOTAL_LENGTHS =
         compute_total_subrelation_lengths<RelationImpl>();
+    // Compute the subrelation partial lengths adjusted to ZK
+    static constexpr std::array<size_t, RelationImpl::SUBRELATION_PARTIAL_LENGTHS.size()> ZK_PARTIAL_LENGTHS =
+        compute_zk_partial_subrelation_lengths<RelationImpl>();
 
     static constexpr size_t RELATION_LENGTH = *std::max_element(RelationImpl::SUBRELATION_PARTIAL_LENGTHS.begin(),
                                                                 RelationImpl::SUBRELATION_PARTIAL_LENGTHS.end());
 
     static constexpr size_t TOTAL_RELATION_LENGTH =
         *std::max_element(SUBRELATION_TOTAL_LENGTHS.begin(), SUBRELATION_TOTAL_LENGTHS.end());
+    // Determine the maximum subrelation length in the case if ZK Flavors
+    static constexpr size_t ZK_TOTAL_RELATION_LENGTH =
+        *std::max_element(ZK_PARTIAL_LENGTHS.begin(), ZK_PARTIAL_LENGTHS.end());
 
     template <size_t NUM_INSTANCES>
     using ProtogalaxyTupleOfUnivariatesOverSubrelations =
@@ -157,6 +188,10 @@ template <typename RelationImpl> class Relation : public RelationImpl {
                                     NUM_INSTANCES - 1>;
     using SumcheckTupleOfUnivariatesOverSubrelations =
         TupleOfUnivariates<FF, RelationImpl::SUBRELATION_PARTIAL_LENGTHS>;
+    // The containter constructor for sumcheck univariates corresponding to each subrelation in ZK Flavor's relations
+    using ZKSumcheckTupleOfUnivariatesOverSubrelations =
+        TupleOfUnivariates<FF, compute_zk_partial_subrelation_lengths<RelationImpl>()>;
+
     using SumcheckArrayOfValuesOverSubrelations = ArrayOfValues<FF, RelationImpl::SUBRELATION_PARTIAL_LENGTHS>;
 
     // These are commonly needed, most importantly, for explicitly instantiating

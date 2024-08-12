@@ -48,7 +48,7 @@
  * @note It would be ideal to codify more structure in these base class template and to have it imposed on the actual
  * flavors, but our inheritance model is complicated as it is, and we saw no reasonable way to fix this.
  *
- * @note One asymmetry to note is in the use of the term "key". It is worthwhile to distinguish betwen prover/verifier
+ * @note One asymmetry to note is in the use of the term "key". It is worthwhile to distinguish between prover/verifier
  * circuit data, and "keys" that consist of such data augmented with witness data (whether, raw, blinded, or polynomial
  * commitments). Currently the proving key contains witness data, while the verification key does not.
  * TODO(Cody): It would be nice to resolve this but it's not essential.
@@ -329,6 +329,26 @@ static constexpr auto _create_protogalaxy_tuple_of_tuples_of_univariates_interna
 }
 
 /**
+ * @brief Takes a Tuple of objects in the Relation class and recursively computes the maximum among partial
+ * subrelation lengths incremented by corresponding subrelation witness degrees over all
+ * subrelations of given relations. This method is required to compute the size of
+ * Round Univariates in ZK Sumcheck.
+ * @tparam Tuple
+ * @tparam Index
+ * @return constexpr size_t
+ */
+template <typename Tuple, std::size_t Index = 0> static constexpr size_t compute_max_total_zk_relation_length()
+{
+    if constexpr (Index >= std::tuple_size<Tuple>::value) {
+        return 0; // Return 0 when reach end of the tuple
+    } else {
+        constexpr size_t current_zk_length = std::tuple_element<Index, Tuple>::type::ZK_TOTAL_RELATION_LENGTH;
+        constexpr size_t next_zk_length = compute_max_total_zk_relation_length<Tuple, Index + 1>();
+        return (current_zk_length > next_zk_length) ? current_zk_length : next_zk_length;
+    }
+}
+
+/**
  * @brief Utility function to construct a container for the subrelation accumulators of Protogalaxy folding.
  * @details The size of the outer tuple is equal to the number of relations. Each relation contributes an inner tuple of
  * univariates whose size is equal to the number of subrelations of the relation. The length of a univariate in an inner
@@ -349,6 +369,12 @@ static constexpr auto _create_sumcheck_tuple_of_tuples_of_univariates_internal(
     return std::make_tuple(typename std::tuple_element_t<I, Tuple>::SumcheckTupleOfUnivariatesOverSubrelations{}...);
 }
 
+template <typename Tuple, size_t... I>
+static constexpr auto _create_zk_sumcheck_tuple_of_tuples_of_univariates_internal(
+    [[maybe_unused]] std::index_sequence<I...>)
+{
+    return std::make_tuple(typename std::tuple_element_t<I, Tuple>::ZKSumcheckTupleOfUnivariatesOverSubrelations{}...);
+}
 /**
  * @brief Utility function to construct a container for the subrelation accumulators of sumcheck proving.
  * @details The size of the outer tuple is equal to the number of relations. Each relation contributes an inner tuple of
@@ -358,6 +384,19 @@ static constexpr auto _create_sumcheck_tuple_of_tuples_of_univariates_internal(
 template <typename Tuple> static constexpr auto create_sumcheck_tuple_of_tuples_of_univariates()
 {
     return _create_sumcheck_tuple_of_tuples_of_univariates_internal<Tuple>(
+        std::make_index_sequence<std::tuple_size_v<Tuple>>());
+}
+
+/**
+ * @brief Recursive utility function to construct a container for the subrelation accumulators of ZK Sumcheck prover.
+ * @details The size of the outer tuple is equal to the number of relations. Each relation contributes an inner tuple of
+ * univariates whose size is equal to the number of subrelations of the relation. The length of a univariate in an inner
+ * tuple is determined by the corresponding zk subrelation length, i.e. by the subrelation partial length corrected by
+ * the corresponding witness degree.
+ */
+template <typename Tuple> static constexpr auto create_zk_sumcheck_tuple_of_tuples_of_univariates()
+{
+    return _create_zk_sumcheck_tuple_of_tuples_of_univariates_internal<Tuple>(
         std::make_index_sequence<std::tuple_size_v<Tuple>>());
 }
 
@@ -382,6 +421,7 @@ template <typename Tuple> static constexpr auto create_tuple_of_arrays_of_values
 // Forward declare honk flavors
 namespace bb {
 class UltraFlavor;
+class UltraFlavorWithZK;
 class ECCVMFlavor;
 class UltraKeccakFlavor;
 class MegaFlavor;
@@ -415,13 +455,13 @@ template <typename T>
 concept IsUltraPlonkFlavor = IsAnyOf<T, plonk::flavor::Ultra, UltraKeccakFlavor>;
 
 template <typename T> 
-concept IsUltraPlonkOrHonk = IsAnyOf<T, plonk::flavor::Ultra, UltraFlavor, UltraKeccakFlavor, MegaFlavor>;
+concept IsUltraPlonkOrHonk = IsAnyOf<T, plonk::flavor::Ultra, UltraFlavor, UltraKeccakFlavor, UltraFlavorWithZK, MegaFlavor>;
 
 template <typename T> 
-concept IsHonkFlavor = IsAnyOf<T, UltraFlavor, UltraKeccakFlavor, MegaFlavor>;
+concept IsHonkFlavor = IsAnyOf<T, UltraFlavor, UltraKeccakFlavor, UltraFlavorWithZK, MegaFlavor>;
 
 template <typename T> 
-concept IsUltraFlavor = IsAnyOf<T, UltraFlavor, UltraKeccakFlavor, MegaFlavor>;
+concept IsUltraFlavor = IsAnyOf<T, UltraFlavor, UltraKeccakFlavor, UltraFlavorWithZK, MegaFlavor>;
 
 template <typename T> 
 concept IsGoblinFlavor = IsAnyOf<T, MegaFlavor,
@@ -448,6 +488,7 @@ template <typename T> concept IsGrumpkinFlavor = IsAnyOf<T, ECCVMFlavor>;
 template <typename T> concept IsFoldingFlavor = IsAnyOf<T, UltraFlavor, 
                                                            // Note(md): must be here to use oink prover
                                                            UltraKeccakFlavor,
+                                                           UltraFlavorWithZK,
                                                            MegaFlavor, 
                                                            UltraRecursiveFlavor_<UltraCircuitBuilder>, 
                                                            UltraRecursiveFlavor_<MegaCircuitBuilder>, 
