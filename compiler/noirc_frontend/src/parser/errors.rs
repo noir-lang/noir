@@ -16,16 +16,20 @@ pub enum ParserErrorReason {
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
     ExpectedPatternButFoundType(Token),
+    #[error("expected an identifier after ::")]
+    ExpectedIdentifierAfterColons,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
-    #[error("Expression is invalid in an array-length type: '{0}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.")]
-    InvalidArrayLengthExpression(Expression),
+    #[error("Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context.")]
+    InvalidTypeExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
     #[error("Patterns aren't allowed in a trait's function declarations")]
     PatternInTraitFunctionParameter,
+    #[error("Patterns aren't allowed in a trait impl's associated constants")]
+    PatternInAssociatedConstant,
     #[error("Modifiers are ignored on a trait impl method")]
     TraitImplFunctionModifiers,
     #[error("comptime keyword is deprecated")]
@@ -44,10 +48,10 @@ pub enum ParserErrorReason {
     InvalidBitSize(u32),
     #[error("{0}")]
     Lexer(LexerErrorKind),
-    // TODO(https://github.com/noir-lang/noir/issues/5571): This error can be removed once support is expanded for type-level integers.
-    // This error reason was added to prevent the panic outline in this issue: https://github.com/noir-lang/noir/issues/5552.
-    #[error("Only unsigned integers allowed for numeric generics")]
-    SignedNumericGeneric,
+    #[error("The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`")]
+    ForbiddenNumericGenericType,
+    #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
+    InvalidCallDataIdentifier,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

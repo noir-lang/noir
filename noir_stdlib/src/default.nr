@@ -1,8 +1,19 @@
+use crate::meta::derive_via;
+
+#[derive_via(derive_default)]
 // docs:start:default-trait
 trait Default {
     fn default() -> Self;
 }
 // docs:end:default-trait
+
+comptime fn derive_default(s: StructDefinition) -> Quoted {
+    let name = quote { Default };
+    let signature = quote { fn default() -> Self };
+    let for_each_field = |name| quote { $name: Default::default() };
+    let body = |fields| quote { Self { $fields } };
+    crate::meta::make_trait_impl(s, name, signature, for_each_field, quote { , }, body)
+}
 
 impl Default for Field { fn default() -> Field { 0 } }
 

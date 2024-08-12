@@ -1,16 +1,16 @@
 import { WitnessMap } from '@noir-lang/types';
 
-export function flattenPublicInputsAsArray(publicInputs: string[]): Uint8Array {
-  const flattenedPublicInputs = publicInputs.map(hexToUint8Array);
+export function flattenFieldsAsArray(fields: string[]): Uint8Array {
+  const flattenedPublicInputs = fields.map(hexToUint8Array);
   return flattenUint8Arrays(flattenedPublicInputs);
 }
 
-export function deflattenPublicInputs(flattenedPublicInputs: Uint8Array): string[] {
+export function deflattenFields(flattenedFields: Uint8Array): string[] {
   const publicInputSize = 32;
   const chunkedFlattenedPublicInputs: Uint8Array[] = [];
 
-  for (let i = 0; i < flattenedPublicInputs.length; i += publicInputSize) {
-    const publicInput = flattenedPublicInputs.slice(i, i + publicInputSize);
+  for (let i = 0; i < flattenedFields.length; i += publicInputSize) {
+    const publicInput = flattenedFields.slice(i, i + publicInputSize);
     chunkedFlattenedPublicInputs.push(publicInput);
   }
 

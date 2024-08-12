@@ -195,7 +195,7 @@ pub fn inject_fn(
     let trait_id = None;
     items.functions.push(UnresolvedFunctions { file_id, functions, trait_id, self_type: None });
 
-    let mut errors = Elaborator::elaborate(context, *crate_id, items, None);
+    let mut errors = Elaborator::elaborate(context, *crate_id, items, None, false);
     errors.retain(|(error, _)| !CustomDiagnostic::from(error).is_warning());
 
     if !errors.is_empty() {
@@ -221,6 +221,7 @@ pub fn inject_global(
     let global_id = context.def_interner.push_empty_global(
         name.clone(),
         module_id,
+        *crate_id,
         file_id,
         global.attributes.clone(),
         false,
@@ -240,7 +241,7 @@ pub fn inject_global(
     let mut items = CollectedItems::default();
     items.globals.push(UnresolvedGlobal { file_id, module_id, global_id, stmt_def: global });
 
-    let _errors = Elaborator::elaborate(context, *crate_id, items, None);
+    let _errors = Elaborator::elaborate(context, *crate_id, items, None, false);
 }
 
 pub fn fully_qualified_note_path(context: &HirContext, note_id: StructId) -> Option<String> {

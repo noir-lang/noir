@@ -100,6 +100,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         Type::Error
         | Type::Unit
         | Type::Constant(_)
+        | Type::InfixExpr(..)
         | Type::TraitAsType(..)
         | Type::TypeVariable(_, _)
         | Type::NamedGeneric(..)
@@ -116,7 +117,7 @@ fn to_abi_visibility(value: Visibility) -> AbiVisibility {
     match value {
         Visibility::Public => AbiVisibility::Public,
         Visibility::Private => AbiVisibility::Private,
-        Visibility::DataBus => AbiVisibility::DataBus,
+        Visibility::CallData(_) | Visibility::ReturnData => AbiVisibility::DataBus,
     }
 }
 

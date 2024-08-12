@@ -1,4 +1,5 @@
 use crate::foreign_calls::DebugForeignCallExecutor;
+use acvm::acir::brillig::BitSize;
 use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
@@ -67,7 +68,7 @@ impl AddressMap {
     ) -> Self {
         let opcode_address_size = |opcode: &Opcode<FieldElement>| {
             if let Opcode::BrilligCall { id, .. } = opcode {
-                unconstrained_functions[*id as usize].bytecode.len()
+                unconstrained_functions[id.as_usize()].bytecode.len()
             } else {
                 1
             }
@@ -430,7 +431,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 let opcode = &opcodes[*acir_index];
                 match opcode {
                     Opcode::BrilligCall { id, .. } => {
-                        let first_opcode = &self.unconstrained_functions[*id as usize].bytecode[0];
+                        let first_opcode = &self.unconstrained_functions[id.as_usize()].bytecode[0];
                         format!("BRILLIG {first_opcode:?}")
                     }
                     _ => format!("{opcode:?}"),
@@ -438,7 +439,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } => match &opcodes[*acir_index] {
                 Opcode::BrilligCall { id, .. } => {
-                    let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
+                    let bytecode = &self.unconstrained_functions[id.as_usize()].bytecode;
                     let opcode = &bytecode[*brillig_index];
                     format!("      | {opcode:?}")
                 }
@@ -708,7 +709,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.brillig_solver.as_ref().map(|solver| solver.get_memory())
     }
 
-    pub(super) fn write_brillig_memory(&mut self, ptr: usize, value: FieldElement, bit_size: u32) {
+    pub(super) fn write_brillig_memory(
+        &mut self,
+        ptr: usize,
+        value: FieldElement,
+        bit_size: BitSize,
+    ) {
         if let Some(solver) = self.brillig_solver.as_mut() {
             solver.write_memory_at(
                 ptr,
@@ -745,7 +751,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                 if acir_index < opcodes.len() {
                     match &opcodes[acir_index] {
                         Opcode::BrilligCall { id, .. } => {
-                            let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
+                            let bytecode = &self.unconstrained_functions[id.as_usize()].bytecode;
                             brillig_index < bytecode.len()
                         }
                         _ => false,
@@ -847,8 +853,9 @@ mod tests {
     use crate::foreign_calls::DefaultDebugForeignCallExecutor;
     use acvm::{
         acir::{
+            brillig::IntegerBitSize,
             circuit::{
-                brillig::{BrilligInputs, BrilligOutputs},
+                brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
                 opcodes::{BlockId, BlockType},
             },
             native_types::Expression,
@@ -876,7 +883,7 @@ mod tests {
                 BrilligOpcode::Const {
                     destination: MemoryAddress::from(1),
                     value: fe_0,
-                    bit_size: 32,
+                    bit_size: BitSize::Integer(IntegerBitSize::U32),
                 },
                 BrilligOpcode::ForeignCall {
                     function: "clear_mock".into(),
@@ -889,7 +896,7 @@ mod tests {
             ],
         };
         let opcodes = vec![Opcode::BrilligCall {
-            id: 0,
+            id: BrilligFunctionId(0),
             inputs: vec![BrilligInputs::Single(Expression {
                 linear_combinations: vec![(fe_1, w_x)],
                 ..Expression::default()
@@ -1002,7 +1009,7 @@ mod tests {
         let opcodes = vec![
             // z = x + y
             Opcode::BrilligCall {
-                id: 0,
+                id: BrilligFunctionId(0),
                 inputs: vec![
                     BrilligInputs::Single(Expression {
                         linear_combinations: vec![(fe_1, w_x)],
@@ -1094,7 +1101,12 @@ mod tests {
                     init: vec![],
                     block_type: BlockType::Memory,
                 },
-                Opcode::BrilligCall { id: 0, inputs: vec![], outputs: vec![], predicate: None },
+                Opcode::BrilligCall {
+                    id: BrilligFunctionId(0),
+                    inputs: vec![],
+                    outputs: vec![],
+                    predicate: None,
+                },
                 Opcode::Call { id: 1, inputs: vec![], outputs: vec![], predicate: None },
                 Opcode::AssertZero(Expression::default()),
             ],
@@ -1102,7 +1114,12 @@ mod tests {
         };
         let circuit_two = Circuit {
             opcodes: vec![
-                Opcode::BrilligCall { id: 1, inputs: vec![], outputs: vec![], predicate: None },
+                Opcode::BrilligCall {
+                    id: BrilligFunctionId(1),
+                    inputs: vec![],
+                    outputs: vec![],
+                    predicate: None,
+                },
                 Opcode::AssertZero(Expression::default()),
             ],
             ..Circuit::default()

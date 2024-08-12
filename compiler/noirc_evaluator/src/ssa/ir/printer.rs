@@ -105,7 +105,12 @@ pub(crate) fn display_terminator(
         Some(TerminatorInstruction::Jmp { destination, arguments, call_stack: _ }) => {
             writeln!(f, "    jmp {}({})", destination, value_list(function, arguments))
         }
-        Some(TerminatorInstruction::JmpIf { condition, then_destination, else_destination }) => {
+        Some(TerminatorInstruction::JmpIf {
+            condition,
+            then_destination,
+            else_destination,
+            call_stack: _,
+        }) => {
             writeln!(
                 f,
                 "    jmpif {} then: {}, else: {}",

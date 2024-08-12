@@ -43,7 +43,12 @@ unconstrained pub fn println<T>(input: T) {
 }
 
 #[foreign(recursive_aggregation)]
-pub fn verify_proof<N>(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
+pub fn verify_proof<let N: u32, let M: u32, let K: u32>(
+    verification_key: [Field; N],
+    proof: [Field; M],
+    public_inputs: [Field; K],
+    key_hash: Field
+) {}
 
 // Asserts that the given value is known at compile-time.
 // Useful for debugging for-loop bounds.

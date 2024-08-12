@@ -26,6 +26,8 @@ pub enum DuplicateType {
 pub enum DefCollectorErrorKind {
     #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
+    #[error("duplicate struct field {first_def}")]
+    DuplicateField { first_def: Ident, second_def: Ident },
     #[error("unresolved import")]
     UnresolvedModuleDecl { mod_name: Ident, expected_path: String, alternative_path: String },
     #[error("overlapping imports")]
@@ -129,6 +131,23 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                         first_span,
                     );
                     diag.add_secondary(format!("Second {} found here", &typ), second_span);
+                    diag
+                }
+            }
+            DefCollectorErrorKind::DuplicateField { first_def, second_def } => {
+                let primary_message = format!(
+                    "Duplicate definitions of struct field with name {} found",
+                    &first_def.0.contents
+                );
+                {
+                    let first_span = first_def.0.span();
+                    let second_span = second_def.0.span();
+                    let mut diag = Diagnostic::simple_error(
+                        primary_message,
+                    "First definition found here".to_string(),
+                        first_span,
+                    );
+                    diag.add_secondary("Second definition found here".to_string(), second_span);
                     diag
                 }
             }

@@ -35,11 +35,11 @@ use crate::{
 use super::{Elaborator, LambdaContext};
 
 impl<'context> Elaborator<'context> {
-    pub(super) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
+    pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
             ExpressionKind::Block(block) => self.elaborate_block(block),
-            ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix),
+            ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix, expr.span),
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
             ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
@@ -50,9 +50,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
-            ExpressionKind::Variable(variable, generics) => {
-                return self.elaborate_variable(variable, generics)
-            }
+            ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda),
             ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
@@ -66,6 +64,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 (HirExpression::Error, Type::Error)
             }
+            ExpressionKind::AsTraitPath(_) => todo!("Implement AsTraitPath"),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.span, self.file);
@@ -227,8 +226,7 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Literal(HirLiteral::FmtStr(str, fmt_str_idents)), typ)
     }
 
-    fn elaborate_prefix(&mut self, prefix: PrefixExpression) -> (ExprId, Type) {
-        let span = prefix.rhs.span;
+    fn elaborate_prefix(&mut self, prefix: PrefixExpression, span: Span) -> (ExprId, Type) {
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
         let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
 
@@ -352,7 +350,7 @@ impl<'context> Elaborator<'context> {
                         &mut object,
                     );
 
-                    self.resolve_turbofish_generics(&func_id, method_call.generics, span)
+                    self.resolve_function_turbofish_generics(&func_id, method_call.generics, span)
                 } else {
                     None
                 };
@@ -410,9 +408,12 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&constructor.type_name, exclude_last_segment);
+
         let span = constructor.type_name.span();
         let last_segment = constructor.type_name.last_segment();
-        let is_self_type = last_segment.is_self_type_name();
+        let is_self_type = last_segment.ident.is_self_type_name();
 
         let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
             let typ = self.interner.get_struct(struct_id);
@@ -429,6 +430,15 @@ impl<'context> Elaborator<'context> {
             }
         };
 
+        let turbofish_span = last_segment.turbofish_span();
+
+        let struct_generics = self.resolve_struct_turbofish_generics(
+            &r#type.borrow(),
+            struct_generics,
+            last_segment.generics,
+            turbofish_span,
+        );
+
         let struct_type = r#type.clone();
         let generics = struct_generics.clone();
 
@@ -443,7 +453,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let struct_id = struct_type.borrow().id;
-        let reference_location = Location::new(last_segment.span(), self.file);
+        let reference_location = Location::new(last_segment.ident.span(), self.file);
         self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::Struct(struct_type, generics))
@@ -544,7 +554,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_cast(&mut self, cast: CastExpression, span: Span) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
         let r#type = self.resolve_type(cast.r#type);
-        let result = self.check_cast(lhs_type, &r#type, span);
+        let result = self.check_cast(&lhs_type, &r#type, span);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }

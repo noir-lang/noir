@@ -28,7 +28,7 @@ fn read_heap_array<'a, F: AcirField>(
 /// Extracts the last byte of every value
 fn to_u8_vec<F: AcirField>(inputs: &[MemoryValue<F>]) -> Vec<u8> {
     let mut result = Vec::with_capacity(inputs.len());
-    for input in inputs {
+    for &input in inputs {
         result.push(input.try_into().unwrap());
     }
     result
@@ -91,7 +91,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         BlackBoxOp::Keccakf1600 { message, output } => {
             let state_vec: Vec<u64> = read_heap_vector(memory, message)
                 .iter()
-                .map(|memory_value| memory_value.try_into().unwrap())
+                .map(|&memory_value| memory_value.try_into().unwrap())
                 .collect();
             let state: [u64; 25] = state_vec.try_into().unwrap();
 
@@ -166,7 +166,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let points: Vec<F> = read_heap_vector(memory, points)
                 .iter()
                 .enumerate()
-                .map(|(i, x)| {
+                .map(|(i, &x)| {
                     if i % 3 == 2 {
                         let is_infinite: bool = x.try_into().unwrap();
                         F::from(is_infinite as u128)
@@ -301,9 +301,9 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         }
         BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
             let input = read_heap_vector(memory, inputs);
-            let input: Vec<u8> = input.iter().map(|x| x.try_into().unwrap()).collect();
+            let input: Vec<u8> = input.iter().map(|&x| x.try_into().unwrap()).collect();
             let modulus = read_heap_vector(memory, modulus);
-            let modulus: Vec<u8> = modulus.iter().map(|x| x.try_into().unwrap()).collect();
+            let modulus: Vec<u8> = modulus.iter().map(|&x| x.try_into().unwrap()).collect();
 
             let new_id = bigint_solver.bigint_from_bytes(&input, &modulus)?;
             memory.write(*output, new_id.into());
@@ -345,7 +345,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     format!("Expected 16 inputs but encountered {}", &inputs.len()),
                 ));
             }
-            for (i, input) in inputs.iter().enumerate() {
+            for (i, &input) in inputs.iter().enumerate() {
                 message[i] = input.try_into().unwrap();
             }
             let mut state = [0; 8];
@@ -356,7 +356,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     format!("Expected 8 values but encountered {}", &values.len()),
                 ));
             }
-            for (i, value) in values.iter().enumerate() {
+            for (i, &value) in values.iter().enumerate() {
                 state[i] = value.try_into().unwrap();
             }
 

@@ -27,7 +27,7 @@ impl<'a> Elaborator<'a> {
                             // Don't want the leading `$` anymore
                             new_tokens.pop();
                             let path = Path::from_single(name, span);
-                            let (expr_id, _) = self.elaborate_variable(path, None);
+                            let (expr_id, _) = self.elaborate_variable(path);
                             new_tokens.push(SpannedToken::new(Token::UnquoteMarker(expr_id), span));
                         }
                         other_next => new_tokens.push(SpannedToken::new(other_next, span)),

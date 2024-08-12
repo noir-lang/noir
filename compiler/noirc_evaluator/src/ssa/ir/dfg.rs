@@ -17,12 +17,16 @@ use acvm::{acir::AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use serde_with::DisplayFromStr;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
-#[derive(Debug, Default, Clone)]
+#[serde_as]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub(crate) struct DataFlowGraph {
     /// All of the instructions in a function
     instructions: DenseMap<Instruction>,
@@ -36,6 +40,7 @@ pub(crate) struct DataFlowGraph {
     /// Currently, we need to define them in a better way
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     results: HashMap<InstructionId, Vec<ValueId>>,
 
     /// Storage for all of the values defined in this
@@ -44,21 +49,25 @@ pub(crate) struct DataFlowGraph {
 
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ValueId.
+    #[serde(skip)]
     constants: HashMap<(FieldElement, Type), ValueId>,
 
     /// Contains each function that has been imported into the current function.
     /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given FunctionId
     /// will always have the same ValueId within this function.
+    #[serde(skip)]
     functions: HashMap<FunctionId, ValueId>,
 
     /// Contains each intrinsic that has been imported into the current function.
     /// This map is used to ensure that the ValueId for any given intrinsic is always
     /// represented by only 1 ValueId within this function.
+    #[serde(skip)]
     intrinsics: HashMap<Intrinsic, ValueId>,
 
     /// Contains each foreign function that has been imported into the current function.
     /// This map is used to ensure that the ValueId for any given foreign function is always
     /// represented by only 1 ValueId within this function.
+    #[serde(skip)]
     foreign_functions: HashMap<String, ValueId>,
 
     /// All blocks in a function
@@ -67,6 +76,7 @@ pub(crate) struct DataFlowGraph {
     /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
     /// for that of another. This information is purely used for printing the SSA, and has no
     /// material effect on the SSA itself.
+    #[serde(skip)]
     replaced_value_ids: HashMap<ValueId, ValueId>,
 
     /// Source location of each instruction for debugging and issuing errors.
@@ -79,8 +89,10 @@ pub(crate) struct DataFlowGraph {
     ///
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
+    #[serde(skip)]
     locations: HashMap<InstructionId, CallStack>,
 
+    #[serde(skip)]
     pub(crate) data_bus: DataBus,
 }
 
