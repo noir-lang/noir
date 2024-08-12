@@ -330,65 +330,56 @@ jobs:
 
           docker push aztecprotocol/aztec-faucet:${{ github.sha }}
 
-  # build-cli-wallet:
-  #   needs: set-network
-  #   env:
-  #     BRANCH_NAME: ${{ needs.set-network.outputs.branch_name }}
-  #     DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
-  #     TF_VAR_DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
-  #     API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
-  #     TF_VAR_API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
-  #     API_KEY_NAME: ${{ needs.set-network.outputs.network_api_key }}
-  #   runs-on: ${{ github.actor }}-x86
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         ref: "${{ env.GIT_COMMIT }}"
-  #         fetch-depth: 0
-  #     - uses: ./.github/ci-setup-action
-  #       with:
-  #         concurrency_key: build-cli-wallet-${{ github.actor }}
-  #         dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
-  #     - name: Check if only workflow flows have changed
-  #       id: check_only_workflow_changes
-  #       uses: actions/github-script@v7
-  #       with:
-  #         script: |
-  #           const { execSync } = require('child_process');
-  #           const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}')
-  #             .toString()
-  #             .split('\n')
-  #             .filter(line => line);
-  #           const prefixesToIgnore = ['.github', 'iac'];
-  #           const suffixesToIgnore = ['.tf'];
-  #           return changedFiles.every(file => (
-  #             prefixesToIgnore.some(prefix => file.startsWith(prefix)) ||
-  #             suffixesToIgnore.some(suffix => file.endsWith(suffix))
-  #           ));
-  #     - name: "Build & Push aztec images"
-  #       timeout-minutes: 40
-  #       if: steps.check_only_workflow_changes.outputs.result == 'false'
-  #       run: |
-  #         env
-  #         earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ env.DEPLOY_TAG }}
-  #         earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ github.sha }}
-
-  #     - name: "Re-tag Aztec image"
-  #       if: steps.check_only_workflow_changes.outputs.result == 'true'
-  #       run: |
-  #         env
-  #         docker pull aztecprotocol/cli-wallet:${{ env.DEPLOY_TAG }}
-
-  #         docker tag aztecprotocol/cli-wallet:${{ env.DEPLOY_TAG }} aztecprotocol/cli-wallet:${{ github.sha }}
-
-  #         docker push aztecprotocol/cli-wallet:${{ github.sha }}
+  build-cli-wallet:
+    needs: [set-network, build-aztec]
+    env:
+      BRANCH_NAME: ${{ needs.set-network.outputs.branch_name }}
+      DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
+      TF_VAR_DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
+      API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      TF_VAR_API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      API_KEY_NAME: ${{ needs.set-network.outputs.network_api_key }}
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: build-cli-wallet-${{ github.actor }}
+          dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
+      - name: Check if only workflow flows have changed
+        id: check_only_workflow_changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const changedFiles = execSync('git diff --name-only ${{ github.event.before }} ${{ github.sha }}')
+              .toString()
+              .split('\n')
+              .filter(line => line);
+            const prefixesToIgnore = ['.github', 'iac'];
+            const suffixesToIgnore = ['.tf'];
+            return changedFiles.every(file => (
+              prefixesToIgnore.some(prefix => file.startsWith(prefix)) ||
+              suffixesToIgnore.some(suffix => file.endsWith(suffix))
+            ));
+      - name: "Build & Push aztec images"
+        timeout-minutes: 40
+        if: steps.check_only_workflow_changes.outputs.result == 'false'
+        run: |
+          env
+          earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ env.DEPLOY_TAG }}
+          earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ github.sha }}
 
   build-end:
     runs-on: ubuntu-latest
-    needs: [
+    needs:
+      [
         build-aztec,
         build-faucet,
-        #build-cli-wallet,
+        build-cli-wallet,
         build-mainnet-fork,
         build-aztec-nargo,
         set-network,
