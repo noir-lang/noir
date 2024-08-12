@@ -93,7 +93,8 @@ export type CircuitName =
   | 'public-kernel-tail'
   | 'avm-circuit'
   | 'empty-nested'
-  | 'private-kernel-empty';
+  | 'private-kernel-empty'
+  | 'tube-circuit';
 
 /** Stats for circuit simulation. */
 export type CircuitSimulationStats = {

@@ -31,7 +31,7 @@ import {
   type RootRollupInputs,
   type RootRollupPublicInputs,
   TUBE_PROOF_LENGTH,
-  TubeInputs,
+  type TubeInputs,
   type VerificationKeyAsFields,
   type VerificationKeyData,
   makeRecursiveProofFromBinary,
@@ -226,16 +226,6 @@ export class BBNativeRollupProver implements ServerCircuitProver {
       kernelRequest.inputs.previousKernel.vk,
     );
 
-    // PUBLIC KERNEL: kernel request should be nonempty at start of public kernel proving but it is not
-    // TODO(#7369): We should properly enqueue the tube in the public kernel lifetime
-    if (!kernelRequest.inputs.previousKernel.clientIvcProof.isEmpty()) {
-      const { tubeVK, tubeProof } = await this.getTubeProof(
-        new TubeInputs(kernelRequest.inputs.previousKernel.clientIvcProof),
-      );
-      kernelRequest.inputs.previousKernel.vk = tubeVK;
-      kernelRequest.inputs.previousKernel.proof = tubeProof;
-    }
-
     await this.verifyWithKey(
       kernelRequest.inputs.previousKernel.vk,
       kernelRequest.inputs.previousKernel.proof.binaryProof,
@@ -289,8 +279,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   ): Promise<PublicInputsAndRecursiveProof<BaseOrMergeRollupPublicInputs>> {
     // We may need to convert the recursive proof into fields format
     logger.debug(`kernel Data proof: ${baseRollupInput.kernelData.proof}`);
-    logger.info(`in getBaseRollupProof`);
-    logger.info(`Number of public inputs in baseRollupInput: ${baseRollupInput.kernelData.vk.numPublicInputs}`);
+    logger.debug(`Number of public inputs in baseRollupInput: ${baseRollupInput.kernelData.vk.numPublicInputs}`);
     baseRollupInput.kernelData.proof = await this.ensureValidProof(
       baseRollupInput.kernelData.proof,
       'BaseRollupArtifact',

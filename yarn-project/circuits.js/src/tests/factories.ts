@@ -24,7 +24,6 @@ import {
   BaseParityInputs,
   BaseRollupInputs,
   CallContext,
-  ClientIvcProof,
   CombineHints,
   CombinedAccumulatedData,
   CombinedConstantData,
@@ -660,11 +659,7 @@ export function makePublicCallData(seed = 1, full = false): PublicCallData {
  * @returns Public kernel inputs.
  */
 export function makePublicKernelCircuitPrivateInputs(seed = 1): PublicKernelCircuitPrivateInputs {
-  return new PublicKernelCircuitPrivateInputs(
-    makePublicKernelData(seed),
-    ClientIvcProof.empty(),
-    makePublicCallData(seed + 0x1000),
-  );
+  return new PublicKernelCircuitPrivateInputs(makePublicKernelData(seed), makePublicCallData(seed + 0x1000));
 }
 
 export function makeCombineHints(seed = 1): CombineHints {
