@@ -855,8 +855,7 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     requested_items,
                 );
-            }
-            if let Some(module_id) = self.resolve_module(segments) {
+            } else if let Some(module_id) = self.resolve_module(segments) {
                 let at_root = false;
                 self.complete_in_module(
                     module_id,
