@@ -186,7 +186,7 @@ impl<'a> NodeFinder<'a> {
         match &item.kind {
             ItemKind::Import(use_tree) => {
                 let mut prefixes = Vec::new();
-                self.find_in_use_tree(use_tree, &mut prefixes)
+                self.find_in_use_tree(use_tree, &mut prefixes);
             }
             ItemKind::Submodules(parsed_sub_module) => {
                 // Switch `self.module_id` to the submodule
@@ -353,19 +353,19 @@ impl<'a> NodeFinder<'a> {
     fn find_in_statement(&mut self, statement: &Statement) {
         match &statement.kind {
             noirc_frontend::ast::StatementKind::Let(let_statement) => {
-                self.find_in_let_statement(let_statement, true)
+                self.find_in_let_statement(let_statement, true);
             }
             noirc_frontend::ast::StatementKind::Constrain(constrain_statement) => {
-                self.find_in_constrain_statement(constrain_statement)
+                self.find_in_constrain_statement(constrain_statement);
             }
             noirc_frontend::ast::StatementKind::Expression(expression) => {
-                self.find_in_expression(expression)
+                self.find_in_expression(expression);
             }
             noirc_frontend::ast::StatementKind::Assign(assign_statement) => {
-                self.find_in_assign_statement(assign_statement)
+                self.find_in_assign_statement(assign_statement);
             }
             noirc_frontend::ast::StatementKind::For(for_loop_statement) => {
-                self.find_in_for_loop_statement(for_loop_statement)
+                self.find_in_for_loop_statement(for_loop_statement);
             }
             noirc_frontend::ast::StatementKind::Comptime(statement) => {
                 // When entering a comptime block, regular local variables shouldn't be offered anymore
@@ -377,7 +377,7 @@ impl<'a> NodeFinder<'a> {
                 self.local_variables = old_local_variables;
             }
             noirc_frontend::ast::StatementKind::Semi(expression) => {
-                self.find_in_expression(expression)
+                self.find_in_expression(expression);
             }
             noirc_frontend::ast::StatementKind::Break
             | noirc_frontend::ast::StatementKind::Continue
@@ -402,7 +402,7 @@ impl<'a> NodeFinder<'a> {
         self.find_in_expression(&constrain_statement.0);
 
         if let Some(exp) = &constrain_statement.1 {
-            self.find_in_expression(exp)
+            self.find_in_expression(exp);
         }
     }
 
@@ -411,7 +411,7 @@ impl<'a> NodeFinder<'a> {
         assign_statement: &noirc_frontend::ast::AssignStatement,
     ) {
         self.find_in_lvalue(&assign_statement.lvalue);
-        self.find_in_expression(&assign_statement.expression)
+        self.find_in_expression(&assign_statement.expression);
     }
 
     fn find_in_for_loop_statement(&mut self, for_loop_statement: &ForLoopStatement) {
@@ -457,47 +457,47 @@ impl<'a> NodeFinder<'a> {
         match &expression.kind {
             noirc_frontend::ast::ExpressionKind::Literal(literal) => self.find_in_literal(literal),
             noirc_frontend::ast::ExpressionKind::Block(block_expression) => {
-                self.find_in_block_expression(block_expression)
+                self.find_in_block_expression(block_expression);
             }
             noirc_frontend::ast::ExpressionKind::Prefix(prefix_expression) => {
-                self.find_in_expression(&prefix_expression.rhs)
+                self.find_in_expression(&prefix_expression.rhs);
             }
             noirc_frontend::ast::ExpressionKind::Index(index_expression) => {
-                self.find_in_index_expression(index_expression)
+                self.find_in_index_expression(index_expression);
             }
             noirc_frontend::ast::ExpressionKind::Call(call_expression) => {
-                self.find_in_call_expression(call_expression)
+                self.find_in_call_expression(call_expression);
             }
             noirc_frontend::ast::ExpressionKind::MethodCall(method_call_expression) => {
-                self.find_in_method_call_expression(method_call_expression)
+                self.find_in_method_call_expression(method_call_expression);
             }
             noirc_frontend::ast::ExpressionKind::Constructor(constructor_expression) => {
-                self.find_in_constructor_expression(constructor_expression)
+                self.find_in_constructor_expression(constructor_expression);
             }
             noirc_frontend::ast::ExpressionKind::MemberAccess(member_access_expression) => {
-                self.find_in_member_access_expression(member_access_expression)
+                self.find_in_member_access_expression(member_access_expression);
             }
             noirc_frontend::ast::ExpressionKind::Cast(cast_expression) => {
-                self.find_in_cast_expression(cast_expression)
+                self.find_in_cast_expression(cast_expression);
             }
             noirc_frontend::ast::ExpressionKind::Infix(infix_expression) => {
-                self.find_in_infix_expression(infix_expression)
+                self.find_in_infix_expression(infix_expression);
             }
             noirc_frontend::ast::ExpressionKind::If(if_expression) => {
-                self.find_in_if_expression(if_expression)
+                self.find_in_if_expression(if_expression);
             }
             noirc_frontend::ast::ExpressionKind::Variable(path) => {
-                self.find_in_path(path, RequestedItems::AnyItems)
+                self.find_in_path(path, RequestedItems::AnyItems);
             }
             noirc_frontend::ast::ExpressionKind::Tuple(expressions) => {
-                self.find_in_expressions(expressions)
+                self.find_in_expressions(expressions);
             }
             noirc_frontend::ast::ExpressionKind::Lambda(lambda) => self.find_in_lambda(lambda),
             noirc_frontend::ast::ExpressionKind::Parenthesized(expression) => {
-                self.find_in_expression(expression)
+                self.find_in_expression(expression);
             }
             noirc_frontend::ast::ExpressionKind::Unquote(expression) => {
-                self.find_in_expression(expression)
+                self.find_in_expression(expression);
             }
             noirc_frontend::ast::ExpressionKind::Comptime(block_expression, _) => {
                 // When entering a comptime block, regular local variables shouldn't be offered anymore
@@ -509,7 +509,7 @@ impl<'a> NodeFinder<'a> {
                 self.local_variables = old_local_variables;
             }
             noirc_frontend::ast::ExpressionKind::AsTraitPath(as_trait_path) => {
-                self.find_in_as_trait_path(as_trait_path)
+                self.find_in_as_trait_path(as_trait_path);
             }
             noirc_frontend::ast::ExpressionKind::Quote(_)
             | noirc_frontend::ast::ExpressionKind::Resolved(_)
@@ -567,16 +567,16 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         member_access_expression: &MemberAccessExpression,
     ) {
-        self.find_in_expression(&member_access_expression.lhs)
+        self.find_in_expression(&member_access_expression.lhs);
     }
 
     fn find_in_cast_expression(&mut self, cast_expression: &CastExpression) {
-        self.find_in_expression(&cast_expression.lhs)
+        self.find_in_expression(&cast_expression.lhs);
     }
 
     fn find_in_infix_expression(&mut self, infix_expression: &InfixExpression) {
         self.find_in_expression(&infix_expression.lhs);
-        self.find_in_expression(&infix_expression.rhs)
+        self.find_in_expression(&infix_expression.rhs);
     }
 
     fn find_in_if_expression(&mut self, if_expression: &IfExpression) {
@@ -609,14 +609,14 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_as_trait_path(&mut self, as_trait_path: &AsTraitPath) {
-        self.find_in_path(&as_trait_path.trait_path, RequestedItems::OnlyTypes)
+        self.find_in_path(&as_trait_path.trait_path, RequestedItems::OnlyTypes);
     }
 
     fn find_in_function_return_type(&mut self, return_type: &FunctionReturnType) {
         match return_type {
             noirc_frontend::ast::FunctionReturnType::Default(_) => (),
             noirc_frontend::ast::FunctionReturnType::Ty(unresolved_type) => {
-                self.find_in_unresolved_type(unresolved_type)
+                self.find_in_unresolved_type(unresolved_type);
             }
         }
     }
@@ -636,35 +636,35 @@ impl<'a> NodeFinder<'a> {
 
         match &unresolved_type.typ {
             noirc_frontend::ast::UnresolvedTypeData::Array(_, unresolved_type) => {
-                self.find_in_unresolved_type(unresolved_type)
+                self.find_in_unresolved_type(unresolved_type);
             }
             noirc_frontend::ast::UnresolvedTypeData::Slice(unresolved_type) => {
-                self.find_in_unresolved_type(unresolved_type)
+                self.find_in_unresolved_type(unresolved_type);
             }
             noirc_frontend::ast::UnresolvedTypeData::Parenthesized(unresolved_type) => {
-                self.find_in_unresolved_type(unresolved_type)
+                self.find_in_unresolved_type(unresolved_type);
             }
             noirc_frontend::ast::UnresolvedTypeData::Named(path, unresolved_types, _) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_unresolved_types(unresolved_types)
+                self.find_in_unresolved_types(unresolved_types);
             }
             noirc_frontend::ast::UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_unresolved_types(unresolved_types)
+                self.find_in_unresolved_types(unresolved_types);
             }
             noirc_frontend::ast::UnresolvedTypeData::MutableReference(unresolved_type) => {
-                self.find_in_unresolved_type(unresolved_type)
+                self.find_in_unresolved_type(unresolved_type);
             }
             noirc_frontend::ast::UnresolvedTypeData::Tuple(unresolved_types) => {
-                self.find_in_unresolved_types(unresolved_types)
+                self.find_in_unresolved_types(unresolved_types);
             }
             noirc_frontend::ast::UnresolvedTypeData::Function(args, ret, env) => {
                 self.find_in_unresolved_types(args);
                 self.find_in_unresolved_type(ret);
-                self.find_in_unresolved_type(env)
+                self.find_in_unresolved_type(env);
             }
             noirc_frontend::ast::UnresolvedTypeData::AsTraitPath(as_trait_path) => {
-                self.find_in_as_trait_path(as_trait_path)
+                self.find_in_as_trait_path(as_trait_path);
             }
             noirc_frontend::ast::UnresolvedTypeData::Expression(_)
             | noirc_frontend::ast::UnresolvedTypeData::FormatString(_, _)
@@ -778,9 +778,8 @@ impl<'a> NodeFinder<'a> {
         match &use_tree.kind {
             UseTreeKind::Path(ident, alias) => {
                 prefixes.push(use_tree.prefix.clone());
-                let response = self.find_in_use_tree_path(prefixes, ident, alias);
+                self.find_in_use_tree_path(prefixes, ident, alias);
                 prefixes.pop();
-                response
             }
             UseTreeKind::List(use_trees) => {
                 prefixes.push(use_tree.prefix.clone());
