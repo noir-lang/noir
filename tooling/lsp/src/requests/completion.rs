@@ -273,7 +273,7 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_noir_type_alias(&mut self, noir_type_alias: &NoirTypeAlias) {
-        self.find_in_unresolved_type(&noir_type_alias.typ)
+        self.find_in_unresolved_type(&noir_type_alias.typ);
     }
 
     fn find_in_noir_struct(&mut self, noir_struct: &NoirStruct) {
@@ -321,7 +321,7 @@ impl<'a> NodeFinder<'a> {
                     for (name, _) in parameters {
                         self.local_variables.insert(name.to_string(), name.span());
                     }
-                    self.find_in_block_expression(body)
+                    self.find_in_block_expression(body);
                 };
 
                 self.type_parameters = old_type_parameters;
@@ -330,7 +330,7 @@ impl<'a> NodeFinder<'a> {
                 self.find_in_unresolved_type(typ);
 
                 if let Some(default_value) = default_value {
-                    self.find_in_expression(default_value)
+                    self.find_in_expression(default_value);
                 }
             }
             TraitItem::Type { name: _ } => (),
@@ -855,19 +855,18 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     requested_items,
                 );
-            } else {
-                if let Some(module_id) = self.resolve_module(segments) {
-                    let at_root = false;
-                    self.complete_in_module(
-                        module_id,
-                        &prefix,
-                        path_kind,
-                        at_root,
-                        module_completion_kind,
-                        function_completion_kind,
-                        requested_items,
-                    );
-                };
+            }
+            if let Some(module_id) = self.resolve_module(segments) {
+                let at_root = false;
+                self.complete_in_module(
+                    module_id,
+                    &prefix,
+                    path_kind,
+                    at_root,
+                    module_completion_kind,
+                    function_completion_kind,
+                    requested_items,
+                );
             }
         }
     }
