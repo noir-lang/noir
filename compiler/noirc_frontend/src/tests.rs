@@ -2559,7 +2559,7 @@ fn can_pass_regular_function_to_unconstrained_function() {
 
     fn foo() {}
 
-    fn expect_unconstrained(_func: unconstrained fn() -> ()) {
+    fn expect_unconstrained(_func: unconstrained fn() -> ()) {}
     "#;
     assert_no_errors(src);
 }
@@ -2574,8 +2574,7 @@ fn cannot_pass_unconstrained_function_to_constrained_function() {
 
     unconstrained fn foo() {}
 
-    fn expect_regular(_func: fn() -> ()) {
-    }
+    fn expect_regular(_func: fn() -> ()) {}
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
