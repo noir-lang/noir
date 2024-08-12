@@ -422,7 +422,7 @@ impl<'a> NodeFinder<'a> {
                 let old_local_variables = self.local_variables.clone();
                 self.local_variables.clear();
 
-                let response = self.find_in_statement(&statement);
+                let response = self.find_in_statement(statement);
                 self.local_variables = old_local_variables;
                 response
             }
@@ -547,7 +547,7 @@ impl<'a> NodeFinder<'a> {
                 self.find_in_expression(&prefix_expression.rhs)
             }
             noirc_frontend::ast::ExpressionKind::Index(index_expression) => {
-                self.find_in_index_expression(&index_expression)
+                self.find_in_index_expression(index_expression)
             }
             noirc_frontend::ast::ExpressionKind::Call(call_expression) => {
                 self.find_in_call_expression(call_expression)
@@ -588,7 +588,7 @@ impl<'a> NodeFinder<'a> {
                 let old_local_variables = self.local_variables.clone();
                 self.local_variables.clear();
 
-                let response = self.find_in_block_expression(&block_expression);
+                let response = self.find_in_block_expression(block_expression);
                 self.local_variables = old_local_variables;
                 response
             }
@@ -741,7 +741,7 @@ impl<'a> NodeFinder<'a> {
 
         let old_local_variables = self.local_variables.clone();
         for (pattern, _) in &lambda.parameters {
-            self.collect_local_variables(pattern)
+            self.collect_local_variables(pattern);
         }
 
         let response = self.find_in_expression(&lambda.body);
@@ -905,18 +905,14 @@ impl<'a> NodeFinder<'a> {
                     let response = merge_completion_responses(response, local_vars_response);
 
                     let builtin_response = builtin_functions_completion(&prefix);
-                    let response = merge_completion_responses(response, builtin_response);
-
-                    response
+                    merge_completion_responses(response, builtin_response)
                 }
                 RequestedItems::OnlyTypes => {
                     let builtin_types_response = builtin_types_completion(&prefix);
                     let response = merge_completion_responses(response, builtin_types_response);
 
                     let type_parameters_response = self.type_parameters_completion(&prefix);
-                    let response = merge_completion_responses(response, type_parameters_response);
-
-                    response
+                    merge_completion_responses(response, type_parameters_response)
                 }
             }
         } else {
@@ -924,7 +920,7 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
-    fn local_variables_completion(&self, prefix: &String) -> Option<CompletionResponse> {
+    fn local_variables_completion(&self, prefix: &str) -> Option<CompletionResponse> {
         let mut completion_items = Vec::new();
 
         for (name, span) in &self.local_variables {
@@ -954,7 +950,7 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
-    fn type_parameters_completion(&self, prefix: &String) -> Option<CompletionResponse> {
+    fn type_parameters_completion(&self, prefix: &str) -> Option<CompletionResponse> {
         let mut completion_items = Vec::new();
 
         for name in &self.type_parameters {
@@ -1101,7 +1097,7 @@ impl<'a> NodeFinder<'a> {
 
     fn collect_type_parameters_in_generics(&mut self, generics: &UnresolvedGenerics) {
         for generic in generics {
-            self.collect_type_parameters_in_generic(generic)
+            self.collect_type_parameters_in_generic(generic);
         }
     }
 
@@ -1117,10 +1113,11 @@ impl<'a> NodeFinder<'a> {
         };
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn complete_in_module(
         &self,
         module_id: ModuleId,
-        prefix: &String,
+        prefix: &str,
         path_kind: PathKind,
         at_root: bool,
         module_completion_kind: ModuleCompletionKind,
@@ -1187,7 +1184,7 @@ impl<'a> NodeFinder<'a> {
                 }
             }
 
-            if name_matches("crate::", &prefix) {
+            if name_matches("crate::", prefix) {
                 completion_items.push(simple_completion_item(
                     "crate::",
                     CompletionItemKind::KEYWORD,
@@ -1195,7 +1192,7 @@ impl<'a> NodeFinder<'a> {
                 ));
             }
 
-            if module_data.parent.is_some() && name_matches("super::", &prefix) {
+            if module_data.parent.is_some() && name_matches("super::", prefix) {
                 completion_items.push(simple_completion_item(
                     "super::",
                     CompletionItemKind::KEYWORD,
@@ -1266,14 +1263,14 @@ impl<'a> NodeFinder<'a> {
             FunctionCompleteKind::NameAndParameters => {
                 let label = format!("{}(…)", name);
                 let kind = CompletionItemKind::FUNCTION;
-                let insert_text = self.compute_function_insert_text(&func_meta, &name);
+                let insert_text = self.compute_function_insert_text(func_meta, &name);
 
                 snippet_completion_item(label, kind, insert_text, Some(description))
             }
         }
     }
 
-    fn compute_function_insert_text(&self, func_meta: &FuncMeta, name: &String) -> String {
+    fn compute_function_insert_text(&self, func_meta: &FuncMeta, name: &str) -> String {
         let mut text = String::new();
         text.push_str(name);
         text.push('(');
@@ -1364,7 +1361,7 @@ fn name_matches(name: &str, prefix: &str) -> bool {
     name.starts_with(prefix)
 }
 
-fn builtin_functions_completion(prefix: &String) -> Option<CompletionResponse> {
+fn builtin_functions_completion(prefix: &str) -> Option<CompletionResponse> {
     let mut completion_items = Vec::new();
 
     if name_matches("assert", prefix) {
@@ -1402,7 +1399,7 @@ fn builtin_functions_completion(prefix: &String) -> Option<CompletionResponse> {
     }
 }
 
-fn builtin_types_completion(prefix: &String) -> Option<CompletionResponse> {
+fn builtin_types_completion(prefix: &str) -> Option<CompletionResponse> {
     let mut completion_items = Vec::new();
 
     for typ in [
