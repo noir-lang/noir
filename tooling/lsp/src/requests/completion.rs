@@ -492,7 +492,18 @@ impl<'a> NodeFinder<'a> {
                 self.find_in_if_expression(if_expression);
             }
             noirc_frontend::ast::ExpressionKind::Variable(path) => {
-                self.find_in_path(path, RequestedItems::AnyItems);
+                // "foo." (no identifier afterwards) is parsed as a regular variable.
+                // Here we check if there's a dot at the completion position, and if the variable
+                // ends right before the dot. If so, it means we want to complete the variable's fields and methods.
+                if self.byte == Some(b'.') && path.span.end() as usize == self.byte_index - 1 {
+                    let location = Location::new(path.span, self.file);
+                    if let Some(typ) = self.interner.type_at_location(location) {
+                        let prefix = "";
+                        self.complete_type_fields_and_methods(&typ, prefix, false)
+                    }
+                } else {
+                    self.find_in_path(path, RequestedItems::AnyItems);
+                }
             }
             noirc_frontend::ast::ExpressionKind::Tuple(expressions) => {
                 self.find_in_expressions(expressions);
@@ -2289,6 +2300,28 @@ mod completion_tests {
 
             fn foo(s: Some<i32>) {
                 s.p>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "property",
+                CompletionItemKind::FIELD,
+                Some("i32".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_struct_field_after_dot_followed_by_brace() {
+        let src = r#"
+            struct Some {
+                property: i32,
+            }
+
+            fn foo(s: Some) {
+                s.>|<
             }
         "#;
         assert_completion(
