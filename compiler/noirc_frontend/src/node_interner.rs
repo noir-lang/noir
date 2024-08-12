@@ -182,7 +182,7 @@ pub struct NodeInterner {
     struct_methods: HashMap<(StructId, String), Methods>,
 
     /// Methods on primitive types defined in the stdlib.
-    primitive_methods: HashMap<(TypeMethodKey, String), Methods>,
+    primitive_methods: HashMap<TypeMethodKey, HashMap<String, Methods>>,
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
@@ -1314,7 +1314,9 @@ impl NodeInterner {
                     unreachable!("Cannot add a method to the unsupported type '{}'", other)
                 });
                 self.primitive_methods
-                    .entry((key, method_name))
+                    .entry(key)
+                    .or_default()
+                    .entry(method_name)
                     .or_default()
                     .add_method(method_id, is_trait_method);
                 None
@@ -1673,8 +1675,8 @@ impl NodeInterner {
         } else {
             // Failed to find a match for the type in question, switch to looking at impls
             // for all types `T`, e.g. `impl<T> Foo for T`
-            let key = &(TypeMethodKey::Generic, method_name.to_owned());
-            let global_methods = self.primitive_methods.get(key)?;
+            let global_methods =
+                self.primitive_methods.get(&TypeMethodKey::Generic)?.get(method_name)?;
             global_methods.find_matching_method(typ, self)
         }
     }
@@ -1682,7 +1684,7 @@ impl NodeInterner {
     /// Looks up a given method name on the given primitive type.
     pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
-        let methods = self.primitive_methods.get(&(key, method_name.to_owned()))?;
+        let methods = self.primitive_methods.get(&key)?.get(method_name)?;
         self.find_matching_method(typ, Some(methods), method_name)
     }
 
