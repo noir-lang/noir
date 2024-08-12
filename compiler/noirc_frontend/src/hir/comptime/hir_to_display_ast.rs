@@ -333,9 +333,12 @@ impl Type {
                     }
                 }
             }
-            Type::TraitAsType(_, name, generics) => {
+            Type::TraitAsType(_, name, generics, associated_types) => {
                 let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
-                let generics = GenericTypeArgs { ordered_args, named_args: Vec::new() };
+                let named_args = vecmap(associated_types, |named_type| {
+                    (named_type.name.clone(), named_type.typ.to_display_ast())
+                });
+                let generics = GenericTypeArgs { ordered_args, named_args };
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }

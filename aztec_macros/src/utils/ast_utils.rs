@@ -108,7 +108,7 @@ pub fn assignment_with_type(
 }
 
 pub fn return_type(path: Path) -> FunctionReturnType {
-    let ty = make_type(UnresolvedTypeData::Named(path, vec![], true));
+    let ty = make_type(UnresolvedTypeData::Named(path, Default::default(), true));
     FunctionReturnType::Ty(ty)
 }
 

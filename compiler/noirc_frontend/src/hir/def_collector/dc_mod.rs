@@ -196,6 +196,7 @@ impl<'a> ModCollector<'a> {
                 resolved_object_type: None,
                 resolved_generics: Vec::new(),
                 resolved_trait_generics: Vec::new(),
+                resolved_associated_types: Vec::new(),
             };
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
@@ -861,6 +862,9 @@ fn is_native_field(str: &str) -> bool {
     }
 }
 
+type AssociatedTypes = Vec<(Ident, UnresolvedType)>;
+type AssociatedConstants = Vec<(Ident, UnresolvedType, Expression)>;
+
 /// Returns a tuple of (methods, associated types, associated constants)
 pub(crate) fn collect_trait_impl_items(
     interner: &mut NodeInterner,
@@ -868,7 +872,7 @@ pub(crate) fn collect_trait_impl_items(
     krate: CrateId,
     file_id: FileId,
     local_id: LocalModuleId,
-) -> (UnresolvedFunctions, Vec<(Ident, UnresolvedType)>, Vec<(Ident, UnresolvedType, Expression)>) {
+) -> (UnresolvedFunctions, AssociatedTypes, AssociatedConstants) {
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
 

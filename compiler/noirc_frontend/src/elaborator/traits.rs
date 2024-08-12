@@ -7,21 +7,15 @@ use crate::{
     ast::{
         FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
     },
-    hir::{
-        def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTraitImpl},
-        type_check::TypeCheckError,
-    },
-    hir_def::{
-        function::Parameters,
-        traits::{NamedType, TraitFunction},
-    },
+    hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
+    hir_def::{function::Parameters, traits::TraitFunction},
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
         NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
     },
     node_interner::{FuncId, TraitId},
     token::Attributes,
-    Kind, ResolvedGeneric, Type, TypeBindings, TypeVariable, TypeVariableKind,
+    Generics, Kind, ResolvedGeneric, Type, TypeBindings, TypeVariable, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -64,31 +58,31 @@ impl<'context> Elaborator<'context> {
         self.current_trait = None;
     }
 
-    fn resolve_trait_types(&mut self, unresolved_trait: &UnresolvedTrait) -> Vec<NamedType> {
+    fn resolve_trait_types(&mut self, unresolved_trait: &UnresolvedTrait) -> Generics {
         let mut types = Vec::new();
 
         for item in &unresolved_trait.trait_def.items {
             if let TraitItem::Type { name } = item {
-                let type_variable = TypeVariable::unbound(self.interner.next_type_variable_id());
-                let name_string = Rc::new(name.to_string());
-                let typ = Type::NamedGeneric(type_variable, name_string, Kind::Normal);
-                types.push(NamedType { name: name.clone(), typ });
+                let type_var = TypeVariable::unbound(self.interner.next_type_variable_id());
+                let span = name.span();
+                let name = Rc::new(name.to_string());
+                types.push(ResolvedGeneric { name, type_var, kind: Kind::Normal, span });
             }
         }
 
         types
     }
 
-    fn resolve_trait_constants(&mut self, unresolved_trait: &UnresolvedTrait) -> Vec<NamedType> {
+    fn resolve_trait_constants(&mut self, unresolved_trait: &UnresolvedTrait) -> Generics {
         let mut types = Vec::new();
 
         for item in &unresolved_trait.trait_def.items {
             if let TraitItem::Constant { name, typ, default_value: _ } = item {
-                let type_variable = TypeVariable::unbound(self.interner.next_type_variable_id());
-                let name_string = Rc::new(name.to_string());
-                let typ = Box::new(self.resolve_type(typ.clone()));
-                let typ = Type::NamedGeneric(type_variable, name_string, Kind::Numeric(typ));
-                types.push(NamedType { name: name.clone(), typ });
+                let type_var = TypeVariable::unbound(self.interner.next_type_variable_id());
+                let kind = Kind::Numeric(Box::new(self.resolve_type(typ.clone())));
+                let span = name.span();
+                let name = Rc::new(name.to_string());
+                types.push(ResolvedGeneric { name, type_var, kind, span });
             }
         }
 
@@ -228,31 +222,6 @@ impl<'context> Elaborator<'context> {
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.generics.truncate(old_generic_count);
-    }
-
-    pub fn resolve_trait_impl_generics(
-        &mut self,
-        trait_impl: &UnresolvedTraitImpl,
-        trait_id: TraitId,
-    ) -> Option<Vec<Type>> {
-        let trait_def = self.interner.get_trait(trait_id);
-        let resolved_generics = trait_def.generics.clone();
-        if resolved_generics.len() != trait_impl.trait_generics.len() {
-            self.push_err(CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
-                item: trait_def.name.to_string(),
-                expected: resolved_generics.len(),
-                found: trait_impl.trait_generics.len(),
-                span: trait_impl.trait_path.span(),
-            }));
-
-            return None;
-        }
-
-        let generics = trait_impl.trait_generics.iter().zip(resolved_generics.iter());
-        let mapped = generics.map(|(generic, resolved_generic)| {
-            self.resolve_type_inner(generic.clone(), &resolved_generic.kind)
-        });
-        Some(mapped.collect())
     }
 }
 

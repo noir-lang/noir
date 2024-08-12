@@ -7,6 +7,7 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::path_resolver;
 use crate::hir::type_check::TypeCheckError;
+use crate::hir_def::traits::NamedType;
 use crate::{Generics, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
@@ -18,9 +19,9 @@ use crate::node_interner::{
 };
 
 use crate::ast::{
-    ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType,
+    ExpressionKind, GenericTypeArgs, Ident, LetStatement, Literal, NoirFunction, NoirStruct,
+    NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType,
 };
 
 use crate::parser::{ParserError, SortedModule};
@@ -74,7 +75,7 @@ pub struct UnresolvedTrait {
 pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub trait_generics: Vec<UnresolvedType>,
+    pub trait_generics: GenericTypeArgs,
     pub trait_path: Path,
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
@@ -93,6 +94,7 @@ pub struct UnresolvedTraitImpl {
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
     // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
     pub resolved_trait_generics: Vec<Type>,
+    pub resolved_associated_types: Vec<NamedType>,
 }
 
 #[derive(Clone)]

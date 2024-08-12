@@ -881,10 +881,15 @@ where
     let method_call_rhs = turbofish
         .then(just(Token::Bang).or_not())
         .then(parenthesized(expression_list(expr_parser.clone())))
-        .map(|((turbofish, macro_call), args)| UnaryRhsMethodCall {
-            turbofish,
-            macro_call: macro_call.is_some(),
-            args,
+        .validate(|((turbofish, macro_call), args), span, emit| {
+            if turbofish.as_ref().map_or(false, |generics| !generics.named_args.is_empty()) {
+                let reason = ParserErrorReason::AssociatedTypesNotAllowedInMethodCalls;
+                emit(ParserError::with_reason(reason, span));
+            }
+
+            let macro_call = macro_call.is_some();
+            let turbofish = turbofish.map(|generics| generics.ordered_args);
+            UnaryRhsMethodCall { turbofish, macro_call, args }
         });
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`

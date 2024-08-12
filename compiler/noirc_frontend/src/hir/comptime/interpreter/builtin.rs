@@ -647,7 +647,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error
-        | Type::TraitAsType(_, _, _)
+        | Type::TraitAsType(..)
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
 }

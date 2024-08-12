@@ -306,7 +306,7 @@ impl<'context> Elaborator<'context> {
                     });
                 }
 
-                let (args, _) = self.resolve_type_args(args, struct_type.borrow(), path.span());
+                let (args, _) = self.resolve_type_args(args, struct_type.borrow(), span);
 
                 if let Some(current_item) = self.current_item {
                     let dependency_id = struct_type.borrow().id;
@@ -322,10 +322,11 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_as_type(&mut self, path: Path, args: GenericTypeArgs) -> Type {
         // Fetch information needed from the trait as the closure for resolving all the `args`
         // requires exclusive access to `self`
+        let span = path.span;
         let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
 
         if let Some(id) = trait_as_type_info {
-            let (ordered, named) = self.resolve_type_args(args, id, path.span());
+            let (ordered, named) = self.resolve_type_args(args, id, span);
             let name = self.interner.get_trait(id).name.to_string();
             Type::TraitAsType(id, Rc::new(name), ordered, named)
         } else {
@@ -333,9 +334,9 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_type_args(
+    pub(super) fn resolve_type_args(
         &mut self,
-        args: GenericTypeArgs,
+        mut args: GenericTypeArgs,
         item: impl Generic,
         span: Span,
     ) -> (Vec<Type>, Vec<NamedType>) {
@@ -374,9 +375,11 @@ impl<'context> Elaborator<'context> {
         span: Span,
     ) -> Vec<NamedType> {
         let mut seen_args = HashMap::default();
-        let required_args = item.named_generics(self.interner);
+        let mut required_args = item.named_generics(self.interner);
         let mut resolved = Vec::with_capacity(required_args.len());
 
+        // Go through each argument to check if it is in our required_args list.
+        // If it is remove it from the list, otherwise issue an error.
         for (name, typ) in args {
             let index =
                 required_args.iter().position(|item| item.name.as_ref() == &name.0.contents);
@@ -486,16 +489,7 @@ impl<'context> Elaborator<'context> {
             if name == SELF_TYPE_NAME {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.0.contents.as_str())?;
-                let (trait_generics, associated_types) = the_trait.get_generics();
-
-                let constraint = TraitConstraint {
-                    typ: self.self_type.clone()?,
-                    trait_generics,
-                    associated_types,
-                    trait_id,
-                    span: path.span(),
-                };
-
+                let constraint = the_trait.as_constraint(path.span);
                 return Some((method, constraint, false));
             }
         }
@@ -512,17 +506,9 @@ impl<'context> Elaborator<'context> {
     ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
         let func_id: FuncId = self.lookup(path.clone()).ok()?;
         let meta = self.interner.function_meta(&func_id);
-        let trait_id = meta.trait_id?;
-        let the_trait = self.interner.get_trait(trait_id);
+        let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
-        let constraint = TraitConstraint {
-            typ: Type::TypeVariable(the_trait.self_type_typevar.clone(), TypeVariableKind::Normal),
-            trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
-                generic.type_var.clone()
-            })),
-            trait_id,
-            span: path.span(),
-        };
+        let constraint = the_trait.as_constraint(path.span);
         Some((method, constraint, false))
     }
 
@@ -1475,7 +1461,7 @@ impl<'context> Elaborator<'context> {
         let declared_return_type = meta.return_type();
 
         let func_span = self.interner.expr_span(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
+        if let Type::TraitAsType(trait_id, _, generics, _associated_types) = declared_return_type {
             if self.interner.lookup_trait_implementation(&body_type, *trait_id, generics).is_err() {
                 self.push_err(TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
@@ -1602,9 +1588,12 @@ impl<'context> Elaborator<'context> {
             | Type::Quoted(_)
             | Type::Forall(_, _) => (),
 
-            Type::TraitAsType(_, _, args) => {
+            Type::TraitAsType(_, _, args, associated_types) => {
                 for arg in args {
                     Self::find_numeric_generics_in_type(arg, found);
+                }
+                for arg in associated_types {
+                    Self::find_numeric_generics_in_type(&arg.typ, found);
                 }
             }
 

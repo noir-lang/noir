@@ -367,7 +367,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             },
             TypeCheckError::DuplicateNamedTypeArg { name, prev_span } => {
                 let msg = format!("`{name}` has already been specified");
-                let error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span());
+                let mut error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span());
                 error.add_secondary(format!("`{name}` previously specified here"), *prev_span);
                 error
             },

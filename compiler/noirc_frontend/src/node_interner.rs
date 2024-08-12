@@ -1428,6 +1428,7 @@ impl NodeInterner {
                 object_type.clone(),
                 trait_id,
                 trait_generics.to_vec(),
+                Vec::new(),
                 Span::default(),
             )
         };
@@ -1536,6 +1537,8 @@ impl NodeInterner {
                 generic.force_substitute(instantiation_bindings).substitute(type_bindings)
             });
 
+            // We can ignore any associated types on the constraint since those should not affect
+            // which impl we choose.
             self.lookup_trait_implementation_helper(
                 &constraint_type,
                 constraint.trait_id,
@@ -2030,10 +2033,8 @@ impl NodeInterner {
         bindings.insert(self_type_var.id(), (self_type_var, impl_self_type));
 
         for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
-            bindings.insert(
-                trait_generic.type_var.id(),
-                (trait_generic.type_var.clone(), trait_impl_generic.clone()),
-            );
+            let type_var = trait_generic.type_var.clone();
+            bindings.insert(type_var.id(), (type_var, trait_impl_generic.clone()));
         }
 
         // Now that the normal bindings are added, we still need to bind the associated types
@@ -2041,11 +2042,8 @@ impl NodeInterner {
         let trait_associated_types = &the_trait.associated_types;
 
         for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
-            let type_variable = match &trait_type.typ {
-                Type::NamedGeneric(type_variable, ..) => type_variable,
-                other => unreachable!("A trait's associated type should always be a named generic, but found: {other:?}"),
-            };
-            bindings.insert(type_variable.id(), (type_variable.clone(), impl_type.typ.clone()));
+            let type_variable = trait_type.type_var.clone();
+            bindings.insert(type_variable.id(), (type_variable, impl_type.typ.clone()));
         }
 
         bindings

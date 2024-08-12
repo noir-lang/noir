@@ -479,7 +479,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::NamedTypeArgs { span, item_kind } => {
                 Diagnostic::simple_error(
                     format!("Named type arguments aren't allowed on a {item_kind}"),
-                    format!("Named type arguments are only allowed for associated types on traits"),
+                    "Named type arguments are only allowed for associated types on traits".to_string(),
                     *span,
                 )
             }

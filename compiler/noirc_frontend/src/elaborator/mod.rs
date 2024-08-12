@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::{FunctionKind, GenericTypeArg, UnresolvedTraitConstraint},
+    ast::{FunctionKind, GenericTypeArgs, UnresolvedTraitConstraint},
     hir::{
         def_collector::dc_crate::{
             filter_literal_globals, CompilationError, ImplMap, UnresolvedGlobal, UnresolvedStruct,
@@ -18,7 +18,7 @@ use crate::{
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         function::{FunctionBody, Parameters},
-        traits::{NamedType, TraitConstraint},
+        traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
     macros_api::{
@@ -504,7 +504,7 @@ impl<'context> Elaborator<'context> {
     fn desugar_impl_trait_arg(
         &mut self,
         trait_path: Path,
-        trait_generics: Vec<GenericTypeArg>,
+        trait_generics: GenericTypeArgs,
         generics: &mut Vec<TypeVariable>,
         trait_constraints: &mut Vec<TraitConstraint>,
     ) -> Type {
@@ -670,37 +670,11 @@ impl<'context> Elaborator<'context> {
         typ: Type,
     ) -> Option<TraitConstraint> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
-
-        let resolved_generics = &the_trait.generics.clone();
-
-        let generics_with_types = resolved_generics.iter().zip(&bound.trait_generics);
-        let trait_generics = vecmap(generics_with_types, |(generic, typ)| {
-            self.resolve_type_inner(typ.clone(), &generic.kind)
-        });
-
-        let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
+        let span = bound.trait_path.span;
 
-        let span = bound.trait_path.span();
-
-        let expected_generics = the_trait.generics.len();
-        let actual_generics = trait_generics.len();
-
-        if actual_generics != expected_generics {
-            let item_name = the_trait.name.to_string();
-            self.push_err(ResolverError::IncorrectGenericCount {
-                span,
-                item_name,
-                actual: actual_generics,
-                expected: expected_generics,
-            });
-        }
-
-        // Associated types can't be explicitly specified yet so they're all implicitly introduced
-        let associated_types = vecmap(&the_trait.associated_types, |typ| NamedType {
-            name: typ.name.clone(),
-            typ: self.interner.next_type_variable(),
-        });
+        let (trait_generics, associated_types) =
+            self.resolve_type_args(bound.trait_generics.clone(), trait_id, span);
 
         Some(TraitConstraint { typ, trait_id, trait_generics, span, associated_types })
     }
@@ -1031,12 +1005,14 @@ impl<'context> Elaborator<'context> {
             }
 
             let trait_generics = trait_impl.resolved_trait_generics.clone();
+            let trait_associated_types = trait_impl.resolved_associated_types.clone();
 
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident: trait_impl.trait_path.last_ident(),
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics,
+                trait_associated_types,
                 file: trait_impl.file_id,
                 where_clause: where_clause.clone(),
                 methods,
@@ -1365,15 +1341,19 @@ impl<'context> Elaborator<'context> {
             }
 
             // Fetch trait constraints here
-            let trait_generics = trait_impl
+            let (ordered_generics, named_generics) = trait_impl
                 .trait_id
-                .and_then(|trait_id| self.resolve_trait_impl_generics(trait_impl, trait_id))
-                .unwrap_or_else(|| {
-                    // We still resolve as to continue type checking
-                    vecmap(&trait_impl.trait_generics, |generic| self.resolve_type(generic.clone()))
-                });
+                .map(|trait_id| {
+                    self.resolve_type_args(
+                        trait_impl.trait_generics.clone(),
+                        trait_id,
+                        trait_impl.trait_path.span,
+                    )
+                })
+                .unwrap_or_default();
 
-            trait_impl.resolved_trait_generics = trait_generics;
+            trait_impl.resolved_trait_generics = ordered_generics;
+            trait_impl.resolved_associated_types = named_generics;
 
             let self_type = self.resolve_type(unresolved_type.clone());
             self.self_type = Some(self_type.clone());
