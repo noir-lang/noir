@@ -179,7 +179,7 @@ pub struct NodeInterner {
     /// may have both `impl Struct<u32> { fn foo(){} }` and `impl Struct<u8> { fn foo(){} }`.
     /// If this happens, the returned Vec will have 2 entries and we'll need to further
     /// disambiguate them by checking the type of each function.
-    struct_methods: HashMap<(StructId, String), Methods>,
+    struct_methods: HashMap<StructId, HashMap<String, Methods>>,
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<TypeMethodKey, HashMap<String, Methods>>,
@@ -1131,22 +1131,8 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_struct_methods(&self, id: StructId) -> Vec<Methods> {
-        self.struct_methods
-            .keys()
-            .filter_map(|(key_id, name)| {
-                if key_id == &id {
-                    Some(
-                        self.struct_methods
-                            .get(&(*key_id, name.clone()))
-                            .expect("get_struct_methods given invalid StructId")
-                            .clone(),
-                    )
-                } else {
-                    None
-                }
-            })
-            .collect()
+    pub fn get_struct_methods(&self, id: StructId) -> Option<&HashMap<String, Methods>> {
+        self.struct_methods.get(&id)
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -1300,8 +1286,12 @@ impl NodeInterner {
                     return Some(existing);
                 }
 
-                let key = (id, method_name);
-                self.struct_methods.entry(key).or_default().add_method(method_id, is_trait_method);
+                self.struct_methods
+                    .entry(id)
+                    .or_default()
+                    .entry(method_name)
+                    .or_default()
+                    .add_method(method_id, is_trait_method);
                 None
             }
             Type::Error => None,
@@ -1650,7 +1640,7 @@ impl NodeInterner {
         method_name: &str,
         force_type_check: bool,
     ) -> Option<FuncId> {
-        let methods = self.struct_methods.get(&(id, method_name.to_owned()));
+        let methods = self.struct_methods.get(&id).and_then(|h| h.get(method_name));
 
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
