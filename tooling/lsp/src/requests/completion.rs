@@ -1157,6 +1157,12 @@ impl<'a> NodeFinder<'a> {
                 "assert(${1:predicate})",
                 Some("fn(T)".to_string()),
             ));
+            self.completion_items.push(snippet_completion_item(
+                "assert(…)",
+                CompletionItemKind::FUNCTION,
+                "assert(${1:predicate}, ${2:message})",
+                Some("fn(T, str)".to_string()),
+            ));
         }
 
         if name_matches("assert_eq", prefix) {
@@ -1165,6 +1171,12 @@ impl<'a> NodeFinder<'a> {
                 CompletionItemKind::FUNCTION,
                 "assert_eq(${1:lhs}, ${2:rhs})",
                 Some("fn(T, T)".to_string()),
+            ));
+            self.completion_items.push(snippet_completion_item(
+                "assert_eq(…)",
+                CompletionItemKind::FUNCTION,
+                "assert_eq(${1:lhs}, ${2:rhs}, ${3:message})",
+                Some("fn(T, T, str)".to_string()),
             ));
         }
 
@@ -1706,6 +1718,12 @@ mod completion_tests {
                     Some("fn(T)".to_string()),
                 ),
                 snippet_completion_item(
+                    "assert(…)",
+                    CompletionItemKind::FUNCTION,
+                    "assert(${1:predicate}, ${2:message})",
+                    Some("fn(T, str)".to_string()),
+                ),
+                snippet_completion_item(
                     "assert_constant(…)",
                     CompletionItemKind::FUNCTION,
                     "assert_constant(${1:x})",
@@ -1716,6 +1734,12 @@ mod completion_tests {
                     CompletionItemKind::FUNCTION,
                     "assert_eq(${1:lhs}, ${2:rhs})",
                     Some("fn(T, T)".to_string()),
+                ),
+                snippet_completion_item(
+                    "assert_eq(…)",
+                    CompletionItemKind::FUNCTION,
+                    "assert_eq(${1:lhs}, ${2:rhs}, ${3:message})",
+                    Some("fn(T, T, str)".to_string()),
                 ),
             ],
         )
