@@ -1780,19 +1780,22 @@ impl Type {
     ) {
         let mut bindings = TypeBindings::new();
 
-        if let Err(UnificationError) = self.try_unify(expected, &mut bindings) {
-            if !self.try_array_to_slice_coercion(expected, expression, interner) {
-                // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
-                if let Some(coerced_self) = self.try_fn_to_unconstrained_fn_coercion(expected) {
-                    coerced_self
-                        .unify_with_coercions(expected, expression, interner, errors, make_error);
-                } else {
-                    errors.push(make_error());
-                };
-            }
-        } else {
+        if let Ok(()) = self.try_unify(expected, &mut bindings) {
             Type::apply_type_bindings(bindings);
+            return;
         }
+
+        if self.try_array_to_slice_coercion(expected, expression, interner) {
+            return;
+        }
+
+        // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
+        if let Some(coerced_self) = self.try_fn_to_unconstrained_fn_coercion(expected) {
+            coerced_self.unify_with_coercions(expected, expression, interner, errors, make_error);
+            return;
+        }
+
+        errors.push(make_error());
     }
 
     // If `self` and `expected` are function types, tries to coerce `self` to `expected`.
