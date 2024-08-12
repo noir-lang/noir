@@ -260,8 +260,13 @@ impl<'a> NodeFinder<'a> {
         self.type_parameters.clear();
         self.collect_type_parameters_in_generics(&type_impl.generics);
 
-        for (method, _) in &type_impl.methods {
+        for (method, span) in &type_impl.methods {
             self.find_in_noir_function(method);
+
+            // Optimization: stop looking in functions past the completion cursor
+            if span.end() as usize > self.byte_index {
+                break;
+            }
         }
 
         self.type_parameters.clear();
@@ -336,6 +341,11 @@ impl<'a> NodeFinder<'a> {
         let old_local_variables = self.local_variables.clone();
         for statement in &block_expression.statements {
             self.find_in_statement(statement);
+
+            // Optimization: stop looking in statements past the completion cursor
+            if statement.span.end() as usize > self.byte_index {
+                break;
+            }
         }
         self.local_variables = old_local_variables;
     }
