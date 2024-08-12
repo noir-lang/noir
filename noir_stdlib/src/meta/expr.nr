@@ -1,4 +1,3 @@
-use crate::cmp::Eq;
 use crate::option::Option;
 
 impl Expr {

@@ -699,7 +699,8 @@ fn expr_as_function_call(
             let function = Value::Expr(call_expression.func.kind);
             let arguments = call_expression.arguments.into_iter();
             let arguments = arguments.map(|argument| Value::Expr(argument.kind)).collect();
-            let arguments = Value::Slice(arguments, Type::Quoted(QuotedType::Expr));
+            let arguments =
+                Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
             Some(Value::Tuple(vec![function, arguments]))
         } else {
             None
