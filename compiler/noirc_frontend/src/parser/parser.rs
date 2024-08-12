@@ -847,6 +847,7 @@ where
         ArrayIndex(Expression),
         Cast(UnresolvedType),
         MemberAccess(UnaryRhsMemberAccess),
+        JustADot,
     }
 
     // `(arg1, ..., argN)` in `my_func(arg1, ..., argN)`
@@ -890,7 +891,10 @@ where
         })
         .labelled(ParsingRuleLabel::FieldAccess);
 
-    let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs));
+    // TODO: error when it's just a dot
+    let just_a_dot = just(Token::Dot).map(|_| UnaryRhs::JustADot);
+
+    let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs, just_a_dot));
 
     foldl_with_span(
         atom(expr_parser, expr_no_constructors, statement, allow_constructors),
@@ -904,6 +908,7 @@ where
             UnaryRhs::MemberAccess(field) => {
                 Expression::member_access_or_method_call(lhs, field, span)
             }
+            UnaryRhs::JustADot => lhs,
         },
     )
 }
@@ -1672,5 +1677,27 @@ mod test {
         let (block_expr, _) = parse_recover(block(fresh_statement()), src);
         let block_expr = block_expr.expect("Failed to parse module");
         assert_eq!(block_expr.statements.len(), 2);
+    }
+
+    #[test]
+    fn test_parses_member_access_without_member_name() {
+        let src = "{ foo. }";
+
+        let (Some(block_expression), _errors) = parse_recover(block(fresh_statement()), src) else {
+            panic!("Expected to be able to parse a block expression");
+        };
+
+        // TODO: assert that there's an error here
+
+        let statement = &block_expression.statements[0];
+        let StatementKind::Expression(expr) = &statement.kind else {
+            panic!("Expected an expression statement");
+        };
+
+        let ExpressionKind::Variable(var) = &expr.kind else {
+            panic!("Expected a variable expression");
+        };
+
+        assert_eq!(var.to_string(), "foo");
     }
 }
