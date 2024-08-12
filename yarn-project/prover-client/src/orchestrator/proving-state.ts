@@ -143,6 +143,11 @@ export class ProvingState {
     return this.txs;
   }
 
+  /** Returns the block number as an epoch number. Used for prioritizing proof requests. */
+  public get epochNumber(): number {
+    return this.globalVariables.blockNumber.toNumber();
+  }
+
   /**
    * Stores the inputs to a merge circuit and determines if the circuit is ready to be executed
    * @param mergeInputs - The inputs to store

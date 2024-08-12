@@ -1,17 +1,18 @@
 import { TimeoutError } from '../error/index.js';
 import { createDebugLogger } from '../log/index.js';
 
-/**
- * A simple fifo queue. It can grow unbounded. It can have multiple producers and consumers.
- * Putting an item onto the queue always succeeds, unless either end() or cancel() has been called in which case
- * the item being pushed is simply discarded.
- */
-export class MemoryFifo<T> {
+export abstract class BaseMemoryQueue<T> {
   private waiting: ((item: T | null) => void)[] = [];
-  private items: T[] = [];
   private flushing = false;
 
   constructor(private log = createDebugLogger('aztec:foundation:memory_fifo')) {}
+
+  protected abstract get items(): {
+    length: number;
+    get(): T | undefined;
+    put(item: T): void;
+    clear: () => void;
+  };
 
   /**
    * Returns the current number of items in the queue.
@@ -36,7 +37,7 @@ export class MemoryFifo<T> {
    */
   public get(timeoutSec?: number): Promise<T | null> {
     if (this.items.length) {
-      return Promise.resolve(this.items.shift()!);
+      return Promise.resolve(this.items.get()!);
     }
 
     if (this.items.length === 0 && this.flushing) {
@@ -78,7 +79,7 @@ export class MemoryFifo<T> {
       this.waiting.shift()!(item);
       return true;
     } else {
-      this.items.push(item);
+      this.items.put(item);
       return true;
     }
   }
@@ -100,7 +101,7 @@ export class MemoryFifo<T> {
    */
   public cancel() {
     this.flushing = true;
-    this.items = [];
+    this.items.clear();
     this.waiting.forEach(resolve => resolve(null));
   }
 

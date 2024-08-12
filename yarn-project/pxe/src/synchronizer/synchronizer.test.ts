@@ -2,7 +2,7 @@ import { type AztecNode, L2Block } from '@aztec/circuit-types';
 import { Fr, type Header, INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js';
 import { makeHeader } from '@aztec/circuits.js/testing';
 import { randomInt } from '@aztec/foundation/crypto';
-import { SerialQueue } from '@aztec/foundation/fifo';
+import { SerialQueue } from '@aztec/foundation/queue';
 import { KeyStore } from '@aztec/key-store';
 import { openTmpStore } from '@aztec/kv-store/utils';
 

@@ -17,7 +17,7 @@
     "./crypto": "./dest/crypto/index.js",
     "./error": "./dest/error/index.js",
     "./eth-address": "./dest/eth-address/index.js",
-    "./fifo": "./dest/fifo/index.js",
+    "./queue": "./dest/queue/index.js",
     "./fs": "./dest/fs/index.js",
     "./hash": "./dest/hash/index.js",
     "./json-rpc": "./dest/json-rpc/index.js",

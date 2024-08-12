@@ -1,6 +1,6 @@
 import { type Gossipable, type RawGossipMessage, TopicType, TopicTypeMap, Tx } from '@aztec/circuit-types';
-import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { SerialQueue } from '@aztec/foundation/queue';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import type { AztecKVStore } from '@aztec/kv-store';
 

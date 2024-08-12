@@ -1,10 +1,10 @@
-import { MemoryFifo } from './memory_fifo.js';
+import { FifoMemoryQueue } from './fifo_memory_queue.js';
 
 /**
  * Allows the acquiring of up to `size` tokens before calls to acquire block, waiting for a call to release().
  */
 export class Semaphore {
-  private readonly queue = new MemoryFifo<boolean>();
+  private readonly queue = new FifoMemoryQueue<boolean>();
 
   constructor(size: number) {
     new Array(size).fill(true).map(() => this.queue.put(true));

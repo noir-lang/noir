@@ -1,8 +1,8 @@
 import { Buffer } from 'buffer';
 
 import { randomBytes } from '../crypto/index.js';
-import { MemoryFifo } from '../fifo/index.js';
 import { type LogFn, createDebugOnlyLogger } from '../log/index.js';
+import { FifoMemoryQueue } from '../queue/index.js';
 import { getEmptyWasiSdk } from './empty_wasi_sdk.js';
 
 /**
@@ -47,7 +47,7 @@ export class WasmModule implements IWasmModule {
   private memory!: WebAssembly.Memory;
   private heap!: Uint8Array;
   private instance?: WebAssembly.Instance;
-  private mutexQ = new MemoryFifo<boolean>();
+  private mutexQ = new FifoMemoryQueue<boolean>();
   private debug: LogFn;
 
   /**

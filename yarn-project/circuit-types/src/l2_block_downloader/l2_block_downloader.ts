@@ -1,6 +1,6 @@
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js/constants';
-import { MemoryFifo, Semaphore, SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { FifoMemoryQueue, Semaphore, SerialQueue } from '@aztec/foundation/queue';
 import { InterruptibleSleep } from '@aztec/foundation/sleep';
 
 import { type L2Block } from '../l2_block.js';
@@ -21,7 +21,7 @@ export class L2BlockDownloader {
   private interruptibleSleep = new InterruptibleSleep();
   private readonly semaphore: Semaphore;
   private readonly jobQueue = new SerialQueue();
-  private readonly blockQueue = new MemoryFifo<L2Block[]>();
+  private readonly blockQueue = new FifoMemoryQueue<L2Block[]>();
   private readonly proven: boolean;
   private readonly pollIntervalMS: number;
 
