@@ -334,19 +334,24 @@ impl<'a> NodeFinder<'a> {
         match trait_item {
             TraitItem::Function {
                 name: _,
-                generics: _,
+                generics,
                 parameters,
                 return_type,
                 where_clause,
                 body,
             } => {
+                let old_type_parameters = self.type_parameters.clone();
+                self.collect_type_parameters_in_generics(generics);
+
                 for (_name, unresolved_type) in parameters {
                     if let Some(response) = self.find_in_unresolved_type(unresolved_type) {
+                        self.type_parameters = old_type_parameters;
                         return Some(response);
                     }
                 }
 
                 if let Some(response) = self.find_in_function_return_type(return_type) {
+                    self.type_parameters = old_type_parameters;
                     return Some(response);
                 }
 
@@ -354,11 +359,12 @@ impl<'a> NodeFinder<'a> {
                     if let Some(response) =
                         self.find_in_unresolved_type(&unresolved_trait_constraint.typ)
                     {
+                        self.type_parameters = old_type_parameters;
                         return Some(response);
                     }
                 }
 
-                if let Some(body) = body {
+                let response = if let Some(body) = body {
                     self.local_variables.clear();
                     for (name, _) in parameters {
                         self.local_variables.insert(name.to_string(), name.span());
@@ -366,7 +372,11 @@ impl<'a> NodeFinder<'a> {
                     self.find_in_block_expression(body)
                 } else {
                     None
-                }
+                };
+
+                self.type_parameters = old_type_parameters;
+
+                response
             }
             TraitItem::Constant { name: _, typ, default_value } => {
                 if let Some(response) = self.find_in_unresolved_type(typ) {
@@ -2399,6 +2409,23 @@ mod completion_tests {
 
             impl <TypeParam> Trait<TypeParam> for Foo {
                 fn foo() {
+                    let x: TypeP>|<
+                }
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item("TypeParam", CompletionItemKind::TYPE_PARAMETER, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_trait_function_type_parameter() {
+        let src = r#"
+            struct Foo {}
+            trait Trait {
+                fn foo<TypeParam>() {
                     let x: TypeP>|<
                 }
             }
