@@ -650,15 +650,21 @@ impl<'a> NodeFinder<'a> {
             return Some(response);
         }
 
-        if let Some(response) = self.find_in_expression(&if_expression.consequence) {
+        let old_local_variables = self.local_variables.clone();
+        let response = self.find_in_expression(&if_expression.consequence);
+        self.local_variables = old_local_variables;
+        if let Some(response) = response {
             return Some(response);
         }
 
-        if let Some(alternative) = &if_expression.alternative {
+        let old_local_variables = self.local_variables.clone();
+        let response = if let Some(alternative) = &if_expression.alternative {
             self.find_in_expression(alternative)
         } else {
             None
-        }
+        };
+        self.local_variables = old_local_variables;
+        response
     }
 
     fn find_in_lambda(&mut self, lambda: &Lambda) -> Option<CompletionResponse> {
@@ -2117,6 +2123,86 @@ mod completion_tests {
                 "true",
                 CompletionItemKind::KEYWORD,
                 Some("bool".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_regarding_if_scope() {
+        let src = r#"
+            fn main() {
+                let good = 1;
+                if true {
+                    let great = 2;
+                    g>|<
+                } else {
+                    let greater = 3;
+                }
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                simple_completion_item(
+                    "good",
+                    CompletionItemKind::VARIABLE,
+                    Some("Field".to_string()),
+                ),
+                simple_completion_item(
+                    "great",
+                    CompletionItemKind::VARIABLE,
+                    Some("Field".to_string()),
+                ),
+            ],
+        )
+        .await;
+
+        let src = r#"
+            fn main() {
+                let good = 1;
+                if true {
+                    let great = 2;
+                } else {
+                    let greater = 3;
+                    g>|<
+                }
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                simple_completion_item(
+                    "good",
+                    CompletionItemKind::VARIABLE,
+                    Some("Field".to_string()),
+                ),
+                simple_completion_item(
+                    "greater",
+                    CompletionItemKind::VARIABLE,
+                    Some("Field".to_string()),
+                ),
+            ],
+        )
+        .await;
+
+        let src = r#"
+            fn main() {
+                let good = 1;
+                if true {
+                    let great = 2;
+                } else {
+                    let greater = 3;
+                }
+                g>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "good",
+                CompletionItemKind::VARIABLE,
+                Some("Field".to_string()),
             )],
         )
         .await;
