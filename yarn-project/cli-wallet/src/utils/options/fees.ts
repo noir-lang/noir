@@ -14,6 +14,9 @@ import { type LogFn } from '@aztec/foundation/log';
 
 import { Option } from 'commander';
 
+import { type WalletDB } from '../../storage/wallet_db.js';
+import { aliasedAddressParser } from './index.js';
+
 export type CliFeeArgs = {
   estimateGasOnly: boolean;
   inclusionFee?: bigint;
@@ -25,7 +28,7 @@ export type CliFeeArgs = {
 export interface IFeeOpts {
   estimateOnly: boolean;
   gasSettings: GasSettings;
-  toSendOpts(sender: AccountWallet): SendMethodOptions;
+  toSendOpts(sender: AccountWallet): Promise<SendMethodOptions>;
 }
 
 export function printGasEstimates(
@@ -57,14 +60,17 @@ export class FeeOpts implements IFeeOpts {
   constructor(
     public estimateOnly: boolean,
     public gasSettings: GasSettings,
-    private paymentMethodFactory: (sender: AccountWallet) => FeePaymentMethod,
+    private paymentMethodFactory: (sender: AccountWallet) => Promise<FeePaymentMethod>,
     private estimateGas: boolean,
   ) {}
 
-  toSendOpts(sender: AccountWallet): SendMethodOptions {
+  async toSendOpts(sender: AccountWallet): Promise<SendMethodOptions> {
     return {
       estimateGas: this.estimateGas,
-      fee: { gasSettings: this.gasSettings ?? GasSettings.default(), paymentMethod: this.paymentMethodFactory(sender) },
+      fee: {
+        gasSettings: this.gasSettings ?? GasSettings.default(),
+        paymentMethod: await this.paymentMethodFactory(sender),
+      },
     };
   }
 
@@ -81,7 +87,7 @@ export class FeeOpts implements IFeeOpts {
     ];
   }
 
-  static fromCli(args: CliFeeArgs, log: LogFn) {
+  static fromCli(args: CliFeeArgs, log: LogFn, db?: WalletDB) {
     const estimateOnly = args.estimateGasOnly;
     if (!args.inclusionFee && !args.gasLimits && !args.payment) {
       return new NoFeeOpts(estimateOnly);
@@ -95,7 +101,7 @@ export class FeeOpts implements IFeeOpts {
     return new FeeOpts(
       estimateOnly,
       gasSettings,
-      args.payment ? parsePaymentMethod(args.payment, log) : () => new NoFeePaymentMethod(),
+      args.payment ? parsePaymentMethod(args.payment, log, db) : () => Promise.resolve(new NoFeePaymentMethod()),
       !!args.estimateGas,
     );
   }
@@ -108,19 +114,23 @@ class NoFeeOpts implements IFeeOpts {
     return GasSettings.default();
   }
 
-  toSendOpts(): SendMethodOptions {
-    return {};
+  toSendOpts(): Promise<SendMethodOptions> {
+    return Promise.resolve({});
   }
 }
 
-function parsePaymentMethod(payment: string, log: LogFn): (sender: AccountWallet) => FeePaymentMethod {
+function parsePaymentMethod(
+  payment: string,
+  log: LogFn,
+  db?: WalletDB,
+): (sender: AccountWallet) => Promise<FeePaymentMethod> {
   const parsed = payment.split(',').reduce((acc, item) => {
     const [dimension, value] = item.split('=');
-    acc[dimension] = value;
+    acc[dimension] = value ?? 1;
     return acc;
   }, {} as Record<string, string>);
 
-  const getFpcOpts = (parsed: Record<string, string>) => {
+  const getFpcOpts = (parsed: Record<string, string>, db?: WalletDB) => {
     if (!parsed.fpc) {
       throw new Error('Missing "fpc" in payment option');
     }
@@ -128,33 +138,41 @@ function parsePaymentMethod(payment: string, log: LogFn): (sender: AccountWallet
       throw new Error('Missing "asset" in payment option');
     }
 
-    return [AztecAddress.fromString(parsed.asset), AztecAddress.fromString(parsed.fpc)];
+    const fpc = aliasedAddressParser('contracts', parsed.fpc, db);
+
+    return [AztecAddress.fromString(parsed.asset), fpc];
   };
 
-  return (sender: AccountWallet) => {
+  return async (sender: AccountWallet) => {
     switch (parsed.method) {
       case 'none':
         log('Using no fee payment');
         return new NoFeePaymentMethod();
-      case 'fee_juice':
-        if (parsed.claimSecret && parsed.claimAmount) {
+      case 'native':
+        if (parsed.claim || (parsed.claimSecret && parsed.claimAmount)) {
+          let claimAmount, claimSecret;
+          if (parsed.claim && db) {
+            ({ amount: claimAmount, secret: claimSecret } = await db.popBridgedFeeJuice(sender.getAddress(), log));
+          } else {
+            ({ claimAmount, claimSecret } = parsed);
+          }
           log(`Using Fee Juice for fee payments with claim for ${parsed.claimAmount} tokens`);
           return new FeeJuicePaymentMethodWithClaim(
             sender.getAddress(),
-            BigInt(parsed.claimAmount),
-            Fr.fromString(parsed.claimSecret),
+            BigInt(claimAmount),
+            Fr.fromString(claimSecret),
           );
         } else {
           log(`Using Fee Juice for fee payment`);
           return new FeeJuicePaymentMethod(sender.getAddress());
         }
       case 'fpc-public': {
-        const [asset, fpc] = getFpcOpts(parsed);
+        const [asset, fpc] = getFpcOpts(parsed, db);
         log(`Using public fee payment with asset ${asset} via paymaster ${fpc}`);
         return new PublicFeePaymentMethod(asset, fpc, sender);
       }
       case 'fpc-private': {
-        const [asset, fpc] = getFpcOpts(parsed);
+        const [asset, fpc] = getFpcOpts(parsed, db);
         const rebateSecret = parsed.rebateSecret ? Fr.fromString(parsed.rebateSecret) : Fr.random();
         log(
           `Using private fee payment with asset ${asset} via paymaster ${fpc} with rebate secret ${rebateSecret.toString()}`,

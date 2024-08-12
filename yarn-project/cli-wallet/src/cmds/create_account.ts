@@ -3,7 +3,7 @@ import { prettyPrintJSON } from '@aztec/cli/cli-utils';
 import { Fr } from '@aztec/foundation/fields';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
-import { type AccountType, createAndStoreAccount } from '../utils/accounts.js';
+import { type AccountType, createOrRetrieveAccount } from '../utils/accounts.js';
 import { type IFeeOpts, printGasEstimates } from '../utils/options/fees.js';
 
 export async function createAccount(
@@ -21,10 +21,18 @@ export async function createAccount(
   debugLogger: DebugLogger,
   log: LogFn,
 ) {
-  const salt = Fr.ZERO;
   secretKey ??= Fr.random();
 
-  const account = await createAndStoreAccount(client, accountType, secretKey, publicKey, salt, alias);
+  const account = await createOrRetrieveAccount(
+    client,
+    undefined /* address, we don't have it yet */,
+    undefined /* db, as we want to create from scratch */,
+    accountType,
+    secretKey,
+    Fr.ZERO,
+    publicKey,
+  );
+  const salt = account.getInstance().salt;
   const { address, publicKeys, partialAddress } = account.getCompleteAddress();
 
   const out: Record<string, any> = {};

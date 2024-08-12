@@ -86,43 +86,6 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
     });
 
   program
-    .command('bridge-fee-juice')
-    .description('Mints L1 Fee Juice and pushes them to L2.')
-    .argument('<amount>', 'The amount of Fee Juice to mint and bridge.', parseBigint)
-    .argument('<recipient>', 'Aztec address of the recipient.', parseAztecAddress)
-    .requiredOption(
-      '--l1-rpc-url <string>',
-      'Url of the ethereum host. Chain identifiers localhost and testnet can be used',
-      ETHEREUM_HOST,
-    )
-    .option(
-      '-m, --mnemonic <string>',
-      'The mnemonic to use for deriving the Ethereum address that will mint and bridge',
-      'test test test test test test test test test test test junk',
-    )
-    .option('--mint', 'Mint the tokens on L1', false)
-    .option('--l1-private-key <string>', 'The private key to the eth account bridging', PRIVATE_KEY)
-    .addOption(pxeOption)
-    .addOption(l1ChainIdOption)
-    .option('--json', 'Output the claim in JSON format')
-    .action(async (amount, recipient, options) => {
-      const { bridgeL1Gas } = await import('./bridge_fee_juice.js');
-      await bridgeL1Gas(
-        amount,
-        recipient,
-        options.rpcUrl,
-        options.l1RpcUrl,
-        options.l1ChainId,
-        options.l1PrivateKey,
-        options.mnemonic,
-        options.mint,
-        options.json,
-        log,
-        debugLogger,
-      );
-    });
-
-  program
     .command('bridge-erc20')
     .description('Bridges ERC20 tokens to L2.')
     .argument('<amount>', 'The amount of Fee Juice to mint and bridge.', parseBigint)

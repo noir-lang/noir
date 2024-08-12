@@ -45,10 +45,14 @@ export const l1ChainIdOption = new Option('-c, --l1-chain-id <number>', 'Chain I
     return parsedValue;
   });
 
-export const createSecretKeyOption = (description: string, mandatory: boolean) =>
+export const createSecretKeyOption = (
+  description: string,
+  mandatory: boolean,
+  argsParser?: (value: string, previous: Fr) => Fr,
+) =>
   new Option('-sk, --secret-key <string>', description)
     .env('SECRET_KEY')
-    .argParser(parseSecretKey)
+    .argParser(argsParser ?? parseSecretKey)
     .makeOptionMandatory(mandatory);
 
 export const logJson = (log: LogFn) => (obj: object) => log(JSON.stringify(obj, null, 2));

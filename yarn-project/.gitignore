@@ -46,6 +46,7 @@ noir-contracts.js/src
 noir-contracts.js/artifacts/
 noir-contracts.js/codegenCache.json
 types/fixtures/*.json
+cli-wallet/test/data
 
 .yarn/*
 !.yarn/patches

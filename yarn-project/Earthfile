@@ -54,8 +54,18 @@ build-dev:
     FROM +build
     SAVE ARTIFACT /usr/src /usr/src
 
-bb-cli:
+cli-base:
     FROM +build
+    # Remove a bunch of stuff that we don't need that takes up space.
+    RUN rm -rf \
+        ../noir-projects \
+        ../l1-contracts \
+        ../barretenberg/ts/src \
+        ../barretenberg/ts/dest/node-cjs \
+        ../barretenberg/ts/dest/browser
+
+bb-cli:
+    FROM +cli-base
 
     ENV BB_WORKING_DIRECTORY=/usr/src/bb
     ENV BB_BINARY_PATH=/usr/src/barretenberg/cpp/build/bin/bb
@@ -66,11 +76,6 @@ bb-cli:
 
     RUN yarn workspaces focus @aztec/bb-prover --production && yarn cache clean
     RUN rm -rf \
-        ../noir-projects \
-        ../l1-contracts \
-        ../barretenberg/ts/src \
-        ../barretenberg/ts/dest/node-cjs \
-        ../barretenberg/ts/dest/browser \
         aztec.js/dest/main.js \
         end-to-end \
         **/src
@@ -114,27 +119,22 @@ rollup-verifier-contract:
     RUN --entrypoint write-contract -c RootRollupArtifact -n UltraVerifier.sol
     SAVE ARTIFACT /usr/src/bb /usr/src/bb
 
-cli-base:
-    FROM +build
-    # Remove a bunch of stuff that we don't need that takes up space.
-    RUN rm -rf \
-        ../noir-projects \
-        ../l1-contracts \
-        ../barretenberg/ts/src \
-        ../barretenberg/ts/dest/node-cjs \
-        ../barretenberg/ts/dest/browser
-
 txe:
     FROM +cli-base
     RUN yarn workspaces focus @aztec/txe --production && yarn cache clean
     ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/txe/dest/bin/index.js"]
     SAVE ARTIFACT /usr/src /usr/src
 
-cli-wallet:
+cli-wallet-build:
     FROM +cli-base
     RUN yarn workspaces focus @aztec/cli-wallet --production && yarn cache clean
-    ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/cli-wallet/dest/bin/index.js"]
     SAVE ARTIFACT /usr/src /usr/src
+
+cli-wallet:
+    FROM ubuntu:noble
+    RUN apt update && apt install nodejs curl -y && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    COPY +cli-wallet-build/usr/src /usr/src
+    ENTRYPOINT ["node", "--no-warnings", "/usr/src/yarn-project/cli-wallet/dest/bin/index.js"]
 
 export-cli-wallet:
     FROM +cli-wallet
@@ -165,14 +165,9 @@ aztec:
     EXPOSE $port
 
 aztec-faucet-build:
-    FROM +build
+    FROM +cli-base
     RUN yarn workspaces focus @aztec/aztec-faucet --production && yarn cache clean
     RUN rm -rf \
-        ../noir-projects \
-        ../l1-contracts \
-        ../barretenberg/ts/src \
-        ../barretenberg/ts/dest/node-cjs \
-        ../barretenberg/ts/dest/browser \
         aztec.js/dest/main.js \
         end-to-end \
         **/src
@@ -193,15 +188,8 @@ export-aztec-faucet:
 
 # We care about creating a slimmed down e2e image because we have to serialize it from earthly to docker for running.
 end-to-end-prod:
-    FROM +build
+    FROM +cli-base
     RUN yarn workspaces focus @aztec/end-to-end --production && yarn cache clean
-    # Remove a bunch of stuff that we don't need that takes up space.
-    RUN rm -rf \
-        ../noir-projects \
-        ../l1-contracts \
-        ../barretenberg/ts/src \
-        ../barretenberg/ts/dest/node-cjs \
-        ../barretenberg/ts/dest/browser
     COPY --dir +rollup-verifier-contract/usr/src/bb /usr/src
     SAVE ARTIFACT /usr/src /usr/src
 

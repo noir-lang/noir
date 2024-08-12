@@ -13,7 +13,7 @@ import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { getContract } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
-import { FeeJuicePortalManager } from '../../portal_manager.js';
+import { FeeJuicePortalManager } from '../../utils/portal_manager.js';
 
 type ContractDeploymentInfo = {
   address: AztecAddress;

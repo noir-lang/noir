@@ -417,8 +417,10 @@ __metadata:
   dependencies:
     "@aztec/accounts": "workspace:^"
     "@aztec/aztec.js": "workspace:^"
+    "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/cli": "workspace:^"
+    "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/kv-store": "workspace:^"
     "@jest/globals": ^29.5.0

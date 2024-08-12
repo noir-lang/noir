@@ -20,13 +20,14 @@ export async function send(
   const call = contract.methods[functionName](...functionArgs);
 
   if (feeOpts.estimateOnly) {
-    const gas = await call.estimateGas({ ...feeOpts.toSendOpts(wallet) });
+    const gas = await call.estimateGas({ ...(await feeOpts.toSendOpts(wallet)) });
     printGasEstimates(feeOpts, gas, log);
     return;
   }
 
-  const tx = call.send({ ...feeOpts.toSendOpts(wallet) });
-  log(`\nTransaction hash: ${(await tx.getTxHash()).toString()}`);
+  const tx = call.send({ ...(await feeOpts.toSendOpts(wallet)) });
+  const txHash = (await tx.getTxHash()).toString();
+  log(`\nTransaction hash: ${txHash}`);
   if (wait) {
     await tx.wait();
 
@@ -40,4 +41,5 @@ export async function send(
   } else {
     log('Transaction pending. Check status with get-tx-receipt');
   }
+  return txHash;
 }

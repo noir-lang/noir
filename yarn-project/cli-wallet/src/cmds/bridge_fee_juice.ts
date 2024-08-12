@@ -1,12 +1,10 @@
 import { createCompatibleClient } from '@aztec/aztec.js';
 import { type AztecAddress } from '@aztec/circuits.js';
+import { FeeJuicePortalManager, prettyPrintJSON } from '@aztec/cli/utils';
 import { createEthereumChain, createL1Clients } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
-import { FeeJuicePortalManager } from '../../portal_manager.js';
-import { prettyPrintJSON } from '../../utils/commands.js';
-
-export async function bridgeL1Gas(
+export async function bridgeL1FeeJuice(
   amount: bigint,
   recipient: AztecAddress,
   rpcUrl: string,
@@ -45,4 +43,5 @@ export async function bridgeL1Gas(
     log(`claimAmount=${amount},claimSecret=${secret}\n`);
     log(`Note: You need to wait for two L2 blocks before pulling them from the L2 side`);
   }
+  return secret;
 }

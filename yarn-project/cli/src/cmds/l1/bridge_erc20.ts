@@ -2,8 +2,8 @@ import { type AztecAddress, type EthAddress } from '@aztec/circuits.js';
 import { createEthereumChain, createL1Clients } from '@aztec/ethereum';
 import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 
-import { ERC20PortalManager } from '../../portal_manager.js';
 import { prettyPrintJSON } from '../../utils/commands.js';
+import { ERC20PortalManager } from '../../utils/portal_manager.js';
 
 export async function bridgeERC20(
   amount: bigint,

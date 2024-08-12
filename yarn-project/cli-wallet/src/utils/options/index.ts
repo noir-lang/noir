@@ -1,5 +1,5 @@
 import { type AztecAddress } from '@aztec/circuits.js';
-import { parseAztecAddress } from '@aztec/cli/utils';
+import { parseAztecAddress, parseSecretKey, parseTxHash } from '@aztec/cli/utils';
 
 import { Option } from 'commander';
 import { readdir, stat } from 'fs/promises';
@@ -12,7 +12,17 @@ const TARGET_DIR = 'target';
 export const ARTIFACT_DESCRIPTION =
   "Path to a compiled Aztec contract's artifact in JSON format. If executed inside a nargo workspace, a package and contract name can be specified as package@contract";
 
-function aliasedAddressParser(defaultPrefix: AliasType, address: string, db?: WalletDB) {
+export function aliasedTxHashParser(txHash: string, db?: WalletDB) {
+  try {
+    return parseTxHash(txHash);
+  } catch (err) {
+    const prefixed = txHash.includes(':') ? txHash : `transactions:${txHash}`;
+    const rawTxHash = db ? db.tryRetrieveAlias(prefixed) : txHash;
+    return parseTxHash(rawTxHash);
+  }
+}
+
+export function aliasedAddressParser(defaultPrefix: AliasType, address: string, db?: WalletDB) {
   if (address.startsWith('0x')) {
     return parseAztecAddress(address);
   } else {
@@ -22,12 +32,22 @@ function aliasedAddressParser(defaultPrefix: AliasType, address: string, db?: Wa
   }
 }
 
+export function aliasedSecretKeyParser(sk: string, db?: WalletDB) {
+  if (sk.startsWith('0x')) {
+    return parseSecretKey(sk);
+  } else {
+    const prefixed = `${sk.startsWith('accounts') ? '' : 'accounts'}:${sk.endsWith(':sk') ? sk : `${sk}:sk`}`;
+    const rawSk = db ? db.tryRetrieveAlias(prefixed) : sk;
+    return parseSecretKey(rawSk);
+  }
+}
+
 export function createAliasOption(description: string, hide: boolean) {
   return new Option(`-a, --alias <string>`, description).hideHelp(hide);
 }
 
 export function createAccountOption(description: string, hide: boolean, db?: WalletDB) {
-  return new Option(`-ac, --account <string>`, description)
+  return new Option(`-f, --from <string>`, description)
     .hideHelp(hide)
     .argParser(address => aliasedAddressParser('accounts', address, db));
 }

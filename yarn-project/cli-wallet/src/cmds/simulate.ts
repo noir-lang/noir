@@ -2,6 +2,8 @@ import { type AccountWalletWithSecretKey, type AztecAddress, Contract } from '@a
 import { prepTx } from '@aztec/cli/utils';
 import { type LogFn } from '@aztec/foundation/log';
 
+import { format } from 'util';
+
 export async function simulate(
   wallet: AccountWalletWithSecretKey,
   functionName: string,
@@ -16,5 +18,5 @@ export async function simulate(
   const call = contract.methods[functionName](...functionArgs);
 
   const result = await call.simulate();
-  log(`Simulation result: ${result.toString()}`);
+  log(format('\nSimulation result: ', result, '\n'));
 }
