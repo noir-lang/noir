@@ -103,6 +103,7 @@ jobs:
       pxe_lb_priority_range_start: ${{ steps.set_network_vars.outputs.pxe_lb_priority_range_start }}
       faucet_lb_priority: ${{ steps.set_network_vars.outputs.faucet_lb_priority }}
       bot_no_wait: ${{ steps.set_network_vars.outputs.bot_no_wait }}
+      max_txs_per_block: ${{ steps.set_network_vars.outputs.max_txs_per_block }}
     steps:
       - name: Set network vars
         shell: bash
@@ -122,6 +123,7 @@ jobs:
               echo "pxe_lb_priority_range_start=5100" >> $GITHUB_OUTPUT
               echo "faucet_lb_priority=601" >> $GITHUB_OUTPUT
               echo "bot_no_wait=false" >> $GITHUB_OUTPUT
+              echo "max_txs_per_block=64" >> $GITHUB_OUTPUT
           elif [ "$BRANCH_NAME" = "provernet" ]
           then
               echo "deploy_tag=provernet" >> $GITHUB_OUTPUT
@@ -135,6 +137,7 @@ jobs:
               echo "pxe_lb_priority_range_start=5200" >> $GITHUB_OUTPUT
               echo "faucet_lb_priority=602" >> $GITHUB_OUTPUT
               echo "bot_no_wait=true" >> $GITHUB_OUTPUT
+              echo "max_txs_per_block=4" >> $GITHUB_OUTPUT
           elif [ "$BRANCH_NAME" = "alphanet" ]
           then
               echo "deploy_tag=alphanet" >> $GITHUB_OUTPUT
@@ -148,6 +151,7 @@ jobs:
               echo "pxe_lb_priority_range_start=5000" >> $GITHUB_OUTPUT
               echo "faucet_lb_priority=600" >> $GITHUB_OUTPUT
               echo "bot_no_wait=false" >> $GITHUB_OUTPUT
+              echo "max_txs_per_block=64" >> $GITHUB_OUTPUT
           else
               echo "Unrecognized Branch!!"
               exit 1
@@ -420,6 +424,7 @@ jobs:
       TF_VAR_NODE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.node_lb_priority_range_start }}
       TF_VAR_PXE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.pxe_lb_priority_range_start }}
       TF_VAR_BOT_NO_WAIT_FOR_TRANSFERS: ${{ needs.set-network.outputs.bot_no_wait }}
+      TF_VAR_SEQ_MAX_TX_PER_BLOCK: ${{ needs.set-network.outputs.max_txs_per_block }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -620,6 +625,7 @@ jobs:
       TF_VAR_NODE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.node_lb_priority_range_start }}
       TF_VAR_PXE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.pxe_lb_priority_range_start }}
       TF_VAR_BOT_NO_WAIT_FOR_TRANSFERS: ${{ needs.set-network.outputs.bot_no_wait }}
+      TF_VAR_SEQ_MAX_TX_PER_BLOCK: ${{ needs.set-network.outputs.max_txs_per_block }}
       TF_VAR_PROVING_ENABLED: true
       TF_VAR_BOT_NO_START: false
     steps:
