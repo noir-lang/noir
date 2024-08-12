@@ -29,7 +29,7 @@ use noirc_frontend::{
     macros_api::{ModuleDefId, NodeInterner, StructId},
     node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
     parser::{Item, ItemKind},
-    token::{IntType, Keyword},
+    token::Keyword,
     ParsedModule, Type,
 };
 use strum::IntoEnumIterator;
@@ -1195,7 +1195,7 @@ impl<'a> NodeFinder<'a> {
 
     fn builtin_types_completion(&mut self, prefix: &str) {
         for keyword in Keyword::iter() {
-            if let Some(typ) = keyword.builtin_type() {
+            if let Some(typ) = keyword_builtin_type(&keyword) {
                 if name_matches(typ, prefix) {
                     self.completion_items.push(simple_completion_item(
                         typ,
@@ -1206,7 +1206,7 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
-        for typ in IntType::builtin_types() {
+        for typ in builtin_integer_types() {
             if name_matches(typ, prefix) {
                 self.completion_items.push(simple_completion_item(
                     typ,
@@ -1224,6 +1224,64 @@ impl<'a> NodeFinder<'a> {
 
 fn name_matches(name: &str, prefix: &str) -> bool {
     name.starts_with(prefix)
+}
+
+fn builtin_integer_types() -> [&'static str; 8] {
+    ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"]
+}
+
+/// If this keyword corresponds to a built-in type, returns that type's name.
+fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
+    match keyword {
+        Keyword::Bool => Some("bool"),
+        Keyword::Expr => Some("Expr"),
+        Keyword::Field => Some("Field"),
+        Keyword::FunctionDefinition => Some("FunctionDefinition"),
+        Keyword::StructDefinition => Some("StructDefinition"),
+        Keyword::TraitConstraint => Some("TraitConstraint"),
+        Keyword::TraitDefinition => Some("TraitDefinition"),
+        Keyword::TypeType => Some("Type"),
+
+        Keyword::As
+        | Keyword::Assert
+        | Keyword::AssertEq
+        | Keyword::Break
+        | Keyword::CallData
+        | Keyword::Char
+        | Keyword::Comptime
+        | Keyword::Constrain
+        | Keyword::Continue
+        | Keyword::Contract
+        | Keyword::Crate
+        | Keyword::Dep
+        | Keyword::Else
+        | Keyword::Fn
+        | Keyword::For
+        | Keyword::FormatString
+        | Keyword::Global
+        | Keyword::If
+        | Keyword::Impl
+        | Keyword::In
+        | Keyword::Let
+        | Keyword::Mod
+        | Keyword::Module
+        | Keyword::Mut
+        | Keyword::Pub
+        | Keyword::Quoted
+        | Keyword::Return
+        | Keyword::ReturnData
+        | Keyword::String
+        | Keyword::Struct
+        | Keyword::Super
+        | Keyword::TopLevelItem
+        | Keyword::Trait
+        | Keyword::Type
+        | Keyword::Unchecked
+        | Keyword::Unconstrained
+        | Keyword::Use
+        | Keyword::Where
+        | Keyword::While => None,
+    }
 }
 
 fn module_completion_item(name: impl Into<String>) -> CompletionItem {
