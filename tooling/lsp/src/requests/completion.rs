@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     future::{self, Future},
 };
 
@@ -17,7 +17,8 @@ use noirc_frontend::{
         FunctionReturnType, Ident, IfExpression, IndexExpression, InfixExpression, LValue, Lambda,
         LetStatement, Literal, MemberAccessExpression, MethodCallExpression, NoirFunction,
         NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path, PathKind, PathSegment, Pattern,
-        Statement, TraitImplItem, TraitItem, TypeImpl, UnresolvedType, UseTree, UseTreeKind,
+        Statement, TraitImplItem, TraitItem, TypeImpl, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedType, UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -99,6 +100,7 @@ struct NodeFinder<'a> {
     dependencies: &'a Vec<Dependency>,
     interner: &'a NodeInterner,
     local_variables: HashMap<String, Span>,
+    type_parameters: HashSet<String>,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -122,7 +124,6 @@ impl<'a> NodeFinder<'a> {
             def_map.root()
         };
         let module_id = ModuleId { krate, local_id };
-        let local_variables = HashMap::new();
         Self {
             file,
             byte_index,
@@ -132,7 +133,8 @@ impl<'a> NodeFinder<'a> {
             def_maps,
             dependencies,
             interner,
-            local_variables,
+            local_variables: HashMap::new(),
+            type_parameters: HashSet::new(),
         }
     }
 
@@ -196,13 +198,24 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         noir_function: &NoirFunction,
     ) -> Option<CompletionResponse> {
+        self.type_parameters.clear();
+        self.collect_type_parameters_in_generics(&noir_function.def.generics);
+
+        let mut response = None;
         for param in &noir_function.def.parameters {
-            if let Some(response) = self.find_in_unresolved_type(&param.typ) {
-                return Some(response);
+            response = self.find_in_unresolved_type(&param.typ);
+            if response.is_some() {
+                break;
             }
         }
 
+        if let Some(response) = response {
+            self.type_parameters.clear();
+            return Some(response);
+        }
+
         if let Some(response) = self.find_in_function_return_type(&noir_function.def.return_type) {
+            self.type_parameters.clear();
             return Some(response);
         }
 
@@ -211,19 +224,31 @@ impl<'a> NodeFinder<'a> {
             self.collect_local_variables(&param.pattern);
         }
 
-        self.find_in_block_expression(&noir_function.def.body)
+        let response = self.find_in_block_expression(&noir_function.def.body);
+
+        self.type_parameters.clear();
+
+        response
     }
 
     fn find_in_noir_trait_impl(
         &mut self,
         noir_trait_impl: &NoirTraitImpl,
     ) -> Option<CompletionResponse> {
+        self.type_parameters.clear();
+        self.collect_type_parameters_in_generics(&noir_trait_impl.impl_generics);
+
+        let mut response = None;
         for item in &noir_trait_impl.items {
-            if let Some(completion) = self.find_in_trait_impl_item(item) {
-                return Some(completion);
+            response = self.find_in_trait_impl_item(item);
+            if response.is_some() {
+                break;
             }
         }
-        None
+
+        self.type_parameters.clear();
+
+        response
     }
 
     fn find_in_trait_impl_item(&mut self, item: &TraitImplItem) -> Option<CompletionResponse> {
@@ -235,13 +260,20 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_type_impl(&mut self, type_impl: &TypeImpl) -> Option<CompletionResponse> {
+        self.type_parameters.clear();
+        self.collect_type_parameters_in_generics(&type_impl.generics);
+
+        let mut response = None;
         for (method, _) in &type_impl.methods {
-            if let Some(completion) = self.find_in_noir_function(method) {
-                return Some(completion);
+            response = self.find_in_noir_function(method);
+            if response.is_some() {
+                break;
             }
         }
 
-        None
+        self.type_parameters.clear();
+
+        response
     }
 
     fn find_in_noir_type_alias(
@@ -252,13 +284,20 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_noir_struct(&mut self, noir_struct: &NoirStruct) -> Option<CompletionResponse> {
+        self.type_parameters.clear();
+        self.collect_type_parameters_in_generics(&noir_struct.generics);
+
+        let mut response = None;
         for (_name, unresolved_type) in &noir_struct.fields {
-            if let Some(response) = self.find_in_unresolved_type(unresolved_type) {
-                return Some(response);
+            response = self.find_in_unresolved_type(unresolved_type);
+            if response.is_some() {
+                break;
             }
         }
 
-        None
+        self.type_parameters.clear();
+
+        response
     }
 
     fn find_in_noir_trait(&mut self, noir_trait: &NoirTrait) -> Option<CompletionResponse> {
@@ -853,6 +892,9 @@ impl<'a> NodeFinder<'a> {
                     let builtin_types_response = builtin_types_completion(&prefix);
                     let response = merge_completion_responses(response, builtin_types_response);
 
+                    let type_parameters_response = self.type_parameters_completion(&prefix);
+                    let response = merge_completion_responses(response, type_parameters_response);
+
                     response
                 }
             }
@@ -880,6 +922,26 @@ impl<'a> NodeFinder<'a> {
                     name,
                     CompletionItemKind::VARIABLE,
                     description,
+                ));
+            }
+        }
+
+        if completion_items.is_empty() {
+            None
+        } else {
+            Some(CompletionResponse::Array(completion_items))
+        }
+    }
+
+    fn type_parameters_completion(&self, prefix: &String) -> Option<CompletionResponse> {
+        let mut completion_items = Vec::new();
+
+        for name in &self.type_parameters {
+            if name_matches(name, prefix) {
+                completion_items.push(simple_completion_item(
+                    name,
+                    CompletionItemKind::TYPE_PARAMETER,
+                    None,
                 ));
             }
         }
@@ -1014,6 +1076,24 @@ impl<'a> NodeFinder<'a> {
                 }
             }
         }
+    }
+
+    fn collect_type_parameters_in_generics(&mut self, generics: &UnresolvedGenerics) {
+        for generic in generics {
+            self.collect_type_parameters_in_generic(generic)
+        }
+    }
+
+    fn collect_type_parameters_in_generic(&mut self, generic: &UnresolvedGeneric) {
+        match generic {
+            UnresolvedGeneric::Variable(ident) => {
+                self.type_parameters.insert(ident.to_string());
+            }
+            UnresolvedGeneric::Numeric { ident, typ: _ } => {
+                self.type_parameters.insert(ident.to_string());
+            }
+            UnresolvedGeneric::Resolved(..) => (),
+        };
     }
 
     fn complete_in_module(
@@ -2257,6 +2337,69 @@ mod completion_tests {
                 CompletionItemKind::VARIABLE,
                 Some("Field".to_string()),
             )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_struct_type_parameter() {
+        let src = r#"
+            struct Foo<Context> {
+                context: C>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item("Context", CompletionItemKind::TYPE_PARAMETER, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_impl_type_parameter() {
+        let src = r#"
+            struct Foo<Context> {}
+
+            impl <TypeParam> Foo<TypeParam> {
+                fn foo() {
+                    let x: TypeP>|<
+                }
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item("TypeParam", CompletionItemKind::TYPE_PARAMETER, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_trait_impl_type_parameter() {
+        let src = r#"
+            struct Foo {}
+            trait Trait<Context> {}
+
+            impl <TypeParam> Trait<TypeParam> for Foo {
+                fn foo() {
+                    let x: TypeP>|<
+                }
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item("TypeParam", CompletionItemKind::TYPE_PARAMETER, None)],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_function_type_parameters() {
+        let src = r#"
+            fn foo<Context>(x: C>|<) {}
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item("Context", CompletionItemKind::TYPE_PARAMETER, None)],
         )
         .await;
     }
