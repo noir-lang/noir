@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.48.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.47.1...aztec-package-v0.48.0) (2024-08-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename fee juice ([#7793](https://github.com/AztecProtocol/aztec-packages/issues/7793))
+
+### Features
+
+* Cheat rollup contract into assuming first blocks as proven ([#7892](https://github.com/AztecProtocol/aztec-packages/issues/7892)) ([2c5d807](https://github.com/AztecProtocol/aztec-packages/commit/2c5d8071277a48d55c1a933960c16d23e28b9298))
+* CLI wallet initial version ([#7651](https://github.com/AztecProtocol/aztec-packages/issues/7651)) ([83f8d9c](https://github.com/AztecProtocol/aztec-packages/commit/83f8d9c5e4f53b3691d5a1168c69a160ab657139))
+* Merge devnet chagnes to master ([#7822](https://github.com/AztecProtocol/aztec-packages/issues/7822)) ([8021eda](https://github.com/AztecProtocol/aztec-packages/commit/8021eda6b5c6e6c518ff38bacdc828fcfab09465))
+* Updated bot machine specs ([#7903](https://github.com/AztecProtocol/aztec-packages/issues/7903)) ([7f0e57b](https://github.com/AztecProtocol/aztec-packages/commit/7f0e57b71badfb85fc0fd3d4f1e23c4d3456a770))
+
+
+### Bug Fixes
+
+* Add boolean config helper ([#7884](https://github.com/AztecProtocol/aztec-packages/issues/7884)) ([2f11584](https://github.com/AztecProtocol/aztec-packages/commit/2f115849d93a7a2180defc342de6c7fe02f80047))
+* Create proving job queue when prover node started with no agents ([#7828](https://github.com/AztecProtocol/aztec-packages/issues/7828)) ([e2feaf8](https://github.com/AztecProtocol/aztec-packages/commit/e2feaf8c0613b2b5adfd496a94e1bd58296768f4))
+* Default config ([#7848](https://github.com/AztecProtocol/aztec-packages/issues/7848)) ([78ae6b4](https://github.com/AztecProtocol/aztec-packages/commit/78ae6b4f50cd0431c5dbd938c0cd791db5e2de4d))
+* DEPLOY_AZTEC_CONTRACTS parsing ([#7877](https://github.com/AztecProtocol/aztec-packages/issues/7877)) ([e437dba](https://github.com/AztecProtocol/aztec-packages/commit/e437dbaf258adc9f49399ed8ed16bb424b234bf5))
+* Load l1 addresses in prover node ([#7858](https://github.com/AztecProtocol/aztec-packages/issues/7858)) ([0c3de7e](https://github.com/AztecProtocol/aztec-packages/commit/0c3de7e2b5c9ae6782aa94bffb6b69c6efa42892))
+* More fixes for networks ([#7870](https://github.com/AztecProtocol/aztec-packages/issues/7870)) ([55c33bd](https://github.com/AztecProtocol/aztec-packages/commit/55c33bd906a26f10a79e13b2542b1281ffbdb99d))
+
+
+### Miscellaneous
+
+* Add optional artifical delay for test prover ([#7832](https://github.com/AztecProtocol/aztec-packages/issues/7832)) ([4d0c027](https://github.com/AztecProtocol/aztec-packages/commit/4d0c027c980e47b9cabc919c81562d5e0ce586ca))
+* Handle exceptions in bot runner ([#7679](https://github.com/AztecProtocol/aztec-packages/issues/7679)) ([dd6176b](https://github.com/AztecProtocol/aztec-packages/commit/dd6176b444ae1b9f8313af98f7ebd5eeb2f31ed7)), closes [#7658](https://github.com/AztecProtocol/aztec-packages/issues/7658)
+* Merge back to master ([#7785](https://github.com/AztecProtocol/aztec-packages/issues/7785)) ([2ad6e6f](https://github.com/AztecProtocol/aztec-packages/commit/2ad6e6fd60c98cc5888f6f64bcd774d87ff881e8))
+* Minor logging tweaks ([#7879](https://github.com/AztecProtocol/aztec-packages/issues/7879)) ([00c35c0](https://github.com/AztecProtocol/aztec-packages/commit/00c35c0f7c96c5eebecf66088d2fcd9aa3da7693))
+* Native to fee juice ([#7911](https://github.com/AztecProtocol/aztec-packages/issues/7911)) ([32b4c6e](https://github.com/AztecProtocol/aztec-packages/commit/32b4c6ed75387759b3d84df723a52679894feb2d))
+* Rename fee juice ([#7793](https://github.com/AztecProtocol/aztec-packages/issues/7793)) ([24b3e05](https://github.com/AztecProtocol/aztec-packages/commit/24b3e05a9bfca29f7741de49fe12f73cc219953b)), closes [#7570](https://github.com/AztecProtocol/aztec-packages/issues/7570)
+
 ## [0.47.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.47.0...aztec-package-v0.47.1) (2024-07-30)
 
 
