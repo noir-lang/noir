@@ -125,11 +125,12 @@ pub(crate) fn prove_package(
     // Get the entry point witness for the ABI
     let main_witness =
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-    let public_abi = compiled_program.abi.public_abi();
-    let (public_inputs, return_value) = public_abi.decode(main_witness)?;
+    let abi = compiled_program.abi;
+    let (all_inputs, return_value) = abi.decode(main_witness)?;
+    let public_abi = abi.public_abi();
 
     write_inputs_to_file(
-        &public_inputs,
+        &all_inputs,
         &return_value,
         &public_abi,
         &package.root_dir,

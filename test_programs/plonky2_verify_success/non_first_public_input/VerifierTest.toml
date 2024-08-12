@@ -1,0 +1,5 @@
+# This file is separate from Verifier.toml, because nargo prove overwrites Verifier.toml
+# Note: This test should pass, because this y takes the value of y, provided in Prover.toml,
+#  rather than the value of x in Prover.toml 
+
+y = "0x0000000000000000000000000000000000000000000000000000000000000004"
