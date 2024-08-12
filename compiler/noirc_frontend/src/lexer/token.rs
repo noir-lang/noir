@@ -883,8 +883,7 @@ impl AsRef<str> for SecondaryAttribute {
 
 /// Note that `self` is not present - it is a contextual keyword rather than a true one as it is
 /// only special within `impl`s. Otherwise `self` functions as a normal identifier.
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord, strum_macros::EnumIter)]
 pub enum Keyword {
     As,
     Assert,

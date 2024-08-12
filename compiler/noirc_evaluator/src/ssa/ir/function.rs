@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
+use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
@@ -10,7 +11,7 @@ use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir(InlineType),
@@ -37,7 +38,7 @@ impl RuntimeType {
 /// All functions outside of the current function are seen as external.
 /// To reference external functions its FunctionId can be used but this
 /// cannot be checked for correctness until inlining is performed.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Function {
     /// The first basic block in the function
     entry_block: BasicBlockId,

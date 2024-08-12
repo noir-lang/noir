@@ -38,8 +38,8 @@ use super::{spanned, Item, ItemKind};
 use crate::ast::{
     BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path,
-    Pattern, Recoverable, Statement, TraitBound, TypeImpl, UnaryRhsMemberAccess,
-    UnaryRhsMethodCall, UseTree, UseTreeKind, Visibility,
+    Pattern, Recoverable, Statement, TypeImpl, UnaryRhsMemberAccess, UnaryRhsMethodCall, UseTree,
+    UseTreeKind, Visibility,
 };
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
@@ -59,10 +59,10 @@ mod attributes;
 mod function;
 mod lambdas;
 mod literals;
-mod path;
+pub(super) mod path;
 mod primitives;
 mod structs;
-mod traits;
+pub(super) mod traits;
 mod types;
 
 // synthesized by LALRPOP
@@ -72,7 +72,7 @@ lalrpop_mod!(pub noir_parser);
 mod test_helpers;
 
 use literals::literal;
-use path::{maybe_empty_path, path, path_no_turbofish};
+use path::{maybe_empty_path, path};
 use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
 use traits::where_clause;
 
@@ -369,17 +369,13 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
         .labelled(ParsingRuleLabel::Parameter)
 }
 
-pub fn trait_bound() -> impl NoirParser<TraitBound> {
-    traits::trait_bound()
-}
-
 fn block_expr<'a>(
     statement: impl NoirParser<StatementKind> + 'a,
 ) -> impl NoirParser<Expression> + 'a {
     block(statement).map(ExpressionKind::Block).map_with_span(Expression::new)
 }
 
-fn block<'a>(
+pub fn block<'a>(
     statement: impl NoirParser<StatementKind> + 'a,
 ) -> impl NoirParser<BlockExpression> + 'a {
     use Token::*;
@@ -434,7 +430,7 @@ fn rename() -> impl NoirParser<Option<Ident>> {
 
 fn use_tree() -> impl NoirParser<UseTree> {
     recursive(|use_tree| {
-        let simple = path_no_turbofish().then(rename()).map(|(mut prefix, alias)| {
+        let simple = path::path_no_turbofish().then(rename()).map(|(mut prefix, alias)| {
             let ident = prefix.pop().ident;
             UseTree { prefix, kind: UseTreeKind::Path(ident, alias) }
         });
@@ -481,7 +477,7 @@ where
     })
 }
 
-fn fresh_statement() -> impl NoirParser<StatementKind> {
+pub fn fresh_statement() -> impl NoirParser<StatementKind> {
     statement(expression(), expression_no_constructors(expression()))
 }
 
@@ -545,7 +541,7 @@ where
     let_statement(expr_parser).map(StatementKind::new_let)
 }
 
-fn pattern() -> impl NoirParser<Pattern> {
+pub fn pattern() -> impl NoirParser<Pattern> {
     recursive(|pattern| {
         let ident_pattern = ident().map(Pattern::Identifier).map_err(|mut error| {
             if matches!(error.found(), Token::IntType(..)) {

@@ -27,3 +27,22 @@ pub enum BrilligOutputs {
 pub struct BrilligBytecode<F> {
     pub bytecode: Vec<BrilligOpcode<F>>,
 }
+
+/// Id for the function being called.
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default, PartialOrd, Ord,
+)]
+#[serde(transparent)]
+pub struct BrilligFunctionId(pub u32);
+
+impl BrilligFunctionId {
+    pub fn as_usize(&self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl std::fmt::Display for BrilligFunctionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}

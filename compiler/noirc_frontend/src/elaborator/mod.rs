@@ -627,6 +627,21 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    pub fn resolve_module_by_path(&self, path: Path) -> Option<ModuleId> {
+        let path_resolver = StandardPathResolver::new(self.module_id());
+
+        match path_resolver.resolve(self.def_maps, path.clone(), &mut None) {
+            Ok(PathResolution { module_def_id: ModuleDefId::ModuleId(module_id), error }) => {
+                if error.is_some() {
+                    None
+                } else {
+                    Some(module_id)
+                }
+            }
+            _ => None,
+        }
+    }
+
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
         let path_resolver = StandardPathResolver::new(self.module_id());
 
@@ -854,7 +869,11 @@ impl<'context> Elaborator<'context> {
     /// Since they should be within a child module, they should be elaborated as if
     /// `in_contract` is `false` so we can still resolve them in the parent module without them being in a contract.
     fn in_contract(&self) -> bool {
-        self.module_id().module(self.def_maps).is_contract
+        self.module_is_contract(self.module_id())
+    }
+
+    pub(crate) fn module_is_contract(&self, module_id: ModuleId) -> bool {
+        module_id.module(self.def_maps).is_contract
     }
 
     fn is_entry_point_function(&self, func: &NoirFunction, in_contract: bool) -> bool {
@@ -1044,6 +1063,11 @@ impl<'context> Elaborator<'context> {
 
         self.current_trait_impl = None;
         self.self_type = None;
+    }
+
+    pub fn get_module(&self, module: ModuleId) -> &ModuleData {
+        let message = "A crate should always be present for a given crate id";
+        &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
     }
 
     fn get_module_mut(def_maps: &mut DefMaps, module: ModuleId) -> &mut ModuleData {

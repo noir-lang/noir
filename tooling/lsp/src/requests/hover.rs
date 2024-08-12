@@ -321,9 +321,9 @@ fn format_parent_module_from_module_id(
 ) -> bool {
     let crate_id = module.krate;
     let crate_name = match crate_id {
-        CrateId::Root(_) => Some(args.root_crate_name.clone()),
+        CrateId::Root(_) => Some(args.crate_name.clone()),
         CrateId::Crate(_) => args
-            .root_crate_dependencies
+            .dependencies
             .iter()
             .find(|dep| dep.crate_id == crate_id)
             .map(|dep| format!("{}", dep.name)),

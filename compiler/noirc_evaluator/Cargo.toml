@@ -19,6 +19,8 @@ thiserror.workspace = true
 num-bigint = "0.4"
 im.workspace = true
 serde.workspace = true
+serde_json.workspace = true
+serde_with = "3.2.0"
 tracing.workspace = true
 chrono = "0.4.37"
 
