@@ -530,6 +530,11 @@ impl IntType {
             Ok(Some(Token::IntType(IntType::Unsigned(str_as_u32))))
         }
     }
+
+    // Returns all the names of built-in integer types
+    pub fn builtin_types() -> [&'static str; 8] {
+        ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"]
+    }
 }
 
 /// TestScope is used to specify additional annotations for test functions
@@ -883,8 +888,7 @@ impl AsRef<str> for SecondaryAttribute {
 
 /// Note that `self` is not present - it is a contextual keyword rather than a true one as it is
 /// only special within `impl`s. Otherwise `self` functions as a normal identifier.
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord, strum_macros::EnumIter)]
 pub enum Keyword {
     As,
     Assert,
@@ -1047,6 +1051,60 @@ impl Keyword {
         };
 
         Some(Token::Keyword(keyword))
+    }
+
+    /// If this keyword corresponds to a built-in type, returns that type's name.
+    pub fn builtin_type(&self) -> Option<&'static str> {
+        match self {
+            Keyword::Bool => Some("bool"),
+            Keyword::Expr => Some("Expr"),
+            Keyword::Field => Some("Field"),
+            Keyword::FunctionDefinition => Some("FunctionDefinition"),
+            Keyword::StructDefinition => Some("StructDefinition"),
+            Keyword::TraitConstraint => Some("TraitConstraint"),
+            Keyword::TraitDefinition => Some("TraitDefinition"),
+            Keyword::TypeType => Some("Type"),
+
+            Keyword::As
+            | Keyword::Assert
+            | Keyword::AssertEq
+            | Keyword::Break
+            | Keyword::CallData
+            | Keyword::Char
+            | Keyword::Comptime
+            | Keyword::Constrain
+            | Keyword::Continue
+            | Keyword::Contract
+            | Keyword::Crate
+            | Keyword::Dep
+            | Keyword::Else
+            | Keyword::Fn
+            | Keyword::For
+            | Keyword::FormatString
+            | Keyword::Global
+            | Keyword::If
+            | Keyword::Impl
+            | Keyword::In
+            | Keyword::Let
+            | Keyword::Mod
+            | Keyword::Module
+            | Keyword::Mut
+            | Keyword::Pub
+            | Keyword::Quoted
+            | Keyword::Return
+            | Keyword::ReturnData
+            | Keyword::String
+            | Keyword::Struct
+            | Keyword::Super
+            | Keyword::TopLevelItem
+            | Keyword::Trait
+            | Keyword::Type
+            | Keyword::Unchecked
+            | Keyword::Unconstrained
+            | Keyword::Use
+            | Keyword::Where
+            | Keyword::While => None,
+        }
     }
 }
 

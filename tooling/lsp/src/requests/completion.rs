@@ -29,8 +29,10 @@ use noirc_frontend::{
     macros_api::{ModuleDefId, NodeInterner, StructId},
     node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
     parser::{Item, ItemKind},
+    token::{IntType, Keyword},
     ParsedModule, Type,
 };
+use strum::IntoEnumIterator;
 
 use crate::{utils, LspState};
 
@@ -1192,26 +1194,19 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn builtin_types_completion(&mut self, prefix: &str) {
-        for typ in [
-            "bool",
-            "i8",
-            "i16",
-            "i32",
-            "i64",
-            "u8",
-            "u16",
-            "u32",
-            "u64",
-            "str",
-            "Expr",
-            "Field",
-            "FunctionDefinition",
-            "Quoted",
-            "StructDefinition",
-            "TraitConstraint",
-            "TraitDefinition",
-            "Type",
-        ] {
+        for keyword in Keyword::iter() {
+            if let Some(typ) = keyword.builtin_type() {
+                if name_matches(typ, prefix) {
+                    self.completion_items.push(simple_completion_item(
+                        typ,
+                        CompletionItemKind::STRUCT,
+                        Some(typ.to_string()),
+                    ));
+                }
+            }
+        }
+
+        for typ in IntType::builtin_types() {
             if name_matches(typ, prefix) {
                 self.completion_items.push(simple_completion_item(
                     typ,
