@@ -219,7 +219,7 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         noir_function: &NoirFunction,
     ) -> Option<CompletionResponse> {
-        self.type_parameters.clear();
+        let old_type_parameters = self.type_parameters.clone();
         self.collect_type_parameters_in_generics(&noir_function.def.generics);
 
         let mut response = None;
@@ -231,12 +231,12 @@ impl<'a> NodeFinder<'a> {
         }
 
         if let Some(response) = response {
-            self.type_parameters.clear();
+            self.type_parameters = old_type_parameters;
             return Some(response);
         }
 
         if let Some(response) = self.find_in_function_return_type(&noir_function.def.return_type) {
-            self.type_parameters.clear();
+            self.type_parameters = old_type_parameters;
             return Some(response);
         }
 
@@ -247,7 +247,7 @@ impl<'a> NodeFinder<'a> {
 
         let response = self.find_in_block_expression(&noir_function.def.body);
 
-        self.type_parameters.clear();
+        self.type_parameters = old_type_parameters;
 
         response
     }
