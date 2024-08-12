@@ -904,8 +904,8 @@ impl<'a> NodeFinder<'a> {
                     let local_vars_response = self.local_variables_completion(&prefix);
                     let response = merge_completion_responses(response, local_vars_response);
 
-                    let predefined_response = predefined_functions_completion(&prefix);
-                    let response = merge_completion_responses(response, predefined_response);
+                    let builtin_response = builtin_functions_completion(&prefix);
+                    let response = merge_completion_responses(response, builtin_response);
 
                     response
                 }
@@ -1364,7 +1364,7 @@ fn name_matches(name: &str, prefix: &str) -> bool {
     name.starts_with(prefix)
 }
 
-fn predefined_functions_completion(prefix: &String) -> Option<CompletionResponse> {
+fn builtin_functions_completion(prefix: &String) -> Option<CompletionResponse> {
     let mut completion_items = Vec::new();
 
     if name_matches("assert", prefix) {
@@ -1926,7 +1926,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_complete_predefined_functions() {
+    async fn test_complete_builtin_functions() {
         let src = r#"
           fn main() {
             a>|<
