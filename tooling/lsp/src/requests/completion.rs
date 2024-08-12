@@ -327,12 +327,17 @@ impl<'a> NodeFinder<'a> {
         &mut self,
         block_expression: &BlockExpression,
     ) -> Option<CompletionResponse> {
+        let old_local_variables = self.local_variables.clone();
+        let mut completion = None;
         for statement in &block_expression.statements {
-            if let Some(completion) = self.find_in_statement(statement) {
-                return Some(completion);
+            completion = self.find_in_statement(statement);
+            if completion.is_some() {
+                break;
             }
         }
-        None
+        self.local_variables = old_local_variables;
+
+        completion
     }
 
     fn find_in_statement(&mut self, statement: &Statement) -> Option<CompletionResponse> {
@@ -2193,6 +2198,54 @@ mod completion_tests {
                     let great = 2;
                 } else {
                     let greater = 3;
+                }
+                g>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "good",
+                CompletionItemKind::VARIABLE,
+                Some("Field".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggest_regarding_block_scope() {
+        let src = r#"
+            fn main() {
+                let good = 1;
+                {
+                    let great = 2;
+                    g>|<
+                }
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                simple_completion_item(
+                    "good",
+                    CompletionItemKind::VARIABLE,
+                    Some("Field".to_string()),
+                ),
+                simple_completion_item(
+                    "great",
+                    CompletionItemKind::VARIABLE,
+                    Some("Field".to_string()),
+                ),
+            ],
+        )
+        .await;
+
+        let src = r#"
+            fn main() {
+                let good = 1;
+                {
+                    let great = 2;
                 }
                 g>|<
             }
