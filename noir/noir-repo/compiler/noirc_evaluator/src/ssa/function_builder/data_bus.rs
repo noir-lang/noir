@@ -17,11 +17,13 @@ pub(crate) enum DatabusVisibility {
 }
 /// Used to create a data bus, which is an array of private inputs
 /// replacing public inputs
+#[derive(Clone, Debug)]
 pub(crate) struct DataBusBuilder {
     pub(crate) values: im::Vector<ValueId>,
     index: usize,
     pub(crate) map: HashMap<ValueId, usize>,
     pub(crate) databus: Option<ValueId>,
+    call_data_id: Option<u32>,
 }
 
 impl DataBusBuilder {
@@ -31,6 +33,7 @@ impl DataBusBuilder {
             map: HashMap::default(),
             databus: None,
             values: im::Vector::new(),
+            call_data_id: None,
         }
     }
 
@@ -54,6 +57,8 @@ impl DataBusBuilder {
 
 #[derive(Clone, Debug)]
 pub(crate) struct CallData {
+    /// The id to this calldata assigned by the user
+    pub(crate) call_data_id: u32,
     pub(crate) array_id: ValueId,
     pub(crate) index_map: HashMap<ValueId, usize>,
 }
@@ -75,14 +80,18 @@ impl DataBus {
                 for (k, v) in cd.index_map.iter() {
                     call_data_map.insert(f(*k), *v);
                 }
-                CallData { array_id: f(cd.array_id), index_map: call_data_map }
+                CallData {
+                    array_id: f(cd.array_id),
+                    index_map: call_data_map,
+                    call_data_id: cd.call_data_id,
+                }
             })
             .collect();
         DataBus { call_data, return_data: self.return_data.map(&mut f) }
     }
 
-    pub(crate) fn call_data_array(&self) -> Vec<ValueId> {
-        self.call_data.iter().map(|cd| cd.array_id).collect()
+    pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
+        self.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id)).collect()
     }
     /// Construct a databus from call_data and return_data data bus builders
     pub(crate) fn get_data_bus(
@@ -91,9 +100,10 @@ impl DataBus {
     ) -> DataBus {
         let mut call_data_args = Vec::new();
         for call_data_item in call_data {
-            if let Some(array_id) = call_data_item.databus {
-                call_data_args.push(CallData { array_id, index_map: call_data_item.map });
-            }
+            let array_id = call_data_item.databus.expect("Call data should have an array id");
+            let call_data_id =
+                call_data_item.call_data_id.expect("Call data should have a user id");
+            call_data_args.push(CallData { array_id, call_data_id, index_map: call_data_item.map });
         }
 
         DataBus { call_data: call_data_args, return_data: return_data.databus }
@@ -136,6 +146,7 @@ impl FunctionBuilder {
         &mut self,
         values: &[ValueId],
         mut databus: DataBusBuilder,
+        call_data_id: Option<u32>,
     ) -> DataBusBuilder {
         for value in values {
             self.add_to_data_bus(*value, &mut databus);
@@ -150,7 +161,13 @@ impl FunctionBuilder {
             None
         };
 
-        DataBusBuilder { index: 0, map: databus.map, databus: array, values: im::Vector::new() }
+        DataBusBuilder {
+            index: 0,
+            map: databus.map,
+            databus: array,
+            values: im::Vector::new(),
+            call_data_id,
+        }
     }
 
     /// Generate the data bus for call-data, based on the parameters of the entry block
@@ -186,7 +203,7 @@ impl FunctionBuilder {
         let mut result = Vec::new();
         for id in databus_param.keys() {
             let builder = DataBusBuilder::new();
-            let call_databus = self.initialize_data_bus(&databus_param[id], builder);
+            let call_databus = self.initialize_data_bus(&databus_param[id], builder, Some(*id));
             result.push(call_databus);
         }
         result

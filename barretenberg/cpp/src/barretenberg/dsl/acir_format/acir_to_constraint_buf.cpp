@@ -518,6 +518,7 @@ BlockConstraint handle_memory_init(Program::Opcode::MemoryInit const& mem_init)
     // array.
     if (std::holds_alternative<Program::BlockType::CallData>(mem_init.block_type.value)) {
         block.type = BlockType::CallData;
+        block.calldata_id = std::get<Program::BlockType::CallData>(mem_init.block_type.value).value;
     } else if (std::holds_alternative<Program::BlockType::ReturnData>(mem_init.block_type.value)) {
         block.type = BlockType::ReturnData;
     }

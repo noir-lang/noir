@@ -1107,6 +1107,8 @@ struct BlockType {
     };
 
     struct CallData {
+        uint32_t value;
+
         friend bool operator==(const CallData&, const CallData&);
         std::vector<uint8_t> bincodeSerialize() const;
         static CallData bincodeDeserialize(std::vector<uint8_t>);
@@ -5578,6 +5580,9 @@ namespace Program {
 
 inline bool operator==(const BlockType::CallData& lhs, const BlockType::CallData& rhs)
 {
+    if (!(lhs.value == rhs.value)) {
+        return false;
+    }
     return true;
 }
 
@@ -5604,7 +5609,9 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Program::BlockType::CallData>::serialize(const Program::BlockType::CallData& obj,
                                                                   Serializer& serializer)
-{}
+{
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
 
 template <>
 template <typename Deserializer>
@@ -5612,6 +5619,7 @@ Program::BlockType::CallData serde::Deserializable<Program::BlockType::CallData>
     Deserializer& deserializer)
 {
     Program::BlockType::CallData obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }
 

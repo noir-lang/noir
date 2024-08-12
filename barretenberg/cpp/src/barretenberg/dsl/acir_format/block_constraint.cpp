@@ -213,20 +213,4 @@ void process_return_data_operations(const BlockConstraint& constraint, std::vect
     ASSERT(constraint.trace.size() == 0);
 }
 
-// Do nothing for Ultra since it does not support Databus
-template <> void assign_calldata_ids<UltraCircuitBuilder>([[maybe_unused]] std::vector<BlockConstraint>& constraints) {}
-
-template <> void assign_calldata_ids<MegaCircuitBuilder>(std::vector<BlockConstraint>& constraints)
-{
-    // Assign unique ID to each calldata block constraint
-    uint32_t calldata_id = 0;
-    for (auto& constraint : constraints) {
-        if (constraint.type == BlockType::CallData) {
-            constraint.calldata_id = calldata_id++;
-        }
-    }
-    // The backend only supports 2 calldata columns
-    ASSERT(calldata_id <= 2);
-}
-
 } // namespace acir_format
