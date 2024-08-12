@@ -708,80 +708,80 @@ AvmFlavor::AllConstRefValues::AllConstRefValues(
     , lookup_div_u16_5_inv(il[700])
     , lookup_div_u16_6_inv(il[701])
     , lookup_div_u16_7_inv(il[702])
-    , alu_op_div_shift(il[703])
-    , alu_cmp_rng_ctr_shift(il[704])
-    , mem_val_shift(il[705])
-    , binary_acc_ia_shift(il[706])
-    , alu_op_shr_shift(il[707])
-    , alu_u16_r2_shift(il[708])
-    , alu_sel_rng_chk_shift(il[709])
-    , kernel_l1_to_l2_msg_exists_write_offset_shift(il[710])
-    , slice_addr_shift(il[711])
-    , alu_div_u16_r7_shift(il[712])
-    , mem_glob_addr_shift(il[713])
-    , slice_space_id_shift(il[714])
-    , alu_div_u16_r1_shift(il[715])
-    , kernel_note_hash_exist_write_offset_shift(il[716])
-    , alu_u16_r4_shift(il[717])
-    , mem_sel_mem_shift(il[718])
-    , alu_p_sub_a_hi_shift(il[719])
-    , kernel_nullifier_exists_write_offset_shift(il[720])
-    , alu_div_u16_r3_shift(il[721])
-    , alu_op_add_shift(il[722])
-    , alu_p_sub_a_lo_shift(il[723])
-    , slice_col_offset_shift(il[724])
-    , alu_sel_rng_chk_lookup_shift(il[725])
-    , binary_op_id_shift(il[726])
-    , kernel_sload_write_offset_shift(il[727])
-    , alu_div_u16_r2_shift(il[728])
-    , kernel_emit_unencrypted_log_write_offset_shift(il[729])
-    , alu_b_lo_shift(il[730])
-    , mem_tsp_shift(il[731])
-    , main_da_gas_remaining_shift(il[732])
-    , alu_op_sub_shift(il[733])
-    , slice_sel_start_shift(il[734])
-    , alu_sel_alu_shift(il[735])
-    , kernel_nullifier_non_exists_write_offset_shift(il[736])
-    , alu_b_hi_shift(il[737])
-    , slice_cnt_shift(il[738])
+    , alu_a_hi_shift(il[703])
+    , alu_a_lo_shift(il[704])
+    , alu_b_hi_shift(il[705])
+    , alu_b_lo_shift(il[706])
+    , alu_cmp_rng_ctr_shift(il[707])
+    , alu_div_u16_r0_shift(il[708])
+    , alu_div_u16_r1_shift(il[709])
+    , alu_div_u16_r2_shift(il[710])
+    , alu_div_u16_r3_shift(il[711])
+    , alu_div_u16_r4_shift(il[712])
+    , alu_div_u16_r5_shift(il[713])
+    , alu_div_u16_r6_shift(il[714])
+    , alu_div_u16_r7_shift(il[715])
+    , alu_op_add_shift(il[716])
+    , alu_op_cast_shift(il[717])
+    , alu_op_cast_prev_shift(il[718])
+    , alu_op_div_shift(il[719])
+    , alu_op_mul_shift(il[720])
+    , alu_op_shl_shift(il[721])
+    , alu_op_shr_shift(il[722])
+    , alu_op_sub_shift(il[723])
+    , alu_p_sub_a_hi_shift(il[724])
+    , alu_p_sub_a_lo_shift(il[725])
+    , alu_p_sub_b_hi_shift(il[726])
+    , alu_p_sub_b_lo_shift(il[727])
+    , alu_sel_alu_shift(il[728])
+    , alu_sel_cmp_shift(il[729])
+    , alu_sel_div_rng_chk_shift(il[730])
+    , alu_sel_rng_chk_shift(il[731])
+    , alu_sel_rng_chk_lookup_shift(il[732])
+    , alu_u16_r0_shift(il[733])
+    , alu_u16_r1_shift(il[734])
+    , alu_u16_r2_shift(il[735])
+    , alu_u16_r3_shift(il[736])
+    , alu_u16_r4_shift(il[737])
+    , alu_u16_r5_shift(il[738])
     , alu_u16_r6_shift(il[739])
-    , slice_sel_cd_cpy_shift(il[740])
+    , alu_u8_r0_shift(il[740])
     , alu_u8_r1_shift(il[741])
-    , alu_div_u16_r0_shift(il[742])
-    , alu_u8_r0_shift(il[743])
-    , alu_op_cast_shift(il[744])
-    , kernel_emit_l2_to_l1_msg_write_offset_shift(il[745])
-    , alu_div_u16_r6_shift(il[746])
-    , alu_div_u16_r4_shift(il[747])
-    , slice_sel_mem_active_shift(il[748])
-    , main_l2_gas_remaining_shift(il[749])
-    , alu_op_mul_shift(il[750])
-    , alu_u16_r5_shift(il[751])
-    , binary_acc_ib_shift(il[752])
-    , alu_p_sub_b_hi_shift(il[753])
-    , alu_sel_div_rng_chk_shift(il[754])
-    , alu_a_lo_shift(il[755])
-    , alu_u16_r1_shift(il[756])
-    , slice_clk_shift(il[757])
-    , mem_tag_shift(il[758])
-    , alu_op_cast_prev_shift(il[759])
-    , alu_div_u16_r5_shift(il[760])
-    , slice_sel_return_shift(il[761])
-    , alu_u16_r3_shift(il[762])
-    , alu_u16_r0_shift(il[763])
-    , binary_mem_tag_ctr_shift(il[764])
-    , alu_sel_cmp_shift(il[765])
-    , kernel_emit_note_hash_write_offset_shift(il[766])
-    , kernel_emit_nullifier_write_offset_shift(il[767])
-    , alu_a_hi_shift(il[768])
-    , kernel_sstore_write_offset_shift(il[769])
-    , alu_op_shl_shift(il[770])
-    , mem_rw_shift(il[771])
-    , main_pc_shift(il[772])
-    , main_internal_return_ptr_shift(il[773])
-    , binary_acc_ic_shift(il[774])
-    , kernel_side_effect_counter_shift(il[775])
-    , alu_p_sub_b_lo_shift(il[776])
+    , binary_acc_ia_shift(il[742])
+    , binary_acc_ib_shift(il[743])
+    , binary_acc_ic_shift(il[744])
+    , binary_mem_tag_ctr_shift(il[745])
+    , binary_op_id_shift(il[746])
+    , kernel_emit_l2_to_l1_msg_write_offset_shift(il[747])
+    , kernel_emit_note_hash_write_offset_shift(il[748])
+    , kernel_emit_nullifier_write_offset_shift(il[749])
+    , kernel_emit_unencrypted_log_write_offset_shift(il[750])
+    , kernel_l1_to_l2_msg_exists_write_offset_shift(il[751])
+    , kernel_note_hash_exist_write_offset_shift(il[752])
+    , kernel_nullifier_exists_write_offset_shift(il[753])
+    , kernel_nullifier_non_exists_write_offset_shift(il[754])
+    , kernel_side_effect_counter_shift(il[755])
+    , kernel_sload_write_offset_shift(il[756])
+    , kernel_sstore_write_offset_shift(il[757])
+    , main_da_gas_remaining_shift(il[758])
+    , main_internal_return_ptr_shift(il[759])
+    , main_l2_gas_remaining_shift(il[760])
+    , main_pc_shift(il[761])
+    , mem_glob_addr_shift(il[762])
+    , mem_rw_shift(il[763])
+    , mem_sel_mem_shift(il[764])
+    , mem_tag_shift(il[765])
+    , mem_tsp_shift(il[766])
+    , mem_val_shift(il[767])
+    , slice_addr_shift(il[768])
+    , slice_clk_shift(il[769])
+    , slice_cnt_shift(il[770])
+    , slice_col_offset_shift(il[771])
+    , slice_sel_cd_cpy_shift(il[772])
+    , slice_sel_mem_active_shift(il[773])
+    , slice_sel_return_shift(il[774])
+    , slice_sel_start_shift(il[775])
+    , slice_space_id_shift(il[776])
 {}
 
 AvmFlavor::ProverPolynomials::ProverPolynomials(ProvingKey& proving_key)
@@ -1501,80 +1501,80 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      lookup_div_u16_5_inv[row_idx],
                      lookup_div_u16_6_inv[row_idx],
                      lookup_div_u16_7_inv[row_idx],
-                     alu_op_div_shift[row_idx],
-                     alu_cmp_rng_ctr_shift[row_idx],
-                     mem_val_shift[row_idx],
-                     binary_acc_ia_shift[row_idx],
-                     alu_op_shr_shift[row_idx],
-                     alu_u16_r2_shift[row_idx],
-                     alu_sel_rng_chk_shift[row_idx],
-                     kernel_l1_to_l2_msg_exists_write_offset_shift[row_idx],
-                     slice_addr_shift[row_idx],
-                     alu_div_u16_r7_shift[row_idx],
-                     mem_glob_addr_shift[row_idx],
-                     slice_space_id_shift[row_idx],
-                     alu_div_u16_r1_shift[row_idx],
-                     kernel_note_hash_exist_write_offset_shift[row_idx],
-                     alu_u16_r4_shift[row_idx],
-                     mem_sel_mem_shift[row_idx],
-                     alu_p_sub_a_hi_shift[row_idx],
-                     kernel_nullifier_exists_write_offset_shift[row_idx],
-                     alu_div_u16_r3_shift[row_idx],
-                     alu_op_add_shift[row_idx],
-                     alu_p_sub_a_lo_shift[row_idx],
-                     slice_col_offset_shift[row_idx],
-                     alu_sel_rng_chk_lookup_shift[row_idx],
-                     binary_op_id_shift[row_idx],
-                     kernel_sload_write_offset_shift[row_idx],
-                     alu_div_u16_r2_shift[row_idx],
-                     kernel_emit_unencrypted_log_write_offset_shift[row_idx],
-                     alu_b_lo_shift[row_idx],
-                     mem_tsp_shift[row_idx],
-                     main_da_gas_remaining_shift[row_idx],
-                     alu_op_sub_shift[row_idx],
-                     slice_sel_start_shift[row_idx],
-                     alu_sel_alu_shift[row_idx],
-                     kernel_nullifier_non_exists_write_offset_shift[row_idx],
-                     alu_b_hi_shift[row_idx],
-                     slice_cnt_shift[row_idx],
-                     alu_u16_r6_shift[row_idx],
-                     slice_sel_cd_cpy_shift[row_idx],
-                     alu_u8_r1_shift[row_idx],
-                     alu_div_u16_r0_shift[row_idx],
-                     alu_u8_r0_shift[row_idx],
-                     alu_op_cast_shift[row_idx],
-                     kernel_emit_l2_to_l1_msg_write_offset_shift[row_idx],
-                     alu_div_u16_r6_shift[row_idx],
-                     alu_div_u16_r4_shift[row_idx],
-                     slice_sel_mem_active_shift[row_idx],
-                     main_l2_gas_remaining_shift[row_idx],
-                     alu_op_mul_shift[row_idx],
-                     alu_u16_r5_shift[row_idx],
-                     binary_acc_ib_shift[row_idx],
-                     alu_p_sub_b_hi_shift[row_idx],
-                     alu_sel_div_rng_chk_shift[row_idx],
+                     alu_a_hi_shift[row_idx],
                      alu_a_lo_shift[row_idx],
-                     alu_u16_r1_shift[row_idx],
-                     slice_clk_shift[row_idx],
-                     mem_tag_shift[row_idx],
-                     alu_op_cast_prev_shift[row_idx],
+                     alu_b_hi_shift[row_idx],
+                     alu_b_lo_shift[row_idx],
+                     alu_cmp_rng_ctr_shift[row_idx],
+                     alu_div_u16_r0_shift[row_idx],
+                     alu_div_u16_r1_shift[row_idx],
+                     alu_div_u16_r2_shift[row_idx],
+                     alu_div_u16_r3_shift[row_idx],
+                     alu_div_u16_r4_shift[row_idx],
                      alu_div_u16_r5_shift[row_idx],
-                     slice_sel_return_shift[row_idx],
-                     alu_u16_r3_shift[row_idx],
-                     alu_u16_r0_shift[row_idx],
-                     binary_mem_tag_ctr_shift[row_idx],
+                     alu_div_u16_r6_shift[row_idx],
+                     alu_div_u16_r7_shift[row_idx],
+                     alu_op_add_shift[row_idx],
+                     alu_op_cast_shift[row_idx],
+                     alu_op_cast_prev_shift[row_idx],
+                     alu_op_div_shift[row_idx],
+                     alu_op_mul_shift[row_idx],
+                     alu_op_shl_shift[row_idx],
+                     alu_op_shr_shift[row_idx],
+                     alu_op_sub_shift[row_idx],
+                     alu_p_sub_a_hi_shift[row_idx],
+                     alu_p_sub_a_lo_shift[row_idx],
+                     alu_p_sub_b_hi_shift[row_idx],
+                     alu_p_sub_b_lo_shift[row_idx],
+                     alu_sel_alu_shift[row_idx],
                      alu_sel_cmp_shift[row_idx],
+                     alu_sel_div_rng_chk_shift[row_idx],
+                     alu_sel_rng_chk_shift[row_idx],
+                     alu_sel_rng_chk_lookup_shift[row_idx],
+                     alu_u16_r0_shift[row_idx],
+                     alu_u16_r1_shift[row_idx],
+                     alu_u16_r2_shift[row_idx],
+                     alu_u16_r3_shift[row_idx],
+                     alu_u16_r4_shift[row_idx],
+                     alu_u16_r5_shift[row_idx],
+                     alu_u16_r6_shift[row_idx],
+                     alu_u8_r0_shift[row_idx],
+                     alu_u8_r1_shift[row_idx],
+                     binary_acc_ia_shift[row_idx],
+                     binary_acc_ib_shift[row_idx],
+                     binary_acc_ic_shift[row_idx],
+                     binary_mem_tag_ctr_shift[row_idx],
+                     binary_op_id_shift[row_idx],
+                     kernel_emit_l2_to_l1_msg_write_offset_shift[row_idx],
                      kernel_emit_note_hash_write_offset_shift[row_idx],
                      kernel_emit_nullifier_write_offset_shift[row_idx],
-                     alu_a_hi_shift[row_idx],
-                     kernel_sstore_write_offset_shift[row_idx],
-                     alu_op_shl_shift[row_idx],
-                     mem_rw_shift[row_idx],
-                     main_pc_shift[row_idx],
-                     main_internal_return_ptr_shift[row_idx],
-                     binary_acc_ic_shift[row_idx],
+                     kernel_emit_unencrypted_log_write_offset_shift[row_idx],
+                     kernel_l1_to_l2_msg_exists_write_offset_shift[row_idx],
+                     kernel_note_hash_exist_write_offset_shift[row_idx],
+                     kernel_nullifier_exists_write_offset_shift[row_idx],
+                     kernel_nullifier_non_exists_write_offset_shift[row_idx],
                      kernel_side_effect_counter_shift[row_idx],
-                     alu_p_sub_b_lo_shift[row_idx] };
+                     kernel_sload_write_offset_shift[row_idx],
+                     kernel_sstore_write_offset_shift[row_idx],
+                     main_da_gas_remaining_shift[row_idx],
+                     main_internal_return_ptr_shift[row_idx],
+                     main_l2_gas_remaining_shift[row_idx],
+                     main_pc_shift[row_idx],
+                     mem_glob_addr_shift[row_idx],
+                     mem_rw_shift[row_idx],
+                     mem_sel_mem_shift[row_idx],
+                     mem_tag_shift[row_idx],
+                     mem_tsp_shift[row_idx],
+                     mem_val_shift[row_idx],
+                     slice_addr_shift[row_idx],
+                     slice_clk_shift[row_idx],
+                     slice_cnt_shift[row_idx],
+                     slice_col_offset_shift[row_idx],
+                     slice_sel_cd_cpy_shift[row_idx],
+                     slice_sel_mem_active_shift[row_idx],
+                     slice_sel_return_shift[row_idx],
+                     slice_sel_start_shift[row_idx],
+                     slice_space_id_shift[row_idx] };
 }
 
 AvmFlavor::CommitmentLabels::CommitmentLabels()

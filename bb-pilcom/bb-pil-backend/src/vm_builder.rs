@@ -167,16 +167,18 @@ fn get_all_col_names<F: FieldElement>(
         .map(|(sym, _)| sym.absolute_name.clone())
         .map(|n| sanitize_name(&n))
         .collect_vec();
-    let to_be_shifted = get_shifted_polys(
-        analyzed
-            .identities_with_inlined_intermediate_polynomials()
-            .iter()
-            .map(|i| i.left.selector.clone().unwrap())
-            .collect_vec(),
-    )
-    .iter()
-    .map(|n| sanitize_name(&n))
-    .collect_vec();
+    let to_be_shifted = sort_cols(
+        &get_shifted_polys(
+            analyzed
+                .identities_with_inlined_intermediate_polynomials()
+                .iter()
+                .map(|i| i.left.selector.clone().unwrap())
+                .collect_vec(),
+        )
+        .iter()
+        .map(|n| sanitize_name(&n))
+        .collect_vec(),
+    );
     let shifted = to_be_shifted
         .iter()
         .map(|n| format!("{}_shift", n))
