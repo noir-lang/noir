@@ -74,9 +74,11 @@ export function numberConfigHelper(defaultVal: number): Pick<ConfigMapping, 'par
  */
 export function booleanConfigHelper(
   defaultVal = false,
-): Required<Pick<ConfigMapping, 'parseEnv' | 'defaultValue' | 'isBoolean'>> {
+): Required<Pick<ConfigMapping, 'parseEnv' | 'defaultValue' | 'isBoolean'> & { parseVal: (val: string) => boolean }> {
+  const parse = (val: string | boolean) => (typeof val === 'boolean' ? val : ['1', 'true', 'TRUE'].includes(val));
   return {
-    parseEnv: (val: string) => ['1', 'true', 'TRUE'].includes(val),
+    parseEnv: parse,
+    parseVal: parse,
     defaultValue: defaultVal,
     isBoolean: true,
   };
