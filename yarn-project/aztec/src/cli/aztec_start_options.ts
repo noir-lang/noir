@@ -135,13 +135,13 @@ export const aztecStartOptions: { [key: string]: AztecStartOption[] } = {
     },
     {
       flag: '--fee-juice-address <value>',
-      description: 'The deployed L1 gas token contract address',
+      description: 'The deployed L1 Fee Juice contract address',
       defaultValue: undefined,
       envVar: 'FEE_JUICE_CONTRACT_ADDRESS',
     },
     {
       flag: '--fee-juice-portal-address <value>',
-      description: 'The deployed L1 gas portal contract address',
+      description: 'The deployed L1 Fee Juice portal contract address',
       defaultValue: undefined,
       envVar: 'FEE_JUICE_PORTAL_CONTRACT_ADDRESS',
     },

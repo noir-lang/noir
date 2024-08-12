@@ -190,7 +190,7 @@ describe('End-to-end tests for devnet', () => {
     // disabled because the CLI process doesn't exit
     // const { txHash, address } = await cli<{ txHash: string; address: { value: string } }>('create-account', {
     //   'private-key': privateKey,
-    //   payment: `method=native,claimSecret=${claimSecret.value},claimAmount=${claimAmount}`,
+    //   payment: `method=fee_juice,claimSecret=${claimSecret.value},claimAmount=${claimAmount}`,
     //   wait: false,
     // });
     // expect(address).toEqual(l2Account.getAddress().toString());

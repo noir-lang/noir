@@ -54,12 +54,12 @@ export const l1ContractAddressesMapping: ConfigMappingsType<L1ContractAddresses>
   },
   feeJuiceAddress: {
     env: 'FEE_JUICE_CONTRACT_ADDRESS',
-    description: 'The deployed L1 gas token contract address.',
+    description: 'The deployed L1 Fee Juice contract address.',
     parseEnv,
   },
   feeJuicePortalAddress: {
     env: 'FEE_JUICE_PORTAL_CONTRACT_ADDRESS',
-    description: 'The deployed L1 gas portal contract address.',
+    description: 'The deployed L1 Fee Juice portal contract address.',
     parseEnv,
   },
 };

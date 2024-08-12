@@ -60,7 +60,7 @@ describe('benchmarks/tx_size_fees', () => {
   it.each<[string, () => FeePaymentMethod | undefined /*bigint*/]>([
     ['no', () => undefined /*200021120n*/],
     [
-      'native fee',
+      'fee_juice',
       () => new FeeJuicePaymentMethod(aliceWallet.getAddress()),
       // Same cost as no fee payment, since payment is done natively
       // 200021120n,

@@ -257,7 +257,7 @@ export type TxStats = {
   /** How many classes were registered through the canonical class registerer. */
   classRegisteredCount: number;
   /** How this tx pays for its fee */
-  feePaymentMethod: 'none' | 'native' | 'fpc_public' | 'fpc_private';
+  feePaymentMethod: 'none' | 'fee_juice' | 'fpc_public' | 'fpc_private';
 };
 
 /**

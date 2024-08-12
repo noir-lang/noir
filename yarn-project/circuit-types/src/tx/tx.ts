@@ -217,7 +217,7 @@ export class Tx extends Gossipable {
                 .toBigInt() === 0x43417bb1n
               ? 'fpc_public'
               : 'fpc_private'
-            : 'native'
+            : 'fee_juice'
           : 'none',
       classRegisteredCount: this.unencryptedLogs
         .unrollLogs()

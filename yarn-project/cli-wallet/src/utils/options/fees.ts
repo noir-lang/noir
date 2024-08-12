@@ -74,7 +74,7 @@ export class FeeOpts implements IFeeOpts {
       new Option('--gas-limits <da=100,l2=100,teardownDA=10,teardownL2=10>', 'Gas limits for the tx.'),
       new Option(
         '--payment <method=name,asset=address,fpc=address,claimSecret=string,claimAmount=string,rebateSecret=string>',
-        'Fee payment method and arguments. Valid methods are: none, native, fpc-public, fpc-private.',
+        'Fee payment method and arguments. Valid methods are: none, fee_juice, fpc-public, fpc-private.',
       ),
       new Option('--no-estimate-gas', 'Whether to automatically estimate gas limits for the tx.'),
       new Option('--estimate-gas-only', 'Only report gas estimation for the tx, do not send it.'),
@@ -136,16 +136,16 @@ function parsePaymentMethod(payment: string, log: LogFn): (sender: AccountWallet
       case 'none':
         log('Using no fee payment');
         return new NoFeePaymentMethod();
-      case 'native':
+      case 'fee_juice':
         if (parsed.claimSecret && parsed.claimAmount) {
-          log(`Using native fee payment method with claim for ${parsed.claimAmount} tokens`);
+          log(`Using Fee Juice for fee payments with claim for ${parsed.claimAmount} tokens`);
           return new FeeJuicePaymentMethodWithClaim(
             sender.getAddress(),
             BigInt(parsed.claimAmount),
             Fr.fromString(parsed.claimSecret),
           );
         } else {
-          log(`Using native fee payment`);
+          log(`Using Fee Juice for fee payment`);
           return new FeeJuicePaymentMethod(sender.getAddress());
         }
       case 'fpc-public': {

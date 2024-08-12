@@ -6,7 +6,7 @@ import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 import { FeeJuicePaymentMethod } from './fee_juice_payment_method.js';
 
 /**
- * Pay fee directly with native Fee Juice claimed on the same tx.
+ * Pay fee directly with Fee Juice claimed on the same tx.
  */
 export class FeeJuicePaymentMethodWithClaim extends FeeJuicePaymentMethod {
   constructor(sender: AztecAddress, private claimAmount: bigint | Fr, private claimSecret: Fr) {

@@ -51,7 +51,8 @@ export class Bot {
       ),
     ];
 
-    const paymentMethod = feePaymentMethod === 'native' ? new FeeJuicePaymentMethod(sender) : new NoFeePaymentMethod();
+    const paymentMethod =
+      feePaymentMethod === 'fee_juice' ? new FeeJuicePaymentMethod(sender) : new NoFeePaymentMethod();
     const gasSettings = GasSettings.default();
     const opts: SendMethodOptions = { estimateGas: true, fee: { paymentMethod, gasSettings } };
 

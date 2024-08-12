@@ -64,7 +64,7 @@ describe('e2e_fees gas_estimation', () => {
       teardownGasLimits: inspect(estimatedGas.teardownGasLimits),
     });
 
-  it('estimates gas with native fee payment method', async () => {
+  it('estimates gas with Fee Juice payment method', async () => {
     const paymentMethod = new FeeJuicePaymentMethod(aliceAddress);
     const estimatedGas = await makeTransferRequest().estimateGas({ fee: { gasSettings, paymentMethod } });
     logGasEstimate(estimatedGas);
@@ -111,7 +111,7 @@ describe('e2e_fees gas_estimation', () => {
     expect(feeFromEstimatedGas).toBeGreaterThanOrEqual(actualFee);
   });
 
-  it('estimates gas for public contract initialization with native fee payment method', async () => {
+  it('estimates gas for public contract initialization with Fee Juice payment method', async () => {
     const paymentMethod = new FeeJuicePaymentMethod(aliceAddress);
     const deployMethod = () => BananaCoin.deploy(aliceWallet, aliceAddress, 'TKN', 'TKN', 8);
     const deployOpts = { fee: { gasSettings, paymentMethod }, skipClassRegistration: true };

@@ -22,7 +22,7 @@ export type BotConfig = {
   /** How many public token transfers are executed per tx. */
   publicTransfersPerTx: number;
   /** How to handle fee payments. */
-  feePaymentMethod: 'native' | 'none';
+  feePaymentMethod: 'fee_juice' | 'none';
   /** True to not automatically setup or start the bot on initialization. */
   noStart: boolean;
   /** How long to wait for a tx to be mined before reporting an error. */
@@ -71,8 +71,8 @@ export const botConfigMappings: ConfigMappingsType<BotConfig> = {
   },
   feePaymentMethod: {
     env: 'BOT_FEE_PAYMENT_METHOD',
-    description: 'How to handle fee payments. (Options: native, none)',
-    parseEnv: val => (val as 'native' | 'none') || undefined,
+    description: 'How to handle fee payments. (Options: fee_juice, none)',
+    parseEnv: val => (val as 'fee_juice' | 'none') || undefined,
     default: 'none',
   },
   noStart: {

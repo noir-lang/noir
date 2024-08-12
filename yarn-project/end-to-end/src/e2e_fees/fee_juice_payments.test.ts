@@ -73,7 +73,7 @@ describe('e2e_fees Fee Juice payments', () => {
       await t.applyFundAliceWithFeeJuice();
     });
 
-    it('sends tx with native fee payment method with public calls', async () => {
+    it('sends tx with payment in Fee Juice with public calls', async () => {
       const initialBalance = await feeJuiceContract.methods.balance_of_public(aliceAddress).simulate();
       const { transactionFee } = await bananaCoin.methods
         .transfer_public(aliceAddress, bobAddress, 1n, 0n)
@@ -84,7 +84,7 @@ describe('e2e_fees Fee Juice payments', () => {
       expect(endBalance).toBeLessThan(initialBalance);
     });
 
-    it('sends tx with native fee payment method with no public calls', async () => {
+    it('sends tx fee payment in Fee Juice with no public calls', async () => {
       const initialBalance = await feeJuiceContract.methods.balance_of_public(aliceAddress).simulate();
       const { transactionFee } = await bananaCoin.methods
         .transfer(bobAddress, 1n)
