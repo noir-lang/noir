@@ -36,21 +36,35 @@ use crate::{utils, LspState};
 
 use super::process_request;
 
+/// When finding items in a module, whether to show only direct children or all visible items.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum ModuleCompletionKind {
+    // Only show a module's direct children. This is used when completing a use statement
+    // or a path after the first segment.
     DirectChildren,
+    // Show all of a module's visible items. This is used when completing a path outside
+    // of a use statement (in regular code) when the path is just a single segment:
+    // we want to find items exposed in the current module.
     AllVisibleItems,
 }
 
+/// When suggest a function as a result of completion, whether to autocomplete its name or its name and parameters.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum FunctionCompleteKind {
+    // Only complete a function's name. This is used in use statement.
     Name,
+    // Complete a function's name and parameters (as a snippet). This is used in regular code.
     NameAndParameters,
 }
 
+/// When requesting completions, whether to list all items or just types.
+/// For example, when writing `let x: S` we only want to suggest types at this
+/// point (modules too, because they might include types too).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum RequestedItems {
+    // Suggest any items (types, functions, etc.).
     AnyItems,
+    // Only suggest types.
     OnlyTypes,
 }
 
@@ -94,12 +108,19 @@ struct NodeFinder<'a> {
     file: FileId,
     byte_index: usize,
     byte: Option<u8>,
+    /// The module ID of the current file.
     root_module_id: ModuleId,
+    /// The module ID in scope. This might change as we traverse the AST
+    /// if we are analyzing something inside an inline module declaration.
     module_id: ModuleId,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     dependencies: &'a Vec<Dependency>,
     interner: &'a NodeInterner,
+    /// Local variables in the current scope, mapped to their locations.
+    /// As we traverse the AST, we collect local variables.
     local_variables: HashMap<String, Span>,
+    /// Type parameters in the current scope. These are collected when entering
+    /// a struct, a function, etc., and cleared afterwards.
     type_parameters: HashSet<String>,
 }
 
