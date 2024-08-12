@@ -6,11 +6,13 @@
 
 namespace bb::{{root_name}}_vm {
 
+{{!-- 
 template <typename FF> struct {{upperCamelCase name}}Row {
     {{#each all_cols as |col|}}
     FF {{col}}{};
     {{/each}}
 };
+--}}
 
 template <typename FF_> class {{name}}Impl {
     public:

@@ -6,10 +6,6 @@
 
 namespace bb::Avm_vm {
 
-template <typename FF> struct Keccakf1600Row {
-    FF keccakf1600_sel_keccakf1600{};
-};
-
 template <typename FF_> class keccakf1600Impl {
   public:
     using FF = FF_;

@@ -6,24 +6,6 @@
 
 namespace bb::Avm_vm {
 
-template <typename FF> struct BinaryRow {
-    FF binary_acc_ia{};
-    FF binary_acc_ia_shift{};
-    FF binary_acc_ib{};
-    FF binary_acc_ib_shift{};
-    FF binary_acc_ic{};
-    FF binary_acc_ic_shift{};
-    FF binary_ia_bytes{};
-    FF binary_ib_bytes{};
-    FF binary_ic_bytes{};
-    FF binary_mem_tag_ctr{};
-    FF binary_mem_tag_ctr_inv{};
-    FF binary_mem_tag_ctr_shift{};
-    FF binary_op_id{};
-    FF binary_op_id_shift{};
-    FF binary_sel_bin{};
-};
-
 template <typename FF_> class binaryImpl {
   public:
     using FF = FF_;

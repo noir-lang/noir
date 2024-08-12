@@ -6,10 +6,6 @@
 
 namespace bb::Avm_vm {
 
-template <typename FF> struct PedersenRow {
-    FF pedersen_sel_pedersen{};
-};
-
 template <typename FF_> class pedersenImpl {
   public:
     using FF = FF_;

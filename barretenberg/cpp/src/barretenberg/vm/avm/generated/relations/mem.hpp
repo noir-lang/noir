@@ -6,56 +6,6 @@
 
 namespace bb::Avm_vm {
 
-template <typename FF> struct MemRow {
-    FF main_sel_first{};
-    FF mem_addr{};
-    FF mem_clk{};
-    FF mem_diff_hi{};
-    FF mem_diff_lo{};
-    FF mem_diff_mid{};
-    FF mem_glob_addr{};
-    FF mem_glob_addr_shift{};
-    FF mem_last{};
-    FF mem_lastAccess{};
-    FF mem_one_min_inv{};
-    FF mem_r_in_tag{};
-    FF mem_rw{};
-    FF mem_rw_shift{};
-    FF mem_sel_mem{};
-    FF mem_sel_mem_shift{};
-    FF mem_sel_mov_ia_to_ic{};
-    FF mem_sel_mov_ib_to_ic{};
-    FF mem_sel_op_a{};
-    FF mem_sel_op_b{};
-    FF mem_sel_op_c{};
-    FF mem_sel_op_cmov{};
-    FF mem_sel_op_d{};
-    FF mem_sel_op_poseidon_read_a{};
-    FF mem_sel_op_poseidon_read_b{};
-    FF mem_sel_op_poseidon_read_c{};
-    FF mem_sel_op_poseidon_read_d{};
-    FF mem_sel_op_poseidon_write_a{};
-    FF mem_sel_op_poseidon_write_b{};
-    FF mem_sel_op_poseidon_write_c{};
-    FF mem_sel_op_poseidon_write_d{};
-    FF mem_sel_op_slice{};
-    FF mem_sel_resolve_ind_addr_a{};
-    FF mem_sel_resolve_ind_addr_b{};
-    FF mem_sel_resolve_ind_addr_c{};
-    FF mem_sel_resolve_ind_addr_d{};
-    FF mem_sel_rng_chk{};
-    FF mem_skip_check_tag{};
-    FF mem_space_id{};
-    FF mem_tag{};
-    FF mem_tag_err{};
-    FF mem_tag_shift{};
-    FF mem_tsp{};
-    FF mem_tsp_shift{};
-    FF mem_val{};
-    FF mem_val_shift{};
-    FF mem_w_in_tag{};
-};
-
 template <typename FF_> class memImpl {
   public:
     using FF = FF_;

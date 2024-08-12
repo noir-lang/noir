@@ -6,10 +6,6 @@
 
 namespace bb::Avm_vm {
 
-template <typename FF> struct Sha256Row {
-    FF sha256_sel_sha256_compression{};
-};
-
 template <typename FF_> class sha256Impl {
   public:
     using FF = FF_;

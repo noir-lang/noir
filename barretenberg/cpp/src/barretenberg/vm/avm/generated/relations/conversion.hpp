@@ -6,10 +6,6 @@
 
 namespace bb::Avm_vm {
 
-template <typename FF> struct ConversionRow {
-    FF conversion_sel_to_radix_le{};
-};
-
 template <typename FF_> class conversionImpl {
   public:
     using FF = FF_;

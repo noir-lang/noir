@@ -6,40 +6,6 @@
 
 namespace bb::Avm_vm {
 
-template <typename FF> struct KernelRow {
-    FF kernel_emit_l2_to_l1_msg_write_offset{};
-    FF kernel_emit_l2_to_l1_msg_write_offset_shift{};
-    FF kernel_emit_note_hash_write_offset{};
-    FF kernel_emit_note_hash_write_offset_shift{};
-    FF kernel_emit_nullifier_write_offset{};
-    FF kernel_emit_nullifier_write_offset_shift{};
-    FF kernel_emit_unencrypted_log_write_offset{};
-    FF kernel_emit_unencrypted_log_write_offset_shift{};
-    FF kernel_l1_to_l2_msg_exists_write_offset{};
-    FF kernel_l1_to_l2_msg_exists_write_offset_shift{};
-    FF kernel_note_hash_exist_write_offset{};
-    FF kernel_note_hash_exist_write_offset_shift{};
-    FF kernel_nullifier_exists_write_offset{};
-    FF kernel_nullifier_exists_write_offset_shift{};
-    FF kernel_nullifier_non_exists_write_offset{};
-    FF kernel_nullifier_non_exists_write_offset_shift{};
-    FF kernel_sload_write_offset{};
-    FF kernel_sload_write_offset_shift{};
-    FF kernel_sstore_write_offset{};
-    FF kernel_sstore_write_offset_shift{};
-    FF main_ib{};
-    FF main_sel_last{};
-    FF main_sel_op_emit_l2_to_l1_msg{};
-    FF main_sel_op_emit_note_hash{};
-    FF main_sel_op_emit_nullifier{};
-    FF main_sel_op_emit_unencrypted_log{};
-    FF main_sel_op_l1_to_l2_msg_exists{};
-    FF main_sel_op_note_hash_exists{};
-    FF main_sel_op_nullifier_exists{};
-    FF main_sel_op_sload{};
-    FF main_sel_op_sstore{};
-};
-
 template <typename FF_> class kernelImpl {
   public:
     using FF = FF_;

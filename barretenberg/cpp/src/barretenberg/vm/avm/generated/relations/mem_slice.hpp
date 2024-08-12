@@ -6,27 +6,6 @@
 
 namespace bb::Avm_vm {
 
-template <typename FF> struct MemSliceRow {
-    FF slice_addr{};
-    FF slice_addr_shift{};
-    FF slice_clk{};
-    FF slice_clk_shift{};
-    FF slice_cnt{};
-    FF slice_cnt_shift{};
-    FF slice_col_offset{};
-    FF slice_col_offset_shift{};
-    FF slice_one_min_inv{};
-    FF slice_sel_cd_cpy{};
-    FF slice_sel_cd_cpy_shift{};
-    FF slice_sel_mem_active{};
-    FF slice_sel_mem_active_shift{};
-    FF slice_sel_return{};
-    FF slice_sel_return_shift{};
-    FF slice_sel_start_shift{};
-    FF slice_space_id{};
-    FF slice_space_id_shift{};
-};
-
 template <typename FF_> class mem_sliceImpl {
   public:
     using FF = FF_;

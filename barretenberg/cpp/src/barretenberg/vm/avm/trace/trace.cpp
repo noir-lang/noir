@@ -3820,9 +3820,8 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     for (size_t i = 0; i < poseidon2_trace_size; i++) {
         auto& dest = main_trace.at(i);
         auto const& src = poseidon2_trace.at(i);
-        auto canonical_trace_row = bb::avm_trace::AvmPoseidon2TraceBuilder::into_canonical(src);
         dest.poseidon2_clk = FF(src.clk);
-        poseidon2_trace_builder.merge_into(dest, canonical_trace_row);
+        merge_into(dest, src);
     }
 
     // Add KeccakF1600 Gadget table
