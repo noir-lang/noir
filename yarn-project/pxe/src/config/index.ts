@@ -1,5 +1,10 @@
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js/constants';
-import { type ConfigMappingsType, getConfigFromMappings, numberConfigHelper } from '@aztec/foundation/config';
+import {
+  type ConfigMappingsType,
+  booleanConfigHelper,
+  getConfigFromMappings,
+  numberConfigHelper,
+} from '@aztec/foundation/config';
 import { type Network } from '@aztec/types/network';
 
 import { readFileSync } from 'fs';
@@ -69,9 +74,8 @@ export const pxeConfigMappings: ConfigMappingsType<PXEServiceConfig> = {
   },
   proverEnabled: {
     env: 'PXE_PROVER_ENABLED',
-    parseEnv: (val: string) => ['1', 'true'].includes(val),
     description: 'Enable real proofs',
-    isBoolean: true,
+    ...booleanConfigHelper(),
   },
 };
 
@@ -103,7 +107,7 @@ export const allPxeConfigMappings: ConfigMappingsType<CliPXEOptions & PXEService
   ...pxeCliConfigMappings,
   proverEnabled: {
     env: 'PXE_PROVER_ENABLED',
-    parseEnv: (val: string) => ['1', 'true'].includes(val) || !!process.env.NETWORK,
+    parseEnv: (val: string) => ['1', 'true', 'TRUE'].includes(val) || !!process.env.NETWORK,
     description: 'Enable real proofs',
     isBoolean: true,
   },

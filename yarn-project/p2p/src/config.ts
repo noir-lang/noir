@@ -1,5 +1,6 @@
 import {
   type ConfigMappingsType,
+  booleanConfigHelper,
   getConfigFromMappings,
   numberConfigHelper,
   pickConfigMappings,
@@ -91,8 +92,8 @@ export interface P2PConfig {
 export const p2pConfigMappings: ConfigMappingsType<P2PConfig> = {
   p2pEnabled: {
     env: 'P2P_ENABLED',
-    parseEnv: (val: string) => ['1', 'true'].includes(val),
     description: 'A flag dictating whether the P2P subsystem should be enabled.',
+    ...booleanConfigHelper(),
   },
   blockCheckIntervalMS: {
     env: 'P2P_BLOCK_CHECK_INTERVAL_MS',
@@ -111,12 +112,12 @@ export const p2pConfigMappings: ConfigMappingsType<P2PConfig> = {
   },
   tcpListenAddress: {
     env: 'TCP_LISTEN_ADDR',
-    default: '0.0.0.0:40400',
+    defaultValue: '0.0.0.0:40400',
     description: 'The listen address for TCP. Format: <IP_ADDRESS>:<PORT>.',
   },
   udpListenAddress: {
     env: 'UDP_LISTEN_ADDR',
-    default: '0.0.0.0:40400',
+    defaultValue: '0.0.0.0:40400',
     description: 'The listen address for UDP. Format: <IP_ADDRESS>:<PORT>.',
   },
   tcpAnnounceAddress: {
@@ -141,7 +142,7 @@ export const p2pConfigMappings: ConfigMappingsType<P2PConfig> = {
   transactionProtocol: {
     env: 'P2P_TX_PROTOCOL',
     description: 'Protocol identifier for transaction gossiping.',
-    default: '/aztec/0.1.0',
+    defaultValue: '/aztec/0.1.0',
   },
   minPeerCount: {
     env: 'P2P_MIN_PEERS',
@@ -161,7 +162,7 @@ export const p2pConfigMappings: ConfigMappingsType<P2PConfig> = {
     env: 'P2P_QUERY_FOR_IP',
     description:
       'If announceUdpAddress or announceTcpAddress are not provided, query for the IP address of the machine. Default is false.',
-    parseEnv: (val: string) => ['1', 'true'].includes(val),
+    ...booleanConfigHelper(),
   },
   keepProvenTxsInPoolFor: {
     env: 'P2P_TX_POOL_KEEP_PROVEN_FOR',

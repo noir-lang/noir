@@ -1,5 +1,5 @@
 import { type ProverConfig, proverConfigMappings } from '@aztec/circuit-types';
-import { type ConfigMappingsType, getConfigFromMappings } from '@aztec/foundation/config';
+import { type ConfigMappingsType, booleanConfigHelper, getConfigFromMappings } from '@aztec/foundation/config';
 
 /**
  * The prover configuration.
@@ -36,9 +36,8 @@ export const proverClientConfigMappings: ConfigMappingsType<ProverClientConfig> 
   },
   disableProver: {
     env: 'PROVER_DISABLED',
-    parseEnv: (val: string) => ['1', 'true'].includes(val),
-    default: false,
     description: 'Whether to disable proving.',
+    ...booleanConfigHelper(),
   },
   ...proverConfigMappings,
 };

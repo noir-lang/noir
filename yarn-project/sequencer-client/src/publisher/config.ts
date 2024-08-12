@@ -36,19 +36,19 @@ export const getTxSenderConfigMappings: (
   l1ChainId: {
     env: 'L1_CHAIN_ID',
     parseEnv: (val: string) => +val,
-    default: 31337,
+    defaultValue: 31337,
     description: 'The chain ID of the ethereum host.',
   },
   publisherPrivateKey: {
     env: `${scope}_PUBLISHER_PRIVATE_KEY`,
     description: 'The private key to be used by the publisher.',
     parseEnv: (val: string) => (val ? `0x${val.replace('0x', '')}` : NULL_KEY),
-    default: NULL_KEY,
+    defaultValue: NULL_KEY,
   },
   requiredConfirmations: {
     env: `${scope}_REQUIRED_CONFIRMATIONS`,
     parseEnv: (val: string) => +val,
-    default: 1,
+    defaultValue: 1,
     description: 'The number of confirmations required.',
   },
 });
@@ -61,7 +61,7 @@ export const getPublisherConfigMappings: (scope: 'PROVER' | 'SEQ') => ConfigMapp
   l1PublishRetryIntervalMS: {
     env: `${scope}_PUBLISH_RETRY_INTERVAL_MS`,
     parseEnv: (val: string) => +val,
-    default: 1000,
+    defaultValue: 1000,
     description: 'The interval to wait between publish retries.',
   },
 });

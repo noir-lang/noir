@@ -1,6 +1,6 @@
 import { type TxHash } from '@aztec/circuit-types';
 import { Fr } from '@aztec/circuits.js';
-import { type ConfigMappingsType, numberConfigHelper } from '@aztec/foundation/config';
+import { type ConfigMappingsType, booleanConfigHelper, numberConfigHelper } from '@aztec/foundation/config';
 
 import { type BlockProver } from './block-prover.js';
 import { type MerkleTreeOperations } from './merkle_tree_operations.js';
@@ -37,15 +37,13 @@ export const proverConfigMappings: ConfigMappingsType<ProverConfig> = {
   },
   realProofs: {
     env: 'PROVER_REAL_PROOFS',
-    parseEnv: (val: string) => ['1', 'true'].includes(val),
-    default: false,
     description: 'Whether to construct real proofs',
+    ...booleanConfigHelper(),
   },
   proverAgentEnabled: {
     env: 'PROVER_AGENT_ENABLED',
-    parseEnv: (val: string) => ['1', 'true'].includes(val),
-    default: true,
     description: 'Whether this prover has a local prover agent',
+    ...booleanConfigHelper(true),
   },
   proverAgentPollInterval: {
     env: 'PROVER_AGENT_POLL_INTERVAL_MS',

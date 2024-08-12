@@ -29,12 +29,12 @@ export const l1ReaderConfigMappings: ConfigMappingsType<L1ReaderConfig> = {
   l1ChainId: {
     env: 'L1_CHAIN_ID',
     parseEnv: (val: string) => +val,
-    default: 31337,
+    defaultValue: 31337,
     description: 'The chain ID of the ethereum host.',
   },
   // NOTE: Special case for l1Contracts
   l1Contracts: {
     description: 'The deployed L1 contract addresses',
-    default: l1ContractAddressesMapping,
+    defaultValue: l1ContractAddressesMapping,
   },
 };

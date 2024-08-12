@@ -5,7 +5,7 @@ export { EnvVar } from './env_var.js';
 export interface ConfigMapping {
   env?: EnvVar;
   parseEnv?: (val: string) => any;
-  default?: any;
+  defaultValue?: any;
   printDefault?: (val: any) => string;
   description: string;
   isBoolean?: boolean;
@@ -22,7 +22,7 @@ export function getConfigFromMappings<T>(configMappings: ConfigMappingsType<T>):
 
   for (const key in configMappings) {
     if (configMappings[key]) {
-      const { env, parseEnv, default: def } = configMappings[key];
+      const { env, parseEnv, defaultValue: def } = configMappings[key];
       // Special case for L1 contract addresses which is an object of config values
       if (key === 'l1Contracts' && def) {
         (config as any)[key] = getConfigFromMappings(def);
@@ -60,10 +60,25 @@ export function filterConfigMappings<T, K extends keyof T>(
  * @param defaultVal - The default numerical value to use if the environment variable is not set or is invalid
  * @returns Object with parseEnv and default values for a numerical config value
  */
-export function numberConfigHelper(defaultVal: number): Partial<ConfigMapping> {
+export function numberConfigHelper(defaultVal: number): Pick<ConfigMapping, 'parseEnv' | 'defaultValue'> {
   return {
     parseEnv: (val: string) => safeParseNumber(val, defaultVal),
-    default: defaultVal,
+    defaultValue: defaultVal,
+  };
+}
+
+/**
+ * Generates parseEnv and default values for a boolean config value.
+ * @param defaultVal - The default value to use if the environment variable is not set or is invalid
+ * @returns Object with parseEnv and default values for a boolean config value
+ */
+export function booleanConfigHelper(
+  defaultVal = false,
+): Required<Pick<ConfigMapping, 'parseEnv' | 'defaultValue' | 'isBoolean'>> {
+  return {
+    parseEnv: (val: string) => ['1', 'true', 'TRUE'].includes(val),
+    defaultValue: defaultVal,
+    isBoolean: true,
   };
 }
 
@@ -106,8 +121,8 @@ export function getDefaultConfig<T>(configMappings: ConfigMappingsType<T>): T {
   const defaultConfig = {} as T;
 
   for (const key in configMappings) {
-    if (configMappings[key] && configMappings[key].default !== undefined) {
-      (defaultConfig as any)[key] = configMappings[key].default;
+    if (configMappings[key] && configMappings[key].defaultValue !== undefined) {
+      (defaultConfig as any)[key] = configMappings[key].defaultValue;
     }
   }
 

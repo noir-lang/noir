@@ -15,12 +15,12 @@ export const telemetryClientConfigMappings: ConfigMappingsType<TelemetryClientCo
   serviceName: {
     env: 'OTEL_SERVICE_NAME',
     description: 'The URL of the telemetry collector',
-    default: 'aztec',
+    defaultValue: 'aztec',
   },
   networkName: {
     env: 'NETWORK_NAME',
     description: 'The network ID of the telemetry service',
-    default: 'local',
+    defaultValue: 'local',
   },
 };
 
