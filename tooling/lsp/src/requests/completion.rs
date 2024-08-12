@@ -4,6 +4,7 @@ use std::{
 };
 
 use async_lsp::ResponseError;
+use builtins::{builtin_integer_types, keyword_builtin_function, keyword_builtin_type};
 use fm::{FileId, PathString};
 use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
@@ -37,6 +38,8 @@ use strum::IntoEnumIterator;
 use crate::{utils, LspState};
 
 use super::process_request;
+
+mod builtins;
 
 /// When finding items in a module, whether to show only direct children or all visible items.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1153,34 +1156,17 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn builtin_functions_completion(&mut self, prefix: &str) {
-        if name_matches("assert", prefix) {
-            self.completion_items.push(snippet_completion_item(
-                "assert(…)",
-                CompletionItemKind::FUNCTION,
-                "assert(${1:predicate})",
-                Some("fn(T)".to_string()),
-            ));
-            self.completion_items.push(snippet_completion_item(
-                "assert(…)",
-                CompletionItemKind::FUNCTION,
-                "assert(${1:predicate}, ${2:message})",
-                Some("fn(T, str)".to_string()),
-            ));
-        }
-
-        if name_matches("assert_eq", prefix) {
-            self.completion_items.push(snippet_completion_item(
-                "assert_eq(…)",
-                CompletionItemKind::FUNCTION,
-                "assert_eq(${1:lhs}, ${2:rhs})",
-                Some("fn(T, T)".to_string()),
-            ));
-            self.completion_items.push(snippet_completion_item(
-                "assert_eq(…)",
-                CompletionItemKind::FUNCTION,
-                "assert_eq(${1:lhs}, ${2:rhs}, ${3:message})",
-                Some("fn(T, T, str)".to_string()),
-            ));
+        for keyword in Keyword::iter() {
+            if let Some(func) = keyword_builtin_function(&keyword) {
+                if name_matches(func.name, prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        format!("{}(…)", func.name),
+                        CompletionItemKind::FUNCTION,
+                        format!("{}({})", func.name, func.parameters),
+                        Some(func.description.to_string()),
+                    ));
+                }
+            }
         }
     }
 
@@ -1227,64 +1213,6 @@ impl<'a> NodeFinder<'a> {
 
 fn name_matches(name: &str, prefix: &str) -> bool {
     name.starts_with(prefix)
-}
-
-fn builtin_integer_types() -> [&'static str; 8] {
-    ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"]
-}
-
-/// If this keyword corresponds to a built-in type, returns that type's name.
-fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
-    match keyword {
-        Keyword::Bool => Some("bool"),
-        Keyword::Expr => Some("Expr"),
-        Keyword::Field => Some("Field"),
-        Keyword::FunctionDefinition => Some("FunctionDefinition"),
-        Keyword::StructDefinition => Some("StructDefinition"),
-        Keyword::TraitConstraint => Some("TraitConstraint"),
-        Keyword::TraitDefinition => Some("TraitDefinition"),
-        Keyword::TypeType => Some("Type"),
-
-        Keyword::As
-        | Keyword::Assert
-        | Keyword::AssertEq
-        | Keyword::Break
-        | Keyword::CallData
-        | Keyword::Char
-        | Keyword::Comptime
-        | Keyword::Constrain
-        | Keyword::Continue
-        | Keyword::Contract
-        | Keyword::Crate
-        | Keyword::Dep
-        | Keyword::Else
-        | Keyword::Fn
-        | Keyword::For
-        | Keyword::FormatString
-        | Keyword::Global
-        | Keyword::If
-        | Keyword::Impl
-        | Keyword::In
-        | Keyword::Let
-        | Keyword::Mod
-        | Keyword::Module
-        | Keyword::Mut
-        | Keyword::Pub
-        | Keyword::Quoted
-        | Keyword::Return
-        | Keyword::ReturnData
-        | Keyword::String
-        | Keyword::Struct
-        | Keyword::Super
-        | Keyword::TopLevelItem
-        | Keyword::Trait
-        | Keyword::Type
-        | Keyword::Unchecked
-        | Keyword::Unconstrained
-        | Keyword::Use
-        | Keyword::Where
-        | Keyword::While => None,
-    }
 }
 
 fn module_completion_item(name: impl Into<String>) -> CompletionItem {
@@ -1774,12 +1702,6 @@ mod completion_tests {
                     Some("fn(T)".to_string()),
                 ),
                 snippet_completion_item(
-                    "assert(…)",
-                    CompletionItemKind::FUNCTION,
-                    "assert(${1:predicate}, ${2:message})",
-                    Some("fn(T, str)".to_string()),
-                ),
-                snippet_completion_item(
                     "assert_constant(…)",
                     CompletionItemKind::FUNCTION,
                     "assert_constant(${1:x})",
@@ -1790,12 +1712,6 @@ mod completion_tests {
                     CompletionItemKind::FUNCTION,
                     "assert_eq(${1:lhs}, ${2:rhs})",
                     Some("fn(T, T)".to_string()),
-                ),
-                snippet_completion_item(
-                    "assert_eq(…)",
-                    CompletionItemKind::FUNCTION,
-                    "assert_eq(${1:lhs}, ${2:rhs}, ${3:message})",
-                    Some("fn(T, T, str)".to_string()),
                 ),
             ],
         )
