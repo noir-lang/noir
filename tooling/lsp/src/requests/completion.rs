@@ -2472,4 +2472,65 @@ mod completion_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn test_suggests_struct_trait_impl_method() {
+        let src = r#"
+            struct Some {
+            }
+
+            trait SomeTrait {
+                fn foobar(self, x: i32);
+                fn foobar2(y: i32);
+            }
+
+            impl SomeTrait for Some {
+                fn foobar(self, x: i32) {}
+                fn foobar2(y: i32) {}
+            }
+
+            fn foo(some: Some) {
+                some.f>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![snippet_completion_item(
+                "foobar(…)",
+                CompletionItemKind::FUNCTION,
+                "foobar(${1:x})",
+                Some("fn(Some, i32)".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_primitive_trait_impl_method() {
+        let src = r#"
+            trait SomeTrait {
+                fn foobar(self, x: i32);
+                fn foobar2(y: i32);
+            }
+
+            impl SomeTrait for Field {
+                fn foobar(self, x: i32) {}
+                fn foobar2(y: i32) {}
+            }
+
+            fn foo(field: Field) {
+                field.f>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![snippet_completion_item(
+                "foobar(…)",
+                CompletionItemKind::FUNCTION,
+                "foobar(${1:x})",
+                Some("fn(Field, i32)".to_string()),
+            )],
+        )
+        .await;
+    }
 }
