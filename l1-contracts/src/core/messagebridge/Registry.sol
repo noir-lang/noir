@@ -99,8 +99,10 @@ contract Registry is IRegistry, Ownable {
 
   /**
    * @notice Creates a new snapshot of the registry
+   *
+   * @dev Only callable by the owner
    * @dev Reverts if the rollup is already registered
-   * todo: this function must be permissioned with some kind of governance/voting/authority
+   *
    * @param _rollup - The address of the rollup contract
    * @param _inbox - The address of the inbox contract
    * @param _outbox - The address of the outbox contract
@@ -109,6 +111,7 @@ contract Registry is IRegistry, Ownable {
   function upgrade(address _rollup, address _inbox, address _outbox)
     public
     override(IRegistry)
+    onlyOwner
     returns (uint256)
   {
     (, bool exists) = _getVersionFor(_rollup);

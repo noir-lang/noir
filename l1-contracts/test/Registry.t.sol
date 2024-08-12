@@ -3,8 +3,7 @@
 pragma solidity >=0.8.18;
 
 import {Test} from "forge-std/Test.sol";
-import {IInbox} from "../src/core/interfaces/messagebridge/IInbox.sol";
-import {Inbox} from "../src/core/messagebridge/Inbox.sol";
+import {Ownable} from "@oz/access/Ownable.sol";
 import {Registry} from "../src/core/messagebridge/Registry.sol";
 import {Errors} from "../src/core/libraries/Errors.sol";
 
@@ -63,5 +62,12 @@ contract RegistryTest is Test {
     address rollup = address(0xbeef1);
     vm.expectRevert(abi.encodeWithSelector(Errors.Registry__RollupNotRegistered.selector, rollup));
     registry.getVersionFor(rollup);
+  }
+
+  function testRevertUpgradeAsNonOwner(address _owner) public {
+    vm.assume(_owner != registry.owner());
+    vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _owner));
+    vm.prank(_owner);
+    registry.upgrade(DEAD, DEAD, DEAD);
   }
 }
