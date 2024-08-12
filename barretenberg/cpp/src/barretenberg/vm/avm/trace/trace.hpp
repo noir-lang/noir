@@ -179,7 +179,7 @@ class AvmTraceBuilder {
     void op_sha256_compression(uint8_t indirect, uint32_t output_offset, uint32_t h_init_offset, uint32_t input_offset);
     void op_keccakf1600(uint8_t indirect, uint32_t output_offset, uint32_t input_offset, uint32_t input_size_offset);
 
-    std::vector<Row> finalize(uint32_t min_trace_size = 0, bool range_check_required = ENABLE_PROVING);
+    std::vector<Row> finalize(bool range_check_required = ENABLE_PROVING);
     void reset();
 
     // (not an opcode) Halt -> stop program execution.

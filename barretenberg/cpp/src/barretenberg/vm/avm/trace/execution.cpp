@@ -18,8 +18,10 @@
 #include "barretenberg/vm/stats.hpp"
 
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <tuple>
@@ -124,13 +126,19 @@ std::tuple<AvmFlavor::VerificationKey, HonkProof> Execution::prove(std::vector<u
     }
     auto circuit_builder = bb::AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
+    vinfo("Trace size after padding: 2^",
+          // this calculates the integer log2
+          std::bit_width(circuit_builder.get_circuit_subgroup_size()) - 1);
 
     if (circuit_builder.get_circuit_subgroup_size() > SRS_SIZE) {
         throw_or_abort("Circuit subgroup size (" + std::to_string(circuit_builder.get_circuit_subgroup_size()) +
                        ") exceeds SRS_SIZE (" + std::to_string(SRS_SIZE) + ")");
     }
 
-    AVM_TRACK_TIME("prove/check_circuit", circuit_builder.check_circuit());
+    // We only run check_circuit if we are not proving, or if forced to.
+    if (!ENABLE_PROVING || std::getenv("AVM_FORCE_CHECK_CIRCUIT") != nullptr) {
+        AVM_TRACK_TIME("prove/check_circuit", circuit_builder.check_circuit());
+    }
 
     auto composer = AVM_TRACK_TIME_V("prove/create_composer", AvmComposer());
     auto prover = AVM_TRACK_TIME_V("prove/create_prover", composer.create_prover(circuit_builder));
@@ -814,7 +822,7 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
     }
 
     auto trace = trace_builder.finalize();
-    vinfo("Final trace size: ", trace.size());
+    vinfo("Built trace size: ", trace.size());
     vinfo("Number of columns: ", trace.front().SIZE);
     const size_t total_elements = trace.front().SIZE * trace.size();
     const size_t nonzero_elements = [&]() {

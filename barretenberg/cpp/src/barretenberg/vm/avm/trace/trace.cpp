@@ -3439,7 +3439,7 @@ void AvmTraceBuilder::op_keccakf1600(uint8_t indirect,
  *
  * @return The main trace
  */
-std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_check_required)
+std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
 {
     auto mem_trace = mem_trace_builder.finalize();
     auto alu_trace = alu_trace_builder.finalize();
@@ -3476,12 +3476,11 @@ std::vector<Row> AvmTraceBuilder::finalize(uint32_t min_trace_size, bool range_c
     // Range check size is 1 less than it needs to be since we insert a "first row" at the top of the trace at the
     // end, with clk 0 (this doubles as our range check)
     size_t const range_check_size = range_check_required ? UINT16_MAX : 0;
-    std::vector<size_t> trace_sizes = { mem_trace_size,     main_trace_size,        alu_trace_size,
-                                        range_check_size,   conv_trace_size,        lookup_table_size,
-                                        sha256_trace_size,  poseidon2_trace_size,   pedersen_trace_size,
-                                        gas_trace_size + 1, KERNEL_INPUTS_LENGTH,   KERNEL_OUTPUTS_LENGTH,
-                                        min_trace_size,     fixed_gas_table.size(), slice_trace_size,
-                                        calldata.size() };
+    std::vector<size_t> trace_sizes = { mem_trace_size,         main_trace_size,      alu_trace_size,
+                                        range_check_size,       conv_trace_size,      lookup_table_size,
+                                        sha256_trace_size,      poseidon2_trace_size, pedersen_trace_size,
+                                        gas_trace_size + 1,     KERNEL_INPUTS_LENGTH, KERNEL_OUTPUTS_LENGTH,
+                                        fixed_gas_table.size(), slice_trace_size,     calldata.size() };
     vinfo("Trace sizes before padding:",
           "\n\tmain_trace_size: ",
           main_trace_size,
