@@ -20,8 +20,6 @@ class {{name}}CircuitBuilder {
         using Polynomial = Flavor::Polynomial;
         using ProverPolynomials = Flavor::ProverPolynomials;
 
-        static constexpr size_t num_fixed_columns = {{len all_cols}};
-        static constexpr size_t num_polys = {{len all_cols}} + {{len to_be_shifted}};
         std::vector<Row> rows;
 
         void set_trace(std::vector<Row>&& trace) { rows = std::move(trace); }

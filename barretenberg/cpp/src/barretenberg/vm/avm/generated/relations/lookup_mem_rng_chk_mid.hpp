@@ -35,7 +35,7 @@ class lookup_mem_rng_chk_mid_lookup_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_mem_rng_chk_mid,
+        return std::forward_as_tuple(in.lookup_mem_rng_chk_mid_inv,
                                      in.lookup_mem_rng_chk_mid_counts,
                                      in.mem_sel_rng_chk,
                                      in.main_sel_rng_16,
@@ -45,7 +45,7 @@ class lookup_mem_rng_chk_mid_lookup_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_mem_rng_chk_mid,
+        return std::forward_as_tuple(in.lookup_mem_rng_chk_mid_inv,
                                      in.lookup_mem_rng_chk_mid_counts,
                                      in.mem_sel_rng_chk,
                                      in.main_sel_rng_16,

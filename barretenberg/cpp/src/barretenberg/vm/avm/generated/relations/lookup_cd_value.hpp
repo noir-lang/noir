@@ -35,7 +35,7 @@ class lookup_cd_value_lookup_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_cd_value,
+        return std::forward_as_tuple(in.lookup_cd_value_inv,
                                      in.lookup_cd_value_counts,
                                      in.slice_sel_cd_cpy,
                                      in.main_sel_calldata,
@@ -47,7 +47,7 @@ class lookup_cd_value_lookup_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_cd_value,
+        return std::forward_as_tuple(in.lookup_cd_value_inv,
                                      in.lookup_cd_value_counts,
                                      in.slice_sel_cd_cpy,
                                      in.main_sel_calldata,

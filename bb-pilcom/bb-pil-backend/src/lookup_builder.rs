@@ -1,4 +1,4 @@
-use crate::{file_writer::BBFiles, utils::snake_case};
+use crate::file_writer::BBFiles;
 use itertools::Itertools;
 use powdr_ast::{
     analyzed::{AlgebraicExpression, Analyzed, IdentityKind},
@@ -18,8 +18,10 @@ use crate::utils::sanitize_name;
 /// Lookup object and lookup side object are very similar in structure, however they are duplicated for
 /// readability.
 pub struct Lookup {
-    ///  the name given to the inverse helper column
-    pub attribute: Option<String>,
+    /// The name of the lookup
+    pub name: String,
+    /// The inverse column name
+    pub inverse: String,
     /// The name of the counts polynomial that stores the number of times a lookup is read
     pub counts_poly: String,
     /// the left side of the lookup
@@ -42,31 +44,30 @@ pub struct LookupSide {
 pub trait LookupBuilder {
     /// Takes in an AST and works out what lookup relations are needed
     /// Note: returns the name of the inverse columns, such that they can be added to the prover in subsequent steps
-    fn create_lookup_files<F: FieldElement>(
-        &self,
-        name: &str,
-        analyzed: &Analyzed<F>,
-    ) -> Vec<Lookup>;
+    fn create_lookup_files<F: FieldElement>(&self, analyzed: &Analyzed<F>) -> Vec<Lookup>;
 }
 
 impl LookupBuilder for BBFiles {
-    fn create_lookup_files<F: FieldElement>(
-        &self,
-        project_name: &str,
-        analyzed: &Analyzed<F>,
-    ) -> Vec<Lookup> {
+    fn create_lookup_files<F: FieldElement>(&self, analyzed: &Analyzed<F>) -> Vec<Lookup> {
         let lookups = analyzed
             .identities
             .iter()
             .filter(|identity| matches!(identity.kind, IdentityKind::Plookup))
-            .map(|lookup| Lookup {
-                attribute: lookup.attribute.clone().map(|att| att.to_lowercase()),
-                counts_poly: format!(
-                    "{}_counts",
-                    lookup.attribute.clone().unwrap().to_lowercase()
-                ),
-                left: get_lookup_side(&lookup.left),
-                right: get_lookup_side(&lookup.right),
+            .map(|lookup| {
+                let name = lookup
+                    .attribute
+                    .clone()
+                    .expect(
+                        "Inverse column name must be provided within lookup attribute - #[<here>]",
+                    )
+                    .to_lowercase();
+                Lookup {
+                    name: name.clone(),
+                    inverse: format!("{}_inv", &name),
+                    counts_poly: format!("{}_counts", &name),
+                    left: get_lookup_side(&lookup.left),
+                    right: get_lookup_side(&lookup.right),
+                }
             })
             .collect_vec();
 
@@ -83,11 +84,7 @@ impl LookupBuilder for BBFiles {
             let data = create_lookup_settings_data(lookup);
             let lookup_settings = handlebars.render("lookup.hpp", &data).unwrap();
 
-            let file_name = format!(
-                "{}{}",
-                lookup.attribute.clone().unwrap_or("NONAME".to_owned()),
-                ".hpp".to_owned()
-            );
+            let file_name = format!("{}.hpp", lookup.name);
             self.write_file(Some(&self.relations), &file_name, &lookup_settings);
         }
 
@@ -99,7 +96,7 @@ impl LookupBuilder for BBFiles {
 pub fn get_inverses_from_lookups(lookups: &[Lookup]) -> Vec<String> {
     lookups
         .iter()
-        .map(|lookup| lookup.attribute.clone().unwrap())
+        .map(|lookup| lookup.inverse.clone())
         .collect()
 }
 
@@ -112,11 +109,6 @@ pub fn get_counts_from_lookups(lookups: &[Lookup]) -> Vec<String> {
 
 fn create_lookup_settings_data(lookup: &Lookup) -> Json {
     let columns_per_set = lookup.left.cols.len();
-    let lookup_name = lookup
-        .attribute
-        .clone()
-        .expect("Inverse column name must be provided within lookup attribute - #[<here>]");
-    let counts_poly_name = lookup.counts_poly.to_owned();
 
     // NOTE: https://github.com/AztecProtocol/aztec-packages/issues/3879
     // Settings are not flexible enough to combine inverses
@@ -145,8 +137,8 @@ fn create_lookup_settings_data(lookup: &Lookup) -> Json {
     // 4.. + columns per set.   lhs cols
     // 4 + columns per set.. .  rhs cols
     let mut lookup_entities: Vec<String> = [
-        lookup_name.clone(),
-        counts_poly_name.clone(),
+        lookup.inverse.clone(),
+        lookup.counts_poly.clone(),
         lhs_selector.clone(),
         rhs_selector.clone(),
     ]
@@ -168,7 +160,7 @@ fn create_lookup_settings_data(lookup: &Lookup) -> Json {
     let write_term_types = "{0}".to_owned();
 
     json!({
-        "lookup_name": lookup_name,
+        "lookup_name": lookup.name,
         "lhs_selector": lhs_selector,
         "rhs_selector": rhs_selector,
         "read_terms": read_terms,

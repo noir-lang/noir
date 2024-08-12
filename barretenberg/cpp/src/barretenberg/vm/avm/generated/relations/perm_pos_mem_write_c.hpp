@@ -20,7 +20,7 @@ class perm_pos_mem_write_c_permutation_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_pos_mem_write_c,
+        return std::forward_as_tuple(in.perm_pos_mem_write_c_inv,
                                      in.poseidon2_sel_poseidon_perm,
                                      in.poseidon2_sel_poseidon_perm,
                                      in.mem_sel_op_poseidon_write_c,
@@ -38,7 +38,7 @@ class perm_pos_mem_write_c_permutation_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_pos_mem_write_c,
+        return std::forward_as_tuple(in.perm_pos_mem_write_c_inv,
                                      in.poseidon2_sel_poseidon_perm,
                                      in.poseidon2_sel_poseidon_perm,
                                      in.mem_sel_op_poseidon_write_c,

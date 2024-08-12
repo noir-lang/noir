@@ -4,9 +4,7 @@
 namespace bb {
 
 {{name}}Flavor::AllConstRefValues::AllConstRefValues(const RefArray<{{name}}Flavor::AllConstRefValues::BaseDataType, {{name}}Flavor::NUM_ALL_ENTITIES>& il) :
-    {{#each (join fixed witness_without_inverses lookups shifted) as |item|}}
-    {{item}}(il[{{@index}}]){{#unless @last}},{{/unless}}
-    {{/each}}
+    {{#each (join fixed witness_without_inverses inverses shifted) as |item|}}{{item}}(il[{{@index}}]){{#unless @last}},{{/unless}}{{/each}}
   {}
 
 {{name}}Flavor::ProverPolynomials::ProverPolynomials(ProvingKey& proving_key)
@@ -34,11 +32,11 @@ namespace bb {
     // Note: the order of the constructor must match the order of the columns in `get_all()`!
     return AllConstRefValues(refs);
       --}}
-    return AllConstRefValues(RefArray{
-      {{#each (join fixed witness_without_inverses lookups shifted) as |item|}}
+    return RefArray{
+      {{#each (join fixed witness_without_inverses inverses shifted) as |item|}}
       {{item}}[row_idx]{{#unless @last}},{{/unless}}
       {{/each}}
-    });
+    };
 }
 
 {{name}}Flavor::CommitmentLabels::CommitmentLabels()

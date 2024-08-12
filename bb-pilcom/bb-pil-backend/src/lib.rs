@@ -1,5 +1,6 @@
 mod circuit_builder;
 mod composer_builder;
+mod expression_evaluation;
 mod file_writer;
 mod flavor_builder;
 pub mod lookup_builder;

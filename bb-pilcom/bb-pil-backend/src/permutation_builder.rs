@@ -1,4 +1,4 @@
-use crate::{file_writer::BBFiles, utils::snake_case};
+use crate::file_writer::BBFiles;
 use itertools::Itertools;
 use powdr_ast::{
     analyzed::{AlgebraicExpression, Analyzed, IdentityKind},
@@ -16,8 +16,10 @@ use crate::utils::sanitize_name;
 ///
 /// Contains the information required to produce a permutation relation
 pub struct Permutation {
-    /// -> Attribute - the name given to the inverse helper column
-    pub attribute: Option<String>,
+    /// The name of the lookup
+    pub name: String,
+    /// The inverse column name
+    pub inverse: String,
     /// -> PermSide - the left side of the permutation
     pub left: PermutationSide,
     /// -> PermSide - the right side of the permutation
@@ -38,27 +40,31 @@ pub struct PermutationSide {
 pub trait PermutationBuilder {
     /// Takes in an AST and works out what permutation relations are needed
     /// Note: returns the name of the inverse columns, such that they can be added to he prover in subsequent steps
-    fn create_permutation_files<F: FieldElement>(
-        &self,
-        name: &str,
-        analyzed: &Analyzed<F>,
-    ) -> Vec<Permutation>;
+    fn create_permutation_files<F: FieldElement>(&self, analyzed: &Analyzed<F>)
+        -> Vec<Permutation>;
 }
 
 impl PermutationBuilder for BBFiles {
     fn create_permutation_files<F: FieldElement>(
         &self,
-        project_name: &str,
         analyzed: &Analyzed<F>,
     ) -> Vec<Permutation> {
         let permutations = analyzed
             .identities
             .iter()
             .filter(|identity| matches!(identity.kind, IdentityKind::Permutation))
-            .map(|perm| Permutation {
-                attribute: perm.attribute.clone().map(|att| att.to_lowercase()),
-                left: get_perm_side(&perm.left),
-                right: get_perm_side(&perm.right),
+            .map(|perm| {
+                let name = perm
+                    .attribute
+                    .clone()
+                    .expect("Permutation name must be provided using attribute syntax")
+                    .to_lowercase();
+                Permutation {
+                    name: name.clone(),
+                    inverse: format!("{}_inv", &name),
+                    left: get_perm_side(&perm.left),
+                    right: get_perm_side(&perm.right),
+                }
             })
             .collect_vec();
 
@@ -75,11 +81,7 @@ impl PermutationBuilder for BBFiles {
             let data = create_permutation_settings_data(permutation);
             let perm_settings = handlebars.render("permutation.hpp", &data).unwrap();
 
-            let file_name = format!(
-                "{}{}",
-                permutation.attribute.clone().unwrap_or("NONAME".to_owned()),
-                ".hpp".to_owned()
-            );
+            let file_name = format!("{}.hpp", permutation.name);
             self.write_file(Some(&self.relations), &file_name, &perm_settings);
         }
 
@@ -91,17 +93,12 @@ impl PermutationBuilder for BBFiles {
 pub fn get_inverses_from_permutations(permutations: &[Permutation]) -> Vec<String> {
     permutations
         .iter()
-        .map(|perm| perm.attribute.clone().unwrap())
+        .map(|perm| perm.inverse.clone())
         .collect()
 }
 
 fn create_permutation_settings_data(permutation: &Permutation) -> Json {
     let columns_per_set = permutation.left.cols.len();
-    // TODO(md): In the future we will need to condense off the back of this - combining those with the same inverse column
-    let permutation_name = permutation
-        .attribute
-        .clone()
-        .expect("Inverse column name must be provided using attribute syntax");
 
     // This also will need to work for both sides of this !
     let lhs_selector = permutation
@@ -126,7 +123,7 @@ fn create_permutation_settings_data(permutation: &Permutation) -> Json {
     // 4.. + columns per set.   lhs cols
     // 4 + columns per set.. .  rhs cols
     let mut perm_entities: Vec<String> = [
-        permutation_name.clone(),
+        permutation.inverse.clone(),
         lhs_selector.clone(),
         lhs_selector.clone(),
         rhs_selector.clone(),
@@ -137,7 +134,7 @@ fn create_permutation_settings_data(permutation: &Permutation) -> Json {
     perm_entities.extend(rhs_cols);
 
     json!({
-        "perm_name": permutation_name,
+        "perm_name": permutation.name,
         "columns_per_set": columns_per_set,
         "lhs_selector": lhs_selector,
         "rhs_selector": rhs_selector,

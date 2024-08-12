@@ -20,7 +20,7 @@ class perm_main_pedersen_permutation_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_main_pedersen,
+        return std::forward_as_tuple(in.perm_main_pedersen_inv,
                                      in.main_sel_op_pedersen,
                                      in.main_sel_op_pedersen,
                                      in.pedersen_sel_pedersen,
@@ -32,7 +32,7 @@ class perm_main_pedersen_permutation_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_main_pedersen,
+        return std::forward_as_tuple(in.perm_main_pedersen_inv,
                                      in.main_sel_op_pedersen,
                                      in.main_sel_op_pedersen,
                                      in.pedersen_sel_pedersen,

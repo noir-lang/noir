@@ -20,7 +20,7 @@ class perm_slice_mem_permutation_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_slice_mem,
+        return std::forward_as_tuple(in.perm_slice_mem_inv,
                                      in.slice_sel_mem_active,
                                      in.slice_sel_mem_active,
                                      in.mem_sel_op_slice,
@@ -38,7 +38,7 @@ class perm_slice_mem_permutation_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_slice_mem,
+        return std::forward_as_tuple(in.perm_slice_mem_inv,
                                      in.slice_sel_mem_active,
                                      in.slice_sel_mem_active,
                                      in.mem_sel_op_slice,

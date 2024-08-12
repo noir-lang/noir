@@ -20,7 +20,7 @@ class perm_main_bin_permutation_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_main_bin,
+        return std::forward_as_tuple(in.perm_main_bin_inv,
                                      in.main_sel_bin,
                                      in.main_sel_bin,
                                      in.binary_start,
@@ -40,7 +40,7 @@ class perm_main_bin_permutation_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_main_bin,
+        return std::forward_as_tuple(in.perm_main_bin_inv,
                                      in.main_sel_bin,
                                      in.main_sel_bin,
                                      in.binary_start,

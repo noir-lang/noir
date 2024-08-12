@@ -35,7 +35,7 @@ class lookup_byte_operations_lookup_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_byte_operations,
+        return std::forward_as_tuple(in.lookup_byte_operations_inv,
                                      in.lookup_byte_operations_counts,
                                      in.binary_sel_bin,
                                      in.byte_lookup_sel_bin,
@@ -51,7 +51,7 @@ class lookup_byte_operations_lookup_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_byte_operations,
+        return std::forward_as_tuple(in.lookup_byte_operations_inv,
                                      in.lookup_byte_operations_counts,
                                      in.binary_sel_bin,
                                      in.byte_lookup_sel_bin,

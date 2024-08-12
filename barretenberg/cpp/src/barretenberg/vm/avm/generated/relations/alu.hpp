@@ -11,9 +11,9 @@ template <typename FF_> class aluImpl {
     using FF = FF_;
 
     static constexpr std::array<size_t, 87> SUBRELATION_PARTIAL_LENGTHS = {
-        2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 5, 5, 5, 5, 6, 6, 8, 3, 4, 4, 5, 4, 4, 3, 4, 3,
-        3, 4, 3, 6, 5, 3, 3, 3, 3, 4, 3, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 2, 5, 3, 3, 4, 4, 4, 4,
-        4, 3, 5, 5, 4, 5, 5, 2, 3, 3, 3, 3, 3, 4, 4, 3, 5, 3, 3, 3, 5, 3, 3, 4, 4, 4, 4, 4, 4
+        2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 4, 4, 5, 5, 4, 4, 4, 5, 3, 3, 4, 5, 3, 3, 3, 3, 3,
+        3, 3, 3, 5, 5, 3, 3, 3, 3, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 4, 3, 3, 4, 4, 4, 4,
+        4, 3, 4, 5, 4, 5, 5, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 3, 3, 3, 4, 3, 3, 3, 3, 3, 3, 3, 3
     };
 
     template <typename ContainerOverSubrelations, typename AllEntities>
@@ -22,6 +22,74 @@ template <typename FF_> class aluImpl {
                            [[maybe_unused]] const RelationParameters<FF>&,
                            [[maybe_unused]] const FF& scaling_factor)
     {
+        const auto alu_SUM_8 = new_term.alu_u8_r0;
+        const auto alu_SUM_16 = (alu_SUM_8 + (new_term.alu_u8_r1 * FF(256)));
+        const auto alu_SUM_32 = (alu_SUM_16 + (new_term.alu_u16_r0 * FF(65536)));
+        const auto alu_SUM_64 =
+            ((alu_SUM_32 + (new_term.alu_u16_r1 * FF(4294967296UL))) + (new_term.alu_u16_r2 * FF(281474976710656UL)));
+        const auto alu_SUM_96 = ((alu_SUM_64 + (new_term.alu_u16_r3 * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
+                                 (new_term.alu_u16_r4 * FF(uint256_t{ 0UL, 65536UL, 0UL, 0UL })));
+        const auto alu_SUM_128 = ((alu_SUM_96 + (new_term.alu_u16_r5 * FF(uint256_t{ 0UL, 4294967296UL, 0UL, 0UL }))) +
+                                  (new_term.alu_u16_r6 * FF(uint256_t{ 0UL, 281474976710656UL, 0UL, 0UL })));
+        const auto alu_SUM_TAG = (((((new_term.alu_u8_tag * alu_SUM_8) + (new_term.alu_u16_tag * alu_SUM_16)) +
+                                    (new_term.alu_u32_tag * alu_SUM_32)) +
+                                   (new_term.alu_u64_tag * alu_SUM_64)) +
+                                  (new_term.alu_u128_tag * alu_SUM_128));
+        const auto alu_SUM_TAG_NO_128 = ((((new_term.alu_u8_tag * alu_SUM_8) + (new_term.alu_u16_tag * alu_SUM_16)) +
+                                          (new_term.alu_u32_tag * alu_SUM_32)) +
+                                         (new_term.alu_u64_tag * alu_SUM_64));
+        const auto alu_SUM_HIGH_64 =
+            (((new_term.alu_u16_r3 + (new_term.alu_u16_r4 * FF(65536))) + (new_term.alu_u16_r5 * FF(4294967296UL))) +
+             (new_term.alu_u16_r6 * FF(281474976710656UL)));
+        const auto alu_SUM_LOW_SHIFTED_64 = ((((new_term.alu_u8_r0_shift + (new_term.alu_u8_r1_shift * FF(256))) +
+                                               (new_term.alu_u16_r0_shift * FF(65536))) +
+                                              (new_term.alu_u16_r1_shift * FF(4294967296UL))) +
+                                             (new_term.alu_u16_r2_shift * FF(281474976710656UL)));
+        const auto alu_SUM_HIGH_SHIFTED_64 = (((new_term.alu_u16_r3_shift + (new_term.alu_u16_r4_shift * FF(65536))) +
+                                               (new_term.alu_u16_r5_shift * FF(4294967296UL))) +
+                                              (new_term.alu_u16_r6_shift * FF(281474976710656UL)));
+        const auto alu_R_64 =
+            (((new_term.alu_u16_r7 + (new_term.alu_u16_r8 * FF(65536))) + (new_term.alu_u16_r9 * FF(4294967296UL))) +
+             (new_term.alu_u16_r10 * FF(281474976710656UL)));
+        const auto alu_SEL_BITWISE = new_term.alu_op_not;
+        const auto alu_UINT_MAX = ((((((new_term.alu_u8_tag * FF(256)) + (new_term.alu_u16_tag * FF(65536))) +
+                                      (new_term.alu_u32_tag * FF(4294967296UL))) +
+                                     (new_term.alu_u64_tag * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
+                                    (new_term.alu_u128_tag * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) -
+                                   FF(1));
+        const auto alu_DIFF = (new_term.alu_ia - new_term.alu_ib);
+        const auto alu_INPUT_IA =
+            ((new_term.alu_op_lt * new_term.alu_ib) + ((new_term.alu_op_lte + new_term.alu_op_cast) * new_term.alu_ia));
+        const auto alu_INPUT_IB = ((new_term.alu_op_lt * new_term.alu_ia) + (new_term.alu_op_lte * new_term.alu_ib));
+        const auto alu_A_SUB_B_LO = (((new_term.alu_a_lo - new_term.alu_b_lo) - FF(1)) +
+                                     (new_term.alu_borrow * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL })));
+        const auto alu_A_SUB_B_HI = ((new_term.alu_a_hi - new_term.alu_b_hi) - new_term.alu_borrow);
+        const auto alu_B_SUB_A_LO =
+            ((new_term.alu_b_lo - new_term.alu_a_lo) + (new_term.alu_borrow * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL })));
+        const auto alu_B_SUB_A_HI = ((new_term.alu_b_hi - new_term.alu_a_hi) - new_term.alu_borrow);
+        const auto alu_IS_GT =
+            ((new_term.alu_op_lt * new_term.alu_ic) + ((FF(1) - new_term.alu_ic) * new_term.alu_op_lte));
+        const auto alu_RNG_CHK_OP =
+            (((((new_term.alu_sel_rng_chk + new_term.alu_sel_cmp) + new_term.alu_op_cast) + new_term.alu_op_cast_prev) +
+              new_term.alu_shift_lt_bit_len) +
+             new_term.alu_op_div);
+        const auto alu_MAX_BITS =
+            (((((new_term.alu_u8_tag * FF(8)) + (new_term.alu_u16_tag * FF(16))) + (new_term.alu_u32_tag * FF(32))) +
+              (new_term.alu_u64_tag * FF(64))) +
+             (new_term.alu_u128_tag * FF(128)));
+        const auto alu_PRODUCT =
+            (((new_term.alu_divisor_lo * new_term.alu_quotient_lo) +
+              (FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }) * new_term.alu_partial_prod_lo)) +
+             (FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }) *
+              (new_term.alu_partial_prod_hi + (new_term.alu_divisor_hi * new_term.alu_quotient_hi))));
+        const auto alu_NEXT_SUM_64_LO = ((((new_term.alu_u8_r0_shift + (new_term.alu_u8_r1_shift * FF(256))) +
+                                           (new_term.alu_u16_r0_shift * FF(65536))) +
+                                          (new_term.alu_u16_r1_shift * FF(4294967296UL))) +
+                                         (new_term.alu_u16_r2_shift * FF(281474976710656UL)));
+        const auto alu_NEXT_SUM_128_HI = (((new_term.alu_u16_r3_shift + (new_term.alu_u16_r4_shift * FF(65536))) +
+                                           (new_term.alu_u16_r5_shift * FF(4294967296UL))) +
+                                          (new_term.alu_u16_r6_shift * FF(281474976710656UL)));
+
         {
             using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
             auto tmp =
@@ -51,43 +119,43 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<3, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_cf * (-new_term.alu_cf + FF(1)));
+            auto tmp = (new_term.alu_cf * (FF(1) - new_term.alu_cf));
             tmp *= scaling_factor;
             std::get<3>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<4, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_ff_tag * (-new_term.alu_ff_tag + FF(1)));
+            auto tmp = (new_term.alu_ff_tag * (FF(1) - new_term.alu_ff_tag));
             tmp *= scaling_factor;
             std::get<4>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<5, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_u8_tag * (-new_term.alu_u8_tag + FF(1)));
+            auto tmp = (new_term.alu_u8_tag * (FF(1) - new_term.alu_u8_tag));
             tmp *= scaling_factor;
             std::get<5>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<6, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_u16_tag * (-new_term.alu_u16_tag + FF(1)));
+            auto tmp = (new_term.alu_u16_tag * (FF(1) - new_term.alu_u16_tag));
             tmp *= scaling_factor;
             std::get<6>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<7, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_u32_tag * (-new_term.alu_u32_tag + FF(1)));
+            auto tmp = (new_term.alu_u32_tag * (FF(1) - new_term.alu_u32_tag));
             tmp *= scaling_factor;
             std::get<7>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<8, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_u64_tag * (-new_term.alu_u64_tag + FF(1)));
+            auto tmp = (new_term.alu_u64_tag * (FF(1) - new_term.alu_u64_tag));
             tmp *= scaling_factor;
             std::get<8>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<9, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_u128_tag * (-new_term.alu_u128_tag + FF(1)));
+            auto tmp = (new_term.alu_u128_tag * (FF(1) - new_term.alu_u128_tag));
             tmp *= scaling_factor;
             std::get<9>(evals) += typename Accumulator::View(tmp);
         }
@@ -105,55 +173,27 @@ template <typename FF_> class aluImpl {
         {
             using Accumulator = typename std::tuple_element_t<11, ContainerOverSubrelations>;
             auto tmp = (new_term.alu_in_tag -
-                        (((((new_term.alu_u8_tag + (new_term.alu_u16_tag * FF(2))) + (new_term.alu_u32_tag * FF(3))) +
-                           (new_term.alu_u64_tag * FF(4))) +
-                          (new_term.alu_u128_tag * FF(5))) +
-                         (new_term.alu_ff_tag * FF(6))));
+                        (((((new_term.alu_u8_tag + (FF(2) * new_term.alu_u16_tag)) + (FF(3) * new_term.alu_u32_tag)) +
+                           (FF(4) * new_term.alu_u64_tag)) +
+                          (FF(5) * new_term.alu_u128_tag)) +
+                         (FF(6) * new_term.alu_ff_tag)));
             tmp *= scaling_factor;
             std::get<11>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<12, ContainerOverSubrelations>;
-            auto tmp =
-                (((new_term.alu_op_add + new_term.alu_op_sub) *
-                  ((((((((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))) +
-                          (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                         (new_term.alu_u16_r2 * FF(281474976710656UL))) +
-                        (new_term.alu_u16_r3 * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
-                       (new_term.alu_u16_r4 * FF(uint256_t{ 0UL, 65536UL, 0UL, 0UL }))) +
-                      (new_term.alu_u16_r5 * FF(uint256_t{ 0UL, 4294967296UL, 0UL, 0UL }))) +
-                     (new_term.alu_u16_r6 * FF(uint256_t{ 0UL, 281474976710656UL, 0UL, 0UL }))) -
-                    new_term.alu_ia) +
-                   (new_term.alu_ff_tag * new_term.alu_ic))) +
-                 ((new_term.alu_op_add - new_term.alu_op_sub) *
-                  ((new_term.alu_cf * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL })) - new_term.alu_ib)));
+            auto tmp = (((new_term.alu_op_add + new_term.alu_op_sub) *
+                         ((alu_SUM_128 - new_term.alu_ia) + (new_term.alu_ff_tag * new_term.alu_ic))) +
+                        ((new_term.alu_op_add - new_term.alu_op_sub) *
+                         ((new_term.alu_cf * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL })) - new_term.alu_ib)));
             tmp *= scaling_factor;
             std::get<12>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<13, ContainerOverSubrelations>;
-            auto tmp =
-                (((new_term.alu_op_add + new_term.alu_op_sub) *
-                  (((((((new_term.alu_u8_tag * new_term.alu_u8_r0) +
-                        (new_term.alu_u16_tag * (new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))))) +
-                       (new_term.alu_u32_tag *
-                        ((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))))) +
-                      (new_term.alu_u64_tag *
-                       ((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))) +
-                         (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                        (new_term.alu_u16_r2 * FF(281474976710656UL))))) +
-                     (new_term.alu_u128_tag *
-                      ((((((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) +
-                             (new_term.alu_u16_r0 * FF(65536))) +
-                            (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                           (new_term.alu_u16_r2 * FF(281474976710656UL))) +
-                          (new_term.alu_u16_r3 * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
-                         (new_term.alu_u16_r4 * FF(uint256_t{ 0UL, 65536UL, 0UL, 0UL }))) +
-                        (new_term.alu_u16_r5 * FF(uint256_t{ 0UL, 4294967296UL, 0UL, 0UL }))) +
-                       (new_term.alu_u16_r6 * FF(uint256_t{ 0UL, 281474976710656UL, 0UL, 0UL }))))) +
-                    (new_term.alu_ff_tag * new_term.alu_ia)) -
-                   new_term.alu_ic)) +
-                 ((new_term.alu_ff_tag * (new_term.alu_op_add - new_term.alu_op_sub)) * new_term.alu_ib));
+            auto tmp = (((new_term.alu_op_add + new_term.alu_op_sub) *
+                         ((alu_SUM_TAG + (new_term.alu_ff_tag * new_term.alu_ia)) - new_term.alu_ic)) +
+                        ((new_term.alu_ff_tag * (new_term.alu_op_add - new_term.alu_op_sub)) * new_term.alu_ib));
             tmp *= scaling_factor;
             std::get<13>(evals) += typename Accumulator::View(tmp);
         }
@@ -166,16 +206,8 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<15, ContainerOverSubrelations>;
-            auto tmp =
-                ((((-new_term.alu_ff_tag + FF(1)) - new_term.alu_u128_tag) * new_term.alu_op_mul) *
-                 (((((((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))) +
-                        (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                       (new_term.alu_u16_r2 * FF(281474976710656UL))) +
-                      (new_term.alu_u16_r3 * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
-                     (new_term.alu_u16_r4 * FF(uint256_t{ 0UL, 65536UL, 0UL, 0UL }))) +
-                    (new_term.alu_u16_r5 * FF(uint256_t{ 0UL, 4294967296UL, 0UL, 0UL }))) +
-                   (new_term.alu_u16_r6 * FF(uint256_t{ 0UL, 281474976710656UL, 0UL, 0UL }))) -
-                  (new_term.alu_ia * new_term.alu_ib)));
+            auto tmp = ((((FF(1) - new_term.alu_ff_tag) - new_term.alu_u128_tag) * new_term.alu_op_mul) *
+                        (alu_SUM_128 - (new_term.alu_ia * new_term.alu_ib)));
             tmp *= scaling_factor;
             std::get<15>(evals) += typename Accumulator::View(tmp);
         }
@@ -183,126 +215,82 @@ template <typename FF_> class aluImpl {
             using Accumulator = typename std::tuple_element_t<16, ContainerOverSubrelations>;
             auto tmp =
                 (new_term.alu_op_mul *
-                 (((((new_term.alu_u8_tag * new_term.alu_u8_r0) +
-                     (new_term.alu_u16_tag * (new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))))) +
-                    (new_term.alu_u32_tag *
-                     ((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))))) +
-                   (new_term.alu_u64_tag *
-                    ((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))) +
-                      (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                     (new_term.alu_u16_r2 * FF(281474976710656UL))))) -
-                  (((-new_term.alu_ff_tag + FF(1)) - new_term.alu_u128_tag) * new_term.alu_ic)));
+                 (alu_SUM_TAG_NO_128 - (((FF(1) - new_term.alu_ff_tag) - new_term.alu_u128_tag) * new_term.alu_ic)));
             tmp *= scaling_factor;
             std::get<16>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<17, ContainerOverSubrelations>;
-            auto tmp =
-                ((new_term.alu_u128_tag * new_term.alu_op_mul) *
-                 ((((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))) +
-                     (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                    (new_term.alu_u16_r2 * FF(281474976710656UL))) +
-                   ((((new_term.alu_u16_r3 + (new_term.alu_u16_r4 * FF(65536))) +
-                      (new_term.alu_u16_r5 * FF(4294967296UL))) +
-                     (new_term.alu_u16_r6 * FF(281474976710656UL))) *
-                    FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) -
-                  new_term.alu_ia));
+            auto tmp = ((new_term.alu_u128_tag * new_term.alu_op_mul) *
+                        ((alu_SUM_64 + (alu_SUM_HIGH_64 * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) - new_term.alu_ia));
             tmp *= scaling_factor;
             std::get<17>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<18, ContainerOverSubrelations>;
             auto tmp = ((new_term.alu_u128_tag * new_term.alu_op_mul) *
-                        ((((((new_term.alu_u8_r0_shift + (new_term.alu_u8_r1_shift * FF(256))) +
-                             (new_term.alu_u16_r0_shift * FF(65536))) +
-                            (new_term.alu_u16_r1_shift * FF(4294967296UL))) +
-                           (new_term.alu_u16_r2_shift * FF(281474976710656UL))) +
-                          ((((new_term.alu_u16_r3_shift + (new_term.alu_u16_r4_shift * FF(65536))) +
-                             (new_term.alu_u16_r5_shift * FF(4294967296UL))) +
-                            (new_term.alu_u16_r6_shift * FF(281474976710656UL))) *
-                           FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) -
+                        ((alu_SUM_LOW_SHIFTED_64 + (alu_SUM_HIGH_SHIFTED_64 * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) -
                          new_term.alu_ib));
             tmp *= scaling_factor;
             std::get<18>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<19, ContainerOverSubrelations>;
-            auto tmp =
-                ((new_term.alu_u128_tag * new_term.alu_op_mul) *
-                 ((((new_term.alu_ia * ((((new_term.alu_u8_r0_shift + (new_term.alu_u8_r1_shift * FF(256))) +
-                                          (new_term.alu_u16_r0_shift * FF(65536))) +
-                                         (new_term.alu_u16_r1_shift * FF(4294967296UL))) +
-                                        (new_term.alu_u16_r2_shift * FF(281474976710656UL)))) +
-                    ((((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))) +
-                        (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                       (new_term.alu_u16_r2 * FF(281474976710656UL))) *
-                      (((new_term.alu_u16_r3_shift + (new_term.alu_u16_r4_shift * FF(65536))) +
-                        (new_term.alu_u16_r5_shift * FF(4294967296UL))) +
-                       (new_term.alu_u16_r6_shift * FF(281474976710656UL)))) *
-                     FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) -
-                   (((new_term.alu_cf * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL })) +
-                     (((new_term.alu_u16_r7 + (new_term.alu_u16_r8 * FF(65536))) +
-                       (new_term.alu_u16_r9 * FF(4294967296UL))) +
-                      (new_term.alu_u16_r10 * FF(281474976710656UL)))) *
-                    FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) -
-                  new_term.alu_ic));
+            auto tmp = ((new_term.alu_u128_tag * new_term.alu_op_mul) *
+                        ((((new_term.alu_ia * alu_SUM_LOW_SHIFTED_64) +
+                           ((alu_SUM_64 * alu_SUM_HIGH_SHIFTED_64) * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) -
+                          (((new_term.alu_cf * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL })) + alu_R_64) *
+                           FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) -
+                         new_term.alu_ic));
             tmp *= scaling_factor;
             std::get<19>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<20, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_op_not * new_term.alu_ff_tag);
+            auto tmp = (alu_SEL_BITWISE * new_term.alu_ff_tag);
             tmp *= scaling_factor;
             std::get<20>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<21, ContainerOverSubrelations>;
-            auto tmp =
-                (new_term.alu_op_not * ((new_term.alu_ia + new_term.alu_ic) -
-                                        ((((((new_term.alu_u8_tag * FF(256)) + (new_term.alu_u16_tag * FF(65536))) +
-                                            (new_term.alu_u32_tag * FF(4294967296UL))) +
-                                           (new_term.alu_u64_tag * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
-                                          (new_term.alu_u128_tag * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) -
-                                         FF(1))));
+            auto tmp = (new_term.alu_op_not * ((new_term.alu_ia + new_term.alu_ic) - alu_UINT_MAX));
             tmp *= scaling_factor;
             std::get<21>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<22, ContainerOverSubrelations>;
-            auto tmp = ((new_term.alu_sel_cmp + new_term.alu_op_eq) * (new_term.alu_ic * (-new_term.alu_ic + FF(1))));
+            auto tmp = ((new_term.alu_sel_cmp + new_term.alu_op_eq) * (new_term.alu_ic * (FF(1) - new_term.alu_ic)));
             tmp *= scaling_factor;
             std::get<22>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<23, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_op_eq *
-                        ((((new_term.alu_ia - new_term.alu_ib) *
-                           ((new_term.alu_ic * (-new_term.alu_op_eq_diff_inv + FF(1))) + new_term.alu_op_eq_diff_inv)) -
-                          FF(1)) +
-                         new_term.alu_ic));
+            auto tmp = (new_term.alu_op_eq * (((alu_DIFF * ((new_term.alu_ic * (FF(1) - new_term.alu_op_eq_diff_inv)) +
+                                                            new_term.alu_op_eq_diff_inv)) -
+                                               FF(1)) +
+                                              new_term.alu_ic));
             tmp *= scaling_factor;
             std::get<23>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<24, ContainerOverSubrelations>;
-            auto tmp = (((new_term.alu_op_lt * new_term.alu_ib) +
-                         ((new_term.alu_op_lte + new_term.alu_op_cast) * new_term.alu_ia)) -
-                        ((new_term.alu_a_lo + (new_term.alu_a_hi * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) *
-                         (new_term.alu_sel_cmp + new_term.alu_op_cast)));
+            auto tmp =
+                (alu_INPUT_IA - ((new_term.alu_a_lo + (FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }) * new_term.alu_a_hi)) *
+                                 (new_term.alu_sel_cmp + new_term.alu_op_cast)));
             tmp *= scaling_factor;
             std::get<24>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<25, ContainerOverSubrelations>;
-            auto tmp = (((new_term.alu_op_lt * new_term.alu_ia) + (new_term.alu_op_lte * new_term.alu_ib)) -
-                        ((new_term.alu_b_lo + (new_term.alu_b_hi * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) *
-                         new_term.alu_sel_cmp));
+            auto tmp =
+                (alu_INPUT_IB - ((new_term.alu_b_lo + (FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }) * new_term.alu_b_hi)) *
+                                 new_term.alu_sel_cmp));
             tmp *= scaling_factor;
             std::get<25>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<26, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_p_a_borrow * (-new_term.alu_p_a_borrow + FF(1)));
+            auto tmp = (new_term.alu_p_a_borrow * (FF(1) - new_term.alu_p_a_borrow));
             tmp *= scaling_factor;
             std::get<26>(evals) += typename Accumulator::View(tmp);
         }
@@ -310,7 +298,7 @@ template <typename FF_> class aluImpl {
             using Accumulator = typename std::tuple_element_t<27, ContainerOverSubrelations>;
             auto tmp =
                 ((new_term.alu_p_sub_a_lo -
-                  ((-new_term.alu_a_lo + FF(uint256_t{ 4891460686036598784UL, 2896914383306846353UL, 0UL, 0UL })) +
+                  ((FF(uint256_t{ 4891460686036598784UL, 2896914383306846353UL, 0UL, 0UL }) - new_term.alu_a_lo) +
                    (new_term.alu_p_a_borrow * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL })))) *
                  ((new_term.alu_sel_cmp + new_term.alu_op_cast) + new_term.alu_op_div_std));
             tmp *= scaling_factor;
@@ -320,7 +308,7 @@ template <typename FF_> class aluImpl {
             using Accumulator = typename std::tuple_element_t<28, ContainerOverSubrelations>;
             auto tmp =
                 ((new_term.alu_p_sub_a_hi -
-                  ((-new_term.alu_a_hi + FF(uint256_t{ 13281191951274694749UL, 3486998266802970665UL, 0UL, 0UL })) -
+                  ((FF(uint256_t{ 13281191951274694749UL, 3486998266802970665UL, 0UL, 0UL }) - new_term.alu_a_hi) -
                    new_term.alu_p_a_borrow)) *
                  ((new_term.alu_sel_cmp + new_term.alu_op_cast) + new_term.alu_op_div_std));
             tmp *= scaling_factor;
@@ -328,7 +316,7 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<29, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_p_b_borrow * (-new_term.alu_p_b_borrow + FF(1)));
+            auto tmp = (new_term.alu_p_b_borrow * (FF(1) - new_term.alu_p_b_borrow));
             tmp *= scaling_factor;
             std::get<29>(evals) += typename Accumulator::View(tmp);
         }
@@ -336,7 +324,7 @@ template <typename FF_> class aluImpl {
             using Accumulator = typename std::tuple_element_t<30, ContainerOverSubrelations>;
             auto tmp =
                 ((new_term.alu_p_sub_b_lo -
-                  ((-new_term.alu_b_lo + FF(uint256_t{ 4891460686036598784UL, 2896914383306846353UL, 0UL, 0UL })) +
+                  ((FF(uint256_t{ 4891460686036598784UL, 2896914383306846353UL, 0UL, 0UL }) - new_term.alu_b_lo) +
                    (new_term.alu_p_b_borrow * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL })))) *
                  new_term.alu_sel_cmp);
             tmp *= scaling_factor;
@@ -346,7 +334,7 @@ template <typename FF_> class aluImpl {
             using Accumulator = typename std::tuple_element_t<31, ContainerOverSubrelations>;
             auto tmp =
                 ((new_term.alu_p_sub_b_hi -
-                  ((-new_term.alu_b_hi + FF(uint256_t{ 13281191951274694749UL, 3486998266802970665UL, 0UL, 0UL })) -
+                  ((FF(uint256_t{ 13281191951274694749UL, 3486998266802970665UL, 0UL, 0UL }) - new_term.alu_b_hi) -
                    new_term.alu_p_b_borrow)) *
                  new_term.alu_sel_cmp);
             tmp *= scaling_factor;
@@ -355,14 +343,7 @@ template <typename FF_> class aluImpl {
         {
             using Accumulator = typename std::tuple_element_t<32, ContainerOverSubrelations>;
             auto tmp =
-                ((new_term.alu_res_lo -
-                  (((((new_term.alu_a_lo - new_term.alu_b_lo) - FF(1)) +
-                     (new_term.alu_borrow * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) *
-                    ((new_term.alu_op_lt * new_term.alu_ic) + ((-new_term.alu_ic + FF(1)) * new_term.alu_op_lte))) +
-                   (((new_term.alu_b_lo - new_term.alu_a_lo) +
-                     (new_term.alu_borrow * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) *
-                    (-((new_term.alu_op_lt * new_term.alu_ic) + ((-new_term.alu_ic + FF(1)) * new_term.alu_op_lte)) +
-                     FF(1))))) *
+                ((new_term.alu_res_lo - ((alu_A_SUB_B_LO * alu_IS_GT) + (alu_B_SUB_A_LO * (FF(1) - alu_IS_GT)))) *
                  new_term.alu_sel_cmp);
             tmp *= scaling_factor;
             std::get<32>(evals) += typename Accumulator::View(tmp);
@@ -370,12 +351,7 @@ template <typename FF_> class aluImpl {
         {
             using Accumulator = typename std::tuple_element_t<33, ContainerOverSubrelations>;
             auto tmp =
-                ((new_term.alu_res_hi -
-                  ((((new_term.alu_a_hi - new_term.alu_b_hi) - new_term.alu_borrow) *
-                    ((new_term.alu_op_lt * new_term.alu_ic) + ((-new_term.alu_ic + FF(1)) * new_term.alu_op_lte))) +
-                   (((new_term.alu_b_hi - new_term.alu_a_hi) - new_term.alu_borrow) *
-                    (-((new_term.alu_op_lt * new_term.alu_ic) + ((-new_term.alu_ic + FF(1)) * new_term.alu_op_lte)) +
-                     FF(1))))) *
+                ((new_term.alu_res_hi - ((alu_A_SUB_B_HI * alu_IS_GT) + (alu_B_SUB_A_HI * (FF(1) - alu_IS_GT)))) *
                  new_term.alu_sel_cmp);
             tmp *= scaling_factor;
             std::get<33>(evals) += typename Accumulator::View(tmp);
@@ -395,7 +371,7 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<36, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_sel_rng_chk * (-new_term.alu_sel_rng_chk + FF(1)));
+            auto tmp = (new_term.alu_sel_rng_chk * (FF(1) - new_term.alu_sel_rng_chk));
             tmp *= scaling_factor;
             std::get<36>(evals) += typename Accumulator::View(tmp);
         }
@@ -408,7 +384,7 @@ template <typename FF_> class aluImpl {
         {
             using Accumulator = typename std::tuple_element_t<38, ContainerOverSubrelations>;
             auto tmp = ((new_term.alu_cmp_rng_ctr *
-                         (((-new_term.alu_sel_rng_chk + FF(1)) * (-new_term.alu_op_eq_diff_inv + FF(1))) +
+                         (((FF(1) - new_term.alu_sel_rng_chk) * (FF(1) - new_term.alu_op_eq_diff_inv)) +
                           new_term.alu_op_eq_diff_inv)) -
                         new_term.alu_sel_rng_chk);
             tmp *= scaling_factor;
@@ -432,19 +408,7 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<40, ContainerOverSubrelations>;
-            auto tmp =
-                (new_term.alu_a_lo -
-                 (((((((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))) +
-                        (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                       (new_term.alu_u16_r2 * FF(281474976710656UL))) +
-                      (new_term.alu_u16_r3 * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
-                     (new_term.alu_u16_r4 * FF(uint256_t{ 0UL, 65536UL, 0UL, 0UL }))) +
-                    (new_term.alu_u16_r5 * FF(uint256_t{ 0UL, 4294967296UL, 0UL, 0UL }))) +
-                   (new_term.alu_u16_r6 * FF(uint256_t{ 0UL, 281474976710656UL, 0UL, 0UL }))) *
-                  (((((new_term.alu_sel_rng_chk + new_term.alu_sel_cmp) + new_term.alu_op_cast) +
-                     new_term.alu_op_cast_prev) +
-                    new_term.alu_shift_lt_bit_len) +
-                   new_term.alu_op_div)));
+            auto tmp = (new_term.alu_a_lo - (alu_SUM_128 * alu_RNG_CHK_OP));
             tmp *= scaling_factor;
             std::get<40>(evals) += typename Accumulator::View(tmp);
         }
@@ -458,10 +422,7 @@ template <typename FF_> class aluImpl {
                                          (new_term.alu_u16_r12 * FF(uint256_t{ 0UL, 65536UL, 0UL, 0UL }))) +
                                         (new_term.alu_u16_r13 * FF(uint256_t{ 0UL, 4294967296UL, 0UL, 0UL }))) +
                                        (new_term.alu_u16_r14 * FF(uint256_t{ 0UL, 281474976710656UL, 0UL, 0UL }))) *
-                                      (((((new_term.alu_sel_rng_chk + new_term.alu_sel_cmp) + new_term.alu_op_cast) +
-                                         new_term.alu_op_cast_prev) +
-                                        new_term.alu_shift_lt_bit_len) +
-                                       new_term.alu_op_div)));
+                                      alu_RNG_CHK_OP));
             tmp *= scaling_factor;
             std::get<41>(evals) += typename Accumulator::View(tmp);
         }
@@ -522,25 +483,7 @@ template <typename FF_> class aluImpl {
         {
             using Accumulator = typename std::tuple_element_t<51, ContainerOverSubrelations>;
             auto tmp =
-                (new_term.alu_op_cast *
-                 (((((((new_term.alu_u8_tag * new_term.alu_u8_r0) +
-                       (new_term.alu_u16_tag * (new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))))) +
-                      (new_term.alu_u32_tag *
-                       ((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))))) +
-                     (new_term.alu_u64_tag *
-                      ((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))) +
-                        (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                       (new_term.alu_u16_r2 * FF(281474976710656UL))))) +
-                    (new_term.alu_u128_tag *
-                     ((((((((new_term.alu_u8_r0 + (new_term.alu_u8_r1 * FF(256))) + (new_term.alu_u16_r0 * FF(65536))) +
-                           (new_term.alu_u16_r1 * FF(4294967296UL))) +
-                          (new_term.alu_u16_r2 * FF(281474976710656UL))) +
-                         (new_term.alu_u16_r3 * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
-                        (new_term.alu_u16_r4 * FF(uint256_t{ 0UL, 65536UL, 0UL, 0UL }))) +
-                       (new_term.alu_u16_r5 * FF(uint256_t{ 0UL, 4294967296UL, 0UL, 0UL }))) +
-                      (new_term.alu_u16_r6 * FF(uint256_t{ 0UL, 281474976710656UL, 0UL, 0UL }))))) +
-                   (new_term.alu_ff_tag * new_term.alu_ia)) -
-                  new_term.alu_ic));
+                (new_term.alu_op_cast * ((alu_SUM_TAG + (new_term.alu_ff_tag * new_term.alu_ia)) - new_term.alu_ic));
             tmp *= scaling_factor;
             std::get<51>(evals) += typename Accumulator::View(tmp);
         }
@@ -593,7 +536,7 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<59, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_shift_lt_bit_len * (-new_term.alu_shift_lt_bit_len + FF(1)));
+            auto tmp = (new_term.alu_shift_lt_bit_len * (FF(1) - new_term.alu_shift_lt_bit_len));
             tmp *= scaling_factor;
             std::get<59>(evals) += typename Accumulator::View(tmp);
         }
@@ -601,17 +544,8 @@ template <typename FF_> class aluImpl {
             using Accumulator = typename std::tuple_element_t<60, ContainerOverSubrelations>;
             auto tmp = (new_term.alu_t_sub_s_bits -
                         (new_term.alu_sel_shift_which *
-                         ((new_term.alu_shift_lt_bit_len *
-                           ((((((new_term.alu_u8_tag * FF(8)) + (new_term.alu_u16_tag * FF(16))) +
-                               (new_term.alu_u32_tag * FF(32))) +
-                              (new_term.alu_u64_tag * FF(64))) +
-                             (new_term.alu_u128_tag * FF(128))) -
-                            new_term.alu_ib)) +
-                          ((-new_term.alu_shift_lt_bit_len + FF(1)) *
-                           (new_term.alu_ib - (((((new_term.alu_u8_tag * FF(8)) + (new_term.alu_u16_tag * FF(16))) +
-                                                 (new_term.alu_u32_tag * FF(32))) +
-                                                (new_term.alu_u64_tag * FF(64))) +
-                                               (new_term.alu_u128_tag * FF(128))))))));
+                         ((new_term.alu_shift_lt_bit_len * (alu_MAX_BITS - new_term.alu_ib)) +
+                          ((FF(1) - new_term.alu_shift_lt_bit_len) * (new_term.alu_ib - alu_MAX_BITS)))));
             tmp *= scaling_factor;
             std::get<60>(evals) += typename Accumulator::View(tmp);
         }
@@ -651,7 +585,7 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<66, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_op_div_a_lt_b * (-new_term.alu_op_div_a_lt_b + FF(1)));
+            auto tmp = (new_term.alu_op_div_a_lt_b * (FF(1) - new_term.alu_op_div_a_lt_b));
             tmp *= scaling_factor;
             std::get<66>(evals) += typename Accumulator::View(tmp);
         }
@@ -676,21 +610,21 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<70, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_op_div_std * (-new_term.alu_op_div_std + FF(1)));
+            auto tmp = (new_term.alu_op_div_std * (FF(1) - new_term.alu_op_div_std));
             tmp *= scaling_factor;
             std::get<70>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<71, ContainerOverSubrelations>;
             auto tmp = (new_term.alu_op_div_std * ((new_term.alu_ib - new_term.alu_divisor_lo) -
-                                                   (new_term.alu_divisor_hi * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))));
+                                                   (FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }) * new_term.alu_divisor_hi)));
             tmp *= scaling_factor;
             std::get<71>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<72, ContainerOverSubrelations>;
             auto tmp = (new_term.alu_op_div_std * ((new_term.alu_ic - new_term.alu_quotient_lo) -
-                                                   (new_term.alu_quotient_hi * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))));
+                                                   (FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }) * new_term.alu_quotient_hi)));
             tmp *= scaling_factor;
             std::get<72>(evals) += typename Accumulator::View(tmp);
         }
@@ -699,18 +633,15 @@ template <typename FF_> class aluImpl {
             auto tmp =
                 (((new_term.alu_divisor_hi * new_term.alu_quotient_lo) +
                   (new_term.alu_divisor_lo * new_term.alu_quotient_hi)) -
-                 (new_term.alu_partial_prod_lo + (new_term.alu_partial_prod_hi * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))));
+                 (new_term.alu_partial_prod_lo + (FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }) * new_term.alu_partial_prod_hi)));
             tmp *= scaling_factor;
             std::get<73>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<74, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_op_div_std *
-                        ((((new_term.alu_divisor_lo * new_term.alu_quotient_lo) +
-                           (new_term.alu_partial_prod_lo * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
-                          ((new_term.alu_partial_prod_hi + (new_term.alu_divisor_hi * new_term.alu_quotient_hi)) *
-                           FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) -
-                         (new_term.alu_a_lo + (new_term.alu_a_hi * FF(uint256_t{ 0UL, 0UL, 1UL, 0UL })))));
+            auto tmp =
+                (new_term.alu_op_div_std *
+                 (alu_PRODUCT - (new_term.alu_a_lo + (FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }) * new_term.alu_a_hi))));
             tmp *= scaling_factor;
             std::get<74>(evals) += typename Accumulator::View(tmp);
         }
@@ -735,18 +666,13 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<78, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_op_div_std *
-                        ((((new_term.alu_divisor_lo * new_term.alu_quotient_lo) +
-                           (new_term.alu_partial_prod_lo * FF(uint256_t{ 0UL, 1UL, 0UL, 0UL }))) +
-                          ((new_term.alu_partial_prod_hi + (new_term.alu_divisor_hi * new_term.alu_quotient_hi)) *
-                           FF(uint256_t{ 0UL, 0UL, 1UL, 0UL }))) -
-                         (new_term.alu_ia - new_term.alu_remainder)));
+            auto tmp = (new_term.alu_op_div_std * (alu_PRODUCT - (new_term.alu_ia - new_term.alu_remainder)));
             tmp *= scaling_factor;
             std::get<78>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<79, ContainerOverSubrelations>;
-            auto tmp = (new_term.alu_sel_div_rng_chk * (-new_term.alu_sel_div_rng_chk + FF(1)));
+            auto tmp = (new_term.alu_sel_div_rng_chk * (FF(1) - new_term.alu_sel_div_rng_chk));
             tmp *= scaling_factor;
             std::get<79>(evals) += typename Accumulator::View(tmp);
         }
@@ -796,22 +722,13 @@ template <typename FF_> class aluImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<85, ContainerOverSubrelations>;
-            auto tmp =
-                (new_term.alu_partial_prod_lo -
-                 (new_term.alu_op_div_std * ((((new_term.alu_u8_r0_shift + (new_term.alu_u8_r1_shift * FF(256))) +
-                                               (new_term.alu_u16_r0_shift * FF(65536))) +
-                                              (new_term.alu_u16_r1_shift * FF(4294967296UL))) +
-                                             (new_term.alu_u16_r2_shift * FF(281474976710656UL)))));
+            auto tmp = (new_term.alu_partial_prod_lo - (new_term.alu_op_div_std * alu_NEXT_SUM_64_LO));
             tmp *= scaling_factor;
             std::get<85>(evals) += typename Accumulator::View(tmp);
         }
         {
             using Accumulator = typename std::tuple_element_t<86, ContainerOverSubrelations>;
-            auto tmp =
-                (new_term.alu_partial_prod_hi -
-                 (new_term.alu_op_div_std * (((new_term.alu_u16_r3_shift + (new_term.alu_u16_r4_shift * FF(65536))) +
-                                              (new_term.alu_u16_r5_shift * FF(4294967296UL))) +
-                                             (new_term.alu_u16_r6_shift * FF(281474976710656UL)))));
+            auto tmp = (new_term.alu_partial_prod_hi - (new_term.alu_op_div_std * alu_NEXT_SUM_128_HI));
             tmp *= scaling_factor;
             std::get<86>(evals) += typename Accumulator::View(tmp);
         }

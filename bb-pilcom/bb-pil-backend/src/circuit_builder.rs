@@ -1,18 +1,9 @@
-use crate::{file_writer::BBFiles, utils::snake_case};
+use crate::file_writer::BBFiles;
 use handlebars::Handlebars;
 use serde_json::json;
 
 pub trait CircuitBuilder {
-    fn create_circuit_builder_hpp(
-        &mut self,
-        name: &str,
-        relations: &[String],
-        permutations: &[String],
-        all_cols_without_inverses: &[String],
-        all_cols: &[String],
-        to_be_shifted: &[String],
-    );
-
+    fn create_circuit_builder_hpp(&mut self, name: &str);
     fn create_circuit_builder_cpp(&mut self, name: &str, all_cols_without_inverses: &[String]);
 
     fn create_full_row_hpp(&mut self, name: &str, all_cols: &[String]);
@@ -20,24 +11,11 @@ pub trait CircuitBuilder {
 }
 
 impl CircuitBuilder for BBFiles {
-    fn create_circuit_builder_hpp(
-        &mut self,
-        name: &str,
-        relations: &[String],
-        permutations: &[String],
-        all_cols_without_inverses: &[String],
-        all_cols: &[String],
-        to_be_shifted: &[String],
-    ) {
+    fn create_circuit_builder_hpp(&mut self, name: &str) {
         let mut handlebars = Handlebars::new();
 
         let data = &json!({
             "name": name,
-            "relations": relations,
-            "permutations": permutations,
-            "all_cols_without_inverses": all_cols_without_inverses,
-            "all_cols": all_cols,
-            "to_be_shifted": to_be_shifted,
         });
 
         handlebars

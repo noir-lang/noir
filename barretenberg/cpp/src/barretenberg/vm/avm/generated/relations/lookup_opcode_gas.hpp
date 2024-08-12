@@ -35,7 +35,7 @@ class lookup_opcode_gas_lookup_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_opcode_gas,
+        return std::forward_as_tuple(in.lookup_opcode_gas_inv,
                                      in.lookup_opcode_gas_counts,
                                      in.main_sel_gas_accounting_active,
                                      in.gas_sel_gas_cost,
@@ -49,7 +49,7 @@ class lookup_opcode_gas_lookup_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_opcode_gas,
+        return std::forward_as_tuple(in.lookup_opcode_gas_inv,
                                      in.lookup_opcode_gas_counts,
                                      in.main_sel_gas_accounting_active,
                                      in.gas_sel_gas_cost,

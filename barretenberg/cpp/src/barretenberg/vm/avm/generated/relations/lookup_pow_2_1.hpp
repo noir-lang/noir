@@ -35,7 +35,7 @@ class lookup_pow_2_1_lookup_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_pow_2_1,
+        return std::forward_as_tuple(in.lookup_pow_2_1_inv,
                                      in.lookup_pow_2_1_counts,
                                      in.alu_sel_shift_which,
                                      in.main_sel_rng_8,
@@ -47,7 +47,7 @@ class lookup_pow_2_1_lookup_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_pow_2_1,
+        return std::forward_as_tuple(in.lookup_pow_2_1_inv,
                                      in.lookup_pow_2_1_counts,
                                      in.alu_sel_shift_which,
                                      in.main_sel_rng_8,

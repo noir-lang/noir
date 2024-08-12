@@ -20,7 +20,7 @@ class perm_main_mem_ind_addr_c_permutation_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_main_mem_ind_addr_c,
+        return std::forward_as_tuple(in.perm_main_mem_ind_addr_c_inv,
                                      in.main_sel_resolve_ind_addr_c,
                                      in.main_sel_resolve_ind_addr_c,
                                      in.mem_sel_resolve_ind_addr_c,
@@ -36,7 +36,7 @@ class perm_main_mem_ind_addr_c_permutation_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.perm_main_mem_ind_addr_c,
+        return std::forward_as_tuple(in.perm_main_mem_ind_addr_c_inv,
                                      in.main_sel_resolve_ind_addr_c,
                                      in.main_sel_resolve_ind_addr_c,
                                      in.mem_sel_resolve_ind_addr_c,

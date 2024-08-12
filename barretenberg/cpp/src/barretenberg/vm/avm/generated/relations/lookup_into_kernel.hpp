@@ -35,7 +35,7 @@ class lookup_into_kernel_lookup_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_into_kernel,
+        return std::forward_as_tuple(in.lookup_into_kernel_inv,
                                      in.lookup_into_kernel_counts,
                                      in.main_sel_q_kernel_lookup,
                                      in.kernel_q_public_input_kernel_add_to_table,
@@ -47,7 +47,7 @@ class lookup_into_kernel_lookup_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.lookup_into_kernel,
+        return std::forward_as_tuple(in.lookup_into_kernel_inv,
                                      in.lookup_into_kernel_counts,
                                      in.main_sel_q_kernel_lookup,
                                      in.kernel_q_public_input_kernel_add_to_table,

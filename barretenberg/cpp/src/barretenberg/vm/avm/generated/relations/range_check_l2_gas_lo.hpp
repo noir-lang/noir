@@ -35,7 +35,7 @@ class range_check_l2_gas_lo_lookup_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.range_check_l2_gas_lo,
+        return std::forward_as_tuple(in.range_check_l2_gas_lo_inv,
                                      in.range_check_l2_gas_lo_counts,
                                      in.main_sel_gas_accounting_active,
                                      in.main_sel_rng_16,
@@ -45,7 +45,7 @@ class range_check_l2_gas_lo_lookup_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.range_check_l2_gas_lo,
+        return std::forward_as_tuple(in.range_check_l2_gas_lo_inv,
                                      in.range_check_l2_gas_lo_counts,
                                      in.main_sel_gas_accounting_active,
                                      in.main_sel_rng_16,

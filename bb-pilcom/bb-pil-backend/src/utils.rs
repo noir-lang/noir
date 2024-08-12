@@ -1,31 +1,12 @@
+use num_bigint::BigInt;
+use powdr_number::FieldElement;
+
 /// Sanitize Names
 ///
 /// Column titles that we get from pil contain . to distinguish which pil namespace they belong to
 /// We need to replace these with _ to make them valid C++ identifiers
 pub fn sanitize_name(string: &str) -> String {
     string.replace(['.', '[', ']'], "_")
-}
-
-/// Collect Col
-///
-/// Transforms columns from powdr representation ( where the witnesses are linked )
-/// Into a version where we just keep the columns
-/// As this is all we are about
-pub fn collect_col<Func>(list: &[String], op: Func) -> Vec<String>
-where
-    Func: Fn(&String) -> String,
-{
-    list.iter().map(op).collect::<Vec<String>>()
-}
-
-/// Transform Map
-///
-/// Apply a transformation to a list of strings
-pub fn transform_map<Func>(list: &[String], op: Func) -> Vec<String>
-where
-    Func: Fn(&String) -> String,
-{
-    list.iter().map(op).collect::<Vec<String>>()
 }
 
 /// Flatten
@@ -69,4 +50,33 @@ pub fn sort_cols(cols: &[String]) -> Vec<String> {
     let mut cols = cols.to_vec();
     cols.sort();
     cols
+}
+
+pub fn format_field<F: FieldElement>(n: &F) -> String {
+    let number: BigInt = BigInt::from_bytes_le(num_bigint::Sign::Plus, &n.to_bytes_le());
+    if number.bits() < 32 {
+        format!("FF({})", number)
+    } else if number.bits() < 64 {
+        format!("FF({}UL)", number)
+    } else {
+        // It's ok to use a string here since the constructor is constexpr.
+        // I.e., things will get resolved efficiently at compile-time.
+        // format!("FF(\"{:0>64}\")", number.to_str_radix(16))
+        let bytes = n.to_arbitrary_integer().to_be_bytes();
+        let padding_len = 32 - bytes.len();
+
+        let mut padded_bytes = vec![0; padding_len];
+        padded_bytes.extend_from_slice(&bytes);
+
+        let mut chunks: Vec<u64> = padded_bytes
+            .chunks(8)
+            .map(|chunk| u64::from_be_bytes(chunk.try_into().unwrap()))
+            .collect();
+
+        chunks.resize(4, 0);
+        format!(
+            "FF(uint256_t{{{}UL, {}UL, {}UL, {}UL}})",
+            chunks[3], chunks[2], chunks[1], chunks[0]
+        )
+    }
 }

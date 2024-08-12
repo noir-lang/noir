@@ -35,14 +35,22 @@ class incl_mem_tag_err_lookup_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(
-            in.incl_mem_tag_err, in.incl_mem_tag_err_counts, in.main_tag_err, in.mem_tag_err, in.main_clk, in.mem_clk);
+        return std::forward_as_tuple(in.incl_mem_tag_err_inv,
+                                     in.incl_mem_tag_err_counts,
+                                     in.main_tag_err,
+                                     in.mem_tag_err,
+                                     in.main_clk,
+                                     in.mem_clk);
     }
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(
-            in.incl_mem_tag_err, in.incl_mem_tag_err_counts, in.main_tag_err, in.mem_tag_err, in.main_clk, in.mem_clk);
+        return std::forward_as_tuple(in.incl_mem_tag_err_inv,
+                                     in.incl_mem_tag_err_counts,
+                                     in.main_tag_err,
+                                     in.mem_tag_err,
+                                     in.main_clk,
+                                     in.mem_clk);
     }
 };
 

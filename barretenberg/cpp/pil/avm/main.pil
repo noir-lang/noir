@@ -480,14 +480,17 @@ namespace main(256);
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
     pol INTERNAL_CALL_STACK_SELECTORS = (sel_first + sel_op_internal_call + sel_op_internal_return + sel_op_halt);
+    pol SEL_ALU_R_TAG = sel_op_add + sel_op_sub + sel_op_mul + sel_op_div + sel_op_not + sel_op_eq
+                      + sel_op_lt + sel_op_lte + sel_op_shr + sel_op_shl;
+    pol SEL_ALU_W_TAG = sel_op_cast;
+    pol SEL_ALL_ALU = SEL_ALU_R_TAG + SEL_ALU_W_TAG;
     pol SEL_ALL_CTRL_FLOW = sel_op_jump + sel_op_jumpi + sel_op_internal_call + sel_op_internal_return;
-
     pol SEL_ALL_LEFTGAS = sel_op_dagasleft + sel_op_l2gasleft;
     pol SEL_ALL_BINARY = sel_op_and + sel_op_or + sel_op_xor;
     pol SEL_ALL_GADGET = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen;
     pol SEL_ALL_MEMORY = sel_op_cmov + sel_op_mov;
     pol SEL_ALL_MEM_SLICE = sel_op_calldata_copy + sel_op_external_return;
-    pol OPCODE_SELECTORS = sel_op_fdiv + SEL_ALU_ALL + SEL_ALL_BINARY + SEL_ALL_MEMORY + SEL_ALL_GADGET
+    pol OPCODE_SELECTORS = sel_op_fdiv + SEL_ALL_ALU + SEL_ALL_BINARY + SEL_ALL_MEMORY + SEL_ALL_GADGET
                          + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS + SEL_ALL_LEFTGAS + SEL_ALL_MEM_SLICE;
 
     // TODO: sel_gas_accounting_active is activating gas accounting on a given row. All opcode with selectors
@@ -559,15 +562,9 @@ namespace main(256);
     #[MOV_MAIN_SAME_TAG]
     (sel_op_mov + sel_op_cmov) * (r_in_tag - w_in_tag) = 0;
 
-    //===== ALU CONSTRAINTS =====================================================
-    pol SEL_ALU_R_TAG = sel_op_add + sel_op_sub + sel_op_mul + sel_op_div + sel_op_not + sel_op_eq
-                      + sel_op_lt + sel_op_lte + sel_op_shr + sel_op_shl;
-    pol SEL_ALU_W_TAG = sel_op_cast;
-    pol SEL_ALU_ALL = SEL_ALU_R_TAG + SEL_ALU_W_TAG;
-
     // Predicate to activate the copy of intermediate registers to ALU table. If tag_err == 1,
     // the operation is not copied to the ALU table.
-    sel_alu = SEL_ALU_ALL * (1 - tag_err) * (1 - op_err);
+    sel_alu = SEL_ALL_ALU * (1 - tag_err) * (1 - op_err);
 
     // Dispatch the correct in_tag for alu
     SEL_ALU_R_TAG * (alu_in_tag - r_in_tag) = 0;

@@ -32,7 +32,7 @@ template <typename... input_t> using tuple_cat_t = decltype(std::tuple_cat(std::
 // clang-format off
 #define PRECOMPUTED_ENTITIES {{#each fixed as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
 #define WIRE_ENTITIES {{#each witness_without_inverses as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
-#define DERIVED_WITNESS_ENTITIES {{#each lookups as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
+#define DERIVED_WITNESS_ENTITIES {{#each inverses as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
 #define SHIFTED_ENTITIES {{#each shifted as |item|}}{{#if @index}}, {{/if}}{{item}}{{/each}}
 #define TO_BE_SHIFTED(e) {{#each to_be_shifted as |item|}}{{#if @index}}, {{/if}}e.{{item}}{{/each}}
 #define ALL_ENTITIES {{#if (len fixed)}}PRECOMPUTED_ENTITIES{{/if}}{{#if (len witness_without_inverses)}}, WIRE_ENTITIES{{/if}}{{#if (len lookups)}}, DERIVED_WITNESS_ENTITIES{{/if}}{{#if (len shifted)}}, SHIFTED_ENTITIES{{/if}}
@@ -58,6 +58,7 @@ class {{name}}Flavor {
 
     static constexpr size_t NUM_PRECOMPUTED_ENTITIES = {{len fixed}}; 
     static constexpr size_t NUM_WITNESS_ENTITIES = {{len witness}};
+    static constexpr size_t NUM_SHIFTED_ENTITIES = {{len shifted}};
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
     // We have two copies of the witness entities, so we subtract the number of fixed ones (they have no shift), one for the unshifted and one for the shifted
     static constexpr size_t NUM_ALL_ENTITIES = {{len all_cols_and_shifts}};
@@ -121,7 +122,7 @@ class {{name}}Flavor {
 
       template <typename DataType, typename PrecomputedAndWitnessEntitiesSuperset>
       static auto get_to_be_shifted([[maybe_unused]] PrecomputedAndWitnessEntitiesSuperset& entities) {
-          return RefArray<DataType, std::tuple_size<decltype(std::make_tuple(TO_BE_SHIFTED(entities)))>::value>{ TO_BE_SHIFTED(entities) };
+          return RefArray<DataType, NUM_SHIFTED_ENTITIES>{ TO_BE_SHIFTED(entities) };
       }
 
       template <typename DataType>

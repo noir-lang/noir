@@ -1,31 +1,20 @@
-use crate::{file_writer::BBFiles, utils::snake_case};
+use crate::file_writer::BBFiles;
 use handlebars::Handlebars;
 use serde_json::json;
 
 pub trait VerifierBuilder {
-    fn create_verifier_cpp(
-        &mut self,
-        name: &str,
-        inverses: &[String],
-        public_cols: &[(String, usize)],
-    );
+    fn create_verifier_cpp(&mut self, name: &str, public_cols: &[(usize, String)]);
 
-    fn create_verifier_hpp(&mut self, name: &str, public_cols: &[(String, usize)]);
+    fn create_verifier_hpp(&mut self, name: &str);
 }
 
 impl VerifierBuilder for BBFiles {
-    fn create_verifier_cpp(
-        &mut self,
-        name: &str,
-        inverses: &[String],
-        public_cols: &[(String, usize)],
-    ) {
+    fn create_verifier_cpp(&mut self, name: &str, public_cols: &[(usize, String)]) {
         let mut handlebars = Handlebars::new();
 
         let data = &json!({
             "name": name,
-            "inverses": inverses,
-            "public_cols": public_cols.iter().map(|(name, idx)| {
+            "public_cols": public_cols.iter().map(|(idx, name)| {
                 json!({
                     "col": name,
                     "idx": idx,
@@ -45,12 +34,11 @@ impl VerifierBuilder for BBFiles {
         self.write_file(None, "verifier.cpp", &verifier_cpp);
     }
 
-    fn create_verifier_hpp(&mut self, name: &str, public_cols: &[(String, usize)]) {
+    fn create_verifier_hpp(&mut self, name: &str) {
         let mut handlebars = Handlebars::new();
 
         let data = &json!({
             "name": name,
-            "public_cols": public_cols,
         });
 
         handlebars

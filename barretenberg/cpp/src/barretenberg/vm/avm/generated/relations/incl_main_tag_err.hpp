@@ -35,7 +35,7 @@ class incl_main_tag_err_lookup_settings {
 
     template <typename AllEntities> static inline auto get_const_entities(const AllEntities& in)
     {
-        return std::forward_as_tuple(in.incl_main_tag_err,
+        return std::forward_as_tuple(in.incl_main_tag_err_inv,
                                      in.incl_main_tag_err_counts,
                                      in.mem_tag_err,
                                      in.main_tag_err,
@@ -45,7 +45,7 @@ class incl_main_tag_err_lookup_settings {
 
     template <typename AllEntities> static inline auto get_nonconst_entities(AllEntities& in)
     {
-        return std::forward_as_tuple(in.incl_main_tag_err,
+        return std::forward_as_tuple(in.incl_main_tag_err_inv,
                                      in.incl_main_tag_err_counts,
                                      in.mem_tag_err,
                                      in.main_tag_err,

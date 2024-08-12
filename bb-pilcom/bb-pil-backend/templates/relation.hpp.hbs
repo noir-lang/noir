@@ -37,6 +37,10 @@ template <typename FF_> class {{name}}Impl {
             [[maybe_unused]] const RelationParameters<FF>&,
             [[maybe_unused]] const FF& scaling_factor
         ){
+            {{#each alias_defs as |alias|}}
+            const auto {{alias.name}} = {{alias.expr}};
+            {{/each}}
+
             {{#each identities}}
             {
                 using Accumulator = typename std::tuple_element_t<{{@index}}, ContainerOverSubrelations>;

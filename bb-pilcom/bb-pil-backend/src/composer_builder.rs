@@ -1,4 +1,4 @@
-use crate::{file_writer::BBFiles, utils::snake_case};
+use crate::file_writer::BBFiles;
 use handlebars::Handlebars;
 use serde_json::json;
 
