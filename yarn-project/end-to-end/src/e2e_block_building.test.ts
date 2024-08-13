@@ -5,6 +5,7 @@ import {
   ContractDeployer,
   ContractFunctionInteraction,
   type DebugLogger,
+  Fq,
   Fr,
   L1NotePayload,
   type PXE,
@@ -306,6 +307,26 @@ describe('e2e_block_building', () => {
       // will likely not be useful when complete.
       // const decryptedLogs = encryptedLogs.map(l => TaggedNote.decryptAsIncoming(l.data, keys.masterIncomingViewingSecretKey));
     }, 60_000);
+  });
+
+  describe('regressions', () => {
+    afterEach(async () => {
+      if (teardown) {
+        await teardown();
+      }
+    });
+
+    // Regression for https://github.com/AztecProtocol/aztec-packages/issues/7537
+    it('sends a tx on the first block', async () => {
+      ({ teardown, pxe, logger, aztecNode } = await setup(0, {
+        minTxsPerBlock: 0,
+        sequencerSkipSubmitProofs: true,
+        skipProtocolContracts: true,
+      }));
+
+      const account = getSchnorrAccount(pxe, Fr.random(), Fq.random(), Fr.random());
+      await account.waitSetup();
+    });
   });
 });
 

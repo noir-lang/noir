@@ -805,7 +805,7 @@ export class AztecNodeService implements AztecNode {
    * @returns An instance of a committed MerkleTreeOperations
    */
   async #getWorldState(blockNumber: L2BlockNumber) {
-    if (typeof blockNumber === 'number' && blockNumber < INITIAL_L2_BLOCK_NUM) {
+    if (typeof blockNumber === 'number' && blockNumber < INITIAL_L2_BLOCK_NUM - 1) {
       throw new Error('Invalid block number to get world state for: ' + blockNumber);
     }
 

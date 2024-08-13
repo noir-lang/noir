@@ -281,6 +281,8 @@ type SetupOptions = {
   stateLoad?: string;
   /** Previously deployed contracts on L1 */
   deployL1ContractsValues?: DeployL1Contracts;
+  /** Whether to skip deployment of protocol contracts (auth registry, etc) */
+  skipProtocolContracts?: boolean;
 } & Partial<AztecNodeConfig>;
 
 /** Context for an end-to-end test as returned by the `setup` function */
@@ -387,24 +389,26 @@ export async function setup(
 
   const { pxe } = await setupPXEService(aztecNode!, pxeOpts, logger);
 
-  logger.verbose('Deploying key registry...');
-  await deployCanonicalKeyRegistry(
-    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
-  );
-
-  logger.verbose('Deploying auth registry...');
-  await deployCanonicalAuthRegistry(
-    new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
-  );
-
-  if (enableGas) {
-    logger.verbose('Deploying Fee Juice...');
-    await deployCanonicalFeeJuice(
+  if (!config.skipProtocolContracts) {
+    logger.verbose('Deploying key registry...');
+    await deployCanonicalKeyRegistry(
       new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
     );
+
+    logger.verbose('Deploying auth registry...');
+    await deployCanonicalAuthRegistry(
+      new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
+    );
+
+    if (enableGas) {
+      logger.verbose('Deploying Fee Juice...');
+      await deployCanonicalFeeJuice(
+        new SignerlessWallet(pxe, new DefaultMultiCallEntrypoint(config.l1ChainId, config.version)),
+      );
+    }
   }
 
-  const wallets = await createAccounts(pxe, numberOfAccounts);
+  const wallets = numberOfAccounts > 0 ? await createAccounts(pxe, numberOfAccounts) : [];
   const cheatCodes = CheatCodes.create(config.l1RpcUrl, pxe!);
 
   const teardown = async () => {
