@@ -513,6 +513,9 @@ impl<'a> NodeFinder<'a> {
 
                 self.local_variables = old_local_variables;
             }
+            noirc_frontend::ast::ExpressionKind::Unsafe(block_expression, _) => {
+                self.find_in_block_expression(block_expression);
+            }
             noirc_frontend::ast::ExpressionKind::AsTraitPath(as_trait_path) => {
                 self.find_in_as_trait_path(as_trait_path);
             }
@@ -663,7 +666,7 @@ impl<'a> NodeFinder<'a> {
             noirc_frontend::ast::UnresolvedTypeData::Tuple(unresolved_types) => {
                 self.find_in_unresolved_types(unresolved_types);
             }
-            noirc_frontend::ast::UnresolvedTypeData::Function(args, ret, env) => {
+            noirc_frontend::ast::UnresolvedTypeData::Function(args, ret, env, _) => {
                 self.find_in_unresolved_types(args);
                 self.find_in_unresolved_type(ret);
                 self.find_in_unresolved_type(env);
