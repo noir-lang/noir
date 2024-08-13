@@ -1191,29 +1191,35 @@ impl<'a> NodeFinder<'a> {
         function_kind: FunctionKind,
     ) -> Option<CompletionItem> {
         let func_meta = self.interner.function_meta(&func_id);
-        let name = self.interner.function_name(&func_id).to_string();
+        let name = &self.interner.function_name(&func_id).to_string();
+
+        let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.get(0) {
+            if self.hir_pattern_is_self_type(pattern) {
+                if let Type::MutableReference(mut_typ) = typ {
+                    let typ: &Type = mut_typ;
+                    Some(typ)
+                } else {
+                    Some(typ)
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         match function_kind {
             FunctionKind::Any => (),
             FunctionKind::SelfType(mut self_type) => {
-                if let Some((pattern, typ, _)) = func_meta.parameters.0.get(0) {
-                    if !self.hir_pattern_is_self_type(pattern) {
-                        return None;
-                    }
-
+                if let Some(func_self_type) = func_self_type {
                     // Check that the pattern type is the same as self type.
                     // We do this because some types (notable Field and integer types)
                     // have their methods in the same HashMap.
-                    let mut typ = &typ.follow_bindings();
-                    if let Type::MutableReference(mut_typ) = typ {
-                        typ = mut_typ;
-                    }
-
                     if let Type::MutableReference(mut_typ) = self_type {
                         self_type = mut_typ;
                     }
 
-                    if self_type != typ {
+                    if self_type != func_self_type {
                         return None;
                     }
                 } else {
@@ -1252,7 +1258,11 @@ impl<'a> NodeFinder<'a> {
         };
 
         if is_operator {
-            completion_item.sort_text = Some("zzzzzzzzzz".to_string());
+            completion_item.sort_text = Some(operator_sort_text())
+        } else if function_kind == FunctionKind::Any && name == "new" {
+            completion_item.sort_text = Some(new_sort_text())
+        } else if function_kind == FunctionKind::Any && func_self_type.is_some() {
+            completion_item.sort_text = Some(self_mismatch_sort_text())
         }
 
         Some(completion_item)
@@ -1310,7 +1320,8 @@ impl<'a> NodeFinder<'a> {
     fn hir_pattern_is_self_type(&self, pattern: &HirPattern) -> bool {
         match pattern {
             HirPattern::Identifier(hir_ident) => {
-                self.interner.definition_name(hir_ident.id) == "self"
+                let name = self.interner.definition_name(hir_ident.id);
+                name == "self" || name == "_self"
             }
             HirPattern::Mutable(pattern, _) => self.hir_pattern_is_self_type(pattern),
             HirPattern::Tuple(_, _) | HirPattern::Struct(_, _, _) => false,
@@ -1451,7 +1462,7 @@ fn simple_completion_item(
         documentation: None,
         deprecated: None,
         preselect: None,
-        sort_text: None,
+        sort_text: Some(default_sort_text()),
         filter_text: None,
         insert_text: None,
         insert_text_format: None,
@@ -1481,7 +1492,7 @@ fn snippet_completion_item(
         documentation: None,
         deprecated: None,
         preselect: None,
-        sort_text: None,
+        sort_text: Some(default_sort_text()),
         filter_text: None,
         insert_text_mode: None,
         text_edit: None,
@@ -1491,6 +1502,35 @@ fn snippet_completion_item(
         data: None,
         tags: None,
     }
+}
+
+fn completion_item_with_sort_text(
+    completion_item: CompletionItem,
+    sort_text: String,
+) -> CompletionItem {
+    CompletionItem { sort_text: Some(sort_text), ..completion_item }
+}
+
+/// Sort text for "new" methods: we want these to show up before anything else,
+/// if we are completing at something like `Foo::`
+fn new_sort_text() -> String {
+    "3".to_string()
+}
+
+/// This is the default sort text.
+fn default_sort_text() -> String {
+    "5".to_string()
+}
+
+/// When completing something like `Foo::`, we want to show methods that take
+/// self after the other ones.
+fn self_mismatch_sort_text() -> String {
+    "7".to_string()
+}
+
+/// We want to show operator methods last.
+fn operator_sort_text() -> String {
+    "9".to_string()
 }
 
 #[cfg(test)]
@@ -2621,17 +2661,23 @@ mod completion_tests {
         assert_completion(
             src,
             vec![
-                snippet_completion_item(
-                    "foobar(…)",
-                    CompletionItemKind::FUNCTION,
-                    "foobar(${1:self}, ${2:x})",
-                    Some("fn(Some, i32)".to_string()),
+                completion_item_with_sort_text(
+                    snippet_completion_item(
+                        "foobar(…)",
+                        CompletionItemKind::FUNCTION,
+                        "foobar(${1:self}, ${2:x})",
+                        Some("fn(Some, i32)".to_string()),
+                    ),
+                    self_mismatch_sort_text(),
                 ),
-                snippet_completion_item(
-                    "foobar2(…)",
-                    CompletionItemKind::FUNCTION,
-                    "foobar2(${1:self}, ${2:x})",
-                    Some("fn(&mut Some, i32)".to_string()),
+                completion_item_with_sort_text(
+                    snippet_completion_item(
+                        "foobar2(…)",
+                        CompletionItemKind::FUNCTION,
+                        "foobar2(${1:self}, ${2:x})",
+                        Some("fn(&mut Some, i32)".to_string()),
+                    ),
+                    self_mismatch_sort_text(),
                 ),
                 snippet_completion_item(
                     "foobar3(…)",
@@ -2693,17 +2739,23 @@ mod completion_tests {
         assert_completion(
             src,
             vec![
-                snippet_completion_item(
-                    "foobar(…)",
-                    CompletionItemKind::FUNCTION,
-                    "foobar(${1:self}, ${2:x})",
-                    Some("fn(Some, i32)".to_string()),
+                completion_item_with_sort_text(
+                    snippet_completion_item(
+                        "foobar(…)",
+                        CompletionItemKind::FUNCTION,
+                        "foobar(${1:self}, ${2:x})",
+                        Some("fn(Some, i32)".to_string()),
+                    ),
+                    self_mismatch_sort_text(),
                 ),
-                snippet_completion_item(
-                    "foobar2(…)",
-                    CompletionItemKind::FUNCTION,
-                    "foobar2(${1:self}, ${2:x})",
-                    Some("fn(&mut Some, i32)".to_string()),
+                completion_item_with_sort_text(
+                    snippet_completion_item(
+                        "foobar2(…)",
+                        CompletionItemKind::FUNCTION,
+                        "foobar2(${1:self}, ${2:x})",
+                        Some("fn(&mut Some, i32)".to_string()),
+                    ),
+                    self_mismatch_sort_text(),
                 ),
                 snippet_completion_item(
                     "foobar3(…)",
