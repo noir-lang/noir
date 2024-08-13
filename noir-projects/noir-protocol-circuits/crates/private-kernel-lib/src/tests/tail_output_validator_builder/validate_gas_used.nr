@@ -4,7 +4,7 @@ impl TailOutputValidatorBuilder {
     pub fn new_with_data() -> Self {
         let mut builder = TailOutputValidatorBuilder::new();
 
-        builder.previous_kernel.append_note_hashes(3);
+        builder.previous_kernel.append_siloed_note_hashes(3);
         builder.output.append_siloed_note_hashes(3);
 
         builder.previous_kernel.append_note_encrypted_log_hashes(3);

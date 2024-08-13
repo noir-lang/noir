@@ -3,6 +3,7 @@ mod private_call_data_validator;
 mod private_kernel_circuit_output_validator;
 mod private_kernel_circuit_public_inputs_composer;
 mod reset_output_composer;
+mod reset_output_validator;
 mod tail_output_composer;
 mod tail_output_validator;
 mod tail_to_public_output_composer;

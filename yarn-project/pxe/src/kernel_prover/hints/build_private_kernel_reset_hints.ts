@@ -21,6 +21,7 @@ import {
   buildNoteHashReadRequestHints,
   buildNullifierReadRequestHints,
   buildTransientDataHints,
+  countAccumulatedItems,
   getNonEmptyItems,
 } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
@@ -92,6 +93,7 @@ export async function buildPrivateKernelResetInputs(
   noteHashLeafIndexMap: Map<bigint, bigint>,
   noteHashNullifierCounterMap: Map<number, number>,
   validationRequestsSplitCounter: number,
+  shouldSilo: boolean,
   oracle: ProvingDataOracle,
 ) {
   const publicInputs = previousKernelData.publicInputs;
@@ -154,9 +156,11 @@ export async function buildPrivateKernelResetInputs(
     executionResult => executionResult.callStackItem.publicInputs.nullifierReadRequests,
   );
 
+  const noteHashes = publicInputs.end.noteHashes;
+  const nullifiers = publicInputs.end.nullifiers;
   const [transientNullifierIndexesForNoteHashes, transientNoteHashIndexesForNullifiers] = buildTransientDataHints(
-    publicInputs.end.noteHashes,
-    publicInputs.end.nullifiers,
+    noteHashes,
+    nullifiers,
     futureNoteHashReads,
     futureNullifierReads,
     noteHashNullifierCounterMap,
@@ -164,15 +168,36 @@ export async function buildPrivateKernelResetInputs(
     MAX_NULLIFIERS_PER_TX,
   );
 
+  const numNoteHashes = countAccumulatedItems(noteHashes);
+  const remainingNoteHashes = transientNullifierIndexesForNoteHashes
+    .slice(0, numNoteHashes)
+    .reduce((remaining, index) => remaining + (index === nullifiers.length ? 1 : 0), 0);
+
+  const numNullifiers = countAccumulatedItems(nullifiers);
+  const remainingNullifiers = transientNoteHashIndexesForNullifiers
+    .slice(0, numNullifiers)
+    .reduce((remaining, index) => remaining + (index === noteHashes.length ? 1 : 0), 0);
+
+  const numEncryptedLogHashes = countAccumulatedItems(publicInputs.end.encryptedLogsHashes);
+
   let privateInputs;
 
   for (const [sizeTag, hintSizes] of Object.entries(PRIVATE_RESET_VARIANTS)) {
+    const noSiloing =
+      !hintSizes.NOTE_HASH_SILOING_AMOUNT &&
+      !hintSizes.NULLIFIER_SILOING_AMOUNT &&
+      !hintSizes.ENCRYPTED_LOG_SILOING_AMOUNT;
+    const enoughSiloing =
+      hintSizes.NOTE_HASH_SILOING_AMOUNT >= remainingNoteHashes &&
+      hintSizes.NULLIFIER_SILOING_AMOUNT >= remainingNullifiers &&
+      hintSizes.ENCRYPTED_LOG_SILOING_AMOUNT >= numEncryptedLogHashes;
     if (
       hintSizes.NOTE_HASH_PENDING_AMOUNT >= noteHashPendingReadHints &&
       hintSizes.NOTE_HASH_SETTLED_AMOUNT >= noteHashSettledReadHints &&
       hintSizes.NULLIFIER_PENDING_AMOUNT >= nullifierPendingReadHints &&
       hintSizes.NULLIFIER_SETTLED_AMOUNT >= nullifierSettledReadHints &&
-      hintSizes.NULLIFIER_KEYS >= keysCount
+      hintSizes.NULLIFIER_KEYS >= keysCount &&
+      ((!shouldSilo && noSiloing) || (shouldSilo && enoughSiloing))
     ) {
       privateInputs = new PrivateKernelResetCircuitPrivateInputs(
         previousKernelData,

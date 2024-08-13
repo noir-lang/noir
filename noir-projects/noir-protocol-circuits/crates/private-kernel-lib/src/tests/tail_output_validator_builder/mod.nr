@@ -1,11 +1,9 @@
-mod validate_accumulated_values;
 mod validate_empty_values;
 mod validate_gas_used;
-mod validate_propagated_sorted_siloed_values;
+mod validate_propagated_sorted_values;
 mod validate_propagated_values;
 
 use crate::components::{
-    previous_kernel_validator::previous_kernel_validator_hints::{generate_previous_kernel_validator_hints, PreviousKernelValidatorHints},
     tail_output_composer::meter_gas_used::meter_gas_used,
     tail_output_validator::{tail_output_hints::{generate_tail_output_hints, TailOutputHints}, TailOutputValidator}
 };
@@ -38,11 +36,6 @@ impl TailOutputValidatorBuilder {
         generate_tail_output_hints(previous_kernel)
     }
 
-    pub fn get_previous_kernel_hints(self) -> PreviousKernelValidatorHints {
-        let previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
-        generate_previous_kernel_validator_hints(previous_kernel)
-    }
-
     pub fn export_output(self) -> KernelCircuitPublicInputs {
         let mut output = self.output.to_kernel_circuit_public_inputs();
         output.end.gas_used = meter_gas_used(output.end, output.constants.tx_context.gas_settings);
@@ -56,20 +49,12 @@ impl TailOutputValidatorBuilder {
 
     pub fn validate_with_output(self, output: KernelCircuitPublicInputs) {
         let previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
-        let previous_kernel_hints = generate_previous_kernel_validator_hints(previous_kernel);
-        TailOutputValidator::new(output, previous_kernel, previous_kernel_hints).validate();
+        TailOutputValidator::new(output, previous_kernel).validate();
     }
 
     pub fn validate_with_hints(self, hints: TailOutputHints) {
         let output = self.export_output();
         let previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
-        let previous_kernel_hints = generate_previous_kernel_validator_hints(previous_kernel);
-        TailOutputValidator { output, previous_kernel, previous_kernel_hints, hints }.validate();
-    }
-
-    pub fn validate_with_previous_kernel_hints(self, previous_kernel_hints: PreviousKernelValidatorHints) {
-        let output = self.export_output();
-        let previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
-        TailOutputValidator::new(output, previous_kernel, previous_kernel_hints).validate();
+        TailOutputValidator { output, previous_kernel, hints }.validate();
     }
 }

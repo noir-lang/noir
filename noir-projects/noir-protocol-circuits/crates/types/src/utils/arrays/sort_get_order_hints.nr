@@ -36,6 +36,8 @@ pub fn sort_get_order_hints<T, let N: u32>(
         if !is_empty(elem) {
             let original_index = sorted_tuples[i].original_index;
             hints[original_index].sorted_index = i;
+        } else {
+            hints[i].sorted_index = i;
         }
     }
 
@@ -109,8 +111,8 @@ mod tests {
             OrderHint { counter: 3, sorted_index: 2 },
             OrderHint { counter: 6, sorted_index: 0 },
             OrderHint { counter: 9, sorted_index: 1 },
-            OrderHint { counter: 0, sorted_index: 0 },
-            OrderHint { counter: 0, sorted_index: 0 }
+            OrderHint { counter: 0, sorted_index: 3 },
+            OrderHint { counter: 0, sorted_index: 4 }
         ];
         assert_eq(hints, expected_hints);
     }
@@ -145,8 +147,8 @@ mod tests {
             OrderHint { counter: 9, sorted_index: 0 },
             OrderHint { counter: 6, sorted_index: 2 },
             OrderHint { counter: 3, sorted_index: 1 },
-            OrderHint { counter: 0, sorted_index: 0 },
-            OrderHint { counter: 0, sorted_index: 0 }
+            OrderHint { counter: 0, sorted_index: 3 },
+            OrderHint { counter: 0, sorted_index: 4 }
         ];
         assert_eq(hints, expected_hints);
     }

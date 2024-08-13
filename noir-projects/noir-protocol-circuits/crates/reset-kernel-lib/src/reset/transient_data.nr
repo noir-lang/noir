@@ -1,5 +1,3 @@
-mod transient_data_reset_hints;
-
 use dep::types::{
     abis::{note_hash::ScopedNoteHash, nullifier::ScopedNullifier, log_hash::NoteLogHash},
     traits::is_empty

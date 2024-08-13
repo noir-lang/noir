@@ -1,6 +1,6 @@
-use dep::types::{abis::{note_hash::ScopedNoteHash, log_hash::NoteLogHash}};
+use dep::types::{abis::{log_hash::NoteLogHash, note_hash::ScopedNoteHash}};
 
-unconstrained pub fn get_transient_or_propagated_note_hash_indexes_for_logs<NUM_LOGS, NUM_NOTE_HASHES>(
+pub fn get_transient_or_propagated_note_hash_indexes_for_logs<let NUM_LOGS: u32, let NUM_NOTE_HASHES: u32>(
     note_logs: [NoteLogHash; NUM_LOGS],
     note_hashes: [ScopedNoteHash; NUM_NOTE_HASHES],
     expected_note_hashes: [ScopedNoteHash; NUM_NOTE_HASHES]

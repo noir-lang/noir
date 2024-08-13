@@ -485,9 +485,9 @@ impl FixtureBuilder {
         // First nullifier is tx hash.
         let tx_hash = self.nullifiers.get(0).value();
         let index = self.note_hashes.len();
-        let note_hash = NoteHash { value, counter: 0 }.scope(self.storage_contract_address);
-        let siloed_value = silo_note_hash(note_hash, tx_hash, index);
-        self.add_new_note_hash(siloed_value);
+        let note_hash_to_silo = NoteHash { value, counter: 0 }.scope(self.storage_contract_address);
+        let siloed_value = silo_note_hash(note_hash_to_silo, tx_hash, index);
+        self.note_hashes.push(NoteHash { value: siloed_value, counter: self.next_counter() }.scope(AztecAddress::zero()));
     }
 
     pub fn append_note_hashes(&mut self, num_note_hashes: u32) {
@@ -530,9 +530,8 @@ impl FixtureBuilder {
     }
 
     pub fn add_nullifier(&mut self, value: Field) {
-        self.nullifiers.push(
-            Nullifier { value, counter: self.next_counter(), note_hash: 0 }.scope(self.storage_contract_address)
-        );
+        let note_hash = 0;
+        self.add_nullifier_for_note_hash(value, note_hash);
     }
 
     pub fn add_nullifier_for_note_hash(&mut self, value: Field, note_hash: Field) {
@@ -542,8 +541,15 @@ impl FixtureBuilder {
     }
 
     pub fn add_siloed_nullifier(&mut self, value: Field) {
+        let note_hash = 0;
+        self.add_siloed_nullifier_for_note_hash(value, note_hash);
+    }
+
+    pub fn add_siloed_nullifier_for_note_hash(&mut self, value: Field, note_hash: Field) {
         let siloed_value = compute_siloed_nullifier(self.storage_contract_address, value);
-        self.add_nullifier(siloed_value);
+        self.nullifiers.push(
+            Nullifier { value: siloed_value, counter: self.next_counter(), note_hash }.scope(AztecAddress::zero())
+        );
     }
 
     pub fn append_nullifiers(&mut self, num_extra_nullifier: u32) {
@@ -728,6 +734,7 @@ impl FixtureBuilder {
     pub fn add_masked_encrypted_log_hash(&mut self, hash: Field, length: Field) {
         let mut log_hash = EncryptedLogHash { value: hash, counter: self.next_counter(), length, randomness: 2 }.scope(self.storage_contract_address);
         log_hash.contract_address = mask_encrypted_log_hash(log_hash);
+        log_hash.log_hash.randomness = 0;
         self.encrypted_logs_hashes.push(log_hash);
         self.encrypted_log_preimages_length += length;
     }

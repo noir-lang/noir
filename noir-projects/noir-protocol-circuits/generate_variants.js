@@ -36,7 +36,10 @@ function generateVariants(originalFolder, variantsArray) {
         depDescriptor.path = "../" + depDescriptor.path;
       }
     }
-    variantNargoToml.package.name = `${originalName}_${tag}`;
+    variantNargoToml.package.name = `${originalName}_${tag.replaceAll(
+      "-",
+      "_"
+    )}`;
 
     let mainDotNoirCode = fs.readFileSync(
       path.join(originalCrateFolder, "src/main.nr"),

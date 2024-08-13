@@ -2,7 +2,7 @@ import { createConsoleLogger } from '@aztec/foundation/log';
 
 import { codegen } from '@noir-lang/noir_codegen';
 import { type CompiledCircuit } from '@noir-lang/types';
-import { pascalCase } from 'change-case';
+import { pascalCase, snakeCase } from 'change-case';
 import fs from 'fs/promises';
 
 const log = createConsoleLogger('aztec:noir-contracts');
@@ -34,7 +34,7 @@ const main = async () => {
   );
 
   for (const variant of resetVariants) {
-    circuits.push(`${resetCircuit}_${variant.tag}`);
+    circuits.push(`${resetCircuit}_${snakeCase(variant.tag)}`);
   }
 
   try {

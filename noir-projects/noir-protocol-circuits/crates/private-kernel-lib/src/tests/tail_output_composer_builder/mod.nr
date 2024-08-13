@@ -14,12 +14,6 @@ impl TailOutputComposerBuilder {
         TailOutputComposerBuilder { previous_kernel }
     }
 
-    pub fn with_siloed_data_builder(self) -> (Self, FixtureBuilder) {
-        let mut siloed_data_builder = FixtureBuilder::new();
-        siloed_data_builder.set_first_nullifier();
-        (self, siloed_data_builder)
-    }
-
     pub fn finish(self) -> KernelCircuitPublicInputs {
         let previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
         let composer = TailOutputComposer::new(previous_kernel);

@@ -1,6 +1,6 @@
 use dep::types::abis::{note_hash::ScopedNoteHash, nullifier::ScopedNullifier, log_hash::NoteLogHash};
 
-unconstrained pub fn squash_transient_data<M, N, P>(
+unconstrained pub fn squash_transient_data<let M: u32, let N: u32, let P: u32>(
     note_hashes: [ScopedNoteHash; M],
     nullifiers: [ScopedNullifier; N],
     logs: [NoteLogHash; P],

@@ -1,27 +1,52 @@
-use crate::{abis::side_effect::Ordered, traits::{Empty, is_empty}, utils::arrays::sort_get_order_hints::OrderHint};
+use crate::{abis::side_effect::Ordered, traits::{Empty, is_empty}, utils::arrays::array_length};
+
+pub fn assert_sorted_transformed_value_array<T, S, let N: u32, Env>(
+    original_array: [T; N],
+    sorted_transformed_value_array: [S; N],
+    is_transformed: fn[Env](T, S) -> bool,
+    sorted_indexes: [u32; N]
+) where T: Eq + Empty, S: Ordered + Eq + Empty {
+    assert_sorted_transformed_value_array_capped_size(
+        original_array,
+        sorted_transformed_value_array,
+        is_transformed,
+        sorted_indexes,
+        N
+    );
+}
 
 // original_array must be valid, i.e. validate_array(original_array) == true
-// transformed_value_array must be verified against original_array before calling this function.
-pub fn assert_sorted_transformed_value_array<T, S, let N: u32>(
+// capped_size should be a known constant at compile time.
+pub fn assert_sorted_transformed_value_array_capped_size<T, S, let N: u32, Env>(
     original_array: [T; N],
-    transformed_value_array: [S; N],
     sorted_transformed_value_array: [S; N],
-    hints: [OrderHint; N]
-) where T: Ordered, S: Empty + Eq {
+    is_transformed: fn[Env](T, S) -> bool,
+    sorted_indexes: [u32; N],
+    capped_size: u32
+) where T: Eq + Empty, S: Ordered + Eq + Empty {
+    let num_non_empty_items = array_length(original_array);
+    let mut should_be_empty = false;
     for i in 0..N {
         let original = original_array[i];
-        let value = transformed_value_array[i];
-        if is_empty(value) {
-            assert(is_empty(sorted_transformed_value_array[i]), "unexpected non-empty item");
-        } else {
-            let sorted_index = hints[i].sorted_index;
-            assert_eq(value, sorted_transformed_value_array[sorted_index], "mismatch sorted values");
-            assert_eq(original.counter(), hints[sorted_index].counter, "mismatch counters");
-            if i != 0 {
+        let mapped_item = sorted_transformed_value_array[i];
+        let is_mapped_item_empty = is_empty(mapped_item);
+        if i == capped_size {
+            assert(is_empty(original), "capped_size does not cover all non-empty items");
+        }
+        if i < capped_size {
+            should_be_empty |= i == num_non_empty_items;
+            let sorted_index = sorted_indexes[i];
+            let sorted = sorted_transformed_value_array[sorted_index];
+            assert(is_transformed(original, sorted), "incorrect transformed value");
+            if should_be_empty {
+                assert(is_mapped_item_empty, "unexpected non-empty item");
+            } else if i != 0 {
                 assert(
-                    hints[i].counter > hints[i - 1].counter, "value array must be sorted by counter in ascending order"
+                    mapped_item.counter() > sorted_transformed_value_array[i - 1].counter(), "value array must be sorted by counter in ascending order"
                 );
             }
+        } else {
+            assert(is_mapped_item_empty, "array must be padded with empty items");
         }
     }
 }
@@ -29,10 +54,7 @@ pub fn assert_sorted_transformed_value_array<T, S, let N: u32>(
 mod tests {
     use crate::{
         abis::side_effect::Ordered, traits::Empty,
-        utils::arrays::{
-        assert_sorted_transformed_value_array::assert_sorted_transformed_value_array,
-        sort_get_order_hints::OrderHint
-    }
+        utils::arrays::{assert_sorted_transformed_value_array::{assert_sorted_transformed_value_array, assert_sorted_transformed_value_array_capped_size}}
     };
 
     struct TestItem {
@@ -42,44 +64,52 @@ mod tests {
         counter: u32,
     }
 
-    impl Ordered for TestItem {
-        fn counter(self) -> u32 {
-            self.counter
-        }
-    }
-
     impl Empty for TestItem {
         fn empty() -> Self {
             TestItem { name: 0, price: 0, tax: 0, counter: 0 }
         }
     }
 
+    impl Eq for TestItem {
+        fn eq(self, other: Self) -> bool {
+            (self.name == other.name) & (self.price == other.price) & (self.tax == other.tax) & (self.counter == other.counter)
+        }
+    }
+
     struct TestValue {
         name: Field,
         total: Field,
+        counter: u32,
+    }
+
+    impl Ordered for TestValue {
+        fn counter(self) -> u32 {
+            self.counter
+        }
     }
 
     impl Empty for TestValue {
         fn empty() -> Self {
-            TestValue { name: 0, total: 0 }
+            TestValue { name: 0, total: 0, counter: 0 }
         }
     }
 
     impl Eq for TestValue {
         fn eq(self, other: Self) -> bool {
-            (self.name == other.name) & (self.total == other.total)
+            (self.name == other.name) & (self.total == other.total) & (self.counter == other.counter)
         }
     }
 
-    fn transform_value(item: TestItem) -> TestValue {
-        TestValue { name: item.name, total: item.price + item.tax }
+    fn is_transformed(item: TestItem, value: TestValue) -> bool {
+        (item.name == value.name)
+            & ((item.price + item.tax) == value.total)
+            & (item.counter == value.counter)
     }
 
     struct TestDataBuilder<T, S, let N: u32> {
         original_array: [T; N],
-        transformed_value_array: [S; N],
         sorted_transformed_value_array: [S; N],
-        hints: [OrderHint; N],
+        sorted_indexes: [u32; N],
     }
 
     impl TestDataBuilder<TestItem, TestValue, 6> {
@@ -93,35 +123,36 @@ mod tests {
                 TestItem::empty()
             ];
 
-            let transformed_value_array = original_array.map(|item: TestItem| transform_value(item));
-
             let sorted_transformed_value_array = [
-                TestValue { name: 300, total: 37 },
-                TestValue { name: 200, total: 26 },
-                TestValue { name: 400, total: 48 },
-                TestValue { name: 100, total: 15 },
+                TestValue { name: 300, total: 37, counter: 11 },
+                TestValue { name: 200, total: 26, counter: 22 },
+                TestValue { name: 400, total: 48, counter: 33 },
+                TestValue { name: 100, total: 15, counter: 44 },
                 TestValue::empty(),
                 TestValue::empty()
             ];
 
-            let hints = [
-                OrderHint { counter: 11, sorted_index: 3 },
-                OrderHint { counter: 22, sorted_index: 1 },
-                OrderHint { counter: 33, sorted_index: 0 },
-                OrderHint { counter: 44, sorted_index: 2 },
-                OrderHint { counter: 0, sorted_index: 0 },
-                OrderHint { counter: 0, sorted_index: 0 }
-            ];
+            let sorted_indexes = [3, 1, 0, 2, 4, 5];
 
-            TestDataBuilder { original_array, transformed_value_array, sorted_transformed_value_array, hints }
+            TestDataBuilder { original_array, sorted_transformed_value_array, sorted_indexes }
         }
 
         pub fn execute(self) {
             assert_sorted_transformed_value_array(
                 self.original_array,
-                self.transformed_value_array,
                 self.sorted_transformed_value_array,
-                self.hints
+                is_transformed,
+                self.sorted_indexes
+            );
+        }
+
+        pub fn execute_capped(self, capped_size: u32) {
+            assert_sorted_transformed_value_array_capped_size(
+                self.original_array,
+                self.sorted_transformed_value_array,
+                is_transformed,
+                self.sorted_indexes,
+                capped_size
             );
         }
     }
@@ -132,22 +163,12 @@ mod tests {
         builder.execute();
     }
 
-    #[test(should_fail_with="mismatch sorted values")]
+    #[test(should_fail_with="incorrect transformed value")]
     fn assert_sorted_transformed_value_array_mismatch_value_fails() {
         let mut builder = TestDataBuilder::new();
 
         // Tweak the value at index 1.
         builder.sorted_transformed_value_array[1].total += 1;
-
-        builder.execute();
-    }
-
-    #[test(should_fail_with="mismatch counters")]
-    fn assert_sorted_transformed_value_array_mismatch_counter_fails() {
-        let mut builder = TestDataBuilder::new();
-
-        // Tweak the counter at index 1.
-        builder.hints[1].counter += 1;
 
         builder.execute();
     }
@@ -161,33 +182,40 @@ mod tests {
         builder.sorted_transformed_value_array[1] = builder.sorted_transformed_value_array[2];
         builder.sorted_transformed_value_array[2] = tmp;
 
-        // Update counters in hints.
-        let tmp = builder.hints[1].counter;
-        builder.hints[1].counter = builder.hints[2].counter;
-        builder.hints[2].counter = tmp;
-
         // Update sorted indexes.
         // Original: 44, 22, 11, 33
         // New: 11, 33, 22, 44
-        builder.hints[0].sorted_index = 3;
-        builder.hints[1].sorted_index = 2;
-        builder.hints[2].sorted_index = 0;
-        builder.hints[3].sorted_index = 1;
+        builder.sorted_indexes[0] = 3;
+        builder.sorted_indexes[1] = 2;
+        builder.sorted_indexes[2] = 0;
+        builder.sorted_indexes[3] = 1;
+
+        builder.execute();
+    }
+
+    #[test(should_fail_with="incorrect transformed value")]
+    fn assert_sorted_transformed_value_array_extra_non_empty_fails() {
+        let mut builder = TestDataBuilder::new();
+
+        // Add a random item.
+        builder.sorted_transformed_value_array[4] = TestValue { name: 500, total: 10, counter: 55 };
 
         builder.execute();
     }
 
     #[test(should_fail_with="unexpected non-empty item")]
-    fn assert_sorted_transformed_value_array_extra_non_empty_fails() {
+    fn assert_sorted_transformed_value_array_hint_to_extra_non_empty_fails() {
         let mut builder = TestDataBuilder::new();
 
         // Add a random item.
-        builder.sorted_transformed_value_array[4] = TestValue { name: 500, total: 10 };
+        builder.sorted_transformed_value_array[4] = TestValue { name: 500, total: 10, counter: 55 };
+        // Change the hint to point to an empty item.
+        builder.sorted_indexes[4] = 5;
 
         builder.execute();
     }
 
-    #[test(should_fail_with="mismatch sorted values")]
+    #[test(should_fail_with="incorrect transformed value")]
     fn assert_sorted_transformed_value_array_missing_item_fails() {
         let mut builder = TestDataBuilder::new();
 
@@ -195,5 +223,27 @@ mod tests {
         builder.sorted_transformed_value_array[3] = TestValue::empty();
 
         builder.execute();
+    }
+
+    #[test]
+    fn assert_sorted_transformed_value_array_capped_size_succeeds() {
+        let builder = TestDataBuilder::new();
+        builder.execute_capped(5);
+    }
+
+    #[test(should_fail_with="capped_size does not cover all non-empty items")]
+    fn assert_sorted_transformed_value_array_capped_size_not_fully_covered_fails() {
+        let builder = TestDataBuilder::new();
+        builder.execute_capped(3);
+    }
+
+    #[test(should_fail_with="array must be padded with empty items")]
+    fn assert_sorted_transformed_value_array_capped_size_extra_non_empty_fails() {
+        let mut builder = TestDataBuilder::new();
+
+        // Add a random item outside of capped_size.
+        builder.sorted_transformed_value_array[4] = TestValue { name: 500, total: 10, counter: 55 };
+
+        builder.execute_capped(4);
     }
 }

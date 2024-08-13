@@ -80,6 +80,7 @@ export type CircuitName =
   | 'private-kernel-init'
   | 'private-kernel-inner'
   | 'private-kernel-reset-full'
+  | 'private-kernel-reset-full-inner'
   | 'private-kernel-reset-big'
   | 'private-kernel-reset-medium'
   | 'private-kernel-reset-small'

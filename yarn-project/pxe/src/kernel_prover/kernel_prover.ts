@@ -31,7 +31,7 @@ import {
 
 import { type WitnessMap } from '@noir-lang/types';
 
-import { buildPrivateKernelResetInputs, needsReset, somethingToReset } from './hints/index.js';
+import { buildPrivateKernelResetInputs, needsFinalReset, needsReset } from './hints/index.js';
 import { type ProvingDataOracle } from './proving_data_oracle.js';
 
 const NULL_PROVE_OUTPUT: PrivateKernelSimulateOutput<PrivateKernelCircuitPublicInputs> = {
@@ -88,6 +88,7 @@ export class KernelProver {
           noteHashLeafIndexMap,
           noteHashNullifierCounterMap,
           validationRequestsSplitCounter,
+          false,
         );
         output = await this.proofCreator.simulateProofReset(resetInputs);
         // TODO(#7368) consider refactoring this redundant bytecode pushing
@@ -135,13 +136,14 @@ export class KernelProver {
       firstIteration = false;
     }
 
-    if (somethingToReset(output.publicInputs)) {
+    if (needsFinalReset(output.publicInputs)) {
       const resetInputs = await this.getPrivateKernelResetInputs(
         executionStack,
         output,
         noteHashLeafIndexMap,
         noteHashNullifierCounterMap,
         validationRequestsSplitCounter,
+        true,
       );
       output = await this.proofCreator.simulateProofReset(resetInputs);
       // TODO(#7368) consider refactoring this redundant bytecode pushing
@@ -188,6 +190,7 @@ export class KernelProver {
     noteHashLeafIndexMap: Map<bigint, bigint>,
     noteHashNullifierCounterMap: Map<number, number>,
     validationRequestsSplitCounter: number,
+    shouldSilo: boolean,
   ) {
     const previousVkMembershipWitness = await this.oracle.getVkMembershipWitness(output.verificationKey);
     const previousKernelData = new PrivateKernelData(
@@ -203,6 +206,7 @@ export class KernelProver {
       noteHashLeafIndexMap,
       noteHashNullifierCounterMap,
       validationRequestsSplitCounter,
+      shouldSilo,
       this.oracle,
     );
   }

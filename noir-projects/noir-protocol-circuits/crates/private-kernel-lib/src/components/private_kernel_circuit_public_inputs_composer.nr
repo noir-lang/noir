@@ -10,8 +10,7 @@ use dep::types::{
     MAX_NOTE_HASH_READ_REQUESTS_PER_CALL, MAX_NOTE_HASHES_PER_TX,
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL
 },
-    hash::{silo_note_hash, silo_nullifier, mask_encrypted_log_hash}, traits::is_empty,
-    transaction::tx_request::TxRequest,
+    traits::is_empty, transaction::tx_request::TxRequest,
     utils::arrays::{array_length, array_to_bounded_vec, sort_by_counters_asc, sort_by_counters_desc}
 };
 
@@ -100,9 +99,11 @@ impl PrivateKernelCircuitPublicInputsComposer {
         *self
     }
 
-    pub fn sort_and_silo(&mut self) {
-        self.sort_ordered_values();
-        self.silo_scoped_values();
+    pub fn sort_ordered_values(&mut self) {
+        // Note hashes, nullifiers, note_encrypted_logs_hashes, and encrypted_logs_hashes are sorted in the reset circuit.
+        self.public_inputs.end.l2_to_l1_msgs.storage = sort_by_counters_asc(self.public_inputs.end.l2_to_l1_msgs.storage);
+        self.public_inputs.end.unencrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.unencrypted_logs_hashes.storage);
+        self.public_inputs.end.public_call_requests.storage = sort_by_counters_desc(self.public_inputs.end.public_call_requests.storage);
     }
 
     pub fn finish(self) -> PrivateKernelCircuitPublicInputs {
@@ -260,48 +261,6 @@ impl PrivateKernelCircuitPublicInputsComposer {
         if (source.private_call_public_inputs.is_fee_payer) {
             assert(self.public_inputs.fee_payer.is_zero(), "Cannot overwrite non-empty fee_payer");
             self.public_inputs.fee_payer = source.storage_contract_address;
-        }
-    }
-
-    fn sort_ordered_values(&mut self) {
-        self.public_inputs.end.note_hashes.storage = sort_by_counters_asc(self.public_inputs.end.note_hashes.storage);
-        self.public_inputs.end.nullifiers.storage = sort_by_counters_asc(self.public_inputs.end.nullifiers.storage);
-        self.public_inputs.end.l2_to_l1_msgs.storage = sort_by_counters_asc(self.public_inputs.end.l2_to_l1_msgs.storage);
-        self.public_inputs.end.note_encrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.note_encrypted_logs_hashes.storage);
-        self.public_inputs.end.encrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.encrypted_logs_hashes.storage);
-        self.public_inputs.end.unencrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.unencrypted_logs_hashes.storage);
-        self.public_inputs.end.public_call_requests.storage = sort_by_counters_desc(self.public_inputs.end.public_call_requests.storage);
-    }
-
-    fn silo_scoped_values(&mut self) {
-        self.silo_note_hashes();
-        self.silo_nullifiers();
-        self.mask_encrypted_logs();
-    }
-
-    fn silo_note_hashes(&mut self) {
-        let first_nullifier = self.public_inputs.end.nullifiers.get_unchecked(0).value();
-        let note_hashes = self.public_inputs.end.note_hashes.storage;
-        for i in 0..note_hashes.len() {
-            self.public_inputs.end.note_hashes.storage[i].note_hash.value = silo_note_hash(
-                note_hashes[i],
-                first_nullifier,
-                i
-            );
-        }
-    }
-
-    fn silo_nullifiers(&mut self) {
-        let nullifiers = self.public_inputs.end.nullifiers.storage;
-        for i in 0..nullifiers.len() {
-            self.public_inputs.end.nullifiers.storage[i].nullifier.value = silo_nullifier(nullifiers[i]);
-        }
-    }
-
-    fn mask_encrypted_logs(&mut self) {
-        let logs = self.public_inputs.end.encrypted_logs_hashes.storage;
-        for i in 0..logs.len() {
-            self.public_inputs.end.encrypted_logs_hashes.storage[i].contract_address = mask_encrypted_log_hash(logs[i]);
         }
     }
 }

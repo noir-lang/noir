@@ -11,7 +11,6 @@ use dep::types::{
     log_hash::{ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, note_hash::ScopedNoteHash,
     nullifier::ScopedNullifier
 },
-    hash::{compute_tx_logs_hash, compute_tx_note_logs_hash},
     messaging::l2_to_l1_message::ScopedL2ToL1Message
 };
 
@@ -22,7 +21,7 @@ struct TailOutputComposer {
 impl TailOutputComposer {
     pub fn new(previous_kernel: PrivateKernelCircuitPublicInputs) -> Self {
         let mut output_composer = PrivateKernelCircuitPublicInputsComposer::new_from_previous_kernel(previous_kernel);
-        output_composer.sort_and_silo();
+        output_composer.sort_ordered_values();
 
         TailOutputComposer { output_composer }
     }

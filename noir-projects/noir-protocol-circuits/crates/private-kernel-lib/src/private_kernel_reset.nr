@@ -1,7 +1,10 @@
-use crate::components::reset_output_composer::{PrivateKernelResetOutputs, ResetOutputComposer};
+use crate::components::{
+    reset_output_composer::{PrivateKernelResetOutputs, ResetOutputComposer, ResetOutputHints},
+    reset_output_validator::ResetOutputValidator
+};
 use dep::reset_kernel_lib::{
-    get_transient_or_propagated_note_hash_indexes_for_logs, KeyValidationHint, NoteHashReadRequestHints,
-    NullifierReadRequestHints, PrivateValidationRequestProcessor, verify_squashed_transient_data
+    KeyValidationHint, NoteHashReadRequestHints, NullifierReadRequestHints,
+    PrivateValidationRequestProcessor
 };
 use dep::types::{
     abis::private_kernel_data::PrivateKernelData,
@@ -29,17 +32,35 @@ struct PrivateKernelResetCircuitPrivateInputs<NH_RR_PENDING, NH_RR_SETTLED, NLL_
 }
 
 impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> PrivateKernelResetCircuitPrivateInputs<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
-    unconstrained fn generate_output(self) -> PrivateKernelResetOutputs {
-        ResetOutputComposer::new(
+    unconstrained fn generate_output(
+        self,
+        note_hash_siloing_amount: u32,
+        nullifier_siloing_amount: u32,
+        encrypted_log_siloing_amount: u32
+    ) -> (PrivateKernelResetOutputs, ResetOutputHints) {
+        let composer = ResetOutputComposer::new(
             self.previous_kernel.public_inputs,
             self.hints.transient_nullifier_indexes_for_note_hashes,
-            self.hints.transient_note_hash_indexes_for_nullifiers
-        ).finish()
+            self.hints.transient_note_hash_indexes_for_nullifiers,
+            note_hash_siloing_amount,
+            nullifier_siloing_amount,
+            encrypted_log_siloing_amount
+        );
+        (composer.finish(), composer.hints)
     }
 
-    pub fn execute(self) -> PrivateKernelCircuitPublicInputs {
+    pub fn execute(
+        self,
+        note_hash_siloing_amount: u32,
+        nullifier_siloing_amount: u32,
+        encrypted_log_siloing_amount: u32
+    ) -> PrivateKernelCircuitPublicInputs {
         // Generate output.
-        let output = self.generate_output();
+        let (output, output_hints) = self.generate_output(
+            note_hash_siloing_amount,
+            nullifier_siloing_amount,
+            encrypted_log_siloing_amount
+        );
 
         // Validate inputs.
         if !std::runtime::is_unconstrained() {
@@ -62,23 +83,17 @@ impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATIO
 
         // Validate output.
         if dep::types::validate::should_validate_output() {
-            let transient_or_propagated_note_hash_indexes_for_logs = get_transient_or_propagated_note_hash_indexes_for_logs(
-                previous_public_inputs.end.note_encrypted_logs_hashes,
-                previous_public_inputs.end.note_hashes,
-                output.note_hashes
-            );
-            verify_squashed_transient_data(
-                previous_public_inputs.end.note_hashes,
-                previous_public_inputs.end.nullifiers,
-                previous_public_inputs.end.note_encrypted_logs_hashes,
-                output.note_hashes,
-                output.nullifiers,
-                output.note_encrypted_log_hashes,
+            ResetOutputValidator::new(
+                output,
+                previous_public_inputs,
                 self.hints.transient_nullifier_indexes_for_note_hashes,
                 self.hints.transient_note_hash_indexes_for_nullifiers,
-                transient_or_propagated_note_hash_indexes_for_logs,
-                updated_validation_requests.split_counter.unwrap_unchecked()
-            );
+                updated_validation_requests.split_counter.unwrap_unchecked(),
+                note_hash_siloing_amount,
+                nullifier_siloing_amount,
+                encrypted_log_siloing_amount,
+                output_hints
+            ).validate();
         }
 
         // Generate output.
@@ -87,6 +102,7 @@ impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATIO
         updated_output.end.note_hashes = output.note_hashes;
         updated_output.end.nullifiers = output.nullifiers;
         updated_output.end.note_encrypted_logs_hashes = output.note_encrypted_log_hashes;
+        updated_output.end.encrypted_logs_hashes = output.encrypted_log_hashes;
 
         updated_output
     }
@@ -113,9 +129,11 @@ mod tests {
         abis::{
         kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
         max_block_number::MaxBlockNumber, note_hash::{NoteHash, ScopedNoteHash},
-        nullifier::{Nullifier, ScopedNullifier}, log_hash::NoteLogHash, read_request::ScopedReadRequest
+        nullifier::{Nullifier, ScopedNullifier}, log_hash::{NoteLogHash, ScopedEncryptedLogHash},
+        read_request::ScopedReadRequest
     },
-        address::AztecAddress, scalar::Scalar, tests::{fixture_builder::FixtureBuilder},
+        address::AztecAddress, hash::{mask_encrypted_log_hash, silo_note_hash, silo_nullifier},
+        scalar::Scalar, tests::{fixture_builder::FixtureBuilder, utils::swap_items},
         utils::{arrays::{array_eq, array_length}}, traits::{Empty, is_empty, is_empty_array},
         point::Point
     };
@@ -127,12 +145,15 @@ mod tests {
         note_hash_read_request_hints_builder: NoteHashReadRequestHintsBuilder,
         nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder,
         validation_requests_split_counter: u32,
+        note_hash_siloing_amount: u32,
+        nullifier_siloing_amount: u32,
+        encrypted_log_siloing_amount: u32,
     }
 
     impl PrivateKernelResetInputsBuilder {
         pub fn new() -> Self {
             let mut previous_kernel = FixtureBuilder::new().in_vk_tree(PRIVATE_KERNEL_INNER_INDEX);
-            previous_kernel.append_nullifiers(1);
+            previous_kernel.set_first_nullifier();
 
             PrivateKernelResetInputsBuilder {
                 previous_kernel,
@@ -140,8 +161,18 @@ mod tests {
                 transient_note_hash_indexes_for_nullifiers: [MAX_NOTE_HASHES_PER_TX; MAX_NULLIFIERS_PER_TX],
                 note_hash_read_request_hints_builder: NoteHashReadRequestHintsBuilder::new(MAX_NOTE_HASH_READ_REQUESTS_PER_TX),
                 nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder::new(MAX_NULLIFIER_READ_REQUESTS_PER_TX),
-                validation_requests_split_counter: 0
+                validation_requests_split_counter: 0,
+                note_hash_siloing_amount: 0,
+                nullifier_siloing_amount: 0,
+                encrypted_log_siloing_amount: 0
             }
+        }
+
+        pub fn with_siloing(&mut self) -> Self {
+            self.note_hash_siloing_amount = 6;
+            self.nullifier_siloing_amount = 6;
+            self.encrypted_log_siloing_amount = 4;
+            *self
         }
 
         pub fn add_pending_note_hash_read_request(&mut self, note_hash_index: u32) {
@@ -168,6 +199,46 @@ mod tests {
             self.transient_note_hash_indexes_for_nullifiers[nullifier_index] = note_hash_index;
         }
 
+        pub fn compute_output_note_hashes<let N: u32>(self, note_hashes: [ScopedNoteHash; N]) -> [ScopedNoteHash; N] {
+            // First nullifier is tx hash.
+            let tx_hash = self.previous_kernel.nullifiers.get_unchecked(0).value();
+            let mut output = note_hashes;
+            for i in 0..N {
+                output[i].note_hash.value = silo_note_hash(note_hashes[i], tx_hash, i);
+                output[i].contract_address = AztecAddress::zero();
+            }
+            output
+        }
+
+        pub fn compute_output_nullifiers<let N: u32>(_self: Self, nullifiers: [ScopedNullifier; N]) -> [ScopedNullifier; N] {
+            let mut output = nullifiers;
+            for i in 1..N {
+                output[i].nullifier.value = silo_nullifier(nullifiers[i]);
+                output[i].contract_address = AztecAddress::zero();
+            }
+            output
+        }
+
+        pub fn compute_output_note_logs<let N: u32>(_self: Self, logs: [NoteLogHash; N]) -> [NoteLogHash; N] {
+            let mut output = logs;
+            for i in 0..N {
+                output[i].note_hash_counter = 0;
+            }
+            output
+        }
+
+        pub fn compute_output_encrypted_logs<let N: u32>(
+            _self: Self,
+            logs: [ScopedEncryptedLogHash; N]
+        ) -> [ScopedEncryptedLogHash; N] {
+            let mut output = logs;
+            for i in 0..N {
+                output[i].contract_address = mask_encrypted_log_hash(output[i]);
+                output[i].log_hash.randomness = 0;
+            }
+            output
+        }
+
         pub fn execute(&mut self) -> PrivateKernelCircuitPublicInputs {
             let hints = PrivateKernelResetHints {
                 transient_nullifier_indexes_for_note_hashes: self.transient_nullifier_indexes_for_note_hashes,
@@ -179,7 +250,11 @@ mod tests {
             };
 
             let kernel = PrivateKernelResetCircuitPrivateInputs { previous_kernel: self.previous_kernel.to_private_kernel_data(), hints };
-            kernel.execute()
+            kernel.execute(
+                self.note_hash_siloing_amount,
+                self.nullifier_siloing_amount,
+                self.encrypted_log_siloing_amount
+            )
         }
 
         pub fn failed(&mut self) {
@@ -453,6 +528,85 @@ mod tests {
 
             let _res = builder.execute();
         }
+    }
+
+    #[test]
+    fn squashing_and_siloing_and_ordering_succeeds() {
+        let mut builder = PrivateKernelResetInputsBuilder::new().with_siloing();
+
+        builder.previous_kernel.append_note_hashes_with_logs(4);
+        builder.previous_kernel.append_nullifiers(3);
+        builder.previous_kernel.append_encrypted_log_hashes(3);
+        builder.previous_kernel.nullifiers.storage[2].nullifier.note_hash = 9988;
+        // Get ordered items before shuffling.
+        let note_hashes = builder.previous_kernel.note_hashes.storage;
+        let nullifiers = builder.previous_kernel.nullifiers.storage;
+        let note_logs = builder.previous_kernel.note_encrypted_logs_hashes.storage;
+        let encrypted_logs = builder.previous_kernel.encrypted_logs_hashes.storage;
+        // Shuffle.
+        swap_items(&mut builder.previous_kernel.note_hashes, 1, 0);
+        swap_items(&mut builder.previous_kernel.note_hashes, 3, 2);
+        swap_items(&mut builder.previous_kernel.nullifiers, 2, 3);
+        swap_items(&mut builder.previous_kernel.note_encrypted_logs_hashes, 1, 3);
+        swap_items(&mut builder.previous_kernel.encrypted_logs_hashes, 1, 2);
+        // The nullifier at index 1 is nullifying the note hash at index 3 (original index 2).
+        builder.nullify_pending_note_hash(1, 3);
+
+        let public_inputs = builder.execute();
+
+        // The note hash at index 2 is chopped.
+        let output_note_hashes = builder.compute_output_note_hashes([note_hashes[0], note_hashes[1], note_hashes[3]]);
+        assert(array_eq(public_inputs.end.note_hashes, output_note_hashes));
+
+        // The nullifier at index 1 is chopped.
+        let output_nullifiers = builder.compute_output_nullifiers([nullifiers[0], nullifiers[2], nullifiers[3]]);
+        assert(array_eq(public_inputs.end.nullifiers, output_nullifiers));
+
+        // The note log at index 2 is chopped.
+        let output_note_logs = builder.compute_output_note_logs([note_logs[0], note_logs[1], note_logs[3]]);
+        assert(
+            array_eq(
+                public_inputs.end.note_encrypted_logs_hashes,
+                output_note_logs
+            )
+        );
+
+        let output_logs = builder.compute_output_encrypted_logs([encrypted_logs[0], encrypted_logs[1], encrypted_logs[2]]);
+        assert(array_eq(public_inputs.end.encrypted_logs_hashes, output_logs));
+    }
+
+    #[test(should_fail_with="note hashes have been siloed in a previous reset")]
+    fn siloing_note_hashes_again_fails() {
+        let mut builder = PrivateKernelResetInputsBuilder::new().with_siloing();
+
+        builder.previous_kernel.append_note_hashes_with_logs(2);
+
+        // The note hash at index 0 is siloed.
+        builder.previous_kernel.note_hashes.storage[0].contract_address = AztecAddress::zero();
+
+        builder.failed();
+    }
+
+    #[test]
+    fn siloing_nullifiers_again_succeeds() {
+        let mut builder = PrivateKernelResetInputsBuilder::new().with_siloing();
+
+        builder.previous_kernel.append_nullifiers(2);
+
+        // The nullifier at index 1 is siloed.
+        builder.previous_kernel.nullifiers.storage[1].contract_address = AztecAddress::zero();
+
+        let nullifiers = builder.previous_kernel.nullifiers.storage;
+
+        let public_inputs = builder.execute();
+
+        let output_nullifiers = public_inputs.end.nullifiers;
+        // The 0th nullifier (tx hash) doesn't change.
+        assert(output_nullifiers[0].value() == nullifiers[0].value());
+        // The 1st nullifier doesn't change.
+        assert(output_nullifiers[1].value() == nullifiers[1].value());
+        // The 2nd nullifier has been siloed
+        assert(output_nullifiers[2].value() != nullifiers[2].value());
     }
     // TODO(#7410) we need the tube vk to reinstate this
     // #[test(should_fail_with="Invalid vk index")]

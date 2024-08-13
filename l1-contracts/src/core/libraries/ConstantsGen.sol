@@ -74,10 +74,11 @@ library Constants {
   uint256 internal constant PRIVATE_KERNEL_INIT_INDEX = 0;
   uint256 internal constant PRIVATE_KERNEL_INNER_INDEX = 1;
   uint256 internal constant PRIVATE_KERNEL_RESET_FULL_INDEX = 2;
-  uint256 internal constant PRIVATE_KERNEL_RESET_BIG_INDEX = 3;
-  uint256 internal constant PRIVATE_KERNEL_RESET_MEDIUM_INDEX = 4;
-  uint256 internal constant PRIVATE_KERNEL_RESET_SMALL_INDEX = 5;
-  uint256 internal constant PRIVATE_KERNEL_RESET_TINY_INDEX = 6;
+  uint256 internal constant PRIVATE_KERNEL_RESET_FULL_INNER_INDEX = 3;
+  uint256 internal constant PRIVATE_KERNEL_RESET_BIG_INDEX = 4;
+  uint256 internal constant PRIVATE_KERNEL_RESET_MEDIUM_INDEX = 5;
+  uint256 internal constant PRIVATE_KERNEL_RESET_SMALL_INDEX = 6;
+  uint256 internal constant PRIVATE_KERNEL_RESET_TINY_INDEX = 7;
   uint256 internal constant PRIVATE_KERNEL_TAIL_INDEX = 10;
   uint256 internal constant PRIVATE_KERNEL_TAIL_TO_PUBLIC_INDEX = 11;
   uint256 internal constant EMPTY_NESTED_INDEX = 12;

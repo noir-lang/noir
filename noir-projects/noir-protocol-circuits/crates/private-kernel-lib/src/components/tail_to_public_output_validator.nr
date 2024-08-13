@@ -1,47 +1,43 @@
 mod tail_to_public_output_hints;
 
 use crate::components::{
-    previous_kernel_validator::previous_kernel_validator_hints::PreviousKernelValidatorHints,
-    tail_output_validator::{validate_value_transformation::{validate_transformed_values, validate_value_transformation}},
     tail_to_public_output_composer::meter_gas_used::{meter_gas_used_non_revertible, meter_gas_used_revertible},
     tail_to_public_output_validator::tail_to_public_output_hints::{generate_tail_to_public_output_hints, TailToPublicOutputHints}
 };
 use dep::types::{
     abis::{
     kernel_circuit_public_inputs::{PrivateKernelCircuitPublicInputs, PublicKernelCircuitPublicInputs},
-    log_hash::{LogHash, ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, note_hash::NoteHash,
-    nullifier::Nullifier, public_call_request::PublicCallRequest
+    log_hash::{LogHash, ScopedEncryptedLogHash, NoteLogHash, ScopedLogHash}, note_hash::ScopedNoteHash,
+    nullifier::{Nullifier, ScopedNullifier}, public_call_request::PublicCallRequest
 },
     messaging::l2_to_l1_message::ScopedL2ToL1Message, address::AztecAddress,
-    hash::{silo_note_hash, silo_nullifier, mask_encrypted_log_hash},
-    traits::{Empty, is_empty, is_empty_array},
+    traits::{is_empty, is_empty_array},
     utils::arrays::{
-    array_length, assert_split_sorted_transformed_value_arrays_asc,
-    assert_split_sorted_transformed_value_arrays_desc, validate_array
+    assert_split_sorted_transformed_value_arrays_asc, assert_split_sorted_transformed_value_arrays_desc,
+    assert_split_transformed_value_arrays, validate_array
 }
 };
 
 struct TailToPublicOutputValidator {
     output: PublicKernelCircuitPublicInputs,
     previous_kernel: PrivateKernelCircuitPublicInputs,
-    previous_kernel_hints: PreviousKernelValidatorHints,
     hints: TailToPublicOutputHints,
 }
 
 impl TailToPublicOutputValidator {
     pub fn new(
         output: PublicKernelCircuitPublicInputs,
-        previous_kernel: PrivateKernelCircuitPublicInputs,
-        previous_kernel_hints: PreviousKernelValidatorHints
+        previous_kernel: PrivateKernelCircuitPublicInputs
     ) -> Self {
         let hints = generate_tail_to_public_output_hints(previous_kernel);
-        TailToPublicOutputValidator { output, previous_kernel, previous_kernel_hints, hints }
+        TailToPublicOutputValidator { output, previous_kernel, hints }
     }
 
-    pub fn validate<N>(self) {
+    pub fn validate(self) {
         self.validate_empty_values();
         self.validate_propagated_values();
-        self.validate_propagated_sorted_siloed_values();
+        self.validate_propagated_split_values();
+        self.validate_propagated_sorted_values();
         self.validate_gas_used();
     }
 
@@ -53,6 +49,14 @@ impl TailToPublicOutputValidator {
         );
         assert(
             is_empty_array(self.output.end.public_data_update_requests), "revertible public_data_update_requests must be empty"
+        );
+
+        // public_data_update_requests
+        assert(
+            is_empty_array(self.output.end_non_revertible.public_data_update_requests), "unexpected non-revertible public_data_update_requests"
+        );
+        assert(
+            is_empty_array(self.output.end.public_data_update_requests), "unexpected revertible public_data_update_requests"
         );
     }
 
@@ -66,69 +70,69 @@ impl TailToPublicOutputValidator {
         assert_eq(self.output.fee_payer, self.previous_kernel.fee_payer, "mismatch fee_payer");
 
         // public_teardown_call_stack
-        let num_teardown_calls = validate_array(self.output.public_teardown_call_stack);
-        assert(
-            (num_teardown_calls == 0) | (num_teardown_calls == 1), "invalid number of teardown call requests"
-        );
         assert_eq(
             self.output.public_teardown_call_stack[0].item, self.previous_kernel.public_teardown_call_request.item, "mismatch public_teardown_call_request"
         );
         assert_eq(
             self.output.public_teardown_call_stack[0].counter, 0, "cannot expose teardown call request counter"
         );
+        let teardown_call_stack = self.output.public_teardown_call_stack;
+        for i in 1..teardown_call_stack.len() {
+            assert(is_empty(teardown_call_stack[i]), "unexpected teardown call request");
+        }
     }
 
-    fn validate_propagated_sorted_siloed_values(self) {
+    fn validate_propagated_split_values(self) {
+        let split_counter = self.previous_kernel.min_revertible_side_effect_counter;
+        let prev_data = self.previous_kernel.end;
+        let output_non_revertible = self.output.end_non_revertible;
+        let output_revertible = self.output.end;
+
+        // note_hashes
+        assert_split_transformed_value_arrays(
+            prev_data.note_hashes,
+            output_non_revertible.note_hashes,
+            output_revertible.note_hashes,
+            |prev: ScopedNoteHash, out: ScopedNoteHash| out == prev.expose_to_public(),
+            split_counter
+        );
+
+        // nullifiers
+        assert_split_transformed_value_arrays(
+            prev_data.nullifiers,
+            output_non_revertible.nullifiers,
+            output_revertible.nullifiers,
+            |prev: ScopedNullifier, out: Nullifier| out == prev.expose_to_public(),
+            split_counter
+        );
+
+        // note_encrypted_logs_hashes
+        assert_split_transformed_value_arrays(
+            prev_data.note_encrypted_logs_hashes,
+            output_non_revertible.note_encrypted_logs_hashes,
+            output_revertible.note_encrypted_logs_hashes,
+            |prev: NoteLogHash, out: LogHash| out == prev.expose_to_public(),
+            split_counter
+        );
+
+        // encrypted_logs_hashes
+        assert_split_transformed_value_arrays(
+            prev_data.encrypted_logs_hashes,
+            output_non_revertible.encrypted_logs_hashes,
+            output_revertible.encrypted_logs_hashes,
+            |prev: ScopedEncryptedLogHash, out: ScopedLogHash| out == prev.expose_to_public(),
+            split_counter
+        );
+    }
+
+    fn validate_propagated_sorted_values(self) {
         let split_counter = self.previous_kernel.min_revertible_side_effect_counter;
         let prev_data = self.previous_kernel.end;
         let output_non_revertible = self.output.end_non_revertible;
         let output_revertible = self.output.end;
         let hints = self.hints;
-        let previous_kernel_hints = self.previous_kernel_hints;
-
-        // note_hashes
-        let siloed_note_hashes = previous_kernel_hints.siloed_note_hashes;
-        let unsiloed_note_hashes = prev_data.note_hashes;
-        let tx_hash = output_non_revertible.nullifiers[0].value;
-        let sorted_split_indexes = hints.sorted_note_hash_hints.sorted_indexes;
-        let sorted_counters_gte = hints.sorted_note_hash_hints.sorted_counters_gte;
-        let num_non_revertible = array_length(output_non_revertible.note_hashes);
-        for i in 0..unsiloed_note_hashes.len() {
-            let note_hash = unsiloed_note_hashes[i];
-            let mut index = sorted_split_indexes[i];
-            if sorted_counters_gte[index] == note_hash.counter() {
-                index += num_non_revertible;
-            }
-            let siloed_note_hash = silo_note_hash(note_hash, tx_hash, index);
-            assert_eq(siloed_note_hashes[i], siloed_note_hash, "mismatch siloed note hashes");
-        }
-
-        assert_split_sorted_transformed_value_arrays_asc(
-            prev_data.note_hashes,
-            siloed_note_hashes.map(|value: Field| NoteHash { value, counter: 0 }.scope(AztecAddress::zero())),
-            split_counter,
-            output_non_revertible.note_hashes,
-            output_revertible.note_hashes,
-            hints.sorted_note_hash_hints
-        );
-
-        // nullifiers
-        validate_value_transformation(
-            prev_data.nullifiers,
-            hints.siloed_nullifiers,
-            |sn, n: Nullifier| (n.value == silo_nullifier(sn)) & (n.counter == 0) & (n.note_hash == 0)
-        );
-        assert_split_sorted_transformed_value_arrays_asc(
-            prev_data.nullifiers,
-            hints.siloed_nullifiers,
-            split_counter,
-            output_non_revertible.nullifiers,
-            output_revertible.nullifiers,
-            hints.sorted_nullifier_hints
-        );
 
         // l2_to_l1_msgs
-
         assert_split_sorted_transformed_value_arrays_asc(
             prev_data.l2_to_l1_msgs,
             prev_data.l2_to_l1_msgs.map(|log: ScopedL2ToL1Message| log.expose_to_public()),
@@ -136,42 +140,6 @@ impl TailToPublicOutputValidator {
             output_non_revertible.l2_to_l1_msgs,
             output_revertible.l2_to_l1_msgs,
             hints.sorted_l2_to_l1_msg_hints
-        );
-
-        // note_encrypted_logs_hashes
-        validate_value_transformation(
-            prev_data.note_encrypted_logs_hashes,
-            hints.note_encrypted_logs_hashes,
-            |nlh: NoteLogHash, lh: LogHash| (lh.value == nlh.value) & (lh.length == nlh.length) & (lh.counter == 0)
-        );
-
-        assert_split_sorted_transformed_value_arrays_asc(
-            prev_data.note_encrypted_logs_hashes,
-            hints.note_encrypted_logs_hashes,
-            split_counter,
-            output_non_revertible.note_encrypted_logs_hashes,
-            output_revertible.note_encrypted_logs_hashes,
-            hints.sorted_note_encrypted_log_hash_hints
-        );
-
-        // encrypted_logs_hashes
-        validate_value_transformation(
-            prev_data.encrypted_logs_hashes,
-            hints.masked_encrypted_logs_hashes,
-            |lh: ScopedEncryptedLogHash, mlh: ScopedLogHash| 
-            (mlh.contract_address == mask_encrypted_log_hash(lh)) & 
-            (lh.log_hash.value == mlh.log_hash.value) & 
-            (lh.log_hash.length == mlh.log_hash.length) & 
-            (mlh.log_hash.counter == 0)
-        );
-
-        assert_split_sorted_transformed_value_arrays_asc(
-            prev_data.encrypted_logs_hashes,
-            hints.masked_encrypted_logs_hashes,
-            split_counter,
-            output_non_revertible.encrypted_logs_hashes,
-            output_revertible.encrypted_logs_hashes,
-            hints.sorted_encrypted_log_hash_hints
         );
 
         // unencrypted_logs_hashes
@@ -184,23 +152,10 @@ impl TailToPublicOutputValidator {
             hints.sorted_unencrypted_log_hash_hints
         );
 
-        // public_data_update_requests
-        let num_non_revertible_writes = validate_array(output_non_revertible.public_data_update_requests);
-        assert_eq(num_non_revertible_writes, 0, "unexpected non-revertible public_data_update_requests");
-        let num_revertible_writes = validate_array(output_revertible.public_data_update_requests);
-        assert_eq(num_revertible_writes, 0, "unexpected revertible public_data_update_requests");
-
         // public_call_requests
-        validate_value_transformation(
-            prev_data.public_call_requests,
-            hints.public_call_requests,
-            |cr: PublicCallRequest, public_cr: PublicCallRequest| (public_cr.item == cr.item)
-                & (public_cr.counter == 0)
-        );
-
         assert_split_sorted_transformed_value_arrays_desc(
             prev_data.public_call_requests,
-            hints.public_call_requests,
+            prev_data.public_call_requests.map(|cr: PublicCallRequest| cr.expose_to_public()),
             split_counter,
             output_non_revertible.public_call_stack,
             output_revertible.public_call_stack,
