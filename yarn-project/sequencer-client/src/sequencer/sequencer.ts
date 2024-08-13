@@ -201,11 +201,14 @@ export class Sequencer {
       const lastBlockTime = historicalHeader?.globalVariables.timestamp.toNumber() || 0;
       const currentTime = Math.floor(Date.now() / 1000);
       const elapsedSinceLastBlock = currentTime - lastBlockTime;
+      this.log.debug(
+        `Last block mined at ${lastBlockTime} current time is ${currentTime} (elapsed ${elapsedSinceLastBlock})`,
+      );
 
       // Do not go forward with new block if not enough time has passed since last block
       if (this.minSecondsBetweenBlocks > 0 && elapsedSinceLastBlock < this.minSecondsBetweenBlocks) {
         this.log.debug(
-          `Not creating block because not enough time has passed since last block (last block at ${lastBlockTime} current time ${currentTime})`,
+          `Not creating block because not enough time ${this.minSecondsBetweenBlocks} has passed since last block`,
         );
         return;
       }
@@ -334,7 +337,7 @@ export class Sequencer {
     // less txs than the minimum. But that'd cause the entire block to be aborted and retried. Instead, we should
     // go back to the p2p pool and load more txs until we hit our minTxsPerBLock target. Only if there are no txs
     // we should bail.
-    if (processedTxs.length === 0 && !this.skipMinTxsPerBlockCheck(elapsedSinceLastBlock)) {
+    if (processedTxs.length === 0 && !this.skipMinTxsPerBlockCheck(elapsedSinceLastBlock) && this.minTxsPerBLock > 0) {
       this.log.verbose('No txs processed correctly to build block. Exiting');
       prover.cancelBlock();
       return;

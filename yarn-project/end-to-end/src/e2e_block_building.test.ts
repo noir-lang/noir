@@ -11,6 +11,7 @@ import {
   type PXE,
   type Wallet,
   deriveKeys,
+  retryUntil,
 } from '@aztec/aztec.js';
 import { times } from '@aztec/foundation/collection';
 import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
@@ -314,6 +315,17 @@ describe('e2e_block_building', () => {
       if (teardown) {
         await teardown();
       }
+    });
+
+    // Regression for https://github.com/AztecProtocol/aztec-packages/issues/7918
+    it('publishes two blocks with only padding txs', async () => {
+      ({ teardown, pxe, logger, aztecNode } = await setup(0, {
+        minTxsPerBlock: 0,
+        sequencerSkipSubmitProofs: true,
+        skipProtocolContracts: true,
+      }));
+
+      await retryUntil(async () => (await aztecNode.getBlockNumber()) >= 3, 'wait-block', 10, 1);
     });
 
     // Regression for https://github.com/AztecProtocol/aztec-packages/issues/7537

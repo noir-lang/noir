@@ -1,13 +1,19 @@
 import { Body } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
+import { type AztecKVStore, type AztecMap, type AztecSingleton } from '@aztec/kv-store';
+
+import { type DataRetrieval } from '../data_retrieval.js';
 
 export class BlockBodyStore {
   /** Map block body hash to block body */
   #blockBodies: AztecMap<string, Buffer>;
 
+  /** Stores L1 block number in which the last processed L2 block body was included */
+  #lastSynchedL1Block: AztecSingleton<bigint>;
+
   constructor(private db: AztecKVStore, private log = createDebugLogger('aztec:archiver:block_body_store')) {
     this.#blockBodies = db.openMap('archiver_block_bodies');
+    this.#lastSynchedL1Block = db.openSingleton('archiver_block_bodies_last_synched_l1_block');
   }
 
   /**
@@ -15,12 +21,12 @@ export class BlockBodyStore {
    * @param blockBodies - The L2 block bodies to be added to the store.
    * @returns True if the operation is successful.
    */
-  addBlockBodies(blockBodies: Body[]): Promise<boolean> {
+  addBlockBodies(blockBodies: DataRetrieval<Body>): Promise<boolean> {
     return this.db.transaction(() => {
-      for (const body of blockBodies) {
+      for (const body of blockBodies.retrievedData) {
         void this.#blockBodies.set(body.getTxsEffectsHash().toString('hex'), body.toBuffer());
       }
-
+      void this.#lastSynchedL1Block.set(blockBodies.lastProcessedL1BlockNumber);
       return true;
     });
   }
@@ -56,5 +62,13 @@ export class BlockBodyStore {
     const blockBody = this.#blockBodies.get(txsEffectsHash.toString('hex'));
 
     return blockBody && Body.fromBuffer(blockBody);
+  }
+
+  /**
+   * Gets the last L1 block number in which a L2 block body was included
+   * @returns The L1 block number
+   */
+  getSynchedL1BlockNumber(): bigint {
+    return this.#lastSynchedL1Block.get() ?? 0n;
   }
 }

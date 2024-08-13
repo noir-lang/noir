@@ -30,8 +30,10 @@ import { type DataRetrieval } from './data_retrieval.js';
  * Represents the latest L1 block processed by the archiver for various objects in L2.
  */
 export type ArchiverL1SynchPoint = {
-  /** Number of the last L1 block that added a new L2 block.  */
+  /** Number of the last L1 block that added a new L2 block metadata.  */
   blocksSynchedTo: bigint;
+  /** Number of the last L1 block that added a new L2 block body.  */
+  blockBodiesSynchedTo: bigint;
   /** Number of the last L1 block that added L1 -> L2 messages from the Inbox. */
   messagesSynchedTo: bigint;
 };
@@ -53,7 +55,7 @@ export interface ArchiverDataStore {
    * @param blockBodies - The L2 block bodies to be added to the store.
    * @returns True if the operation is successful.
    */
-  addBlockBodies(blockBodies: Body[]): Promise<boolean>;
+  addBlockBodies(blockBodies: DataRetrieval<Body>): Promise<boolean>;
 
   /**
    * Gets block bodies that have the same txsEffectsHashes as we supply.

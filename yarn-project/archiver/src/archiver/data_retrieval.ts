@@ -1,6 +1,7 @@
 import { type Body, type InboxLeaf } from '@aztec/circuit-types';
 import { type AppendOnlyTreeSnapshot, Fr, type Header } from '@aztec/circuits.js';
 import { type EthAddress } from '@aztec/foundation/eth-address';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RollupAbi } from '@aztec/l1-artifacts';
 
 import { type PublicClient, getAbiItem } from 'viem';
@@ -45,6 +46,7 @@ export async function retrieveBlockMetadataFromRollup(
   searchStartBlock: bigint,
   searchEndBlock: bigint,
   expectedNextL2BlockNum: bigint,
+  logger: DebugLogger = createDebugLogger('aztec:archiver'),
 ): Promise<DataRetrieval<[Header, AppendOnlyTreeSnapshot]>> {
   const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot][] = [];
   do {
@@ -61,13 +63,18 @@ export async function retrieveBlockMetadataFromRollup(
       break;
     }
 
+    const lastLog = l2BlockProcessedLogs[l2BlockProcessedLogs.length - 1];
+    logger.debug(
+      `Got L2 block processed logs for ${l2BlockProcessedLogs[0].blockNumber}-${lastLog.blockNumber} between ${searchStartBlock}-${searchEndBlock} L1 blocks`,
+    );
+
     const newBlockMetadata = await processL2BlockProcessedLogs(
       publicClient,
       expectedNextL2BlockNum,
       l2BlockProcessedLogs,
     );
     retrievedBlockMetadata.push(...newBlockMetadata);
-    searchStartBlock = l2BlockProcessedLogs[l2BlockProcessedLogs.length - 1].blockNumber! + 1n;
+    searchStartBlock = lastLog.blockNumber! + 1n;
     expectedNextL2BlockNum += BigInt(newBlockMetadata.length);
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
   return { lastProcessedL1BlockNumber: searchStartBlock - 1n, retrievedData: retrievedBlockMetadata };
@@ -80,7 +87,7 @@ export async function retrieveBlockMetadataFromRollup(
  * @param blockUntilSynced - If true, blocks until the archiver has fully synced.
  * @param searchStartBlock - The block number to use for starting the search.
  * @param searchEndBlock - The highest block number that we should search up to.
- * @returns A array of tuples of L2 block bodies and their associated hash as well as the next eth block to search from
+ * @returns A array of L2 block bodies as well as the next eth block to search from
  */
 export async function retrieveBlockBodiesFromAvailabilityOracle(
   publicClient: PublicClient,
@@ -88,8 +95,8 @@ export async function retrieveBlockBodiesFromAvailabilityOracle(
   blockUntilSynced: boolean,
   searchStartBlock: bigint,
   searchEndBlock: bigint,
-): Promise<DataRetrieval<[Body, Buffer]>> {
-  const retrievedBlockBodies: [Body, Buffer][] = [];
+): Promise<DataRetrieval<Body>> {
+  const retrievedBlockBodies: Body[] = [];
 
   do {
     if (searchStartBlock > searchEndBlock) {
@@ -106,9 +113,10 @@ export async function retrieveBlockBodiesFromAvailabilityOracle(
     }
 
     const newBlockBodies = await processTxsPublishedLogs(publicClient, l2TxsPublishedLogs);
-    retrievedBlockBodies.push(...newBlockBodies);
-    searchStartBlock = l2TxsPublishedLogs[l2TxsPublishedLogs.length - 1].blockNumber! + 1n;
+    retrievedBlockBodies.push(...newBlockBodies.map(([body]) => body));
+    searchStartBlock = l2TxsPublishedLogs[l2TxsPublishedLogs.length - 1].blockNumber + 1n;
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
+
   return { lastProcessedL1BlockNumber: searchStartBlock - 1n, retrievedData: retrievedBlockBodies };
 }
 

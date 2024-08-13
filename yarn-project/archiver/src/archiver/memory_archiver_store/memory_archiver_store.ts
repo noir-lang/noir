@@ -83,6 +83,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   private contractInstances: Map<string, ContractInstanceWithAddress> = new Map();
 
   private lastL1BlockNewBlocks: bigint = 0n;
+  private lastL1BlockNewBlockBodies: bigint = 0n;
   private lastL1BlockNewMessages: bigint = 0n;
   private lastProvenL2BlockNumber: number = 0;
 
@@ -163,11 +164,11 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @param blockBodies - The L2 block bodies to be added to the store.
    * @returns True if the operation is successful.
    */
-  addBlockBodies(blockBodies: Body[]): Promise<boolean> {
-    for (const body of blockBodies) {
+  addBlockBodies(blockBodies: DataRetrieval<Body>): Promise<boolean> {
+    for (const body of blockBodies.retrievedData) {
       void this.l2BlockBodies.set(body.getTxsEffectsHash().toString('hex'), body);
     }
-
+    this.lastL1BlockNewBlockBodies = blockBodies.lastProcessedL1BlockNumber;
     return Promise.resolve(true);
   }
 
@@ -443,6 +444,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     return Promise.resolve({
       blocksSynchedTo: this.lastL1BlockNewBlocks,
       messagesSynchedTo: this.lastL1BlockNewMessages,
+      blockBodiesSynchedTo: this.lastL1BlockNewBlockBodies,
     });
   }
 

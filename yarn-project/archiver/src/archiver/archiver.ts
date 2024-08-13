@@ -145,8 +145,19 @@ export class Archiver implements ArchiveSource {
       await this.sync(blockUntilSynced);
     }
 
-    this.runningPromise = new RunningPromise(() => this.sync(false), this.pollingIntervalMs);
+    this.runningPromise = new RunningPromise(() => this.safeSync(), this.pollingIntervalMs);
     this.runningPromise.start();
+  }
+
+  /**
+   * Syncs and catches exceptions.
+   */
+  private async safeSync() {
+    try {
+      await this.sync(false);
+    } catch (error) {
+      this.log.error('Error syncing archiver', error);
+    }
   }
 
   /**
@@ -166,10 +177,14 @@ export class Archiver implements ArchiveSource {
      *
      * This code does not handle reorgs.
      */
-    const { blocksSynchedTo, messagesSynchedTo } = await this.store.getSynchPoint();
+    const { blockBodiesSynchedTo, blocksSynchedTo, messagesSynchedTo } = await this.store.getSynchPoint();
     const currentL1BlockNumber = await this.publicClient.getBlockNumber();
 
-    if (currentL1BlockNumber <= blocksSynchedTo && currentL1BlockNumber <= messagesSynchedTo) {
+    if (
+      currentL1BlockNumber <= blocksSynchedTo &&
+      currentL1BlockNumber <= messagesSynchedTo &&
+      currentL1BlockNumber <= blockBodiesSynchedTo
+    ) {
       // chain hasn't moved forward
       // or it's been rolled back
       this.log.debug(`Nothing to sync`, { currentL1BlockNumber, blocksSynchedTo, messagesSynchedTo });
@@ -220,16 +235,19 @@ export class Archiver implements ArchiveSource {
     // Read all data from chain and then write to our stores at the end
     const nextExpectedL2BlockNum = BigInt((await this.store.getSynchedL2BlockNumber()) + 1);
 
+    this.log.debug(`Retrieving block bodies from ${blockBodiesSynchedTo + 1n} to ${currentL1BlockNumber}`);
     const retrievedBlockBodies = await retrieveBlockBodiesFromAvailabilityOracle(
       this.publicClient,
       this.availabilityOracleAddress,
       blockUntilSynced,
-      blocksSynchedTo + 1n,
+      blockBodiesSynchedTo + 1n,
       currentL1BlockNumber,
     );
 
-    const blockBodies = retrievedBlockBodies.retrievedData.map(([blockBody]) => blockBody);
-    await this.store.addBlockBodies(blockBodies);
+    this.log.debug(
+      `Retrieved ${retrievedBlockBodies.retrievedData.length} block bodies up to L1 block ${retrievedBlockBodies.lastProcessedL1BlockNumber}`,
+    );
+    await this.store.addBlockBodies(retrievedBlockBodies);
 
     // Now that we have block bodies we will retrieve block metadata and build L2 blocks from the bodies and
     // the metadata
@@ -237,6 +255,7 @@ export class Archiver implements ArchiveSource {
     {
       // @todo @LHerskind Investigate how necessary that nextExpectedL2BlockNum really is.
       //                  Also, I would expect it to break horribly if we have a reorg.
+      this.log.debug(`Retrieving block metadata from ${blocksSynchedTo + 1n} to ${currentL1BlockNumber}`);
       const retrievedBlockMetadata = await retrieveBlockMetadataFromRollup(
         this.publicClient,
         this.rollupAddress,
@@ -278,16 +297,17 @@ export class Archiver implements ArchiveSource {
         } and ${currentL1BlockNumber}.`,
       );
 
-      // Set the `lastProcessedL1BlockNumber` to the smallest of the header and body retrieval
-      const min = (a: bigint, b: bigint) => (a < b ? a : b);
       retrievedBlocks = {
-        lastProcessedL1BlockNumber: min(
-          retrievedBlockMetadata.lastProcessedL1BlockNumber,
-          retrievedBlockBodies.lastProcessedL1BlockNumber,
-        ),
+        lastProcessedL1BlockNumber: retrievedBlockMetadata.lastProcessedL1BlockNumber,
         retrievedData: blocks,
       };
     }
+
+    this.log.debug(
+      `Processing retrieved blocks ${retrievedBlocks.retrievedData
+        .map(b => b.number)
+        .join(',')} with last processed L1 block ${retrievedBlocks.lastProcessedL1BlockNumber}`,
+    );
 
     await Promise.all(
       retrievedBlocks.retrievedData.map(block => {

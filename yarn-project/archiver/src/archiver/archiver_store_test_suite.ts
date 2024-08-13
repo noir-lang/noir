@@ -1,4 +1,4 @@
-import { InboxLeaf, L2Block, LogId, LogType, TxHash } from '@aztec/circuit-types';
+import { type Body, InboxLeaf, L2Block, LogId, LogType, TxHash } from '@aztec/circuit-types';
 import '@aztec/circuit-types/jest';
 import { AztecAddress, Fr, INITIAL_L2_BLOCK_NUM, L1_TO_L2_MSG_SUBTREE_HEIGHT } from '@aztec/circuits.js';
 import {
@@ -14,7 +14,7 @@ import {
   SerializableContractInstance,
 } from '@aztec/types/contracts';
 
-import { type ArchiverDataStore } from './archiver_store.js';
+import { type ArchiverDataStore, type ArchiverL1SynchPoint } from './archiver_store.js';
 import { type DataRetrieval } from './data_retrieval.js';
 
 /**
@@ -25,6 +25,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
   describe(testName, () => {
     let store: ArchiverDataStore;
     let blocks: DataRetrieval<L2Block>;
+    let blockBodies: DataRetrieval<Body>;
     const blockTests: [number, number, () => L2Block[]][] = [
       [1, 1, () => blocks.retrievedData.slice(0, 1)],
       [10, 1, () => blocks.retrievedData.slice(9, 10)],
@@ -39,11 +40,15 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         lastProcessedL1BlockNumber: 5n,
         retrievedData: Array.from({ length: 10 }).map((_, i) => L2Block.random(i + 1)),
       };
+      blockBodies = {
+        retrievedData: blocks.retrievedData.map(block => block.body),
+        lastProcessedL1BlockNumber: 4n,
+      };
     });
 
     describe('addBlocks', () => {
       it('returns success when adding block bodies', async () => {
-        await expect(store.addBlockBodies(blocks.retrievedData.map(block => block.body))).resolves.toBe(true);
+        await expect(store.addBlockBodies(blockBodies)).resolves.toBe(true);
       });
 
       it('returns success when adding blocks', async () => {
@@ -59,7 +64,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
     describe('getBlocks', () => {
       beforeEach(async () => {
         await store.addBlocks(blocks);
-        await store.addBlockBodies(blocks.retrievedData.map(block => block.body));
+        await store.addBlockBodies(blockBodies);
       });
 
       it.each(blockTests)('retrieves previously stored blocks', async (start, limit, getExpectedBlocks) => {
@@ -95,7 +100,8 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         await expect(store.getSynchPoint()).resolves.toEqual({
           blocksSynchedTo: 0n,
           messagesSynchedTo: 0n,
-        });
+          blockBodiesSynchedTo: 0n,
+        } satisfies ArchiverL1SynchPoint);
       });
 
       it('returns the L1 block number in which the most recent L2 block was published', async () => {
@@ -103,7 +109,17 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         await expect(store.getSynchPoint()).resolves.toEqual({
           blocksSynchedTo: blocks.lastProcessedL1BlockNumber,
           messagesSynchedTo: 0n,
-        });
+          blockBodiesSynchedTo: 0n,
+        } satisfies ArchiverL1SynchPoint);
+      });
+
+      it('returns the L1 block number in which the most recent L2 block body was published', async () => {
+        await store.addBlockBodies(blockBodies);
+        await expect(store.getSynchPoint()).resolves.toEqual({
+          blocksSynchedTo: 0n,
+          messagesSynchedTo: 0n,
+          blockBodiesSynchedTo: blockBodies.lastProcessedL1BlockNumber,
+        } satisfies ArchiverL1SynchPoint);
       });
 
       it('returns the L1 block number that most recently added messages from inbox', async () => {
@@ -114,7 +130,8 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         await expect(store.getSynchPoint()).resolves.toEqual({
           blocksSynchedTo: 0n,
           messagesSynchedTo: 1n,
-        });
+          blockBodiesSynchedTo: 0n,
+        } satisfies ArchiverL1SynchPoint);
       });
     });
 
@@ -179,7 +196,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           ),
         );
         await store.addBlocks(blocks);
-        await store.addBlockBodies(blocks.retrievedData.map(block => block.body));
+        await store.addBlockBodies(blockBodies);
       });
 
       it.each([
@@ -335,7 +352,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         };
 
         await store.addBlocks(blocks);
-        await store.addBlockBodies(blocks.retrievedData.map(block => block.body));
+        await store.addBlockBodies(blockBodies);
 
         await Promise.all(
           blocks.retrievedData.map(block =>
