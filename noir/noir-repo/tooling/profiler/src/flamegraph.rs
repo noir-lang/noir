@@ -278,6 +278,7 @@ mod tests {
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
+            BTreeMap::default(),
         );
 
         let samples: Vec<Sample<FieldElement>> = vec![

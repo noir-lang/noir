@@ -16,9 +16,9 @@ impl Verifiable for KernelData {
   fn verify(self) {
     let inputs = KernelCircuitPublicInputs::serialize(self.public_inputs);
     std::verify_proof(
-        self.vk.key.as_slice(),
-        self.proof.fields.as_slice(),
-        inputs.as_slice(),
+        self.vk.key,
+        self.proof.fields,
+        inputs,
         self.vk.hash
     );
   }

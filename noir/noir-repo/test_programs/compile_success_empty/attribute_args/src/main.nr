@@ -1,9 +1,9 @@
-#[attr_with_args(a b, c d)]
-#[varargs(one, two)]
-#[varargs(one, two, three, four)]
+#[attr_with_args(1, 2)]
+#[varargs(1, 2)]
+#[varargs(1, 2, 3, 4)]
 struct Foo {}
 
-comptime fn attr_with_args(s: StructDefinition, a: Quoted, b: Quoted) {
+comptime fn attr_with_args(s: StructDefinition, a: Field, b: Field) {
     // Ensure all variables are in scope.
     // We can't print them since that breaks the test runner.
     let _ = s;
@@ -11,7 +11,8 @@ comptime fn attr_with_args(s: StructDefinition, a: Quoted, b: Quoted) {
     let _ = b;
 }
 
-comptime fn varargs(s: StructDefinition, t: [Quoted]) {
+#[varargs]
+comptime fn varargs(s: StructDefinition, t: [Field]) {
     let _ = s;
     for _ in t {}
     assert(t.len() < 5);

@@ -8,6 +8,7 @@ use crate::uint128::U128;
 use crate::sha256::{digest, sha256_var};
 use crate::collections::vec::Vec;
 use crate::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_slice};
+use crate::meta::derive_via;
 
 #[foreign(sha256)]
 // docs:start:sha256
@@ -46,6 +47,7 @@ fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: 
     }
 }
 
+#[no_predicates]
 fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
     let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];
     for i in 0..N {
@@ -56,15 +58,19 @@ fn pedersen_commitment_with_separator_noir<let N: u32>(input: [Field; N], separa
     multi_scalar_mul(generators, points)
 }
 
+#[no_predicates]
 fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u32) -> Field {
     let mut scalars: Vec<EmbeddedCurveScalar> = Vec::from_slice([EmbeddedCurveScalar { lo: 0, hi: 0 }; N].as_slice()); //Vec::new();
 
     for i in 0..N {
         scalars.set(i, from_field_unsafe(input[i]));
     }
-    scalars.push(EmbeddedCurveScalar { lo: N as Field, hi: 0 });
+    scalars.push(EmbeddedCurveScalar { lo: N as Field, hi: 0 as Field });
     let domain_generators :[EmbeddedCurvePoint; N]= derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
-    let mut vec_generators = Vec::from_slice(domain_generators.as_slice());
+    let mut vec_generators = Vec::new();
+    for i in 0..N {
+        vec_generators.push(domain_generators[i]);
+    }
     let length_generator : [EmbeddedCurvePoint; 1] = derive_generators("pedersen_hash_length".as_bytes(), 0);
     vec_generators.push(length_generator[0]);
     multi_scalar_mul_slice(vec_generators.slice, scalars.slice)[0]
@@ -86,7 +92,7 @@ fn __pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator
 #[field(bn254)]
 fn derive_generators<let N: u32, let M: u32>(domain_separator_bytes: [u8; M], starting_index: u32) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
-    crate::assert_constant(starting_index);
+    // TODO(https://github.com/noir-lang/noir/issues/5672): Add back assert_constant on starting_index
     __derive_generators(domain_separator_bytes, starting_index)
 }
 
@@ -136,8 +142,16 @@ pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
 // Partially ported and impacted by rust.
 
 // Hash trait shall be implemented per type.
-trait Hash{
+#[derive_via(derive_hash)]
+trait Hash {
     fn hash<H>(self, state: &mut H) where H: Hasher;
+}
+
+comptime fn derive_hash(s: StructDefinition) -> Quoted {
+    let name = quote { Hash };
+    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher };
+    let for_each_field = |name| quote { _self.$name.hash(_state); };
+    crate::meta::make_trait_impl(s, name, signature, for_each_field, quote {}, |fields| fields)
 }
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.

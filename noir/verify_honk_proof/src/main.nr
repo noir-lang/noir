@@ -13,9 +13,9 @@ fn main(
     key_hash: Field
 ) {
     std::verify_proof(
-        verification_key.as_slice(),
-        proof.as_slice(),
-        public_inputs.as_slice(),
+        verification_key,
+        proof,
+        public_inputs,
         key_hash
     );
 }

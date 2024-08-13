@@ -2,9 +2,10 @@ use super::{
     attributes::{attributes, validate_attributes},
     block, fresh_statement, ident, keyword, maybe_comp_time, nothing, optional_visibility,
     parameter_name_recovery, parameter_recovery, parenthesized, parse_type, pattern,
+    primitives::token_kind,
     self_parameter, where_clause, NoirParser,
 };
-use crate::token::{Keyword, Token};
+use crate::token::{Keyword, Token, TokenKind};
 use crate::{ast::IntegerBitSize, parser::spanned};
 use crate::{
     ast::{
@@ -110,8 +111,15 @@ pub(super) fn generic_type() -> impl NoirParser<UnresolvedGeneric> {
     ident().map(UnresolvedGeneric::Variable)
 }
 
+pub(super) fn resolved_generic() -> impl NoirParser<UnresolvedGeneric> {
+    token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
+        Token::QuotedType(id) => UnresolvedGeneric::Resolved(id, span),
+        _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
+    })
+}
+
 pub(super) fn generic() -> impl NoirParser<UnresolvedGeneric> {
-    generic_type().or(numeric_generic())
+    generic_type().or(numeric_generic()).or(resolved_generic())
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list

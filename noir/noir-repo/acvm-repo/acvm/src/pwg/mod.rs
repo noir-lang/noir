@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use acir::{
     brillig::ForeignCallResult,
     circuit::{
-        brillig::BrilligBytecode,
+        brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{BlockId, ConstantOrWitnessEnum, FunctionInput},
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
@@ -132,6 +132,7 @@ pub enum OpcodeResolutionError<F> {
     BlackBoxFunctionFailed(BlackBoxFunc, String),
     #[error("Failed to solve brillig function")]
     BrilligFunctionFailed {
+        function_id: BrilligFunctionId,
         call_stack: Vec<OpcodeLocation>,
         payload: Option<ResolvedAssertionPayload<F>>,
     },
@@ -475,9 +476,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 &self.witness_map,
                 &self.block_solvers,
                 inputs,
-                &self.unconstrained_functions[*id as usize].bytecode,
+                &self.unconstrained_functions[id.as_usize()].bytecode,
                 self.backend,
                 self.instruction_pointer,
+                *id,
             )?,
         };
 
@@ -502,7 +504,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     fn map_brillig_error(&self, mut err: OpcodeResolutionError<F>) -> OpcodeResolutionError<F> {
         match &mut err {
-            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload } => {
+            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload, .. } => {
                 // Some brillig errors have static strings as payloads, we can resolve them here
                 let last_location =
                     call_stack.last().expect("Call stacks should have at least one item");
@@ -546,9 +548,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             witness,
             &self.block_solvers,
             inputs,
-            &self.unconstrained_functions[*id as usize].bytecode,
+            &self.unconstrained_functions[id.as_usize()].bytecode,
             self.backend,
             self.instruction_pointer,
+            *id,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),

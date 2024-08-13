@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
@@ -12,6 +11,7 @@ use noirc_errors::{Location, Span, Spanned};
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
@@ -230,6 +230,14 @@ pub struct NodeInterner {
     // The module where each reference is
     // (ReferenceId::Reference and ReferenceId::Local aren't included here)
     pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
+
+    /// Each value currently in scope in the comptime interpreter.
+    /// Each element of the Vec represents a scope with every scope together making
+    /// up all currently visible definitions. The first scope is always the global scope.
+    ///
+    /// This is stored in the NodeInterner so that the Elaborator from each crate can
+    /// share the same global values.
+    pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -556,44 +564,45 @@ impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
             nodes: Arena::default(),
-            func_meta: HashMap::new(),
-            function_definition_ids: HashMap::new(),
-            function_modifiers: HashMap::new(),
-            function_modules: HashMap::new(),
-            module_attributes: HashMap::new(),
-            func_id_to_trait: HashMap::new(),
+            func_meta: HashMap::default(),
+            function_definition_ids: HashMap::default(),
+            function_modifiers: HashMap::default(),
+            function_modules: HashMap::default(),
+            module_attributes: HashMap::default(),
+            func_id_to_trait: HashMap::default(),
             dependency_graph: petgraph::graph::DiGraph::new(),
-            dependency_graph_indices: HashMap::new(),
-            id_to_location: HashMap::new(),
+            dependency_graph_indices: HashMap::default(),
+            id_to_location: HashMap::default(),
             definitions: vec![],
-            id_to_type: HashMap::new(),
-            definition_to_type: HashMap::new(),
-            structs: HashMap::new(),
-            struct_attributes: HashMap::new(),
+            id_to_type: HashMap::default(),
+            definition_to_type: HashMap::default(),
+            structs: HashMap::default(),
+            struct_attributes: HashMap::default(),
             type_aliases: Vec::new(),
-            traits: HashMap::new(),
-            trait_implementations: HashMap::new(),
+            traits: HashMap::default(),
+            trait_implementations: HashMap::default(),
             next_trait_implementation_id: 0,
-            trait_implementation_map: HashMap::new(),
-            selected_trait_implementations: HashMap::new(),
-            infix_operator_traits: HashMap::new(),
-            prefix_operator_traits: HashMap::new(),
+            trait_implementation_map: HashMap::default(),
+            selected_trait_implementations: HashMap::default(),
+            infix_operator_traits: HashMap::default(),
+            prefix_operator_traits: HashMap::default(),
             ordering_type: None,
-            instantiation_bindings: HashMap::new(),
-            field_indices: HashMap::new(),
+            instantiation_bindings: HashMap::default(),
+            field_indices: HashMap::default(),
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
-            global_attributes: HashMap::new(),
-            struct_methods: HashMap::new(),
-            primitive_methods: HashMap::new(),
+            global_attributes: HashMap::default(),
+            struct_methods: HashMap::default(),
+            primitive_methods: HashMap::default(),
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
-            reference_graph_indices: HashMap::new(),
-            reference_modules: HashMap::new(),
+            reference_graph_indices: HashMap::default(),
+            reference_modules: HashMap::default(),
+            comptime_scopes: vec![HashMap::default()],
         }
     }
 }
@@ -969,6 +978,10 @@ impl NodeInterner {
     /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
         self.func_meta.get(func_id).expect("ice: all function ids should have metadata")
+    }
+
+    pub fn function_meta_mut(&mut self, func_id: &FuncId) -> &mut FuncMeta {
+        self.func_meta.get_mut(func_id).expect("ice: all function ids should have metadata")
     }
 
     pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {
@@ -1437,6 +1450,8 @@ impl NodeInterner {
 
         let mut matching_impls = Vec::new();
 
+        let mut where_clause_errors = Vec::new();
+
         for (existing_object_type2, impl_kind) in impls {
             // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
@@ -1471,14 +1486,17 @@ impl NodeInterner {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
 
-                    if let Err(mut errors) = self.validate_where_clause(
+                    if let Err(errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
                         &mut fresh_bindings,
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
-                        errors.push(make_constraint());
-                        return Err(errors);
+                        // Only keep the first errors we get from a failing where clause
+                        if where_clause_errors.is_empty() {
+                            where_clause_errors.extend(errors);
+                        }
+                        continue;
                     }
                 }
 
@@ -1491,7 +1509,8 @@ impl NodeInterner {
             *type_bindings = fresh_bindings;
             Ok(impl_)
         } else if matching_impls.is_empty() {
-            Err(vec![make_constraint()])
+            where_clause_errors.push(make_constraint());
+            Err(where_clause_errors)
         } else {
             // multiple matching impls, type annotations needed
             Err(vec![])
@@ -2071,6 +2090,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Constant(_)
         | Type::Error
         | Type::Struct(_, _)
+        | Type::InfixExpr(..)
         | Type::TraitAsType(..) => None,
     }
 }

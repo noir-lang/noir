@@ -78,6 +78,9 @@ pub(crate) struct InlayHintsOptions {
 
     #[serde(rename = "parameterHints", default = "default_parameter_hints")]
     pub(crate) parameter_hints: ParameterHintsOptions,
+
+    #[serde(rename = "closingBraceHints", default = "default_closing_brace_hints")]
+    pub(crate) closing_brace_hints: ClosingBraceHintsOptions,
 }
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
@@ -92,6 +95,15 @@ pub(crate) struct ParameterHintsOptions {
     pub(crate) enabled: bool,
 }
 
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct ClosingBraceHintsOptions {
+    #[serde(rename = "enabled", default = "default_closing_brace_hints_enabled")]
+    pub(crate) enabled: bool,
+
+    #[serde(rename = "minLines", default = "default_closing_brace_min_lines")]
+    pub(crate) min_lines: u32,
+}
+
 fn default_enable_code_lens() -> bool {
     true
 }
@@ -104,6 +116,7 @@ fn default_inlay_hints() -> InlayHintsOptions {
     InlayHintsOptions {
         type_hints: default_type_hints(),
         parameter_hints: default_parameter_hints(),
+        closing_brace_hints: default_closing_brace_hints(),
     }
 }
 
@@ -121,6 +134,21 @@ fn default_parameter_hints() -> ParameterHintsOptions {
 
 fn default_parameter_hints_enabled() -> bool {
     true
+}
+
+fn default_closing_brace_hints() -> ClosingBraceHintsOptions {
+    ClosingBraceHintsOptions {
+        enabled: default_closing_brace_hints_enabled(),
+        min_lines: default_closing_brace_min_lines(),
+    }
+}
+
+fn default_closing_brace_hints_enabled() -> bool {
+    true
+}
+
+fn default_closing_brace_min_lines() -> u32 {
+    25
 }
 
 impl Default for LspInitializationOptions {
@@ -387,7 +415,7 @@ where
         interner = def_interner;
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
         interner = &context.def_interner;
     }
 

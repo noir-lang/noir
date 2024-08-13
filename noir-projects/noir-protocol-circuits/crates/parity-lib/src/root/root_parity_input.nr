@@ -27,9 +27,9 @@ impl Verifiable for RootParityInput {
   fn verify(self) {
     let inputs = ParityPublicInputs::serialize(self.public_inputs);
     std::verify_proof(
-        self.verification_key.key.as_slice(),
-        self.proof.fields.as_slice(),
-        inputs.as_slice(),
+        self.verification_key.key,
+        self.proof.fields,
+        inputs,
         self.verification_key.hash
     );
   }

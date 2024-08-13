@@ -116,7 +116,12 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) {
         match terminator_instruction {
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack: _,
+            } => {
                 let condition = self.convert_ssa_single_addr_value(*condition, dfg);
                 self.brillig_context.jump_if_instruction(
                     condition.address,

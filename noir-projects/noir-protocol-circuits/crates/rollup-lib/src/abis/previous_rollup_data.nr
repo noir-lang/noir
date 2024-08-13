@@ -17,9 +17,9 @@ impl Verifiable for PreviousRollupData {
   fn verify(self) {
     let inputs = BaseOrMergeRollupPublicInputs::serialize(self.base_or_merge_rollup_public_inputs);
     std::verify_proof(
-        self.vk.key.as_slice(),
-        self.proof.fields.as_slice(),
-        inputs.as_slice(),
+        self.vk.key,
+        self.proof.fields,
+        inputs,
         self.vk.hash
     );
   }

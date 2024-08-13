@@ -231,6 +231,10 @@ export interface SourceCodeLocation {
  */
 export type OpcodeLocation = string;
 
+export type BrilligFunctionId = number;
+
+export type OpcodeToLocationsMap = Record<OpcodeLocation, SourceCodeLocation[]>;
+
 /**
  * The debug information for a given function.
  */
@@ -238,7 +242,11 @@ export interface DebugInfo {
   /**
    * A map of the opcode location to the source code location.
    */
-  locations: Record<OpcodeLocation, SourceCodeLocation[]>;
+  locations: OpcodeToLocationsMap;
+  /**
+   * For each Brillig function, we have a map of the opcode location to the source code location.
+   */
+  brillig_locations: Record<BrilligFunctionId, OpcodeToLocationsMap>;
 }
 
 /**

@@ -1,5 +1,5 @@
 use super::{
-    brillig::{BrilligInputs, BrilligOutputs},
+    brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     directives::Directive,
 };
 use crate::native_types::{Expression, Witness};
@@ -111,7 +111,7 @@ pub enum Opcode<F> {
     BrilligCall {
         /// Id for the function being called. It is the responsibility of the executor
         /// to fetch the appropriate Brillig bytecode from this id.
-        id: u32,
+        id: BrilligFunctionId,
         /// Inputs to the function call
         inputs: Vec<BrilligInputs<F>>,
         /// Outputs to the function call
