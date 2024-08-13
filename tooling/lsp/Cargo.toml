@@ -22,6 +22,7 @@ noirc_frontend.workspace = true
 noirc_artifacts.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+strum = "0.24"
 tower.workspace = true
 async-lsp = { workspace = true, features = ["omni-trait"] }
 serde_with = "3.2.0"
