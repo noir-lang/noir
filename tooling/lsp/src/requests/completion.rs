@@ -62,9 +62,12 @@ enum FunctionCompletionKind {
     NameAndParameters,
 }
 
+/// Is there a requirement for suggesting functions?
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum FunctionSelfType<'a> {
+enum FunctionKind<'a> {
+    /// No requirement: any function is okay to suggest.
     Any,
+    /// Only show functions that have the given self type.
     SelfType(&'a Type),
 }
 
@@ -986,7 +989,7 @@ impl<'a> NodeFinder<'a> {
                     if let Some(completion_item) = self.function_completion_item(
                         func_id,
                         FunctionCompletionKind::NameAndParameters,
-                        FunctionSelfType::SelfType(typ),
+                        FunctionKind::SelfType(typ),
                     ) {
                         self.completion_items.push(completion_item);
                     }
@@ -1050,7 +1053,7 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
-        let function_self_type = FunctionSelfType::Any;
+        let function_kind = FunctionKind::Any;
 
         let items = match module_completion_kind {
             ModuleCompletionKind::DirectChildren => module_data.definitions(),
@@ -1067,7 +1070,7 @@ impl<'a> NodeFinder<'a> {
                         module_def_id,
                         name.clone(),
                         function_completion_kind,
-                        function_self_type,
+                        function_kind,
                         requested_items,
                     ) {
                         self.completion_items.push(completion_item);
@@ -1079,7 +1082,7 @@ impl<'a> NodeFinder<'a> {
                         module_def_id,
                         name.clone(),
                         function_completion_kind,
-                        function_self_type,
+                        function_kind,
                         requested_items,
                     ) {
                         self.completion_items.push(completion_item);
@@ -1119,7 +1122,7 @@ impl<'a> NodeFinder<'a> {
         module_def_id: ModuleDefId,
         name: String,
         function_completion_kind: FunctionCompletionKind,
-        function_self_type: FunctionSelfType,
+        function_kind: FunctionKind,
         requested_items: RequestedItems,
     ) -> Option<CompletionItem> {
         match requested_items {
@@ -1136,7 +1139,7 @@ impl<'a> NodeFinder<'a> {
         match module_def_id {
             ModuleDefId::ModuleId(_) => Some(module_completion_item(name)),
             ModuleDefId::FunctionId(func_id) => {
-                self.function_completion_item(func_id, function_completion_kind, function_self_type)
+                self.function_completion_item(func_id, function_completion_kind, function_kind)
             }
             ModuleDefId::TypeId(struct_id) => Some(self.struct_completion_item(struct_id)),
             ModuleDefId::TypeAliasId(type_alias_id) => {
@@ -1151,14 +1154,14 @@ impl<'a> NodeFinder<'a> {
         &self,
         func_id: FuncId,
         function_completion_kind: FunctionCompletionKind,
-        function_self_type: FunctionSelfType,
+        function_kind: FunctionKind,
     ) -> Option<CompletionItem> {
         let func_meta = self.interner.function_meta(&func_id);
         let name = self.interner.function_name(&func_id).to_string();
 
-        match function_self_type {
-            FunctionSelfType::Any => (),
-            FunctionSelfType::SelfType(mut self_type) => {
+        match function_kind {
+            FunctionKind::Any => (),
+            FunctionKind::SelfType(mut self_type) => {
                 if let Some((pattern, typ, _)) = func_meta.parameters.0.get(0) {
                     if !self.hir_pattern_is_self_type(pattern) {
                         return None;
@@ -1208,7 +1211,7 @@ impl<'a> NodeFinder<'a> {
                 let label = format!("{}(…)", name);
                 let kind = CompletionItemKind::FUNCTION;
                 let insert_text =
-                    self.compute_function_insert_text(func_meta, &name, function_self_type);
+                    self.compute_function_insert_text(func_meta, &name, function_kind);
 
                 snippet_completion_item(label, kind, insert_text, Some(description))
             }
@@ -1225,7 +1228,7 @@ impl<'a> NodeFinder<'a> {
         &self,
         func_meta: &FuncMeta,
         name: &str,
-        function_self_type: FunctionSelfType,
+        function_kind: FunctionKind,
     ) -> String {
         let mut text = String::new();
         text.push_str(name);
@@ -1234,13 +1237,13 @@ impl<'a> NodeFinder<'a> {
         let mut index = 1;
         for (pattern, _, _) in &func_meta.parameters.0 {
             if index == 1 {
-                match function_self_type {
-                    FunctionSelfType::SelfType(_) => {
+                match function_kind {
+                    FunctionKind::SelfType(_) => {
                         if self.hir_pattern_is_self_type(pattern) {
                             continue;
                         }
                     }
-                    FunctionSelfType::Any => (),
+                    FunctionKind::Any => (),
                 }
             }
 
