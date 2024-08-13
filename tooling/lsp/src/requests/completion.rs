@@ -182,7 +182,16 @@ impl<'a> NodeFinder<'a> {
         if self.completion_items.is_empty() {
             None
         } else {
-            Some(CompletionResponse::Array(std::mem::take(&mut self.completion_items)))
+            let mut items = std::mem::take(&mut self.completion_items);
+
+            // Show items that start with underscore last in the list
+            for item in items.iter_mut() {
+                if item.label.starts_with("_") {
+                    item.sort_text = Some(underscore_sort_text());
+                }
+            }
+
+            Some(CompletionResponse::Array(items))
         }
     }
 
@@ -1603,6 +1612,13 @@ fn self_mismatch_sort_text() -> String {
 
 /// We want to show operator methods last.
 fn operator_sort_text() -> String {
+    "8".to_string()
+}
+
+/// If a name begins with underscore it's likely something that's meant to
+/// be private (but visibility doesn't exist everywhere yet, so for now
+/// we assume that)
+fn underscore_sort_text() -> String {
     "9".to_string()
 }
 
