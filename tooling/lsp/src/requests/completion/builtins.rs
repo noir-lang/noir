@@ -52,6 +52,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Type
         | Keyword::Unchecked
         | Keyword::Unconstrained
+        | Keyword::Unsafe
         | Keyword::Use
         | Keyword::Where
         | Keyword::While => None,
@@ -120,6 +121,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::TypeType
         | Keyword::Unchecked
         | Keyword::Unconstrained
+        | Keyword::Unsafe
         | Keyword::Use
         | Keyword::Where
         | Keyword::While => None,
