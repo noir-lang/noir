@@ -1248,10 +1248,14 @@ impl<'a> NodeFinder<'a> {
                 simple_completion_item(name, CompletionItemKind::FUNCTION, Some(description))
             }
             FunctionCompletionKind::NameAndParameters => {
-                let label = format!("{}(…)", name);
                 let kind = CompletionItemKind::FUNCTION;
                 let insert_text =
                     self.compute_function_insert_text(func_meta, &name, function_kind);
+                let label = if insert_text.ends_with("()") {
+                    format!("{}()", name)
+                } else {
+                    format!("{}(…)", name)
+                };
 
                 snippet_completion_item(label, kind, insert_text, Some(description))
             }
@@ -1941,6 +1945,27 @@ mod completion_tests {
                 "local",
                 CompletionItemKind::VARIABLE,
                 Some("Field".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_complete_function_without_arguments() {
+        let src = r#"
+          fn hello() { }
+
+          fn main() {
+            h>|<
+          }
+        "#;
+        assert_completion(
+            src,
+            vec![snippet_completion_item(
+                "hello()",
+                CompletionItemKind::FUNCTION,
+                "hello()",
+                Some("fn()".to_string()),
             )],
         )
         .await;
