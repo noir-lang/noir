@@ -4,7 +4,7 @@ use acvm::FieldElement;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{IntegerBitSize, Signedness},
+    ast::{ExpressionKind, IntegerBitSize, Signedness},
     hir::{
         comptime::{errors::IResult, value::add_token_spans, Interpreter, InterpreterError, Value},
         def_map::ModuleId,
@@ -139,6 +139,17 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
         Value::U32(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
+pub(crate) fn get_expr((value, location): (Value, Location)) -> IResult<ExpressionKind> {
+    match value {
+        Value::Expr(expr) => Ok(expr),
+        value => {
+            let expected = Type::Quoted(QuotedType::Expr);
             let actual = value.get_type().into_owned();
             Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
