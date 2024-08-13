@@ -602,7 +602,8 @@ impl<'a> NodeFinder<'a> {
             if let Some(typ) = self.interner.type_at_location(location) {
                 let typ = typ.follow_bindings();
                 let prefix = ident.to_string();
-                self.complete_type_fields_and_methods(&typ, &prefix)
+                self.complete_type_fields_and_methods(&typ, &prefix);
+                return;
             }
         }
 
@@ -1045,7 +1046,7 @@ impl<'a> NodeFinder<'a> {
                     name,
                     CompletionItemKind::FIELD,
                     Some(typ.to_string()),
-                ))
+                ));
             }
         }
     }
@@ -1241,7 +1242,7 @@ impl<'a> NodeFinder<'a> {
         } else {
             false
         };
-        let description = func_meta_type_to_string(&func_meta, func_self_type.is_some());
+        let description = func_meta_type_to_string(func_meta, func_self_type.is_some());
 
         let completion_item = match function_completion_kind {
             FunctionCompletionKind::Name => {
@@ -1249,8 +1250,7 @@ impl<'a> NodeFinder<'a> {
             }
             FunctionCompletionKind::NameAndParameters => {
                 let kind = CompletionItemKind::FUNCTION;
-                let insert_text =
-                    self.compute_function_insert_text(func_meta, &name, function_kind);
+                let insert_text = self.compute_function_insert_text(func_meta, name, function_kind);
                 let label = if insert_text.ends_with("()") {
                     format!("{}()", name)
                 } else {
