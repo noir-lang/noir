@@ -1145,9 +1145,10 @@ impl NodeInterner {
                 let struct_type = struct_type.borrow();
                 self.get_struct_methods(struct_type.id)
             }
-            Type::Alias(type_alias, _) => {
+            Type::Alias(type_alias, generics) => {
                 let type_alias = type_alias.borrow();
-                self.get_type_methods(&type_alias.typ)
+                let typ = type_alias.get_type(&generics);
+                self.get_type_methods(&typ)
             }
             _ => get_type_method_key(typ).and_then(|key| self.get_primitive_methods(key)),
         }
