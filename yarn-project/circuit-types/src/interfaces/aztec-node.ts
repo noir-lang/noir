@@ -317,6 +317,14 @@ export interface AztecNode {
   simulatePublicCalls(tx: Tx): Promise<PublicSimulationOutput>;
 
   /**
+   * Returns true if the transaction is valid for inclusion at the current state. Valid transactions can be
+   * made invalid by *other* transactions if e.g. they emit the same nullifiers, or come become invalid
+   * due to e.g. the max_block_number property.
+   * @param tx - The transaction to validate for correctness.
+   */
+  isValidTx(tx: Tx): Promise<boolean>;
+
+  /**
    * Updates the configuration of this node.
    * @param config - Updated configuration to be merged with the current one.
    */

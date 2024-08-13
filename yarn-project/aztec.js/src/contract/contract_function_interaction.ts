@@ -23,6 +23,8 @@ export type SimulateMethodOptions = {
   from?: AztecAddress;
   /** Gas settings for the simulation. */
   gasSettings?: GasSettings;
+  /** Simulate without checking for the validity of the resulting transaction, e.g. whether it emits any existing nullifiers. */
+  skipTxValidation?: boolean;
 };
 
 /**
@@ -93,7 +95,7 @@ export class ContractFunctionInteraction extends BaseContractInteraction {
     }
 
     const txRequest = await this.create();
-    const simulatedTx = await this.wallet.simulateTx(txRequest, true, options?.from);
+    const simulatedTx = await this.wallet.simulateTx(txRequest, true, options?.from, options?.skipTxValidation);
 
     // As account entrypoints are private, for private functions we retrieve the return values from the first nested call
     // since we're interested in the first set of values AFTER the account entrypoint

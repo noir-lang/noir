@@ -513,12 +513,19 @@ export class PXEService implements PXE {
     txRequest: TxExecutionRequest,
     simulatePublic: boolean,
     msgSender: AztecAddress | undefined = undefined,
+    skipTxValidation: boolean = true, // TODO(#7956): make the default be false
     scopes?: AztecAddress[],
   ): Promise<SimulatedTx> {
     return await this.jobQueue.put(async () => {
       const simulatedTx = await this.#simulateAndProve(txRequest, this.fakeProofCreator, msgSender, scopes);
       if (simulatePublic) {
         simulatedTx.publicOutput = await this.#simulatePublicCalls(simulatedTx.tx);
+      }
+
+      if (!skipTxValidation) {
+        if (!(await this.node.isValidTx(simulatedTx.tx))) {
+          throw new Error('The simulated transaction is unable to be added to state and is invalid.');
+        }
       }
 
       // We log only if the msgSender is undefined, as simulating with a different msgSender
