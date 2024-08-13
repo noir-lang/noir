@@ -66,7 +66,6 @@ enum FunctionCompletionKind {
 enum FunctionSelfType {
     Any,
     SelfType,
-    NoSelfType,
 }
 
 /// When requesting completions, whether to list all items or just types.
@@ -473,7 +472,7 @@ impl<'a> NodeFinder<'a> {
             let location = Location::new(expression.span, self.file);
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = "";
-                self.complete_type_fields_and_methods(&typ, prefix, false)
+                self.complete_type_fields_and_methods(&typ, prefix)
             }
         }
 
@@ -597,7 +596,7 @@ impl<'a> NodeFinder<'a> {
             let location = Location::new(member_access_expression.lhs.span, self.file);
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = ident.to_string();
-                self.complete_type_fields_and_methods(&typ, &prefix, false)
+                self.complete_type_fields_and_methods(&typ, &prefix)
             }
         }
 
@@ -942,13 +941,13 @@ impl<'a> NodeFinder<'a> {
         };
     }
 
-    fn complete_type_fields_and_methods(&mut self, typ: &Type, prefix: &str, _mutable: bool) {
+    fn complete_type_fields_and_methods(&mut self, typ: &Type, prefix: &str) {
         match typ {
             Type::Struct(struct_type, generics) => {
                 self.complete_struct_fields(&struct_type.borrow(), generics, prefix);
             }
             Type::MutableReference(typ) => {
-                return self.complete_type_fields_and_methods(typ, prefix, true)
+                return self.complete_type_fields_and_methods(typ, prefix);
             }
             Type::FieldElement
             | Type::Array(_, _)
@@ -1157,22 +1156,11 @@ impl<'a> NodeFinder<'a> {
 
         match function_self_type {
             FunctionSelfType::Any => (),
-            FunctionSelfType::SelfType | FunctionSelfType::NoSelfType => {
-                let first_param_name = func_meta
-                    .parameter_idents
-                    .get(0)
-                    .map(|ident| self.interner.definition_name(ident.id));
-
-                if function_self_type == FunctionSelfType::SelfType
-                    && first_param_name != Some("self")
-                {
-                    return None;
-                }
-
-                if function_self_type == FunctionSelfType::NoSelfType
-                    && first_param_name == Some("self")
-                {
-                    return None;
+            FunctionSelfType::SelfType => {
+                if let Some((pattern, _, _)) = func_meta.parameters.0.get(0) {
+                    if !self.hir_pattern_is_self_type(pattern) {
+                        return None;
+                    }
                 }
             }
         }
@@ -1214,13 +1202,11 @@ impl<'a> NodeFinder<'a> {
             if index == 1 {
                 match function_self_type {
                     FunctionSelfType::SelfType => {
-                        if let Some(name) = self.hir_pattern_to_str(pattern) {
-                            if name == "self" {
-                                continue;
-                            }
+                        if self.hir_pattern_is_self_type(pattern) {
+                            continue;
                         }
                     }
-                    FunctionSelfType::Any | FunctionSelfType::NoSelfType => (),
+                    FunctionSelfType::Any => (),
                 }
             }
 
@@ -1250,11 +1236,13 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
-    fn hir_pattern_to_str(&self, pattern: &HirPattern) -> Option<&str> {
+    fn hir_pattern_is_self_type(&self, pattern: &HirPattern) -> bool {
         match pattern {
-            HirPattern::Identifier(hir_ident) => Some(self.interner.definition_name(hir_ident.id)),
-            HirPattern::Mutable(pattern, _) => self.hir_pattern_to_str(pattern),
-            HirPattern::Tuple(_, _) | HirPattern::Struct(_, _, _) => None,
+            HirPattern::Identifier(hir_ident) => {
+                self.interner.definition_name(hir_ident.id) == "self"
+            }
+            HirPattern::Mutable(pattern, _) => self.hir_pattern_is_self_type(pattern),
+            HirPattern::Tuple(_, _) | HirPattern::Struct(_, _, _) => false,
         }
     }
 
