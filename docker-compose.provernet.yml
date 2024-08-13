@@ -3,6 +3,8 @@
 # Logs latest block numbers every 10 seconds.
 name: aztec-provernet
 services:
+  
+  # Anvil instance that serves as L1
   ethereum:
     image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
     command: >
@@ -10,6 +12,7 @@ services:
     ports:
       - 8545:8545
 
+  # Single Aztec node with a sequencer for building and publishing unproven blocks to L1
   aztec-node:
     image: "aztecprotocol/aztec:${VERSION:-master}"
     ports:
@@ -19,15 +22,16 @@ services:
       ETHEREUM_HOST: http://ethereum:8545
       L1_CHAIN_ID: 31337
       AZTEC_PORT: 80
-      DEPLOY_AZTEC_CONTRACTS: true
-      ARCHIVER_POLLING_INTERVAL: 10000
+      DEPLOY_AZTEC_CONTRACTS: 1
+      ARCHIVER_POLLING_INTERVAL: 1000
       SEQ_MAX_TX_PER_BLOCK: 4
       SEQ_MIN_TX_PER_BLOCK: 1
-      SEQ_MAX_SECONDS_BETWEEN_BLOCKS: 120
-      SEQ_MIN_SECONDS_BETWEEN_BLOCKS: 5
+      SEQ_MAX_SECONDS_BETWEEN_BLOCKS: 3600
+      SEQ_MIN_SECONDS_BETWEEN_BLOCKS: 0
       SEQ_RETRY_INTERVAL: 10000
       SEQ_PUBLISHER_PRIVATE_KEY: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a"
-      SEQ_SKIP_SUBMIT_PROOFS: true
+      PROVER_REAL_PROOFS: "${PROVER_REAL_PROOFS:-false}"
+      ASSUME_PROVEN_UNTIL_BLOCK_NUMBER: "${ASSUME_PROVEN_UNTIL_BLOCK_NUMBER:-4}"
       P2P_ENABLED: false
       IS_DEV_NET: true
     volumes:
@@ -44,28 +48,33 @@ services:
       - "--node"
       - "--archiver"
       - "--sequencer"
-      - "--prover"
 
+  # Bot for keeping a steady flow of txs into the network
+  # Requires bootstrapping to be completed successfully
   aztec-bot:
     image: "aztecprotocol/aztec:${VERSION:-master}"
     ports:
-      - "8081:80"
+      - "8082:80"
     environment:
       LOG_LEVEL: info
       ETHEREUM_HOST: http://ethereum:8545
       AZTEC_NODE_URL: http://aztec-node
       L1_CHAIN_ID: 31337
       AZTEC_PORT: 80
-      PXE_PROVER_ENABLED: false
       BOT_PRIVATE_KEY: 0xcafe
-      BOT_TX_INTERVAL_SECONDS: 10
+      BOT_TX_INTERVAL_SECONDS: 300
       BOT_PRIVATE_TRANSFERS_PER_TX: 1
       BOT_PUBLIC_TRANSFERS_PER_TX: 0
       BOT_NO_WAIT_FOR_TRANSFERS: true
       BOT_NO_START: false
+      PXE_PROVER_ENABLED: "${PROVER_REAL_PROOFS:-false}"
+      PROVER_REAL_PROOFS: "${PROVER_REAL_PROOFS:-false}"
+      BB_SKIP_CLEANUP: "${BB_SKIP_CLEANUP:-0}" # Persist tmp dirs for debugging
       IS_DEV_NET: true
     volumes:
       - ./log/aztec-bot/:/usr/src/yarn-project/aztec/log:rw
+      - ./cache/bb-crs/:/root/.bb-crs:rw
+      - ./workdir/bb-bot/:/usr/src/yarn-project/bb:rw
     depends_on:
       aztec-node:
         condition: service_healthy
@@ -77,19 +86,24 @@ services:
     restart: on-failure:5
     command: [ "start", "--bot", "--pxe" ]
 
+  # Prover node that listens for unproven blocks on L1, and generates and submits block proofs
+  # Requires one or more agents to be connected for actually generating proofs
+  # Fetches individual tx proofs from the aztec-node directly
   aztec-prover:
     image: "aztecprotocol/aztec:${VERSION:-master}"
     ports:
-      - "8082:80"
+      - "8083:80"
     environment:
       LOG_LEVEL: verbose
       ETHEREUM_HOST: http://ethereum:8545
       TX_PROVIDER_NODE_URL: http://aztec-node
       L1_CHAIN_ID: 31337
       AZTEC_PORT: 80
+      ARCHIVER_POLLING_INTERVAL: 1000
       PROVER_AGENT_ENABLED: false
       PROVER_PUBLISHER_PRIVATE_KEY: "0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97"
-      PROVER_REAL_PROOFS: false
+      PROVER_REAL_PROOFS: "${PROVER_REAL_PROOFS:-false}"
+      ASSUME_PROVEN_UNTIL_BLOCK_NUMBER: "${ASSUME_PROVEN_UNTIL_BLOCK_NUMBER:-4}"
       IS_DEV_NET: true
     volumes:
       - ./log/aztec-prover/:/usr/src/yarn-project/aztec/log:rw
@@ -104,27 +118,34 @@ services:
     command: [ "start", "--prover-node", "--archiver" ]
     restart: on-failure:5
 
+  # Prover agent that connects to the prover-node for fetching proving jobs and executing them
+  # Multiple instances can be run, or PROVER_AGENT_CONCURRENCY can be increased to run multiple workers in a single instance
   aztec-prover-agent:
     image: "aztecprotocol/aztec:${VERSION:-master}"
     ports:
-      - "8083:80"
+      - "8090:80"
     environment:
       LOG_LEVEL: verbose
       ETHEREUM_HOST: http://ethereum:8545
       AZTEC_NODE_URL: http://aztec-prover
       L1_CHAIN_ID: 31337
       AZTEC_PORT: 80
-      PROVER_REAL_PROOFS: false
-      PROVER_TEST_DELAY_MS: 200
+      PROVER_REAL_PROOFS: "${PROVER_REAL_PROOFS:-false}"
+      PROVER_TEST_DELAY_MS: "${PROVER_TEST_DELAY_MS:-0}"
+      PROVER_AGENT_CONCURRENCY: 2
+      BB_SKIP_CLEANUP: "${BB_SKIP_CLEANUP:-0}" # Persist tmp dirs for debugging
       IS_DEV_NET: true
     volumes:
       - ./log/aztec-prover-agent/:/usr/src/yarn-project/aztec/log:rw
+      - ./cache/bb-crs/:/root/.bb-crs:rw
+      - ./workdir/bb-prover/:/usr/src/yarn-project/bb:rw
     depends_on:
       aztec-prover:
         condition: service_healthy
     command: [ "start", "--prover" ]
     restart: on-failure:5
 
+  # Simple watcher that logs the latest block numbers every few seconds using the CLI and the bot's PXE
   aztec-block-watcher:
     image: "aztecprotocol/aztec:${VERSION:-master}"
     environment:
