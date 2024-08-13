@@ -1808,12 +1808,8 @@ impl Type {
             Type::Function(_, _, _, unconstrained_expected),
         ) = (self.follow_bindings(), expected.follow_bindings())
         {
-            (!unconstrained_self && unconstrained_expected).then_some(Type::Function(
-                params,
-                ret,
-                env,
-                unconstrained_expected,
-            ))
+            (!unconstrained_self && unconstrained_expected)
+                .then(|| Type::Function(params, ret, env, unconstrained_expected))
         } else {
             None
         }
