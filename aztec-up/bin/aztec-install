@@ -126,7 +126,6 @@ install_bin aztec
 install_bin aztec-up
 install_bin aztec-nargo
 install_bin aztec-wallet
-install_bin .aztec_cli_vars
 
 function update_path_env_var {
   TARGET_DIR="${1}"
