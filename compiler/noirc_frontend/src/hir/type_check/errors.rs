@@ -265,7 +265,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldNot { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span } 
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
             | TypeCheckError::NonConstantSliceLength { span }
             | TypeCheckError::StringIndexAssign { span }
             | TypeCheckError::InvalidShiftSize { span } => {
