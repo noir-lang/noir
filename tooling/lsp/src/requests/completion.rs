@@ -740,12 +740,41 @@ impl<'a> NodeFinder<'a> {
         }
 
         let is_single_segment = !after_colons && idents.is_empty() && path.kind == PathKind::Plain;
+        let module_id;
 
-        let module_id =
-            if idents.is_empty() { Some(self.module_id) } else { self.resolve_module(idents) };
-        let Some(module_id) = module_id else {
-            return;
-        };
+        if idents.is_empty() {
+            module_id = self.module_id;
+        } else {
+            let Some(module_def_id) = self.resolve_path(idents) else {
+                return;
+            };
+
+            match module_def_id {
+                ModuleDefId::ModuleId(id) => module_id = id,
+                ModuleDefId::TypeId(struct_id) => {
+                    let struct_type = self.interner.get_struct(struct_id);
+                    self.complete_type_methods(
+                        &Type::Struct(struct_type, vec![]),
+                        &prefix,
+                        FunctionKind::Any,
+                    );
+                    return;
+                }
+                ModuleDefId::FunctionId(_) => {
+                    // There's nothing inside a function
+                    return;
+                }
+                ModuleDefId::TypeAliasId(_) => {
+                    // For now we don't follow aliases for suggesting methods
+                    return;
+                }
+                ModuleDefId::TraitId(_) => {
+                    // For now we don't suggest trait methods
+                    return;
+                }
+                ModuleDefId::GlobalId(_) => return,
+            }
+        }
 
         let module_completion_kind = if after_colons {
             ModuleCompletionKind::DirectChildren
@@ -975,10 +1004,10 @@ impl<'a> NodeFinder<'a> {
             | Type::Error => (),
         }
 
-        self.complete_type_methods(typ, prefix);
+        self.complete_type_methods(typ, prefix, FunctionKind::SelfType(typ));
     }
 
-    fn complete_type_methods(&mut self, typ: &Type, prefix: &str) {
+    fn complete_type_methods(&mut self, typ: &Type, prefix: &str, function_kind: FunctionKind) {
         let Some(methods_by_name) = self.interner.get_type_methods(typ) else {
             return;
         };
@@ -989,7 +1018,7 @@ impl<'a> NodeFinder<'a> {
                     if let Some(completion_item) = self.function_completion_item(
                         func_id,
                         FunctionCompletionKind::NameAndParameters,
-                        FunctionKind::SelfType(typ),
+                        function_kind,
                     ) {
                         self.completion_items.push(completion_item);
                     }
@@ -2564,6 +2593,48 @@ mod completion_tests {
                 "foobar(${1:x})",
                 Some("fn(Field, i32)".to_string()),
             )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_struct_methods_after_colons() {
+        let src = r#"
+            struct Some {
+            }
+
+            impl Some {
+                fn foobar(self, x: i32) {}
+                fn foobar2(&mut self, x: i32) {}
+                fn foobar3(y: i32) {}
+            }
+
+            fn foo() {
+                Some::>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                snippet_completion_item(
+                    "foobar(…)",
+                    CompletionItemKind::FUNCTION,
+                    "foobar(${1:self}, ${2:x})",
+                    Some("fn(Some, i32)".to_string()),
+                ),
+                snippet_completion_item(
+                    "foobar2(…)",
+                    CompletionItemKind::FUNCTION,
+                    "foobar2(${1:self}, ${2:x})",
+                    Some("fn(&mut Some, i32)".to_string()),
+                ),
+                snippet_completion_item(
+                    "foobar3(…)",
+                    CompletionItemKind::FUNCTION,
+                    "foobar3(${1:y})",
+                    Some("fn(i32)".to_string()),
+                ),
+            ],
         )
         .await;
     }
