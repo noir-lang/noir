@@ -20,7 +20,10 @@ use crate::{
         ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, UnresolvedType,
         UnresolvedTypeData, Visibility,
     },
-    hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
+    hir::{
+        comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
+        type_check::generics::TraitGenerics,
+    },
     hir_def::function::FunctionBody,
     macros_api::{ModuleDefId, NodeInterner, Signedness},
     node_interner::DefinitionKind,
@@ -361,7 +364,10 @@ fn quoted_as_trait_constraint(
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
-    Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
+
+    let ordered = bound.trait_generics;
+    let named = bound.associated_types;
+    Ok(Value::TraitConstraint(bound.trait_id, TraitGenerics { ordered, named }))
 }
 
 // fn as_type(quoted: Quoted) -> Type
@@ -518,7 +524,9 @@ fn type_implements(
     let typ = get_type(typ)?;
     let (trait_id, generics) = get_trait_constraint(constraint)?;
 
-    let implements = interner.try_lookup_trait_implementation(&typ, trait_id, &generics).is_ok();
+    let implements = interner
+        .try_lookup_trait_implementation(&typ, trait_id, &generics.ordered, &generics.named)
+        .is_ok();
     Ok(Value::Bool(implements))
 }
 
@@ -1022,12 +1030,11 @@ fn trait_def_as_trait_constraint(
     let argument = check_one_argument(arguments, location)?;
 
     let trait_id = get_trait_def(argument)?;
-    let the_trait = interner.get_trait(trait_id);
-    let trait_generics = vecmap(&the_trait.generics, |generic| {
-        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), generic.kind.clone())
-    });
+    let constraint = interner.get_trait(trait_id).as_constraint(location.span);
+    let ordered = constraint.trait_generics;
+    let named = constraint.associated_types;
 
-    Ok(Value::TraitConstraint(trait_id, trait_generics))
+    Ok(Value::TraitConstraint(trait_id, TraitGenerics { ordered, named }))
 }
 
 /// Creates a value that holds an `Option`.
