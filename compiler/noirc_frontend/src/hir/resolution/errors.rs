@@ -118,6 +118,8 @@ pub enum ResolverError {
     MacroResultInGenericsListNotAGeneric { span: Span, typ: Type },
     #[error("Named type arguments aren't allowed in a {item_kind}")]
     NamedTypeArgs { span: Span, item_kind: &'static str },
+    #[error("Associated constants may only be a field or integer type")]
+    AssociatedConstantsMustBeNumeric { span: Span },
 }
 
 impl ResolverError {
@@ -468,6 +470,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Named type arguments aren't allowed on a {item_kind}"),
                     "Named type arguments are only allowed for associated types on traits".to_string(),
+                    *span,
+                )
+            }
+            ResolverError::AssociatedConstantsMustBeNumeric { span } => {
+                Diagnostic::simple_error(
+                    "Associated constants may only be a field or integer type".to_string(),
+                    "Only numeric constants are allowed".to_string(),
                     *span,
                 )
             }

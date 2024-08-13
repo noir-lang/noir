@@ -1,8 +1,7 @@
 use crate::{
-    ast::UnresolvedTypeExpression,
     graph::CrateId,
     hir::def_collector::{dc_crate::UnresolvedTraitImpl, errors::DefCollectorErrorKind},
-    hir_def::traits::NamedType,
+    macros_api::{Ident, UnresolvedType},
     node_interner::TraitImplId,
     ResolvedGeneric,
 };
@@ -227,36 +226,16 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    /// Resolve & save the associated types for the given trait impl.
-    /// These are stored outside of the TraitImpl object since they are
-    /// required before it is created to resolve the type signature of each method.
-    pub(super) fn register_associated_types(
-        &mut self,
-        impl_id: TraitImplId,
+    pub(super) fn take_unresolved_associated_types(
         trait_impl: &mut UnresolvedTraitImpl,
-    ) {
+    ) -> Vec<(Ident, UnresolvedType)> {
         let mut associated_types = Vec::new();
-
-        for (name, typ, expression) in trait_impl.associated_constants.drain(..) {
-            // TODO: What to do with the expression type?
-            let _typ = self.resolve_type(typ.clone());
-            let span = expression.span;
-            let expr = match UnresolvedTypeExpression::from_expr(expression, span) {
-                Ok(expr) => expr,
-                Err(error) => {
-                    self.push_err(error);
-                    continue;
-                }
-            };
-            let typ = self.convert_expression_type(expr);
-            associated_types.push(NamedType { name, typ });
+        for (name, typ, _) in trait_impl.associated_constants.drain(..) {
+            associated_types.push((name, typ));
         }
-
         for (name, typ) in trait_impl.associated_types.drain(..) {
-            let typ = self.resolve_type(typ);
-            associated_types.push(NamedType { name, typ });
+            associated_types.push((name, typ));
         }
-
-        self.interner.set_associated_types_for_impl(impl_id, associated_types);
+        associated_types
     }
 }

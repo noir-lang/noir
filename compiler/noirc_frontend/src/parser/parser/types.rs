@@ -215,20 +215,25 @@ pub(super) fn generic_type_args<'a>(
 pub(super) fn required_generic_type_args<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<GenericTypeArgs> + 'a {
+    let generic_type_arg = type_parser
+        .clone()
+        .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
+        .or(type_expression_validated());
+
     let named_arg = ident()
-        .then_ignore(just(Token::Equal))
-        .then(type_parser.clone())
+        .then_ignore(just(Token::Assign))
+        .then(generic_type_arg.clone())
         .map(|(name, typ)| GenericTypeArg::Named(name, typ));
 
-    type_parser
-        .map(GenericTypeArg::Ordered)
+    // We need to parse named arguments first since otherwise when we see
+    // `Foo = Bar`, just `Foo` is a valid type, and we'd parse an ordered
+    // generic before erroring that an `=` is invalid after an ordered generic.
+    named_arg
+        .or(generic_type_arg.map(GenericTypeArg::Ordered))
         // Without checking for a terminating ',' or '>' here we may incorrectly
         // parse a generic `N * 2` as just the type `N` then fail when there is no
         // separator afterward. Failing early here ensures we try the `type_expression`
         // parser afterward.
-        .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(type_expression_validated().map(GenericTypeArg::Ordered))
-        .or(named_arg)
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)

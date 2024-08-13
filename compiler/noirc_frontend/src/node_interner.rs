@@ -651,6 +651,7 @@ impl NodeInterner {
         type_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
         generics: Generics,
+        associated_types: Generics,
     ) {
         let new_trait = Trait {
             id: type_id,
@@ -661,7 +662,7 @@ impl NodeInterner {
             self_type_typevar: TypeVariable::unbound(self.next_type_variable_id()),
             methods: Vec::new(),
             method_ids: unresolved_trait.method_ids.clone(),
-            associated_types: Vec::new(),
+            associated_types,
         };
 
         self.traits.insert(type_id, new_trait);

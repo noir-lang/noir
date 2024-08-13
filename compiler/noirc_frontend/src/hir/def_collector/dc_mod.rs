@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::rc::Rc;
 use std::vec;
 
 use acvm::{AcirField, FieldElement};
@@ -13,7 +14,8 @@ use crate::ast::{
     NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
     TypeImpl,
 };
-use crate::macros_api::{Expression, NodeInterner, UnresolvedType};
+use crate::hir::resolution::errors::ResolverError;
+use crate::macros_api::{Expression, NodeInterner, UnresolvedType, UnresolvedTypeData};
 use crate::node_interner::{ModuleAttributes, ReferenceId};
 use crate::{
     graph::CrateId,
@@ -22,6 +24,7 @@ use crate::{
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
 };
+use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 
 use super::{
     dc_crate::{
@@ -196,7 +199,6 @@ impl<'a> ModCollector<'a> {
                 resolved_object_type: None,
                 resolved_generics: Vec::new(),
                 resolved_trait_generics: Vec::new(),
-                resolved_associated_types: Vec::new(),
             };
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
@@ -457,6 +459,8 @@ impl<'a> ModCollector<'a> {
             };
 
             let mut method_ids = HashMap::default();
+            let mut associated_types = Generics::new();
+
             for trait_item in &trait_definition.items {
                 match trait_item {
                     TraitItem::Function {
@@ -517,7 +521,7 @@ impl<'a> ModCollector<'a> {
                             }
                         }
                     }
-                    TraitItem::Constant { name, .. } => {
+                    TraitItem::Constant { name, typ, default_value: _ } => {
                         let global_id = context.def_interner.push_empty_global(
                             name.clone(),
                             trait_id.0.local_id,
@@ -538,6 +542,16 @@ impl<'a> ModCollector<'a> {
                                 second_def,
                             };
                             errors.push((error.into(), self.file_id));
+                        } else {
+                            let type_variable_id = context.def_interner.next_type_variable_id();
+                            let typ = self.resolve_associated_constant_type(typ, &mut errors);
+
+                            associated_types.push(ResolvedGeneric {
+                                name: Rc::new(name.to_string()),
+                                type_var: TypeVariable::unbound(type_variable_id),
+                                kind: Kind::Numeric(Box::new(typ)),
+                                span: name.span(),
+                            });
                         }
                     }
                     TraitItem::Type { name } => {
@@ -552,6 +566,14 @@ impl<'a> ModCollector<'a> {
                                 second_def,
                             };
                             errors.push((error.into(), self.file_id));
+                        } else {
+                            let type_variable_id = context.def_interner.next_type_variable_id();
+                            associated_types.push(ResolvedGeneric {
+                                name: Rc::new(name.to_string()),
+                                type_var: TypeVariable::unbound(type_variable_id),
+                                kind: Kind::Normal,
+                                span: name.span(),
+                            });
                         }
                     }
                 }
@@ -569,7 +591,12 @@ impl<'a> ModCollector<'a> {
                 method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
-            context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
+            context.def_interner.push_empty_trait(
+                trait_id,
+                &unresolved,
+                resolved_generics,
+                associated_types,
+            );
 
             context.def_interner.add_definition_location(
                 ReferenceId::Trait(trait_id),
@@ -773,6 +800,23 @@ impl<'a> ModCollector<'a> {
         }
 
         Ok(mod_id)
+    }
+
+    fn resolve_associated_constant_type(
+        &self,
+        typ: &UnresolvedType,
+        errors: &mut Vec<(CompilationError, FileId)>,
+    ) -> Type {
+        match &typ.typ {
+            UnresolvedTypeData::FieldElement => Type::FieldElement,
+            UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
+            _ => {
+                let span = typ.span.expect("UnresolvedTypes should have spans");
+                let error = ResolverError::AssociatedConstantsMustBeNumeric { span };
+                errors.push((error.into(), self.file_id));
+                Type::Error
+            }
+        }
     }
 }
 

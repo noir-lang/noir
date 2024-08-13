@@ -81,11 +81,11 @@ pub struct TraitImpl {
 
     /// Any ordered type arguments on the trait this impl is for.
     /// E.g. `A, B` in `impl Foo<A, B, C = D> for Bar`
+    ///
+    /// Note that named arguments (associated types) are stored separately
+    /// in the NodeInterner. This is because they're required to resolve types
+    /// before the impl as a whole is finished resolving.
     pub trait_generics: Vec<Type>,
-
-    /// Any named type arguments on the trait this impl is for.
-    /// E.g. `C = D` in `impl Foo<A, B, C = D> for Bar`
-    pub trait_associated_types: Vec<NamedType>,
 
     pub file: FileId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
@@ -150,10 +150,6 @@ impl Trait {
             }
         }
         None
-    }
-
-    pub fn set_associated_types(&mut self, associated_types: Generics) {
-        self.associated_types = associated_types;
     }
 
     pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {

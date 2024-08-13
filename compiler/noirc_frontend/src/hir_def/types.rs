@@ -276,7 +276,7 @@ impl StructType {
 
     /// Returns all the fields of this type, after being applied to the given generic arguments.
     pub fn get_fields(&self, generic_args: &[Type]) -> Vec<(String, Type)> {
-        assert_eq!(dbg!(&self.generics).len(), generic_args.len());
+        assert_eq!(self.generics.len(), generic_args.len());
 
         let substitutions = self
             .generics

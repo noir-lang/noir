@@ -766,7 +766,7 @@ impl<'context> Elaborator<'context> {
             };
 
             self.check_if_type_is_valid_for_program_input(
-                dbg!(&typ),
+                &typ,
                 is_entry_point,
                 has_inline_attribute,
                 type_span,
@@ -1024,14 +1024,12 @@ impl<'context> Elaborator<'context> {
             }
 
             let trait_generics = trait_impl.resolved_trait_generics.clone();
-            let trait_associated_types = trait_impl.resolved_associated_types.clone();
 
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident: trait_impl.trait_path.last_ident(),
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics,
-                trait_associated_types,
                 file: trait_impl.file_id,
                 where_clause: where_clause.clone(),
                 methods,
@@ -1354,7 +1352,7 @@ impl<'context> Elaborator<'context> {
 
             let trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
             trait_impl.trait_id = trait_id;
-            let unresolved_type = &trait_impl.object_type;
+            let unresolved_type = trait_impl.object_type.clone();
 
             self.add_generics(&trait_impl.generics);
             trait_impl.resolved_generics = self.generics.clone();
@@ -1364,29 +1362,28 @@ impl<'context> Elaborator<'context> {
                 method.def.where_clause.append(&mut trait_impl.where_clause.clone());
             }
 
-            // Fetch trait constraints here
-            let (ordered_generics, named_generics) = trait_impl
-                .trait_id
-                .map(|trait_id| {
-                    self.resolve_type_args(
-                        trait_impl.trait_generics.clone(),
-                        trait_id,
-                        trait_impl.trait_path.span,
-                    )
-                })
-                .unwrap_or_default();
-
-            trait_impl.resolved_trait_generics = ordered_generics;
-            trait_impl.resolved_associated_types = named_generics;
-
-            let self_type = self.resolve_type(unresolved_type.clone());
-            self.self_type = Some(self_type.clone());
-            trait_impl.methods.self_type = Some(self_type);
+            // Add each associated type to the list of named type arguments
+            let mut trait_generics = trait_impl.trait_generics.clone();
+            trait_generics.named_args.extend(Self::take_unresolved_associated_types(trait_impl));
 
             let impl_id = self.interner.next_trait_impl_id();
             self.current_trait_impl = Some(impl_id);
 
-            self.register_associated_types(impl_id, trait_impl);
+            // Fetch trait constraints here
+            let (ordered_generics, named_generics) = trait_impl
+                .trait_id
+                .map(|trait_id| {
+                    self.resolve_type_args(trait_generics, trait_id, trait_impl.trait_path.span)
+                })
+                .unwrap_or_default();
+
+            trait_impl.resolved_trait_generics = ordered_generics;
+            self.interner.set_associated_types_for_impl(impl_id, named_generics);
+
+            let self_type = self.resolve_type(unresolved_type);
+            self.self_type = Some(self_type.clone());
+            trait_impl.methods.self_type = Some(self_type);
+
             self.define_function_metas_for_functions(&mut trait_impl.methods);
 
             trait_impl.resolved_object_type = self.self_type.take();

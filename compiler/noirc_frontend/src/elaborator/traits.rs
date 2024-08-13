@@ -15,7 +15,7 @@ use crate::{
     },
     node_interner::{FuncId, TraitId},
     token::Attributes,
-    Generics, Kind, ResolvedGeneric, Type, TypeBindings, TypeVariable, TypeVariableKind,
+    Kind, ResolvedGeneric, Type, TypeBindings, TypeVariableKind,
 };
 
 use super::Elaborator;
@@ -31,13 +31,6 @@ impl<'context> Elaborator<'context> {
                     &unresolved_trait.trait_def.generics,
                     &resolved_generics,
                 );
-
-                // Resolve constants before types & methods since both types & methods may refer to trait constants.
-                let mut associated_types = this.resolve_trait_constants(unresolved_trait);
-                associated_types.extend(this.resolve_trait_types(unresolved_trait));
-                this.interner.update_trait(*trait_id, |trait_def| {
-                    trait_def.set_associated_types(associated_types);
-                });
 
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
@@ -56,37 +49,6 @@ impl<'context> Elaborator<'context> {
         }
 
         self.current_trait = None;
-    }
-
-    fn resolve_trait_types(&mut self, unresolved_trait: &UnresolvedTrait) -> Generics {
-        let mut types = Vec::new();
-
-        for item in &unresolved_trait.trait_def.items {
-            if let TraitItem::Type { name } = item {
-                let type_var = TypeVariable::unbound(self.interner.next_type_variable_id());
-                let span = name.span();
-                let name = Rc::new(name.to_string());
-                types.push(ResolvedGeneric { name, type_var, kind: Kind::Normal, span });
-            }
-        }
-
-        types
-    }
-
-    fn resolve_trait_constants(&mut self, unresolved_trait: &UnresolvedTrait) -> Generics {
-        let mut types = Vec::new();
-
-        for item in &unresolved_trait.trait_def.items {
-            if let TraitItem::Constant { name, typ, default_value: _ } = item {
-                let type_var = TypeVariable::unbound(self.interner.next_type_variable_id());
-                let kind = Kind::Numeric(Box::new(self.resolve_type(typ.clone())));
-                let span = name.span();
-                let name = Rc::new(name.to_string());
-                types.push(ResolvedGeneric { name, type_var, kind, span });
-            }
-        }
-
-        types
     }
 
     fn resolve_trait_methods(

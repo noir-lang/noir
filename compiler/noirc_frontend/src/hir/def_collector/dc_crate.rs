@@ -7,7 +7,6 @@ use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::path_resolver;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::traits::NamedType;
 use crate::{Generics, Type};
 
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
@@ -94,7 +93,6 @@ pub struct UnresolvedTraitImpl {
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
     // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
     pub resolved_trait_generics: Vec<Type>,
-    pub resolved_associated_types: Vec<NamedType>,
 }
 
 #[derive(Clone)]
