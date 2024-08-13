@@ -476,7 +476,8 @@ impl<'a> NodeFinder<'a> {
             if let Some(typ) = self.interner.type_at_location(location) {
                 let typ = typ.follow_bindings();
                 let prefix = "";
-                self.complete_type_fields_and_methods(&typ, prefix)
+                self.complete_type_fields_and_methods(&typ, prefix);
+                return;
             }
         }
 
