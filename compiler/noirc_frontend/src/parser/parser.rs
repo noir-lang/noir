@@ -847,6 +847,8 @@ where
         ArrayIndex(Expression),
         Cast(UnresolvedType),
         MemberAccess(UnaryRhsMemberAccess),
+        /// This is to allow `foo.` (no identifier afterwards) to be parsed as `foo`
+        /// and produce an error, rather than just erroring (for LSP).
         JustADot,
     }
 
@@ -891,8 +893,14 @@ where
         })
         .labelled(ParsingRuleLabel::FieldAccess);
 
-    // TODO: error when it's just a dot
-    let just_a_dot = just(Token::Dot).map(|_| UnaryRhs::JustADot);
+    let just_a_dot =
+        just(Token::Dot).map(|_| UnaryRhs::JustADot).validate(|value, span, emit_error| {
+            emit_error(ParserError::with_reason(
+                ParserErrorReason::ExpectedIdentifierAfterDot,
+                span,
+            ));
+            value
+        });
 
     let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs, just_a_dot));
 
@@ -1683,11 +1691,12 @@ mod test {
     fn test_parses_member_access_without_member_name() {
         let src = "{ foo. }";
 
-        let (Some(block_expression), _errors) = parse_recover(block(fresh_statement()), src) else {
+        let (Some(block_expression), errors) = parse_recover(block(fresh_statement()), src) else {
             panic!("Expected to be able to parse a block expression");
         };
 
-        // TODO: assert that there's an error here
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected an identifier after .");
 
         let statement = &block_expression.statements[0];
         let StatementKind::Expression(expr) = &statement.kind else {
