@@ -116,7 +116,7 @@ export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
         proofType: 'ultra-honk',
       } satisfies CircuitVerificationStats);
     };
-    await runInDirectory(this.config.bbWorkingDirectory, operation);
+    await runInDirectory(this.config.bbWorkingDirectory, operation, this.config.bbSkipCleanup);
   }
 
   public async generateSolidityContract(circuit: ProtocolArtifact, contractName: string) {
@@ -168,7 +168,7 @@ export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
           proofType: 'client-ivc',
         } satisfies CircuitVerificationStats);
       };
-      await runInDirectory(this.config.bbWorkingDirectory, operation);
+      await runInDirectory(this.config.bbWorkingDirectory, operation, this.config.bbSkipCleanup);
       return true;
     } catch (err) {
       this.logger.warn(`Failed to verify ClientIVC proof for tx ${Tx.getHash(tx)}: ${String(err)}`);

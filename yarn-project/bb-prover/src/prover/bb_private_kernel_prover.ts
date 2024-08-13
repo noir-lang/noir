@@ -76,6 +76,7 @@ export class BBNativePrivateKernelProver implements PrivateKernelProver {
   constructor(
     private bbBinaryPath: string,
     private bbWorkingDirectory: string,
+    private skipCleanup: boolean,
     private log = createDebugLogger('aztec:bb-native-prover'),
   ) {}
 
@@ -119,7 +120,7 @@ export class BBNativePrivateKernelProver implements PrivateKernelProver {
     const operation = async (directory: string) => {
       return await this._createClientIvcProof(directory, acirs, witnessStack);
     };
-    return await runInDirectory(this.bbWorkingDirectory, operation);
+    return await this.runInDirectory(operation);
   }
 
   public getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs) {
@@ -189,7 +190,7 @@ export class BBNativePrivateKernelProver implements PrivateKernelProver {
       return await this.computeVerificationKey(directory, bytecode, 'App', appCircuitName);
     };
 
-    return await runInDirectory(this.bbWorkingDirectory, operation);
+    return await this.runInDirectory(operation);
   }
 
   /**
@@ -229,7 +230,7 @@ export class BBNativePrivateKernelProver implements PrivateKernelProver {
       await fs.writeFile(verificationKeyPath, verificationKey);
       return await verifyProof(this.bbBinaryPath, proofFileName, verificationKeyPath!, logFunction);
     };
-    return await runInDirectory(this.bbWorkingDirectory, operation);
+    return await this.runInDirectory(operation);
   }
 
   /**
@@ -270,7 +271,7 @@ export class BBNativePrivateKernelProver implements PrivateKernelProver {
     } satisfies CircuitWitnessGenerationStats);
 
     // TODO(#7410) we dont need to generate vk's for these circuits, they are in the vk tree
-    const { verificationKey } = await runInDirectory(this.bbWorkingDirectory, dir =>
+    const { verificationKey } = await this.runInDirectory(dir =>
       this.computeVerificationKey(dir, Buffer.from(compiledCircuit.bytecode, 'base64'), circuitType),
     );
     const kernelOutput: PrivateKernelSimulateOutput<O> = {
@@ -362,5 +363,9 @@ export class BBNativePrivateKernelProver implements PrivateKernelProver {
       true,
     );
     return proof;
+  }
+
+  private runInDirectory<T>(fn: (dir: string) => Promise<T>) {
+    return runInDirectory(this.bbWorkingDirectory, fn, this.skipCleanup);
   }
 }

@@ -17,6 +17,7 @@ import { fileURLToPath } from 'url';
 export interface BBProverConfig {
   bbWorkingDirectory?: string;
   bbBinaryPath?: string;
+  bbSkipCleanup?: boolean;
 }
 
 /**
@@ -71,6 +72,11 @@ export const pxeConfigMappings: ConfigMappingsType<PXEServiceConfig> = {
   bbWorkingDirectory: {
     env: 'BB_WORKING_DIRECTORY',
     description: 'Working directory for the BB binary',
+  },
+  bbSkipCleanup: {
+    env: 'BB_SKIP_CLEANUP',
+    description: 'True to skip cleanup of temporary files for debugging purposes',
+    ...booleanConfigHelper(),
   },
   proverEnabled: {
     env: 'PXE_PROVER_ENABLED',

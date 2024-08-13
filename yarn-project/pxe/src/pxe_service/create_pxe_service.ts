@@ -57,6 +57,7 @@ export async function createPXEService(
       : new BBNativePrivateKernelProver(
           config.bbBinaryPath!,
           config.bbWorkingDirectory!,
+          !!config.bbSkipCleanup,
           createDebugLogger('aztec:pxe:bb-native-prover' + (logSuffix ? `:${logSuffix}` : '')),
         );
   }
