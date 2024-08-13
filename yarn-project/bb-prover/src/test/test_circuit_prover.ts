@@ -65,8 +65,8 @@ import { SimulatedPublicKernelArtifactMapping } from '../mappings/mappings.js';
 import { mapPublicKernelToCircuitName } from '../stats.js';
 
 /**
- * A class for use in testing situations (e2e, unit test etc)
- * Simulates circuits using the most efficient method and performs no proving
+ * A class for use in testing situations (e2e, unit test, etc) and temporarily for assembling a block in the sequencer.
+ * Simulates circuits using the most efficient method and performs no proving.
  */
 export class TestCircuitProver implements ServerCircuitProver {
   private wasmSimulator = new WASMSimulator();

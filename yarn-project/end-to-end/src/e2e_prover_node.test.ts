@@ -16,7 +16,6 @@ import {
 } from '@aztec/aztec.js';
 import { StatefulTestContract, TestContract } from '@aztec/noir-contracts.js';
 import { createProverNode } from '@aztec/prover-node';
-import { type SequencerClientConfig } from '@aztec/sequencer-client';
 
 import { sendL1ToL2Message } from './fixtures/l1_to_l2_messaging.js';
 import {
@@ -46,8 +45,7 @@ describe('e2e_prover_node', () => {
 
   beforeAll(async () => {
     logger = createDebugLogger('aztec:e2e_prover_node');
-    const config: Partial<SequencerClientConfig> = { sequencerSkipSubmitProofs: true };
-    snapshotManager = createSnapshotManager(`e2e_prover_node`, process.env.E2E_DATA_PATH, config);
+    snapshotManager = createSnapshotManager(`e2e_prover_node`, process.env.E2E_DATA_PATH);
 
     const testContractOpts = { contractAddressSalt: Fr.ONE, universalDeploy: true };
     await snapshotManager.snapshot(

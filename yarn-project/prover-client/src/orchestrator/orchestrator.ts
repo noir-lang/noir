@@ -18,8 +18,8 @@ import {
 import {
   BlockProofError,
   type BlockProver,
-  type BlockResult,
   PROVING_STATUS,
+  type ProvingBlockResult,
   type ProvingResult,
   type ProvingTicket,
   type PublicInputsAndRecursiveProof,
@@ -450,7 +450,7 @@ export class ProvingOrchestrator implements BlockProver {
 
       this.provingState.block = l2Block;
 
-      const blockResult: BlockResult = {
+      const blockResult: ProvingBlockResult = {
         proof: this.provingState.finalProof,
         aggregationObject: this.provingState.finalAggregationObject,
         block: l2Block,

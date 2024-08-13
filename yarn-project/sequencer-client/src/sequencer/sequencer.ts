@@ -6,12 +6,7 @@ import {
   Tx,
   type TxValidator,
 } from '@aztec/circuit-types';
-import {
-  type AllowedElement,
-  BlockProofError,
-  PROVING_STATUS,
-  type ProverClient,
-} from '@aztec/circuit-types/interfaces';
+import { type AllowedElement, BlockProofError, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
 import { AztecAddress, EthAddress, type GlobalVariables, type Header, IS_DEV_NET } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
@@ -23,6 +18,7 @@ import { type PublicProcessorFactory } from '@aztec/simulator';
 import { Attributes, type TelemetryClient, type Tracer, trackSpan } from '@aztec/telemetry-client';
 import { type WorldStateStatus, type WorldStateSynchronizer } from '@aztec/world-state';
 
+import { type BlockBuilderFactory } from '../block_builder/index.js';
 import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 import { type Attestation, type L1Publisher } from '../publisher/l1-publisher.js';
 import { type TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
@@ -53,7 +49,6 @@ export class Sequencer {
   private allowedInSetup: AllowedElement[] = [];
   private allowedInTeardown: AllowedElement[] = [];
   private maxBlockSizeInBytes: number = 1024 * 1024;
-  private skipSubmitProofs: boolean = false;
   private metrics: SequencerMetrics;
 
   constructor(
@@ -61,13 +56,13 @@ export class Sequencer {
     private globalsBuilder: GlobalVariableBuilder,
     private p2pClient: P2P,
     private worldState: WorldStateSynchronizer,
-    private prover: ProverClient,
+    private blockBuilderFactory: BlockBuilderFactory,
     private l2BlockSource: L2BlockSource,
     private l1ToL2MessageSource: L1ToL2MessageSource,
     private publicProcessorFactory: PublicProcessorFactory,
     private txValidatorFactory: TxValidatorFactory,
     telemetry: TelemetryClient,
-    config: SequencerConfig = {},
+    private config: SequencerConfig = {},
     private log = createDebugLogger('aztec:sequencer'),
   ) {
     this.updateConfig(config);
@@ -115,10 +110,8 @@ export class Sequencer {
     if (config.allowedInTeardown) {
       this.allowedInTeardown = config.allowedInTeardown;
     }
-    // TODO(palla/prover) This flag should not be needed: the sequencer should be initialized with a blockprover
-    // that does not return proofs at all (just simulates circuits), and use that to determine whether to submit
-    // proofs or not.
-    this.skipSubmitProofs = !!config.sequencerSkipSubmitProofs;
+    // TODO: Just read everything from the config object as needed instead of copying everything into local vars.
+    this.config = config;
   }
 
   /**
@@ -321,11 +314,11 @@ export class Sequencer {
     const blockSize = Math.max(2, numRealTxs);
 
     const blockBuildingTimer = new Timer();
-    const prover = this.prover.createBlockProver(this.worldState.getLatest());
-    const blockTicket = await prover.startNewBlock(blockSize, newGlobalVariables, l1ToL2Messages);
+    const blockBuilder = this.blockBuilderFactory.create(this.worldState.getLatest());
+    const blockTicket = await blockBuilder.startNewBlock(blockSize, newGlobalVariables, l1ToL2Messages);
 
     const [publicProcessorDuration, [processedTxs, failedTxs]] = await elapsed(() =>
-      processor.process(validTxs, blockSize, prover, this.txValidatorFactory.validatorForProcessedTxs()),
+      processor.process(validTxs, blockSize, blockBuilder, this.txValidatorFactory.validatorForProcessedTxs()),
     );
     if (failedTxs.length > 0) {
       const failedTxData = failedTxs.map(fail => fail.tx);
@@ -339,14 +332,14 @@ export class Sequencer {
     // we should bail.
     if (processedTxs.length === 0 && !this.skipMinTxsPerBlockCheck(elapsedSinceLastBlock) && this.minTxsPerBLock > 0) {
       this.log.verbose('No txs processed correctly to build block. Exiting');
-      prover.cancelBlock();
+      blockBuilder.cancelBlock();
       return;
     }
 
     await assertBlockHeight();
 
     // All real transactions have been added, set the block as full and complete the proving.
-    await prover.setBlockCompleted();
+    await blockBuilder.setBlockCompleted();
 
     // Here we are now waiting for the block to be proven.
     // TODO(@PhilWindle) We should probably periodically check for things like another
@@ -358,8 +351,8 @@ export class Sequencer {
 
     await assertBlockHeight();
 
-    // Block is proven, now finalise and publish!
-    const { block, aggregationObject, proof } = await prover.finaliseBlock();
+    // Block is ready, now finalise and publish!
+    const { block } = await blockBuilder.finaliseBlock();
 
     await assertBlockHeight();
 
@@ -389,20 +382,6 @@ export class Sequencer {
     } catch (err) {
       this.metrics.recordFailedBlock();
       throw err;
-    }
-
-    // Submit the proof if we have configured this sequencer to run with an actual prover.
-    // This is temporary while we submit one proof per block, but will have to change once we
-    // move onto proving batches of multiple blocks at a time.
-    if (aggregationObject && proof && !this.skipSubmitProofs) {
-      await this.publisher.submitProof(
-        block.header,
-        block.archive.root,
-        prover.getProverId(),
-        aggregationObject,
-        proof,
-      );
-      this.log.info(`Submitted proof for block ${block.number}`);
     }
   }
 

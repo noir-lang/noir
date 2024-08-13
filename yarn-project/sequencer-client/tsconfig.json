@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../bb-prover"
+    },
+    {
       "path": "../circuit-types"
     },
     {
@@ -35,6 +38,9 @@
     },
     {
       "path": "../protocol-contracts"
+    },
+    {
+      "path": "../prover-client"
     },
     {
       "path": "../simulator"

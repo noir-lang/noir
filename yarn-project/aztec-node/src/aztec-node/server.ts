@@ -14,7 +14,6 @@ import {
   LogType,
   MerkleTreeId,
   NullifierMembershipWitness,
-  type ProverClient,
   type ProverConfig,
   PublicDataWitness,
   PublicSimulationOutput,
@@ -59,7 +58,6 @@ import { getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
 import { getCanonicalInstanceDeployer } from '@aztec/protocol-contracts/instance-deployer';
 import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
 import { getCanonicalMultiCallEntrypointAddress } from '@aztec/protocol-contracts/multi-call-entrypoint';
-import { createProverClient } from '@aztec/prover-client';
 import {
   AggregateTxValidator,
   DataTxValidator,
@@ -105,7 +103,6 @@ export class AztecNodeService implements AztecNode {
     protected readonly version: number,
     protected readonly globalVariableBuilder: GlobalVariableBuilder,
     protected readonly merkleTreesDb: AztecKVStore,
-    private readonly prover: ProverClient | undefined,
     private txValidator: TxValidator,
     private telemetry: TelemetryClient,
     private log = createDebugLogger('aztec:node'),
@@ -169,12 +166,6 @@ export class AztecNodeService implements AztecNode {
 
     const simulationProvider = await createSimulationProvider(config, log);
 
-    const prover = await createProverClient(config, telemetry);
-
-    if (!prover && !config.disableSequencer) {
-      throw new Error("Can't start a sequencer without a prover");
-    }
-
     // now create the sequencer
     const sequencer = config.disableSequencer
       ? undefined
@@ -185,7 +176,6 @@ export class AztecNodeService implements AztecNode {
           archiver,
           archiver,
           archiver,
-          prover!,
           simulationProvider,
           telemetry,
         );
@@ -204,7 +194,6 @@ export class AztecNodeService implements AztecNode {
       config.version,
       getGlobalVariableBuilder(config),
       store,
-      prover,
       txValidator,
       telemetry,
       log,
@@ -217,10 +206,6 @@ export class AztecNodeService implements AztecNode {
    */
   public getSequencer(): SequencerClient | undefined {
     return this.sequencer;
-  }
-
-  public getProver(): ProverClient | undefined {
-    return this.prover;
   }
 
   public getBlockSource(): L2BlockSource {
@@ -381,7 +366,6 @@ export class AztecNodeService implements AztecNode {
     await this.p2pClient.stop();
     await this.worldStateSynchronizer.stop();
     await this.blockSource.stop();
-    await this.prover?.stop();
     this.log.info(`Stopped`);
   }
 
@@ -771,7 +755,6 @@ export class AztecNodeService implements AztecNode {
   public async setConfig(config: Partial<SequencerConfig & ProverConfig>): Promise<void> {
     const newConfig = { ...this.config, ...config };
     this.sequencer?.updateSequencerConfig(config);
-    await this.prover?.updateProverConfig(config);
 
     if (newConfig.realProofs !== this.config.realProofs) {
       const proofVerifier = config.realProofs ? await BBCircuitVerifier.new(newConfig) : new TestCircuitVerifier();

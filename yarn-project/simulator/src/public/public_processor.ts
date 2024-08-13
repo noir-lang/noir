@@ -1,8 +1,8 @@
 import {
-  type BlockProver,
   type FailedTx,
   NestedProcessReturnValues,
   type ProcessedTx,
+  type ProcessedTxHandler,
   PublicKernelType,
   type PublicProvingRequest,
   type SimulationError,
@@ -116,12 +116,13 @@ export class PublicProcessor {
   /**
    * Run each tx through the public circuit and the public kernel circuit if needed.
    * @param txs - Txs to process.
+   * @param processedTxHandler - Handler for processed txs in the context of block building or proving.
    * @returns The list of processed txs with their circuit simulation outputs.
    */
   public async process(
     txs: Tx[],
     maxTransactions = txs.length,
-    blockProver?: BlockProver,
+    processedTxHandler?: ProcessedTxHandler,
     txValidator?: TxValidator<ProcessedTx>,
   ): Promise<[ProcessedTx[], FailedTx[], NestedProcessReturnValues[]]> {
     // The processor modifies the tx objects in place, so we need to clone them.
@@ -164,9 +165,9 @@ export class PublicProcessor {
             throw new Error(`Transaction ${invalid[0].hash} invalid after processing public functions`);
           }
         }
-        // if we were given a prover then send the transaction to it for proving
-        if (blockProver) {
-          await blockProver.addNewTx(processedTx);
+        // if we were given a handler then send the transaction to it for block building or proving
+        if (processedTxHandler) {
+          await processedTxHandler.addNewTx(processedTx);
         }
         result.push(processedTx);
         returns = returns.concat(returnValues ?? []);

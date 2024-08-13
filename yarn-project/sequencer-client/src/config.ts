@@ -104,11 +104,6 @@ export const sequencerConfigMappings: ConfigMappingsType<SequencerConfig> = {
     description: 'Whether to require every tx to have a fee payer',
     ...booleanConfigHelper(),
   },
-  sequencerSkipSubmitProofs: {
-    env: 'SEQ_SKIP_SUBMIT_PROOFS',
-    description: 'Temporary flag to skip submitting proofs, so a prover-node takes care of it.',
-    ...booleanConfigHelper(),
-  },
 };
 
 export const chainConfigMappings: ConfigMappingsType<ChainConfig> = {

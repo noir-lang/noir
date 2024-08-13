@@ -61,7 +61,6 @@ import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { getCanonicalAuthRegistry } from '@aztec/protocol-contracts/auth-registry';
 import { FeeJuiceAddress, getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
 import { getCanonicalKeyRegistry } from '@aztec/protocol-contracts/key-registry';
-import { type ProverClient } from '@aztec/prover-client';
 import { PXEService, type PXEServiceConfig, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
 import { type SequencerClient } from '@aztec/sequencer-client';
 import { createAndStartTelemetryClient, getConfigEnvVars as getTelemetryConfig } from '@aztec/telemetry-client/start';
@@ -305,8 +304,6 @@ export type EndToEndContext = {
   logger: DebugLogger;
   /** The cheat codes. */
   cheatCodes: CheatCodes;
-  /** Proving jobs */
-  prover: ProverClient | undefined;
   /** Function to stop the started services. */
   teardown: () => Promise<void>;
 };
@@ -383,7 +380,6 @@ export async function setup(
   config.l1PublishRetryIntervalMS = 100;
   const aztecNode = await AztecNodeService.createAndSync(config, telemetry);
   const sequencer = aztecNode.getSequencer();
-  const prover = aztecNode.getProver();
 
   logger.verbose('Creating a pxe...');
 
@@ -438,7 +434,6 @@ export async function setup(
     logger,
     cheatCodes,
     sequencer,
-    prover,
     teardown,
   };
 }

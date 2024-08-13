@@ -1,5 +1,5 @@
 import { type ProverConfig, proverConfigMappings } from '@aztec/circuit-types';
-import { type ConfigMappingsType, booleanConfigHelper, getConfigFromMappings } from '@aztec/foundation/config';
+import { type ConfigMappingsType, getConfigFromMappings } from '@aztec/foundation/config';
 
 /**
  * The prover configuration.
@@ -13,8 +13,6 @@ export type ProverClientConfig = ProverConfig & {
   bbWorkingDirectory: string;
   /** The path to the bb binary */
   bbBinaryPath: string;
-  /** True to disable proving altogether. */
-  disableProver: boolean;
 };
 
 export const proverClientConfigMappings: ConfigMappingsType<ProverClientConfig> = {
@@ -33,11 +31,6 @@ export const proverClientConfigMappings: ConfigMappingsType<ProverClientConfig> 
   bbBinaryPath: {
     env: 'BB_BINARY_PATH',
     description: 'The path to the bb binary',
-  },
-  disableProver: {
-    env: 'PROVER_DISABLED',
-    description: 'Whether to disable proving.',
-    ...booleanConfigHelper(),
   },
   ...proverConfigMappings,
 };
