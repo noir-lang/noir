@@ -603,10 +603,75 @@ impl Builder {
                         let (bit_size_b, target_b) = self.get_integer(rhs)?;
                         assert!(bit_size_a == bit_size_b);
 
-                        let div = add_div_mod(&mut self.asm_writer, target_a, target_b).0;
-                        let zero = self.asm_writer.zero();
-                        let target = self.asm_writer.is_equal(div, zero);
-                        Ok(P2Value::make_boolean(target))
+                        let bit_size = usize::try_from(match bit_size_a {
+                            P2Type::Integer(bit_size) => bit_size,
+                            P2Type::Field => FIELD_BIT_SIZE,
+                            _ => {
+                                let message = format!(
+                                    "less than op invoked on arguments of type {:?}",
+                                    bit_size_a
+                                );
+                                return Err(Plonky2GenError::ICE { message });
+                            }
+                        })
+                        .unwrap();
+
+                        let mut split_a = self.asm_writer.split_le(target_a, bit_size);
+                        let mut split_b = self.asm_writer.split_le(target_b, bit_size);
+
+                        split_a.reverse();
+                        split_b.reverse();
+
+                        // generate:
+                        //   (!a[0] and b[0]) or
+                        //   ((a[0] == b[0]) and ((!a[1] and b[1]))) or
+                        //   ((a[0] == b[0]) and (a[1] == b[1]) and (!a[2] and b[2])) or
+                        //   ((a[0] == b[0]) and (a[1] == b[1]) and (a[2] == b[2]) and (!a[3] and b[3])) or ...
+                        //   ...
+                        //   ((a[0] == b[0]) and ... and (a[i-1] == b[i-1]) and (!a[i] and b[i])) or ...
+                        //   ...
+
+                        let mut first_i_minus_1_are_equal: Option<BoolTarget> = None;
+                        let mut result: Option<BoolTarget> = None;
+                        for i in 0..split_a.len() {
+                            let is_first = i == 0;
+                            let is_last = i == (split_a.len() - 1);
+
+                            let not_a_i = self.asm_writer.not(split_a[i]);
+                            let not_a_i_and_b_i = self.asm_writer.and(not_a_i, split_b[i]);
+
+                            let not_a_i_and_b_i_and_first_i_minus_1_equal = if is_first {
+                                not_a_i_and_b_i
+                            } else {
+                                self.asm_writer
+                                    .and(not_a_i_and_b_i, first_i_minus_1_are_equal.unwrap())
+                            };
+
+                            result =
+                                if is_first {
+                                    Some(not_a_i_and_b_i_and_first_i_minus_1_equal)
+                                } else {
+                                    Some(self.asm_writer.or(
+                                        result.unwrap(),
+                                        not_a_i_and_b_i_and_first_i_minus_1_equal,
+                                    ))
+                                };
+
+                            if !is_last {
+                                let i_equal =
+                                    self.asm_writer.is_equal(split_a[i].target, split_b[i].target);
+                                first_i_minus_1_are_equal = if is_first {
+                                    Some(i_equal)
+                                } else {
+                                    Some(
+                                        self.asm_writer
+                                            .and(first_i_minus_1_are_equal.unwrap(), i_equal),
+                                    )
+                                };
+                            }
+                        }
+
+                        Ok(P2Value::make_boolean(result.unwrap()))
                     }
 
                     super::ir::instruction::BinaryOp::Xor => {
