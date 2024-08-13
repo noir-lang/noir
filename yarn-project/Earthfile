@@ -116,7 +116,7 @@ protocol-verification-keys:
 rollup-verifier-contract:
     FROM +bb-cli
     COPY --dir +protocol-verification-keys/usr/src/bb /usr/src
-    RUN --entrypoint write-contract -c RootRollupArtifact -n UltraVerifier.sol
+    RUN --entrypoint write-contract -c RootRollupArtifact -n UltraHonkVerifier.sol
     SAVE ARTIFACT /usr/src/bb /usr/src/bb
 
 txe:

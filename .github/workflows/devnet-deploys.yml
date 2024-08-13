@@ -592,6 +592,16 @@ jobs:
         run: |
           ./.github/scripts/wait_for_infra.sh pxe ${{ env.DEPLOY_TAG }} ${{ env.API_KEY }}
 
+      - name: Deploy verifier
+        working-directory: ./yarn-project/aztec/terraform/pxe
+        run: |
+          set -eo pipefail
+          docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} deploy-verifier \
+            --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ env.API_KEY }} \
+            --l1-rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ env.API_KEY }} \
+            --l1-chain-id ${{ env.L1_CHAIN_ID }} \
+            --l1-private-key ${{ env.CONTRACT_PUBLISHER_PRIVATE_KEY }}
+
       - name: Enable transactions bot
         working-directory: ./yarn-project/aztec/terraform/bot
         run: |

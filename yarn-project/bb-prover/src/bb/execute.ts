@@ -811,7 +811,7 @@ export async function generateContractForVerificationKey(
     try {
       const args = ['-k', vkFilePath, '-o', contractPath, '-v'];
       const timer = new Timer();
-      const result = await executeBB(pathToBB, 'contract', args, log);
+      const result = await executeBB(pathToBB, 'contract_ultra_honk', args, log);
       const duration = timer.ms();
       if (result.status == BB_RESULT.SUCCESS) {
         return { status: BB_RESULT.SUCCESS, durationMs: duration, contractPath };
