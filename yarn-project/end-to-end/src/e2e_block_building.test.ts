@@ -321,7 +321,6 @@ describe('e2e_block_building', () => {
     it('publishes two blocks with only padding txs', async () => {
       ({ teardown, pxe, logger, aztecNode } = await setup(0, {
         minTxsPerBlock: 0,
-        sequencerSkipSubmitProofs: true,
         skipProtocolContracts: true,
       }));
 
@@ -332,7 +331,6 @@ describe('e2e_block_building', () => {
     it('sends a tx on the first block', async () => {
       ({ teardown, pxe, logger, aztecNode } = await setup(0, {
         minTxsPerBlock: 0,
-        sequencerSkipSubmitProofs: true,
         skipProtocolContracts: true,
       }));
 
