@@ -265,7 +265,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldNot { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span } | TypeCheckError::Unsafe { span }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { span } 
             | TypeCheckError::NonConstantSliceLength { span }
             | TypeCheckError::StringIndexAssign { span }
             | TypeCheckError::InvalidShiftSize { span } => {
@@ -358,6 +358,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
             },
+            TypeCheckError::Unsafe { span } => {
+                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
         }
     }
 }
