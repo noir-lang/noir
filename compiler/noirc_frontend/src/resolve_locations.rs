@@ -31,6 +31,12 @@ impl NodeInterner {
         location_candidate.map(|(index, _location)| *index)
     }
 
+    /// Returns the Type of the expression that exists at the given location.
+    pub fn type_at_location(&self, location: Location) -> Option<Type> {
+        let index = self.find_location_index(location)?;
+        Some(self.id_type(index))
+    }
+
     /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
     /// Returns [None] when definition is not found.
     pub fn get_definition_location_from(

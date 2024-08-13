@@ -179,10 +179,10 @@ pub struct NodeInterner {
     /// may have both `impl Struct<u32> { fn foo(){} }` and `impl Struct<u8> { fn foo(){} }`.
     /// If this happens, the returned Vec will have 2 entries and we'll need to further
     /// disambiguate them by checking the type of each function.
-    struct_methods: HashMap<(StructId, String), Methods>,
+    struct_methods: HashMap<StructId, HashMap<String, Methods>>,
 
     /// Methods on primitive types defined in the stdlib.
-    primitive_methods: HashMap<(TypeMethodKey, String), Methods>,
+    primitive_methods: HashMap<TypeMethodKey, HashMap<String, Methods>>,
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
@@ -1131,22 +1131,27 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_struct_methods(&self, id: StructId) -> Vec<Methods> {
-        self.struct_methods
-            .keys()
-            .filter_map(|(key_id, name)| {
-                if key_id == &id {
-                    Some(
-                        self.struct_methods
-                            .get(&(*key_id, name.clone()))
-                            .expect("get_struct_methods given invalid StructId")
-                            .clone(),
-                    )
-                } else {
-                    None
-                }
-            })
-            .collect()
+    pub fn get_struct_methods(&self, id: StructId) -> Option<&HashMap<String, Methods>> {
+        self.struct_methods.get(&id)
+    }
+
+    fn get_primitive_methods(&self, key: TypeMethodKey) -> Option<&HashMap<String, Methods>> {
+        self.primitive_methods.get(&key)
+    }
+
+    pub fn get_type_methods(&self, typ: &Type) -> Option<&HashMap<String, Methods>> {
+        match typ {
+            Type::Struct(struct_type, _) => {
+                let struct_type = struct_type.borrow();
+                self.get_struct_methods(struct_type.id)
+            }
+            Type::Alias(type_alias, generics) => {
+                let type_alias = type_alias.borrow();
+                let typ = type_alias.get_type(generics);
+                self.get_type_methods(&typ)
+            }
+            _ => get_type_method_key(typ).and_then(|key| self.get_primitive_methods(key)),
+        }
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -1300,8 +1305,12 @@ impl NodeInterner {
                     return Some(existing);
                 }
 
-                let key = (id, method_name);
-                self.struct_methods.entry(key).or_default().add_method(method_id, is_trait_method);
+                self.struct_methods
+                    .entry(id)
+                    .or_default()
+                    .entry(method_name)
+                    .or_default()
+                    .add_method(method_id, is_trait_method);
                 None
             }
             Type::Error => None,
@@ -1314,7 +1323,9 @@ impl NodeInterner {
                     unreachable!("Cannot add a method to the unsupported type '{}'", other)
                 });
                 self.primitive_methods
-                    .entry((key, method_name))
+                    .entry(key)
+                    .or_default()
+                    .entry(method_name)
                     .or_default()
                     .add_method(method_id, is_trait_method);
                 None
@@ -1648,7 +1659,7 @@ impl NodeInterner {
         method_name: &str,
         force_type_check: bool,
     ) -> Option<FuncId> {
-        let methods = self.struct_methods.get(&(id, method_name.to_owned()));
+        let methods = self.struct_methods.get(&id).and_then(|h| h.get(method_name));
 
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
@@ -1673,8 +1684,8 @@ impl NodeInterner {
         } else {
             // Failed to find a match for the type in question, switch to looking at impls
             // for all types `T`, e.g. `impl<T> Foo for T`
-            let key = &(TypeMethodKey::Generic, method_name.to_owned());
-            let global_methods = self.primitive_methods.get(key)?;
+            let global_methods =
+                self.primitive_methods.get(&TypeMethodKey::Generic)?.get(method_name)?;
             global_methods.find_matching_method(typ, self)
         }
     }
@@ -1682,7 +1693,7 @@ impl NodeInterner {
     /// Looks up a given method name on the given primitive type.
     pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
-        let methods = self.primitive_methods.get(&(key, method_name.to_owned()))?;
+        let methods = self.primitive_methods.get(&key)?.get(method_name)?;
         self.find_matching_method(typ, Some(methods), method_name)
     }
 
@@ -1801,6 +1812,11 @@ impl NodeInterner {
         };
 
         self.prefix_operator_traits.insert(operator, trait_id);
+    }
+
+    pub fn is_operator_trait(&self, trait_id: TraitId) -> bool {
+        self.infix_operator_traits.values().any(|id| *id == trait_id)
+            || self.prefix_operator_traits.values().any(|id| *id == trait_id)
     }
 
     /// This function is needed when creating a NodeInterner for testing so that calls
@@ -2017,7 +2033,7 @@ impl Methods {
     }
 
     /// Iterate through each method, starting with the direct methods
-    fn iter(&self) -> impl Iterator<Item = FuncId> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = FuncId> + '_ {
         self.direct.iter().copied().chain(self.trait_impl_methods.iter().copied())
     }
 
