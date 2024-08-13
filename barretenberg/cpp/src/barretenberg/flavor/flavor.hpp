@@ -262,28 +262,21 @@ auto get_unshifted_then_shifted(const auto& all_entities)
     return concatenate(all_entities.get_unshifted(), all_entities.get_shifted());
 };
 
-template <typename Tuple, size_t... I>
-static constexpr auto _compute_max_partial_relation_length_internal([[maybe_unused]] std::index_sequence<I...>)
-{
-    constexpr std::array<size_t, sizeof...(I)> lengths = { std::tuple_element_t<I, Tuple>::RELATION_LENGTH... };
-    return *std::max_element(lengths.begin(), lengths.end());
-}
-
 /**
  * @brief Utility function to find max PARTIAL_RELATION_LENGTH tuples of Relations.
  * @details The "partial length" of a relation is 1 + the degree of the relation, where any challenges used in the
  * relation are as constants, not as variables..
  */
-template <typename Tuple, std::size_t Index = 0> static constexpr size_t compute_max_partial_relation_length()
+template <typename Tuple, bool ZK = false> constexpr size_t compute_max_partial_relation_length()
 {
-    return _compute_max_partial_relation_length_internal<Tuple>(std::make_index_sequence<std::tuple_size_v<Tuple>>());
-}
-
-template <typename Tuple, size_t... I>
-static constexpr auto _compute_max_total_relation_length_internal([[maybe_unused]] std::index_sequence<I...>)
-{
-    constexpr std::array<size_t, sizeof...(I)> lengths = { std::tuple_element_t<I, Tuple>::TOTAL_RELATION_LENGTH... };
-    return *std::max_element(lengths.begin(), lengths.end());
+    constexpr auto seq = std::make_index_sequence<std::tuple_size_v<Tuple>>();
+    return []<std::size_t... Is>(std::index_sequence<Is...>) {
+        if constexpr (ZK) {
+            return std::max({ std::tuple_element_t<Is, Tuple>::ZK_RELATION_LENGTH... });
+        } else {
+            return std::max({ std::tuple_element_t<Is, Tuple>::RELATION_LENGTH... });
+        }
+    }(seq);
 }
 
 /**
@@ -291,61 +284,27 @@ static constexpr auto _compute_max_total_relation_length_internal([[maybe_unused
  * @details The "total length" of a relation is 1 + the degree of the relation, where any challenges used in the
  * relation are regarded as variables.
  */
-template <typename Tuple> static constexpr size_t compute_max_total_relation_length()
+template <typename Tuple, bool ZK = false> constexpr size_t compute_max_total_relation_length()
 {
-    return _compute_max_total_relation_length_internal<Tuple>(std::make_index_sequence<std::tuple_size_v<Tuple>>());
-}
-
-template <typename Tuple, size_t... I>
-static constexpr auto _compute_number_of_subrelations_internal([[maybe_unused]] std::index_sequence<I...>)
-{
-    constexpr std::array<size_t, sizeof...(I)> lengths = {
-        std::tuple_element_t<I, Tuple>::SUBRELATION_PARTIAL_LENGTHS.size()...
-    };
-    return std::accumulate(lengths.begin(), lengths.end(), 0);
+    constexpr auto seq = std::make_index_sequence<std::tuple_size_v<Tuple>>();
+    return []<std::size_t... Is>(std::index_sequence<Is...>) {
+        if constexpr (ZK) {
+            return std::max({ std::tuple_element_t<Is, Tuple>::ZK_TOTAL_RELATION_LENGTH... });
+        } else {
+            return std::max({ std::tuple_element_t<Is, Tuple>::TOTAL_RELATION_LENGTH... });
+        }
+    }(seq);
 }
 
 /**
  * @brief Utility function to find the number of subrelations.
  */
-template <typename Tuple> static constexpr size_t compute_number_of_subrelations()
+template <typename Tuple> constexpr size_t compute_number_of_subrelations()
 {
-    return _compute_number_of_subrelations_internal<Tuple>(std::make_index_sequence<std::tuple_size_v<Tuple>>());
-}
-
-template <typename Tuple, size_t NUM_INSTANCES, bool optimised = false, size_t... I>
-static constexpr auto _create_protogalaxy_tuple_of_tuples_of_univariates_internal(
-    [[maybe_unused]] std::index_sequence<I...>)
-{
-    if constexpr (optimised) {
-        return std::make_tuple(
-            typename std::tuple_element_t<I, Tuple>::template OptimisedProtogalaxyTupleOfUnivariatesOverSubrelations<
-                NUM_INSTANCES>{}...);
-    } else {
-        return std::make_tuple(
-            typename std::tuple_element_t<I, Tuple>::template ProtogalaxyTupleOfUnivariatesOverSubrelations<
-                NUM_INSTANCES>{}...);
-    }
-}
-
-/**
- * @brief Takes a Tuple of objects in the Relation class and recursively computes the maximum among partial
- * subrelation lengths incremented by corresponding subrelation witness degrees over all
- * subrelations of given relations. This method is required to compute the size of
- * Round Univariates in ZK Sumcheck.
- * @tparam Tuple
- * @tparam Index
- * @return constexpr size_t
- */
-template <typename Tuple, std::size_t Index = 0> static constexpr size_t compute_max_total_zk_relation_length()
-{
-    if constexpr (Index >= std::tuple_size<Tuple>::value) {
-        return 0; // Return 0 when reach end of the tuple
-    } else {
-        constexpr size_t current_zk_length = std::tuple_element<Index, Tuple>::type::ZK_TOTAL_RELATION_LENGTH;
-        constexpr size_t next_zk_length = compute_max_total_zk_relation_length<Tuple, Index + 1>();
-        return (current_zk_length > next_zk_length) ? current_zk_length : next_zk_length;
-    }
+    constexpr auto seq = std::make_index_sequence<std::tuple_size_v<Tuple>>();
+    return []<std::size_t... I>(std::index_sequence<I...>) {
+        return (0 + ... + std::tuple_element_t<I, Tuple>::SUBRELATION_PARTIAL_LENGTHS.size());
+    }(seq);
 }
 
 /**
@@ -356,54 +315,40 @@ template <typename Tuple, std::size_t Index = 0> static constexpr size_t compute
  * @tparam optimised Enable optimised version with skipping some of the computation
  */
 template <typename Tuple, size_t NUM_INSTANCES, bool optimised = false>
-static constexpr auto create_protogalaxy_tuple_of_tuples_of_univariates()
+constexpr auto create_protogalaxy_tuple_of_tuples_of_univariates()
 {
-    return _create_protogalaxy_tuple_of_tuples_of_univariates_internal<Tuple, NUM_INSTANCES, optimised>(
-        std::make_index_sequence<std::tuple_size_v<Tuple>>());
+    constexpr auto seq = std::make_index_sequence<std::tuple_size_v<Tuple>>();
+    return []<size_t... I>(std::index_sequence<I...>) {
+        if constexpr (optimised) {
+            return std::make_tuple(
+                typename std::tuple_element_t<I, Tuple>::
+                    template OptimisedProtogalaxyTupleOfUnivariatesOverSubrelations<NUM_INSTANCES>{}...);
+        } else {
+            return std::make_tuple(
+                typename std::tuple_element_t<I, Tuple>::template ProtogalaxyTupleOfUnivariatesOverSubrelations<
+                    NUM_INSTANCES>{}...);
+        }
+    }(seq);
 }
 
-template <typename Tuple, size_t... I>
-static constexpr auto _create_sumcheck_tuple_of_tuples_of_univariates_internal(
-    [[maybe_unused]] std::index_sequence<I...>)
-{
-    return std::make_tuple(typename std::tuple_element_t<I, Tuple>::SumcheckTupleOfUnivariatesOverSubrelations{}...);
-}
-
-template <typename Tuple, size_t... I>
-static constexpr auto _create_zk_sumcheck_tuple_of_tuples_of_univariates_internal(
-    [[maybe_unused]] std::index_sequence<I...>)
-{
-    return std::make_tuple(typename std::tuple_element_t<I, Tuple>::ZKSumcheckTupleOfUnivariatesOverSubrelations{}...);
-}
 /**
  * @brief Utility function to construct a container for the subrelation accumulators of sumcheck proving.
  * @details The size of the outer tuple is equal to the number of relations. Each relation contributes an inner tuple of
  * univariates whose size is equal to the number of subrelations of the relation. The length of a univariate in an inner
  * tuple is determined by the corresponding subrelation length.
  */
-template <typename Tuple> static constexpr auto create_sumcheck_tuple_of_tuples_of_univariates()
+template <typename Tuple, bool ZK = false> constexpr auto create_sumcheck_tuple_of_tuples_of_univariates()
 {
-    return _create_sumcheck_tuple_of_tuples_of_univariates_internal<Tuple>(
-        std::make_index_sequence<std::tuple_size_v<Tuple>>());
-}
-
-/**
- * @brief Recursive utility function to construct a container for the subrelation accumulators of ZK Sumcheck prover.
- * @details The size of the outer tuple is equal to the number of relations. Each relation contributes an inner tuple of
- * univariates whose size is equal to the number of subrelations of the relation. The length of a univariate in an inner
- * tuple is determined by the corresponding zk subrelation length, i.e. by the subrelation partial length corrected by
- * the corresponding witness degree.
- */
-template <typename Tuple> static constexpr auto create_zk_sumcheck_tuple_of_tuples_of_univariates()
-{
-    return _create_zk_sumcheck_tuple_of_tuples_of_univariates_internal<Tuple>(
-        std::make_index_sequence<std::tuple_size_v<Tuple>>());
-}
-
-template <typename Tuple, size_t... I>
-static constexpr auto _create_tuple_of_arrays_of_values_internal([[maybe_unused]] std::index_sequence<I...>)
-{
-    return std::make_tuple(typename std::tuple_element_t<I, Tuple>::SumcheckArrayOfValuesOverSubrelations{}...);
+    constexpr auto seq = std::make_index_sequence<std::tuple_size_v<Tuple>>();
+    return []<size_t... I>(std::index_sequence<I...>) {
+        if constexpr (ZK) {
+            return std::make_tuple(
+                typename std::tuple_element_t<I, Tuple>::ZKSumcheckTupleOfUnivariatesOverSubrelations{}...);
+        } else {
+            return std::make_tuple(
+                typename std::tuple_element_t<I, Tuple>::SumcheckTupleOfUnivariatesOverSubrelations{}...);
+        }
+    }(seq);
 }
 
 /**
@@ -411,9 +356,12 @@ static constexpr auto _create_tuple_of_arrays_of_values_internal([[maybe_unused]
  * @details Container for storing value of each identity in each relation. Each Relation contributes an array of
  * length num-identities.
  */
-template <typename Tuple> static constexpr auto create_tuple_of_arrays_of_values()
+template <typename Tuple> constexpr auto create_tuple_of_arrays_of_values()
 {
-    return _create_tuple_of_arrays_of_values_internal<Tuple>(std::make_index_sequence<std::tuple_size_v<Tuple>>());
+    constexpr auto seq = std::make_index_sequence<std::tuple_size_v<Tuple>>();
+    return []<size_t... I>(std::index_sequence<I...>) {
+        return std::make_tuple(typename std::tuple_element_t<I, Tuple>::SumcheckArrayOfValuesOverSubrelations{}...);
+    }(seq);
 }
 
 } // namespace bb

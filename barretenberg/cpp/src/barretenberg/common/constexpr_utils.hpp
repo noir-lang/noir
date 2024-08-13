@@ -4,15 +4,6 @@
 #include <tuple>
 #include <utility>
 
-/**
- * @brief constexpr_utils defines some helper methods that perform some stl-equivalent operations
- * but in a constexpr context over quantities known at compile-time
- *
- * Current methods are:
- *
- * constexpr_for : loop over a range , where the size_t iterator `i` is a constexpr variable
- * constexpr_find : find if an element is in an array
- */
 namespace bb {
 
 /**
@@ -97,66 +88,4 @@ template <size_t Start, size_t End, size_t Inc, class F> constexpr void constexp
     }
 }
 
-/**
- * @brief returns true/false depending on whether `key` is in `container`
- *
- * @tparam container i.e. what are we looking in?
- * @tparam key i.e. what are we looking for?
- * @return true found!
- * @return false not found!
- *
- * @details method is constexpr and can be used in static_asserts
- */
-template <const auto& container, auto key> constexpr bool constexpr_find()
-{
-    // using ElementType = typename std::remove_extent<ContainerType>::type;
-    bool found = false;
-    constexpr_for<0, container.size(), 1>([&]<size_t k>() {
-        if constexpr (std::get<k>(container) == key) {
-            found = true;
-        }
-    });
-    return found;
-}
-
-/**
- * @brief Create a constexpr array object whose elements contain a default value
- *
- * @tparam T type contained in the array
- * @tparam Is index sequence
- * @param value the value each array element is being initialized to
- * @return constexpr std::array<T, sizeof...(Is)>
- *
- * @details This method is used to create constexpr arrays whose encapsulated type:
- *
- * 1. HAS NO CONSTEXPR DEFAULT CONSTRUCTOR
- * 2. HAS A CONSTEXPR COPY CONSTRUCTOR
- *
- * An example of this is bb::field_t
- * (the default constructor does not default assign values to the field_t member variables for efficiency reasons, to
- * reduce the time require to construct large arrays of field elements. This means the default constructor for field_t
- * cannot be constexpr)
- */
-template <typename T, std::size_t... Is>
-constexpr std::array<T, sizeof...(Is)> create_array(T value, std::index_sequence<Is...> /*unused*/)
-{
-    // cast Is to void to remove the warning: unused value
-    std::array<T, sizeof...(Is)> result = { { (static_cast<void>(Is), value)... } };
-    return result;
-}
-
-/**
- * @brief Create a constexpr array object whose values all are 0
- *
- * @tparam T
- * @tparam N
- * @return constexpr std::array<T, N>
- *
- * @details Use in the same context as create_array, i.e. when encapsulated type has a default constructor that is not
- * constexpr
- */
-template <typename T, size_t N> constexpr std::array<T, N> create_empty_array()
-{
-    return create_array(T(0), std::make_index_sequence<N>());
-}
 }; // namespace bb

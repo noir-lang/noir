@@ -3,6 +3,7 @@
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 
 namespace bb {
+
 /*!
 \brief Child class of UltraFlavor that runs with ZK Sumcheck.
 \details
@@ -16,19 +17,20 @@ univariate accumuluator size has to be increased by the subrelation's witness de
 \ref docs/src/sumcheck-outline.md "Sumcheck Outline".
 */
 class UltraFlavorWithZK : public bb::UltraFlavor {
-
   public:
     // This flavor runs with ZK Sumcheck
     static constexpr bool HasZK = true;
     // Compute the maximum over all partial subrelation lengths incremented by the corresponding subrelation witness
     // degrees for the Relations inherited from UltraFlavor
-    static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_total_zk_relation_length<Relations>();
+    static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_total_relation_length<Relations, HasZK>();
     // Determine the number of evaluations of Prover and Libra Polynomials that the Prover sends to the Verifier in
     // the rounds of ZK Sumcheck.
     static constexpr size_t BATCHED_RELATION_PARTIAL_LENGTH = MAX_PARTIAL_RELATION_LENGTH + 1;
     // Construct the container for the subrelations' contributions
-    using SumcheckTupleOfTuplesOfUnivariates = decltype(create_zk_sumcheck_tuple_of_tuples_of_univariates<Relations>());
+    using SumcheckTupleOfTuplesOfUnivariates =
+        decltype(create_sumcheck_tuple_of_tuples_of_univariates<Relations, HasZK>());
     // Re-define ExtendedEdges to account for the incremented MAX_PARTIAL_RELATION_LENGTH
     using ExtendedEdges = ProverUnivariates<MAX_PARTIAL_RELATION_LENGTH>;
 };
+
 } // namespace bb
