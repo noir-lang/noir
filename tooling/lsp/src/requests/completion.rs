@@ -764,8 +764,10 @@ impl<'a> NodeFinder<'a> {
                     // There's nothing inside a function
                     return;
                 }
-                ModuleDefId::TypeAliasId(_) => {
-                    // For now we don't follow aliases for suggesting methods
+                ModuleDefId::TypeAliasId(type_alias_id) => {
+                    let type_alias = self.interner.get_type_alias(type_alias_id);
+                    let type_alias = type_alias.borrow();
+                    self.complete_type_methods(&type_alias.typ, &prefix, FunctionKind::Any);
                     return;
                 }
                 ModuleDefId::TraitId(_) => {
@@ -983,6 +985,10 @@ impl<'a> NodeFinder<'a> {
             Type::MutableReference(typ) => {
                 return self.complete_type_fields_and_methods(typ, prefix);
             }
+            Type::Alias(type_alias, _) => {
+                let type_alias = type_alias.borrow();
+                return self.complete_type_fields_and_methods(&type_alias.typ, prefix);
+            }
             Type::FieldElement
             | Type::Array(_, _)
             | Type::Slice(_)
@@ -992,7 +998,6 @@ impl<'a> NodeFinder<'a> {
             | Type::FmtString(_, _)
             | Type::Unit
             | Type::Tuple(_)
-            | Type::Alias(_, _)
             | Type::TypeVariable(_, _)
             | Type::TraitAsType(_, _, _)
             | Type::NamedGeneric(_, _, _)
@@ -2611,6 +2616,78 @@ mod completion_tests {
 
             fn foo() {
                 Some::>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                snippet_completion_item(
+                    "foobar(…)",
+                    CompletionItemKind::FUNCTION,
+                    "foobar(${1:self}, ${2:x})",
+                    Some("fn(Some, i32)".to_string()),
+                ),
+                snippet_completion_item(
+                    "foobar2(…)",
+                    CompletionItemKind::FUNCTION,
+                    "foobar2(${1:self}, ${2:x})",
+                    Some("fn(&mut Some, i32)".to_string()),
+                ),
+                snippet_completion_item(
+                    "foobar3(…)",
+                    CompletionItemKind::FUNCTION,
+                    "foobar3(${1:y})",
+                    Some("fn(i32)".to_string()),
+                ),
+            ],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_struct_behind_alias_methods_after_dot() {
+        let src = r#"
+            struct Some {
+            }
+
+            type Alias = Some;
+
+            impl Some {
+                fn foobar(self, x: i32) {}
+            }
+
+            fn foo(some: Alias) {
+                some.>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![snippet_completion_item(
+                "foobar(…)",
+                CompletionItemKind::FUNCTION,
+                "foobar(${1:x})",
+                Some("fn(Some, i32)".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_struct_behind_alias_methods_after_colons() {
+        let src = r#"
+            struct Some {
+            }
+
+            type Alias = Some;
+
+            impl Some {
+                fn foobar(self, x: i32) {}
+                fn foobar2(&mut self, x: i32) {}
+                fn foobar3(y: i32) {}
+            }
+
+            fn foo() {
+                Alias::>|<
             }
         "#;
         assert_completion(
