@@ -1243,7 +1243,7 @@ impl<'a> NodeFinder<'a> {
         let description = typ.to_string();
         let description = description.strip_suffix(" -> ()").unwrap_or(&description).to_string();
 
-        let mut completion_item = match function_completion_kind {
+        let completion_item = match function_completion_kind {
             FunctionCompletionKind::Name => {
                 simple_completion_item(name, CompletionItemKind::FUNCTION, Some(description))
             }
@@ -1257,13 +1257,15 @@ impl<'a> NodeFinder<'a> {
             }
         };
 
-        if is_operator {
-            completion_item.sort_text = Some(operator_sort_text())
+        let completion_item = if is_operator {
+            completion_item_with_sort_text(completion_item, operator_sort_text())
         } else if function_kind == FunctionKind::Any && name == "new" {
-            completion_item.sort_text = Some(new_sort_text())
+            completion_item_with_sort_text(completion_item, new_sort_text())
         } else if function_kind == FunctionKind::Any && func_self_type.is_some() {
-            completion_item.sort_text = Some(self_mismatch_sort_text())
-        }
+            completion_item_with_sort_text(completion_item, self_mismatch_sort_text())
+        } else {
+            completion_item
+        };
 
         Some(completion_item)
     }
