@@ -31,7 +31,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { type ContractInstanceWithAddress, SerializableContractInstance } from '@aztec/types/contracts';
 
 import { EncryptedNoteTxL2Logs, EncryptedTxL2Logs, Note, UnencryptedTxL2Logs } from './logs/index.js';
-import { ExtendedNote } from './notes/index.js';
+import { ExtendedNote, UniqueNote } from './notes/index.js';
 import { PublicExecutionRequest } from './public_execution_request.js';
 import { NestedProcessReturnValues, PublicSimulationOutput, SimulatedTx, Tx, TxHash } from './tx/index.js';
 
@@ -254,4 +254,16 @@ export const randomExtendedNote = ({
   noteTypeId = NoteSelector.random(),
 }: Partial<ExtendedNote> = {}) => {
   return new ExtendedNote(note, owner, contractAddress, storageSlot, noteTypeId, txHash);
+};
+
+export const randomUniqueNote = ({
+  note = Note.random(),
+  owner = AztecAddress.random(),
+  contractAddress = AztecAddress.random(),
+  txHash = randomTxHash(),
+  storageSlot = Fr.random(),
+  noteTypeId = NoteSelector.random(),
+  nonce = Fr.random(),
+}: Partial<UniqueNote> = {}) => {
+  return new UniqueNote(note, owner, contractAddress, storageSlot, noteTypeId, txHash, nonce);
 };

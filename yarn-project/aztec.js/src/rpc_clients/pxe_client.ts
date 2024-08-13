@@ -15,6 +15,7 @@ import {
   TxHash,
   TxReceipt,
   UnencryptedL2BlockL2Logs,
+  UniqueNote,
 } from '@aztec/circuit-types';
 import {
   AztecAddress,
@@ -45,6 +46,7 @@ export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], false)
       FunctionSelector,
       EthAddress,
       ExtendedNote,
+      UniqueNote,
       ExtendedUnencryptedL2Log,
       Fr,
       GrumpkinScalar,

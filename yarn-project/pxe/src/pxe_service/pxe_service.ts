@@ -5,7 +5,7 @@ import {
   EncryptedTxL2Logs,
   type EventMetadata,
   EventType,
-  ExtendedNote,
+  type ExtendedNote,
   type FunctionCall,
   type GetUnencryptedLogsResponse,
   type IncomingNotesFilter,
@@ -26,6 +26,7 @@ import {
   type TxHash,
   type TxReceipt,
   UnencryptedTxL2Logs,
+  UniqueNote,
   isNoirCallStackUnresolved,
 } from '@aztec/circuit-types';
 import {
@@ -296,7 +297,7 @@ export class PXEService implements PXE {
     return await this.node.getPublicStorageAt(contract, slot, 'latest');
   }
 
-  public async getIncomingNotes(filter: IncomingNotesFilter): Promise<ExtendedNote[]> {
+  public async getIncomingNotes(filter: IncomingNotesFilter): Promise<UniqueNote[]> {
     const noteDaos = await this.db.getIncomingNotes(filter);
 
     // TODO(#6531): Refactor --> This type conversion is ugly but I decided to keep it this way for now because
@@ -312,12 +313,20 @@ export class PXEService implements PXE {
         }
         owner = completeAddresses.address;
       }
-      return new ExtendedNote(dao.note, owner, dao.contractAddress, dao.storageSlot, dao.noteTypeId, dao.txHash);
+      return new UniqueNote(
+        dao.note,
+        owner,
+        dao.contractAddress,
+        dao.storageSlot,
+        dao.noteTypeId,
+        dao.txHash,
+        dao.nonce,
+      );
     });
     return Promise.all(extendedNotes);
   }
 
-  public async getOutgoingNotes(filter: OutgoingNotesFilter): Promise<ExtendedNote[]> {
+  public async getOutgoingNotes(filter: OutgoingNotesFilter): Promise<UniqueNote[]> {
     const noteDaos = await this.db.getOutgoingNotes(filter);
 
     // TODO(#6532): Refactor --> This type conversion is ugly but I decided to keep it this way for now because
@@ -333,7 +342,15 @@ export class PXEService implements PXE {
         }
         owner = completeAddresses.address;
       }
-      return new ExtendedNote(dao.note, owner, dao.contractAddress, dao.storageSlot, dao.noteTypeId, dao.txHash);
+      return new UniqueNote(
+        dao.note,
+        owner,
+        dao.contractAddress,
+        dao.storageSlot,
+        dao.noteTypeId,
+        dao.txHash,
+        dao.nonce,
+      );
     });
     return Promise.all(extendedNotes);
   }
@@ -344,7 +361,7 @@ export class PXEService implements PXE {
       throw new Error(`Unknown account: ${note.owner.toString()}`);
     }
 
-    const nonces = await this.getNoteNonces(note);
+    const nonces = await this.#getNoteNonces(note);
     if (nonces.length === 0) {
       throw new Error(`Cannot find the note in tx: ${note.txHash}.`);
     }
@@ -394,7 +411,7 @@ export class PXEService implements PXE {
       throw new Error(`Unknown account: ${note.owner.toString()}`);
     }
 
-    const nonces = await this.getNoteNonces(note);
+    const nonces = await this.#getNoteNonces(note);
     if (nonces.length === 0) {
       throw new Error(`Cannot find the note in tx: ${note.txHash}.`);
     }
@@ -440,9 +457,8 @@ export class PXEService implements PXE {
    * @param note - The note to find the nonces for.
    * @returns The nonces of the note.
    * @remarks More than a single nonce may be returned since there might be more than one nonce for a given note.
-   * TODO(#4956): Un-expose this
    */
-  public async getNoteNonces(note: ExtendedNote): Promise<Fr[]> {
+  async #getNoteNonces(note: ExtendedNote): Promise<Fr[]> {
     const tx = await this.node.getTxEffect(note.txHash);
     if (!tx) {
       throw new Error(`Unknown tx: ${note.txHash}`);

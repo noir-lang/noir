@@ -1,7 +1,7 @@
 import { RevertCode } from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
 
-import { type ExtendedNote } from '../notes/extended_note.js';
+import { type UniqueNote } from '../notes/extended_note.js';
 import { type PublicDataWrite } from '../public_data_write.js';
 import { TxHash } from './tx_hash.js';
 
@@ -126,11 +126,11 @@ interface DebugInfo {
    * in the PXE which was used to submit the tx. You will not get notes of accounts which are not registered in
    * the PXE here even though they were created in this tx.
    */
-  visibleIncomingNotes: ExtendedNote[];
+  visibleIncomingNotes: UniqueNote[];
   /**
    * Notes created in this tx which were successfully decoded with the outgoing keys of accounts which are registered
    * in the PXE which was used to submit the tx. You will not get notes of accounts which are not registered in
    * the PXE here even though they were created in this tx.
    */
-  visibleOutgoingNotes: ExtendedNote[];
+  visibleOutgoingNotes: UniqueNote[];
 }

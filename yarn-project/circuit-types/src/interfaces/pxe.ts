@@ -18,7 +18,7 @@ import { type AuthWitness } from '../auth_witness.js';
 import { type L2Block } from '../l2_block.js';
 import { type GetUnencryptedLogsResponse, type L1EventPayload, type LogFilter } from '../logs/index.js';
 import { type IncomingNotesFilter } from '../notes/incoming_notes_filter.js';
-import { type ExtendedNote, type OutgoingNotesFilter } from '../notes/index.js';
+import { type ExtendedNote, type OutgoingNotesFilter, type UniqueNote } from '../notes/index.js';
 import { type NoteProcessorStats } from '../stats/stats.js';
 import { type SimulatedTx, type Tx, type TxHash, type TxReceipt } from '../tx/index.js';
 import { type TxEffect } from '../tx_effect.js';
@@ -235,23 +235,14 @@ export interface PXE {
    * @param filter - The filter to apply to the notes.
    * @returns The requested notes.
    */
-  getIncomingNotes(filter: IncomingNotesFilter): Promise<ExtendedNote[]>;
+  getIncomingNotes(filter: IncomingNotesFilter): Promise<UniqueNote[]>;
 
   /**
    * Gets outgoing notes of accounts registered in this PXE based on the provided filter.
    * @param filter - The filter to apply to the notes.
    * @returns The requested notes.
    */
-  getOutgoingNotes(filter: OutgoingNotesFilter): Promise<ExtendedNote[]>;
-
-  /**
-   * Finds the nonce(s) for a given note.
-   * @param note - The note to find the nonces for.
-   * @returns The nonces of the note.
-   * @remarks More than a single nonce may be returned since there might be more than one nonce for a given note.
-   * TODO(#4956): Un-expose this
-   */
-  getNoteNonces(note: ExtendedNote): Promise<Fr[]>;
+  getOutgoingNotes(filter: OutgoingNotesFilter): Promise<UniqueNote[]>;
 
   /**
    * Adds a note to the database.
