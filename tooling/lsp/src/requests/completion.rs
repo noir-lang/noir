@@ -1235,13 +1235,7 @@ impl<'a> NodeFinder<'a> {
         } else {
             false
         };
-
-        let mut typ = &func_meta.typ;
-        if let Type::Forall(_, typ_) = typ {
-            typ = typ_;
-        }
-        let description = typ.to_string();
-        let description = description.strip_suffix(" -> ()").unwrap_or(&description).to_string();
+        let description = func_meta_type_to_string(&func_meta, func_self_type.is_some());
 
         let completion_item = match function_completion_kind {
             FunctionCompletionKind::Name => {
@@ -1539,6 +1533,48 @@ fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDe
         | ReferenceId::Global(_)
         | ReferenceId::Local(_)
         | ReferenceId::Reference(_, _) => None,
+    }
+}
+
+fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String {
+    let mut typ = &func_meta.typ;
+    if let Type::Forall(_, typ_) = typ {
+        typ = typ_;
+    }
+
+    if let Type::Function(args, ret, _env) = typ {
+        let mut string = String::new();
+        string.push_str("fn(");
+        for (index, arg) in args.iter().enumerate() {
+            if index > 0 {
+                string.push_str(", ");
+            }
+            if index == 0 && has_self_type {
+                type_to_self_string(arg, &mut string);
+            } else {
+                string.push_str(&arg.to_string());
+            }
+        }
+        string.push(')');
+
+        let ret: &Type = ret;
+        if let Type::Unit = ret {
+            // Nothing
+        } else {
+            string.push_str(" -> ");
+            string.push_str(&ret.to_string());
+        }
+        string
+    } else {
+        typ.to_string()
+    }
+}
+
+fn type_to_self_string(typ: &Type, string: &mut String) {
+    if let Type::MutableReference(..) = typ {
+        string.push_str("&mut self");
+    } else {
+        string.push_str("self");
     }
 }
 
@@ -2620,13 +2656,13 @@ mod completion_tests {
                     "foobar(…)",
                     CompletionItemKind::FUNCTION,
                     "foobar(${1:x})",
-                    Some("fn(Some, i32)".to_string()),
+                    Some("fn(self, i32)".to_string()),
                 ),
                 snippet_completion_item(
                     "foobar2(…)",
                     CompletionItemKind::FUNCTION,
                     "foobar2(${1:x})",
-                    Some("fn(&mut Some, i32)".to_string()),
+                    Some("fn(&mut self, i32)".to_string()),
                 ),
             ],
         )
@@ -2659,7 +2695,7 @@ mod completion_tests {
                 "foobar(…)",
                 CompletionItemKind::FUNCTION,
                 "foobar(${1:x})",
-                Some("fn(Some, i32)".to_string()),
+                Some("fn(self, i32)".to_string()),
             )],
         )
         .await;
@@ -2688,7 +2724,7 @@ mod completion_tests {
                 "foobar(…)",
                 CompletionItemKind::FUNCTION,
                 "foobar(${1:x})",
-                Some("fn(Field, i32)".to_string()),
+                Some("fn(self, i32)".to_string()),
             )],
         )
         .await;
@@ -2718,7 +2754,7 @@ mod completion_tests {
                         "foobar(…)",
                         CompletionItemKind::FUNCTION,
                         "foobar(${1:self}, ${2:x})",
-                        Some("fn(Some, i32)".to_string()),
+                        Some("fn(self, i32)".to_string()),
                     ),
                     self_mismatch_sort_text(),
                 ),
@@ -2727,7 +2763,7 @@ mod completion_tests {
                         "foobar2(…)",
                         CompletionItemKind::FUNCTION,
                         "foobar2(${1:self}, ${2:x})",
-                        Some("fn(&mut Some, i32)".to_string()),
+                        Some("fn(&mut self, i32)".to_string()),
                     ),
                     self_mismatch_sort_text(),
                 ),
@@ -2764,7 +2800,7 @@ mod completion_tests {
                 "foobar(…)",
                 CompletionItemKind::FUNCTION,
                 "foobar(${1:x})",
-                Some("fn(Some, i32)".to_string()),
+                Some("fn(self, i32)".to_string()),
             )],
         )
         .await;
@@ -2796,7 +2832,7 @@ mod completion_tests {
                         "foobar(…)",
                         CompletionItemKind::FUNCTION,
                         "foobar(${1:self}, ${2:x})",
-                        Some("fn(Some, i32)".to_string()),
+                        Some("fn(self, i32)".to_string()),
                     ),
                     self_mismatch_sort_text(),
                 ),
@@ -2805,7 +2841,7 @@ mod completion_tests {
                         "foobar2(…)",
                         CompletionItemKind::FUNCTION,
                         "foobar2(${1:self}, ${2:x})",
-                        Some("fn(&mut Some, i32)".to_string()),
+                        Some("fn(&mut self, i32)".to_string()),
                     ),
                     self_mismatch_sort_text(),
                 ),
