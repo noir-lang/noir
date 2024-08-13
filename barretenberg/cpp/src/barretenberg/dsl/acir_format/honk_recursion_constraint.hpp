@@ -6,7 +6,6 @@ namespace acir_format {
 using Builder = bb::UltraCircuitBuilder;
 
 using namespace bb;
-using fq_ct = stdlib::bigfield<Builder, Bn254FqParams>;
 
 /**
  * @brief HonkRecursionConstraint struct contains information required to recursively verify a proof!
@@ -58,7 +57,6 @@ struct HonkRecursionConstraint {
 AggregationObjectIndices create_honk_recursion_constraints(Builder& builder,
                                                            const HonkRecursionConstraint& input,
                                                            AggregationObjectIndices input_aggregation_object,
-                                                           AggregationObjectIndices nested_aggregation_object,
                                                            bool has_valid_witness_assignments = false);
 
 } // namespace acir_format

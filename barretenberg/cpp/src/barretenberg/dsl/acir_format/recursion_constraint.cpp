@@ -164,21 +164,7 @@ AggregationObjectIndices create_recursion_constraints(Builder& builder,
     // Assign correct witness value to the verification key hash
     vkey->hash().assert_equal(field_ct::from_witness_index(&builder, input.key_hash));
 
-    ASSERT(result.public_inputs.size() == input.public_inputs.size());
-
-    // Assign the `public_input` field to the public input of the inner proof
-    for (size_t i = 0; i < input.public_inputs.size(); ++i) {
-        result.public_inputs[i].assert_equal(field_ct::from_witness_index(&builder, input.public_inputs[i]));
-    }
-
-    // We want to return an array, so just copy the vector into the array
-    ASSERT(result.proof_witness_indices.size() == bb::AGGREGATION_OBJECT_SIZE);
-    AggregationObjectIndices resulting_output_aggregation_object;
-    std::copy(result.proof_witness_indices.begin(),
-              result.proof_witness_indices.begin() + bb::AGGREGATION_OBJECT_SIZE,
-              resulting_output_aggregation_object.begin());
-
-    return resulting_output_aggregation_object;
+    return result.get_witness_indices();
 }
 
 /**

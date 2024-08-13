@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/stdlib/honk_recursion/transcript/transcript.hpp"
+#include "barretenberg/stdlib/plonk_recursion/aggregation_state/aggregation_state.hpp"
 #include "barretenberg/stdlib_circuit_builders/mega_recursive_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_recursive_flavor.hpp"
 #include "barretenberg/sumcheck/sumcheck.hpp"
@@ -16,17 +17,16 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
     using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
     using Builder = typename Flavor::CircuitBuilder;
     using RelationSeparator = typename Flavor::RelationSeparator;
-    using PairingPoints = std::array<GroupElement, 2>;
+    using AggregationObject = aggregation_state<typename Flavor::Curve>;
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
 
     explicit UltraRecursiveVerifier_(Builder* builder,
                                      const std::shared_ptr<NativeVerificationKey>& native_verifier_key);
     explicit UltraRecursiveVerifier_(Builder* builder, const std::shared_ptr<VerificationKey>& vkey);
 
-    // TODO(luke): Eventually this will return something like aggregation_state but I'm simplifying for now until we
-    // determine the exact interface. Simply returns the two pairing points.
-    PairingPoints verify_proof(const HonkProof& proof);
-    PairingPoints verify_proof(const StdlibProof<Builder>& proof);
+    AggregationObject verify_proof(const HonkProof& proof, aggregation_state<typename Flavor::Curve> previous_output);
+    AggregationObject verify_proof(const StdlibProof<Builder>& proof,
+                                   aggregation_state<typename Flavor::Curve> previous_output);
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;

@@ -6,6 +6,7 @@
 #include "barretenberg/dsl/acir_proofs/honk_contract.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/plonk_honk_shared/types/aggregation_object_type.hpp"
 #include "barretenberg/serialize/cbind.hpp"
 #include "barretenberg/stdlib/honk_recursion/verifier/client_ivc_recursive_verifier.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
@@ -573,7 +574,7 @@ void prove_tube(const std::string& output_path)
     // these public inputs by turning proof into witnesses and call
     // set_public on each witness
     auto num_public_inputs = static_cast<size_t>(static_cast<uint256_t>(proof.folding_proof[1]));
-    for (size_t i = 0; i < num_public_inputs; i++) {
+    for (size_t i = 0; i < num_public_inputs - bb::AGGREGATION_OBJECT_SIZE; i++) {
         // We offset 3
         builder->add_public_variable(proof.folding_proof[i + 3]);
     }
@@ -581,33 +582,12 @@ void prove_tube(const std::string& output_path)
 
     verifier.verify(proof);
 
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/911): These are pairing points extracted from a valid
-    // proof. This is a workaround because we can't represent the point at infinity in biggroup yet.
-    AggregationObjectIndices current_aggregation_object = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    fq x0("0x031e97a575e9d05a107acb64952ecab75c020998797da7842ab5d6d1986846cf");
-    fq y0("0x178cbf4206471d722669117f9758a4c410db10a01750aebb5666547acf8bd5a4");
-    fq x1("0x0f94656a2ca489889939f81e9c74027fd51009034b3357f0e91b8a11e7842c38");
-    fq y1("0x1b52c2020d7464a0c80c0da527a08193fe27776f50224bd6fb128b46c1ddb67f");
-    std::vector<fq> aggregation_object_fq_values = { x0, y0, x1, y1 };
-    size_t agg_obj_indices_idx = 0;
-    for (fq val : aggregation_object_fq_values) {
-        const uint256_t x = val;
-        std::array<fr, acir_format::fq_ct::NUM_LIMBS> val_limbs = {
-            x.slice(0, acir_format::fq_ct::NUM_LIMB_BITS),
-            x.slice(acir_format::fq_ct::NUM_LIMB_BITS, acir_format::fq_ct::NUM_LIMB_BITS * 2),
-            x.slice(acir_format::fq_ct::NUM_LIMB_BITS * 2, acir_format::fq_ct::NUM_LIMB_BITS * 3),
-            x.slice(acir_format::fq_ct::NUM_LIMB_BITS * 3, stdlib::field_conversion::TOTAL_BITS)
-        };
-        for (size_t i = 0; i < acir_format::fq_ct::NUM_LIMBS; ++i) {
-            uint32_t idx = builder->add_variable(val_limbs[i]);
-            builder->set_public_input(idx);
-            current_aggregation_object[agg_obj_indices_idx] = idx;
-            agg_obj_indices_idx++;
-        }
-    }
-    // Make sure the verification key records the public input indices of the
-    // final recursion output.
-    builder->set_recursive_proof(current_aggregation_object);
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1069): Add aggregation to goblin recursive verifiers.
+    // This is currently just setting the aggregation object to the default one.
+    AggregationObjectIndices current_aggregation_object =
+        stdlib::recursion::init_default_agg_obj_indices<Builder>(*builder);
+
+    builder->add_recursive_proof(current_aggregation_object);
 
     info("num gates in tube circuit: ", builder->get_num_gates());
     using Prover = UltraProver_<UltraFlavor>;
@@ -1346,6 +1326,7 @@ int main(int argc, char* argv[])
         }
 
         std::string command = args[0];
+        vinfo("bb command is: ", command);
         std::string bytecode_path = get_option(args, "-b", "./target/program.json");
         std::string witness_path = get_option(args, "-w", "./target/witness.gz");
         std::string proof_path = get_option(args, "-p", "./proofs/proof");

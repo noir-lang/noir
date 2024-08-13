@@ -100,7 +100,10 @@ BENCHMARK_TEMPLATE_F(SimulatorFixture, GoblinSimulated, bb::MegaRecursiveFlavor_
     for (auto _ : state) {
         CircuitSimulator simulator;
         SimulatingVerifier ultra_verifier{ &simulator, verifier_input.verification_key };
-        ultra_verifier.verify_proof((verifier_input.proof));
+        ultra_verifier.verify_proof(verifier_input.proof,
+                                    stdlib::recursion::init_default_aggregation_state<
+                                        CircuitSimulator,
+                                        bb::MegaRecursiveFlavor_<bb::CircuitSimulatorBN254>::Curve>(simulator));
     }
 }
 
@@ -121,7 +124,10 @@ BENCHMARK_TEMPLATE_F(SimulatorFixture, UltraSimulated, bb::UltraRecursiveFlavor_
     for (auto _ : state) {
         CircuitSimulator simulator;
         SimulatingVerifier ultra_verifier{ &simulator, verifier_input.verification_key };
-        ultra_verifier.verify_proof((verifier_input.proof));
+        ultra_verifier.verify_proof(verifier_input.proof,
+                                    stdlib::recursion::init_default_aggregation_state<
+                                        CircuitSimulator,
+                                        bb::UltraRecursiveFlavor_<bb::CircuitSimulatorBN254>::Curve>(simulator));
     }
 }
 

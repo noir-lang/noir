@@ -196,12 +196,16 @@ class GoblinMockCircuits {
     {
         // Execute recursive aggregation of function proof
         RecursiveVerifier verifier1{ &builder, function_accum.verification_key };
-        verifier1.verify_proof(function_accum.proof);
+        verifier1.verify_proof(
+            function_accum.proof,
+            stdlib::recursion::init_default_aggregation_state<MegaBuilder, RecursiveFlavor::Curve>(builder));
 
         // Execute recursive aggregation of previous kernel proof if one exists
         if (!prev_kernel_accum.proof.empty()) {
             RecursiveVerifier verifier2{ &builder, prev_kernel_accum.verification_key };
-            verifier2.verify_proof(prev_kernel_accum.proof);
+            verifier2.verify_proof(
+                prev_kernel_accum.proof,
+                stdlib::recursion::init_default_aggregation_state<MegaBuilder, RecursiveFlavor::Curve>(builder));
         }
     }
 };

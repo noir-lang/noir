@@ -39,6 +39,7 @@ class ClientIVCRecursionTests : public testing::Test {
         for (size_t idx = 0; idx < NUM_CIRCUITS; ++idx) {
             Builder circuit{ ivc.goblin.op_queue };
             GoblinMockCircuits::construct_mock_function_circuit(circuit);
+            circuit.add_recursive_proof(stdlib::recursion::init_default_agg_obj_indices<Builder>(circuit));
             ivc.accumulate(circuit);
         }
 
@@ -93,6 +94,45 @@ TEST_F(ClientIVCRecursionTests, Basic)
     EXPECT_EQ(builder->failed(), false) << builder->err();
 
     EXPECT_TRUE(CircuitChecker::check(*builder));
+}
+
+TEST_F(ClientIVCRecursionTests, ClientTubeBase)
+{
+    // Generate a genuine ClientIVC prover output
+    ClientIVC ivc;
+    auto [proof, verifier_input] = construct_client_ivc_prover_output(ivc);
+
+    // Construct the ClientIVC recursive verifier
+    auto tube_builder = std::make_shared<Builder>();
+    ClientIVCVerifier verifier{ tube_builder, verifier_input };
+
+    // Generate the recursive verification circuit
+    verifier.verify(proof);
+
+    tube_builder->add_recursive_proof(stdlib::recursion::init_default_agg_obj_indices<Builder>(*tube_builder));
+
+    info("ClientIVC Recursive Verifier: num prefinalized gates = ", tube_builder->num_gates);
+
+    EXPECT_EQ(tube_builder->failed(), false) << tube_builder->err();
+
+    // EXPECT_TRUE(CircuitChecker::check(*tube_builder));
+
+    // Construct and verify a proof for the ClientIVC Recursive Verifier circuit
+    auto inner_instance = std::make_shared<ProverInstance_<UltraFlavor>>(*tube_builder);
+    auto vk = std::make_shared<typename UltraFlavor::VerificationKey>(inner_instance->proving_key);
+    UltraProver_<UltraFlavor> tube_prover{ inner_instance };
+    auto tube_proof = tube_prover.construct_proof();
+
+    Builder base_builder;
+    UltraRecursiveVerifier_<UltraRecursiveFlavor_<Builder>> base_verifier{ &base_builder, vk };
+    base_verifier.verify_proof(
+        tube_proof,
+        stdlib::recursion::init_default_aggregation_state<Builder, UltraRecursiveFlavor_<Builder>::Curve>(
+            base_builder));
+    info("UH Recursive Verifier: num prefinalized gates = ", base_builder.num_gates);
+
+    EXPECT_EQ(base_builder.failed(), false) << base_builder.err();
+    EXPECT_TRUE(CircuitChecker::check(base_builder));
 }
 
 } // namespace bb::stdlib::recursion::honk

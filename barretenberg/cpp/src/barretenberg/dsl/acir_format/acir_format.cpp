@@ -1,6 +1,7 @@
 #include "acir_format.hpp"
 #include "barretenberg/common/log.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/stdlib/plonk_recursion/aggregation_state/aggregation_state.hpp"
 #include "barretenberg/stdlib/primitives/field/field_conversion.hpp"
 #include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
@@ -322,12 +323,8 @@ void build_constraints(Builder& builder,
             info("WARNING: this circuit contains honk_recursion_constraints!");
         }
     } else {
-        // These are set and modified whenever we encounter a recursion opcode
-        //
-        // These should not be set by the caller
-        // TODO(https://github.com/AztecProtocol/barretenberg/issues/996): this usage of all zeros is a hack and could
-        // use types or enums to properly fix.
-        AggregationObjectIndices current_aggregation_object = {};
+        AggregationObjectIndices current_aggregation_object =
+            stdlib::recursion::init_default_agg_obj_indices<Builder>(builder);
 
         // Add recursion constraints
         for (size_t i = 0; i < constraint_system.honk_recursion_constraints.size(); ++i) {
@@ -336,13 +333,10 @@ void build_constraints(Builder& builder,
             // aggregation object itself. The verifier circuit requires that the indices to a nested proof aggregation
             // state are a circuit constant. The user tells us they how they want these constants set by keeping the
             // nested aggregation object attached to the proof as public inputs.
-            AggregationObjectIndices nested_aggregation_object = {};
             for (size_t i = 0; i < bb::AGGREGATION_OBJECT_SIZE; ++i) {
-                // Set the nested aggregation object indices to witness indices from the proof
-                nested_aggregation_object[i] =
-                    static_cast<uint32_t>(constraint.proof[HonkRecursionConstraint::inner_public_input_offset + i]);
                 // Adding the nested aggregation object to the constraint's public inputs
-                constraint.public_inputs.emplace_back(nested_aggregation_object[i]);
+                constraint.public_inputs.emplace_back(
+                    constraint.proof[HonkRecursionConstraint::inner_public_input_offset + i]);
             }
             // Remove the aggregation object so that they can be handled as normal public inputs
             // in they way that the recursion constraint expects
@@ -350,11 +344,8 @@ void build_constraints(Builder& builder,
                                    constraint.proof.begin() +
                                        static_cast<std::ptrdiff_t>(HonkRecursionConstraint::inner_public_input_offset +
                                                                    bb::AGGREGATION_OBJECT_SIZE));
-            current_aggregation_object = create_honk_recursion_constraints(builder,
-                                                                           constraint,
-                                                                           current_aggregation_object,
-                                                                           nested_aggregation_object,
-                                                                           has_valid_witness_assignments);
+            current_aggregation_object = create_honk_recursion_constraints(
+                builder, constraint, current_aggregation_object, has_valid_witness_assignments);
             track_gate_diff(constraint_system.gates_per_opcode,
                             constraint_system.original_opcode_indices.honk_recursion_constraints.at(i));
         }
@@ -375,34 +366,11 @@ void build_constraints(Builder& builder,
             builder.set_recursive_proof(current_aggregation_object);
         } else if (honk_recursion &&
                    builder.is_recursive_circuit) { // Set a default aggregation object if we don't have one.
-            // TODO(https://github.com/AztecProtocol/barretenberg/issues/911): These are pairing points extracted
-            // from a valid proof. This is a workaround because we can't represent the point at infinity in biggroup
-            // yet.
-            fq x0("0x031e97a575e9d05a107acb64952ecab75c020998797da7842ab5d6d1986846cf");
-            fq y0("0x178cbf4206471d722669117f9758a4c410db10a01750aebb5666547acf8bd5a4");
-
-            fq x1("0x0f94656a2ca489889939f81e9c74027fd51009034b3357f0e91b8a11e7842c38");
-            fq y1("0x1b52c2020d7464a0c80c0da527a08193fe27776f50224bd6fb128b46c1ddb67f");
-            std::vector<fq> aggregation_object_fq_values = { x0, y0, x1, y1 };
-            size_t agg_obj_indices_idx = 0;
-            for (fq val : aggregation_object_fq_values) {
-                const uint256_t x = val;
-                std::array<fr, fq_ct::NUM_LIMBS> val_limbs = {
-                    x.slice(0, fq_ct::NUM_LIMB_BITS),
-                    x.slice(fq_ct::NUM_LIMB_BITS, fq_ct::NUM_LIMB_BITS * 2),
-                    x.slice(fq_ct::NUM_LIMB_BITS * 2, fq_ct::NUM_LIMB_BITS * 3),
-                    x.slice(fq_ct::NUM_LIMB_BITS * 3, stdlib::field_conversion::TOTAL_BITS)
-                };
-                for (size_t i = 0; i < fq_ct::NUM_LIMBS; ++i) {
-                    uint32_t idx = builder.add_variable(val_limbs[i]);
-                    builder.set_public_input(idx);
-                    current_aggregation_object[agg_obj_indices_idx] = idx;
-                    agg_obj_indices_idx++;
-                }
-            }
+            AggregationObjectIndices current_aggregation_object =
+                stdlib::recursion::init_default_agg_obj_indices<Builder>(builder);
             // Make sure the verification key records the public input indices of the
             // final recursion output.
-            builder.set_recursive_proof(current_aggregation_object);
+            builder.add_recursive_proof(current_aggregation_object);
         }
     }
 }

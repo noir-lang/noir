@@ -251,6 +251,7 @@ void CircuitBuilderBase<FF_>::set_recursive_proof(const AggregationObjectIndices
 {
     if (contains_recursive_proof) {
         failure("added recursive proof when one already exists");
+        ASSERT(0);
     }
     contains_recursive_proof = true;
     for (size_t i = 0; i < proof_output_witness_indices.size(); ++i) {

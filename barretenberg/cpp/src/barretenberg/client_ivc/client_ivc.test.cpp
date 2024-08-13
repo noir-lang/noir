@@ -50,7 +50,7 @@ class ClientIVCTests : public ::testing::Test {
      * polynomials will bump size to next power of 2)
      *
      */
-    static Builder create_mock_circuit(ClientIVC& ivc, size_t log2_num_gates = 15)
+    static Builder create_mock_circuit(ClientIVC& ivc, size_t log2_num_gates = 16)
     {
         Builder circuit{ ivc.goblin.op_queue };
         MockCircuits::construct_arithmetic_circuit(circuit, log2_num_gates);

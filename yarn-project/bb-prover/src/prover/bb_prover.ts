@@ -895,7 +895,6 @@ export class BBNativeRollupProver implements ServerCircuitProver {
       throw new Error(`Invalid verification key for ${circuitType}`);
     }
     const numPublicInputs = vkData.numPublicInputs - AGGREGATION_OBJECT_LENGTH;
-
     const fieldsWithoutPublicInputs = json
       .slice(0, 3)
       .map(Fr.fromString)

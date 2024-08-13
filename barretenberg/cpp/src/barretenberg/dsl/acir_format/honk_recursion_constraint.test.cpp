@@ -293,6 +293,24 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
 };
 
+TEST_F(AcirHonkRecursionConstraint, TestBasicSingleHonkRecursionConstraint)
+{
+    std::vector<Builder> layer_1_circuits;
+    layer_1_circuits.push_back(create_inner_circuit());
+
+    auto layer_2_circuit = create_outer_circuit(layer_1_circuits);
+
+    info("circuit gates = ", layer_2_circuit.get_num_gates());
+
+    auto instance = std::make_shared<ProverInstance>(layer_2_circuit);
+    Prover prover(instance);
+    info("prover gates = ", instance->proving_key.circuit_size);
+    auto proof = prover.construct_proof();
+    auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
+    Verifier verifier(verification_key);
+    EXPECT_EQ(verifier.verify_proof(proof), true);
+}
+
 TEST_F(AcirHonkRecursionConstraint, TestBasicDoubleHonkRecursionConstraints)
 {
     std::vector<Builder> layer_1_circuits;

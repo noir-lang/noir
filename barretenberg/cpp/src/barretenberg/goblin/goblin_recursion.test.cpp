@@ -53,6 +53,7 @@ TEST_F(GoblinRecursionTests, Vanilla)
         MockCircuits::construct_arithmetic_circuit(function_circuit, /*target_log2_dyadic_size=*/8);
         MockCircuits::construct_goblin_ecc_op_circuit(function_circuit);
         goblin.merge(function_circuit);
+        function_circuit.add_recursive_proof(stdlib::recursion::init_default_agg_obj_indices(function_circuit));
         auto function_accum = construct_accumulator(function_circuit);
 
         // Construct and accumulate the mock kernel circuit (no kernel accum in first round)
@@ -61,6 +62,7 @@ TEST_F(GoblinRecursionTests, Vanilla)
                                                         { function_accum.proof, function_accum.verification_key },
                                                         { kernel_accum.proof, kernel_accum.verification_key });
         goblin.merge(kernel_circuit);
+        kernel_circuit.add_recursive_proof(stdlib::recursion::init_default_agg_obj_indices(kernel_circuit));
         kernel_accum = construct_accumulator(kernel_circuit);
     }
 
