@@ -146,6 +146,7 @@ pub enum QuotedType {
     StructDefinition,
     TraitConstraint,
     TraitDefinition,
+    TraitImpl,
     FunctionDefinition,
     Module,
 }
@@ -727,6 +728,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::StructDefinition => write!(f, "StructDefinition"),
             QuotedType::TraitDefinition => write!(f, "TraitDefinition"),
             QuotedType::TraitConstraint => write!(f, "TraitConstraint"),
+            QuotedType::TraitImpl => write!(f, "TraitImpl"),
             QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
             QuotedType::Module => write!(f, "Module"),
         }

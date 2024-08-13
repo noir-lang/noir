@@ -14,7 +14,7 @@ use crate::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
         StructId,
     },
-    node_interner::{ExprId, FuncId, TraitId},
+    node_interner::{ExprId, FuncId, TraitId, TraitImplId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type, TypeBindings,
@@ -53,6 +53,7 @@ pub enum Value {
     StructDefinition(StructId),
     TraitConstraint(TraitId, /* trait generics */ Vec<Type>),
     TraitDefinition(TraitId),
+    TraitImpl(TraitImplId),
     FunctionDefinition(FuncId),
     ModuleDefinition(ModuleId),
     Type(Type),
@@ -100,6 +101,7 @@ impl Value {
             }
             Value::TraitConstraint { .. } => Type::Quoted(QuotedType::TraitConstraint),
             Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
+            Value::TraitImpl(_) => Type::Quoted(QuotedType::TraitImpl),
             Value::FunctionDefinition(_) => Type::Quoted(QuotedType::FunctionDefinition),
             Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
             Value::Type(_) => Type::Quoted(QuotedType::Type),
@@ -230,6 +232,7 @@ impl Value {
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
             | Value::Type(_)
@@ -353,6 +356,7 @@ impl Value {
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
             | Value::Type(_)
@@ -527,6 +531,12 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::TraitDefinition(trait_id) => {
                 let trait_ = self.interner.get_trait(*trait_id);
                 write!(f, "{}", trait_.name)
+            }
+            Value::TraitImpl(trait_impl_id) => {
+                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                // TODO: what's a good display for a trait impl?
+                write!(f, "{}", trait_impl.ident)
             }
             Value::FunctionDefinition(function_id) => {
                 write!(f, "{}", self.interner.function_name(function_id))
