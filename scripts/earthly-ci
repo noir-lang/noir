@@ -32,13 +32,36 @@ function wipe_non_cache_docker_state {
   sudo service docker restart
 }
 
-EARTHLY_ARGS="--secret AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-} --secret AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-} --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${AZTEC_BOT_GITHUB_TOKEN:-}"
+EARTHLY_RUN_STATS_JSON="earthly-run-stats.json"
+EARTHLY_ARGS="--logstream-debug-manifest-file $EARTHLY_RUN_STATS_JSON --secret AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-} --secret AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-} --secret AZTEC_BOT_COMMENTER_GITHUB_TOKEN=${AZTEC_BOT_GITHUB_TOKEN:-}"
+
+function print_earthly_command_timings() {
+  jq --version >/dev/null || return
+  # Use jq to extract target names, start times, and end times
+  echo "TARGET TIMES"
+  jq -r '
+    .targets[] |
+    .name as $name |
+    (.startedAtUnixNanos | tonumber) as $start |
+    (.endedAtUnixNanos | tonumber) as $end |
+    "\($name) \($start) \($end)"
+  ' $EARTHLY_RUN_STATS_JSON | while read name start end; do
+    # Calculate duration in seconds using pure bash
+    duration_ns=$((end - start))
+    duration_s=$((duration_ns / 1000000000))
+    duration_ms=$(( (duration_ns % 1000000000) / 1000000 ))
+    # Print target name and duration in seconds and milliseconds
+    printf "%d.%03ds - %s\n" "$duration_s" "$duration_ms" "$name"
+  done | sort -n
+}
 
 # Handle earthly commands and retries
 while [ $ATTEMPT_COUNT -lt $MAX_ATTEMPTS ]; do
   if earthly $EARTHLY_ARGS $@ 2>&1 | tee $OUTPUT_FILE >&2 ; then
+    print_earthly_command_timings || true
     exit 0  # Success, exit the script
   else
+    print_earthly_command_timings || true
     # Increment attempt counter
     ATTEMPT_COUNT=$((ATTEMPT_COUNT + 1))
     echo "Attempt #$ATTEMPT_COUNT failed."
