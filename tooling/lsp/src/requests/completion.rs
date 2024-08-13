@@ -1212,15 +1212,20 @@ impl<'a> NodeFinder<'a> {
             FunctionKind::Any => (),
             FunctionKind::SelfType(mut self_type) => {
                 if let Some(func_self_type) = func_self_type {
-                    // Check that the pattern type is the same as self type.
-                    // We do this because some types (notable Field and integer types)
-                    // have their methods in the same HashMap.
-                    if let Type::MutableReference(mut_typ) = self_type {
-                        self_type = mut_typ;
-                    }
+                    if matches!(self_type, Type::Integer(..))
+                        || matches!(self_type, Type::FieldElement)
+                    {
+                        // Check that the pattern type is the same as self type.
+                        // We do this because some types (only Field and integer types)
+                        // have their methods in the same HashMap.
 
-                    if self_type != func_self_type {
-                        return None;
+                        if let Type::MutableReference(mut_typ) = self_type {
+                            self_type = mut_typ;
+                        }
+
+                        if self_type != func_self_type {
+                            return None;
+                        }
                     }
                 } else {
                     return None;
