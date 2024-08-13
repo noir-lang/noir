@@ -23,7 +23,7 @@ use crate::{
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     hir_def::function::FunctionBody,
     macros_api::{ModuleDefId, NodeInterner, Signedness},
-    node_interner::DefinitionKind,
+    node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
     token::{SpannedToken, Token},
     QuotedType, Shared, Type,
@@ -93,6 +93,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_as_struct" => type_as_struct(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
+            "type_get_trait_impl" => {
+                type_get_trait_impl(interner, arguments, return_type, location)
+            }
             "type_implements" => type_implements(interner, arguments, location),
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
@@ -505,6 +508,26 @@ fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
     let other_type = get_type(other_type)?;
 
     Ok(Value::Bool(self_type == other_type))
+}
+
+// fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl>
+fn type_get_trait_impl(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (typ, constraint) = check_two_arguments(arguments, location)?;
+
+    let typ = get_type(typ)?;
+    let (trait_id, generics) = get_trait_constraint(constraint)?;
+
+    let option_value = match interner.try_lookup_trait_implementation(&typ, trait_id, &generics) {
+        Ok((TraitImplKind::Normal(trait_impl_id), _)) => Some(Value::TraitImpl(trait_impl_id)),
+        _ => None,
+    };
+
+    option(return_type, option_value)
 }
 
 // fn implements(self, constraint: TraitConstraint) -> bool
