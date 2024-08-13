@@ -1803,26 +1803,20 @@ impl Type {
     fn try_fn_to_unconstrained_fn_coercion(&self, expected: &Type) -> Option<Type> {
         // If `self` and `expected` are function types, `self` can be coerced to `expected`
         // if `self` is unconstrained and `expected` is not. The other way around is an error, though.
-        let (
+        if let (
             Type::Function(params, ret, env, unconstrained_self),
             Type::Function(_, _, _, unconstrained_expected),
         ) = (self.follow_bindings(), expected.follow_bindings())
-        else {
-            return None;
-        };
-
-        // Nothing to coerce
-        if unconstrained_self == unconstrained_expected {
-            return None;
+        {
+            (!unconstrained_self && unconstrained_expected).then_some(Type::Function(
+                params,
+                ret,
+                env,
+                unconstrained_expected,
+            ))
+        } else {
+            None
         }
-
-        // unconstrained mismatch: can't coerce
-        if unconstrained_self && !unconstrained_expected {
-            return None;
-        }
-
-        // Cast self unconstrained status to that of expected, so it won't produce an error
-        Some(Type::Function(params, ret, env, unconstrained_expected))
     }
 
     /// Try to apply the array to slice coercion to this given type pair and expression.
