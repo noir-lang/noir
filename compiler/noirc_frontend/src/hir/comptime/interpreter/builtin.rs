@@ -23,7 +23,7 @@ use crate::{
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     hir_def::function::FunctionBody,
     macros_api::{ModuleDefId, NodeInterner, Signedness},
-    node_interner::DefinitionKind,
+    node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
     token::{SpannedToken, Token},
     QuotedType, Shared, Type,
@@ -522,17 +522,9 @@ fn type_get_trait_impl(
     let typ = get_type(typ)?;
     let (trait_id, generics) = get_trait_constraint(constraint)?;
 
-    let option_value = if let Ok((trait_impl_kind, _)) =
-        interner.try_lookup_trait_implementation(&typ, trait_id, &generics)
-    {
-        match trait_impl_kind {
-            crate::node_interner::TraitImplKind::Normal(trait_impl_id) => {
-                Some(Value::TraitImpl(trait_impl_id))
-            }
-            crate::node_interner::TraitImplKind::Assumed { .. } => None,
-        }
-    } else {
-        None
+    let option_value = match interner.try_lookup_trait_implementation(&typ, trait_id, &generics) {
+        Ok((TraitImplKind::Normal(trait_impl_id), _)) => Some(Value::TraitImpl(trait_impl_id)),
+        _ => None,
     };
 
     option(return_type, option_value)
