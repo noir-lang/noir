@@ -85,6 +85,8 @@ export class PublicProcessorMetrics {
       totalBytecode += event.packedPublicBytecode.length;
     }
 
-    this.bytecodeDeployed.record(totalBytecode);
+    if (totalBytecode > 0) {
+      this.bytecodeDeployed.record(totalBytecode);
+    }
   }
 }
