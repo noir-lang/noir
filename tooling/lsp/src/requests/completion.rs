@@ -1373,14 +1373,25 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn resolve_path(&self, segments: Vec<Ident>) -> Option<ModuleDefId> {
+        let last_segment = segments.last().unwrap().clone();
+
         let path_segments = segments.into_iter().map(PathSegment::from).collect();
         let path = Path { segments: path_segments, kind: PathKind::Plain, span: Span::default() };
 
         let path_resolver = StandardPathResolver::new(self.root_module_id);
-        match path_resolver.resolve(self.def_maps, path, &mut None) {
-            Ok(path_resolution) => Some(path_resolution.module_def_id),
-            Err(_) => None,
+        if let Ok(path_resolution) = path_resolver.resolve(self.def_maps, path, &mut None) {
+            return Some(path_resolution.module_def_id);
         }
+
+        // If we can't resolve a path trough lookup, let's see if the last segment is bound to a type
+        let location = Location::new(last_segment.span(), self.file);
+        if let Some(reference_id) = self.interner.find_referenced(location) {
+            if let Some(id) = module_def_id_from_reference_id(reference_id) {
+                return Some(id);
+            }
+        }
+
+        None
     }
 
     fn builtin_functions_completion(&mut self, prefix: &str) {
@@ -1511,6 +1522,20 @@ fn completion_item_with_sort_text(
     sort_text: String,
 ) -> CompletionItem {
     CompletionItem { sort_text: Some(sort_text), ..completion_item }
+}
+
+fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDefId> {
+    match reference_id {
+        ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
+        ReferenceId::Struct(struct_id) => Some(ModuleDefId::TypeId(struct_id)),
+        ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
+        ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
+        ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),
+        ReferenceId::StructMember(_, _)
+        | ReferenceId::Global(_)
+        | ReferenceId::Local(_)
+        | ReferenceId::Reference(_, _) => None,
+    }
 }
 
 /// Sort text for "new" methods: we want these to show up before anything else,
