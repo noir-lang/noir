@@ -1,4 +1,3 @@
-use fm::codespan_files::Files;
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
@@ -21,7 +20,7 @@ use noirc_frontend::{
     ParsedModule, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
-use crate::LspState;
+use crate::{utils, LspState};
 
 use super::{process_request, to_lsp_location, InlayHintsOptions};
 
@@ -43,7 +42,7 @@ pub(crate) fn on_inlay_hint_request(
             let source = file.source();
             let (parsed_moduled, _errors) = noirc_frontend::parse_program(source);
 
-            let span = range_to_byte_span(args.files, file_id, &params.range)
+            let span = utils::range_to_byte_span(args.files, file_id, &params.range)
                 .map(|range| Span::from(range.start as u32..range.end as u32));
 
             let mut collector =
@@ -688,63 +687,6 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::Resolved(..)
         | ExpressionKind::Literal(..)
         | ExpressionKind::Error => None,
-    }
-}
-
-// These functions are copied from the codespan_lsp crate, except that they never panic
-// (the library will sometimes panic, so functions returning Result are not always accurate)
-
-fn range_to_byte_span(
-    files: &FileMap,
-    file_id: FileId,
-    range: &lsp_types::Range,
-) -> Option<std::ops::Range<usize>> {
-    Some(
-        position_to_byte_index(files, file_id, &range.start)?
-            ..position_to_byte_index(files, file_id, &range.end)?,
-    )
-}
-
-fn position_to_byte_index(
-    files: &FileMap,
-    file_id: FileId,
-    position: &lsp_types::Position,
-) -> Option<usize> {
-    let Ok(source) = files.source(file_id) else {
-        return None;
-    };
-
-    let Ok(line_span) = files.line_range(file_id, position.line as usize) else {
-        return None;
-    };
-    let line_str = source.get(line_span.clone())?;
-
-    let byte_offset = character_to_line_offset(line_str, position.character)?;
-
-    Some(line_span.start + byte_offset)
-}
-
-fn character_to_line_offset(line: &str, character: u32) -> Option<usize> {
-    let line_len = line.len();
-    let mut character_offset = 0;
-
-    let mut chars = line.chars();
-    while let Some(ch) = chars.next() {
-        if character_offset == character {
-            let chars_off = chars.as_str().len();
-            let ch_off = ch.len_utf8();
-
-            return Some(line_len - chars_off - ch_off);
-        }
-
-        character_offset += ch.len_utf16() as u32;
-    }
-
-    // Handle positions after the last character on the line
-    if character_offset == character {
-        Some(line_len)
-    } else {
-        None
     }
 }
 

@@ -57,6 +57,7 @@ pub enum Value {
     ModuleDefinition(ModuleId),
     Type(Type),
     Zeroed(Type),
+    Expr(ExpressionKind),
 }
 
 impl Value {
@@ -103,6 +104,7 @@ impl Value {
             Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
             Value::Type(_) => Type::Quoted(QuotedType::Type),
             Value::Zeroed(typ) => return Cow::Borrowed(typ),
+            Value::Expr(_) => Type::Quoted(QuotedType::Expr),
         })
     }
 
@@ -223,6 +225,7 @@ impl Value {
                     }
                 };
             }
+            Value::Expr(expr) => expr,
             Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
@@ -345,7 +348,8 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => HirExpression::Unquote(add_token_spans(tokens, location.span)),
-            Value::Pointer(..)
+            Value::Expr(..)
+            | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
@@ -530,6 +534,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::ModuleDefinition(_) => write!(f, "(module)"),
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
             Value::Type(typ) => write!(f, "{}", typ),
+            Value::Expr(expr) => write!(f, "{}", expr),
         }
     }
 }

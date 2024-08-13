@@ -2,7 +2,7 @@ use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
 use fm::FileManager;
-use noirc_driver::{check_crate, compile_no_check, file_manager_with_stdlib, CompileOptions};
+use noirc_driver::{check_crate, file_manager_with_stdlib, CompileOptions};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use nargo::{
@@ -47,54 +47,16 @@ fn run_stdlib_tests() {
     let test_report: Vec<(String, TestStatus)> = test_functions
         .into_iter()
         .map(|(test_name, test_function)| {
-            let test_function_has_no_arguments = context
-                .def_interner
-                .function_meta(&test_function.get_id())
-                .function_signature()
-                .0
-                .is_empty();
-
-            let status = if test_function_has_no_arguments {
-                run_test(
-                    &bn254_blackbox_solver::Bn254BlackBoxSolver,
-                    &mut context,
-                    &test_function,
-                    false,
-                    None,
-                    None,
-                    None,
-                    &CompileOptions::default(),
-                )
-            } else {
-                use noir_fuzzer::FuzzedExecutor;
-                use proptest::test_runner::TestRunner;
-
-                let compiled_program = compile_no_check(
-                    &mut context,
-                    &CompileOptions::default(),
-                    test_function.get_id(),
-                    None,
-                    false,
-                );
-                match compiled_program {
-                    Ok(compiled_program) => {
-                        let runner = TestRunner::default();
-
-                        let fuzzer = FuzzedExecutor::new(compiled_program.into(), runner);
-
-                        let result = fuzzer.fuzz();
-                        if result.success {
-                            TestStatus::Pass
-                        } else {
-                            TestStatus::Fail {
-                                message: result.reason.unwrap_or_default(),
-                                error_diagnostic: None,
-                            }
-                        }
-                    }
-                    Err(err) => TestStatus::CompileError(err.into()),
-                }
-            };
+            let status = run_test(
+                &bn254_blackbox_solver::Bn254BlackBoxSolver,
+                &mut context,
+                &test_function,
+                false,
+                None,
+                Some(dummy_package.root_dir.clone()),
+                Some(dummy_package.name.to_string()),
+                &CompileOptions::default(),
+            );
             (test_name, status)
         })
         .collect();

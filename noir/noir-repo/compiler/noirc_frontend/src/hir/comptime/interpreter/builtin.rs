@@ -6,7 +6,7 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     check_argument_count, check_function_not_yet_resolved, check_one_argument,
-    check_three_arguments, check_two_arguments, get_function_def, get_module, get_quoted,
+    check_three_arguments, check_two_arguments, get_expr, get_function_def, get_module, get_quoted,
     get_slice, get_struct, get_trait_constraint, get_trait_def, get_tuple, get_type, get_u32,
     hir_pattern_to_tokens, mutate_func_meta_type, parse, parse_tokens,
     replace_func_meta_parameters, replace_func_meta_return_type,
@@ -17,8 +17,8 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        FunctionKind, FunctionReturnType, IntegerBitSize, UnresolvedType, UnresolvedTypeData,
-        Visibility,
+        ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, UnresolvedType,
+        UnresolvedTypeData, Visibility,
     },
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     hir_def::function::FunctionBody,
@@ -47,6 +47,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
+            "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -64,6 +65,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "modulus_le_bits" => modulus_le_bits(interner, arguments, location),
             "modulus_le_bytes" => modulus_le_bytes(interner, arguments, location),
             "modulus_num_bits" => modulus_num_bits(interner, arguments, location),
+            "quoted_as_expr" => quoted_as_expr(arguments, return_type, location),
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
@@ -91,6 +93,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_as_struct" => type_as_struct(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_eq" => type_eq(arguments, location),
+            "type_implements" => type_implements(interner, arguments, location),
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
@@ -311,6 +314,20 @@ fn slice_insert(
     Ok(Value::Slice(values, typ))
 }
 
+// fn as_expr(quoted: Quoted) -> Option<Expr>
+fn quoted_as_expr(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+
+    let expr = parse(argument, parser::expression(), "an expression").ok();
+    let value = expr.map(|expr| Value::Expr(expr.kind));
+
+    option(return_type, value)
+}
+
 // fn as_module(quoted: Quoted) -> Option<Module>
 fn quoted_as_module(
     interpreter: &mut Interpreter,
@@ -490,6 +507,21 @@ fn type_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Val
     Ok(Value::Bool(self_type == other_type))
 }
 
+// fn implements(self, constraint: TraitConstraint) -> bool
+fn type_implements(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (typ, constraint) = check_two_arguments(arguments, location)?;
+
+    let typ = get_type(typ)?;
+    let (trait_id, generics) = get_trait_constraint(constraint)?;
+
+    let implements = interner.try_lookup_trait_implementation(&typ, trait_id, &generics).is_ok();
+    Ok(Value::Bool(implements))
+}
+
 // fn is_bool(self) -> bool
 fn type_is_bool(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
@@ -654,6 +686,42 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::TraitAsType(_, _, _)
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
+}
+
+// fn as_function_call(self) -> Option<(Expr, [Expr])>
+fn expr_as_function_call(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Call(call_expression) = expr {
+            let function = Value::Expr(call_expression.func.kind);
+            let arguments = call_expression.arguments.into_iter();
+            let arguments = arguments.map(|argument| Value::Expr(argument.kind)).collect();
+            let arguments =
+                Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
+            Some(Value::Tuple(vec![function, arguments]))
+        } else {
+            None
+        }
+    })
+}
+
+// Helper function for implementing the `expr_as_...` functions.
+fn expr_as<F>(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    f: F,
+) -> IResult<Value>
+where
+    F: FnOnce(ExpressionKind) -> Option<Value>,
+{
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr = get_expr(self_argument)?;
+    let option_value = f(expr);
+    option(return_type, option_value)
 }
 
 // fn name(self) -> Quoted
