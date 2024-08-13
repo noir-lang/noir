@@ -63,9 +63,9 @@ enum FunctionCompletionKind {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum FunctionSelfType {
+enum FunctionSelfType<'a> {
     Any,
-    SelfType,
+    SelfType(&'a Type),
 }
 
 /// When requesting completions, whether to list all items or just types.
@@ -471,6 +471,7 @@ impl<'a> NodeFinder<'a> {
         if self.byte == Some(b'.') && expression.span.end() as usize == self.byte_index - 1 {
             let location = Location::new(expression.span, self.file);
             if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
                 let prefix = "";
                 self.complete_type_fields_and_methods(&typ, prefix)
             }
@@ -595,6 +596,7 @@ impl<'a> NodeFinder<'a> {
             // Assuming member_access_expression is of the form `foo.bar`, we are right after `bar`
             let location = Location::new(member_access_expression.lhs.span, self.file);
             if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
                 let prefix = ident.to_string();
                 self.complete_type_fields_and_methods(&typ, &prefix)
             }
@@ -984,7 +986,7 @@ impl<'a> NodeFinder<'a> {
                     if let Some(completion_item) = self.function_completion_item(
                         func_id,
                         FunctionCompletionKind::NameAndParameters,
-                        FunctionSelfType::SelfType,
+                        FunctionSelfType::SelfType(typ),
                     ) {
                         self.completion_items.push(completion_item);
                     }
@@ -1156,11 +1158,29 @@ impl<'a> NodeFinder<'a> {
 
         match function_self_type {
             FunctionSelfType::Any => (),
-            FunctionSelfType::SelfType => {
-                if let Some((pattern, _, _)) = func_meta.parameters.0.get(0) {
+            FunctionSelfType::SelfType(mut self_type) => {
+                if let Some((pattern, typ, _)) = func_meta.parameters.0.get(0) {
                     if !self.hir_pattern_is_self_type(pattern) {
                         return None;
                     }
+
+                    // Check that the pattern type is the same as self type.
+                    // We do this because some types (notable Field and integer types)
+                    // have their methods in the same HashMap.
+                    let mut typ = &typ.follow_bindings();
+                    if let Type::MutableReference(mut_typ) = typ {
+                        typ = mut_typ;
+                    }
+
+                    if let Type::MutableReference(mut_typ) = self_type {
+                        self_type = mut_typ;
+                    }
+
+                    if self_type != typ {
+                        return None;
+                    }
+                } else {
+                    return None;
                 }
             }
         }
@@ -1215,7 +1235,7 @@ impl<'a> NodeFinder<'a> {
         for (pattern, _, _) in &func_meta.parameters.0 {
             if index == 1 {
                 match function_self_type {
-                    FunctionSelfType::SelfType => {
+                    FunctionSelfType::SelfType(_) => {
                         if self.hir_pattern_is_self_type(pattern) {
                             continue;
                         }
@@ -2456,7 +2476,8 @@ mod completion_tests {
 
             impl Some {
                 fn foobar(self, x: i32) {}
-                fn foobar2(y: i32) {}
+                fn foobar2(&mut self, x: i32) {}
+                fn foobar3(y: i32) {}
             }
 
             fn foo(some: Some) {
@@ -2465,12 +2486,20 @@ mod completion_tests {
         "#;
         assert_completion(
             src,
-            vec![snippet_completion_item(
-                "foobar(…)",
-                CompletionItemKind::FUNCTION,
-                "foobar(${1:x})",
-                Some("fn(Some, i32)".to_string()),
-            )],
+            vec![
+                snippet_completion_item(
+                    "foobar(…)",
+                    CompletionItemKind::FUNCTION,
+                    "foobar(${1:x})",
+                    Some("fn(Some, i32)".to_string()),
+                ),
+                snippet_completion_item(
+                    "foobar2(…)",
+                    CompletionItemKind::FUNCTION,
+                    "foobar2(${1:x})",
+                    Some("fn(&mut Some, i32)".to_string()),
+                ),
+            ],
         )
         .await;
     }
