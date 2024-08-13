@@ -186,7 +186,7 @@ impl<'a> NodeFinder<'a> {
 
             // Show items that start with underscore last in the list
             for item in items.iter_mut() {
-                if item.label.starts_with("_") {
+                if item.label.starts_with('_') {
                     item.sort_text = Some(underscore_sort_text());
                 }
             }
