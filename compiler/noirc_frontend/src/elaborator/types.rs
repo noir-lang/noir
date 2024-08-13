@@ -349,7 +349,8 @@ impl<'context> Elaborator<'context> {
                 found: args.ordered_args.len(),
                 span,
             });
-            args.ordered_args.truncate(expected_kinds.len());
+            let error_type = UnresolvedTypeData::Error.with_span(span);
+            args.ordered_args.resize(expected_kinds.len(), error_type);
         }
 
         let ordered_args = expected_kinds.iter().zip(args.ordered_args);
