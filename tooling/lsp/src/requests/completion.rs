@@ -1165,6 +1165,14 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
+        let is_operator = if let Some(trait_impl_id) = &func_meta.trait_impl {
+            let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+            let trait_impl = trait_impl.borrow();
+            self.interner.is_operator_trait(trait_impl.trait_id)
+        } else {
+            false
+        };
+
         let mut typ = &func_meta.typ;
         if let Type::Forall(_, typ_) = typ {
             typ = typ_;
@@ -1172,7 +1180,7 @@ impl<'a> NodeFinder<'a> {
         let description = typ.to_string();
         let description = description.strip_suffix(" -> ()").unwrap_or(&description).to_string();
 
-        Some(match function_completion_kind {
+        let mut completion_item = match function_completion_kind {
             FunctionCompletionKind::Name => {
                 simple_completion_item(name, CompletionItemKind::FUNCTION, Some(description))
             }
@@ -1184,7 +1192,13 @@ impl<'a> NodeFinder<'a> {
 
                 snippet_completion_item(label, kind, insert_text, Some(description))
             }
-        })
+        };
+
+        if is_operator {
+            completion_item.sort_text = Some("zzzzzzzzzz".to_string());
+        }
+
+        Some(completion_item)
     }
 
     fn compute_function_insert_text(

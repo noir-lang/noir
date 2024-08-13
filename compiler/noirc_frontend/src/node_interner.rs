@@ -1813,6 +1813,11 @@ impl NodeInterner {
         self.prefix_operator_traits.insert(operator, trait_id);
     }
 
+    pub fn is_operator_trait(&self, trait_id: TraitId) -> bool {
+        self.infix_operator_traits.values().any(|id| *id == trait_id)
+            || self.prefix_operator_traits.values().any(|id| *id == trait_id)
+    }
+
     /// This function is needed when creating a NodeInterner for testing so that calls
     /// to `get_operator_trait` do not panic when the stdlib isn't present.
     #[cfg(test)]
