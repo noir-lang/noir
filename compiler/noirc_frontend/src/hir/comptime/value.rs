@@ -9,7 +9,10 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
     hir::def_map::ModuleId,
-    hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
+    hir_def::{
+        expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
+        traits::TraitConstraint,
+    },
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
         StructId,
@@ -520,13 +523,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 write!(f, "{}", def.name)
             }
             Value::TraitConstraint(trait_id, generics) => {
-                let trait_ = self.interner.get_trait(*trait_id);
-                let generic_string = vecmap(generics, ToString::to_string).join(", ");
-                if generics.is_empty() {
-                    write!(f, "{}", trait_.name)
-                } else {
-                    write!(f, "{}<{generic_string}>", trait_.name)
-                }
+                write!(f, "{}", display_trait_id_and_generics(self.interner, trait_id, generics))
             }
             Value::TraitDefinition(trait_id) => {
                 let trait_ = self.interner.get_trait(*trait_id);
@@ -535,8 +532,30 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::TraitImpl(trait_impl_id) => {
                 let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
                 let trait_impl = trait_impl.borrow();
-                // TODO: what's a good display for a trait impl?
-                write!(f, "{}", trait_impl.ident)
+
+                let generic_string =
+                    vecmap(&trait_impl.trait_generics, ToString::to_string).join(", ");
+                let generic_string = if generic_string.is_empty() {
+                    generic_string
+                } else {
+                    format!("<{}>", generic_string)
+                };
+
+                let where_clause = vecmap(&trait_impl.where_clause, |trait_constraint| {
+                    display_trait_constraint(self.interner, trait_constraint)
+                });
+                let where_clause = where_clause.join(", ");
+                let where_clause = if where_clause.is_empty() {
+                    where_clause
+                } else {
+                    format!(" where {}", where_clause)
+                };
+
+                write!(
+                    f,
+                    "impl {}{} for {}{}",
+                    trait_impl.ident, generic_string, trait_impl.typ, where_clause
+                )
             }
             Value::FunctionDefinition(function_id) => {
                 write!(f, "{}", self.interner.function_name(function_id))
@@ -547,4 +566,27 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Expr(expr) => write!(f, "{}", expr),
         }
     }
+}
+
+fn display_trait_id_and_generics(
+    interner: &NodeInterner,
+    trait_id: &TraitId,
+    generics: &Vec<Type>,
+) -> String {
+    let trait_ = interner.get_trait(*trait_id);
+    let generic_string = vecmap(generics, ToString::to_string).join(", ");
+    if generics.is_empty() {
+        format!("{}", trait_.name)
+    } else {
+        format!("{}<{generic_string}>", trait_.name)
+    }
+}
+
+fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitConstraint) -> String {
+    let trait_constraint_string = display_trait_id_and_generics(
+        interner,
+        &trait_constraint.trait_id,
+        &trait_constraint.trait_generics,
+    );
+    format!("{}: {}", trait_constraint.typ, trait_constraint_string)
 }
