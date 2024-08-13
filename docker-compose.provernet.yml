@@ -14,7 +14,7 @@ services:
 
   # Single Aztec node with a sequencer for building and publishing unproven blocks to L1
   aztec-node:
-    image: "aztecprotocol/aztec:${VERSION:-master}"
+    image: "aztecprotocol/${IMAGE:-aztec:master}"
     ports:
       - "8080:80"
     environment:
@@ -52,7 +52,7 @@ services:
   # Bot for keeping a steady flow of txs into the network
   # Requires bootstrapping to be completed successfully
   aztec-bot:
-    image: "aztecprotocol/aztec:${VERSION:-master}"
+    image: "aztecprotocol/${IMAGE:-aztec:master}"
     ports:
       - "8082:80"
     environment:
@@ -90,7 +90,7 @@ services:
   # Requires one or more agents to be connected for actually generating proofs
   # Fetches individual tx proofs from the aztec-node directly
   aztec-prover:
-    image: "aztecprotocol/aztec:${VERSION:-master}"
+    image: "aztecprotocol/${IMAGE:-aztec:master}"
     ports:
       - "8083:80"
     environment:
@@ -121,7 +121,7 @@ services:
   # Prover agent that connects to the prover-node for fetching proving jobs and executing them
   # Multiple instances can be run, or PROVER_AGENT_CONCURRENCY can be increased to run multiple workers in a single instance
   aztec-prover-agent:
-    image: "aztecprotocol/aztec:${VERSION:-master}"
+    image: "aztecprotocol/${IMAGE:-aztec:master}"
     ports:
       - "8090:80"
     environment:
@@ -147,7 +147,7 @@ services:
 
   # Simple watcher that logs the latest block numbers every few seconds using the CLI and the bot's PXE
   aztec-block-watcher:
-    image: "aztecprotocol/aztec:${VERSION:-master}"
+    image: "aztecprotocol/${IMAGE:-aztec:master}"
     environment:
       ETHEREUM_HOST: http://ethereum:8545
       L1_CHAIN_ID: 31337
