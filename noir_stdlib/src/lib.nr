@@ -12,7 +12,6 @@ mod sha256;
 mod sha512;
 mod field;
 mod ec;
-mod unsafe_func;
 mod collections;
 mod compat;
 mod convert;
@@ -28,6 +27,7 @@ mod bigint;
 mod runtime;
 mod meta;
 mod append;
+mod mem;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
