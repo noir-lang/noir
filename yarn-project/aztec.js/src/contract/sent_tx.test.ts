@@ -48,5 +48,15 @@ describe('SentTx', () => {
       pxe.getSyncStatus.mockResolvedValue({ blocks: 19, notes: { '0x1': 19, '0x2': 19 } });
       await expect(sentTx.wait({ timeout: 1, interval: 0.4 })).rejects.toThrow(/dropped/);
     });
+
+    it('waits for the tx to be proven', async () => {
+      const waitOpts = { timeout: 1, interval: 0.4, waitForNotesSync: false, proven: true, provenTimeout: 2 };
+      pxe.getProvenBlockNumber.mockResolvedValue(10);
+      await expect(sentTx.wait(waitOpts)).rejects.toThrow(/timeout/i);
+
+      pxe.getProvenBlockNumber.mockResolvedValue(20);
+      const actual = await sentTx.wait(waitOpts);
+      expect(actual).toEqual(txReceipt);
+    });
   });
 });

@@ -13,8 +13,12 @@ import { type FieldsOf } from '@aztec/foundation/types';
 export type WaitOpts = {
   /** The maximum time (in seconds) to wait for the transaction to be mined. Defaults to 60. */
   timeout?: number;
+  /** The maximum time (in seconds) to wait for the transaction to be proven. Defaults to 600. */
+  provenTimeout?: number;
   /** The time interval (in seconds) between retries to fetch the transaction receipt. Defaults to 1. */
   interval?: number;
+  /** Whether to wait for the tx to be proven. */
+  proven?: boolean;
   /**
    * Whether to wait for the PXE Service to sync all notes up to the block in which this tx was mined.
    * If false, then any queries that depend on state set by this transaction may return stale data. Defaults to true.
@@ -28,6 +32,7 @@ export type WaitOpts = {
 
 export const DefaultWaitOpts: WaitOpts = {
   timeout: 60,
+  provenTimeout: 600,
   interval: 1,
   waitForNotesSync: true,
   debug: false,
@@ -77,6 +82,9 @@ export class SentTx {
       throw new Error(
         `Transaction ${await this.getTxHash()} was ${receipt.status}. Reason: ${receipt.error ?? 'unknown'}`,
       );
+    }
+    if (opts?.proven && receipt.blockNumber !== undefined) {
+      await this.waitForProven(receipt.blockNumber, opts);
     }
     if (opts?.debug) {
       const txHash = await this.getTxHash();
@@ -141,6 +149,18 @@ export class SentTx {
       },
       'isMined',
       opts?.timeout ?? DefaultWaitOpts.timeout,
+      opts?.interval ?? DefaultWaitOpts.interval,
+    );
+  }
+
+  protected async waitForProven(minedBlock: number, opts?: WaitOpts) {
+    return await retryUntil(
+      async () => {
+        const provenBlock = await this.pxe.getProvenBlockNumber();
+        return provenBlock >= minedBlock ? provenBlock : undefined;
+      },
+      'isProven',
+      opts?.provenTimeout ?? DefaultWaitOpts.provenTimeout,
       opts?.interval ?? DefaultWaitOpts.interval,
     );
   }
