@@ -1147,7 +1147,7 @@ impl NodeInterner {
             }
             Type::Alias(type_alias, generics) => {
                 let type_alias = type_alias.borrow();
-                let typ = type_alias.get_type(&generics);
+                let typ = type_alias.get_type(generics);
                 self.get_type_methods(&typ)
             }
             _ => get_type_method_key(typ).and_then(|key| self.get_primitive_methods(key)),
