@@ -1,40 +1,16 @@
-use std::collections::umap::UHashMap;
-use std::hash::BuildHasherDefault;
-use std::hash::poseidon2::Poseidon2Hasher;
+use std::hash::Hash;
 
-#[my_derive(DoNothing)]
-struct MyStruct { my_field: u32 }
-
-type DeriveFunction = fn(StructDefinition) -> Quoted;
-
-comptime mut global HANDLERS: UHashMap<TraitConstraint, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
-
-comptime fn my_derive(s: StructDefinition, traits: [Quoted]) -> Quoted {
-    let mut result = quote {};
-
-    for trait_to_derive in traits {
-        let handler = HANDLERS.get(trait_to_derive.as_trait_constraint());
-        assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
-
-        let trait_impl = handler.unwrap()(s);
-        result = quote { $result $trait_impl };
-    }
-
-    result
-}
-
-unconstrained comptime fn my_derive_via(t: TraitDefinition, f: Quoted) {
-    HANDLERS.insert(t.as_trait_constraint(), std::meta::unquote!(f));
-}
-
-#[my_derive_via(derive_do_nothing)]
+#[derive_via(derive_do_nothing)]
 trait DoNothing {
     fn do_nothing(self);
 }
 
+#[derive(DoNothing)]
+struct MyStruct { my_field: u32 }
+
 comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
     let typ = s.as_type();
-    let generics = s.generics().join(quote {,});
+    let generics = s.generics().map(|g| quote { $g }).join(quote {,});
     quote {
         impl<$generics> DoNothing for $typ {
             fn do_nothing(_self: Self) {
@@ -45,7 +21,50 @@ comptime fn derive_do_nothing(s: StructDefinition) -> Quoted {
     }
 }
 
+// Test stdlib derive fns & multiple traits
+// - We can derive Ord and Hash even though std::cmp::Ordering and std::hash::Hasher aren't imported
+#[derive(Eq, Default, Hash, Ord)]
+struct MyOtherStruct<A, B> {
+    field1: A,
+    field2: B,
+    field3: MyOtherOtherStruct<B>,
+}
+
+#[derive(Eq, Default, Hash, Ord)]
+struct MyOtherOtherStruct<T> {
+    x: T,
+}
+
 fn main() {
     let s = MyStruct { my_field: 1 };
     s.do_nothing();
+
+    let o: MyOtherStruct<Field, u32> = MyOtherStruct::default();
+    assert_eq(o, o);
+
+    let o: MyOtherStruct<u8, [str<2>]> = MyOtherStruct::default();
+    assert_eq(o, o);
+
+    // Field & str<2> above don't implement Ord
+    let o1 = MyOtherStruct { field1: 12 as u32, field2: 24 as i8, field3: MyOtherOtherStruct { x: 54 as i8 } };
+    let o2 = MyOtherStruct { field1: 12 as u32, field2: 24 as i8, field3: MyOtherOtherStruct { x: 55 as i8 } };
+    assert(o1 < o2);
+
+    let mut hasher = TestHasher { result: 0 };
+    o1.hash(&mut hasher);
+    assert_eq(hasher.finish(), 12 + 24 + 54);
+}
+
+struct TestHasher {
+    result: Field,
+}
+
+impl std::hash::Hasher for TestHasher {
+    fn finish(self) -> Field {
+        self.result
+    }
+    
+    fn write(&mut self, input: Field) {
+        self.result += input;
+    }
 }

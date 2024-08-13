@@ -16,6 +16,8 @@ pub enum ParserErrorReason {
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
     ExpectedPatternButFoundType(Token),
+    #[error("expected an identifier after ::")]
+    ExpectedIdentifierAfterColons,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
@@ -26,6 +28,8 @@ pub enum ParserErrorReason {
     EarlyReturn,
     #[error("Patterns aren't allowed in a trait's function declarations")]
     PatternInTraitFunctionParameter,
+    #[error("Patterns aren't allowed in a trait impl's associated constants")]
+    PatternInAssociatedConstant,
     #[error("Modifiers are ignored on a trait impl method")]
     TraitImplFunctionModifiers,
     #[error("comptime keyword is deprecated")]

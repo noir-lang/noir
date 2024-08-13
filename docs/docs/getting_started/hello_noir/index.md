@@ -129,6 +129,11 @@ bb prove -b ./target/hello_world.json -w ./target/witness-name.gz -o ./target/pr
 
 The proof generated will then be written to the file `./target/proof`.
 
+:::tip
+Since the params for `nargo` and `bb` often specify multiple filenames to read from or write to, remember to check each command is referring to the desired filenames.
+Or for greater certainty, delete the target folder and go through each step again (compile, witness, prove, ...) to ensure files generated in past commands are being referenced in future ones.
+:::
+
 ### 6. Verify the execution proof
 
 Once a proof is generated, we can verify correct execution of our Noir program by verifying the proof file.

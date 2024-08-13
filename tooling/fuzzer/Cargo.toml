@@ -11,7 +11,6 @@ license.workspace = true
 
 [dependencies]
 acvm.workspace = true
-nargo.workspace = true
 noirc_artifacts.workspace = true
 noirc_abi.workspace = true
 proptest.workspace = true

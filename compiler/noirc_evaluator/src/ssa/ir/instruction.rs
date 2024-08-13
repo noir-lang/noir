@@ -1,3 +1,5 @@
+use noirc_errors::Location;
+use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 use acvm::{
@@ -47,9 +49,10 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// - Opcodes which have no function definition in the
 /// source code and must be processed by the IR. An example
 /// of this is println.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
+    ArrayAsStrUnchecked,
     AsSlice,
     AssertConstant,
     StaticAssert,
@@ -75,6 +78,7 @@ impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::ArrayAsStrUnchecked => write!(f, "array_as_str_unchecked"),
             Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::StaticAssert => write!(f, "static_assert"),
@@ -115,6 +119,7 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
@@ -143,6 +148,7 @@ impl Intrinsic {
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
+            "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
             "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "static_assert" => Some(Intrinsic::StaticAssert),
@@ -169,13 +175,13 @@ impl Intrinsic {
 }
 
 /// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum Endian {
     Big,
     Little,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 /// Instructions are used to perform tasks.
 /// The instructions that the IR is able to specify are listed below.
 pub(crate) enum Instruction {
@@ -753,7 +759,7 @@ pub(crate) fn error_selector_from_type(typ: &ErrorType) -> ErrorSelector {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) enum ConstrainError {
     // These are errors which have been hardcoded during SSA gen
     Intrinsic(String),
@@ -795,7 +801,7 @@ pub(crate) enum InstructionResultType {
 /// Since our IR needs to be in SSA form, it makes sense
 /// to split up instructions like this, as we are sure that these instructions
 /// will not be in the list of instructions for a basic block.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) enum TerminatorInstruction {
     /// Control flow
     ///
@@ -803,7 +809,12 @@ pub(crate) enum TerminatorInstruction {
     ///
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
-    JmpIf { condition: ValueId, then_destination: BasicBlockId, else_destination: BasicBlockId },
+    JmpIf {
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+        call_stack: CallStack,
+    },
 
     /// Unconditional Jump
     ///
@@ -830,10 +841,11 @@ impl TerminatorInstruction {
     ) -> TerminatorInstruction {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, then_destination, else_destination } => JmpIf {
+            JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
                 condition: f(*condition),
                 then_destination: *then_destination,
                 else_destination: *else_destination,
+                call_stack: call_stack.clone(),
             },
             Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
@@ -899,6 +911,14 @@ impl TerminatorInstruction {
                 *destination = f(*destination);
             }
             Return { .. } => (),
+        }
+    }
+
+    pub(crate) fn call_stack(&self) -> im::Vector<Location> {
+        match self {
+            TerminatorInstruction::JmpIf { call_stack, .. }
+            | TerminatorInstruction::Jmp { call_stack, .. }
+            | TerminatorInstruction::Return { call_stack, .. } => call_stack.clone(),
         }
     }
 }

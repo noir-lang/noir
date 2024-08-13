@@ -95,3 +95,28 @@ fn call_yet_another_function() {
 fn struct_member_hint() {
     let SomeStruct { one } = SomeStruct { one: 1 };
 }
+
+fn some_map<T, U>(x: T, f: fn(T) -> U) -> U {
+    f(x)
+}
+
+fn hint_on_lambda_parameter() {
+    let value: i32 = 1;
+    let _: i32 = some_map(value, |x| x + 1);
+}
+
+trait SomeTrait {
+
+}
+
+impl SomeTrait for SomeStruct {
+
+}
+
+mod some_module {
+
+}
+
+contract some_contract {
+
+}

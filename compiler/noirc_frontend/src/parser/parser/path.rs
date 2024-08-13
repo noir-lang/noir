@@ -1,12 +1,12 @@
-use crate::ast::{Path, PathKind, PathSegment, UnresolvedType};
-use crate::parser::NoirParser;
+use crate::ast::{AsTraitPath, Path, PathKind, PathSegment, UnresolvedType};
+use crate::parser::{NoirParser, ParserError, ParserErrorReason};
 
 use crate::token::{Keyword, Token};
 
 use chumsky::prelude::*;
 
 use super::keyword;
-use super::primitives::{path_segment, path_segment_no_turbofish};
+use super::primitives::{ident, path_segment, path_segment_no_turbofish};
 
 pub(super) fn path<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
@@ -14,12 +14,24 @@ pub(super) fn path<'a>(
     path_inner(path_segment(type_parser))
 }
 
-pub(super) fn path_no_turbofish() -> impl NoirParser<Path> {
+pub fn path_no_turbofish() -> impl NoirParser<Path> {
     path_inner(path_segment_no_turbofish())
 }
 
 fn path_inner<'a>(segment: impl NoirParser<PathSegment> + 'a) -> impl NoirParser<Path> + 'a {
-    let segments = segment.separated_by(just(Token::DoubleColon)).at_least(1);
+    let segments = segment
+        .separated_by(just(Token::DoubleColon))
+        .at_least(1)
+        .then(just(Token::DoubleColon).then_ignore(none_of(Token::LeftBrace).rewind()).or_not())
+        .validate(|(path_segments, trailing_colons), span, emit_error| {
+            if trailing_colons.is_some() {
+                emit_error(ParserError::with_reason(
+                    ParserErrorReason::ExpectedIdentifierAfterColons,
+                    span,
+                ));
+            }
+            path_segments
+        });
     let make_path = |kind| move |segments, span| Path { segments, kind, span };
 
     let prefix = |key| keyword(key).ignore_then(just(Token::DoubleColon));
@@ -32,6 +44,25 @@ fn path_inner<'a>(segment: impl NoirParser<PathSegment> + 'a) -> impl NoirParser
         path_kind(Keyword::Super, PathKind::Super),
         segments.map_with_span(make_path(PathKind::Plain)),
     ))
+}
+
+/// Parses `<MyType as Trait>::path_segment`
+/// These paths only support exactly two segments.
+pub(super) fn as_trait_path<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<AsTraitPath> + 'a {
+    just(Token::Less)
+        .ignore_then(type_parser.clone())
+        .then_ignore(keyword(Keyword::As))
+        .then(path(type_parser))
+        .then_ignore(just(Token::Greater))
+        .then_ignore(just(Token::DoubleColon))
+        .then(ident())
+        .validate(|((typ, trait_path), impl_item), span, emit| {
+            let reason = ParserErrorReason::ExperimentalFeature("Fully qualified trait impl paths");
+            emit(ParserError::with_reason(reason, span));
+            AsTraitPath { typ, trait_path, impl_item }
+        })
 }
 
 fn empty_path() -> impl NoirParser<Path> {
@@ -50,7 +81,7 @@ mod test {
     use super::*;
     use crate::parser::{
         parse_type,
-        parser::test_helpers::{parse_all_failing, parse_with},
+        parser::test_helpers::{parse_all_failing, parse_recover, parse_with},
     };
 
     #[test]
@@ -91,5 +122,19 @@ mod test {
             path(parse_type()),
             vec!["crate", "crate::std::crate", "foo::bar::crate", "foo::dep"],
         );
+    }
+
+    #[test]
+    fn parse_path_with_trailing_colons() {
+        let src = "foo::bar::";
+
+        let (path, errors) = parse_recover(path_no_turbofish(), src);
+        let path = path.unwrap();
+        assert_eq!(path.segments.len(), 2);
+        assert_eq!(path.segments[0].ident.0.contents, "foo");
+        assert_eq!(path.segments[1].ident.0.contents, "bar");
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected an identifier after ::");
     }
 }

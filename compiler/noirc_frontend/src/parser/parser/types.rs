@@ -1,4 +1,4 @@
-use super::path::path_no_turbofish;
+use super::path::{as_trait_path, path_no_turbofish};
 use super::primitives::token_kind;
 use super::{
     expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
@@ -45,8 +45,16 @@ pub(super) fn parse_type_inner<'a>(
         parenthesized_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
-        mutable_reference_type(recursive_type_parser),
+        mutable_reference_type(recursive_type_parser.clone()),
+        as_trait_path_type(recursive_type_parser),
     ))
+}
+
+fn as_trait_path_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
+    as_trait_path(type_parser)
+        .map_with_span(|path, span| UnresolvedTypeData::AsTraitPath(Box::new(path)).with_span(span))
 }
 
 pub(super) fn parenthesized_type(
@@ -133,7 +141,7 @@ fn quoted_type() -> impl NoirParser<UnresolvedType> {
 /// This is the type of an already resolved type.
 /// The only way this can appear in the token input is if an already resolved `Type` object
 /// was spliced into a macro's token stream via the `$` operator.
-fn resolved_type() -> impl NoirParser<UnresolvedType> {
+pub(super) fn resolved_type() -> impl NoirParser<UnresolvedType> {
     token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
         Token::QuotedType(id) => UnresolvedTypeData::Resolved(id).with_span(span),
         _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),

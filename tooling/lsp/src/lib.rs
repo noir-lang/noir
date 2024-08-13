@@ -22,8 +22,8 @@ use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
 use lsp_types::{
     request::{
-        DocumentSymbolRequest, HoverRequest, InlayHintRequest, PrepareRenameRequest, References,
-        Rename,
+        Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest, PrepareRenameRequest,
+        References, Rename,
     },
     CodeLens,
 };
@@ -36,7 +36,10 @@ use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelecti
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::{def_map::parse_file, Context, FunctionNameMatch, ParsedFiles},
+    hir::{
+        def_map::{parse_file, CrateDefMap},
+        Context, FunctionNameMatch, ParsedFiles,
+    },
     node_interner::NodeInterner,
     parser::ParserError,
     ParsedModule,
@@ -48,11 +51,11 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_document_symbol_request, on_formatting, on_goto_declaration_request,
-    on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
-    on_inlay_hint_request, on_prepare_rename_request, on_profile_run_request,
-    on_references_request, on_rename_request, on_shutdown, on_test_run_request, on_tests_request,
-    LspInitializationOptions,
+    on_code_lens_request, on_completion_request, on_document_symbol_request, on_formatting,
+    on_goto_declaration_request, on_goto_definition_request, on_goto_type_definition_request,
+    on_hover_request, on_initialize, on_inlay_hint_request, on_prepare_rename_request,
+    on_profile_run_request, on_references_request, on_rename_request, on_shutdown,
+    on_test_run_request, on_tests_request, LspInitializationOptions,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -62,6 +65,7 @@ mod notifications;
 mod requests;
 mod solver;
 mod types;
+mod utils;
 
 #[cfg(test)]
 mod test_utils;
@@ -86,6 +90,7 @@ pub struct LspState {
     cached_lenses: HashMap<String, Vec<CodeLens>>,
     cached_definitions: HashMap<String, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
+    cached_def_maps: HashMap<String, BTreeMap<CrateId, CrateDefMap>>,
     options: LspInitializationOptions,
 }
 
@@ -103,6 +108,7 @@ impl LspState {
             cached_definitions: HashMap::new(),
             open_documents_count: 0,
             cached_parsed_files: HashMap::new(),
+            cached_def_maps: HashMap::new(),
             options: Default::default(),
         }
     }
@@ -136,6 +142,7 @@ impl NargoLspService {
             .request::<Rename, _>(on_rename_request)
             .request::<HoverRequest, _>(on_hover_request)
             .request::<InlayHintRequest, _>(on_inlay_hint_request)
+            .request::<Completion, _>(on_completion_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -236,38 +243,14 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     }
 }
 
-pub(crate) fn resolve_workspace_for_source_path(
-    file_path: &Path,
-    root_path: &Option<PathBuf>,
-) -> Result<Workspace, LspError> {
-    // If there's a LSP root path, starting from file_path go up the directory tree
-    // searching for Nargo.toml files. The last one we find is the one we'll use
-    // (we'll assume Noir workspaces aren't nested)
-    if let Some(root_path) = root_path {
-        let mut current_path = file_path;
-        let mut current_toml_path = None;
-        while current_path.starts_with(root_path) {
-            if let Some(toml_path) = find_file_manifest(current_path) {
-                current_toml_path = Some(toml_path);
-
-                if let Some(next_path) = current_path.parent() {
-                    current_path = next_path;
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-
-        if let Some(toml_path) = current_toml_path {
-            return resolve_workspace_from_toml(
-                &toml_path,
-                PackageSelection::All,
-                Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-            )
-            .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
-        }
+pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
+    if let Some(toml_path) = find_file_manifest(file_path) {
+        return resolve_workspace_from_toml(
+            &toml_path,
+            PackageSelection::All,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        )
+        .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
     }
 
     let Some(parent_folder) = file_path
@@ -313,7 +296,7 @@ pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
     package: &Package,
 ) -> (Context<'file_manager, 'parsed_files>, CrateId) {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    context.track_references();
+    context.activate_lsp_mode();
     (context, crate_id)
 }
 
@@ -334,7 +317,7 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
     let parsed_files = parse_diff(&file_manager, state);
 
     let mut context = Context::new(file_manager, parsed_files);
-    context.track_references();
+    context.activate_lsp_mode();
 
     let root_crate_id = prepare_crate(&mut context, file_name);
 
@@ -428,7 +411,7 @@ fn prepare_package_from_source_string() {
     let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
 
     let (mut context, crate_id) = crate::prepare_source(source.to_string(), &mut state);
-    let _check_result = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
+    let _check_result = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
     let main_func_id = context.get_main_function(&crate_id);
     assert!(main_func_id.is_some());
 }

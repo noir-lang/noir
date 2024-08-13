@@ -5,13 +5,13 @@ use noirc_frontend::ast::{Ident, NoirFunction, UnresolvedTypeData};
 use noirc_frontend::{
     graph::CrateId,
     macros_api::{FieldElement, FileId, HirContext, HirExpression, HirLiteral, HirStatement},
-    parse_program,
     parser::SortedModule,
     Type,
 };
 
 use tiny_keccak::{Hasher, Keccak};
 
+use crate::utils::parse_utils::parse_program;
 use crate::utils::{
     errors::AztecMacroError,
     hir_utils::{collect_crate_structs, get_contract_module_data, signature_of_type},
@@ -203,6 +203,7 @@ pub fn generate_contract_interface(
     module_name: &str,
     stubs: &[(String, Location)],
     has_storage_layout: bool,
+    empty_spans: bool,
 ) -> Result<(), AztecMacroError> {
     let storage_layout_getter = format!(
         "#[contract_library_method]
@@ -253,7 +254,7 @@ pub fn generate_contract_interface(
         if has_storage_layout { format!("#[contract_library_method]\n{}", storage_layout_getter) } else { "".to_string() } 
     );
 
-    let (contract_interface_ast, errors) = parse_program(&contract_interface);
+    let (contract_interface_ast, errors) = parse_program(&contract_interface, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotGenerateContractInterface { secondary_message: Some("Failed to parse Noir macro code during contract interface generation. This is either a bug in the compiler or the Noir macro code".to_string()), });

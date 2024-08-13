@@ -64,6 +64,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 (HirExpression::Error, Type::Error)
             }
+            ExpressionKind::AsTraitPath(_) => todo!("Implement AsTraitPath"),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.span, self.file);
@@ -553,7 +554,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_cast(&mut self, cast: CastExpression, span: Span) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
         let r#type = self.resolve_type(cast.r#type);
-        let result = self.check_cast(lhs_type, &r#type, span);
+        let result = self.check_cast(&lhs_type, &r#type, span);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }

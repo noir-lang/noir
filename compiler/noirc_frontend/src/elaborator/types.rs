@@ -155,6 +155,7 @@ impl<'context> Elaborator<'context> {
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
+            AsTraitPath(_) => todo!("Resolve AsTraitPath"),
         };
 
         if let Some(unresolved_span) = typ.span {
@@ -403,13 +404,16 @@ impl<'context> Elaborator<'context> {
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs), Type::Constant(rhs)) => {
-                        Type::Constant(op.function()(lhs, rhs))
+                        Type::Constant(op.function(lhs, rhs))
                     }
-                    (lhs, _) => {
-                        let span =
-                            if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
-                        self.push_err(ResolverError::InvalidArrayLengthExpr { span });
-                        Type::Constant(0)
+                    (lhs, rhs) => {
+                        if !self.enable_arithmetic_generics {
+                            let span =
+                                if !matches!(lhs, Type::Constant(_)) { lhs_span } else { rhs_span };
+                            self.push_err(ResolverError::InvalidArrayLengthExpr { span });
+                        }
+
+                        Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize()
                     }
                 }
             }
@@ -779,7 +783,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn check_cast(&mut self, from: Type, to: &Type, span: Span) -> Type {
+    pub(super) fn check_cast(&mut self, from: &Type, to: &Type, span: Span) -> Type {
         match from.follow_bindings() {
             Type::Integer(..)
             | Type::FieldElement
@@ -788,8 +792,13 @@ impl<'context> Elaborator<'context> {
             | Type::Bool => (),
 
             Type::TypeVariable(_, _) => {
-                self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
-                return Type::Error;
+                // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
+                // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
+                let expected = Type::polymorphic_integer_or_field(self.interner);
+                self.unify(from, &expected, || TypeCheckError::InvalidCast {
+                    from: from.clone(),
+                    span,
+                });
             }
             Type::Error => return Type::Error,
             from => {
@@ -1608,6 +1617,10 @@ impl<'context> Elaborator<'context> {
                     found.insert(name.to_string(), type_variable.clone());
                 }
                 Self::find_numeric_generics_in_type(fields, found);
+            }
+            Type::InfixExpr(lhs, _op, rhs) => {
+                Self::find_numeric_generics_in_type(lhs, found);
+                Self::find_numeric_generics_in_type(rhs, found);
             }
         }
     }

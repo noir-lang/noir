@@ -8,9 +8,10 @@ use noirc_frontend::ast::{
     UnresolvedTypeData, Visibility,
 };
 
-use noirc_frontend::{macros_api::FieldElement, parse_program};
+use noirc_frontend::macros_api::FieldElement;
 
 use crate::utils::ast_utils::member_access;
+use crate::utils::parse_utils::parse_program;
 use crate::{
     chained_dep, chained_path,
     utils::{
@@ -132,6 +133,7 @@ pub fn transform_function(
 pub fn export_fn_abi(
     types: &mut Vec<NoirStruct>,
     func: &NoirFunction,
+    empty_spans: bool,
 ) -> Result<(), AztecMacroError> {
     let mut parameters_struct_source: Option<&str> = None;
 
@@ -198,7 +200,7 @@ pub fn export_fn_abi(
 
     program.push_str(&export_struct_source);
 
-    let (ast, errors) = parse_program(&program);
+    let (ast, errors) = parse_program(&program, empty_spans);
     if !errors.is_empty() {
         return Err(AztecMacroError::CouldNotExportFunctionAbi {
             span: None,

@@ -20,6 +20,8 @@ pub(crate) struct ValueMerger<'a> {
     slice_sizes: &'a mut HashMap<ValueId, usize>,
 
     array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
+
+    call_stack: CallStack,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -29,8 +31,16 @@ impl<'a> ValueMerger<'a> {
         slice_sizes: &'a mut HashMap<ValueId, usize>,
         array_set_conditionals: &'a mut HashMap<ValueId, ValueId>,
         current_condition: Option<ValueId>,
+        call_stack: CallStack,
     ) -> Self {
-        ValueMerger { dfg, block, slice_sizes, array_set_conditionals, current_condition }
+        ValueMerger {
+            dfg,
+            block,
+            slice_sizes,
+            array_set_conditionals,
+            current_condition,
+            call_stack,
+        }
     }
 
     /// Merge two values a and b from separate basic blocks to a single value.
@@ -164,7 +174,12 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars| {
                     let get = Instruction::ArrayGet { array, index };
                     self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
+                        .insert_instruction_and_results(
+                            get,
+                            self.block,
+                            typevars,
+                            self.call_stack.clone(),
+                        )
                         .first()
                 };
 
@@ -234,7 +249,7 @@ impl<'a> ValueMerger<'a> {
                                 get,
                                 self.block,
                                 typevars,
-                                CallStack::new(),
+                                self.call_stack.clone(),
                             )
                             .first()
                     }
@@ -365,7 +380,12 @@ impl<'a> ValueMerger<'a> {
             let mut get_element = |array, typevars| {
                 let get = Instruction::ArrayGet { array, index };
                 self.dfg
-                    .insert_instruction_and_results(get, self.block, typevars, CallStack::new())
+                    .insert_instruction_and_results(
+                        get,
+                        self.block,
+                        typevars,
+                        self.call_stack.clone(),
+                    )
                     .first()
             };
 
@@ -384,7 +404,12 @@ impl<'a> ValueMerger<'a> {
     }
 
     fn insert_instruction(&mut self, instruction: Instruction) -> InsertInstructionResult {
-        self.dfg.insert_instruction_and_results(instruction, self.block, None, CallStack::new())
+        self.dfg.insert_instruction_and_results(
+            instruction,
+            self.block,
+            None,
+            self.call_stack.clone(),
+        )
     }
 
     fn insert_array_set(
@@ -399,7 +424,7 @@ impl<'a> ValueMerger<'a> {
             instruction,
             self.block,
             None,
-            CallStack::new(),
+            self.call_stack.clone(),
         );
 
         if let Some(condition) = condition {
