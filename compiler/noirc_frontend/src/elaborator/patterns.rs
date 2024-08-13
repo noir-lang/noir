@@ -599,10 +599,8 @@ impl<'context> Elaborator<'context> {
             // Otherwise `self` will be replaced with a fresh type variable, which will require the user
             // to specify a redundant type annotation.
             if *assumed {
-                bindings.insert(
-                    the_trait.self_type_typevar.id(),
-                    (the_trait.self_type_typevar.clone(), constraint.typ.clone()),
-                );
+                let self_type = the_trait.self_type_typevar.clone();
+                bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
             }
         }
 

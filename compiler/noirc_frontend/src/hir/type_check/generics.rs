@@ -1,9 +1,10 @@
 use std::cell::Ref;
 
 use crate::{
+    hir_def::traits::NamedType,
     macros_api::NodeInterner,
     node_interner::{TraitId, TypeAliasId},
-    ResolvedGeneric, StructType,
+    ResolvedGeneric, StructType, Type,
 };
 
 /// Represents something that can be generic over type variables
@@ -92,4 +93,62 @@ impl Generic for Ref<'_, StructType> {
     fn named_generics(&self, _interner: &NodeInterner) -> Vec<ResolvedGeneric> {
         Vec::new()
     }
+}
+
+/// TraitGenerics are different from regular generics in that they can
+/// also contain associated type arguments.
+#[derive(PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
+pub struct TraitGenerics {
+    pub ordered: Vec<Type>,
+    pub named: Vec<NamedType>,
+}
+
+impl std::fmt::Display for TraitGenerics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fmt_trait_generics(self, f, false)
+    }
+}
+
+impl std::fmt::Debug for TraitGenerics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fmt_trait_generics(self, f, true)
+    }
+}
+
+fn fmt_trait_generics(
+    generics: &TraitGenerics,
+    f: &mut std::fmt::Formatter<'_>,
+    debug: bool,
+) -> std::fmt::Result {
+    if !generics.ordered.is_empty() || !generics.named.is_empty() {
+        write!(f, "<")?;
+        for (i, typ) in generics.ordered.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+
+            if debug {
+                write!(f, "{typ:?}")?;
+            } else {
+                write!(f, "{typ}")?;
+            }
+        }
+
+        if !generics.ordered.is_empty() && !generics.named.is_empty() {
+            write!(f, ", ")?;
+        }
+
+        for (i, named) in generics.named.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+
+            if debug {
+                write!(f, "{} = {:?}", named.name, named.typ)?;
+            } else {
+                write!(f, "{} = {}", named.name, named.typ)?;
+            }
+        }
+    }
+    Ok(())
 }

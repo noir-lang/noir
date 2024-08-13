@@ -8,7 +8,7 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
-    hir::def_map::ModuleId,
+    hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
     hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
@@ -51,7 +51,7 @@ pub enum Value {
     /// be inserted into separate files entirely.
     Quoted(Rc<Vec<Token>>),
     StructDefinition(StructId),
-    TraitConstraint(TraitId, /* trait generics */ Vec<Type>),
+    TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
     FunctionDefinition(FuncId),
     ModuleDefinition(ModuleId),
@@ -517,12 +517,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::TraitConstraint(trait_id, generics) => {
                 let trait_ = self.interner.get_trait(*trait_id);
-                let generic_string = vecmap(generics, ToString::to_string).join(", ");
-                if generics.is_empty() {
-                    write!(f, "{}", trait_.name)
-                } else {
-                    write!(f, "{}<{generic_string}>", trait_.name)
-                }
+                write!(f, "{}{generics}", trait_.name)
             }
             Value::TraitDefinition(trait_id) => {
                 let trait_ = self.interner.get_trait(*trait_id);

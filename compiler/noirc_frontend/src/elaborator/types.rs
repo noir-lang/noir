@@ -14,7 +14,7 @@ use crate::{
         comptime::{Interpreter, Value},
         def_map::ModuleDefId,
         resolution::errors::ResolverError,
-        type_check::{Generic, NoMatchingImplFoundError, Source, TypeCheckError},
+        type_check::{generics::Generic, NoMatchingImplFoundError, Source, TypeCheckError},
     },
     hir_def::{
         expr::{

@@ -1357,9 +1357,14 @@ impl NodeInterner {
         object_type: &Type,
         trait_id: TraitId,
         trait_generics: &[Type],
+        trait_associated_types: &[NamedType],
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
-        let (impl_kind, bindings) =
-            self.try_lookup_trait_implementation(object_type, trait_id, trait_generics)?;
+        let (impl_kind, bindings) = self.try_lookup_trait_implementation(
+            object_type,
+            trait_id,
+            trait_generics,
+            trait_associated_types,
+        )?;
 
         Type::apply_type_bindings(bindings);
         Ok(impl_kind)
@@ -1403,12 +1408,14 @@ impl NodeInterner {
         object_type: &Type,
         trait_id: TraitId,
         trait_generics: &[Type],
+        trait_associated_types: &[NamedType],
     ) -> Result<(TraitImplKind, TypeBindings), Vec<TraitConstraint>> {
         let mut bindings = TypeBindings::new();
         let impl_kind = self.lookup_trait_implementation_helper(
             object_type,
             trait_id,
             trait_generics,
+            trait_associated_types,
             &mut bindings,
             IMPL_SEARCH_RECURSION_LIMIT,
         )?;
@@ -1425,6 +1432,7 @@ impl NodeInterner {
         object_type: &Type,
         trait_id: TraitId,
         trait_generics: &[Type],
+        trait_associated_types: &[NamedType],
         type_bindings: &mut TypeBindings,
         recursion_limit: u32,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
@@ -1433,7 +1441,7 @@ impl NodeInterner {
                 object_type.clone(),
                 trait_id,
                 trait_generics.to_vec(),
-                Vec::new(),
+                trait_associated_types.to_vec(),
                 Span::default(),
             )
         };
@@ -1534,12 +1542,17 @@ impl NodeInterner {
         for constraint in where_clause {
             // Instantiation bindings are generally safe to force substitute into the same type.
             // This is needed here to undo any bindings done to trait methods by monomorphization.
-            // Otherwise, an impl for (A, B) could get narrowed to only an impl for e.g. (u8, u16).
+            // Otherwise, an impl for any (A, B) could get narrowed to only an impl for e.g. (u8, u16).
             let constraint_type =
                 constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
 
             let trait_generics = vecmap(&constraint.trait_generics, |generic| {
                 generic.force_substitute(instantiation_bindings).substitute(type_bindings)
+            });
+
+            let trait_associated_types = vecmap(&constraint.associated_types, |generic| {
+                let typ = generic.typ.force_substitute(instantiation_bindings);
+                NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
             });
 
             // We can ignore any associated types on the constraint since those should not affect
@@ -1548,6 +1561,7 @@ impl NodeInterner {
                 &constraint_type,
                 constraint.trait_id,
                 &trait_generics,
+                &trait_associated_types,
                 // Use a fresh set of type bindings here since the constraint_type originates from
                 // our impl list, which we don't want to bind to.
                 type_bindings,
@@ -1571,9 +1585,16 @@ impl NodeInterner {
         object_type: Type,
         trait_id: TraitId,
         trait_generics: Vec<Type>,
+        trait_associated_types: Vec<NamedType>,
     ) -> bool {
         // Make sure there are no overlapping impls
-        if self.try_lookup_trait_implementation(&object_type, trait_id, &trait_generics).is_ok() {
+        let existing = self.try_lookup_trait_implementation(
+            &object_type,
+            trait_id,
+            &trait_generics,
+            &trait_associated_types,
+        );
+        if existing.is_ok() {
             return false;
         }
 
@@ -1609,6 +1630,7 @@ impl NodeInterner {
         let instantiated_object_type = object_type.substitute(&substitutions);
 
         let trait_generics = &trait_impl.borrow().trait_generics;
+        let associated_types = self.get_associated_types_for_impl(impl_id);
 
         // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
         // It should never happen since impls are defined at global scope, but even
@@ -1618,6 +1640,7 @@ impl NodeInterner {
             &instantiated_object_type,
             trait_id,
             trait_generics,
+            associated_types,
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
