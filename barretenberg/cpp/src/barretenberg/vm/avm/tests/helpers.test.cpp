@@ -41,6 +41,7 @@ void validate_trace(std::vector<Row>&& trace,
                     bool with_proof,
                     bool expect_proof_failure)
 {
+    setenv("AVM_VERBOSE_ERRORS", "1", 1);
     auto circuit_builder = AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
     EXPECT_TRUE(circuit_builder.check_circuit());

@@ -742,9 +742,14 @@ bool AvmCircuitBuilder::check_circuit() const
 
     std::string errors;
     std::mutex m;
+    const bool verbose_errors = std::getenv("AVM_VERBOSE_ERRORS") != nullptr;
     auto signal_error = [&](const std::string& error) {
         std::lock_guard<std::mutex> lock(m);
-        errors += error + "\n";
+        if (verbose_errors) {
+            errors += error + "\n";
+        } else if (errors.empty()) {
+            errors = "Circuit check failed. Use AVM_VERBOSE_ERRORS=1 to see more details.";
+        }
     };
     bb::parallel_for(checks.size(), [&](size_t i) { checks[i](signal_error); });
     if (!errors.empty()) {
