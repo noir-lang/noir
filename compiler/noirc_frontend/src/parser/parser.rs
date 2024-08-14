@@ -954,10 +954,32 @@ where
 
         keyword(Keyword::If)
             .ignore_then(expr_no_constructors)
-            .then(if_block)
-            .then(keyword(Keyword::Else).ignore_then(else_block).or_not())
-            .map(|((condition, consequence), alternative)| {
-                ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
+            .then(if_block.then(keyword(Keyword::Else).ignore_then(else_block).or_not()).or_not())
+            .validate(|(condition, consequence_and_alternative), span, emit_error| {
+                if let Some((consequence, alternative)) = consequence_and_alternative {
+                    ExpressionKind::If(Box::new(IfExpression {
+                        condition,
+                        consequence,
+                        alternative,
+                    }))
+                } else {
+                    // We allow `if cond` without a block mainly for LSP, so that it parses right
+                    // and autocompletion works there.
+                    emit_error(ParserError::with_reason(
+                        ParserErrorReason::ExpectedLeftBraceAfterIfCondition,
+                        span,
+                    ));
+
+                    let span_end = condition.span.end();
+                    ExpressionKind::If(Box::new(IfExpression {
+                        condition,
+                        consequence: Expression::new(
+                            ExpressionKind::Error,
+                            Span::from(span_end..span_end),
+                        ),
+                        alternative: None,
+                    }))
+                }
             })
     })
 }
@@ -1429,6 +1451,24 @@ mod test {
             if_expr(expression_no_constructors(expression()), fresh_statement()),
             vec!["if (x / a) + 1 {} else", "if foo then 1 else 2", "if true { 1 }else 3"],
         );
+    }
+
+    #[test]
+    fn parse_if_without_block() {
+        let src = "if foo";
+        let parser = if_expr(expression_no_constructors(expression()), fresh_statement());
+        let (expression_kind, errors) = parse_recover(parser, src);
+
+        let expression_kind = expression_kind.unwrap();
+        let ExpressionKind::If(if_expression) = expression_kind else {
+            panic!("Expected an if expression, got {:?}", expression_kind);
+        };
+
+        assert_eq!(if_expression.consequence.kind, ExpressionKind::Error);
+        assert_eq!(if_expression.alternative, None);
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected { after if condition");
     }
 
     #[test]
