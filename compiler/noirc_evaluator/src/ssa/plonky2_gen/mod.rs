@@ -553,6 +553,19 @@ impl Builder {
         (func_name == "print") || (func_name == "println")
     }
 
+    fn get_integer_bitsize(typ: &P2Type) -> Option<usize> {
+        Some(
+            usize::try_from(match typ {
+                P2Type::Integer(bit_size) => *bit_size,
+                P2Type::Field => FIELD_BIT_SIZE,
+                _ => {
+                    return None;
+                }
+            })
+            .unwrap(),
+        )
+    }
+
     fn add_instruction(&mut self, instruction_id: InstructionId) -> Result<(), Plonky2GenError> {
         let instruction = self.dfg[instruction_id].clone();
 
@@ -603,52 +616,39 @@ impl Builder {
                         let (bit_size_b, target_b) = self.get_integer(rhs)?;
                         assert!(bit_size_a == bit_size_b);
 
-                        let bit_size = usize::try_from(match bit_size_a {
-                            P2Type::Integer(bit_size) => bit_size,
-                            P2Type::Field => FIELD_BIT_SIZE,
-                            _ => {
-                                let message = format!(
-                                    "less than op invoked on arguments of type {:?}",
-                                    bit_size_a
-                                );
-                                return Err(Plonky2GenError::ICE { message });
-                            }
-                        })
-                        .unwrap();
+                        if let Some(bit_size) = Self::get_integer_bitsize(&bit_size_a) {
+                            let mut split_a = self.asm_writer.split_le(target_a, bit_size);
+                            let mut split_b = self.asm_writer.split_le(target_b, bit_size);
 
-                        let mut split_a = self.asm_writer.split_le(target_a, bit_size);
-                        let mut split_b = self.asm_writer.split_le(target_b, bit_size);
+                            split_a.reverse();
+                            split_b.reverse();
 
-                        split_a.reverse();
-                        split_b.reverse();
+                            // generate:
+                            //   (!a[0] and b[0]) or
+                            //   ((a[0] == b[0]) and ((!a[1] and b[1]))) or
+                            //   ((a[0] == b[0]) and (a[1] == b[1]) and (!a[2] and b[2])) or
+                            //   ((a[0] == b[0]) and (a[1] == b[1]) and (a[2] == b[2]) and (!a[3] and b[3])) or ...
+                            //   ...
+                            //   ((a[0] == b[0]) and ... and (a[i-1] == b[i-1]) and (!a[i] and b[i])) or ...
+                            //   ...
 
-                        // generate:
-                        //   (!a[0] and b[0]) or
-                        //   ((a[0] == b[0]) and ((!a[1] and b[1]))) or
-                        //   ((a[0] == b[0]) and (a[1] == b[1]) and (!a[2] and b[2])) or
-                        //   ((a[0] == b[0]) and (a[1] == b[1]) and (a[2] == b[2]) and (!a[3] and b[3])) or ...
-                        //   ...
-                        //   ((a[0] == b[0]) and ... and (a[i-1] == b[i-1]) and (!a[i] and b[i])) or ...
-                        //   ...
+                            let mut first_i_minus_1_are_equal: Option<BoolTarget> = None;
+                            let mut result: Option<BoolTarget> = None;
+                            for i in 0..split_a.len() {
+                                let is_first = i == 0;
+                                let is_last = i == (split_a.len() - 1);
 
-                        let mut first_i_minus_1_are_equal: Option<BoolTarget> = None;
-                        let mut result: Option<BoolTarget> = None;
-                        for i in 0..split_a.len() {
-                            let is_first = i == 0;
-                            let is_last = i == (split_a.len() - 1);
+                                let not_a_i = self.asm_writer.not(split_a[i]);
+                                let not_a_i_and_b_i = self.asm_writer.and(not_a_i, split_b[i]);
 
-                            let not_a_i = self.asm_writer.not(split_a[i]);
-                            let not_a_i_and_b_i = self.asm_writer.and(not_a_i, split_b[i]);
+                                let not_a_i_and_b_i_and_first_i_minus_1_equal = if is_first {
+                                    not_a_i_and_b_i
+                                } else {
+                                    self.asm_writer
+                                        .and(not_a_i_and_b_i, first_i_minus_1_are_equal.unwrap())
+                                };
 
-                            let not_a_i_and_b_i_and_first_i_minus_1_equal = if is_first {
-                                not_a_i_and_b_i
-                            } else {
-                                self.asm_writer
-                                    .and(not_a_i_and_b_i, first_i_minus_1_are_equal.unwrap())
-                            };
-
-                            result =
-                                if is_first {
+                                result = if is_first {
                                     Some(not_a_i_and_b_i_and_first_i_minus_1_equal)
                                 } else {
                                     Some(self.asm_writer.or(
@@ -657,21 +657,29 @@ impl Builder {
                                     ))
                                 };
 
-                            if !is_last {
-                                let i_equal =
-                                    self.asm_writer.is_equal(split_a[i].target, split_b[i].target);
-                                first_i_minus_1_are_equal = if is_first {
-                                    Some(i_equal)
-                                } else {
-                                    Some(
-                                        self.asm_writer
-                                            .and(first_i_minus_1_are_equal.unwrap(), i_equal),
-                                    )
-                                };
+                                if !is_last {
+                                    let i_equal = self
+                                        .asm_writer
+                                        .is_equal(split_a[i].target, split_b[i].target);
+                                    first_i_minus_1_are_equal = if is_first {
+                                        Some(i_equal)
+                                    } else {
+                                        Some(
+                                            self.asm_writer
+                                                .and(first_i_minus_1_are_equal.unwrap(), i_equal),
+                                        )
+                                    };
+                                }
                             }
-                        }
 
-                        Ok(P2Value::make_boolean(result.unwrap()))
+                            Ok(P2Value::make_boolean(result.unwrap()))
+                        } else {
+                            let message = format!(
+                                "less than op invoked on arguments of type {:?}",
+                                bit_size_a
+                            );
+                            return Err(Plonky2GenError::ICE { message });
+                        }
                     }
 
                     super::ir::instruction::BinaryOp::Xor => {
