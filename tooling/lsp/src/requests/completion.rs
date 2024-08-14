@@ -2877,4 +2877,22 @@ mod completion_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn test_completes_in_broken_if_after_dot() {
+        let src = r#"
+            struct Some {
+                foo: i32,
+            }
+
+            fn foo(s: Some) {
+                if s.>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item("foo", CompletionItemKind::FIELD, Some("i32".to_string()))],
+        )
+        .await;
+    }
 }
