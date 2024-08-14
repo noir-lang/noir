@@ -19,6 +19,7 @@
   --ifm-link-color: #8C7EFF;
   --ifm-menu-color-active: #8C7EFF;
   --ifm-navbar-link-hover-color: #8C7EFF;
+  --docsearch-modal-background: white;
 }
 
 [data-theme="light"] .alert--danger {
@@ -170,24 +171,6 @@ a {
   color: #8C7EFF;
 }
 
-/* Style for tip admonitions */
-.admonition-tip {
-  background-color: rgba(49, 166, 123, 0.1);
-  border-left-color: #31A67B;
-}
-
-.admonition-tip .admonition-icon svg {
-  fill: #31A67B;
-}
-
-.admonition-warning, .admonition-danger {
-  background-color: rgba(255, 119, 100, 0.1);
-  border-left-color: #FF7764;
-}
-
-.admonition-warning .admonition-icon svg, .admonition-danger .admonition-icon svg {
-  fill: #FF7764;
-}
 .code-block-error-line {
   background-color: #f0000038;
   display: block;
@@ -228,7 +211,15 @@ html[data-theme="dark"] .sidebar-divider {
 }
 
 [data-theme="light"] #optout-form {
-  background: #f6fbfc;
+  background: white;
+}
+
+[data-theme="light"] .button--secondary{
+  background: var(--ifm-color-primary-lightest);
+}
+
+[data-theme="dark"] .button--secondary {
+  background: var(--ifm-color-primary-dark);
 }
 
 #optout-form {
@@ -246,7 +237,7 @@ html[data-theme="dark"] .sidebar-divider {
   padding: 1.5rem 2rem;
   display: flex;
   flex-direction: column;
-  border: 1px solid #bec2c3;
+  border: 1px solid var(--ifm-color-primary-lightest);
   border-radius: 12px;
 }
 

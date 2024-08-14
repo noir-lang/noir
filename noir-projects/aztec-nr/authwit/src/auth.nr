@@ -62,7 +62,7 @@ use dep::aztec::{prelude::Deserialize, context::{PrivateContext, PublicContext, 
  * contract. Since the `DeFi` contract is trying to pull funds from an account that is not its own, it needs to 
  * convince the `Token` contract that it is allowed to do so. 
  * 
- * This is where the authentication witness comes in! The `Token` contract computes a `message_hash` from the 
+ * This is where the authentication witness comes in The `Token` contract computes a `message_hash` from the 
  * `transfer` call, and then asks `Alice Account` contract to verify that the `DeFi` contract is allowed to 
  * execute that call.
  * 

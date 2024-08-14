@@ -195,7 +195,7 @@ Copy the last function into your Crowdfunding contract:
 
 You should be able to compile successfully with `aztec-nargo compile`. 
 
-**Congraulations,** you have just built a multi-contract project on Aztec!
+**Congratulations,** you have just built a multi-contract project on Aztec!
 
 ## Conclusion
 

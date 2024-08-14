@@ -1,14 +1,74 @@
 [[redirects]]
+    from = "/guides/smart_contracts/writing_contracts/initializers"
+    to = "/guides/developer_guides/smart_contracts/writing_contracts/initializers"
+
+[[redirects]]
+    from = "/reference/aztecjs/accounts"
+    to = "/reference/developer_references/aztecjs/accounts"
+
+[[redirects]]
+    from = "/getting_started"
+    to = "/guides/developer_guides/getting_started/quickstart"
+
+[[redirects]]
+    from = "/tutorials/simple_dapp/*"
+    to = "/tutorials/codealong/simple_dapp"
+
+[[redirects]]
+    from = "/tutorials/simple_dapp"
+    to = "/tutorials/codealong/simple_dapp"
+
+[[redirects]]
+    from = "/tutorials/contract_tutorials/advanced/token_bridge/typescript_glue_code"
+    to = "/tutorials/codealong/contract_tutorials/advanced/token_bridge/typescript_glue_code"
+
+[[redirects]]
+    from = "/tutorials/contract_tutorials/advanced/token_bridge/withdrawing_to_l1"
+    to = "/tutorials/codealong/contract_tutorials/advanced/token_bridge/withdrawing_to_l1"
+
+[[redirects]]
+    from = "/tutorials/contract_tutorials/advanced/token_bridge/minting_on_aztec"
+    to = "/tutorials/codealong/contract_tutorials/advanced/token_bridge/minting_on_aztec"
+
+[[redirects]]
+    from = "/tutorials/contract_tutorials/advanced/token_bridge/depositing_to_aztec"
+    to = "/tutorials/codealong/contract_tutorials/advanced/token_bridge/depositing_to_aztec"
+
+[[redirects]]
+    from = "/tutorials/contract_tutorials/advanced/token_bridge"
+    to = "/tutorials/codealong/contract_tutorials/advanced/token_bridge"
+
+[[redirects]]
+    from = "/tutorials/contract_tutorials/advanced/token_bridge/setup"
+    to = "/tutorials/codealong/contract_tutorials/advanced/token_bridge/setup"
+
+[[redirects]]
+    from = "/tutorials/contract_tutorials/crowdfunding_contract"
+    to = "/tutorials/codealong/contract_tutorials/crowdfunding_contract"
+
+[[redirects]]
+    from = "/tutorials/contract_tutorials/private_voting_contract"
+    to = "/tutorials/codealong/contract_tutorials/private_voting_contract"
+
+[[redirects]]
+    from = "/tutorials/contract_tutorials/token_contract"
+    to = "/tutorials/codealong/contract_tutorials/token_contract"
+
+[[redirects]]
+    from = "/tutorials/*"
+    to = "/tutorials/codealong/contract_tutorials/private_voting_contract"
+
+[[redirects]]
     from = "/developers/tutorials/*"
     to = "/tutorials/codealong/contract_tutorials/private_voting_contract"
 
 [[redirects]]
     from = "/developers/sandbox/*"
-    to = "/reference/developer_references/sandbox_reference"
+    to = "/guides/developer_guides/getting_started/quickstart"
 
 [[redirects]]
     from = "/developers/contracts/*"
-    to = "/reference/developer_references/smart_contract_reference"
+    to = "/aztec/smart_contracts_overview"
 
 [[redirects]]
     from = "/dev_docs/*"
@@ -59,6 +119,14 @@
     to = "/"
 
 [[redirects]]
+    from = "/aztec/roadmap/engineering_roadmap"
+    to = "/"
+
+[[redirects]]
+    from = "/aztec/roadmap/cryptography_roadmap"
+    to = "/"
+
+[[redirects]]
     from = "/protocol-specs/gas-and-fees/fee-payment-asset"
     to = "/protocol-specs/gas-and-fees/fee-juice"
 
@@ -68,4 +136,8 @@
 
 [[redirects]]
     from = "/reference/sandbox_reference/sandbox-reference"
+    to = "/guides/developer_guides/getting_started/quickstart" 
+
+[[redirects]]
+    from = "/reference/sandbox_reference"
     to = "/guides/developer_guides/getting_started/quickstart" 

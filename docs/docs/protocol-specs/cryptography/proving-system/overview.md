@@ -90,7 +90,7 @@ When passing data between successive IVC steps, the canonical method is to do so
 
 The Data Bus protocol eliminates this cost by representing cross-step data via succinct commitments instead of raw field elements.
 
-The [Plonk Data Bus](https://aztecprotocol.slack.com/files/U8Q1VAX6Y/F05G2B971FY/plonk_bus.pdf) protocol enables efficient data transfer between two Honk instances within a larger IVC protocol.
+The Plonk Data Bus protocol enables efficient data transfer between two Honk instances within a larger IVC protocol.
 
 # Polynomial Commitment Schemes
 

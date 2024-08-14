@@ -30,7 +30,7 @@ From distributed systems, the _security_ of a protocol or system is defined by:
 :::
 
 In the context of blockchain, this _security_ is defined by the confirmation rule, while this can be chosen individually by the user, our validating light node (L1 bridge) can be seen as a user, after all, it's "just" another node.
-For the case of a validity proof based blockchain, a good confirmation rule should satisfy the following sub-properties (inspired by [Sreeram's framing](https://twitter.com/sreeramkannan/status/1683735050897207296)):
+For the case of a validity proof based blockchain, a good confirmation rule should satisfy the following sub-properties (inspired by [Sreeram's framing](https://x.com/sreeramkannan/status/1683735050897207296)):
 
 - **Liveness**:
   - Data Availability - The chain data must be available for anyone to reconstruct the state and build blocks
@@ -318,5 +318,5 @@ Of these, Celestia has the current best "out-the-box" solution, but Eigen-da and
 - https://forum.celestia.org/t/security-levels-for-data-availability-for-light-nodes/919
 - https://ethresear.ch/t/peerdas-a-simpler-das-approach-using-battle-tested-p2p-components/16541
 - https://jumpcrypto.com/writing/bridging-and-finality-ethereum/
-- https://twitter.com/sreeramkannan/status/1683735050897207296
+- https://x.com/sreeramkannan/status/1683735050897207296
 - https://blog.celestia.org/introducing-blobstream/

@@ -290,14 +290,14 @@ const config = {
               {
                 type: "docSidebar",
                 sidebarId: "protocolSpecSidebar",
-                target: "_blank",
                 label: "Protocol Specification",
+                className: "no-external-icon",
               },
               {
                 type: "docSidebar",
                 sidebarId: "roadmapSidebar",
-                target: "_blank",
                 label: "Roadmap",
+                className: "no-external-icon",
               },
               {
                 to: "https://noir-lang.org/docs",
@@ -317,7 +317,7 @@ const config = {
                 rel: "noopener noreferrer",
               },
               {
-                to: "https://twitter.com/aztecprotocol",
+                to: "https://x.com/aztecnetwork",
                 label: "X/Twitter",
                 target: "_blank",
                 rel: "noopener noreferrer",
@@ -359,8 +359,8 @@ const config = {
                 href: "https://discord.gg/DgWG2DBMyB",
               },
               {
-                label: "X/Twitter",
-                href: "https://twitter.com/aztecnetwork",
+                label: "X (Twitter)",
+                href: "https://x.com/aztecnetwork",
               },
               {
                 label: "Plonk Cafe",

@@ -54,7 +54,7 @@ That's right, the Sandbox doesn't actually generate or verify any zk-SNARKs yet!
 
 The main goal of the Sandbox is to enable developers to experiment with building apps, and hopefully to provide feedback. We want the developer experience to be as fast as possible, much like how Ethereum developers use Ganache or Anvil to get super-fast block times, instead of the slow-but-realistic 12-second block times that they'll encounter in production. A fast Sandbox enables fast testing, which enables developers to iterate quickly.
 
-That's not to say a super-fast proving system isn't being worked on [as we speak](../../aztec/roadmap/cryptography_roadmap.md).
+That's not to say a super-fast proving system isn't being worked on as we speak.
 
 #### What are the consequences?
 
