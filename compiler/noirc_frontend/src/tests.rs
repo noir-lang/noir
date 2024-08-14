@@ -2482,17 +2482,26 @@ fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
     let src = r#"
     fn main() {
         let func = foo;
+        // Warning should trigger here
         func();
+        inner(func);
+    }
+
+    fn inner(x: unconstrained fn() -> ()) {
+        // Warning should trigger here
+        x();
     }
 
     unconstrained fn foo() {}
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
+    assert_eq!(errors.len(), 2);
 
-    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0].0 else {
-        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
-    };
+    for error in &errors {
+        let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &error.0 else {
+            panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+        };
+    }
 }
 
 #[test]

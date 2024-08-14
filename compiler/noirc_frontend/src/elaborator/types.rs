@@ -17,7 +17,7 @@ use crate::{
     },
     hir_def::{
         expr::{
-            HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
+            HirBinaryOp, HirCallExpression, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
         function::{FuncMeta, Parameters},
@@ -1330,19 +1330,23 @@ impl<'context> Elaborator<'context> {
                 self.push_err(TypeCheckError::Unsafe { span });
             }
 
-            let called_func_id = self
-                .interner
-                .lookup_function_from_expr(&call.func)
-                .expect("Called function should exist");
-            self.run_lint(|elaborator| {
-                lints::oracle_called_from_constrained_function(
-                    elaborator.interner,
-                    &called_func_id,
-                    is_current_func_constrained,
-                    span,
-                )
-                .map(Into::into)
-            });
+            // let called_func_id = self
+            //     .interner
+            //     .lookup_function_from_expr(&call.func)
+            //     .expect("Called function should exist");
+
+            if let Some(called_func_id) = self.interner.lookup_function_from_expr(&call.func) {
+                self.run_lint(|elaborator| {
+                    lints::oracle_called_from_constrained_function(
+                        elaborator.interner,
+                        &called_func_id,
+                        is_current_func_constrained,
+                        span,
+                    )
+                    .map(Into::into)
+                });
+            }
+
             let errors = lints::unconstrained_function_args(&args);
             for error in errors {
                 self.push_err(error);
