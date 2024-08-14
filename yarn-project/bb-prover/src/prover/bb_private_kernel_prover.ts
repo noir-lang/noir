@@ -366,6 +366,15 @@ export class BBNativePrivateKernelProver implements PrivateKernelProver {
   }
 
   private runInDirectory<T>(fn: (dir: string) => Promise<T>) {
-    return runInDirectory(this.bbWorkingDirectory, fn, this.skipCleanup);
+    const log = this.log;
+    return runInDirectory(
+      this.bbWorkingDirectory,
+      (dir: string) =>
+        fn(dir).catch(err => {
+          log.error(`Error running operation at ${dir}: ${err}`);
+          throw err;
+        }),
+      this.skipCleanup,
+    );
   }
 }

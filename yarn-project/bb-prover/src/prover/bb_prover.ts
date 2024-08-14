@@ -956,6 +956,14 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   }
 
   private runInDirectory<T>(fn: (dir: string) => Promise<T>) {
-    return runInDirectory(this.config.bbWorkingDirectory, fn, this.config.bbSkipCleanup);
+    return runInDirectory(
+      this.config.bbWorkingDirectory,
+      (dir: string) =>
+        fn(dir).catch(err => {
+          logger.error(`Error running operation at ${dir}: ${err}`);
+          throw err;
+        }),
+      this.config.bbSkipCleanup,
+    );
   }
 }
