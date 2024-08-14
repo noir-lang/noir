@@ -63,28 +63,36 @@ export class ProverNode {
    * Checks whether there are new blocks to prove, proves them, and submits them.
    */
   protected async work() {
-    if (this.options.disableAutomaticProving) {
-      return;
+    try {
+      if (this.options.disableAutomaticProving) {
+        return;
+      }
+
+      const [latestBlockNumber, latestProvenBlockNumber] = await Promise.all([
+        this.l2BlockSource.getBlockNumber(),
+        this.l2BlockSource.getProvenBlockNumber(),
+      ]);
+
+      // Consider both the latest block we are proving and the last block proven on the chain
+      const latestBlockBeingProven = this.latestBlockWeAreProving ?? 0;
+      const latestProven = Math.max(latestBlockBeingProven, latestProvenBlockNumber);
+      if (latestProven >= latestBlockNumber) {
+        this.log.debug(`No new blocks to prove`, {
+          latestBlockNumber,
+          latestProvenBlockNumber,
+          latestBlockBeingProven,
+        });
+        return;
+      }
+
+      const fromBlock = latestProven + 1;
+      const toBlock = fromBlock; // We only prove one block at a time for now
+
+      await this.startProof(fromBlock, toBlock);
+      this.latestBlockWeAreProving = toBlock;
+    } catch (err) {
+      this.log.error(`Error in prover node work`, err);
     }
-
-    const [latestBlockNumber, latestProvenBlockNumber] = await Promise.all([
-      this.l2BlockSource.getBlockNumber(),
-      this.l2BlockSource.getProvenBlockNumber(),
-    ]);
-
-    // Consider both the latest block we are proving and the last block proven on the chain
-    const latestBlockBeingProven = this.latestBlockWeAreProving ?? 0;
-    const latestProven = Math.max(latestBlockBeingProven, latestProvenBlockNumber);
-    if (latestProven >= latestBlockNumber) {
-      this.log.debug(`No new blocks to prove`, { latestBlockNumber, latestProvenBlockNumber, latestBlockBeingProven });
-      return;
-    }
-
-    const fromBlock = latestProven + 1;
-    const toBlock = fromBlock; // We only prove one block at a time for now
-
-    await this.startProof(fromBlock, toBlock);
-    this.latestBlockWeAreProving = toBlock;
   }
 
   /**

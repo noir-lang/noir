@@ -24,6 +24,7 @@ export class AztecLmdbStore implements AztecKVStore {
   #rootDb: RootDatabase;
   #data: Database<unknown, Key>;
   #multiMapData: Database<unknown, Key>;
+  #log = createDebugLogger('aztec:kv-store:lmdb');
 
   constructor(rootDb: RootDatabase, public readonly isEphemeral: boolean, private path?: string) {
     this.#rootDb = rootDb;
@@ -59,7 +60,7 @@ export class AztecLmdbStore implements AztecKVStore {
     ephemeral: boolean = false,
     log = createDebugLogger('aztec:kv-store:lmdb'),
   ): AztecLmdbStore {
-    log.info(`Opening LMDB database at ${path || 'temporary location'}`);
+    log.verbose(`Opening LMDB database at ${path || 'temporary location'}`);
     const rootDb = open({ path, noSync: ephemeral });
     return new AztecLmdbStore(rootDb, ephemeral, path);
   }
@@ -70,9 +71,12 @@ export class AztecLmdbStore implements AztecKVStore {
    */
   async fork() {
     const baseDir = this.path ? dirname(this.path) : tmpdir();
+    this.#log.debug(`Forking store with basedir ${baseDir}`);
     const forkPath = join(await mkdtemp(join(baseDir, 'aztec-store-fork-')), 'root.mdb');
+    this.#log.verbose(`Forking store to ${forkPath}`);
     await this.#rootDb.backup(forkPath, false);
     const forkDb = open(forkPath, { noSync: this.isEphemeral });
+    this.#log.debug(`Forked store at ${forkPath} opened successfully`);
     return new AztecLmdbStore(forkDb, this.isEphemeral, forkPath);
   }
 
