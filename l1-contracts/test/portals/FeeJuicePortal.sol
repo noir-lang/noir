@@ -39,7 +39,7 @@ contract FeeJuicePortal {
     returns (bytes32)
   {
     // Preamble
-    IInbox inbox = registry.getInbox();
+    IInbox inbox = registry.getRollup().INBOX();
     DataStructures.L2Actor memory actor = DataStructures.L2Actor(l2TokenAddress, 1);
 
     // Hash the message content to be reconstructed in the receiving contract

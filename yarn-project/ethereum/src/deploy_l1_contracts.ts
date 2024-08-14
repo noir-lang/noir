@@ -253,10 +253,7 @@ export const deployL1Contracts = async (
     abi: contractsToDeploy.registry.contractAbi,
     client: walletClient,
   });
-  await registryContract.write.upgrade(
-    [getAddress(rollupAddress.toString()), getAddress(inboxAddress.toString()), getAddress(outboxAddress.toString())],
-    { account },
-  );
+  await registryContract.write.upgrade([getAddress(rollupAddress.toString())], { account });
 
   // this contract remains uninitialized because at this point we don't know the address of the Fee Juice on L2
   const feeJuicePortalAddress = await deployL1Contract(

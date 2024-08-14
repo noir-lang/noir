@@ -22,11 +22,7 @@ contract RegistryTest is Test {
     assertEq(registry.numberOfVersions(), 1, "should have 1 version");
     DataStructures.RegistrySnapshot memory snapshot = registry.getCurrentSnapshot();
     assertEq(snapshot.rollup, DEAD, "should have dead rollup");
-    assertEq(snapshot.inbox, DEAD, "should have dead inbox");
-    assertEq(snapshot.outbox, DEAD, "should have dead outbox");
     assertEq(address(registry.getRollup()), DEAD);
-    assertEq(address(registry.getInbox()), DEAD);
-    assertEq(address(registry.getOutbox()), DEAD);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Registry__RollupNotRegistered.selector, DEAD));
     registry.getVersionFor(DEAD);
@@ -34,28 +30,22 @@ contract RegistryTest is Test {
 
   function testUpgrade() public {
     address newRollup = address(0xbeef1);
-    address inbox = address(0xbeef2);
-    address newOutbox = address(0xbeef3);
-    uint256 newVersion = registry.upgrade(newRollup, inbox, newOutbox);
+    uint256 newVersion = registry.upgrade(newRollup);
 
     assertEq(registry.numberOfVersions(), 2, "should have 2 versions");
     DataStructures.RegistrySnapshot memory snapshot = registry.getCurrentSnapshot();
     assertEq(snapshot.rollup, newRollup, "should have newRollup");
-    assertEq(snapshot.inbox, inbox, "should have inbox");
-    assertEq(snapshot.outbox, newOutbox, "should have newOutbox");
 
     assertEq(address(registry.getRollup()), newRollup);
-    assertEq(address(registry.getInbox()), inbox);
-    assertEq(address(registry.getOutbox()), newOutbox);
     assertEq(
       registry.getVersionFor(newRollup), newVersion, "should have version newVersion for newRollup"
     );
   }
 
   function testRevertUpgradeToSame() public {
-    registry.upgrade(DEAD, DEAD, DEAD);
+    registry.upgrade(DEAD);
     vm.expectRevert(abi.encodeWithSelector(Errors.Registry__RollupAlreadyRegistered.selector, DEAD));
-    registry.upgrade(DEAD, DEAD, DEAD);
+    registry.upgrade(DEAD);
   }
 
   function testRevertGetVersionForNonExistent() public {
@@ -68,6 +58,6 @@ contract RegistryTest is Test {
     vm.assume(_owner != registry.owner());
     vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _owner));
     vm.prank(_owner);
-    registry.upgrade(DEAD, DEAD, DEAD);
+    registry.upgrade(DEAD);
   }
 }

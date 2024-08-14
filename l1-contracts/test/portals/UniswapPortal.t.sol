@@ -31,6 +31,8 @@ contract UniswapPortalTest is Test {
 
   Rollup internal rollup;
   Registry internal registry;
+
+  IOutbox internal outbox;
   bytes32 internal l2TokenAddress = bytes32(uint256(0x1));
   bytes32 internal l2UniswapAddress = bytes32(uint256(0x2));
 
@@ -54,7 +56,7 @@ contract UniswapPortalTest is Test {
     PortalERC20 portalERC20 = new PortalERC20();
     rollup =
       new Rollup(registry, new AvailabilityOracle(), IERC20(address(portalERC20)), bytes32(0));
-    registry.upgrade(address(rollup), address(rollup.INBOX()), address(rollup.OUTBOX()));
+    registry.upgrade(address(rollup));
     portalERC20.mint(address(rollup), 1000000);
 
     daiTokenPortal = new TokenPortal();
@@ -68,6 +70,8 @@ contract UniswapPortalTest is Test {
 
     // have DAI locked in portal that can be moved when funds are withdrawn
     deal(address(DAI), address(daiTokenPortal), amount);
+
+    outbox = rollup.OUTBOX();
   }
 
   /**
@@ -168,8 +172,6 @@ contract UniswapPortalTest is Test {
     bytes32 treeRoot = tree.computeRoot();
     (bytes32[] memory withdrawSiblingPath,) = tree.computeSiblingPath(0);
     (bytes32[] memory swapSiblingPath,) = tree.computeSiblingPath(1);
-
-    IOutbox outbox = registry.getOutbox();
 
     vm.prank(address(rollup));
     outbox.insert(_l2BlockNumber, treeRoot, treeHeight);
@@ -392,7 +394,6 @@ contract UniswapPortalTest is Test {
     // there should be some weth in the weth portal
     assertGt(WETH9.balanceOf(address(wethTokenPortal)), 0);
     // there the message should be nullified at index 0 and 1
-    IOutbox outbox = registry.getOutbox();
     assertTrue(outbox.hasMessageBeenConsumedAtBlockAndIndex(l2BlockNumber, 0));
     assertTrue(outbox.hasMessageBeenConsumedAtBlockAndIndex(l2BlockNumber, 1));
   }
@@ -440,7 +441,6 @@ contract UniswapPortalTest is Test {
     // there should be some weth in the weth portal
     assertGt(WETH9.balanceOf(address(wethTokenPortal)), 0);
     // there should be no message in the outbox:
-    IOutbox outbox = registry.getOutbox();
     assertTrue(outbox.hasMessageBeenConsumedAtBlockAndIndex(l2BlockNumber, 0));
     assertTrue(outbox.hasMessageBeenConsumedAtBlockAndIndex(l2BlockNumber, 1));
   }

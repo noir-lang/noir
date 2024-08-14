@@ -64,7 +64,7 @@ contract TokenPortalTest is Test {
     inbox = rollup.INBOX();
     outbox = rollup.OUTBOX();
 
-    registry.upgrade(address(rollup), address(inbox), address(outbox));
+    registry.upgrade(address(rollup));
 
     portalERC20.mint(address(rollup), 1000000);
     tokenPortal = new TokenPortal();

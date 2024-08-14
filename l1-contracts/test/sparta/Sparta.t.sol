@@ -67,7 +67,7 @@ contract SpartaTest is DecoderBase {
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));
 
-    registry.upgrade(address(rollup), address(inbox), address(outbox));
+    registry.upgrade(address(rollup));
 
     // mint some tokens to the rollup
     portalERC20.mint(address(rollup), 1000000);
