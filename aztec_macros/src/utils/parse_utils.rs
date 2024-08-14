@@ -549,5 +549,10 @@ fn empty_unresolved_type_expression(unresolved_type_expression: &mut UnresolvedT
             empty_unresolved_type_expression(rhs);
         }
         UnresolvedTypeExpression::Constant(_, _) => (),
+        UnresolvedTypeExpression::AsTraitPath(path) => {
+            empty_unresolved_type(&mut path.typ);
+            empty_path(&mut path.trait_path);
+            empty_ident(&mut path.impl_item);
+        }
     }
 }

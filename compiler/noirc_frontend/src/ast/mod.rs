@@ -215,6 +215,7 @@ pub enum UnresolvedTypeExpression {
         Box<UnresolvedTypeExpression>,
         Span,
     ),
+    AsTraitPath(Box<AsTraitPath>),
 }
 
 impl Recoverable for UnresolvedType {
@@ -310,6 +311,7 @@ impl std::fmt::Display for UnresolvedTypeExpression {
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
                 write!(f, "({lhs} {op} {rhs})")
             }
+            UnresolvedTypeExpression::AsTraitPath(path) => write!(f, "{path}"),
         }
     }
 }
@@ -381,6 +383,9 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::Variable(path) => path.span(),
             UnresolvedTypeExpression::Constant(_, span) => *span,
             UnresolvedTypeExpression::BinaryOperation(_, _, _, span) => *span,
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                path.trait_path.span.merge(path.impl_item.span())
+            }
         }
     }
 
@@ -422,6 +427,9 @@ impl UnresolvedTypeExpression {
                     }
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))
+            }
+            ExpressionKind::AsTraitPath(path) => {
+                Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
             }
             _ => Err(expr),
         }

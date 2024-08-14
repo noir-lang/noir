@@ -1,7 +1,8 @@
 use crate::{
+    ast::UnresolvedTypeExpression,
     graph::CrateId,
     hir::def_collector::{dc_crate::UnresolvedTraitImpl, errors::DefCollectorErrorKind},
-    macros_api::{Ident, UnresolvedType},
+    macros_api::{Ident, UnresolvedType, UnresolvedTypeData},
     node_interner::TraitImplId,
     ResolvedGeneric,
 };
@@ -224,10 +225,19 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn take_unresolved_associated_types(
+        &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> Vec<(Ident, UnresolvedType)> {
         let mut associated_types = Vec::new();
-        for (name, typ, _) in trait_impl.associated_constants.drain(..) {
+        for (name, _, expr) in trait_impl.associated_constants.drain(..) {
+            let span = expr.span;
+            let typ = match UnresolvedTypeExpression::from_expr(expr, span) {
+                Ok(expr) => UnresolvedTypeData::Expression(expr).with_span(span),
+                Err(error) => {
+                    self.push_err(error);
+                    UnresolvedTypeData::Error.with_span(span)
+                }
+            };
             associated_types.push((name, typ));
         }
         for (name, typ) in trait_impl.associated_types.drain(..) {

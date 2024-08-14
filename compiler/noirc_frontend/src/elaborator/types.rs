@@ -7,8 +7,8 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        BinaryOpKind, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTypeExpression,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{Interpreter, Value},
@@ -32,8 +32,8 @@ use crate::{
         SecondaryAttribute, Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TraitImplKind,
-        TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TraitImplId,
+        TraitImplKind, TraitMethodId,
     },
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
@@ -156,7 +156,7 @@ impl<'context> Elaborator<'context> {
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
-            AsTraitPath(_) => todo!("Resolve AsTraitPath"),
+            AsTraitPath(path) => self.resolve_as_trait_path(*path),
         };
 
         let location = Location::new(named_path_span.unwrap_or(typ.span), self.file);
@@ -395,9 +395,7 @@ impl<'context> Elaborator<'context> {
             let expected = required_args.remove(index);
             seen_args.insert(name.0.contents.clone(), name.span());
 
-            eprint!("Resolved {name}: {typ}");
             let typ = self.resolve_type_inner(typ, &expected.kind);
-            eprintln!(" to {typ}");
             resolved.push(NamedType { name, typ });
         }
 
@@ -466,6 +464,57 @@ impl<'context> Elaborator<'context> {
                         Type::InfixExpr(Box::new(lhs), op, Box::new(rhs)).canonicalize()
                     }
                 }
+            }
+            UnresolvedTypeExpression::AsTraitPath(path) => self.resolve_as_trait_path(*path),
+        }
+    }
+
+    fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
+        // TODO! Need to resolve typ, this should be a trait constraint not just a lookup
+        if path.trait_path.segments.len() == 1 && path.trait_path.first_name() == SELF_TYPE_NAME {
+            if let Some(impl_id) = self.current_trait_impl {
+                self.get_associated_type_from_trait_impl(path, impl_id)
+            } else if let Some(trait_id) = self.current_trait {
+                self.get_associated_type_from_trait(trait_id, &path.impl_item)
+            } else {
+                todo!("No Self in scope error");
+            }
+        } else {
+            let Some(trait_id) = self.resolve_trait_by_path(path.trait_path) else {
+                // Error should already be pushed in the None case
+                return Type::Error;
+            };
+            self.get_associated_type_from_trait(trait_id, &path.impl_item)
+        }
+    }
+
+    /// Retrieves an associated type with the given name from the given trait.
+    /// If there is no such type, we push an error and return Type::Error.
+    fn get_associated_type_from_trait(&mut self, trait_id: TraitId, name: &Ident) -> Type {
+        let the_trait = self.interner.get_trait(trait_id);
+        match the_trait.get_associated_type(&name.0.contents) {
+            Some(generic) => generic.clone().as_named_generic(),
+            None => {
+                let name = name.clone();
+                let item = the_trait.name.to_string();
+                self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item });
+                Type::Error
+            }
+        }
+    }
+
+    fn get_associated_type_from_trait_impl(
+        &mut self,
+        path: AsTraitPath,
+        impl_id: TraitImplId,
+    ) -> Type {
+        match self.interner.find_associated_type_for_impl(impl_id, &path.impl_item.0.contents) {
+            Some(generic) => generic.clone(),
+            None => {
+                let name = path.impl_item.clone();
+                let item = format!("<{} as {}>", path.typ, path.trait_path);
+                self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item });
+                Type::Error
             }
         }
     }

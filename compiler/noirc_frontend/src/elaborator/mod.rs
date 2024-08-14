@@ -1365,7 +1365,7 @@ impl<'context> Elaborator<'context> {
 
             // Add each associated type to the list of named type arguments
             let mut trait_generics = trait_impl.trait_generics.clone();
-            trait_generics.named_args.extend(Self::take_unresolved_associated_types(trait_impl));
+            trait_generics.named_args.extend(self.take_unresolved_associated_types(trait_impl));
 
             let impl_id = self.interner.next_trait_impl_id();
             self.current_trait_impl = Some(impl_id);
