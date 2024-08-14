@@ -13,7 +13,9 @@ fn fold_conditional_wrapper(x: bool) -> Field {
 
 #[fold]
 fn fold_conditional(x: bool) -> Field {
-    conditional_wrapper(x)
+    unsafe {
+        conditional_wrapper(x)
+    }
 }
 
 unconstrained fn conditional_wrapper(x: bool) -> Field {

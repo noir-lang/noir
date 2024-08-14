@@ -544,6 +544,9 @@ impl<'a> NodeFinder<'a> {
 
                 self.local_variables = old_local_variables;
             }
+            noirc_frontend::ast::ExpressionKind::Unsafe(block_expression, _) => {
+                self.find_in_block_expression(block_expression);
+            }
             noirc_frontend::ast::ExpressionKind::AsTraitPath(as_trait_path) => {
                 self.find_in_as_trait_path(as_trait_path);
             }
@@ -707,7 +710,7 @@ impl<'a> NodeFinder<'a> {
             noirc_frontend::ast::UnresolvedTypeData::Tuple(unresolved_types) => {
                 self.find_in_unresolved_types(unresolved_types);
             }
-            noirc_frontend::ast::UnresolvedTypeData::Function(args, ret, env) => {
+            noirc_frontend::ast::UnresolvedTypeData::Function(args, ret, env, _) => {
                 self.find_in_unresolved_types(args);
                 self.find_in_unresolved_type(ret);
                 self.find_in_unresolved_type(env);
@@ -1012,7 +1015,7 @@ impl<'a> NodeFinder<'a> {
             | Type::TypeVariable(_, _)
             | Type::TraitAsType(_, _, _)
             | Type::NamedGeneric(_, _, _)
-            | Type::Function(_, _, _)
+            | Type::Function(..)
             | Type::Forall(_, _)
             | Type::Constant(_)
             | Type::Quoted(_)
@@ -1557,8 +1560,11 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String
         typ = typ_;
     }
 
-    if let Type::Function(args, ret, _env) = typ {
+    if let Type::Function(args, ret, _env, unconstrained) = typ {
         let mut string = String::new();
+        if *unconstrained {
+            string.push_str("unconstrained ");
+        }
         string.push_str("fn(");
         for (index, arg) in args.iter().enumerate() {
             if index > 0 {
