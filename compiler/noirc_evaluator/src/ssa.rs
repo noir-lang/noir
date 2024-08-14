@@ -204,8 +204,10 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let ArtifactsAndWarnings((generated_acirs, generated_brillig, brillig_function_names, error_types), ssa_level_warnings) =
-        optimize_into_acir(program, options)?;
+    let ArtifactsAndWarnings(
+        (generated_acirs, generated_brillig, brillig_function_names, error_types),
+        ssa_level_warnings,
+    ) = optimize_into_acir(program, options)?;
     if options.force_brillig_output {
         assert_eq!(
             generated_acirs.len(),
