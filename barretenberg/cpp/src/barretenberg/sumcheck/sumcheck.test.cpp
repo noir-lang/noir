@@ -1,5 +1,6 @@
 #include "sumcheck.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/relations/auxiliary_relation.hpp"
 #include "barretenberg/relations/delta_range_constraint_relation.hpp"
 #include "barretenberg/relations/elliptic_relation.hpp"
@@ -15,13 +16,14 @@ using namespace bb;
 namespace {
 using Flavor = UltraFlavor;
 using FF = typename Flavor::FF;
+using Polynomial = Polynomial<FF>;
 using ProverPolynomials = typename Flavor::ProverPolynomials;
 using RelationSeparator = Flavor::RelationSeparator;
 const size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
 
-Polynomial<FF> random_poly(size_t size)
+Polynomial random_poly(size_t size)
 {
-    auto poly = bb::Polynomial<FF>(size);
+    auto poly = Polynomial(size);
     for (auto& coeff : poly) {
         coeff = FF::random_element();
     }
@@ -51,7 +53,7 @@ TEST_F(SumcheckTests, PolynomialNormalization)
 
     // Randomly construct the prover polynomials that are input to Sumcheck.
     // Note: ProverPolynomials are defined as spans so the polynomials they point to need to exist in memory.
-    std::array<Polynomial<FF>, NUM_POLYNOMIALS> random_polynomials;
+    std::array<bb::Polynomial<FF>, NUM_POLYNOMIALS> random_polynomials;
     for (auto& poly : random_polynomials) {
         poly = random_poly(multivariate_n);
     }
@@ -114,7 +116,7 @@ TEST_F(SumcheckTests, PolynomialNormalization)
     // full polynomials at challenge u via the evaluate_mle() function
     std::vector<FF> u_challenge = { u_0, u_1, u_2 };
     for (auto [full_poly, claimed_eval] : zip_view(full_polynomials.get_all(), output.claimed_evaluations.get_all())) {
-        Polynomial<FF> poly(full_poly);
+        bb::Polynomial<FF> poly(full_poly);
         auto v_expected = poly.evaluate_mle(u_challenge);
         EXPECT_EQ(v_expected, claimed_eval);
     }
@@ -127,7 +129,7 @@ TEST_F(SumcheckTests, Prover)
 
     // Randomly construct the prover polynomials that are input to Sumcheck.
     // Note: ProverPolynomials are defined as spans so the polynomials they point to need to exist in memory.
-    std::array<Polynomial<FF>, NUM_POLYNOMIALS> random_polynomials;
+    std::array<bb::Polynomial<FF>, NUM_POLYNOMIALS> random_polynomials;
     for (auto& poly : random_polynomials) {
         poly = random_poly(multivariate_n);
     }
@@ -174,9 +176,9 @@ TEST_F(SumcheckTests, ProverAndVerifierSimple)
 
         // Construct prover polynomials where each is the zero polynomial.
         // Note: ProverPolynomials are defined as spans so the polynomials they point to need to exist in memory.
-        std::array<Polynomial<FF>, NUM_POLYNOMIALS> zero_polynomials;
+        std::array<bb::Polynomial<FF>, NUM_POLYNOMIALS> zero_polynomials;
         for (auto& poly : zero_polynomials) {
-            poly = Polynomial<FF>(multivariate_n);
+            poly = bb::Polynomial<FF>(multivariate_n);
         }
         auto full_polynomials = construct_ultra_full_polynomials(zero_polynomials);
 
@@ -199,16 +201,16 @@ TEST_F(SumcheckTests, ProverAndVerifierSimple)
         std::array<FF, multivariate_n> q_arith = { 0, 1, 1, 0 };
         // Setting all of these to 0 ensures the GrandProductRelation is satisfied
 
-        full_polynomials.w_l = w_l;
-        full_polynomials.w_r = w_r;
-        full_polynomials.w_o = w_o;
-        full_polynomials.w_4 = w_4;
-        full_polynomials.q_m = q_m;
-        full_polynomials.q_l = q_l;
-        full_polynomials.q_r = q_r;
-        full_polynomials.q_o = q_o;
-        full_polynomials.q_c = q_c;
-        full_polynomials.q_arith = q_arith;
+        full_polynomials.w_l = bb::Polynomial<FF>(w_l);
+        full_polynomials.w_r = bb::Polynomial<FF>(w_r);
+        full_polynomials.w_o = bb::Polynomial<FF>(w_o);
+        full_polynomials.w_4 = bb::Polynomial<FF>(w_4);
+        full_polynomials.q_m = bb::Polynomial<FF>(q_m);
+        full_polynomials.q_l = bb::Polynomial<FF>(q_l);
+        full_polynomials.q_r = bb::Polynomial<FF>(q_r);
+        full_polynomials.q_o = bb::Polynomial<FF>(q_o);
+        full_polynomials.q_c = bb::Polynomial<FF>(q_c);
+        full_polynomials.q_arith = bb::Polynomial<FF>(q_arith);
 
         // Set aribitrary random relation parameters
         RelationParameters<FF> relation_parameters{

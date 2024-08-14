@@ -1,6 +1,6 @@
 #pragma once
 #include "./polynomial_store_wasm.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/legacy_polynomial.hpp"
 #include <map>
 #include <string>
 
@@ -17,7 +17,7 @@ namespace bb {
  */
 class PolynomialStoreCache {
   private:
-    using Polynomial = bb::Polynomial<bb::fr>;
+    using Polynomial = bb::LegacyPolynomial<bb::fr>;
     std::map<std::string, Polynomial> cache_;
     std::multimap<size_t, std::map<std::string, Polynomial>::iterator> size_map_;
     PolynomialStoreWasm<bb::fr> external_store;

@@ -5,7 +5,7 @@
 #include "../types/program_settings.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/plonk/work_queue/work_queue.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/legacy_polynomial.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <gtest/gtest.h>

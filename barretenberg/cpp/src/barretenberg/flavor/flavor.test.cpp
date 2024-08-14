@@ -1,4 +1,3 @@
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include <cstddef>
@@ -78,7 +77,7 @@ TEST(Flavor, GetRow)
     });
     Flavor::ProverPolynomials prover_polynomials;
     for (auto [poly, entry] : zip_view(prover_polynomials.get_all(), data)) {
-        poly = entry;
+        poly = Flavor::Polynomial(entry);
     }
     auto row0 = prover_polynomials.get_row(0);
     auto row1 = prover_polynomials.get_row(1);

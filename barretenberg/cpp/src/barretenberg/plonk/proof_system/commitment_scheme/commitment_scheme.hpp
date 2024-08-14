@@ -1,5 +1,5 @@
 #pragma once
-#include "../../../polynomials/polynomial.hpp"
+#include "../../../polynomials/legacy_polynomial.hpp"
 #include "../../../polynomials/polynomial_arithmetic.hpp"
 #include "../types/commitment_open_proof.hpp"
 #include "../types/program_settings.hpp"

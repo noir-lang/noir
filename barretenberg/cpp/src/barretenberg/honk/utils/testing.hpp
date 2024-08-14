@@ -1,6 +1,5 @@
 #pragma once
 #include "barretenberg/common/zip_view.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 
 namespace bb {
 /**

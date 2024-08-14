@@ -1,7 +1,6 @@
 
 #include "barretenberg/plonk_honk_shared/library/grand_product_library.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 
 #include "barretenberg/srs/factories/file_crs_factory.hpp"

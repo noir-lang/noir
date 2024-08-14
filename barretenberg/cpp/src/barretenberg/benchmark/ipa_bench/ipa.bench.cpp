@@ -1,4 +1,5 @@
 #include "barretenberg/commitment_schemes/ipa/ipa.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include <benchmark/benchmark.h>
 
 using namespace benchmark;
@@ -7,6 +8,7 @@ using namespace bb;
 namespace {
 using Curve = curve::Grumpkin;
 using Fr = Curve::ScalarField;
+using Polynomial = Polynomial<Fr>;
 
 constexpr size_t MIN_POLYNOMIAL_DEGREE_LOG2 = 10;
 constexpr size_t MAX_POLYNOMIAL_DEGREE_LOG2 = 16;
@@ -31,7 +33,7 @@ void ipa_open(State& state) noexcept
         state.PauseTiming();
         size_t n = 1 << static_cast<size_t>(state.range(0));
         // Construct the polynomial
-        Polynomial<Fr> poly(n);
+        Polynomial poly(n);
         for (size_t i = 0; i < n; ++i) {
             poly[i] = Fr::random_element(&engine);
         }

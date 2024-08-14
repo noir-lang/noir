@@ -59,7 +59,7 @@ namespace bb {
  */
 template <typename Curve> struct GeminiProverOutput {
     std::vector<OpeningPair<Curve>> opening_pairs;
-    std::vector<bb::Polynomial<typename Curve::ScalarField>> witnesses;
+    std::vector<Polynomial<typename Curve::ScalarField>> witnesses;
 };
 
 namespace gemini {

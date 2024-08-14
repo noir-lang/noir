@@ -1,5 +1,6 @@
 
 #include "barretenberg/commitment_schemes/commitment_key.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/mem_bn254_crs_factory.hpp"
 #include <benchmark/benchmark.h>
 

@@ -10,7 +10,6 @@
 #include "barretenberg/flavor/flavor_macros.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/flavor/flavor.hpp"
 
 #include "barretenberg/vm/{{snakeCase name}}/generated/flavor_settings.hpp"
@@ -41,7 +40,7 @@ template <typename... input_t> using tuple_cat_t = decltype(std::tuple_cat(std::
 namespace bb {
 
 class {{name}}Flavor {
-  public: 
+  public:
     using Curve = {{name}}FlavorSettings::Curve;
     using G1 = {{name}}FlavorSettings::G1;
     using PCS = {{name}}FlavorSettings::PCS;
@@ -59,7 +58,7 @@ class {{name}}Flavor {
     // This flavor would not be used with ZK Sumcheck
     static constexpr bool HasZK = false;
 
-    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = {{len fixed}}; 
+    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = {{len fixed}};
     static constexpr size_t NUM_WITNESS_ENTITIES = {{len witness}};
     static constexpr size_t NUM_SHIFTED_ENTITIES = {{len shifted}};
     static constexpr size_t NUM_WIRES = NUM_WITNESS_ENTITIES + NUM_PRECOMPUTED_ENTITIES;
@@ -144,7 +143,7 @@ class {{name}}Flavor {
                     , public ShiftedEntities<DataType> {
         public:
           DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
-          
+
           auto get_unshifted() {
             return concatenate(PrecomputedEntities<DataType>::get_all(), WitnessEntities<DataType>::get_all());
           }
@@ -160,7 +159,7 @@ class {{name}}Flavor {
           using Base = ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
           using Base::Base;
 
-          auto get_to_be_shifted() { 
+          auto get_to_be_shifted() {
             return {{name}}Flavor::get_to_be_shifted<DataType>(*this);
            }
       };
@@ -180,7 +179,7 @@ class {{name}}Flavor {
           using BaseDataType = const FF;
           using DataType = BaseDataType&;
 
-          {{!-- 
+          {{!--
           We define the flavor members here again to avoid having to make this class inherit from AllEntities.
           If we did inherit from AllEntities, we have to define a special constructor for AllEntities, and all
           the classes that AllEntities inherits from, in cascade.
@@ -202,7 +201,7 @@ class {{name}}Flavor {
           ProverPolynomials(ProverPolynomials&& o) noexcept = default;
           ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
           ~ProverPolynomials() = default;
-          
+
           ProverPolynomials(ProvingKey& proving_key);
 
           [[nodiscard]] size_t get_polynomial_size() const { return {{witness.0}}.size(); }

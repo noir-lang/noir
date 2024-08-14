@@ -24,6 +24,7 @@
 #include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/global_crs.hpp"
 #include <benchmark/benchmark.h>
 

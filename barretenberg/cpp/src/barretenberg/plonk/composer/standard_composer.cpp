@@ -6,7 +6,7 @@
 #include "barretenberg/plonk/proof_system/widgets/transition_widgets/arithmetic_widget.hpp"
 #include "barretenberg/plonk_honk_shared/composer/composer_lib.hpp"
 #include "barretenberg/plonk_honk_shared/composer/permutation_lib.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/legacy_polynomial.hpp"
 
 #include <cstddef>
 #include <cstdint>

@@ -18,7 +18,7 @@ template <class ProverInstances_> struct ProtogalaxyProofConstructionState {
     using ProverInstance = typename ProverInstances_::Instance;
 
     std::shared_ptr<ProverInstance> accumulator;
-    Polynomial<FF> perturbator;
+    LegacyPolynomial<FF> perturbator;
     std::vector<FF> deltas;
     Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH, ProverInstances_::NUM> combiner_quotient;
     FF compressed_perturbator;
@@ -272,8 +272,8 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      *
      *
      */
-    static Polynomial<FF> compute_perturbator(const std::shared_ptr<Instance> accumulator,
-                                              const std::vector<FF>& deltas)
+    static LegacyPolynomial<FF> compute_perturbator(const std::shared_ptr<Instance> accumulator,
+                                                    const std::vector<FF>& deltas)
     {
         BB_OP_COUNT_TIME();
         auto full_honk_evaluations = compute_full_honk_evaluations(
@@ -281,7 +281,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
         const auto betas = accumulator->gate_challenges;
         assert(betas.size() == deltas.size());
         auto coeffs = construct_perturbator_coefficients(betas, deltas, full_honk_evaluations);
-        return Polynomial<FF>(coeffs);
+        return LegacyPolynomial<FF>(coeffs);
     }
 
     OptimisedTupleOfTuplesOfUnivariates optimised_univariate_accumulators;

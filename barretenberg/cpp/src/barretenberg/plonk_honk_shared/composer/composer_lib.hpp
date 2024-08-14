@@ -9,7 +9,7 @@
 namespace bb {
 
 template <typename Flavor>
-void construct_lookup_table_polynomials(RefArray<typename Flavor::Polynomial, 4> table_polynomials,
+void construct_lookup_table_polynomials(const RefArray<typename Flavor::Polynomial, 4>& table_polynomials,
                                         const typename Flavor::CircuitBuilder& circuit,
                                         size_t dyadic_circuit_size,
                                         size_t additional_offset = 0)

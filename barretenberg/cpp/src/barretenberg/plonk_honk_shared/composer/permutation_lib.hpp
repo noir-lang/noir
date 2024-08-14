@@ -13,7 +13,6 @@
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -347,10 +346,11 @@ void compute_monomial_and_coset_fft_polynomials_from_lagrange(std::string label,
  * @brief Compute Lagrange Polynomials L_0 and L_{n-1} and put them in the polynomial cache
  */
 template <typename FF>
-inline std::tuple<Polynomial<FF>, Polynomial<FF>> compute_first_and_last_lagrange_polynomials(const size_t circuit_size)
+inline std::tuple<LegacyPolynomial<FF>, LegacyPolynomial<FF>> compute_first_and_last_lagrange_polynomials(
+    const size_t circuit_size)
 {
-    Polynomial<FF> lagrange_polynomial_0(circuit_size);
-    Polynomial<FF> lagrange_polynomial_n_min_1(circuit_size);
+    LegacyPolynomial<FF> lagrange_polynomial_0(circuit_size);
+    LegacyPolynomial<FF> lagrange_polynomial_n_min_1(circuit_size);
     lagrange_polynomial_0[0] = 1;
 
     lagrange_polynomial_n_min_1[circuit_size - 1] = 1;

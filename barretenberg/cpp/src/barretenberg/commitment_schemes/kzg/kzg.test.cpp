@@ -5,7 +5,6 @@
 
 #include "../commitment_key.test.hpp"
 #include "barretenberg/commitment_schemes/claim.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 

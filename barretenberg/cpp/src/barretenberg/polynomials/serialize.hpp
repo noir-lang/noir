@@ -1,5 +1,5 @@
 #pragma once
-#include "polynomial.hpp"
+#include "legacy_polynomial.hpp"
 
 namespace bb {
 

@@ -1,6 +1,6 @@
 #include "polynomial_store.hpp"
 #include "barretenberg/common/assert.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/legacy_polynomial.hpp"
 #include <cstddef>
 #include <map>
 #include <string>
@@ -22,7 +22,7 @@ template <typename Fr> void PolynomialStore<Fr>::put(std::string const& key, Pol
  * @param key string ID of the polynomial
  * @return Polynomial&; a reference to the polynomial associated with the given key
  */
-template <typename Fr> bb::Polynomial<Fr> PolynomialStore<Fr>::get(std::string const& key)
+template <typename Fr> bb::LegacyPolynomial<Fr> PolynomialStore<Fr>::get(std::string const& key)
 {
     // info("poly store get: ", key);
     // Take a shallow copy of the polynomial. Compiler will move the shallow copy to call site.

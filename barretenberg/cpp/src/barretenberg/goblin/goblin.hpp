@@ -7,6 +7,7 @@
 #include "barretenberg/goblin/mock_circuits.hpp"
 #include "barretenberg/goblin/types.hpp"
 #include "barretenberg/plonk_honk_shared/instance_inspector.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/stdlib/honk_recursion/verifier/merge_recursive_verifier.hpp"
 #include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"

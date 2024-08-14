@@ -9,7 +9,6 @@
 
 #include "../commitment_key.test.hpp"
 #include "barretenberg/commitment_schemes/claim.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 namespace bb {
 template <class Params> class ShplonkTest : public CommitmentTest<Params> {};
 

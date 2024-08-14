@@ -1,7 +1,7 @@
 #pragma once
 
 #include "barretenberg/common/assert.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/legacy_polynomial.hpp"
 #include <cstddef>
 #include <map>
 #include <string>
@@ -11,7 +11,7 @@ namespace bb {
 
 template <typename Fr> class PolynomialStore {
   private:
-    using Polynomial = bb::Polynomial<Fr>;
+    using Polynomial = bb::LegacyPolynomial<Fr>;
     std::unordered_map<std::string, Polynomial> polynomial_map;
 
   public:

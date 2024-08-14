@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/legacy_polynomial.hpp"
 
 namespace bb::plonk {
 template <typename program_settings>

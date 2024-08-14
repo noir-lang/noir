@@ -127,7 +127,7 @@ template <typename Curve_> class IPA {
     *   7. Compute \f$\vec{b}_{i-1}=\vec{b}_{i\_low}+u_{i-1}^{-1}\cdot \vec{b}_{i\_high}\f$​
     *
     *7. Send the final \f$\vec{a}_{0} = (a_0)\f$ to the verifier
-    */ 
+    */
    template <typename Transcript>
    static void compute_opening_proof_internal(const std::shared_ptr<CK>& ck,
                                               const ProverOpeningClaim<Curve>& opening_claim,

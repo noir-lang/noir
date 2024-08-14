@@ -3,7 +3,6 @@
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/common/zip_view.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include <typeinfo>
 

@@ -1,7 +1,7 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 
-#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/legacy_polynomial.hpp"
 #include "polynomial_store.hpp"
 
 using namespace bb;
@@ -12,13 +12,13 @@ TEST(PolynomialStore, PutThenGet)
     PolynomialStore<fr> polynomial_store;
 
     // Instantiate a polynomial with random coefficients
-    Polynomial<fr> poly(1024);
+    LegacyPolynomial<fr> poly(1024);
     for (auto& coeff : poly) {
         coeff = fr::random_element();
     }
 
     // Make a copy for comparison after original is moved into container
-    Polynomial<fr> poly_copy(poly);
+    LegacyPolynomial<fr> poly_copy(poly);
 
     // Move the poly into the container
     polynomial_store.put("id", std::move(poly));
@@ -32,7 +32,7 @@ TEST(PolynomialStore, NonexistentKey)
 {
     PolynomialStore<fr> polynomial_store;
 
-    polynomial_store.put("id_1", Polynomial<fr>(100));
+    polynomial_store.put("id_1", LegacyPolynomial<fr>(100));
 
     polynomial_store.get("id_1"); // no problem!
 
@@ -47,9 +47,9 @@ TEST(PolynomialStore, Volume)
     size_t size2 = 10;
     size_t size3 = 5000;
 
-    Polynomial<fr> poly1(size1);
-    Polynomial<fr> poly2(size2);
-    Polynomial<fr> poly3(size3);
+    LegacyPolynomial<fr> poly1(size1);
+    LegacyPolynomial<fr> poly2(size2);
+    LegacyPolynomial<fr> poly3(size3);
 
     polynomial_store.put("id_1", std::move(poly1));
     polynomial_store.put("id_2", std::move(poly2));
@@ -68,8 +68,8 @@ TEST(PolynomialStore, Remove)
     PolynomialStore<fr> polynomial_store;
     size_t size1 = 100;
     size_t size2 = 500;
-    Polynomial<fr> poly1(size1);
-    Polynomial<fr> poly2(size2);
+    LegacyPolynomial<fr> poly1(size1);
+    LegacyPolynomial<fr> poly2(size2);
 
     polynomial_store.put("id_1", std::move(poly1));
     polynomial_store.put("id_2", std::move(poly2));

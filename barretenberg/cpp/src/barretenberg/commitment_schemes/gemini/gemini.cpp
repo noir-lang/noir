@@ -53,7 +53,7 @@ namespace bb {
  * @return std::vector<Polynomial>
  */
 template <typename Curve>
-std::vector<typename bb::Polynomial<typename Curve::ScalarField>> GeminiProver_<Curve>::compute_gemini_polynomials(
+std::vector<typename GeminiProver_<Curve>::Polynomial> GeminiProver_<Curve>::compute_gemini_polynomials(
     std::span<const Fr> mle_opening_point, Polynomial&& batched_unshifted, Polynomial&& batched_to_be_shifted)
 {
     const size_t num_variables = mle_opening_point.size(); // m
