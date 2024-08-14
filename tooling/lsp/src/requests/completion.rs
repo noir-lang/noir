@@ -477,19 +477,6 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_expression(&mut self, expression: &Expression) {
-        // "foo." (no identifier afterwards) is parsed as the expression on the left hand-side of the dot.
-        // Here we check if there's a dot at the completion position, and if the expression
-        // ends right before the dot. If so, it means we want to complete the expression's type fields and methods.
-        if self.byte == Some(b'.') && expression.span.end() as usize == self.byte_index - 1 {
-            let location = Location::new(expression.span, self.file);
-            if let Some(typ) = self.interner.type_at_location(location) {
-                let typ = typ.follow_bindings();
-                let prefix = "";
-                self.complete_type_fields_and_methods(&typ, prefix);
-                return;
-            }
-        }
-
         match &expression.kind {
             noirc_frontend::ast::ExpressionKind::Literal(literal) => self.find_in_literal(literal),
             noirc_frontend::ast::ExpressionKind::Block(block_expression) => {
@@ -550,6 +537,24 @@ impl<'a> NodeFinder<'a> {
             noirc_frontend::ast::ExpressionKind::Quote(_)
             | noirc_frontend::ast::ExpressionKind::Resolved(_)
             | noirc_frontend::ast::ExpressionKind::Error => (),
+        }
+
+        // "foo." (no identifier afterwards) is parsed as the expression on the left hand-side of the dot.
+        // Here we check if there's a dot at the completion position, and if the expression
+        // ends right before the dot. If so, it means we want to complete the expression's type fields and methods.
+        // We only do this after visiting nested expressions, because in an expression like `foo & bar.` we want
+        // to complete for `bar`, not for `foo & bar`.
+        if self.completion_items.is_empty()
+            && self.byte == Some(b'.')
+            && expression.span.end() as usize == self.byte_index - 1
+        {
+            let location = Location::new(expression.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
+                let prefix = "";
+                self.complete_type_fields_and_methods(&typ, prefix);
+                return;
+            }
         }
     }
 
@@ -2892,6 +2897,23 @@ mod completion_tests {
         assert_completion(
             src,
             vec![simple_completion_item("foo", CompletionItemKind::FIELD, Some("i32".to_string()))],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_completes_in_nested_expression() {
+        let src = r#"
+            struct Foo { bar: Bar }
+            struct Bar { baz: i32 }
+
+            fn foo(f: Foo) {
+                f.bar & f.>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item("bar", CompletionItemKind::FIELD, Some("Bar".to_string()))],
         )
         .await;
     }
