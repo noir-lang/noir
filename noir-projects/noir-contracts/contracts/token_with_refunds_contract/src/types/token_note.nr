@@ -5,7 +5,7 @@ use dep::aztec::{
     constants::GENERATOR_INDEX__NOTE_NULLIFIER, point::{Point, POINT_LENGTH}, scalar::Scalar,
     hash::poseidon2_hash_with_separator, traits::Serialize
 },
-    note::utils::compute_note_hash_for_consumption, oracle::unsafe_rand::unsafe_rand,
+    note::utils::compute_note_hash_for_nullify, oracle::unsafe_rand::unsafe_rand,
     keys::getters::get_nsk_app
 };
 use dep::std::{embedded_curve_ops::multi_scalar_mul, hash::from_field_unsafe};
@@ -30,19 +30,21 @@ struct TokenNote {
 
 impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
     // docs:start:nullifier
-    fn compute_note_hash_and_nullifier(self, context: &mut PrivateContext) -> ( Field, Field ) {
-        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
+    fn compute_nullifier(self, context: &mut PrivateContext, note_hash_for_nullify: Field) -> Field {
         let secret = context.request_nsk_app(self.npk_m_hash);
-        let nullifier = poseidon2_hash_with_separator([note_hash_for_nullify, secret], GENERATOR_INDEX__NOTE_NULLIFIER);
-        (note_hash_for_nullify, nullifier)
+        poseidon2_hash_with_separator([
+            note_hash_for_nullify,
+            secret
+        ],
+            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+        )
     }
     // docs:end:nullifier
 
-    fn compute_note_hash_and_nullifier_without_context(self) -> ( Field, Field ) {
-        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
+    fn compute_nullifier_without_context(self) -> Field {
+        let note_hash_for_nullify = compute_note_hash_for_nullify(self);
         let secret = get_nsk_app(self.npk_m_hash);
-        let nullifier = poseidon2_hash_with_separator([note_hash_for_nullify,secret,],GENERATOR_INDEX__NOTE_NULLIFIER);
-        (note_hash_for_nullify, nullifier)
+        poseidon2_hash_with_separator([note_hash_for_nullify, secret],GENERATOR_INDEX__NOTE_NULLIFIER)
     }
 
     fn compute_note_hiding_point(self) -> Point {

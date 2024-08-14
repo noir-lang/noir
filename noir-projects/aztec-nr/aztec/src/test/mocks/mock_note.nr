@@ -40,12 +40,12 @@ impl NoteInterface<MOCK_NOTE_LENGTH, MOCK_NOTE_BYTES_LENGTH> for MockNote {
       0
     }
 
-    fn compute_note_hash_and_nullifier(_self: Self, _context: &mut PrivateContext) -> (Field, Field) {
-      (0, 0)
+    fn compute_nullifier(_self: Self, _context: &mut PrivateContext, _note_hash_for_nullify: Field) -> Field {
+      0
     }
 
-    fn compute_note_hash_and_nullifier_without_context(_self: Self) -> (Field, Field) {
-      (0, 0)
+    fn compute_nullifier_without_context(_self: Self) -> Field {
+      0
     }
 
     fn to_be_bytes(self, storage_slot: Field) -> [u8; MOCK_NOTE_BYTES_LENGTH] {

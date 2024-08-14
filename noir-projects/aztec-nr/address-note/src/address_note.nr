@@ -3,7 +3,7 @@ use dep::aztec::{
     address::AztecAddress, traits::Empty, constants::GENERATOR_INDEX__NOTE_NULLIFIER,
     hash::poseidon2_hash_with_separator
 },
-    note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_consumption},
+    note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_nullify},
     oracle::unsafe_rand::unsafe_rand, keys::getters::get_nsk_app, context::PrivateContext
 };
 
@@ -25,28 +25,25 @@ struct AddressNote {
 
 impl NoteInterface<ADDRESS_NOTE_LEN, ADDRESS_NOTE_BYTES_LEN> for AddressNote {
 
-    fn compute_note_hash_and_nullifier(self, context: &mut PrivateContext) -> (Field, Field) {
-        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
+    fn compute_nullifier(self, context: &mut PrivateContext, note_hash_for_nullify: Field) -> Field {
         let secret = context.request_nsk_app(self.npk_m_hash);
-        let nullifier = poseidon2_hash_with_separator([
+        poseidon2_hash_with_separator([
             note_hash_for_nullify,
             secret
         ],
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        );
-        (note_hash_for_nullify, nullifier)
+        )
     }
 
-    fn compute_note_hash_and_nullifier_without_context(self) -> (Field, Field) {
-        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
+    fn compute_nullifier_without_context(self) -> Field {
+        let note_hash_for_nullify = compute_note_hash_for_nullify(self);
         let secret = get_nsk_app(self.npk_m_hash);
-        let nullifier = poseidon2_hash_with_separator([
+        poseidon2_hash_with_separator([
             note_hash_for_nullify,
             secret
         ],
             GENERATOR_INDEX__NOTE_NULLIFIER as Field,
-        );
-        (note_hash_for_nullify, nullifier)
+        )
     }
 }
 

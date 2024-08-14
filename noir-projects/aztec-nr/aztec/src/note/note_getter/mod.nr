@@ -92,7 +92,7 @@ fn check_notes_order<let N: u32>(
 pub fn get_note<Note, let N: u32, let M: u32>(
     context: &mut PrivateContext,
     storage_slot: Field
-) -> Note where Note: NoteInterface<N, M> {
+) -> (Note, Field) where Note: NoteInterface<N, M> {
     let note = get_note_internal(storage_slot);
 
     check_note_header(*context, storage_slot, note);
@@ -100,14 +100,14 @@ pub fn get_note<Note, let N: u32, let M: u32>(
     let note_hash_for_read_request = compute_note_hash_for_read_request(note);
 
     context.push_note_hash_read_request(note_hash_for_read_request);
-    note
+    (note, note_hash_for_read_request)
 }
 
 pub fn get_notes<Note, let N: u32, let M: u32, PREPROCESSOR_ARGS, FILTER_ARGS>(
     context: &mut PrivateContext,
     storage_slot: Field,
     options: NoteGetterOptions<Note, N, M, PREPROCESSOR_ARGS, FILTER_ARGS>
-) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> where Note: NoteInterface<N, M> + Eq {
+) -> (BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>, BoundedVec<Field, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>) where Note: NoteInterface<N, M> + Eq {
     let opt_notes = get_notes_internal(storage_slot, options);
 
     constrain_get_notes_internal(context, storage_slot, opt_notes, options)
@@ -126,7 +126,7 @@ fn constrain_get_notes_internal<Note, let N: u32, let M: u32, PREPROCESSOR_ARGS,
     storage_slot: Field,
     opt_notes: [Option<Note>; MAX_NOTE_HASH_READ_REQUESTS_PER_CALL],
     options: NoteGetterOptions<Note, N, M, PREPROCESSOR_ARGS, FILTER_ARGS>
-) -> BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> where Note: NoteInterface<N, M> + Eq {
+) -> (BoundedVec<Note, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>, BoundedVec<Field, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL>) where Note: NoteInterface<N, M> + Eq {
     // The filter is applied first to avoid pushing note read requests for notes we're not interested in. Note that
     // while the filter function can technically mutate the contents of the notes (as opposed to simply removing some),
     // the private kernel will later validate that these note actually exist, so transformations would cause for that
@@ -136,6 +136,7 @@ fn constrain_get_notes_internal<Note, let N: u32, let M: u32, PREPROCESSOR_ARGS,
     let filtered_notes = filter_fn(opt_notes, filter_args);
 
     let notes = crate::utils::collapse(filtered_notes);
+    let mut note_hashes: BoundedVec<Field, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL> = BoundedVec::new();
 
     // We have now collapsed the sparse array of Options into a BoundedVec. This is a more ergonomic type and also
     // results in reduced gate counts when setting a limit value, since we guarantee that the limit is an upper bound
@@ -158,10 +159,11 @@ fn constrain_get_notes_internal<Note, let N: u32, let M: u32, PREPROCESSOR_ARGS,
             // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1410): test to ensure
             // failure if malicious oracle injects 0 nonce here for a "pre-existing" note.
             context.push_note_hash_read_request(note_hash_for_read_request);
+            note_hashes.push(note_hash_for_read_request);
         };
     }
 
-    notes
+    (notes, note_hashes)
 }
 
 unconstrained fn get_note_internal<Note, let N: u32, let M: u32>(storage_slot: Field) -> Note where Note: NoteInterface<N, M> {

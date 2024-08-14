@@ -5,7 +5,7 @@ use dep::protocol_types::{
 
 use crate::context::{PrivateContext, UnconstrainedContext};
 use crate::note::{
-    lifecycle::{create_note, destroy_note}, note_getter::{get_note, view_notes},
+    lifecycle::{create_note, destroy_note_unsafe}, note_getter::{get_note, view_notes},
     note_interface::NoteInterface, note_viewer_options::NoteViewerOptions, note_emission::NoteEmission
 };
 use crate::oracle::notes::check_nullifier_exists;
@@ -36,8 +36,8 @@ impl<Note, Context> PrivateMutable<Note, Context> {
     // Under such circumstances, such application developers might wish to _not_ use this state variable type.
     // This is especially dangerous for initial assignment to elements of a `Map<AztecAddress, PrivateMutable>` type (for example), because the storage slot often also identifies an actor. e.g.
     // the initial assignment to `my_map.at(msg.sender)` will leak: `msg.sender`, the fact that an element of `my_map` was assigned-to for the first time, and the contract_address.
-    // Note: subsequent nullification of this state variable, via the `replace` method will not be leaky, if the `compute_note_hash_and_nullifier()` method of the underlying note is designed to ensure privacy.
-    // For example, if the `compute_note_hash_and_nullifier()` method injects the secret key of a note owner into the computed nullifier's preimage.
+    // Note: subsequent nullification of this state variable, via the `replace` method will not be leaky, if the `compute_nullifier()` method of the underlying note is designed to ensure privacy.
+    // For example, if the `compute_nullifier()` method injects the secret key of a note owner into the computed nullifier's preimage.
     pub fn compute_initialization_nullifier(self) -> Field {
         poseidon2_hash_with_separator(
             [self.storage_slot],
@@ -59,10 +59,10 @@ impl<Note, N, M> PrivateMutable<Note, &mut PrivateContext> where Note: NoteInter
 
     // docs:start:replace
     pub fn replace(self, new_note: &mut Note) -> NoteEmission<Note> {
-        let prev_note: Note = get_note(self.context, self.storage_slot);
+        let (prev_note, note_hash_for_read_request): (Note, Field) = get_note(self.context, self.storage_slot);
 
         // Nullify previous note.
-        destroy_note(self.context, prev_note);
+        destroy_note_unsafe(self.context, prev_note, note_hash_for_read_request);
 
         // Add replacement note.
         create_note(self.context, self.storage_slot, new_note)
@@ -91,10 +91,10 @@ impl<Note, N, M> PrivateMutable<Note, &mut PrivateContext> where Note: NoteInter
 
     // docs:start:get_note
     pub fn get_note(self) -> NoteEmission<Note> {
-        let mut note = get_note(self.context, self.storage_slot);
+        let mut (note, note_hash_for_read_request) = get_note(self.context, self.storage_slot);
 
         // Nullify current note to make sure it's reading the latest note.
-        destroy_note(self.context, note);
+        destroy_note_unsafe(self.context, note, note_hash_for_read_request);
 
         // Add the same note again.
         // Because a nonce is added to every note in the kernel, its nullifier will be different.

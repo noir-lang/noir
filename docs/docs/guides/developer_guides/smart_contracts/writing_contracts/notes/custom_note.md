@@ -25,11 +25,11 @@ You will need to implement a note interface for your note. Most of this is autom
 
 #include_code note_interface noir-projects/aztec-nr/aztec/src/note/note_interface.nr rust
 
-You will need to implement the functions `compute_note_hash_and_nullifier()` and `compute_note_hash_and_nullifier_without_context()` which tells Aztec how to compute nullifiers for your note.
+You will need to implement the functions `compute_nullifier(...)` and `compute_nullifier_without_context()` which tells Aztec how to compute nullifiers for your note.
 
 #include_code note_interface noir-projects/noir-contracts/contracts/docs_example_contract/src/types/card_note.nr rust
  
-In this example, these functions compute the note hash by using `compute_note_hash_for_consumption` and then generate a nullifier by hashing this note hash together with a secret.
+In this example, these functions compute the note hash by using `compute_note_hash_for_nullify` and then generate a nullifier by hashing this note hash together with a secret.
 
 ### Methods
 

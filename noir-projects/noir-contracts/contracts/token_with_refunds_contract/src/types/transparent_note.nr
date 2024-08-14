@@ -1,6 +1,6 @@
 // docs:start:token_types_all
 use dep::aztec::{
-    note::{note_getter_options::PropertySelector, utils::compute_note_hash_for_consumption},
+    note::{note_getter_options::PropertySelector, utils::compute_note_hash_for_nullify},
     prelude::{NoteHeader, NoteInterface, PrivateContext},
     protocol_types::{constants::GENERATOR_INDEX__NOTE_NULLIFIER, hash::poseidon2_hash_with_separator}
 };
@@ -40,9 +40,8 @@ impl NoteInterface<TRANSPARENT_NOTE_LEN, TRANSPARENT_NOTE_BYTES_LEN> for Transpa
         }
     }
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): Ensure nullifier collisions are prevented
-    fn compute_note_hash_and_nullifier(self, _context: &mut PrivateContext) -> (Field, Field) {
-        self.compute_note_hash_and_nullifier_without_context()
+    fn compute_nullifier(self, _context: &mut PrivateContext, _note_hash_for_nullify: Field) -> Field {
+        self.compute_nullifier_without_context()
     }
 
     // Computing a nullifier in a transparent note is not guarded by making secret a part of the nullifier preimage (as
@@ -53,10 +52,13 @@ impl NoteInterface<TRANSPARENT_NOTE_LEN, TRANSPARENT_NOTE_BYTES_LEN> for Transpa
     //      3) the "get_notes" oracle constrains that the secret hash in the returned note matches the one computed in
     //         circuit. 
     // This achieves that the note can only be spent by the party that knows the secret.
-    fn compute_note_hash_and_nullifier_without_context(self) -> (Field, Field) {
-        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
-        let nullifier = poseidon2_hash_with_separator([note_hash_for_nullify], GENERATOR_INDEX__NOTE_NULLIFIER);
-        (note_hash_for_nullify, nullifier)
+    fn compute_nullifier_without_context(self) -> Field {
+        let note_hash_for_nullify = compute_note_hash_for_nullify(self);
+        poseidon2_hash_with_separator([
+            note_hash_for_nullify,
+        ],
+            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+        )
     }
 }
 

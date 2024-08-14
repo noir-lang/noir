@@ -71,11 +71,13 @@ mod test {
 
         fn set_header(&mut self, header: NoteHeader) {self.header = header; }
 
-        fn compute_note_hash_and_nullifier(_self: Self, _context: &mut PrivateContext) -> (Field, Field) {
-            (1, 1)
+        fn compute_nullifier(_self: Self, _context: &mut PrivateContext, _note_hash_for_nullify: Field) -> Field {
+            1
         }
 
-        fn compute_note_hash_and_nullifier_without_context(_self: Self) -> (Field, Field) {(1,1)}
+        fn compute_nullifier_without_context(_self: Self) -> Field {
+            1
+        }
 
         fn serialize_content(self) -> [Field; ADDRESS_NOTE_LEN] { [self.address.to_field(), self.owner.to_field(), self.randomness]}
 

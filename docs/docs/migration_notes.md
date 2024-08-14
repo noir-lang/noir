@@ -8,6 +8,57 @@ Aztec is in full-speed development. Literally every version breaks compatibility
 
 ## 0.48.0
 
+### NoteInterface changes
+
+`compute_note_hash_and_nullifier*` functions were renamed as `compute_nullifier*` and the `compute_nullifier` function now takes `note_hash_for_nullify` as an argument (this allowed us to reduce gate counts and the hash was typically computed before). Also `compute_note_hash_for_consumption` function was renamed as `compute_note_hash_for_nullify`.
+
+```diff
+impl NoteInterface<VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN> for ValueNote {
+-    fn compute_note_hash_and_nullifier(self, context: &mut PrivateContext) -> (Field, Field) {
+-        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
+-        let secret = context.request_nsk_app(self.npk_m_hash);
+-        let nullifier = poseidon2_hash_with_separator([
+-            note_hash_for_nullify,
+-            secret,
+-        ],
+-            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+-        );
+-        (note_hash_for_nullify, nullifier)
+-    }
+-    fn compute_note_hash_and_nullifier_without_context(self) -> (Field, Field) {
+-        let note_hash_for_nullify = compute_note_hash_for_consumption(self);
+-        let secret = get_nsk_app(self.npk_m_hash);
+-        let nullifier = poseidon2_hash_with_separator([
+-            note_hash_for_nullify,
+-            secret,
+-        ],
+-            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
+-        );
+-        (note_hash_for_nullify, nullifier)
+-    }
+
++    fn compute_nullifier(self, context: &mut PrivateContext, note_hash_for_nullify: Field) -> Field {
++        let secret = context.request_nsk_app(self.npk_m_hash);
++        poseidon2_hash_with_separator([
++            note_hash_for_nullify,
++            secret
++        ],
++            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
++        )
++    }
++    fn compute_nullifier_without_context(self) -> Field {
++        let note_hash_for_nullify = compute_note_hash_for_nullify(self);
++        let secret = get_nsk_app(self.npk_m_hash);
++        poseidon2_hash_with_separator([
++            note_hash_for_nullify,
++            secret,
++        ],
++            GENERATOR_INDEX__NOTE_NULLIFIER as Field,
++        )
++    }
+}
+```
+
 ### Fee Juice rename
 
 The name of the canonical Gas contract has changed to Fee Juice. Update noir code:

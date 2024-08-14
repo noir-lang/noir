@@ -1,6 +1,6 @@
 use dep::protocol_types::{
-    address::AztecAddress, hash::{compute_siloed_nullifier, poseidon2_hash_with_separator},
-    constants::GENERATOR_INDEX__CONSTRUCTOR, abis::function_selector::FunctionSelector
+    address::AztecAddress, hash::poseidon2_hash_with_separator, constants::GENERATOR_INDEX__CONSTRUCTOR,
+    abis::function_selector::FunctionSelector
 };
 
 use crate::{

@@ -59,7 +59,7 @@ impl<Note> PrivateImmutable<Note, &mut PrivateContext> {
     // docs:start:get_note
     pub fn get_note<N, M>(self) -> Note where Note: NoteInterface<N, M> {
         let storage_slot = self.storage_slot;
-        get_note(self.context, storage_slot)
+        get_note(self.context, storage_slot).0
     }
     // docs:end:get_note
 }
