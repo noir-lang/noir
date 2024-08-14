@@ -612,11 +612,11 @@ impl Builder {
                     }
 
                     super::ir::instruction::BinaryOp::Lt => {
-                        let (bit_size_a, target_a) = self.get_integer(lhs)?;
-                        let (bit_size_b, target_b) = self.get_integer(rhs)?;
-                        assert!(bit_size_a == bit_size_b);
+                        let (type_of_a, target_a) = self.get_integer(lhs)?;
+                        let (type_of_b, target_b) = self.get_integer(rhs)?;
+                        assert!(type_of_a == type_of_b);
 
-                        if let Some(bit_size) = Self::get_integer_bitsize(&bit_size_a) {
+                        if let Some(bit_size) = Self::get_integer_bitsize(&type_of_a) {
                             let mut split_a = self.asm_writer.split_le(target_a, bit_size);
                             let mut split_b = self.asm_writer.split_le(target_b, bit_size);
 
@@ -676,7 +676,7 @@ impl Builder {
                         } else {
                             let message = format!(
                                 "less than op invoked on arguments of type {:?}",
-                                bit_size_a
+                                type_of_a
                             );
                             return Err(Plonky2GenError::ICE { message });
                         }
