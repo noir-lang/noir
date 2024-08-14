@@ -17,7 +17,7 @@ use crate::{
     },
     hir_def::{
         expr::{
-            HirBinaryOp, HirCallExpression, HirMemberAccess, HirMethodReference,
+            HirBinaryOp, HirCallExpression, HirIdent, HirMemberAccess, HirMethodReference,
             HirPrefixExpression,
         },
         function::{FuncMeta, Parameters},
