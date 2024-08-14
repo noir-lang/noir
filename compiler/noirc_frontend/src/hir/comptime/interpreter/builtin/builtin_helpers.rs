@@ -14,7 +14,7 @@ use crate::{
         stmt::HirPattern,
     },
     macros_api::{NodeInterner, StructId},
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, TraitId, TraitImplId},
     parser::NoirParser,
     token::{Token, Tokens},
     QuotedType, Type,
@@ -207,6 +207,17 @@ pub(crate) fn get_trait_def((value, location): (Value, Location)) -> IResult<Tra
         Value::TraitDefinition(id) => Ok(id),
         value => {
             let expected = Type::Quoted(QuotedType::TraitDefinition);
+            let actual = value.get_type().into_owned();
+            Err(InterpreterError::TypeMismatch { expected, actual, location })
+        }
+    }
+}
+
+pub(crate) fn get_trait_impl((value, location): (Value, Location)) -> IResult<TraitImplId> {
+    match value {
+        Value::TraitImpl(id) => Ok(id),
+        value => {
+            let expected = Type::Quoted(QuotedType::TraitImpl);
             let actual = value.get_type().into_owned();
             Err(InterpreterError::TypeMismatch { expected, actual, location })
         }
