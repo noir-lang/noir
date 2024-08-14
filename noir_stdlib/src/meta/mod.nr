@@ -8,6 +8,7 @@ mod module;
 mod struct_def;
 mod trait_constraint;
 mod trait_def;
+mod trait_impl;
 mod typ;
 mod quoted;
 
