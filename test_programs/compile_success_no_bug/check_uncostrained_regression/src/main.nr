@@ -15,7 +15,9 @@ unconstrained fn convert(trigger: Trigger) -> ResultType {
 }
 impl Trigger {
     fn execute(self) -> ResultType {
-        let result = convert(self);
+        let result = unsafe {
+            convert(self)
+        };
         assert(result.a == self.x + 1);
         assert(result.b == self.y - 1 + self.z[2]);
         assert(result.c[1] == 0);

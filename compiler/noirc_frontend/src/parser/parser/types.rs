@@ -318,13 +318,17 @@ where
             t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
         });
 
-    keyword(Keyword::Fn)
-        .ignore_then(env)
+    keyword(Keyword::Unconstrained)
+        .or_not()
+        .then(keyword(Keyword::Fn))
+        .map(|(unconstrained_token, _fn_token)| unconstrained_token.is_some())
+        .then(env)
         .then(args)
         .then_ignore(just(Token::Arrow))
         .then(type_parser)
-        .map_with_span(|((env, args), ret), span| {
-            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env)).with_span(span)
+        .map_with_span(|(((unconstrained, env), args), ret), span| {
+            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained)
+                .with_span(span)
         })
 }
 

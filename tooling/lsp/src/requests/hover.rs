@@ -431,7 +431,7 @@ impl<'a> TypeLinksGatherer<'a> {
             Type::NamedGeneric(var, _, _) => {
                 self.gather_type_variable_links(var);
             }
-            Type::Function(args, return_type, env) => {
+            Type::Function(args, return_type, env, _) => {
                 for arg in args {
                     self.gather_type_links(arg);
                 }

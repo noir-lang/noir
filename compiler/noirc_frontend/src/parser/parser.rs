@@ -377,6 +377,7 @@ pub fn block<'a>(
     statement: impl NoirParser<StatementKind> + 'a,
 ) -> impl NoirParser<BlockExpression> + 'a {
     use Token::*;
+
     statement
         .recover_via(statement_recovery())
         .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
@@ -517,6 +518,15 @@ where
     keyword(Keyword::Comptime)
         .ignore_then(spanned(block(statement)))
         .map(|(block, span)| ExpressionKind::Comptime(block, span))
+}
+
+fn unsafe_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
+where
+    S: NoirParser<StatementKind> + 'a,
+{
+    keyword(Keyword::Unsafe)
+        .ignore_then(spanned(block(statement)))
+        .map(|(block, span)| ExpressionKind::Unsafe(block, span))
 }
 
 fn let_statement<'a, P>(
@@ -1093,7 +1103,8 @@ where
         },
         lambdas::lambda(expr_parser.clone()),
         block(statement.clone()).map(ExpressionKind::Block),
-        comptime_expr(statement),
+        comptime_expr(statement.clone()),
+        unsafe_expr(statement),
         quote(),
         unquote(expr_parser.clone()),
         variable(),

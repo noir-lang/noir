@@ -2461,6 +2461,158 @@ fn no_super() {
 }
 
 #[test]
+fn cannot_call_unconstrained_function_outside_of_unsafe() {
+    let src = r#"
+    fn main() {
+        foo();
+    }
+
+    unconstrained fn foo() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0].0 else {
+        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        func();
+    }
+
+    unconstrained fn foo() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0].0 else {
+        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn cannot_pass_unconstrained_function_to_regular_function() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        expect_regular(func);
+    }
+
+    unconstrained fn foo() {}
+
+    fn expect_regular(_func: fn() -> ()) {
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    if let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        ..
+    }) = &errors[0].0
+    {
+        assert_eq!(expected_typ, "fn() -> ()");
+        assert_eq!(expr_typ, "unconstrained fn() -> ()");
+    } else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn cannot_assign_unconstrained_and_regular_fn_to_variable() {
+    let src = r#"
+    fn main() {
+        let _func = if true { foo } else { bar };
+    }
+
+    fn foo() {}
+    unconstrained fn bar() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Context { err, .. }) = &errors[0].0 else {
+        panic!("Expected a context error, got {:?}", errors[0].0);
+    };
+
+    if let TypeCheckError::TypeMismatch { expected_typ, expr_typ, .. } = err.as_ref() {
+        assert_eq!(expected_typ, "fn() -> ()");
+        assert_eq!(expr_typ, "unconstrained fn() -> ()");
+    } else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn can_pass_regular_function_to_unconstrained_function() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        expect_unconstrained(func);
+    }
+
+    fn foo() {}
+
+    fn expect_unconstrained(_func: unconstrained fn() -> ()) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn cannot_pass_unconstrained_function_to_constrained_function() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        expect_regular(func);
+    }
+
+    unconstrained fn foo() {}
+
+    fn expect_regular(_func: fn() -> ()) {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn can_assign_regular_function_to_unconstrained_function_in_explicitly_typed_var() {
+    let src = r#"
+    fn main() {
+        let _func: unconstrained fn() -> () = foo;
+    }
+
+    fn foo() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn can_assign_regular_function_to_unconstrained_function_in_struct_member() {
+    let src = r#"
+    fn main() {
+        let _ = Foo { func: foo };
+    }
+
+    fn foo() {}
+
+    struct Foo {
+        func: unconstrained fn() -> (),
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn trait_impl_generics_count_mismatch() {
     let src = r#"
     trait Foo {}

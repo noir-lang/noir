@@ -142,9 +142,9 @@ impl std::fmt::Display for Trait {
 impl TraitFunction {
     pub fn arguments(&self) -> &[Type] {
         match &self.typ {
-            Type::Function(args, _, _) => args,
+            Type::Function(args, _, _, _) => args,
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(args, _, _) => args,
+                Type::Function(args, _, _, _) => args,
                 _ => unreachable!("Trait function does not have a function type"),
             },
             _ => unreachable!("Trait function does not have a function type"),
@@ -161,9 +161,9 @@ impl TraitFunction {
 
     pub fn return_type(&self) -> &Type {
         match &self.typ {
-            Type::Function(_, return_type, _) => return_type,
+            Type::Function(_, return_type, _, _) => return_type,
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(_, return_type, _) => return_type,
+                Type::Function(_, return_type, _, _) => return_type,
                 _ => unreachable!("Trait function does not have a function type"),
             },
             _ => unreachable!("Trait function does not have a function type"),
