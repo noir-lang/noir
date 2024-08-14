@@ -823,9 +823,9 @@ impl<'a> Context<'a> {
                                         None,
                                     )?
                                 } else {
-                                    let mut code =
+                                    let code =
                                         self.gen_brillig_for(func, arguments.clone(), brillig)?;
-                                    code.name = func.name().to_string();
+
                                     let generated_pointer =
                                         self.shared_context.new_generated_pointer();
                                     let output_values = self.acir_context.brillig_call(
