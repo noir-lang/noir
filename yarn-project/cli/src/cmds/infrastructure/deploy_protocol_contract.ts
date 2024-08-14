@@ -11,6 +11,8 @@ import {
 const waitOpts: WaitOpts = {
   timeout: 180,
   interval: 1,
+  proven: true,
+  provenTimeout: 600,
 };
 
 export async function deployProtocolContracts(rpcUrl: string, l1ChainId: number, json: boolean, log: LogFn) {
