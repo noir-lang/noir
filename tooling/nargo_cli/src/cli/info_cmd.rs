@@ -176,7 +176,7 @@ struct ProgramInfo {
     expression_width: ExpressionWidth,
     functions: Vec<FunctionInfo>,
     unconstrained_functions_opcodes: usize,
-    unconstrained_function: Vec<FunctionInfo>,
+    unconstrained_functions: Vec<FunctionInfo>,
 }
 
 impl From<ProgramInfo> for Vec<Row> {
@@ -190,7 +190,7 @@ impl From<ProgramInfo> for Vec<Row> {
                 Fc->format!("{}", program_info.unconstrained_functions_opcodes),
             ]
         });
-        main.extend(vecmap(program_info.unconstrained_function, |function| {
+        main.extend(vecmap(program_info.unconstrained_functions, |function| {
             row![
                 Fm->format!("{}", program_info.package_name),
                 Fc->format!("{}", function.name),
@@ -272,6 +272,6 @@ fn count_opcodes_and_gates_in_program(
         expression_width,
         functions,
         unconstrained_functions_opcodes,
-        unconstrained_function: unconstrained_info,
+        unconstrained_functions: unconstrained_info,
     }
 }

@@ -557,6 +557,7 @@ pub fn compile_no_check(
     let force_compile = force_compile
         || options.print_acir
         || options.show_brillig
+        || options.force_brillig
         || options.show_ssa
         || options.emit_ssa;
 

@@ -331,7 +331,6 @@ impl Ssa {
                 }
 
                 generated_acir.name = function.name().to_owned();
-                dbg!(&generated_acir.name);
                 acirs.push(generated_acir);
             }
         }
@@ -958,6 +957,8 @@ impl<'a> Context<'a> {
             BrilligFunctionContext::return_values(func),
             BrilligFunctionContext::function_id_to_function_label(func.id()),
         );
+        entry_point.name = func.name().to_string();
+
         // Link the entry point with all dependencies
         while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
             let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone());
