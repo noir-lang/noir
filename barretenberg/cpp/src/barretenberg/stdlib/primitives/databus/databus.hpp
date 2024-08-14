@@ -225,6 +225,9 @@ template <class Builder> class DataBusDepot {
 
     void assert_equality_of_commitments(Commitment& P0, Commitment& P1)
     {
+        if (P0.get_value() != P1.get_value()) { // debug print indicating consistency check failure
+            info("DataBusDepot: Databus consistency check failed!");
+        }
         P0.x.assert_equal(P1.x);
         P0.y.assert_equal(P1.y);
     }

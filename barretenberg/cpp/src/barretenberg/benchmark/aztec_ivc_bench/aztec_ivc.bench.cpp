@@ -2,6 +2,7 @@
 #include <benchmark/benchmark.h>
 
 #include "barretenberg/aztec_ivc/aztec_ivc.hpp"
+#include "barretenberg/aztec_ivc/mock_circuit_producer.hpp"
 #include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/op_count_google_bench.hpp"
 #include "barretenberg/goblin/mock_circuits.hpp"
@@ -22,6 +23,7 @@ class AztecIVCBench : public benchmark::Fixture {
     using Builder = MegaCircuitBuilder;
     using VerifierInstance = VerifierInstance_<MegaFlavor>;
     using Proof = AztecIVC::Proof;
+    using MockCircuitProducer = PrivateFunctionExecutionMockCircuitProducer;
 
     // Number of function circuits to accumulate(based on Zacs target numbers)
     static constexpr size_t NUM_ITERATIONS_MEDIUM_COMPLEXITY = 6;
@@ -51,52 +53,6 @@ class AztecIVCBench : public benchmark::Fixture {
     }
 
     /**
-     * @brief Precompute the verification keys for the bench given the number of circuits in the IVC
-     *
-     * @param ivc
-     * @param num_function_circuits
-     * @return auto
-     */
-    static auto precompute_verification_keys(AztecIVC& ivc, const size_t num_circuits)
-    {
-        // Produce the set of mocked circuits to be accumulated
-        MockCircuitMaker mock_circuit_maker;
-        std::vector<Builder> circuits;
-        for (size_t circuit_idx = 0; circuit_idx < num_circuits; ++circuit_idx) {
-            circuits.emplace_back(mock_circuit_maker.create_next_circuit(ivc));
-        }
-
-        // Compute and return the corresponding set of verfication keys
-        return ivc.precompute_folding_verification_keys(circuits);
-    }
-
-    /**
-     * @brief Manage the construction of mock app/kernel circuits
-     * @details Per the medium complexity benchmark spec, the first app circuit is size 2^19. Subsequent app and kernel
-     * circuits are size 2^17. Circuits produced are alternatingly app and kernel.
-     */
-    class MockCircuitMaker {
-        size_t circuit_counter = 0;
-
-      public:
-        Builder create_next_circuit(AztecIVC& ivc)
-        {
-            circuit_counter++;
-
-            bool is_kernel = (circuit_counter % 2 == 0); // Every other circuit is a kernel, starting from the second
-
-            Builder circuit{ ivc.goblin.op_queue };
-            if (is_kernel) { // construct mock kernel
-                GoblinMockCircuits::construct_mock_folding_kernel(circuit);
-            } else { // construct mock app
-                bool use_large_circuit = (circuit_counter == 1);
-                GoblinMockCircuits::construct_mock_app_circuit(circuit, use_large_circuit);
-            }
-            return circuit;
-        }
-    };
-
-    /**
      * @brief Perform a specified number of circuit accumulation rounds
      *
      * @param NUM_CIRCUITS Number of circuits to accumulate (apps + kernels)
@@ -105,13 +61,13 @@ class AztecIVCBench : public benchmark::Fixture {
     {
         ASSERT(precomputed_vks.size() == NUM_CIRCUITS); // ensure presence of a precomputed VK for each circuit
 
-        MockCircuitMaker mock_circuit_maker;
+        MockCircuitProducer circuit_producer;
 
         for (size_t circuit_idx = 0; circuit_idx < NUM_CIRCUITS; ++circuit_idx) {
             Builder circuit;
             {
                 BB_OP_COUNT_TIME_NAME("construct_circuits");
-                circuit = mock_circuit_maker.create_next_circuit(ivc);
+                circuit = circuit_producer.create_next_circuit(ivc);
             }
 
             ivc.accumulate(circuit, precomputed_vks[circuit_idx]);
@@ -131,7 +87,8 @@ BENCHMARK_DEFINE_F(AztecIVCBench, FullStructured)(benchmark::State& state)
     auto total_num_circuits = 2 * static_cast<size_t>(state.range(0)); // 2x accounts for kernel circuits
 
     // Precompute the verification keys for the benchmark circuits
-    auto precomputed_vkeys = precompute_verification_keys(ivc, total_num_circuits);
+    MockCircuitProducer circuit_producer;
+    auto precomputed_vkeys = circuit_producer.precompute_verification_keys(total_num_circuits, ivc.trace_structure);
 
     Proof proof;
     for (auto _ : state) {
