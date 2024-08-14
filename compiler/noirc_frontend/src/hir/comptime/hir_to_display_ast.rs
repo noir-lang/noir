@@ -333,9 +333,9 @@ impl Type {
                     }
                 }
             }
-            Type::TraitAsType(_, name, generics, associated_types) => {
-                let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
-                let named_args = vecmap(associated_types, |named_type| {
+            Type::TraitAsType(_, name, generics) => {
+                let ordered_args = vecmap(&generics.ordered, |generic| generic.to_display_ast());
+                let named_args = vecmap(&generics.named, |named_type| {
                     (named_type.name.clone(), named_type.typ.to_display_ast())
                 });
                 let generics = GenericTypeArgs { ordered_args, named_args };
@@ -373,7 +373,7 @@ impl Type {
             }
         };
 
-        UnresolvedType { typ, span: None }
+        UnresolvedType { typ, span: Span::default() }
     }
 
     /// Convert to AST for display (some details lost)

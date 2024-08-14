@@ -489,6 +489,7 @@ impl<'context> Elaborator<'context> {
                 &constraint.typ,
                 constraint.trait_id,
                 &constraint.trait_generics,
+                &constraint.associated_types,
                 expr_id,
                 span,
             );
@@ -756,8 +757,7 @@ impl<'context> Elaborator<'context> {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
 
-            let type_span = typ.span.unwrap_or_else(|| pattern.span());
-
+            let type_span = typ.span;
             let typ = match typ.typ {
                 UnresolvedTypeData::TraitAsType(path, args) => {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
@@ -927,8 +927,14 @@ impl<'context> Elaborator<'context> {
             let object = constraint.typ.clone();
             let trait_id = constraint.trait_id;
             let generics = constraint.trait_generics.clone();
+            let associated_types = constraint.associated_types.clone();
 
-            if !self.interner.add_assumed_trait_implementation(object, trait_id, generics) {
+            if !self.interner.add_assumed_trait_implementation(
+                object,
+                trait_id,
+                generics,
+                associated_types,
+            ) {
                 if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                     let trait_name = the_trait.name.to_string();
                     let typ = constraint.typ.clone();
@@ -999,7 +1005,7 @@ impl<'context> Elaborator<'context> {
         let self_type_span = trait_impl.object_type.span;
 
         if matches!(self_type, Type::MutableReference(_)) {
-            let span = self_type_span.unwrap_or_else(|| trait_impl.trait_path.span());
+            let span = self_type_span;
             self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
         }
 
@@ -1010,12 +1016,7 @@ impl<'context> Elaborator<'context> {
 
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
-            let span = trait_impl.object_type.span.unwrap_or_else(|| {
-                if self.interner.is_in_lsp_mode() {
-                    return Default::default();
-                }
-                unreachable!("All trait self types should have spans")
-            });
+            let span = trait_impl.object_type.span;
             self.declare_methods_on_struct(true, &mut trait_impl.methods, span);
 
             let methods = trait_impl.methods.function_ids();
@@ -1046,7 +1047,7 @@ impl<'context> Elaborator<'context> {
             ) {
                 self.push_err(DefCollectorErrorKind::OverlappingImpl {
                     typ: self_type.clone(),
-                    span: self_type_span.unwrap_or_else(|| trait_impl.trait_path.span()),
+                    span: self_type_span,
                 });
 
                 // The 'previous impl defined here' note must be a separate error currently
@@ -1378,7 +1379,7 @@ impl<'context> Elaborator<'context> {
                 .unwrap_or_default();
 
             trait_impl.resolved_trait_generics = ordered_generics;
-            self.interner.set_associated_types_for_impl(impl_id, named_generics);
+            self.interner.set_associated_types_for_impl(impl_id, dbg!(named_generics));
 
             let self_type = self.resolve_type(unresolved_type);
             self.self_type = Some(self_type.clone());

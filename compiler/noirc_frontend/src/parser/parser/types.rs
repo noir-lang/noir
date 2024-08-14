@@ -65,7 +65,7 @@ pub(super) fn parenthesized_type(
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .map_with_span(|typ, span| UnresolvedType {
             typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
-            span: span.into(),
+            span,
         })
 }
 

@@ -531,7 +531,7 @@ impl TypeVariable {
         };
 
         if binding.occurs(id) {
-            Err(TypeCheckError::TypeAnnotationsNeeded { span })
+            Err(dbg!(TypeCheckError::TypeAnnotationsNeeded { span }))
         } else {
             *self.1.borrow_mut() = TypeBinding::Bound(binding);
             Ok(())
@@ -2278,10 +2278,10 @@ impl Type {
                 }
             }
             Type::TraitAsType(_, _, generics) => {
-                for generic in &generics.ordered {
+                for generic in &mut generics.ordered {
                     generic.replace_named_generics_with_type_variables();
                 }
-                for generic in &generics.named {
+                for generic in &mut generics.named {
                     generic.typ.replace_named_generics_with_type_variables();
                 }
             }

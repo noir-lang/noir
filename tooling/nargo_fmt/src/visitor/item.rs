@@ -108,14 +108,16 @@ impl super::FmtVisitor<'_> {
 
     fn format_return_type(
         &self,
-        return_type_span: Option<Span>,
+        span: Span,
         func: &NoirFunction,
         func_span: Span,
         params_end: u32,
     ) -> String {
         let mut result = String::new();
 
-        if let Some(span) = return_type_span {
+        if span.start() == span.end() {
+            result.push_str(self.slice(params_end..func_span.start()));
+        } else {
             result.push_str(" -> ");
 
             let visibility = match func.def.return_visibility {
@@ -135,8 +137,6 @@ impl super::FmtVisitor<'_> {
             if !slice.trim().is_empty() {
                 result.push_str(slice);
             }
-        } else {
-            result.push_str(self.slice(params_end..func_span.start()));
         }
 
         result

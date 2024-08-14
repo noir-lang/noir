@@ -380,7 +380,7 @@ impl<'context> Elaborator<'context> {
                 // so that the backend doesn't need to worry about methods
                 // TODO: update object_type here?
                 let ((function_id, function_name), function_call) = method_call.into_function_call(
-                    &method_ref,
+                    method_ref,
                     object_type,
                     is_macro_call,
                     location,

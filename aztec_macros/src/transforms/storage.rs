@@ -244,7 +244,7 @@ pub fn generate_storage_implementation(
     let storage_impl = TypeImpl {
         object_type: UnresolvedType {
             typ: UnresolvedTypeData::Named(chained_path!(storage_struct_name), generics, true),
-            span: Some(Span::default()),
+            span: Span::default(),
         },
         type_span: Span::default(),
         generics: vec![generic_context_ident.into()],

@@ -19,6 +19,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::macros_api::UnaryOp;
 use crate::QuotedType;
@@ -307,7 +308,7 @@ pub enum TraitImplKind {
         ///
         /// The reference `Into::into(x)` would have inferred generics, but
         /// `x.into()` with a `X: Into<Y>` in scope would not.
-        trait_generics: Vec<Type>,
+        trait_generics: TraitGenerics,
     },
 }
 
@@ -1379,23 +1380,14 @@ impl NodeInterner {
     ) -> Vec<&TraitImplKind> {
         let trait_impl = self.trait_implementation_map.get(&trait_id);
 
-        trait_impl
-            .map(|trait_impl| {
-                trait_impl
-                    .iter()
-                    .filter_map(|(typ, impl_kind)| match &typ {
-                        Type::Forall(_, typ) => {
-                            if typ.deref() == object_type {
-                                Some(impl_kind)
-                            } else {
-                                None
-                            }
-                        }
-                        _ => None,
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
+        let trait_impl = trait_impl.map(|trait_impl| {
+            let impls = trait_impl.iter().filter_map(|(typ, impl_kind)| match &typ {
+                Type::Forall(_, typ) => (typ.deref() == object_type).then_some(impl_kind),
+                _ => None,
+            });
+            impls.collect()
+        });
+        trait_impl.unwrap_or_default()
     }
 
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
@@ -1453,8 +1445,20 @@ impl NodeInterner {
 
         let object_type = object_type.substitute(type_bindings);
 
+        let n = self.get_trait(trait_id).name.to_string();
+        if n == "Serialize" {
+            let t = vecmap(trait_generics, |t| format!("{t:?}")).join(", ");
+            let n =
+                vecmap(trait_associated_types, |t| format!("{} = {:?}", t.name, t.typ)).join(", ");
+            eprintln!("? {object_type:?}: Serialize<{t}><{n}>");
+        }
+
         // If the object type isn't known, just return an error saying type annotations are needed.
         if object_type.is_bindable() {
+            let n = self.get_trait(trait_id).name.to_string();
+            if n == "Serialize" {
+                eprintln!("  type is bindable");
+            }
             return Err(Vec::new());
         }
 
@@ -1472,25 +1476,44 @@ impl NodeInterner {
 
             let mut fresh_bindings = type_bindings.clone();
 
-            let mut check_trait_generics = |impl_generics: &[Type]| {
-                trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic2)| {
-                    let impl_generic = impl_generic2.substitute(&instantiation_bindings);
-                    trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
-                })
-            };
+            let mut check_trait_generics =
+                |impl_generics: &[Type], impl_associated_types: &[NamedType]| {
+                    let n = self.get_trait(trait_id).name.to_string();
+                    if n == "Serialize" {
+                        let t = vecmap(impl_generics, |t| format!("{t:?}")).join(", ");
+                        let n =
+                            vecmap(impl_associated_types, |t| format!("{} = {:?}", t.name, t.typ))
+                                .join(", ");
+                        eprintln!("  ?? {object_type:?}: Serialize<{t}><{n}>");
+                    }
+                    trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic)| {
+                        let impl_generic = impl_generic.substitute(&instantiation_bindings);
+                        trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
+                    }) && trait_associated_types.iter().zip(impl_associated_types).all(
+                        |(trait_generic, impl_generic)| {
+                            let impl_generic = impl_generic.typ.substitute(&instantiation_bindings);
+                            trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
+                        },
+                    )
+                };
 
             let generics_match = match impl_kind {
                 TraitImplKind::Normal(id) => {
                     let shared_impl = self.get_trait_implementation(*id);
                     let shared_impl = shared_impl.borrow();
-                    check_trait_generics(&shared_impl.trait_generics)
+                    let impl_associated_types = self.get_associated_types_for_impl(*id);
+                    check_trait_generics(&shared_impl.trait_generics, impl_associated_types)
                 }
                 TraitImplKind::Assumed { trait_generics, .. } => {
-                    check_trait_generics(trait_generics)
+                    check_trait_generics(&trait_generics.ordered, &trait_generics.named)
                 }
             };
 
             if !generics_match {
+                let n = self.get_trait(trait_id).name.to_string();
+                if n == "Serialize" {
+                    eprintln!("  Generics don't match");
+                }
                 continue;
             }
 
@@ -1513,6 +1536,10 @@ impl NodeInterner {
                     }
                 }
 
+                let n = self.get_trait(trait_id).name.to_string();
+                if n == "Serialize" {
+                    eprintln!("    selected");
+                }
                 matching_impls.push((impl_kind.clone(), fresh_bindings));
             }
         }
@@ -1599,6 +1626,8 @@ impl NodeInterner {
         }
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
+        let trait_generics =
+            TraitGenerics { ordered: trait_generics, named: trait_associated_types };
         entries.push((object_type.clone(), TraitImplKind::Assumed { object_type, trait_generics }));
         true
     }
@@ -1630,7 +1659,7 @@ impl NodeInterner {
         let instantiated_object_type = object_type.substitute(&substitutions);
 
         let trait_generics = &trait_impl.borrow().trait_generics;
-        let associated_types = self.get_associated_types_for_impl(impl_id);
+        let associated_types = dbg!(self.get_associated_types_for_impl(impl_id));
 
         // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
         // It should never happen since impls are defined at global scope, but even

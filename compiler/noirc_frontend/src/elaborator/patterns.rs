@@ -7,7 +7,7 @@ use crate::{
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
-        type_check::{Source, TypeCheckError},
+        type_check::{generics::TraitGenerics, Source, TypeCheckError},
     },
     hir_def::{
         expr::{HirIdent, ImplKind},
@@ -642,10 +642,12 @@ impl<'context> Elaborator<'context> {
         if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
             constraint.apply_bindings(&bindings);
             if assumed {
-                let trait_impl = TraitImplKind::Assumed {
-                    object_type: constraint.typ,
-                    trait_generics: constraint.trait_generics,
+                let trait_generics = TraitGenerics {
+                    ordered: constraint.trait_generics,
+                    named: constraint.associated_types,
                 };
+                let object_type = constraint.typ;
+                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(expr_id, trait_impl);
             } else {
                 // Currently only one impl can be selected per expr_id, so this

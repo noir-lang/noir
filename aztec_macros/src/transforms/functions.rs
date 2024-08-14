@@ -396,7 +396,7 @@ fn serialize_to_hasher(
                         Signedness::Unsigned,
                         ast::IntegerBitSize::ThirtyTwo,
                     ),
-                    span: None,
+                    span: Span::default(),
                 },
                 hasher_name,
             ))
@@ -595,7 +595,7 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
                 serialize_to_hasher(&ident(return_value_name), &current_return_type, hasher_name)
                     .ok_or_else(|| AztecMacroError::UnsupportedFunctionReturnType {
                     typ: current_return_type.clone(),
-                    span: func.return_type().span.unwrap_or_default(),
+                    span: func.return_type().span,
                 })?;
 
             replacement_statements.extend(serialization_statements);

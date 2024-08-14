@@ -811,7 +811,7 @@ impl<'a> ModCollector<'a> {
             UnresolvedTypeData::FieldElement => Type::FieldElement,
             UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
             _ => {
-                let span = typ.span.expect("UnresolvedTypes should have spans");
+                let span = typ.span;
                 let error = ResolverError::AssociatedConstantsMustBeNumeric { span };
                 errors.push((error.into(), self.file_id));
                 Type::Error

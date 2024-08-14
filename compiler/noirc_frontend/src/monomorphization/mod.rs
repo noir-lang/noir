@@ -935,7 +935,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
                 let length = match length.evaluate_to_u32() {
                     Some(length) => length,
-                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                    None => {
+                        return Err(dbg!(MonomorphizationError::TypeAnnotationsNeeded { location }))
+                    }
                 };
                 ast::Type::Array(length, element)
             }
@@ -968,7 +970,9 @@ impl<'interner> Monomorphizer<'interner> {
                 // and within a larger generic type.
                 let default = match kind.default_type() {
                     Some(typ) => typ,
-                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                    None => {
+                        return Err(dbg!(MonomorphizationError::TypeAnnotationsNeeded { location }))
+                    }
                 };
 
                 let monomorphized_default = Self::convert_type(&default, location)?;
@@ -1070,7 +1074,9 @@ impl<'interner> Monomorphizer<'interner> {
                 // and within a larger generic type.
                 let default = match kind.default_type() {
                     Some(typ) => typ,
-                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
+                    None => {
+                        return Err(dbg!(MonomorphizationError::TypeAnnotationsNeeded { location }))
+                    }
                 };
 
                 Self::check_type(&default, location)
@@ -1937,7 +1943,8 @@ pub fn resolve_trait_method(
             match interner.lookup_trait_implementation(
                 &object_type,
                 method.trait_id,
-                &trait_generics,
+                &trait_generics.ordered,
+                &trait_generics.named,
             ) {
                 Ok(TraitImplKind::Normal(impl_id)) => impl_id,
                 Ok(TraitImplKind::Assumed { .. }) => {
