@@ -86,6 +86,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             }
             "trait_def_eq" => trait_def_eq(interner, arguments, location),
             "trait_def_hash" => trait_def_hash(interner, arguments, location),
+            "trait_impl_methods" => trait_impl_methods(interner, arguments, location),
             "trait_impl_trait_generic_args" => {
                 trait_impl_trait_generic_args(interner, arguments, location)
             }
@@ -631,6 +632,24 @@ fn trait_def_eq(
     let id_b = get_trait_def(id_b)?;
 
     Ok(Value::Bool(id_a == id_b))
+}
+
+// fn methods(self) -> [FunctionDefinition]
+fn trait_impl_methods(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+
+    let trait_impl_id = get_trait_impl(argument)?;
+    let trait_impl = interner.get_trait_implementation(trait_impl_id);
+    let trait_impl = trait_impl.borrow();
+    let methods =
+        trait_impl.methods.iter().map(|func_id| Value::FunctionDefinition(*func_id)).collect();
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
+
+    Ok(Value::Slice(methods, slice_type))
 }
 
 // fn trait_generic_args(self) -> [Type]
