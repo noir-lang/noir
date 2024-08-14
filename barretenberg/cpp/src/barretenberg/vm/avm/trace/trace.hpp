@@ -182,8 +182,6 @@ class AvmTraceBuilder {
     std::vector<Row> finalize(bool range_check_required = ENABLE_PROVING);
     void reset();
 
-    // (not an opcode) Halt -> stop program execution.
-    void halt();
     struct MemOp {
         bool is_indirect;
         uint32_t indirect_address;

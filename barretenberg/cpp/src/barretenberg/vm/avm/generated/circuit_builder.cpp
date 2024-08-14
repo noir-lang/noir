@@ -31,8 +31,10 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.byte_lookup_table_input_b[i] = rows[i].byte_lookup_table_input_b;
         polys.byte_lookup_table_op_id[i] = rows[i].byte_lookup_table_op_id;
         polys.byte_lookup_table_output[i] = rows[i].byte_lookup_table_output;
-        polys.gas_da_gas_fixed_table[i] = rows[i].gas_da_gas_fixed_table;
-        polys.gas_l2_gas_fixed_table[i] = rows[i].gas_l2_gas_fixed_table;
+        polys.gas_base_da_gas_fixed_table[i] = rows[i].gas_base_da_gas_fixed_table;
+        polys.gas_base_l2_gas_fixed_table[i] = rows[i].gas_base_l2_gas_fixed_table;
+        polys.gas_dyn_da_gas_fixed_table[i] = rows[i].gas_dyn_da_gas_fixed_table;
+        polys.gas_dyn_l2_gas_fixed_table[i] = rows[i].gas_dyn_l2_gas_fixed_table;
         polys.gas_sel_gas_cost[i] = rows[i].gas_sel_gas_cost;
         polys.main_clk[i] = rows[i].main_clk;
         polys.main_sel_first[i] = rows[i].main_sel_first;
@@ -169,11 +171,15 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_abs_l2_rem_gas_hi[i] = rows[i].main_abs_l2_rem_gas_hi;
         polys.main_abs_l2_rem_gas_lo[i] = rows[i].main_abs_l2_rem_gas_lo;
         polys.main_alu_in_tag[i] = rows[i].main_alu_in_tag;
+        polys.main_base_da_gas_op_cost[i] = rows[i].main_base_da_gas_op_cost;
+        polys.main_base_l2_gas_op_cost[i] = rows[i].main_base_l2_gas_op_cost;
         polys.main_bin_op_id[i] = rows[i].main_bin_op_id;
         polys.main_call_ptr[i] = rows[i].main_call_ptr;
-        polys.main_da_gas_op_cost[i] = rows[i].main_da_gas_op_cost;
         polys.main_da_gas_remaining[i] = rows[i].main_da_gas_remaining;
         polys.main_da_out_of_gas[i] = rows[i].main_da_out_of_gas;
+        polys.main_dyn_da_gas_op_cost[i] = rows[i].main_dyn_da_gas_op_cost;
+        polys.main_dyn_gas_multiplier[i] = rows[i].main_dyn_gas_multiplier;
+        polys.main_dyn_l2_gas_op_cost[i] = rows[i].main_dyn_l2_gas_op_cost;
         polys.main_ia[i] = rows[i].main_ia;
         polys.main_ib[i] = rows[i].main_ib;
         polys.main_ic[i] = rows[i].main_ic;
@@ -185,7 +191,6 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_ind_addr_d[i] = rows[i].main_ind_addr_d;
         polys.main_internal_return_ptr[i] = rows[i].main_internal_return_ptr;
         polys.main_inv[i] = rows[i].main_inv;
-        polys.main_l2_gas_op_cost[i] = rows[i].main_l2_gas_op_cost;
         polys.main_l2_gas_remaining[i] = rows[i].main_l2_gas_remaining;
         polys.main_l2_out_of_gas[i] = rows[i].main_l2_out_of_gas;
         polys.main_mem_addr_a[i] = rows[i].main_mem_addr_a;
@@ -203,7 +208,7 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_sel_alu[i] = rows[i].main_sel_alu;
         polys.main_sel_bin[i] = rows[i].main_sel_bin;
         polys.main_sel_calldata[i] = rows[i].main_sel_calldata;
-        polys.main_sel_gas_accounting_active[i] = rows[i].main_sel_gas_accounting_active;
+        polys.main_sel_execution_row[i] = rows[i].main_sel_execution_row;
         polys.main_sel_last[i] = rows[i].main_sel_last;
         polys.main_sel_mem_op_a[i] = rows[i].main_sel_mem_op_a;
         polys.main_sel_mem_op_b[i] = rows[i].main_sel_mem_op_b;
@@ -222,6 +227,7 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_sel_op_coinbase[i] = rows[i].main_sel_op_coinbase;
         polys.main_sel_op_dagasleft[i] = rows[i].main_sel_op_dagasleft;
         polys.main_sel_op_div[i] = rows[i].main_sel_op_div;
+        polys.main_sel_op_ecadd[i] = rows[i].main_sel_op_ecadd;
         polys.main_sel_op_emit_l2_to_l1_msg[i] = rows[i].main_sel_op_emit_l2_to_l1_msg;
         polys.main_sel_op_emit_note_hash[i] = rows[i].main_sel_op_emit_note_hash;
         polys.main_sel_op_emit_nullifier[i] = rows[i].main_sel_op_emit_nullifier;
@@ -229,12 +235,12 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_sel_op_eq[i] = rows[i].main_sel_op_eq;
         polys.main_sel_op_external_call[i] = rows[i].main_sel_op_external_call;
         polys.main_sel_op_external_return[i] = rows[i].main_sel_op_external_return;
+        polys.main_sel_op_external_revert[i] = rows[i].main_sel_op_external_revert;
         polys.main_sel_op_fdiv[i] = rows[i].main_sel_op_fdiv;
         polys.main_sel_op_fee_per_da_gas[i] = rows[i].main_sel_op_fee_per_da_gas;
         polys.main_sel_op_fee_per_l2_gas[i] = rows[i].main_sel_op_fee_per_l2_gas;
         polys.main_sel_op_function_selector[i] = rows[i].main_sel_op_function_selector;
         polys.main_sel_op_get_contract_instance[i] = rows[i].main_sel_op_get_contract_instance;
-        polys.main_sel_op_halt[i] = rows[i].main_sel_op_halt;
         polys.main_sel_op_internal_call[i] = rows[i].main_sel_op_internal_call;
         polys.main_sel_op_internal_return[i] = rows[i].main_sel_op_internal_return;
         polys.main_sel_op_jump[i] = rows[i].main_sel_op_jump;
@@ -245,15 +251,18 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_sel_op_lt[i] = rows[i].main_sel_op_lt;
         polys.main_sel_op_lte[i] = rows[i].main_sel_op_lte;
         polys.main_sel_op_mov[i] = rows[i].main_sel_op_mov;
+        polys.main_sel_op_msm[i] = rows[i].main_sel_op_msm;
         polys.main_sel_op_mul[i] = rows[i].main_sel_op_mul;
         polys.main_sel_op_not[i] = rows[i].main_sel_op_not;
         polys.main_sel_op_note_hash_exists[i] = rows[i].main_sel_op_note_hash_exists;
         polys.main_sel_op_nullifier_exists[i] = rows[i].main_sel_op_nullifier_exists;
         polys.main_sel_op_or[i] = rows[i].main_sel_op_or;
         polys.main_sel_op_pedersen[i] = rows[i].main_sel_op_pedersen;
+        polys.main_sel_op_pedersen_commit[i] = rows[i].main_sel_op_pedersen_commit;
         polys.main_sel_op_poseidon2[i] = rows[i].main_sel_op_poseidon2;
         polys.main_sel_op_radix_le[i] = rows[i].main_sel_op_radix_le;
         polys.main_sel_op_sender[i] = rows[i].main_sel_op_sender;
+        polys.main_sel_op_set[i] = rows[i].main_sel_op_set;
         polys.main_sel_op_sha256[i] = rows[i].main_sel_op_sha256;
         polys.main_sel_op_shl[i] = rows[i].main_sel_op_shl;
         polys.main_sel_op_shr[i] = rows[i].main_sel_op_shr;
@@ -620,13 +629,13 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.slice_val[i] = rows[i].slice_val;
         polys.lookup_byte_lengths_counts[i] = rows[i].lookup_byte_lengths_counts;
         polys.lookup_byte_operations_counts[i] = rows[i].lookup_byte_operations_counts;
-        polys.lookup_cd_value_counts[i] = rows[i].lookup_cd_value_counts;
-        polys.lookup_ret_value_counts[i] = rows[i].lookup_ret_value_counts;
         polys.lookup_opcode_gas_counts[i] = rows[i].lookup_opcode_gas_counts;
         polys.range_check_l2_gas_hi_counts[i] = rows[i].range_check_l2_gas_hi_counts;
         polys.range_check_l2_gas_lo_counts[i] = rows[i].range_check_l2_gas_lo_counts;
         polys.range_check_da_gas_hi_counts[i] = rows[i].range_check_da_gas_hi_counts;
         polys.range_check_da_gas_lo_counts[i] = rows[i].range_check_da_gas_lo_counts;
+        polys.lookup_cd_value_counts[i] = rows[i].lookup_cd_value_counts;
+        polys.lookup_ret_value_counts[i] = rows[i].lookup_ret_value_counts;
         polys.kernel_output_lookup_counts[i] = rows[i].kernel_output_lookup_counts;
         polys.lookup_into_kernel_counts[i] = rows[i].lookup_into_kernel_counts;
         polys.incl_main_tag_err_counts[i] = rows[i].incl_main_tag_err_counts;
@@ -742,14 +751,9 @@ bool AvmCircuitBuilder::check_circuit() const
 
     std::string errors;
     std::mutex m;
-    const bool verbose_errors = std::getenv("AVM_VERBOSE_ERRORS") != nullptr;
     auto signal_error = [&](const std::string& error) {
         std::lock_guard<std::mutex> lock(m);
-        if (verbose_errors) {
-            errors += error + "\n";
-        } else if (errors.empty()) {
-            errors = "Circuit check failed. Use AVM_VERBOSE_ERRORS=1 to see more details.";
-        }
+        errors += error + "\n";
     };
     bb::parallel_for(checks.size(), [&](size_t i) { checks[i](signal_error); });
     if (!errors.empty()) {

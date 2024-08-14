@@ -3,8 +3,8 @@ include "alu.pil";
 include "binary.pil";
 include "constants_gen.pil";
 include "constants_misc.pil";
+include "gas.pil";
 include "kernel.pil";
-include "fixed/gas.pil";
 include "fixed/powers.pil";
 include "gadgets/conversion.pil";
 include "gadgets/sha256.pil";
@@ -19,6 +19,16 @@ namespace main(256);
     pol constant sel_first = [1] + [0]*; // Used mostly to toggle off the first row consisting
                                          // only in first element of shifted polynomials.
     pol constant zeroes = [0]*; // Helper for if we need to use a constant zero column
+
+    //===== HELPER POLYNOMIALS ==================================================
+    // This column signals active rows in the main trace table, which should
+    // be every row except the first, and the padding rows at the end.
+    pol commit sel_execution_row;
+    // This relation might not be needed when we can use OPCODE_SELECTORS in lookups.
+    #[OPCODE_SELECTORS]
+    sel_execution_row = OPCODE_SELECTORS;
+    sel_execution_row * (1 - sel_execution_row) = 0;
+    // TODO: constrain that the right rows are marked with sel_execution_row
 
     //===== PUBLIC COLUMNS=========================================================
     pol public calldata;
@@ -69,85 +79,20 @@ namespace main(256);
     // TODO: Opcode value (byte) will be constrained by the bytecode validation circuit
     pol commit opcode_val;
 
-    //===== GAS ACCOUNTING ========================================================
-    // 1. The gas lookup table (in gas.pil) is constant and maps the opcode value to L2/DA gas (fixed) cost.
-    // 2. Read gas_op from gas table based on the opcode value
-    // 3. TODO(#6588): constrain gas start and gas end
-
-    // "gas_remaining" values correspond to the gas quantity which remains BEFORE the execution of the opcode
-    // of the pertaining line. This means that the last value will be written on the row following the last
-    // opcode execution.
-    pol commit l2_gas_remaining;
-    pol commit da_gas_remaining;
-
-    // These are the gas costs of the opcode execution.
-    // TODO: allow lookups to evaluate expressions
-    pol commit l2_gas_op_cost;
-    pol commit da_gas_op_cost;
-
-    // Boolean indicating whether the current opcode gas consumption is higher than remaining gas
-    pol commit l2_out_of_gas;
-    pol commit da_out_of_gas;
-
-    // Absolute gas remaining value after the operation in 16-bit high and low limbs
-    pol commit abs_l2_rem_gas_hi;
-    pol commit abs_l2_rem_gas_lo;
-    pol commit abs_da_rem_gas_hi;
-    pol commit abs_da_rem_gas_lo;
-
-    // Boolean constraints
-    l2_out_of_gas * (1 - l2_out_of_gas) = 0;
-    da_out_of_gas * (1 - da_out_of_gas) = 0;
-
-    // Constrain that the gas decrements correctly per instruction
-    // TODO: Special-case for external call.
-    #[L2_GAS_REMAINING_DECREMENT]
-    sel_gas_accounting_active * (1 - sel_op_external_call) * (l2_gas_remaining' - l2_gas_remaining + l2_gas_op_cost) = 0;
-    #[DA_GAS_REMAINING_DECREMENT]
-    sel_gas_accounting_active * (1 - sel_op_external_call) * (da_gas_remaining' - da_gas_remaining + da_gas_op_cost) = 0;
-
-    // Constrain that the remaining gas is unchanged otherwise (multi-line operations)
-    #[L2_GAS_INACTIVE]
-    (1 - sel_gas_accounting_active) * l2_gas_op_cost = 0;
-    #[DA_GAS_INACTIVE]
-    (1 - sel_gas_accounting_active) * da_gas_op_cost = 0;
-
-    // TODO: constrain that it stays the same if an opcode selector is not active -> TODO: will this break when the opcode takes multiple rows
-    // So we also need to constrain that it is the first line of the opcodes execution
-
-    // Prove that l2_out_of_gas == 0 <==> l2_gas_remaining' >= 0
-    // Same for da gas
-    // TODO: Ensure that remaining gas values are initialized as u32 and that gas l2_gas_op_cost/da_gas_op_cost are u32.
-    sel_gas_accounting_active * ((1 - 2 * l2_out_of_gas) * l2_gas_remaining' - 2**16 * abs_l2_rem_gas_hi - abs_l2_rem_gas_lo) = 0;
-    sel_gas_accounting_active * ((1 - 2 * da_out_of_gas) * da_gas_remaining' - 2**16 * abs_da_rem_gas_hi - abs_da_rem_gas_lo) = 0;
-
-    #[LOOKUP_OPCODE_GAS]
-    sel_gas_accounting_active {opcode_val, l2_gas_op_cost, da_gas_op_cost}
-    in
-    gas.sel_gas_cost {clk, gas.l2_gas_fixed_table, gas.da_gas_fixed_table};
-
-    #[RANGE_CHECK_L2_GAS_HI]
-    sel_gas_accounting_active {abs_l2_rem_gas_hi} in sel_rng_16 {clk};
-
-    #[RANGE_CHECK_L2_GAS_LO]
-    sel_gas_accounting_active {abs_l2_rem_gas_lo} in sel_rng_16 {clk};
-
-    #[RANGE_CHECK_DA_GAS_HI]
-    sel_gas_accounting_active {abs_da_rem_gas_hi} in sel_rng_16 {clk};
-
-    #[RANGE_CHECK_DA_GAS_LO]
-    sel_gas_accounting_active {abs_da_rem_gas_lo} in sel_rng_16 {clk};
-
     //===== Gadget Selectors ======================================================
     pol commit sel_op_radix_le;
     pol commit sel_op_sha256;
     pol commit sel_op_poseidon2;
     pol commit sel_op_keccak;
     pol commit sel_op_pedersen;
+    pol commit sel_op_ecadd;
+    pol commit sel_op_pedersen_commit;
+    pol commit sel_op_msm;
     
     //===== Memory Slice Gadget Selectors =========================================
     pol commit sel_op_calldata_copy;
     pol commit sel_op_external_return;
+    pol commit sel_op_external_revert;
 
     //===== Fix Range Checks Selectors=============================================
     // We re-use the clk column for the lookup values of 8-bit resp. 16-bit range check.
@@ -168,13 +113,11 @@ namespace main(256);
     pol commit sel_op_jumpi;
     pol commit sel_op_external_call;
     
-    // Halt program execution
-    pol commit sel_op_halt;
-
     // Memory Space Identifier
     pol commit space_id;
 
     //===== MEMORY OPCODES ==========================================================
+    pol commit sel_op_set;
     pol commit sel_op_mov;
     pol commit sel_op_cmov;
     
@@ -307,6 +250,9 @@ namespace main(256);
     sel_op_poseidon2 * (1 - sel_op_poseidon2) = 0;
     sel_op_keccak * (1 - sel_op_keccak) = 0;
     sel_op_pedersen * (1 - sel_op_pedersen) = 0;
+    sel_op_ecadd * (1 - sel_op_ecadd) = 0;
+    sel_op_pedersen_commit * (1 - sel_op_pedersen_commit) = 0;
+    sel_op_msm * (1 - sel_op_msm) = 0;
 
     sel_op_add * (1 - sel_op_add) = 0;
     sel_op_sub * (1 - sel_op_sub) = 0;
@@ -328,15 +274,16 @@ namespace main(256);
     sel_op_internal_return * (1 - sel_op_internal_return) = 0;
     sel_op_jump * (1 - sel_op_jump) = 0;
     sel_op_jumpi * (1 - sel_op_jumpi) = 0;
-    sel_op_halt * (1 - sel_op_halt) = 0;
     sel_op_external_call * (1 - sel_op_external_call) = 0;
 
     sel_op_calldata_copy * (1 - sel_op_calldata_copy) = 0;
     sel_op_external_return * (1 - sel_op_external_return) = 0;
+    sel_op_external_revert * (1 - sel_op_external_revert) = 0;
 
     // Might be removed if derived from opcode based on a lookup of constants
-    sel_op_mov * ( 1 - sel_op_mov) = 0;
-    sel_op_cmov * ( 1 - sel_op_cmov) = 0;
+    sel_op_set * (1 - sel_op_set) = 0;
+    sel_op_mov * (1 - sel_op_mov) = 0;
+    sel_op_cmov * (1 - sel_op_cmov) = 0;
 
     op_err * (1 - op_err) = 0;
     tag_err * (1 - tag_err) = 0; // Potential optimization (boolean constraint derivation from equivalence check to mem)?
@@ -424,23 +371,24 @@ namespace main(256);
     // Drawback is the need to paralllelize the latter.
     
     //===== KERNEL LOOKUPS =======================================================
-    pol KERNEL_INPUT_SELECTORS = (
-        sel_op_address + sel_op_storage_address + sel_op_sender + sel_op_function_selector + sel_op_transaction_fee +
-        sel_op_chain_id + sel_op_version + sel_op_block_number + sel_op_coinbase + sel_op_timestamp +
-        sel_op_fee_per_l2_gas + sel_op_fee_per_da_gas
-    );
+    pol KERNEL_INPUT_SELECTORS = sel_op_address + sel_op_storage_address + sel_op_sender
+                               + sel_op_function_selector + sel_op_transaction_fee + sel_op_chain_id
+                               + sel_op_version + sel_op_block_number + sel_op_coinbase + sel_op_timestamp
+                               + sel_op_fee_per_l2_gas + sel_op_fee_per_da_gas;
     // Ensure that only one kernel lookup is active when the kernel_in_offset is active
     #[KERNEL_INPUT_ACTIVE_CHECK]
     KERNEL_INPUT_SELECTORS * (1 - sel_q_kernel_lookup) = 0;
 
-    pol KERNEL_OUTPUT_SELECTORS = (
-        sel_op_note_hash_exists + sel_op_emit_note_hash + sel_op_nullifier_exists + sel_op_emit_nullifier + sel_op_l1_to_l2_msg_exists +
-        sel_op_emit_unencrypted_log + sel_op_emit_l2_to_l1_msg
-    );
+    pol KERNEL_OUTPUT_SELECTORS = sel_op_note_hash_exists + sel_op_emit_note_hash + sel_op_nullifier_exists
+                                + sel_op_emit_nullifier + sel_op_l1_to_l2_msg_exists + sel_op_emit_unencrypted_log
+                                + sel_op_emit_l2_to_l1_msg + sel_op_sload + sel_op_sstore;
     #[KERNEL_OUTPUT_ACTIVE_CHECK]
     KERNEL_OUTPUT_SELECTORS * (1 - sel_q_kernel_output_lookup) = 0;
 
     //===== CONTROL FLOW =======================================================
+    // pol commit sel_halted;
+    // sel_halted * (1 - sel_halted) = 0;
+
     //===== JUMP ===============================================================
     #[PC_JUMP]
     sel_op_jump * (pc' - ia) = 0;
@@ -479,46 +427,36 @@ namespace main(256);
     sel_op_internal_return * (sel_mem_op_a - 1) = 0;
 
     //===== CONTROL_FLOW_CONSISTENCY ============================================
-    pol INTERNAL_CALL_STACK_SELECTORS = (sel_first + sel_op_internal_call + sel_op_internal_return + sel_op_halt);
+    pol SEL_ALL_CTRL_FLOW = sel_op_jump + sel_op_jumpi + sel_op_internal_call
+                          + sel_op_internal_return + sel_op_external_call + sel_op_external_return;
     pol SEL_ALU_R_TAG = sel_op_add + sel_op_sub + sel_op_mul + sel_op_div + sel_op_not + sel_op_eq
                       + sel_op_lt + sel_op_lte + sel_op_shr + sel_op_shl;
     pol SEL_ALU_W_TAG = sel_op_cast;
     pol SEL_ALL_ALU = SEL_ALU_R_TAG + SEL_ALU_W_TAG;
-    pol SEL_ALL_CTRL_FLOW = sel_op_jump + sel_op_jumpi + sel_op_internal_call + sel_op_internal_return;
     pol SEL_ALL_LEFTGAS = sel_op_dagasleft + sel_op_l2gasleft;
     pol SEL_ALL_BINARY = sel_op_and + sel_op_or + sel_op_xor;
-    pol SEL_ALL_GADGET = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen;
-    pol SEL_ALL_MEMORY = sel_op_cmov + sel_op_mov;
-    pol SEL_ALL_MEM_SLICE = sel_op_calldata_copy + sel_op_external_return;
-    pol OPCODE_SELECTORS = sel_op_fdiv + SEL_ALL_ALU + SEL_ALL_BINARY + SEL_ALL_MEMORY + SEL_ALL_GADGET
-                         + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS + SEL_ALL_LEFTGAS + SEL_ALL_MEM_SLICE;
+    pol SEL_ALL_GADGET = sel_op_radix_le + sel_op_sha256 + sel_op_poseidon2 + sel_op_keccak + sel_op_pedersen
+                       + sel_op_ecadd + sel_op_pedersen_commit + sel_op_msm;
+    pol SEL_ALL_MEMORY = sel_op_cmov + sel_op_mov + sel_op_set;
+    pol OPCODE_SELECTORS = sel_op_fdiv + sel_op_calldata_copy + sel_op_get_contract_instance
+                         + SEL_ALL_ALU + SEL_ALL_BINARY + SEL_ALL_MEMORY + SEL_ALL_GADGET
+                         + KERNEL_INPUT_SELECTORS + KERNEL_OUTPUT_SELECTORS + SEL_ALL_LEFTGAS
+                         + SEL_ALL_CTRL_FLOW;
 
-    // TODO: sel_gas_accounting_active is activating gas accounting on a given row. All opcode with selectors
-    //       are activated through the relation below. The other opcodes which are implemented purely
-    //       through memory sub-operations such as RETURN, SET are activated by
-    //       setting a newly introduced boolean sel_mem_op_activate_gas which is set in witness generation.
-    //       We should remove this shortcut and constrain this activation through bytecode decomposition.
-    //       Alternatively, we introduce a boolean selector for the three opcodes mentioned above.
-    //       Note: External call gas cost is not constrained
-    pol commit sel_gas_accounting_active;
-    // TODO: remove sload and sstore from here
-    // This temporarily disables gas tracking for sload and sstore because our gas
-    // tracking doesn't work properly for instructions that span multiple rows
-    // TODO: disabling this until PR in stack.
-    // sel_gas_accounting_active - OPCODE_SELECTORS - SEL_ALL_CTRL_FLOW - sel_op_sload - sel_op_sstore - sel_mem_op_activate_gas = 0;
+    pol CUR_AND_NEXT_ARE_MAIN = sel_execution_row * sel_execution_row';
 
-    // Program counter must increment if not jumping or returning
-    // TODO: support for muli-rows opcode in execution trace such as
-    // radix, hash gadgets operations. At the moment, we have to increment
-    // the pc in witness generation for all rows pertaining to the original
-    // opcode. This is misleading. Ultimately, we want the pc to be incremented
-    // just after the last row of a given opcode.
+    // When considering two adjacent main trace rows,
+    // the program counter must increment if not jumping or returning.
     #[PC_INCREMENT]
-    (1 - sel_first) * (1 - sel_op_halt) * OPCODE_SELECTORS * (pc' - (pc + 1)) = 0;
+    CUR_AND_NEXT_ARE_MAIN * (1 - SEL_ALL_CTRL_FLOW) * (pc' - (pc + 1)) = 0;
 
-    // sel_first == 0 && sel_op_internal_call == 0 && sel_op_internal_return == 0 && sel_op_halt == 0 ==> internal_return_ptr == internal_return_ptr'
+    // When considering two adjacent main trace rows,
+    // the internal return ptr must stay the same if not jumping or returning.
     #[INTERNAL_RETURN_POINTER_CONSISTENCY]
-    (1 - INTERNAL_CALL_STACK_SELECTORS) * (internal_return_ptr' - internal_return_ptr) = 0; 
+    CUR_AND_NEXT_ARE_MAIN * (1 - SEL_ALL_CTRL_FLOW) * (internal_return_ptr' - internal_return_ptr) = 0;
+    // TODO: for external_call and external_return the internal_return_ptr will
+    // actually have to be reset (to zero for an external call) or resumed
+    // (for an external return) and that the space_id/call_ptr will be incremented.
 
     // TODO: we want to set an initial number for the reserved memory of the jump pointer
 
@@ -527,7 +465,7 @@ namespace main(256);
     (sel_op_internal_call + sel_op_internal_return) * (space_id - constants_misc.INTERNAL_CALL_SPACE_ID) = 0;
 
     #[SPACE_ID_STANDARD_OPCODES]
-    OPCODE_SELECTORS * (call_ptr - space_id) = 0;
+    (1 - sel_op_internal_call - sel_op_internal_return) * (call_ptr - space_id) = 0;
 
     //====== MEMORY OPCODES CONSTRAINTS =========================================
 
@@ -571,6 +509,9 @@ namespace main(256);
     SEL_ALU_W_TAG * (alu_in_tag - w_in_tag) = 0;
 
     //===== GASLEFT OPCODES =====================================================
+    // XX_gas_remaining is the gas remaining BEFORE the current opcode.
+    // The spec requires the GASLEFT opcodes to return the gas remaining AFTER the opcode.
+    // Therefore we use XX_gas_remaining' in the constraints below.
     #[L2GASLEFT]
     sel_op_l2gasleft * (ia - l2_gas_remaining') = 0;
     #[DAGASLEFT]
@@ -670,8 +611,8 @@ namespace main(256);
     //===== Memory Slice Constraints ============================================
     pol commit sel_slice_gadget; // Selector to activate a slice gadget operation in the gadget (#[PERM_MAIN_SLICE]).
 
-    // Activate only if tag_err is disabled
-    sel_slice_gadget = (sel_op_calldata_copy + sel_op_external_return) * (1 - tag_err);
+    // Activate only if tag_err is disabled or retsize (ib) is non-zero
+    ib * (1 - tag_err) * (sel_op_calldata_copy + sel_op_external_return - sel_slice_gadget)= 0;
 
     //====== Inter-table Constraints ============================================
 

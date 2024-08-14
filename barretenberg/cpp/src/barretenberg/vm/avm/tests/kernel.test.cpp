@@ -68,7 +68,7 @@ void test_kernel_lookup(bool indirect,
 
     apply_opcodes(trace_builder);
 
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
 
     auto trace = trace_builder.finalize();
 
@@ -607,7 +607,7 @@ void negative_test_incorrect_ia_kernel_lookup(OpcodesFunc apply_opcodes,
     // We should return a value of 1 for the sender, as it exists at index 0
     apply_opcodes(trace_builder);
 
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
 
     auto trace = trace_builder.finalize();
 

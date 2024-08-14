@@ -38,62 +38,69 @@ uint32_t AvmGasTraceBuilder::get_da_gas_left()
     return gas_trace.back().remaining_da_gas;
 }
 
-void AvmGasTraceBuilder::constrain_gas(uint32_t clk, OpCode opcode, [[maybe_unused]] uint32_t dyn_gas_multiplier)
+void AvmGasTraceBuilder::constrain_gas(uint32_t clk, OpCode opcode, uint32_t dyn_gas_multiplier)
 {
-    // TODO: increase lookup counter for the opcode we are looking up into
     gas_opcode_lookup_counter[opcode]++;
 
     // Get the gas prices for this opcode
     const auto& GAS_COST_TABLE = FixedGasTable::get();
-    auto l2_gas_cost = static_cast<uint32_t>(GAS_COST_TABLE.at(opcode).gas_l2_gas_fixed_table);
-    auto da_gas_cost = static_cast<uint32_t>(GAS_COST_TABLE.at(opcode).gas_da_gas_fixed_table);
-
-    remaining_l2_gas -= l2_gas_cost;
-    remaining_da_gas -= da_gas_cost;
+    const auto& gas_info = GAS_COST_TABLE.at(opcode);
+    auto base_l2_gas_cost = static_cast<uint32_t>(gas_info.base_l2_gas_fixed_table);
+    auto base_da_gas_cost = static_cast<uint32_t>(gas_info.base_da_gas_fixed_table);
+    auto dyn_l2_gas_cost = static_cast<uint32_t>(gas_info.dyn_l2_gas_fixed_table);
+    auto dyn_da_gas_cost = static_cast<uint32_t>(gas_info.dyn_da_gas_fixed_table);
 
     // Decrease the gas left
+    remaining_l2_gas -= base_l2_gas_cost + dyn_l2_gas_cost * dyn_gas_multiplier;
+    remaining_da_gas -= base_da_gas_cost + dyn_da_gas_cost * dyn_gas_multiplier;
+
     // Create a gas trace entry
-    GasTraceEntry entry = {
+    gas_trace.push_back({
         .clk = clk,
         .opcode = opcode,
-        .l2_gas_cost = l2_gas_cost,
-        .da_gas_cost = da_gas_cost,
+        .base_l2_gas_cost = base_l2_gas_cost,
+        .base_da_gas_cost = base_da_gas_cost,
+        .dyn_l2_gas_cost = dyn_l2_gas_cost,
+        .dyn_da_gas_cost = dyn_da_gas_cost,
+        .dyn_gas_multiplier = dyn_gas_multiplier,
         .remaining_l2_gas = remaining_l2_gas,
         .remaining_da_gas = remaining_da_gas,
-    };
-
-    gas_trace.push_back(entry);
+    });
 }
 
 void AvmGasTraceBuilder::constrain_gas_for_external_call(uint32_t clk,
+                                                         uint32_t dyn_gas_multiplier,
                                                          uint32_t nested_l2_gas_cost,
                                                          uint32_t nested_da_gas_cost)
 {
     const OpCode opcode = OpCode::CALL;
-
-    // TODO: increase lookup counter for the opcode we are looking up into
     gas_opcode_lookup_counter[opcode]++;
 
     // Get the gas prices for this opcode
     const auto& GAS_COST_TABLE = FixedGasTable::get();
-    auto opcode_l2_gas_cost = static_cast<uint32_t>(GAS_COST_TABLE.at(opcode).gas_l2_gas_fixed_table);
-    auto opcode_da_gas_cost = static_cast<uint32_t>(GAS_COST_TABLE.at(opcode).gas_da_gas_fixed_table);
+    const auto& gas_info = GAS_COST_TABLE.at(opcode);
+    auto base_l2_gas_cost = static_cast<uint32_t>(gas_info.base_l2_gas_fixed_table);
+    auto base_da_gas_cost = static_cast<uint32_t>(gas_info.base_da_gas_fixed_table);
+    auto dyn_l2_gas_cost = static_cast<uint32_t>(gas_info.dyn_l2_gas_fixed_table);
+    auto dyn_da_gas_cost = static_cast<uint32_t>(gas_info.dyn_da_gas_fixed_table);
 
-    remaining_l2_gas -= opcode_l2_gas_cost + nested_l2_gas_cost;
-    remaining_da_gas -= opcode_da_gas_cost + nested_da_gas_cost;
-
+    // TODO: this is the only difference, unify.
     // Decrease the gas left
+    remaining_l2_gas -= (base_l2_gas_cost + dyn_gas_multiplier * dyn_l2_gas_cost) + nested_l2_gas_cost;
+    remaining_da_gas -= (base_da_gas_cost + dyn_gas_multiplier * dyn_da_gas_cost) + nested_da_gas_cost;
+
     // Create a gas trace entry
-    GasTraceEntry entry = {
+    gas_trace.push_back({
         .clk = clk,
-        .opcode = OpCode::CALL,
-        .l2_gas_cost = opcode_l2_gas_cost,
-        .da_gas_cost = opcode_da_gas_cost,
+        .opcode = opcode,
+        .base_l2_gas_cost = base_l2_gas_cost,
+        .base_da_gas_cost = base_da_gas_cost,
+        .dyn_l2_gas_cost = dyn_l2_gas_cost,
+        .dyn_da_gas_cost = dyn_da_gas_cost,
+        .dyn_gas_multiplier = dyn_gas_multiplier,
         .remaining_l2_gas = remaining_l2_gas,
         .remaining_da_gas = remaining_da_gas,
-    };
-
-    gas_trace.push_back(entry);
+    });
 }
 
 } // namespace bb::avm_trace

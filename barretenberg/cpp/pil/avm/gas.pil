@@ -1,0 +1,87 @@
+include "fixed/gas.pil";
+
+// Gas is a "virtual" trace. Things are only in a separate file for modularity.
+// However, the columns and relations are set on the "main" namespace.
+namespace main(256);
+    //===== GAS ACCOUNTING ========================================================
+    // 1. The gas lookup table (in fixed/gas.pil) is constant and maps the opcode value to L2/DA gas (fixed) cost.
+    // 2. Read gas_op from gas table based on the opcode value
+    // 3. TODO(#6588): constrain gas start and gas end
+
+    // "gas_remaining" values correspond to the gas quantity which remains BEFORE the execution of the opcode
+    // of the pertaining row. This means that the last value will be written on the row following the last
+    // opcode execution.
+    pol commit l2_gas_remaining;
+    pol commit da_gas_remaining;
+
+    // These are the gas costs of the opcode execution.
+    // TODO: allow lookups to evaluate expressions
+    pol commit base_l2_gas_op_cost;
+    pol commit base_da_gas_op_cost;
+    pol commit dyn_l2_gas_op_cost;
+    pol commit dyn_da_gas_op_cost;
+
+    // This is the number of dynamic gas units that the opcode consumes (for a given row).
+    // For example, SLOAD of 200 fields, will consume 200 units (if in a single row).
+    // Otherwise, for opcodes that we (hopefully temporarily) explode into several rows,
+    // We would set the multiplier to 1 for each row.
+    //
+    // TODO: This has to be constrained! The idea is as follows:
+    // - For opcodes where we expect the multiplier to be non-1, we use a permutation
+    //   against the chiplet, to "pull" the resolved multiplier.
+    //   Since there will already be such a permutation in the main trace, we might
+    //   do it there, or we might have a separate permutation in this file and then
+    //   change BB-pilcom to recognize permutations over the same selectors and
+    //   group them as a single permutation (this is on the wishlist).
+    // - For opcodes where we expect the multiplier to be 1, we just constrain it to 1
+    //   using a simple constraint. Otherwise we might use some permutation trickery
+    //   against bytecode decomposition, etc.
+    pol commit dyn_gas_multiplier;
+
+    // Boolean indicating whether the current opcode gas consumption is higher than remaining gas
+    pol commit l2_out_of_gas;
+    pol commit da_out_of_gas;
+
+    // Absolute gas remaining value after the operation in 16-bit high and low limbs
+    pol commit abs_l2_rem_gas_hi;
+    pol commit abs_l2_rem_gas_lo;
+    pol commit abs_da_rem_gas_hi;
+    pol commit abs_da_rem_gas_lo;
+
+    // Boolean constraints
+    l2_out_of_gas * (1 - l2_out_of_gas) = 0;
+    da_out_of_gas * (1 - da_out_of_gas) = 0;
+
+    // Constrain that the gas decrements correctly per instruction
+    #[L2_GAS_REMAINING_DECREMENT_NOT_CALL]
+    sel_execution_row * (1 - sel_op_external_call) * (l2_gas_remaining' - l2_gas_remaining + base_l2_gas_op_cost + (dyn_l2_gas_op_cost * dyn_gas_multiplier)) = 0;
+    #[DA_GAS_REMAINING_DECREMENT_NOT_CALL]
+    sel_execution_row * (1 - sel_op_external_call) * (da_gas_remaining' - da_gas_remaining + base_da_gas_op_cost + (dyn_da_gas_op_cost * dyn_gas_multiplier)) = 0;
+    // We need to special-case external calls
+    // TODO: for the moment, unconstrained.
+    // #[L2_GAS_REMAINING_DECREMENT_CALL]
+    // sel_execution_row * sel_op_external_call * (l2_gas_remaining' - l2_gas_remaining + base_l2_gas_op_cost + (dyn_l2_gas_op_cost * dyn_gas_multiplier)) = 0;
+    // #[DA_GAS_REMAINING_DECREMENT_CALL]
+    // sel_execution_row * sel_op_external_call * (da_gas_remaining' - da_gas_remaining + base_da_gas_op_cost + (dyn_da_gas_op_cost * dyn_gas_multiplier)) = 0;
+
+    // Prove that XX_out_of_gas == 0 <==> XX_gas_remaining' >= 0
+    // TODO: Ensure that remaining gas values are initialized as u32 and that gas l2_gas_op_cost/da_gas_op_cost are u32.
+    sel_execution_row * ((1 - 2 * l2_out_of_gas) * l2_gas_remaining' - 2**16 * abs_l2_rem_gas_hi - abs_l2_rem_gas_lo) = 0;
+    sel_execution_row * ((1 - 2 * da_out_of_gas) * da_gas_remaining' - 2**16 * abs_da_rem_gas_hi - abs_da_rem_gas_lo) = 0;
+
+    #[LOOKUP_OPCODE_GAS]
+    sel_execution_row {opcode_val, base_l2_gas_op_cost, base_da_gas_op_cost, dyn_l2_gas_op_cost, dyn_da_gas_op_cost}
+    in
+    gas.sel_gas_cost {clk, gas.base_l2_gas_fixed_table, gas.base_da_gas_fixed_table, gas.dyn_l2_gas_fixed_table, gas.dyn_da_gas_fixed_table};
+
+    #[RANGE_CHECK_L2_GAS_HI]
+    sel_execution_row {abs_l2_rem_gas_hi} in sel_rng_16 {clk};
+
+    #[RANGE_CHECK_L2_GAS_LO]
+    sel_execution_row {abs_l2_rem_gas_lo} in sel_rng_16 {clk};
+
+    #[RANGE_CHECK_DA_GAS_HI]
+    sel_execution_row {abs_da_rem_gas_hi} in sel_rng_16 {clk};
+
+    #[RANGE_CHECK_DA_GAS_LO]
+    sel_execution_row {abs_da_rem_gas_lo} in sel_rng_16 {clk};

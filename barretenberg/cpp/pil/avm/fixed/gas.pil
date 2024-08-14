@@ -1,6 +1,7 @@
 namespace gas(256);
     pol constant sel_gas_cost;
 
-    // TODO(ISSUE_NUMBER): Constrain variable gas costs
-    pol constant l2_gas_fixed_table;
-    pol constant da_gas_fixed_table;
+    pol constant base_l2_gas_fixed_table;
+    pol constant base_da_gas_fixed_table;
+    pol constant dyn_l2_gas_fixed_table;
+    pol constant dyn_da_gas_fixed_table;

@@ -242,7 +242,7 @@ TEST_F(AvmSliceTests, indirectFailedResolution)
     gen_trace_builder(calldata);
     trace_builder.op_set(0, 34, 100, AvmMemoryTag::U16); // indirect address 100 resolves to 34
     trace_builder.op_calldata_copy(1, 1, 3, 100);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     trace = trace_builder.finalize();
 
     // Check that slice trace is empty

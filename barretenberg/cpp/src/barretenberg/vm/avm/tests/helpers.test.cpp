@@ -42,6 +42,13 @@ void validate_trace(std::vector<Row>&& trace,
                     bool expect_proof_failure)
 {
     setenv("AVM_VERBOSE_ERRORS", "1", 1);
+    const std::string avm_dump_trace_path =
+        std::getenv("AVM_DUMP_TRACE_PATH") != nullptr ? std::getenv("AVM_DUMP_TRACE_PATH") : "";
+    if (!avm_dump_trace_path.empty()) {
+        info("Dumping trace as CSV to: " + avm_dump_trace_path);
+        avm_trace::dump_trace_as_csv(trace, avm_dump_trace_path);
+    }
+
     auto circuit_builder = AvmCircuitBuilder();
     circuit_builder.set_trace(std::move(trace));
     EXPECT_TRUE(circuit_builder.check_circuit());

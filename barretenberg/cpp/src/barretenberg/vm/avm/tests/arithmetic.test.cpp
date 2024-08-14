@@ -243,7 +243,7 @@ class AvmArithmeticTests : public ::testing::Test {
         trace_builder.op_set(0, uint128_t{ a }, 0, tag);
         trace_builder.op_set(0, uint128_t{ b }, 1, tag);
         trace_builder.op_add(0, 0, 1, 2, tag);
-        trace_builder.halt();
+        trace_builder.op_return(0, 0, 0);
         auto trace = trace_builder.finalize();
 
         auto select_row = [](Row r) { return r.main_sel_op_add == FF(1); };
@@ -260,7 +260,7 @@ class AvmArithmeticTests : public ::testing::Test {
         trace_builder.op_set(0, uint128_t{ a }, 0, tag);
         trace_builder.op_set(0, uint128_t{ b }, 1, tag);
         trace_builder.op_sub(0, 0, 1, 2, tag);
-        trace_builder.halt();
+        trace_builder.op_return(0, 0, 0);
         auto trace = trace_builder.finalize();
 
         auto select_row = [](Row r) { return r.main_sel_op_sub == FF(1); };
@@ -277,7 +277,7 @@ class AvmArithmeticTests : public ::testing::Test {
         trace_builder.op_set(0, uint128_t{ a }, 0, tag);
         trace_builder.op_set(0, uint128_t{ b }, 1, tag);
         trace_builder.op_mul(0, 0, 1, 2, tag);
-        trace_builder.halt();
+        trace_builder.op_return(0, 0, 0);
         auto trace = trace_builder.finalize();
 
         auto select_row = [](Row r) { return r.main_sel_op_mul == FF(1); };
@@ -297,7 +297,7 @@ class AvmArithmeticTests : public ::testing::Test {
         trace_builder.op_set(0, uint128_t{ a }, 0, tag);
         trace_builder.op_set(0, uint128_t{ b }, 1, tag);
         trace_builder.op_eq(0, 0, 1, 2, tag);
-        trace_builder.halt();
+        trace_builder.op_return(0, 0, 0);
         auto trace = trace_builder.finalize();
 
         auto select_row = [](Row r) { return r.main_sel_op_eq == FF(1); };
@@ -523,7 +523,7 @@ TEST_F(AvmArithmeticTestsFF, fDivisionByZeroError)
 
     //                  Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [15,0,0,0,0,0....]
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
@@ -546,7 +546,7 @@ TEST_F(AvmArithmeticTestsFF, fDivisionZeroByZeroError)
 {
     //                  Memory layout:    [0,0,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [0,0,0,0,0,0....]
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
@@ -583,7 +583,7 @@ TEST_F(AvmArithmeticTestsFF, mixedOperationsWithError)
     trace_builder.op_fdiv(0, 3, 5, 1);                  // [0,23*136^(-1),45,23,68,136,0,136,136^2,0....]
     trace_builder.op_fdiv(0, 1, 1, 9);                  // [0,23*136^(-1),45,23,68,136,0,136,136^2,1,0....]
     trace_builder.op_fdiv(0, 9, 0, 4); // [0,23*136^(-1),45,23,1/0,136,0,136,136^2,1,0....] Error: division by 0
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
 
     auto trace = trace_builder.finalize();
     validate_trace(std::move(trace), public_inputs, calldata, {}, true);
@@ -658,7 +658,7 @@ TEST_F(AvmArithmeticTests, DivisionByZeroError)
     trace_builder.op_set(0, 100, 0, AvmMemoryTag::U128);
     trace_builder.op_set(0, 0, 1, AvmMemoryTag::U128);
     trace_builder.op_div(0, 0, 1, 2, AvmMemoryTag::U128);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the div selector
@@ -1800,7 +1800,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivision)
 
     //                  Memory layout:    [15,315,0,0,0,0,....]
     trace_builder.op_fdiv(0, 1, 0, 2); // [15,315,21,0,0,0....]
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     auto select_row = [](Row r) { return r.main_sel_op_fdiv == FF(1); };
@@ -1819,7 +1819,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionNoZeroButError)
 
     //                  Memory layout:    [15,315,0,0,0,0,....]
     trace_builder.op_fdiv(0, 1, 0, 2); // [15,315,21,0,0,0....]
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
@@ -1847,7 +1847,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionByZeroNoError)
 
     //                  Memory layout:    [15,0,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [15,0,0,0,0,0....]
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
@@ -1864,7 +1864,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionZeroByZeroNoError)
 {
     //                  Memory layout:    [0,0,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [0,0,0,0,0,0....]
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
@@ -1884,7 +1884,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionWrongRInTag)
     trace_builder.op_calldata_copy(0, 0, 1, 0);
     //                  Memory layout:    [18,6,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [18,6,3,0,0,0....]
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
@@ -1904,7 +1904,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, fDivisionWrongWInTag)
     trace_builder.op_calldata_copy(0, 0, 1, 0);
     //                  Memory layout:    [18,6,0,0,0,0,....]
     trace_builder.op_fdiv(0, 0, 1, 2); // [18,6,3,0,0,0....]
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the fdiv selector
@@ -1927,7 +1927,7 @@ TEST_F(AvmArithmeticNegativeTestsFF, operationWithErrorFlag1)
     //                             Memory layout:    [37,4,11,0,0,0,....]
     trace_builder.op_add(0, 0, 1, 4, AvmMemoryTag::FF); // [37,4,11,0,41,0,....]
     trace_builder.op_return(0, 0, 5);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the first row enabling the addition selector

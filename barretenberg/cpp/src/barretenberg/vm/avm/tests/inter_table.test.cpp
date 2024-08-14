@@ -447,7 +447,7 @@ TEST_F(AvmPermMainMemNegativeTests, tagErrNotCopiedInMain)
     trace_builder.op_set(0, 32, 18, AvmMemoryTag::U128);
     trace_builder.op_set(0, 32, 76, AvmMemoryTag::U16);
     trace_builder.op_eq(0, 18, 76, 65, AvmMemoryTag::U128);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
 
     // Find the row with equality operation and mutate the error tag.

@@ -62,9 +62,9 @@ TEST_F(AvmControlFlowTests, simpleCall)
     // trace_builder for the following operation
     // pc   opcode
     // 0    INTERNAL_CALL(pc=4)
-    // 4    HALT
+    // 4    RETURN
     trace_builder.op_internal_call(CALL_PC);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
 
     auto trace = trace_builder.finalize();
 
@@ -79,8 +79,8 @@ TEST_F(AvmControlFlowTests, simpleCall)
 
     // Check halt
     {
-        auto halt_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_halt == FF(1); });
+        auto halt_row = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_external_return == FF(1); });
 
         // Check that the correct result is stored at the expected memory location.
         EXPECT_TRUE(halt_row != trace.end());
@@ -97,9 +97,9 @@ TEST_F(AvmControlFlowTests, simpleJump)
     // trace_builder for the following operation
     // pc   opcode
     // 0    JUMP(pc=4)
-    // 4    HALT
+    // 4    RETURN
     trace_builder.op_jump(JUMP_PC);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
 
     auto trace = trace_builder.finalize();
 
@@ -114,8 +114,8 @@ TEST_F(AvmControlFlowTests, simpleJump)
 
     // Check halt
     {
-        auto halt_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_halt == FF(1); });
+        auto halt_row = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_external_return == FF(1); });
 
         EXPECT_TRUE(halt_row != trace.end());
         EXPECT_EQ(halt_row->main_pc, FF(JUMP_PC));
@@ -131,10 +131,10 @@ TEST_F(AvmControlFlowTests, simpleCallAndReturn)
     // pc   opcode
     // 0    INTERNAL_CALL(pc=20)
     // 20   INTERNAL_RETURN
-    // 1    HALT
+    // 1    RETURN
     trace_builder.op_internal_call(CALL_PC);
     trace_builder.op_internal_return();
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
 
     auto trace = trace_builder.finalize();
 
@@ -160,8 +160,8 @@ TEST_F(AvmControlFlowTests, simpleCallAndReturn)
 
     // Check halt
     {
-        auto halt_row =
-            std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_halt == FF(1); });
+        auto halt_row = std::ranges::find_if(
+            trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_external_return == FF(1); });
 
         EXPECT_TRUE(halt_row != trace.end());
         EXPECT_EQ(halt_row->main_pc, FF(RETURN_PC));
@@ -190,7 +190,7 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     // 71    JUMP(pc=22)
     // 22    INTERNAL_RETURN
     // 421   INTERNAL_RETURN
-    // 1     HALT
+    // 1     RETURN
     trace_builder.op_internal_call(CALL_PC_1);
     trace_builder.op_internal_call(CALL_PC_2);
     trace_builder.op_internal_call(CALL_PC_3);
@@ -200,7 +200,7 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     trace_builder.op_jump(JUMP_PC_1);
     trace_builder.op_internal_return();
     trace_builder.op_internal_return();
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
 
     auto trace = trace_builder.finalize();
 
@@ -294,7 +294,8 @@ TEST_F(AvmControlFlowTests, multipleCallsAndReturns)
     }
 
     // Halt row
-    auto halt_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_halt == FF(1); });
+    auto halt_row =
+        std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_external_return == FF(1); });
 
     EXPECT_TRUE(halt_row != trace.end());
     EXPECT_EQ(halt_row->main_pc, FF(1));

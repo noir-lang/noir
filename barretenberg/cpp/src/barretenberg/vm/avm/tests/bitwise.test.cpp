@@ -360,7 +360,7 @@ class AvmBitwiseTests : public ::testing::Test {
     {
         trace_builder.op_set(0, uint128_t{ a }, 0, tag);
         trace_builder.op_not(0, 0, 1, tag);
-        trace_builder.halt();
+        trace_builder.op_return(0, 0, 0);
         auto trace = trace_builder.finalize();
 
         auto select_row = [](Row r) { return r.main_sel_op_not == FF(1); };
@@ -625,7 +625,7 @@ TEST_P(AvmBitwiseNegativeTestsAnd, AllNegativeTests)
     trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
     trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
     trace_builder.op_and(0, 0, 1, 2, mem_tag);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
     std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_and == FF(1); };
     trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
@@ -644,7 +644,7 @@ TEST_P(AvmBitwiseNegativeTestsOr, AllNegativeTests)
     trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
     trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
     trace_builder.op_or(0, 0, 1, 2, mem_tag);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
     std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_or == FF(1); };
     trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
@@ -662,7 +662,7 @@ TEST_P(AvmBitwiseNegativeTestsXor, AllNegativeTests)
     trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
     trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
     trace_builder.op_xor(0, 0, 1, 2, mem_tag);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
     std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_xor == FF(1); };
     trace = gen_mutated_trace_bit(trace, std::move(select_row), output, failure_mode);
@@ -680,7 +680,7 @@ TEST_P(AvmBitwiseNegativeTestsShr, AllNegativeTests)
     trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
     trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
     trace_builder.op_shr(0, 0, 1, 2, mem_tag);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
     std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_shr == FF(1); };
 
@@ -699,7 +699,7 @@ TEST_P(AvmBitwiseNegativeTestsShl, AllNegativeTests)
     trace_builder.op_set(0, uint128_t{ a }, 0, mem_tag);
     trace_builder.op_set(0, uint128_t{ b }, 1, mem_tag);
     trace_builder.op_shl(0, 0, 1, 2, mem_tag);
-    trace_builder.halt();
+    trace_builder.op_return(0, 0, 0);
     auto trace = trace_builder.finalize();
     std::function<bool(Row)>&& select_row = [](Row r) { return r.main_sel_op_shl == FF(1); };
 
