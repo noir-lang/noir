@@ -153,7 +153,7 @@ describe('e2e_fees/private_refunds', () => {
             aliceRandomness,
             bobRandomness,
             t.bobWallet.getAddress(), // Bob is the recipient of the fee notes.
-            true, // We set max fee/funded amount to zero to trigger the error.
+            true, // We set max fee/funded amount to 1 to trigger the error.
           ),
         },
       }),
@@ -195,10 +195,10 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
     private feeRecipient: AztecAddress,
 
     /**
-     * If true, the max fee will be set to 0.
+     * If true, the max fee will be set to 1.
      * TODO(#7694): Remove this param once the lacking feature in TXE is implemented.
      */
-    private setMaxFeeToZero = false,
+    private setMaxFeeToOne = false,
   ) {}
 
   /**
@@ -221,7 +221,7 @@ class PrivateRefundPaymentMethod implements FeePaymentMethod {
   async getFunctionCalls(gasSettings: GasSettings): Promise<FunctionCall[]> {
     // We assume 1:1 exchange rate between fee juice and token. But in reality you would need to convert feeLimit
     // (maxFee) to be in token denomination.
-    const maxFee = this.setMaxFeeToZero ? Fr.ZERO : gasSettings.getFeeLimit();
+    const maxFee = this.setMaxFeeToOne ? Fr.ONE : gasSettings.getFeeLimit();
 
     await this.wallet.createAuthWit({
       caller: this.paymentContract,
