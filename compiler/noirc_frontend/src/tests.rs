@@ -2502,7 +2502,7 @@ fn missing_unsafe_block_when_needing_type_annotations() {
     let src = r#"
     fn main() {
         let z = BigNum { limbs: [2, 0, 0] };
-        println(z.__is_zero());
+        assert(z.__is_zero() == false);
     }
 
     struct BigNum<let N: u32> {
