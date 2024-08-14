@@ -450,7 +450,18 @@ impl<'a> NodeFinder<'a> {
 
     fn find_in_lvalue(&mut self, lvalue: &LValue) {
         match lvalue {
-            LValue::Ident(_) => (),
+            LValue::Ident(ident) => {
+                if self.byte == Some(b'.') && ident.span().end() as usize == self.byte_index - 1 {
+                    let location = Location::new(ident.span(), self.file);
+                    if let Some(ReferenceId::Local(definition_id)) =
+                        self.interner.find_referenced(location)
+                    {
+                        let typ = self.interner.definition_type(definition_id);
+                        let prefix = "";
+                        self.complete_type_fields_and_methods(&typ, prefix);
+                    }
+                }
+            }
             LValue::MemberAccess { object, field_name: _, span: _ } => self.find_in_lvalue(object),
             LValue::Index { array, index, span: _ } => {
                 self.find_in_lvalue(array);
@@ -2939,6 +2950,28 @@ mod completion_tests {
                 "foo()",
                 Some("fn(self) -> Foo".to_string()),
             )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_completes_when_assignment_follows() {
+        let src = r#"
+            struct Foo {
+                bar: i32,
+            }
+
+            fn foo(f: Foo) {
+                let mut x = 1;
+
+                f.>|<
+
+                x = 2;
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![simple_completion_item("bar", CompletionItemKind::FIELD, Some("i32".to_string()))],
         )
         .await;
     }
