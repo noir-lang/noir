@@ -31,6 +31,7 @@ pub(super) fn parse_type_inner<'a>(
         struct_definition_type(),
         trait_constraint_type(),
         trait_definition_type(),
+        trait_impl_type(),
         function_definition_type(),
         module_type(),
         top_level_item_type(),
@@ -105,6 +106,11 @@ pub(super) fn trait_definition_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::TraitDefinition).map_with_span(|_, span| {
         UnresolvedTypeData::Quoted(QuotedType::TraitDefinition).with_span(span)
     })
+}
+
+pub(super) fn trait_impl_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TraitImpl)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TraitImpl).with_span(span))
 }
 
 pub(super) fn function_definition_type() -> impl NoirParser<UnresolvedType> {

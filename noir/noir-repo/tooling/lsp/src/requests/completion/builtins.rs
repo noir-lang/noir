@@ -14,6 +14,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         Keyword::StructDefinition => Some("StructDefinition"),
         Keyword::TraitConstraint => Some("TraitConstraint"),
         Keyword::TraitDefinition => Some("TraitDefinition"),
+        Keyword::TraitImpl => Some("TraitImpl"),
         Keyword::TypeType => Some("Type"),
 
         Keyword::As
@@ -116,6 +117,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Trait
         | Keyword::TraitConstraint
         | Keyword::TraitDefinition
+        | Keyword::TraitImpl
         | Keyword::Type
         | Keyword::TypeType
         | Keyword::Unchecked
