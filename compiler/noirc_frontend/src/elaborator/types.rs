@@ -1328,22 +1328,20 @@ impl<'context> Elaborator<'context> {
         if crossing_runtime_boundary {
             if !self.in_unsafe_block {
                 self.push_err(TypeCheckError::Unsafe { span });
-                return Type::Error;
             }
 
-            let called_func_id = self
-                .interner
-                .lookup_function_from_expr(&call.func)
-                .expect("Called function should exist");
-            self.run_lint(|elaborator| {
-                lints::oracle_called_from_constrained_function(
-                    elaborator.interner,
-                    &called_func_id,
-                    is_current_func_constrained,
-                    span,
-                )
-                .map(Into::into)
-            });
+            if let Some(called_func_id) = self.interner.lookup_function_from_expr(&call.func) {
+                self.run_lint(|elaborator| {
+                    lints::oracle_called_from_constrained_function(
+                        elaborator.interner,
+                        &called_func_id,
+                        is_current_func_constrained,
+                        span,
+                    )
+                    .map(Into::into)
+                });
+            }
+
             let errors = lints::unconstrained_function_args(&args);
             for error in errors {
                 self.push_err(error);
