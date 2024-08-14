@@ -40,6 +40,7 @@
     { "path": "noir-contracts.js/tsconfig.json" },
     { "path": "builder/tsconfig.json" },
     { "path": "noir-protocol-circuits-types/tsconfig.json" },
+    { "path": "ivc-integration/tsconfig.json" },
     { "path": "p2p/tsconfig.json" },
     { "path": "p2p-bootstrap/tsconfig.json" },
     { "path": "protocol-contracts/tsconfig.json" },

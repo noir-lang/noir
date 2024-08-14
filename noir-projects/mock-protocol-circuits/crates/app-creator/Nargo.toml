@@ -1,0 +1,8 @@
+[package]
+name = "app_creator"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]
+mock_types = { path = "../mock-types" }

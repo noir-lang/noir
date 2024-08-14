@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "crates/mock-types",
+  "crates/app-creator",
+  "crates/app-reader",
+  "crates/mock-private-kernel-init",
+  "crates/mock-private-kernel-inner",
+  "crates/mock-private-kernel-reset",
+  "crates/mock-private-kernel-tail",
+]

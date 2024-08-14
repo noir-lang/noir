@@ -17,9 +17,12 @@ ENV PATH="/usr/src/avm-transpiler/target/release:${PATH}"
 WORKDIR /usr/src/noir-projects
 COPY . .
 # Build
+RUN yarn
 WORKDIR /usr/src/noir-projects/noir-contracts
 RUN ./bootstrap.sh
 WORKDIR /usr/src/noir-projects/noir-protocol-circuits
+RUN ./bootstrap.sh
+WORKDIR /usr/src/noir-projects/mock-protocol-circuits
 RUN ./bootstrap.sh
 WORKDIR /usr/src/noir-projects/aztec-nr
 RUN nargo compile --silence-warnings

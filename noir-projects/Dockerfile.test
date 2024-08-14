@@ -22,6 +22,7 @@ WORKDIR /usr/src/noir-projects
 COPY . .
 
 # Build & test
+RUN yarn
 RUN cd ./noir-protocol-circuits && ./bootstrap.sh && nargo test --silence-warnings
 
 RUN cd /usr/src/yarn-project/txe && yarn start & \ 

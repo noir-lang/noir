@@ -5,6 +5,8 @@ set -eu
 # The script needs some slight updating as `nargo info` expects a complete JSON object, while this script expects a single object field
 # representing a list of circuit reports for a program.
 # The ACIR tests in barretenberg also expect every target bytecode to have the name `acir.gz` while this script expects the same name of the package
+MEGA_HONK_CIRCUIT_PATTERNS=$(jq -r '.[]' mega_honk_circuits.json)
+
 cd noir-protocol-circuits
 PROTOCOL_CIRCUITS_DIR=$PWD
 
@@ -15,7 +17,6 @@ echo "{\"programs\": [" > gates_report.json
 # Bound for checking where to place last parentheses
 NUM_ARTIFACTS=$(ls -1q "$PROTOCOL_CIRCUITS_DIR/target"/*.json | wc -l)
 
-MEGA_HONK_CIRCUIT_PATTERNS=$(jq -r '.[]' mega_honk_circuits.json)
 
 ITER="1"
 for pathname in "$PROTOCOL_CIRCUITS_DIR/target"/*.json; do

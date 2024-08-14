@@ -1,0 +1,8 @@
+[package]
+name = "mock_private_kernel_init"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]
+mock_types = { path = "../mock-types" }

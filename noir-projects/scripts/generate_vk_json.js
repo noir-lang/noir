@@ -12,7 +12,7 @@ const megaHonkPatterns = require("../mega_honk_circuits.json");
 
 const BB_BIN_PATH =
   process.env.BB_BIN ||
-  path.join(__dirname, "../../../barretenberg/cpp/build/bin/bb");
+  path.join(__dirname, "../../barretenberg/cpp/build/bin/bb");
 const BUCKET_NAME = "aztec-ci-artifacts";
 const PREFIX = "protocol";
 

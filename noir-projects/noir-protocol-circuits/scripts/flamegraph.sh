@@ -71,7 +71,7 @@ fi
 DEST="$SCRIPT_DIR/../dest"
 mkdir -p $DEST
 
-MEGA_HONK_CIRCUIT_PATTERNS=$(jq -r '.[]' "$SCRIPT_DIR/../mega_honk_circuits.json")
+MEGA_HONK_CIRCUIT_PATTERNS=$(jq -r '.[]' "$SCRIPT_DIR/../../mega_honk_circuits.json")
 
 # Check if the target circuit is a mega honk circuit.
 ARTIFACT_FILE_NAME=$(basename -s .json "$ARTIFACT")

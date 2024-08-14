@@ -1,0 +1,7 @@
+[package]
+name = "mock_types"
+type = "lib"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]

@@ -11,7 +11,8 @@ source:
   WORKDIR /usr/src/noir-projects
 
   # Copy source.
-  COPY --dir aztec-nr noir-contracts noir-protocol-circuits .
+  COPY package.json yarn.lock mega_honk_circuits.json .
+  COPY --dir aztec-nr noir-contracts noir-protocol-circuits mock-protocol-circuits scripts .
 
   # for debugging rebuilds
   RUN echo CONTENT HASH $(find . -type f -exec sha256sum {} ';' | sort | sha256sum | awk '{print $1}') | tee .content-hash
@@ -22,6 +23,7 @@ build-contracts:
   # Install transpiler
   COPY ../avm-transpiler/+build/avm-transpiler /usr/bin/avm-transpiler
 
+  RUN yarn
   RUN cd noir-contracts && NARGO=nargo TRANSPILER=avm-transpiler ./bootstrap.sh
   SAVE ARTIFACT noir-contracts
 
@@ -31,20 +33,34 @@ build-protocol-circuits:
   FROM +source
   RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY mkdir -p ~/.aws && \
       bash -c 'echo -e "[default]\naws_access_key_id=$AWS_ACCESS_KEY_ID\naws_secret_access_key=$AWS_SECRET_ACCESS_KEY" > ~/.aws/credentials'
+  RUN yarn
   RUN cd noir-protocol-circuits && BB_HASH=$bb_source_hash NARGO=nargo ./bootstrap.sh
   SAVE ARTIFACT noir-protocol-circuits
+
+build-mock-protocol-circuits:
+  LOCALLY
+  LET bb_source_hash = $(cd .. && git ls-tree -r HEAD | grep 'barretenberg/cpp' | awk '{print $3}' | git hash-object --stdin)
+  FROM +source
+  RUN --secret AWS_ACCESS_KEY_ID --secret AWS_SECRET_ACCESS_KEY mkdir -p ~/.aws && \
+      bash -c 'echo -e "[default]\naws_access_key_id=$AWS_ACCESS_KEY_ID\naws_secret_access_key=$AWS_SECRET_ACCESS_KEY" > ~/.aws/credentials'
+  RUN yarn
+  RUN cd mock-protocol-circuits && BB_HASH=$bb_source_hash NARGO=nargo ./bootstrap.sh
+  SAVE ARTIFACT mock-protocol-circuits
 
 build:
   FROM +source
   BUILD +build-contracts
   BUILD +build-protocol-circuits
+  BUILD +build-mock-protocol-circuits
 
   COPY +build-contracts/noir-contracts ./noir-contracts
   COPY +build-protocol-circuits/noir-protocol-circuits ./noir-protocol-circuits
+  COPY +build-mock-protocol-circuits/mock-protocol-circuits ./mock-protocol-circuits
 
   SAVE ARTIFACT aztec-nr
   SAVE ARTIFACT noir-contracts
   SAVE ARTIFACT noir-protocol-circuits
+  SAVE ARTIFACT mock-protocol-circuits
 
 test:
   FROM ../yarn-project/+txe
@@ -74,6 +90,9 @@ format:
   FROM +build
 
   WORKDIR /usr/src/noir-projects/noir-protocol-circuits
+  RUN nargo fmt --check
+
+  WORKDIR /usr/src/noir-projects/mock-protocol-circuits
   RUN nargo fmt --check
 
   WORKDIR /usr/src/noir-projects/noir-contracts

@@ -10,3 +10,5 @@ extract_repo_if_working_copy_clean noir-projects \
   /usr/src/noir-projects/noir-protocol-circuits/target ./noir-protocol-circuits
 
 remove_old_images noir-projects
+
+./mock-protocol-circuits/bootstrap.sh
