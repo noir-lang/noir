@@ -1,5 +1,6 @@
 {
   "name": "noir-projects",
+  "packageManager": "yarn@1.22.22",
   "version": "0.0.0",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.609.0",
