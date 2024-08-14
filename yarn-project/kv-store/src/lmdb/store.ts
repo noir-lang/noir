@@ -134,9 +134,14 @@ export class AztecLmdbStore implements AztecKVStore {
   }
 
   /**
-   * Clears the store
+   * Clears all entries in the store
    */
   async clear() {
     await this.#rootDb.clearAsync();
+  }
+
+  /** Deletes this store */
+  async delete() {
+    await this.#rootDb.drop();
   }
 }

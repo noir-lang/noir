@@ -189,6 +189,10 @@ export class MerkleTrees implements MerkleTreeDb {
     return MerkleTrees.new(forked, this.log);
   }
 
+  public async delete() {
+    await this.store.delete();
+  }
+
   public getInitialHeader(): Header {
     return Header.empty({ state: this.#loadInitialStateReference() });
   }

@@ -159,6 +159,10 @@ export class MerkleTreeSnapshotOperationsFacade implements MerkleTreeOperations 
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }
 
+  delete(): Promise<void> {
+    return Promise.reject(new Error('Tree snapshot operations are read-only'));
+  }
+
   updateHistoricArchive(): Promise<void> {
     return Promise.reject(new Error('Tree snapshot operations are read-only'));
   }

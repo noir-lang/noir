@@ -220,6 +220,9 @@ export interface MerkleTreeOperations {
    * Rolls back pending changes.
    */
   rollback(): Promise<void>;
+
+  /** Deletes this database. Useful for cleaning up forks. */
+  delete(): Promise<void>;
 }
 
 /** Return type for handleL2BlockAndMessages */

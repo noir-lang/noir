@@ -66,4 +66,7 @@ export type MerkleTreeDb = {
      * Forks the database at its current state.
      */
     fork(): Promise<MerkleTreeDb>;
+
+    /** Deletes this database. */
+    delete(): Promise<void>;
   };

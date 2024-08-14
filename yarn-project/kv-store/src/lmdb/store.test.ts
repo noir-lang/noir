@@ -14,6 +14,9 @@ describe('AztecLmdbStore', () => {
     expect(forkedSingleton.get()).toEqual('foo');
     await forkedSingleton.set('bar');
     expect(singleton.get()).toEqual('foo');
+    expect(forkedSingleton.get()).toEqual('bar');
+    await forkedSingleton.delete();
+    expect(singleton.get()).toEqual('foo');
   };
 
   it('forks a persistent store', async () => {

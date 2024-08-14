@@ -30,6 +30,7 @@ export class BlockProvingJob {
     private l2BlockSource: L2BlockSource,
     private l1ToL2MessageSource: L1ToL2MessageSource,
     private txProvider: TxProvider,
+    private cleanUp: () => Promise<void> = () => Promise.resolve(),
   ) {}
 
   public getState(): BlockProvingJobState {
@@ -105,6 +106,8 @@ export class BlockProvingJob {
     } catch (err) {
       this.log.error(`Error running block prover job: ${err}`);
       this.state = 'failed';
+    } finally {
+      await this.cleanUp();
     }
   }
 

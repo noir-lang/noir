@@ -204,4 +204,8 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
   ): Promise<BatchInsertionResult<TreeHeight, SubtreeSiblingPathHeight>> {
     return this.trees.batchInsert(treeId, leaves, subtreeHeight);
   }
+
+  public delete(): Promise<void> {
+    return this.trees.delete();
+  }
 }
