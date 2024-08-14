@@ -126,7 +126,7 @@ pub struct CompileOptions {
 
     /// Flag to turn off the compiler check for under constrained values.
     /// Warning: This can improve compilation speed but can also lead to correctness errors.
-    /// This check should always be run on production code. 
+    /// This check should always be run on production code.
     #[arg(long)]
     pub skip_underconstrained_check: bool,
 }

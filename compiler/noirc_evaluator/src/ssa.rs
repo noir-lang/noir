@@ -123,7 +123,9 @@ pub(crate) fn optimize_into_acir(
     let ssa_level_warnings = if options.skip_underconstrained_check {
         vec![]
     } else {
-        time("After Check for Underconstrained Values", options.print_codegen_timings, || ssa.check_for_underconstrained_values())
+        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
+            ssa.check_for_underconstrained_values()
+        })
     };
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
