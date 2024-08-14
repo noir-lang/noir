@@ -307,6 +307,7 @@ resource "aws_ecs_service" "aztec-proving-agent" {
   desired_count                      = local.agents_per_prover
   deployment_maximum_percent         = 100
   deployment_minimum_healthy_percent = 0
+  enable_execute_command             = true
   #platform_version                   = "1.4.0"
 
   # Associate the EC2 capacity provider

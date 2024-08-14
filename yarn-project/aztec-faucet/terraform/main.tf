@@ -171,6 +171,7 @@ resource "aws_ecs_service" "aztec-faucet" {
   deployment_maximum_percent         = 100
   deployment_minimum_healthy_percent = 0
   platform_version                   = "1.4.0"
+  enable_execute_command             = true
 
   network_configuration {
     subnets = [

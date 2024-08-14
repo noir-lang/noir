@@ -402,6 +402,7 @@ resource "aws_ecs_service" "aztec-node" {
   deployment_minimum_healthy_percent = 0
   platform_version                   = "1.4.0"
   force_new_deployment               = true
+  enable_execute_command             = true
 
 
   network_configuration {
