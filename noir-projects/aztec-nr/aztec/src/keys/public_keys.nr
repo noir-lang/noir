@@ -4,7 +4,7 @@ use dep::protocol_types::{
 };
 use crate::keys::constants::{NUM_KEY_TYPES, NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX};
 
-global PUBLIC_KEYS_LENGTH = 12;
+global PUBLIC_KEYS_LENGTH: u32 = 12;
 
 struct PublicKeys {
     npk_m: Point,

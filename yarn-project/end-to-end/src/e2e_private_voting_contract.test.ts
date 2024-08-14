@@ -42,11 +42,13 @@ describe('e2e_voting_contract', () => {
       await votingContract.methods.cast_vote(candidate).send().wait();
       expect(await votingContract.methods.get_vote(candidate).simulate()).toBe(1n);
 
-      // We rotate our nullifier keys
+      // We rotate our nullifier keys - this should be ignored by the voting contract, since it should always use the
+      // same set of keys to prevent double spends.
       await wallet.rotateNullifierKeys();
       await crossDelay();
 
-      // We try voting again, but our TX is dropped due to trying to emit duplicate nullifiers
+      // We try voting again, but our TX is dropped due to trying to emit duplicate nullifiers as the voting contract
+      // ignored our previous key rotation.
       await expect(votingContract.methods.cast_vote(candidate).send().wait()).rejects.toThrow(
         'Reason: Tx dropped by P2P node.',
       );

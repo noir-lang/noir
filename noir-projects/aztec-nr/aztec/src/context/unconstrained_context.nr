@@ -31,6 +31,12 @@ impl UnconstrainedContext {
         Self { block_number, contract_address, version, chain_id }
     }
 
+    unconstrained fn at_historical(contract_address: AztecAddress, block_number: u32) -> Self {
+        let chain_id = get_chain_id();
+        let version = get_version();
+        Self { block_number, contract_address, version, chain_id }
+    }
+
     fn block_number(self) -> u32 {
         self.block_number
     }

@@ -1,7 +1,5 @@
----
 title: Keys
 tags: [accounts, keys]
----
 
 The goal of this section is to give app developer a good idea what keys there are used in the system.
 For a detailed description head over to the [protocol specification](../../../protocol-specs/addresses-and-keys/index.md).
@@ -24,6 +22,7 @@ Instead it's up to the account contract developer to implement it.
 :::
 
 ## Public keys retrieval
+
 The keys can either be retrieved from a key registry contract or from the [Private eXecution Environment (PXE)](../pxe/index.md).
 
 :::note
@@ -34,7 +33,7 @@ There is 1 key registry and its address is hardcoded in the protocol code.
 
 To retrieve them a developer can use one of the getters in Aztec.nr:
 
-#include_code key-getters /noir-projects/aztec-nr/aztec/src/keys/getters.nr rust
+#include_code key-getters /noir-projects/aztec-nr/aztec/src/keys/getters/mod.nr rust
 
 If the keys are registered in the key registry these methods can be called without any setup.
 If they are not there, it is necessary to first register the user as a recipient in our PXE.
@@ -51,6 +50,7 @@ Then to register the recipient's [complete address](#complete-address) in PXE we
 During private function execution these keys are obtained via an oracle call from PXE.
 
 ## Key rotation
+
 To prevent users from needing to migrate all their positions if some of their keys are leaked we allow for key rotation.
 Key rotation can be performed by calling the corresponding function on key registry.
 E.g. for nullifier key:
@@ -62,6 +62,7 @@ This means that it will be possible to nullify the notes with the same old key a
 These guardrails are typically in place so a user should not lose her notes even if this unfortunate accident happens.
 
 ## Scoped keys
+
 To minimize damage of potential key leaks the keys are scoped (also called app-siloed) to the contract that requests them.
 This means that the keys used for the same user in two different application contracts will be different and potential leak of the scoped keys would only affect 1 application.
 
@@ -78,9 +79,11 @@ This is intentional and instead of directly trying to derive `Npk_m` from `nsk_a
 If you are curious how the derivation scheme works head over to [protocol specification](../../../protocol-specs/addresses-and-keys/example-usage/nullifier#diagram).
 
 ## Protocol key types
+
 All the keys below are Grumpkin keys (public keys derived on the Grumpkin curve).
 
 ## Nullifier keys
+
 Whenever a note is consumed, a nullifier deterministically derived from it is emitted.
 This mechanisms prevents double-spends, since nullifiers are checked by the protocol to be unique.
 Now, in order to preserve privacy, a third party should not be able to link a note hash to its nullifier - this link is enforced by the note implementation.
@@ -95,15 +98,18 @@ Typically, `Npk_m` is stored in a note and later on, the note is nullified using
 Validity of `nsk_app` is verified by our [protocol kernel circuits](../../../protocol-specs/circuits/private-kernel-tail#verifying-and-splitting-ordered-data).
 
 ## Incoming viewing keys
+
 The public key (denoted `Ivpk`) is used to encrypt a note for a recipient and the corresponding secret key (`ivsk`) is used by the recipient during decryption.
 
 ## Outgoing viewing keys
+
 App-siloed versions of outgoing viewing keys are denoted `ovsk_app` and `Ovpk_app`.
 These keys are used to encrypt a note for a note sender which is necessary for reconstructing transaction history from on-chain data.
 For example, during a token transfer, the token contract may dictate that the sender encrypts the note with value with the recipient's `Ivpk`, but also records the transfer with its own `Ovpk_app` for bookkeeping purposes.
 If these keys were not used and a new device would be synched there would be no "direct" information available about notes that a user created for other people.
 
 ## Tagging keys
+
 Used to compute tags in a [tagging note discovery scheme](../../../protocol-specs/private-message-delivery/private-msg-delivery#note-tagging).
 
 :::note
@@ -152,6 +158,7 @@ Since there are no restrictions on the actions that an account contract may exec
 ### Complete address
 
 When deploying a contract, the contract address is deterministically derived using the following scheme:
+
 <!-- TODO: link contract deployment here once the updated section exists -->
 
 ```

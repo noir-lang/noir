@@ -10,7 +10,7 @@ trait PublicStorageHistoricalRead {
     fn public_storage_historical_read(header: Header, storage_slot: Field, contract_address: AztecAddress) -> Field;
 }
 
-impl PublicStorageHistoricalRead for Header { 
+impl PublicStorageHistoricalRead for Header {
     fn public_storage_historical_read(self, storage_slot: Field, contract_address: AztecAddress) -> Field {
         // 1) Compute the leaf slot by siloing the storage slot with the contract address
         let public_data_tree_index = poseidon2_hash_with_separator(
