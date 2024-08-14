@@ -2496,6 +2496,48 @@ fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
 }
 
 #[test]
+fn missing_unsafe_block_when_needing_type_annotations() {
+    // This test is a regression check that even when an unsafe block is missing
+    // that we still appropriately continue type checking and infer type annotations.
+    let src = r#"
+    fn main() {
+        let z = BigNum { limbs: [2, 0, 0] };
+        println(z.__is_zero());
+    }
+
+    struct BigNum<let N: u32> {
+        limbs: [u64; N],
+    }
+
+    impl<let N: u32> BigNum<N> {
+        unconstrained fn __is_zero_impl(self) -> bool {
+            let mut result: bool = true;
+            for i in 0..N {
+                result = result & (self.limbs[i] == 0);
+            }
+            result
+        }
+    }
+
+    trait BigNumTrait {
+        fn __is_zero(self) -> bool;
+    }
+
+    impl<let N: u32> BigNumTrait for BigNum<N> {
+        fn __is_zero(self) -> bool {
+            self.__is_zero_impl()
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0].0 else {
+        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
 fn cannot_pass_unconstrained_function_to_regular_function() {
     let src = r#"
     fn main() {

@@ -1328,7 +1328,6 @@ impl<'context> Elaborator<'context> {
         if crossing_runtime_boundary {
             if !self.in_unsafe_block {
                 self.push_err(TypeCheckError::Unsafe { span });
-                return Type::Error;
             }
 
             let called_func_id = self
