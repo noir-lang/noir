@@ -5,8 +5,9 @@ mod completion_tests {
         requests::{
             completion::{
                 completion_items::{
-                    completion_item_with_sort_text, crate_completion_item, module_completion_item,
-                    simple_completion_item, snippet_completion_item,
+                    completion_item_with_sort_text,
+                    completion_item_with_trigger_parameter_hints_command, crate_completion_item,
+                    module_completion_item, simple_completion_item, snippet_completion_item,
                 },
                 sort_text::self_mismatch_sort_text,
             },
@@ -88,6 +89,20 @@ mod completion_tests {
         }
 
         assert_eq!(items, expected);
+    }
+
+    pub(super) fn function_completion_item(
+        label: impl Into<String>,
+        kind: CompletionItemKind,
+        insert_text: impl Into<String>,
+        description: impl Into<String>,
+    ) -> CompletionItem {
+        completion_item_with_trigger_parameter_hints_command(snippet_completion_item(
+            label,
+            kind,
+            insert_text,
+            Some(description.into()),
+        ))
     }
 
     #[test]
@@ -408,11 +423,11 @@ mod completion_tests {
         "#;
         assert_completion(
             src,
-            vec![snippet_completion_item(
+            vec![function_completion_item(
                 "hello()",
                 CompletionItemKind::FUNCTION,
                 "hello()",
-                Some("fn()".to_string()),
+                "fn()",
             )],
         )
         .await;
@@ -429,11 +444,11 @@ mod completion_tests {
         "#;
         assert_completion(
             src,
-            vec![snippet_completion_item(
+            vec![function_completion_item(
                 "hello(…)",
                 CompletionItemKind::FUNCTION,
                 "hello(${1:x}, ${2:y})",
-                Some("fn(i32, Field)".to_string()),
+                "fn(i32, Field)".to_string(),
             )],
         )
         .await;
@@ -455,11 +470,11 @@ mod completion_tests {
                     "assert(${1:predicate})",
                     Some("fn(T)".to_string()),
                 ),
-                snippet_completion_item(
+                function_completion_item(
                     "assert_constant(…)",
                     CompletionItemKind::FUNCTION,
                     "assert_constant(${1:x})",
-                    Some("fn(T)".to_string()),
+                    "fn(T)",
                 ),
                 snippet_completion_item(
                     "assert_eq(…)",
@@ -1063,17 +1078,17 @@ mod completion_tests {
         assert_completion(
             src,
             vec![
-                snippet_completion_item(
+                function_completion_item(
                     "foobar(…)",
                     CompletionItemKind::FUNCTION,
                     "foobar(${1:x})",
-                    Some("fn(self, i32)".to_string()),
+                    "fn(self, i32)".to_string(),
                 ),
-                snippet_completion_item(
+                function_completion_item(
                     "foobar2(…)",
                     CompletionItemKind::FUNCTION,
                     "foobar2(${1:x})",
-                    Some("fn(&mut self, i32)".to_string()),
+                    "fn(&mut self, i32)".to_string(),
                 ),
             ],
         )
@@ -1102,11 +1117,11 @@ mod completion_tests {
         "#;
         assert_completion(
             src,
-            vec![snippet_completion_item(
+            vec![function_completion_item(
                 "foobar(…)",
                 CompletionItemKind::FUNCTION,
                 "foobar(${1:x})",
-                Some("fn(self, i32)".to_string()),
+                "fn(self, i32)",
             )],
         )
         .await;
@@ -1131,11 +1146,11 @@ mod completion_tests {
         "#;
         assert_completion(
             src,
-            vec![snippet_completion_item(
+            vec![function_completion_item(
                 "foobar(…)",
                 CompletionItemKind::FUNCTION,
                 "foobar(${1:x})",
-                Some("fn(self, i32)".to_string()),
+                "fn(self, i32)".to_string(),
             )],
         )
         .await;
@@ -1161,28 +1176,28 @@ mod completion_tests {
             src,
             vec![
                 completion_item_with_sort_text(
-                    snippet_completion_item(
+                    function_completion_item(
                         "foobar(…)",
                         CompletionItemKind::FUNCTION,
                         "foobar(${1:self}, ${2:x})",
-                        Some("fn(self, i32)".to_string()),
+                        "fn(self, i32)",
                     ),
                     self_mismatch_sort_text(),
                 ),
                 completion_item_with_sort_text(
-                    snippet_completion_item(
+                    function_completion_item(
                         "foobar2(…)",
                         CompletionItemKind::FUNCTION,
                         "foobar2(${1:self}, ${2:x})",
-                        Some("fn(&mut self, i32)".to_string()),
+                        "fn(&mut self, i32)",
                     ),
                     self_mismatch_sort_text(),
                 ),
-                snippet_completion_item(
+                function_completion_item(
                     "foobar3(…)",
                     CompletionItemKind::FUNCTION,
                     "foobar3(${1:y})",
-                    Some("fn(i32)".to_string()),
+                    "fn(i32)",
                 ),
             ],
         )
@@ -1207,11 +1222,11 @@ mod completion_tests {
         "#;
         assert_completion(
             src,
-            vec![snippet_completion_item(
+            vec![function_completion_item(
                 "foobar(…)",
                 CompletionItemKind::FUNCTION,
                 "foobar(${1:x})",
-                Some("fn(self, i32)".to_string()),
+                "fn(self, i32)".to_string(),
             )],
         )
         .await;
@@ -1239,28 +1254,28 @@ mod completion_tests {
             src,
             vec![
                 completion_item_with_sort_text(
-                    snippet_completion_item(
+                    function_completion_item(
                         "foobar(…)",
                         CompletionItemKind::FUNCTION,
                         "foobar(${1:self}, ${2:x})",
-                        Some("fn(self, i32)".to_string()),
+                        "fn(self, i32)",
                     ),
                     self_mismatch_sort_text(),
                 ),
                 completion_item_with_sort_text(
-                    snippet_completion_item(
+                    function_completion_item(
                         "foobar2(…)",
                         CompletionItemKind::FUNCTION,
                         "foobar2(${1:self}, ${2:x})",
-                        Some("fn(&mut self, i32)".to_string()),
+                        "fn(&mut self, i32)",
                     ),
                     self_mismatch_sort_text(),
                 ),
-                snippet_completion_item(
+                function_completion_item(
                     "foobar3(…)",
                     CompletionItemKind::FUNCTION,
                     "foobar3(${1:y})",
-                    Some("fn(i32)".to_string()),
+                    "fn(i32)",
                 ),
             ],
         )
@@ -1317,11 +1332,11 @@ mod completion_tests {
         "#;
         assert_completion(
             src,
-            vec![snippet_completion_item(
+            vec![function_completion_item(
                 "foo()",
                 CompletionItemKind::FUNCTION,
                 "foo()",
-                Some("fn(self) -> Foo".to_string()),
+                "fn(self) -> Foo".to_string(),
             )],
         )
         .await;
