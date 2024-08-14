@@ -61,3 +61,11 @@
 [[redirects]]
     from = "/protocol-specs/gas-and-fees/fee-payment-asset"
     to = "/protocol-specs/gas-and-fees/fee-juice"
+
+[[redirects]]
+    from = "/getting-started"
+    to = "/"
+
+[[redirects]]
+    from = "/reference/sandbox_reference/sandbox-reference"
+    to = "/guides/developer_guides/getting_started/quickstart" 
