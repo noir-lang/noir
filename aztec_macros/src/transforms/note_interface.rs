@@ -202,13 +202,13 @@ pub fn generate_note_interface_impl(
             trait_impl.items.push(TraitImplItem::Function(get_note_type_id_fn));
         }
 
-        if !check_trait_method_implemented(trait_impl, "compute_note_content_hash") {
-            let compute_note_content_hash_fn = generate_compute_note_content_hash(
+        if !check_trait_method_implemented(trait_impl, "compute_note_hiding_point") {
+            let compute_note_hiding_point_fn = generate_compute_note_hiding_point(
                 &note_type,
                 note_interface_impl_span,
                 empty_spans,
             )?;
-            trait_impl.items.push(TraitImplItem::Function(compute_note_content_hash_fn));
+            trait_impl.items.push(TraitImplItem::Function(compute_note_hiding_point_fn));
         }
 
         if !check_trait_method_implemented(trait_impl, "to_be_bytes") {
@@ -512,29 +512,35 @@ fn generate_note_properties_fn(
     Ok(noir_fn)
 }
 
-// Automatically generate the method to compute the note's content hash as:
-// fn compute_note_content_hash(self: NoteType) -> Field {
-//    aztec::hash::pedersen_hash(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
+// Automatically generate the method to compute the note's hiding point as:
+// fn compute_note_hiding_point(self: NoteType) -> Point {
+//    aztec::hash::pedersen_commitment(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_HIDING_POINT)
 // }
 //
-fn generate_compute_note_content_hash(
+fn generate_compute_note_hiding_point(
     note_type: &String,
     impl_span: Option<Span>,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
+    // TODO(#7771): update this to do only 1 MSM call
     let function_source = format!(
-        "
-        fn compute_note_content_hash(self: {}) -> Field {{
-            aztec::hash::pedersen_hash(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_CONTENT_HASH)
+        r#"
+        fn compute_note_hiding_point(self: {}) -> aztec::protocol_types::point::Point {{
+            assert(self.header.storage_slot != 0, "Storage slot must be set before computing note hiding point");
+            let slot_scalar = dep::std::hash::from_field_unsafe(self.header.storage_slot);
+
+            let point_before_slotting = aztec::hash::pedersen_commitment(self.serialize_content(), aztec::protocol_types::constants::GENERATOR_INDEX__NOTE_HIDING_POINT);
+            let slot_point = dep::std::embedded_curve_ops::multi_scalar_mul([dep::aztec::generators::G_slot], [slot_scalar]);
+            point_before_slotting + slot_point
         }}
-        ",
+        "#,
         note_type
     );
     let (function_ast, errors) = parse_program(&function_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
-            secondary_message: Some("Failed to parse Noir macro code (fn compute_note_content_hash). This is either a bug in the compiler or the Noir macro code".to_string()),
+            secondary_message: Some("Failed to parse Noir macro code (fn compute_note_hiding_point). This is either a bug in the compiler or the Noir macro code".to_string()),
             span: impl_span
         });
     }

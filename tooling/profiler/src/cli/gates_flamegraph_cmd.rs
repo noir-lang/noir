@@ -1,13 +1,15 @@
 use std::path::{Path, PathBuf};
 
+use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
 
 use noirc_artifacts::debug::DebugArtifact;
 
-use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator};
+use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator, Sample};
 use crate::fs::read_program_from_file;
 use crate::gates_provider::{BackendGatesProvider, GatesProvider};
+use crate::opcode_formatter::AcirOrBrilligOpcode;
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct GatesFlamegraphCommand {
@@ -18,6 +20,10 @@ pub(crate) struct GatesFlamegraphCommand {
     /// Path to the noir backend binary
     #[clap(long, short)]
     backend_path: String,
+
+    /// Command to get a gates report from the backend. Defaults to "gates"
+    #[clap(long, short, default_value = "gates")]
+    backend_gates_command: String,
 
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     backend_extra_args: Vec<String>,
@@ -32,6 +38,7 @@ pub(crate) fn run(args: GatesFlamegraphCommand) -> eyre::Result<()> {
         &PathBuf::from(args.artifact_path),
         &BackendGatesProvider {
             backend_path: PathBuf::from(args.backend_path),
+            gates_command: args.backend_gates_command,
             extra_args: args.backend_extra_args,
         },
         &InfernoFlamegraphGenerator { count_name: "gates".to_string() },
@@ -71,9 +78,20 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             func_gates.circuit_size
         );
 
+        let samples = func_gates
+            .gates_per_opcode
+            .into_iter()
+            .zip(bytecode.opcodes)
+            .enumerate()
+            .map(|(index, (gates, opcode))| Sample {
+                opcode: AcirOrBrilligOpcode::Acir(opcode),
+                call_stack: vec![OpcodeLocation::Acir(index)],
+                count: gates,
+            })
+            .collect();
+
         flamegraph_generator.generate_flamegraph(
-            func_gates.gates_per_opcode,
-            bytecode.opcodes,
+            samples,
             &debug_artifact.debug_symbols[func_idx],
             &debug_artifact,
             artifact_path.to_str().unwrap(),
@@ -87,7 +105,10 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
 
 #[cfg(test)]
 mod tests {
-    use acir::circuit::{Circuit, Opcode, Program};
+    use acir::{
+        circuit::{Circuit, Program},
+        AcirField,
+    };
     use color_eyre::eyre::{self};
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
@@ -97,7 +118,10 @@ mod tests {
         path::{Path, PathBuf},
     };
 
-    use crate::gates_provider::{BackendGatesReport, BackendGatesResponse, GatesProvider};
+    use crate::{
+        flamegraph::Sample,
+        gates_provider::{BackendGatesReport, BackendGatesResponse, GatesProvider},
+    };
 
     struct TestGateProvider {
         mock_responses: HashMap<PathBuf, BackendGatesResponse>,
@@ -118,10 +142,9 @@ mod tests {
     struct TestFlamegraphGenerator {}
 
     impl super::FlamegraphGenerator for TestFlamegraphGenerator {
-        fn generate_flamegraph<'files, F>(
+        fn generate_flamegraph<'files, F: AcirField>(
             &self,
-            _samples_per_opcode: Vec<usize>,
-            _opcodes: Vec<Opcode<F>>,
+            _samples: Vec<Sample<F>>,
             _debug_symbols: &DebugInfo,
             _files: &'files impl Files<'files, FileId = fm::FileId>,
             _artifact_name: &str,

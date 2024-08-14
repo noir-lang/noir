@@ -146,6 +146,7 @@ pub enum QuotedType {
     StructDefinition,
     TraitConstraint,
     TraitDefinition,
+    TraitImpl,
     FunctionDefinition,
     Module,
 }
@@ -665,12 +666,12 @@ impl std::fmt::Display for Type {
             Type::Function(args, ret, env) => {
                 let closure_env_text = match **env {
                     Type::Unit => "".to_string(),
-                    _ => format!(" with env {env}"),
+                    _ => format!("[{env}]"),
                 };
 
                 let args = vecmap(args.iter(), ToString::to_string);
 
-                write!(f, "fn({}) -> {ret}{closure_env_text}", args.join(", "))
+                write!(f, "fn{closure_env_text}({}) -> {ret}", args.join(", "))
             }
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
@@ -727,6 +728,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::StructDefinition => write!(f, "StructDefinition"),
             QuotedType::TraitDefinition => write!(f, "TraitDefinition"),
             QuotedType::TraitConstraint => write!(f, "TraitConstraint"),
+            QuotedType::TraitImpl => write!(f, "TraitImpl"),
             QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
             QuotedType::Module => write!(f, "Module"),
         }

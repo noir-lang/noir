@@ -120,7 +120,13 @@ pub(crate) fn prove_package(
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)?;
 
-    let witness_stack = execute_program(&compiled_program, &inputs_map, foreign_call_resolver_url)?;
+    let witness_stack = execute_program(
+        &compiled_program,
+        &inputs_map,
+        foreign_call_resolver_url,
+        Some(workspace.root_dir.clone()),
+        Some(package.name.to_string()),
+    )?;
 
     // Get the entry point witness for the ABI
     let main_witness =
