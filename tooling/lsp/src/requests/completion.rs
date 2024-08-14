@@ -2917,4 +2917,29 @@ mod completion_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn test_completes_in_call_chain() {
+        let src = r#"
+            struct Foo {}
+
+            impl Foo {
+                fn foo(self) -> Foo { self }
+            }
+
+            fn foo(f: Foo) {
+                f.foo().>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![snippet_completion_item(
+                "foo()",
+                CompletionItemKind::FUNCTION,
+                "foo()",
+                Some("fn(self) -> Foo".to_string()),
+            )],
+        )
+        .await;
+    }
 }

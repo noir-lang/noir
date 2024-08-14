@@ -369,7 +369,7 @@ impl<'context> Elaborator<'context> {
                     function_args.push((typ, arg, span));
                 }
 
-                let location = Location::new(span, self.file);
+                let location = Location::new(object_span, self.file);
                 let method = method_call.method_name;
                 let turbofish_generics = generics.clone();
                 let is_macro_call = method_call.is_macro_call;
