@@ -21,6 +21,5 @@ variable "PROVING_ENABLED" {
 }
 
 variable "PXE_LB_RULE_PRIORITY" {
-  type    = number
-  default = 5000
+  type = number
 }

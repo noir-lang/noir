@@ -11,7 +11,7 @@ variable "API_KEY" {
   type = string
 }
 
-variable "SEQUENCER_PRIVATE_KEYS" {
+variable "PROVER_PRIVATE_KEYS" {
   type = list(string)
 }
 
@@ -33,26 +33,6 @@ variable "NODE_P2P_UDP_PORT" {
 
 variable "DOCKERHUB_ACCOUNT" {
   type = string
-}
-
-variable "SEQ_MAX_TX_PER_BLOCK" {
-  type    = string
-  default = 64
-}
-
-variable "SEQ_MIN_TX_PER_BLOCK" {
-  type    = string
-  default = 2
-}
-
-variable "SEQ_MAX_SECONDS_BETWEEN_BLOCKS" {
-  type    = string
-  default = 60
-}
-
-variable "SEQ_MIN_SECONDS_BETWEEN_BLOCKS" {
-  type    = string
-  default = 30
 }
 
 variable "P2P_MIN_PEERS" {
@@ -85,6 +65,6 @@ variable "BOOTSTRAP_NODES" {
   default = ""
 }
 
-variable "NODE_LB_RULE_PRIORITY" {
+variable "PROVER_NODE_LB_RULE_PRIORITY" {
   type = number
 }

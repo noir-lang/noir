@@ -163,7 +163,7 @@ resource "aws_ecs_task_definition" "aztec-node" {
     {
       name              = "${var.DEPLOY_TAG}-aztec-node-${count.index + 1}"
       image             = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.IMAGE_TAG}"
-      command           = ["start", "--node", "--archiver", "--sequencer", "--prover"]
+      command           = ["start", "--node", "--archiver", "--sequencer"]
       essential         = true
       memoryReservation = 3776
       portMappings = [
@@ -207,6 +207,10 @@ resource "aws_ecs_task_definition" "aztec-node" {
         {
           name  = "DATA_DIRECTORY"
           value = "${local.data_dir}/node_${count.index + 1}/data"
+        },
+        {
+          name  = "IS_DEV_NET"
+          value = "true"
         },
         {
           name  = "ARCHIVER_POLLING_INTERVAL"

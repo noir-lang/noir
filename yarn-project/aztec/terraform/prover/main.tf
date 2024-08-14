@@ -43,17 +43,17 @@ data "terraform_remote_state" "aztec-network_iac" {
   }
 }
 
-data "terraform_remote_state" "aztec-network_node" {
+data "terraform_remote_state" "aztec-network_prover-node" {
   backend = "s3"
   config = {
     bucket = "aztec-terraform"
-    key    = "${var.DEPLOY_TAG}/aztec-node"
+    key    = "${var.DEPLOY_TAG}/aztec-prover-node"
     region = "eu-west-2"
   }
 }
 
 locals {
-  node_count        = data.terraform_remote_state.aztec-network_node.outputs.node_count
+  node_count        = data.terraform_remote_state.aztec-network_prover-node.outputs.node_count
   agents_per_prover = var.AGENTS_PER_PROVER
 }
 
@@ -259,7 +259,7 @@ resource "aws_ecs_task_definition" "aztec-proving-agent" {
       },
       {
         "name": "AZTEC_NODE_URL",
-        "value": "http://${var.DEPLOY_TAG}-aztec-node-${count.index + 1}.local/${var.DEPLOY_TAG}/aztec-node-${count.index + 1}/${var.API_KEY}"
+        "value": "http://${var.DEPLOY_TAG}-aztec-prover-node-${count.index + 1}.local/${var.DEPLOY_TAG}/aztec-prover-node-${count.index + 1}/${var.API_KEY}"
       },
       {
         "name": "PROVER_AGENT_ENABLED",
