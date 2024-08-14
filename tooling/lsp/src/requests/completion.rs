@@ -564,7 +564,6 @@ impl<'a> NodeFinder<'a> {
                 let typ = typ.follow_bindings();
                 let prefix = "";
                 self.complete_type_fields_and_methods(&typ, prefix);
-                return;
             }
         }
     }
