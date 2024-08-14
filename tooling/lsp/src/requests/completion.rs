@@ -1015,7 +1015,7 @@ impl<'a> NodeFinder<'a> {
             | Type::TypeVariable(_, _)
             | Type::TraitAsType(_, _, _)
             | Type::NamedGeneric(_, _, _)
-            | Type::Function(_, _, _)
+            | Type::Function(..)
             | Type::Forall(_, _)
             | Type::Constant(_)
             | Type::Quoted(_)
@@ -1560,8 +1560,11 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String
         typ = typ_;
     }
 
-    if let Type::Function(args, ret, _env) = typ {
+    if let Type::Function(args, ret, _env, unconstrained) = typ {
         let mut string = String::new();
+        if *unconstrained {
+            string.push_str("unconstrained ");
+        }
         string.push_str("fn(");
         for (index, arg) in args.iter().enumerate() {
             if index > 0 {
