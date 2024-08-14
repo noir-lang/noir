@@ -6,6 +6,7 @@ use crate::hir::comptime::InterpreterError;
 pub enum MonomorphizationError {
     UnknownArrayLength { location: Location },
     TypeAnnotationsNeeded { location: Location },
+    InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
 }
 
@@ -13,6 +14,7 @@ impl MonomorphizationError {
     fn location(&self) -> Location {
         match self {
             MonomorphizationError::UnknownArrayLength { location }
+            | MonomorphizationError::InternalError { location, .. }
             | MonomorphizationError::TypeAnnotationsNeeded { location } => *location,
             MonomorphizationError::InterpreterError(error) => error.get_location(),
         }
@@ -36,6 +38,7 @@ impl MonomorphizationError {
             }
             MonomorphizationError::TypeAnnotationsNeeded { .. } => "Type annotations needed",
             MonomorphizationError::InterpreterError(error) => return (&error).into(),
+            MonomorphizationError::InternalError { message, .. } => message,
         };
 
         let location = self.location();

@@ -1,5 +1,5 @@
-use dep::std::slice;
-use dep::std::test::OracleMock;
+use std::slice;
+use std::test::OracleMock;
 
 // Tests oracle usage in brillig/unconstrained functions
 fn main(_x: Field) {

@@ -1,0 +1,6 @@
+[package]
+name = "rename_trait"
+type = "bin"
+authors = [""]
+
+[dependencies]

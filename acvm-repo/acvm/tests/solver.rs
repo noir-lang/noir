@@ -4,8 +4,8 @@ use acir::{
     acir_field::GenericFieldElement,
     brillig::{BinaryFieldOp, HeapArray, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
-        brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
-        opcodes::{BlockId, BlockType, MemOp},
+        brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
+        opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         Opcode, OpcodeLocation,
     },
     native_types::{Expression, Witness, WitnessMap},
@@ -15,6 +15,10 @@ use acir::{
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
 use brillig_vm::brillig::HeapValueType;
+
+use proptest::arbitrary::any;
+use proptest::prelude::*;
+use proptest::result::maybe_ok;
 
 // Reenable these test cases once we move the brillig implementation of inversion down into the acvm stdlib.
 
@@ -78,7 +82,7 @@ fn inversion_brillig_oracle_equivalence() {
 
     let opcodes = vec![
         Opcode::BrilligCall {
-            id: 0,
+            id: BrilligFunctionId(0),
             inputs: vec![
                 BrilligInputs::Single(Expression {
                     // Input Register 0
@@ -207,7 +211,7 @@ fn double_inversion_brillig_oracle() {
 
     let opcodes = vec![
         Opcode::BrilligCall {
-            id: 0,
+            id: BrilligFunctionId(0),
             inputs: vec![
                 BrilligInputs::Single(Expression {
                     // Input Register 0
@@ -402,7 +406,7 @@ fn oracle_dependent_execution() {
     let opcodes = vec![
         Opcode::AssertZero(equality_check),
         Opcode::BrilligCall {
-            id: 0,
+            id: BrilligFunctionId(0),
             inputs: vec![
                 BrilligInputs::Single(w_x.into()),            // Input Register 0
                 BrilligInputs::Single(Expression::default()), // Input Register 1
@@ -510,7 +514,7 @@ fn brillig_oracle_predicate() {
     };
 
     let opcodes = vec![Opcode::BrilligCall {
-        id: 0,
+        id: BrilligFunctionId(0),
         inputs: vec![
             BrilligInputs::Single(Expression {
                 mul_terms: vec![],
@@ -646,7 +650,7 @@ fn unsatisfied_opcode_resolved_brillig() {
 
     let opcodes = vec![
         Opcode::BrilligCall {
-            id: 0,
+            id: BrilligFunctionId(0),
             inputs: vec![
                 BrilligInputs::Single(Expression {
                     mul_terms: vec![],
@@ -671,6 +675,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     assert_eq!(
         solver_status,
         ACVMStatus::Failure(OpcodeResolutionError::BrilligFunctionFailed {
+            function_id: BrilligFunctionId(0),
             payload: None,
             call_stack: vec![OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 }]
         }),
@@ -721,4 +726,188 @@ fn memory_operations() {
     let witness_map = acvm.finalize();
 
     assert_eq!(witness_map[&Witness(8)], FieldElement::from(6u128));
+}
+
+// Solve the given BlackBoxFuncCall with witnesses: 1, 2 as x, y, resp.
+#[cfg(test)]
+fn solve_blackbox_func_call(
+    blackbox_func_call: impl Fn(
+        Option<FieldElement>,
+        Option<FieldElement>,
+    ) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool), // if false, use a Witness
+    y: (FieldElement, bool), // if false, use a Witness
+) -> FieldElement {
+    let (x, x_constant) = x;
+    let (y, y_constant) = y;
+
+    let initial_witness = WitnessMap::from(BTreeMap::from_iter([(Witness(1), x), (Witness(2), y)]));
+
+    let mut lhs = None;
+    if x_constant {
+        lhs = Some(x);
+    }
+
+    let mut rhs = None;
+    if y_constant {
+        rhs = Some(y);
+    }
+
+    let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs, rhs));
+    let opcodes = vec![op];
+    let unconstrained_functions = vec![];
+    let mut acvm =
+        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let solver_status = acvm.solve();
+    assert_eq!(solver_status, ACVMStatus::Solved);
+    let witness_map = acvm.finalize();
+
+    witness_map[&Witness(3)]
+}
+
+fn function_input_from_option(
+    witness: Witness,
+    opt_constant: Option<FieldElement>,
+) -> FunctionInput<FieldElement> {
+    opt_constant
+        .map(|constant| FunctionInput::constant(constant, FieldElement::max_num_bits()))
+        .unwrap_or(FunctionInput::witness(witness, FieldElement::max_num_bits()))
+}
+
+fn and_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
+    let lhs = function_input_from_option(Witness(1), x);
+    let rhs = function_input_from_option(Witness(2), y);
+    BlackBoxFuncCall::AND { lhs, rhs, output: Witness(3) }
+}
+
+fn xor_op(x: Option<FieldElement>, y: Option<FieldElement>) -> BlackBoxFuncCall<FieldElement> {
+    let lhs = function_input_from_option(Witness(1), x);
+    let rhs = function_input_from_option(Witness(2), y);
+    BlackBoxFuncCall::XOR { lhs, rhs, output: Witness(3) }
+}
+
+fn prop_assert_commutative(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool),
+    y: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(&op, x, y), solve_blackbox_func_call(&op, y, x))
+}
+
+fn prop_assert_associative(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    x: (FieldElement, bool),
+    y: (FieldElement, bool),
+    z: (FieldElement, bool),
+    use_constant_xy: bool,
+    use_constant_yz: bool,
+) -> (FieldElement, FieldElement) {
+    let f_xy = (solve_blackbox_func_call(&op, x, y), use_constant_xy);
+    let f_f_xy_z = solve_blackbox_func_call(&op, f_xy, z);
+
+    let f_yz = (solve_blackbox_func_call(&op, y, z), use_constant_yz);
+    let f_x_f_yz = solve_blackbox_func_call(&op, x, f_yz);
+
+    (f_f_xy_z, f_x_f_yz)
+}
+
+fn prop_assert_identity_l(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op_identity: (FieldElement, bool),
+    x: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(op, op_identity, x), x.0)
+}
+
+fn prop_assert_zero_l(
+    op: impl Fn(Option<FieldElement>, Option<FieldElement>) -> BlackBoxFuncCall<FieldElement>,
+    op_zero: (FieldElement, bool),
+    x: (FieldElement, bool),
+) -> (FieldElement, FieldElement) {
+    (solve_blackbox_func_call(op, op_zero, x), FieldElement::zero())
+}
+
+prop_compose! {
+    // Use both `u128` and hex proptest strategies
+    fn field_element()
+        (u128_or_hex in maybe_ok(any::<u128>(), "[0-9a-f]{64}"),
+         constant_input: bool)
+        -> (FieldElement, bool)
+    {
+        match u128_or_hex {
+            Ok(number) => (FieldElement::from(number), constant_input),
+            Err(hex) => (FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string"), constant_input),
+        }
+    }
+}
+
+fn field_element_ones() -> FieldElement {
+    let exponent: FieldElement = (253_u128).into();
+    FieldElement::from(2u128).pow(&exponent) - FieldElement::one()
+}
+
+proptest! {
+
+    #[test]
+    fn and_commutative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_commutative(and_op, x, y);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn xor_commutative(x in field_element(), y in field_element()) {
+        let (lhs, rhs) = prop_assert_commutative(xor_op, x, y);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn and_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
+        let (lhs, rhs) = prop_assert_associative(and_op, x, y, z, use_constant_xy, use_constant_yz);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    // TODO(https://github.com/noir-lang/noir/issues/5638)
+    #[should_panic(expected = "assertion failed: `(left == right)`")]
+    fn xor_associative(x in field_element(), y in field_element(), z in field_element(), use_constant_xy: bool, use_constant_yz: bool) {
+        let (lhs, rhs) = prop_assert_associative(xor_op, x, y, z, use_constant_xy, use_constant_yz);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    // test that AND(x, x) == x
+    #[test]
+    fn and_self_identity(x in field_element()) {
+        prop_assert_eq!(solve_blackbox_func_call(and_op, x, x), x.0);
+    }
+
+    // test that XOR(x, x) == 0
+    #[test]
+    fn xor_self_zero(x in field_element()) {
+        prop_assert_eq!(solve_blackbox_func_call(xor_op, x, x), FieldElement::zero());
+    }
+
+    #[test]
+    fn and_identity_l(x in field_element(), ones_constant: bool) {
+        let ones = (field_element_ones(), ones_constant);
+        let (lhs, rhs) = prop_assert_identity_l(and_op, ones, x);
+        if x <= ones {
+            prop_assert_eq!(lhs, rhs);
+        } else {
+            prop_assert!(lhs != rhs);
+        }
+    }
+
+    #[test]
+    fn xor_identity_l(x in field_element(), zero_constant: bool) {
+        let zero = (FieldElement::zero(), zero_constant);
+        let (lhs, rhs) = prop_assert_identity_l(xor_op, zero, x);
+        prop_assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn and_zero_l(x in field_element(), ones_constant: bool) {
+        let zero = (FieldElement::zero(), ones_constant);
+        let (lhs, rhs) = prop_assert_zero_l(and_op, zero, x);
+        prop_assert_eq!(lhs, rhs);
+    }
 }

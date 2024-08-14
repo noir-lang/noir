@@ -214,6 +214,7 @@ struct Context<'f> {
 pub(crate) struct Store {
     old_value: ValueId,
     new_value: ValueId,
+    call_stack: CallStack,
 }
 
 #[derive(Clone)]
@@ -239,6 +240,8 @@ struct ConditionalContext {
     then_branch: ConditionalBranch,
     // First block of the else branch
     else_branch: Option<ConditionalBranch>,
+    // Call stack where the final location is that of the entire `if` expression
+    call_stack: CallStack,
 }
 
 fn flatten_function_cfg(function: &mut Function) {
@@ -289,7 +292,8 @@ impl<'f> Context<'f> {
         if let Some(context) = self.condition_stack.last() {
             let previous_branch = context.else_branch.as_ref().unwrap_or(&context.then_branch);
             let and = Instruction::binary(BinaryOp::And, previous_branch.condition, condition);
-            self.insert_instruction(and, CallStack::new())
+            let call_stack = self.inserter.function.dfg.get_value_call_stack(condition);
+            self.insert_instruction(and, call_stack)
         } else {
             condition
         }
@@ -333,9 +337,20 @@ impl<'f> Context<'f> {
     ) -> Vec<BasicBlockId> {
         let terminator = self.inserter.function.dfg[block].unwrap_terminator().clone();
         match &terminator {
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => {
                 self.arguments_stack.push(vec![]);
-                self.if_start(condition, then_destination, else_destination, &block)
+                self.if_start(
+                    condition,
+                    then_destination,
+                    else_destination,
+                    &block,
+                    call_stack.clone(),
+                )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
@@ -370,12 +385,12 @@ impl<'f> Context<'f> {
         then_destination: &BasicBlockId,
         else_destination: &BasicBlockId,
         if_entry: &BasicBlockId,
+        call_stack: CallStack,
     ) -> Vec<BasicBlockId> {
         // manage conditions
         let old_condition = *condition;
         let then_condition = self.inserter.resolve(old_condition);
 
-        let one = FieldElement::one();
         let old_stores = std::mem::take(&mut self.store_values);
         let old_allocations = std::mem::take(&mut self.local_allocations);
         let branch = ConditionalBranch {
@@ -390,18 +405,10 @@ impl<'f> Context<'f> {
             entry_block: *if_entry,
             then_branch: branch,
             else_branch: None,
+            call_stack,
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
-        // Optimization: within the then branch we know the condition to be true, so replace
-        // any references of it within this branch with true. Likewise, do the same with false
-        // with the else branch. We must be careful not to replace the condition if it is a
-        // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
-        if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
-            let known_value = self.inserter.function.dfg.make_constant(one, Type::bool());
-
-            self.inserter.map_value(old_condition, known_value);
-        }
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
@@ -410,11 +417,14 @@ impl<'f> Context<'f> {
         let mut cond_context = self.condition_stack.pop().unwrap();
         cond_context.then_branch.last_block = *block;
 
-        let else_condition =
-            self.insert_instruction(Instruction::Not(cond_context.condition), CallStack::new());
+        let condition_call_stack =
+            self.inserter.function.dfg.get_value_call_stack(cond_context.condition);
+        let else_condition = self.insert_instruction(
+            Instruction::Not(cond_context.condition),
+            condition_call_stack.clone(),
+        );
         let else_condition = self.link_condition(else_condition);
 
-        let zero = FieldElement::zero();
         // Make sure the else branch sees the previous values of each store
         // rather than any values created in the 'then' branch.
         let old_stores = std::mem::take(&mut cond_context.then_branch.store_values);
@@ -429,21 +439,12 @@ impl<'f> Context<'f> {
             local_allocations: old_allocations,
             last_block: *block,
         };
-        let old_condition = else_branch.old_condition;
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
         self.condition_stack.push(cond_context);
 
         self.insert_current_side_effects_enabled();
-        // Optimization: within the then branch we know the condition to be true, so replace
-        // any references of it within this branch with true. Likewise, do the same with false
-        // with the else branch. We must be careful not to replace the condition if it is a
-        // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
-        if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
-            let known_value = self.inserter.function.dfg.make_constant(zero, Type::bool());
 
-            self.inserter.map_value(old_condition, known_value);
-        }
         assert_eq!(self.cfg.successors(*block).len(), 1);
         vec![self.cfg.successors(*block).next().unwrap()]
     }
@@ -470,11 +471,6 @@ impl<'f> Context<'f> {
         // end, in addition to resetting the value of old_condition since it is set to
         // known to be true/false within the then/else branch respectively.
         self.insert_current_side_effects_enabled();
-
-        // We must map back to `then_condition` here. Mapping `old_condition` to itself would
-        // lose any previous mappings.
-        self.inserter
-            .map_value(cond_context.then_branch.old_condition, cond_context.then_branch.condition);
 
         // While there is a condition on the stack we don't compile outside the condition
         // until it is popped. This ensures we inline the full then and else branches
@@ -529,14 +525,16 @@ impl<'f> Context<'f> {
                 else_condition: cond_context.else_branch.as_ref().unwrap().condition,
                 else_value: else_arg,
             };
+            let call_stack = cond_context.call_stack.clone();
             self.inserter
                 .function
                 .dfg
-                .insert_instruction_and_results(instruction, block, None, CallStack::new())
+                .insert_instruction_and_results(instruction, block, None, call_stack)
                 .first()
         });
 
-        self.merge_stores(cond_context.then_branch, cond_context.else_branch);
+        let call_stack = cond_context.call_stack;
+        self.merge_stores(cond_context.then_branch, cond_context.else_branch, call_stack);
         self.arguments_stack.pop();
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
@@ -563,13 +561,14 @@ impl<'f> Context<'f> {
         &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
+        call_stack: CallStack,
     ) -> InsertInstructionResult {
         let block = self.inserter.function.entry_block();
         self.inserter.function.dfg.insert_instruction_and_results(
             instruction,
             block,
             ctrl_typevars,
-            CallStack::new(),
+            call_stack,
         )
     }
 
@@ -586,7 +585,8 @@ impl<'f> Context<'f> {
             }
         };
         let enable_side_effects = Instruction::EnableSideEffects { condition };
-        self.insert_instruction_with_typevars(enable_side_effects, None);
+        let call_stack = self.inserter.function.dfg.get_value_call_stack(condition);
+        self.insert_instruction_with_typevars(enable_side_effects, None, call_stack);
     }
 
     /// Merge any store instructions found in each branch.
@@ -598,6 +598,7 @@ impl<'f> Context<'f> {
         &mut self,
         then_branch: ConditionalBranch,
         else_branch: Option<ConditionalBranch>,
+        call_stack: CallStack,
     ) {
         // Address -> (then_value, else_value, value_before_the_if)
         let mut new_map = BTreeMap::new();
@@ -633,11 +634,9 @@ impl<'f> Context<'f> {
                 else_condition,
                 else_value: *else_case,
             };
-            let value = self
-                .inserter
-                .function
-                .dfg
-                .insert_instruction_and_results(instruction, block, None, CallStack::new())
+            let dfg = &mut self.inserter.function.dfg;
+            let value = dfg
+                .insert_instruction_and_results(instruction, block, None, call_stack.clone())
                 .first();
 
             new_values.insert(address, value);
@@ -647,18 +646,28 @@ impl<'f> Context<'f> {
         for (address, (_, _, old_value)) in &new_map {
             let value = new_values[address];
             let address = *address;
-            self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
+            self.insert_instruction_with_typevars(
+                Instruction::Store { address, value },
+                None,
+                call_stack.clone(),
+            );
 
             if let Some(store) = self.store_values.get_mut(&address) {
                 store.new_value = value;
             } else {
-                self.store_values
-                    .insert(address, Store { old_value: *old_value, new_value: value });
+                self.store_values.insert(
+                    address,
+                    Store {
+                        old_value: *old_value,
+                        new_value: value,
+                        call_stack: call_stack.clone(),
+                    },
+                );
             }
         }
     }
 
-    fn remember_store(&mut self, address: ValueId, new_value: ValueId) {
+    fn remember_store(&mut self, address: ValueId, new_value: ValueId, call_stack: CallStack) {
         if !self.local_allocations.contains(&address) {
             if let Some(store_value) = self.store_values.get_mut(&address) {
                 store_value.new_value = new_value;
@@ -666,10 +675,11 @@ impl<'f> Context<'f> {
                 let load = Instruction::Load { address };
 
                 let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
-                let old_value =
-                    self.insert_instruction_with_typevars(load.clone(), load_type).first();
+                let old_value = self
+                    .insert_instruction_with_typevars(load.clone(), load_type, call_stack.clone())
+                    .first();
 
-                self.store_values.insert(address, Store { old_value, new_value });
+                self.store_values.insert(address, Store { old_value, new_value, call_stack });
             }
         }
     }
@@ -731,7 +741,7 @@ impl<'f> Context<'f> {
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
-                    self.remember_store(address, value);
+                    self.remember_store(address, value, call_stack);
                     Instruction::Store { address, value }
                 }
                 Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -777,27 +787,24 @@ impl<'f> Context<'f> {
                         Instruction::Call { func, arguments }
                     }
                     Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
-                        let mut array_with_predicate = im::Vector::new();
-                        let array_typ;
-                        if let Value::Array { array, typ } =
-                            &self.inserter.function.dfg[arguments[0]]
-                        {
-                            array_typ = typ.clone();
-                            for (i, value) in array.clone().iter().enumerate() {
-                                if i % 3 == 2 {
-                                    array_with_predicate.push_back(self.var_or_one(
-                                        *value,
-                                        condition,
-                                        call_stack.clone(),
-                                    ));
-                                } else {
-                                    array_with_predicate.push_back(*value);
-                                }
-                            }
+                        let points_array_idx = if matches!(
+                            self.inserter.function.dfg[arguments[0]],
+                            Value::Array { .. }
+                        ) {
+                            0
                         } else {
-                            unreachable!();
-                        }
-                        arguments[0] =
+                            // if the first argument is not an array, we assume it is a slice
+                            // which means the array is the second argument
+                            1
+                        };
+                        let (array_with_predicate, array_typ) = self
+                            .apply_predicate_to_msm_argument(
+                                arguments[points_array_idx],
+                                condition,
+                                call_stack.clone(),
+                            );
+
+                        arguments[points_array_idx] =
                             self.inserter.function.dfg.make_array(array_with_predicate, array_typ);
                         Instruction::Call { func, arguments }
                     }
@@ -808,6 +815,40 @@ impl<'f> Context<'f> {
         } else {
             instruction
         }
+    }
+
+    /// When a MSM is done under a predicate, we need to apply the predicate
+    /// to the is_infinity property of the input points in order to ensure
+    /// that the points will be on the curve no matter what.
+    fn apply_predicate_to_msm_argument(
+        &mut self,
+        argument: ValueId,
+        predicate: ValueId,
+        call_stack: CallStack,
+    ) -> (im::Vector<ValueId>, Type) {
+        let array_typ;
+        let mut array_with_predicate = im::Vector::new();
+        if let Value::Array { array, typ } = &self.inserter.function.dfg[argument] {
+            array_typ = typ.clone();
+            for (i, value) in array.clone().iter().enumerate() {
+                if i % 3 == 2 {
+                    array_with_predicate.push_back(self.var_or_one(
+                        *value,
+                        predicate,
+                        call_stack.clone(),
+                    ));
+                } else {
+                    array_with_predicate.push_back(*value);
+                }
+            }
+        } else {
+            unreachable!(
+                "Expected an array, got {}",
+                &self.inserter.function.dfg.type_of_value(argument)
+            );
+        };
+
+        (array_with_predicate, array_typ)
     }
 
     // Computes: if condition { var } else { 1 }
@@ -828,7 +869,9 @@ impl<'f> Context<'f> {
         for (address, store) in store_values {
             let address = *address;
             let value = store.old_value;
-            self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
+            let instruction = Instruction::Store { address, value };
+            // Considering the location of undoing a store to be the same as the original store.
+            self.insert_instruction_with_typevars(instruction, None, store.call_stack.clone());
         }
     }
 }
@@ -1404,28 +1447,28 @@ mod test {
     fn should_not_merge_incorrectly_to_false() {
         // Regression test for #1792
         // Tests that it does not simplify a true constraint an always-false constraint
-        // fn main f1 {
-        //   b0():
-        //     v4 = call pedersen([Field 0], u32 0)
-        //     v5 = array_get v4, index Field 0
-        //     v6 = cast v5 as u32
-        //     v8 = mod v6, u32 2
-        //     v9 = cast v8 as u1
-        //     v10 = allocate
-        //     store Field 0 at v10
-        //     jmpif v9 then: b1, else: b2
-        //   b1():
-        //     v14 = add v5, Field 1
-        //     store v14 at v10
-        //     jmp b3()
-        //   b3():
-        //     v12 = eq v9, u1 1
-        //     constrain v12
-        //     return
-        //   b2():
-        //     store Field 0 at v10
-        //     jmp b3()
-        // }
+        // acir(inline) fn main f1 {
+        //     b0(v0: [u8; 2]):
+        //       v4 = call sha256(v0, u8 2)
+        //       v5 = array_get v4, index u8 0
+        //       v6 = cast v5 as u32
+        //       v8 = truncate v6 to 1 bits, max_bit_size: 32
+        //       v9 = cast v8 as u1
+        //       v10 = allocate
+        //       store u8 0 at v10
+        //       jmpif v9 then: b2, else: b3
+        //     b2():
+        //       v12 = cast v5 as Field
+        //       v13 = add v12, Field 1
+        //       store v13 at v10
+        //       jmp b4()
+        //     b4():
+        //       constrain v9 == u1 1
+        //       return
+        //     b3():
+        //       store u8 0 at v10
+        //       jmp b4()
+        //   }
         let main_id = Id::test_new(1);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
 
@@ -1434,20 +1477,18 @@ mod test {
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
 
-        let element_type = Rc::new(vec![Type::field()]);
-        let array_type = Type::Array(element_type.clone(), 1);
+        let element_type = Rc::new(vec![Type::unsigned(8)]);
+        let array_type = Type::Array(element_type.clone(), 2);
+        let array = builder.add_parameter(array_type);
 
-        let zero = builder.field_constant(0_u128);
-        let zero_array = builder.array_constant(im::Vector::unit(zero), array_type);
-        let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
-        let pedersen = builder
-            .import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::PedersenCommitment));
-        let v4 = builder.insert_call(
-            pedersen,
-            vec![zero_array, i_zero],
-            vec![Type::Array(element_type, 2)],
-        )[0];
-        let v5 = builder.insert_array_get(v4, zero, Type::field());
+        let zero = builder.numeric_constant(0_u128, Type::unsigned(8));
+        let two = builder.numeric_constant(2_u128, Type::unsigned(8));
+
+        let keccak =
+            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::SHA256));
+        let v4 =
+            builder.insert_call(keccak, vec![array, two], vec![Type::Array(element_type, 32)])[0];
+        let v5 = builder.insert_array_get(v4, zero, Type::unsigned(8));
         let v6 = builder.insert_cast(v5, Type::unsigned(32));
         let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
         let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);
@@ -1460,7 +1501,9 @@ mod test {
 
         builder.switch_to_block(b1);
         let one = builder.field_constant(1_u128);
-        let v14 = builder.insert_binary(v5, BinaryOp::Add, one);
+        let v5b = builder.insert_cast(v5, Type::field());
+        let v13: Id<Value> = builder.insert_binary(v5b, BinaryOp::Add, one);
+        let v14 = builder.insert_cast(v13, Type::unsigned(8));
         builder.insert_store(v10, v14);
         builder.terminate_with_jmp(b3, vec![]);
 
@@ -1474,8 +1517,9 @@ mod test {
         builder.insert_constrain(v12, v_true, None);
         builder.terminate_with_return(vec![]);
 
-        let ssa = builder.finish().flatten_cfg();
-        let main = ssa.main();
+        let ssa = builder.finish();
+        let flattened_ssa = ssa.flatten_cfg();
+        let main = flattened_ssa.main();
 
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;

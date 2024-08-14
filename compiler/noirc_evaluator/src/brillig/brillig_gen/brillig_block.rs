@@ -22,6 +22,7 @@ use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
+use std::rc::Rc;
 
 use super::brillig_black_box::convert_black_box_call;
 use super::brillig_block_variables::BlockVariables;
@@ -33,7 +34,7 @@ pub(crate) struct BrilligBlock<'block> {
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
     /// Context for creating brillig opcodes
-    pub(crate) brillig_context: &'block mut BrilligContext,
+    pub(crate) brillig_context: &'block mut BrilligContext<FieldElement>,
     /// Tracks the available variable during the codegen of the block
     pub(crate) variables: BlockVariables,
     /// For each instruction, the set of values that are not used anymore after it.
@@ -44,7 +45,7 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA Basic block into a sequence of Brillig opcodes
     pub(crate) fn compile(
         function_context: &'block mut FunctionContext,
-        brillig_context: &'block mut BrilligContext,
+        brillig_context: &'block mut BrilligContext<FieldElement>,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
     ) {
@@ -115,7 +116,12 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) {
         match terminator_instruction {
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack: _,
+            } => {
                 let condition = self.convert_ssa_single_addr_value(*condition, dfg);
                 self.brillig_context.jump_if_instruction(
                     condition.address,
@@ -582,6 +588,11 @@ impl<'block> BrilligBlock<'block> {
                         1,
                     );
                 }
+
+                // `Intrinsic::AsWitness` is used to provide hints to acir-gen on optimal expression splitting.
+                // It is then useless in the brillig runtime and so we can ignore it
+                Value::Intrinsic(Intrinsic::AsWitness) => (),
+
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
@@ -932,7 +943,7 @@ impl<'block> BrilligBlock<'block> {
 
         if let Some((index_register, value_variable)) = opt_index_and_value {
             // Then set the value in the newly created array
-            self.store_variable_in_array(
+            self.brillig_context.codegen_store_variable_in_array(
                 destination_pointer,
                 SingleAddrVariable::new_usize(index_register),
                 value_variable,
@@ -941,47 +952,6 @@ impl<'block> BrilligBlock<'block> {
 
         self.brillig_context.deallocate_register(condition);
         source_size_as_register
-    }
-
-    pub(crate) fn store_variable_in_array_with_ctx(
-        ctx: &mut BrilligContext,
-        destination_pointer: MemoryAddress,
-        index_register: SingleAddrVariable,
-        value_variable: BrilligVariable,
-    ) {
-        match value_variable {
-            BrilligVariable::SingleAddr(value_variable) => {
-                ctx.codegen_array_set(destination_pointer, index_register, value_variable.address);
-            }
-            BrilligVariable::BrilligArray(_) => {
-                let reference: MemoryAddress = ctx.allocate_register();
-                ctx.codegen_allocate_array_reference(reference);
-                ctx.codegen_store_variable(reference, value_variable);
-                ctx.codegen_array_set(destination_pointer, index_register, reference);
-                ctx.deallocate_register(reference);
-            }
-            BrilligVariable::BrilligVector(_) => {
-                let reference = ctx.allocate_register();
-                ctx.codegen_allocate_vector_reference(reference);
-                ctx.codegen_store_variable(reference, value_variable);
-                ctx.codegen_array_set(destination_pointer, index_register, reference);
-                ctx.deallocate_register(reference);
-            }
-        }
-    }
-
-    pub(crate) fn store_variable_in_array(
-        &mut self,
-        destination_pointer: MemoryAddress,
-        index_variable: SingleAddrVariable,
-        value_variable: BrilligVariable,
-    ) {
-        Self::store_variable_in_array_with_ctx(
-            self.brillig_context,
-            destination_pointer,
-            index_variable,
-            value_variable,
-        );
     }
 
     /// Convert the SSA slice operations to brillig slice operations
@@ -1629,7 +1599,7 @@ impl<'block> BrilligBlock<'block> {
                     new_variable
                 }
             }
-            Value::Array { array, .. } => {
+            Value::Array { array, typ } => {
                 if let Some(variable) = self.variables.get_constant(value_id, dfg) {
                     variable
                 } else {
@@ -1664,23 +1634,7 @@ impl<'block> BrilligBlock<'block> {
 
                     // Write the items
 
-                    // Allocate a register for the iterator
-                    let iterator_register =
-                        self.brillig_context.make_usize_constant_instruction(0_usize.into());
-
-                    for element_id in array.iter() {
-                        let element_variable = self.convert_ssa_value(*element_id, dfg);
-                        // Store the item in memory
-                        self.store_variable_in_array(pointer, iterator_register, element_variable);
-                        // Increment the iterator
-                        self.brillig_context.codegen_usize_op_in_place(
-                            iterator_register.address,
-                            BrilligBinaryOp::Add,
-                            1,
-                        );
-                    }
-
-                    self.brillig_context.deallocate_single_addr(iterator_register);
+                    self.initialize_constant_array(array, typ, dfg, pointer);
 
                     new_variable
                 }
@@ -1703,6 +1657,162 @@ impl<'block> BrilligBlock<'block> {
                 todo!("ICE: Cannot convert value {value:?}")
             }
         }
+    }
+
+    fn initialize_constant_array(
+        &mut self,
+        data: &im::Vector<ValueId>,
+        typ: &Type,
+        dfg: &DataFlowGraph,
+        pointer: MemoryAddress,
+    ) {
+        if data.is_empty() {
+            return;
+        }
+        let item_types = typ.clone().element_types();
+
+        // Find out if we are repeating the same item over and over
+        let first_item = data.iter().take(item_types.len()).copied().collect();
+        let mut is_repeating = true;
+
+        for item_index in (item_types.len()..data.len()).step_by(item_types.len()) {
+            let item: Vec<_> = (0..item_types.len()).map(|i| data[item_index + i]).collect();
+            if first_item != item {
+                is_repeating = false;
+                break;
+            }
+        }
+
+        // If all the items are single address, and all have the same initial value, we can initialize the array in a runtime loop.
+        // Since the cost in instructions for a runtime loop is in the order of magnitude of 10, we only do this if the item_count is bigger than that.
+        let item_count = data.len() / item_types.len();
+
+        if item_count > 10
+            && is_repeating
+            && item_types.iter().all(|typ| matches!(typ, Type::Numeric(_)))
+        {
+            self.initialize_constant_array_runtime(
+                item_types, first_item, item_count, pointer, dfg,
+            );
+        } else {
+            self.initialize_constant_array_comptime(data, dfg, pointer);
+        }
+    }
+
+    fn initialize_constant_array_runtime(
+        &mut self,
+        item_types: Rc<Vec<Type>>,
+        item_to_repeat: Vec<ValueId>,
+        item_count: usize,
+        pointer: MemoryAddress,
+        dfg: &DataFlowGraph,
+    ) {
+        let mut subitem_to_repeat_variables = Vec::with_capacity(item_types.len());
+        for subitem_id in item_to_repeat.into_iter() {
+            subitem_to_repeat_variables.push(self.convert_ssa_value(subitem_id, dfg));
+        }
+
+        // Initialize loop bound with the array length
+        let end_pointer_variable = self
+            .brillig_context
+            .make_usize_constant_instruction((item_count * item_types.len()).into());
+
+        // Add the pointer to the array length
+        self.brillig_context.memory_op_instruction(
+            end_pointer_variable.address,
+            pointer,
+            end_pointer_variable.address,
+            BrilligBinaryOp::Add,
+        );
+
+        // If this is an array with complex subitems, we need a custom step in the loop to write all the subitems while iterating.
+        if item_types.len() > 1 {
+            let step_variable =
+                self.brillig_context.make_usize_constant_instruction(item_types.len().into());
+
+            let subitem_pointer =
+                SingleAddrVariable::new_usize(self.brillig_context.allocate_register());
+
+            let one = self.brillig_context.make_usize_constant_instruction(1_usize.into());
+
+            // Initializes a single subitem
+            let initializer_fn =
+                |ctx: &mut BrilligContext<_>, subitem_start_pointer: SingleAddrVariable| {
+                    ctx.mov_instruction(subitem_pointer.address, subitem_start_pointer.address);
+                    for (subitem_index, subitem) in
+                        subitem_to_repeat_variables.into_iter().enumerate()
+                    {
+                        ctx.codegen_store_variable_in_pointer(subitem_pointer.address, subitem);
+                        if subitem_index != item_types.len() - 1 {
+                            ctx.memory_op_instruction(
+                                subitem_pointer.address,
+                                one.address,
+                                subitem_pointer.address,
+                                BrilligBinaryOp::Add,
+                            );
+                        }
+                    }
+                };
+
+            // for (let subitem_start_pointer = pointer; subitem_start_pointer < pointer + data_length; subitem_start_pointer += step) { initializer_fn(iterator) }
+            self.brillig_context.codegen_for_loop(
+                Some(pointer),
+                end_pointer_variable.address,
+                Some(step_variable.address),
+                initializer_fn,
+            );
+
+            self.brillig_context.deallocate_single_addr(step_variable);
+            self.brillig_context.deallocate_single_addr(subitem_pointer);
+            self.brillig_context.deallocate_single_addr(one);
+        } else {
+            let subitem = subitem_to_repeat_variables.into_iter().next().unwrap();
+
+            let initializer_fn = |ctx: &mut BrilligContext<_>, item_pointer: SingleAddrVariable| {
+                ctx.codegen_store_variable_in_pointer(item_pointer.address, subitem);
+            };
+
+            // for (let item_pointer = pointer; item_pointer < pointer + data_length; item_pointer += 1) { initializer_fn(iterator) }
+            self.brillig_context.codegen_for_loop(
+                Some(pointer),
+                end_pointer_variable.address,
+                None,
+                initializer_fn,
+            );
+        }
+        self.brillig_context.deallocate_single_addr(end_pointer_variable);
+    }
+
+    fn initialize_constant_array_comptime(
+        &mut self,
+        data: &im::Vector<crate::ssa::ir::map::Id<Value>>,
+        dfg: &DataFlowGraph,
+        pointer: MemoryAddress,
+    ) {
+        // Allocate a register for the iterator
+        let write_pointer_register = self.brillig_context.allocate_register();
+        let one = self.brillig_context.make_usize_constant_instruction(1_usize.into());
+
+        self.brillig_context.mov_instruction(write_pointer_register, pointer);
+
+        for (element_idx, element_id) in data.iter().enumerate() {
+            let element_variable = self.convert_ssa_value(*element_id, dfg);
+            // Store the item in memory
+            self.brillig_context
+                .codegen_store_variable_in_pointer(write_pointer_register, element_variable);
+            if element_idx != data.len() - 1 {
+                // Increment the write_pointer_register
+                self.brillig_context.memory_op_instruction(
+                    write_pointer_register,
+                    one.address,
+                    write_pointer_register,
+                    BrilligBinaryOp::Add,
+                );
+            }
+        }
+
+        self.brillig_context.deallocate_register(write_pointer_register);
+        self.brillig_context.deallocate_single_addr(one);
     }
 
     /// Converts an SSA `ValueId` into a `MemoryAddress`. Initializes if necessary.
@@ -1737,8 +1847,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let array = variable.extract_array();
-                self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
-                self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+                self.allocate_nested_array(typ, Some(array));
 
                 variable
             }
@@ -1762,6 +1871,43 @@ impl<'block> BrilligBlock<'block> {
             _ => {
                 unreachable!("ICE: unsupported return type for black box call {typ:?}")
             }
+        }
+    }
+
+    fn allocate_nested_array(
+        &mut self,
+        typ: &Type,
+        array: Option<BrilligArray>,
+    ) -> BrilligVariable {
+        match typ {
+            Type::Array(types, size) => {
+                let array = array.unwrap_or(BrilligArray {
+                    pointer: self.brillig_context.allocate_register(),
+                    size: *size,
+                    rc: self.brillig_context.allocate_register(),
+                });
+                self.brillig_context.codegen_allocate_fixed_length_array(array.pointer, array.size);
+                self.brillig_context.usize_const_instruction(array.rc, 1_usize.into());
+
+                let mut index = 0_usize;
+                for _ in 0..*size {
+                    for element_type in types.iter() {
+                        match element_type {
+                            Type::Array(_, _) => {
+                                let inner_array = self.allocate_nested_array(element_type, None);
+                                let idx =
+                                    self.brillig_context.make_usize_constant_instruction(index.into());
+                                self.brillig_context.codegen_store_variable_in_array(array.pointer, idx, inner_array);
+                            }
+                            Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
+                            _ => (),
+                        }
+                        index += 1;
+                    }
+                }
+                BrilligVariable::BrilligArray(array)
+            }
+            _ => unreachable!("ICE: allocate_nested_array() expects an array, got {typ:?}"),
         }
     }
 

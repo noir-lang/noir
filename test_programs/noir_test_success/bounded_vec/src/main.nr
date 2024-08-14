@@ -63,6 +63,33 @@ fn sum_of_first_three<N>(v: BoundedVec<u32, N>) -> u32 {
 }
 // docs:end:get_unchecked_example
 
+#[test(should_fail)]
+// docs:start:set_unchecked_example
+fn set_unchecked_example() {
+    let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+    vec.extend_from_array([1, 2]);
+
+    // Here we're safely writing within the valid range of `vec`
+    // `vec` now has the value [42, 2]
+    vec.set_unchecked(0, 42);
+
+    // We can then safely read this value back out of `vec`.
+    // Notice that we use the checked version of `get` which would prevent reading unsafe values.
+    assert_eq(vec.get(0), 42);
+
+    // We've now written past the end of `vec`.
+    // As this index is still within the maximum potential length of `v`,
+    // it won't cause a constraint failure. 
+    vec.set_unchecked(2, 42);
+    println(vec);
+
+    // This will write past the end of the maximum potential length of `vec`,
+    // it will then trigger a constraint failure.
+    vec.set_unchecked(5, 42);
+    println(vec);
+}
+// docs:end:set_unchecked_example
+
 #[test(should_fail_with = "push out of bounds")]
 fn push_docs_example() {
     // docs:start:bounded-vec-push-example

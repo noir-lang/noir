@@ -78,7 +78,4 @@ pub trait AcirField:
     /// Returns the closest number of bytes to the bits specified
     /// This method truncates
     fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8>;
-
-    fn and(&self, rhs: &Self, num_bits: u32) -> Self;
-    fn xor(&self, rhs: &Self, num_bits: u32) -> Self;
 }

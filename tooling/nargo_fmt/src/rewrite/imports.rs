@@ -14,6 +14,7 @@ pub(crate) enum UseSegment {
     List(Vec<UseTree>),
     Dep,
     Crate,
+    Super,
 }
 
 impl UseSegment {
@@ -50,6 +51,7 @@ impl UseSegment {
             }
             UseSegment::Dep => "dep".into(),
             UseSegment::Crate => "crate".into(),
+            UseSegment::Super => "super".into(),
         }
     }
 }
@@ -66,6 +68,7 @@ impl UseTree {
         match use_tree.prefix.kind {
             ast::PathKind::Crate => result.path.push(UseSegment::Crate),
             ast::PathKind::Dep => result.path.push(UseSegment::Dep),
+            ast::PathKind::Super => result.path.push(UseSegment::Super),
             ast::PathKind::Plain => {}
         };
 

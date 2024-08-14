@@ -31,6 +31,12 @@ impl NodeInterner {
         location_candidate.map(|(index, _location)| *index)
     }
 
+    /// Returns the Type of the expression that exists at the given location.
+    pub fn type_at_location(&self, location: Location) -> Option<Type> {
+        let index = self.find_location_index(location)?;
+        Some(self.id_type(index))
+    }
+
     /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
     /// Returns [None] when definition is not found.
     pub fn get_definition_location_from(
@@ -38,12 +44,16 @@ impl NodeInterner {
         location: Location,
         return_type_location_instead: bool,
     ) -> Option<Location> {
-        self.find_location_index(location)
-            .and_then(|index| self.resolve_location(index, return_type_location_instead))
-            .or_else(|| self.try_resolve_trait_impl_location(location))
-            .or_else(|| self.try_resolve_trait_method_declaration(location))
-            .or_else(|| self.try_resolve_type_ref(location))
-            .or_else(|| self.try_resolve_type_alias(location))
+        // First try to find the location in the reference graph
+        self.find_referenced_location(location).or_else(|| {
+            // Otherwise fallback to the location indices
+            self.find_location_index(location)
+                .and_then(|index| self.resolve_location(index, return_type_location_instead))
+                .or_else(|| self.try_resolve_trait_impl_location(location))
+                .or_else(|| self.try_resolve_trait_method_declaration(location))
+                .or_else(|| self.try_resolve_type_ref(location))
+                .or_else(|| self.try_resolve_type_alias(location))
+        })
     }
 
     pub fn get_declaration_location_from(&self, location: Location) -> Option<Location> {

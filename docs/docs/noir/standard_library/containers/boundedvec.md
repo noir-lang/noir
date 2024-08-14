@@ -59,7 +59,7 @@ but for now make sure to use type annotations when using bounded vectors. Otherw
 ### get
 
 ```rust
-pub fn get(mut self: Self, index: u64) -> T {
+pub fn get(self, index: u64) -> T {
 ```
 
 Retrieves an element from the vector at the given index, starting from zero.
@@ -80,7 +80,7 @@ fn foo<N>(v: BoundedVec<u32, N>) {
 ### get_unchecked
 
 ```rust
-pub fn get_unchecked(mut self: Self, index: u64) -> T {
+pub fn get_unchecked(self, index: u64) -> T {
 ```
 
 Retrieves an element from the vector at the given index, starting from zero, without
@@ -92,6 +92,42 @@ it is unsafe! Use at your own risk!
 Example:
 
 #include_code get_unchecked_example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+
+### set
+
+```rust
+pub fn set(&mut self: Self, index: u64, value: T) {
+```
+
+Writes an element to the vector at the given index, starting from zero.
+
+If the given index is equal to or greater than the length of the vector, this will issue a constraint failure.
+
+Example:
+
+```rust
+fn foo<N>(v: BoundedVec<u32, N>) {
+    let first = v.get(0);
+    assert(first != 42);
+    v.set(0, 42);
+    let new_first = v.get(0);
+    assert(new_first == 42);
+}
+```
+
+### set_unchecked
+
+```rust
+pub fn set_unchecked(&mut self: Self, index: u64, value: T) -> T {
+```
+
+Writes an element to the vector at the given index, starting from zero, without performing a bounds check.
+
+Since this function does not perform a bounds check on length before accessing the element, it is unsafe! Use at your own risk!
+
+Example:
+
+#include_code set_unchecked_example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
 
 ### push
@@ -209,6 +245,18 @@ Example:
 ```rust
 let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3])
 ```
+
+### map
+
+```rust
+pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen>
+```
+
+Creates a new vector of equal size by calling a closure on each element in this vector.  
+
+Example:
+
+#include_code bounded-vec-map-example noir_stdlib/src/collections/bounded_vec.nr rust
 
 ### any
 

@@ -415,53 +415,8 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
     if expr.mul_terms.len() > 1 {
         return false;
     };
-    // A Polynomial with more terms than fan-in cannot fit within a single opcode
-    if expr.linear_combinations.len() > width {
-        return false;
-    }
 
-    // A polynomial with no mul term and a fan-in that fits inside of the width can fit into a single opcode
-    if expr.mul_terms.is_empty() {
-        return true;
-    }
-
-    // A polynomial with width-2 fan-in terms and a single non-zero mul term can fit into one opcode
-    // Example: Axy + Dz . Notice, that the mul term places a constraint on the first two terms, but not the last term
-    // XXX: This would change if our arithmetic polynomial equation was changed to Axyz for example, but for now it is not.
-    if expr.linear_combinations.len() <= (width - 2) {
-        return true;
-    }
-
-    // We now know that we have a single mul term. We also know that the mul term must match up with two other terms
-    // A polynomial whose mul terms are non zero which do not match up with two terms in the fan-in cannot fit into one opcode
-    // An example of this is: Axy + Bx + Cy + ...
-    // Notice how the bivariate monomial xy has two univariate monomials with their respective coefficients
-    // XXX: note that if x or y is zero, then we could apply a further optimization, but this would be done in another algorithm.
-    // It would be the same as when we have zero coefficients - Can only work if wire is constrained to be zero publicly
-    let mul_term = &expr.mul_terms[0];
-
-    // The coefficient should be non-zero, as this method is ran after the compiler removes all zero coefficient terms
-    assert_ne!(mul_term.0, F::zero());
-
-    let mut found_x = false;
-    let mut found_y = false;
-
-    for term in expr.linear_combinations.iter() {
-        let witness = &term.1;
-        let x = &mul_term.1;
-        let y = &mul_term.2;
-        if witness == x {
-            found_x = true;
-        };
-        if witness == y {
-            found_y = true;
-        };
-        if found_x & found_y {
-            break;
-        }
-    }
-
-    found_x & found_y
+    expr.width() <= width
 }
 
 #[cfg(test)]
@@ -572,5 +527,21 @@ mod tests {
         // Since b is not known, it cannot be put inside intermediate opcodes, so it must belong to the transformed opcode.
         let contains_b = got_optimized_opcode_a.linear_combinations.iter().any(|(_, w)| *w == b);
         assert!(contains_b);
+    }
+
+    #[test]
+    fn recognize_expr_with_single_shared_witness_which_fits_in_single_identity() {
+        // Regression test for an expression which Zac found which should have been preserved but
+        // was being split into two expressions.
+        let expr = Expression {
+            mul_terms: vec![(-FieldElement::from(555u128), Witness(8), Witness(10))],
+            linear_combinations: vec![
+                (FieldElement::one(), Witness(10)),
+                (FieldElement::one(), Witness(11)),
+                (-FieldElement::one(), Witness(13)),
+            ],
+            q_c: FieldElement::zero(),
+        };
+        assert!(fits_in_one_identity(&expr, 4));
     }
 }

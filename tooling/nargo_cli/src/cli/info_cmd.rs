@@ -3,11 +3,9 @@ use std::collections::HashMap;
 use acvm::acir::circuit::ExpressionWidth;
 use clap::Args;
 use iter_extended::vecmap;
-use nargo::{
-    artifacts::{debug::DebugArtifact, program::ProgramArtifact},
-    package::Package,
-};
+use nargo::package::Package;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use noirc_artifacts::{debug::DebugArtifact, program::ProgramArtifact};
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
@@ -18,7 +16,9 @@ use serde::Serialize;
 use crate::errors::CliError;
 
 use super::{
-    compile_cmd::compile_workspace_full, fs::program::read_program_from_file, NargoConfig,
+    compile_cmd::{compile_workspace_full, get_target_width},
+    fs::program::read_program_from_file,
+    NargoConfig,
 };
 
 /// Provides detailed information on each of a program's function (represented by a single circuit)
@@ -86,11 +86,9 @@ pub(crate) fn run(args: InfoCommand, config: NargoConfig) -> Result<(), CliError
         .into_iter()
         .par_bridge()
         .map(|(package, program)| {
-            count_opcodes_and_gates_in_program(
-                program,
-                &package,
-                args.compile_options.expression_width,
-            )
+            let target_width =
+                get_target_width(package.expression_width, args.compile_options.expression_width);
+            count_opcodes_and_gates_in_program(program, &package, target_width)
         })
         .collect();
 

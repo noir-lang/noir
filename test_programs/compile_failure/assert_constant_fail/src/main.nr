@@ -1,4 +1,4 @@
-use dep::std::assert_constant;
+use std::assert_constant;
 
 fn main(x: Field) {
     foo(5, x);

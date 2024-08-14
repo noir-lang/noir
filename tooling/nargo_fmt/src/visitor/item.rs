@@ -44,7 +44,7 @@ impl super::FmtVisitor<'_> {
 
         if !func.def.generics.is_empty() {
             let full_span = name_span.end()..params_open;
-            let start = name_span.end();
+            let start = self.span_before(full_span.clone(), Token::Less).start();
             let end = self.span_after(full_span, Token::Greater).start();
 
             let generics = func.def.generics;
@@ -120,8 +120,11 @@ impl super::FmtVisitor<'_> {
 
             let visibility = match func.def.return_visibility {
                 Visibility::Public => "pub",
-                Visibility::DataBus => "return_data",
+                Visibility::ReturnData => "return_data",
                 Visibility::Private => "",
+                Visibility::CallData(_) => {
+                    unreachable!("call_data cannot be used for return value")
+                }
             };
             result.push_str(&append_space_if_nonempty(visibility.into()));
 
@@ -188,8 +191,8 @@ impl super::FmtVisitor<'_> {
                         continue;
                     }
 
-                    let slice =
-                        self.slice(self.last_position..impl_.object_type.span.unwrap().end());
+                    let before_brace = self.span_before(span, Token::LeftBrace).start();
+                    let slice = self.slice(self.last_position..before_brace).trim();
                     let after_brace = self.span_after(span, Token::LeftBrace).start();
                     self.last_position = after_brace;
 

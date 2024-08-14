@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
+use acvm::acir::circuit::ExpressionWidth;
 use noirc_frontend::graph::CrateName;
 
 use crate::constants::PROVER_INPUT_FILE;
@@ -51,6 +52,7 @@ pub struct Package {
     pub entry_path: PathBuf,
     pub name: CrateName,
     pub dependencies: BTreeMap<CrateName, Dependency>,
+    pub expression_width: Option<ExpressionWidth>,
 }
 
 impl Package {

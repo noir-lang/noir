@@ -1,5 +1,4 @@
-use dep::std;
-use dep::std::hash::mimc;
+use std::hash::mimc;
 
 fn main(
     old_root: Field,

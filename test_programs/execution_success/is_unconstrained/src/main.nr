@@ -1,4 +1,4 @@
-use dep::std::runtime::is_unconstrained;
+use std::runtime::is_unconstrained;
 
 fn check(should_be_unconstrained: bool) {
     assert_eq(should_be_unconstrained, is_unconstrained());

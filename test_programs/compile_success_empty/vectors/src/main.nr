@@ -1,4 +1,4 @@
-use dep::std::collections::vec::Vec;
+use std::collections::vec::Vec;
 
 fn main(x: Field, y: pub Field) {
     let mut vector = Vec::new();

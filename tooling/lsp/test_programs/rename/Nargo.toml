@@ -1,0 +1,6 @@
+[package]
+name = "rename"
+type = "bin"
+authors = [""]
+
+[dependencies]

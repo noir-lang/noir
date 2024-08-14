@@ -1,0 +1,8 @@
+[package]
+name = "dep_submodule_overlap"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.28.0"
+
+[dependencies]
+reexporting_lib = { path = "../../test_libraries/reexporting_lib" }

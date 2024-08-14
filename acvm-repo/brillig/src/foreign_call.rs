@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// Single output of a [foreign call][crate::Opcode::ForeignCall].
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
 pub enum ForeignCallParam<F> {
     Single(F),
     Array(Vec<F>),

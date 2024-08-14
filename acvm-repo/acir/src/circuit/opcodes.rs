@@ -1,5 +1,5 @@
 use super::{
-    brillig::{BrilligInputs, BrilligOutputs},
+    brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     directives::Directive,
 };
 use crate::native_types::{Expression, Witness};
@@ -9,19 +9,19 @@ use serde::{Deserialize, Serialize};
 mod black_box_function_call;
 mod memory_operation;
 
-pub use black_box_function_call::{BlackBoxFuncCall, FunctionInput};
+pub use black_box_function_call::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput};
 pub use memory_operation::{BlockId, MemOp};
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlockType {
     Memory,
-    CallData,
+    CallData(u32),
     ReturnData,
 }
 
 impl BlockType {
     pub fn is_databus(&self) -> bool {
-        matches!(self, BlockType::CallData | BlockType::ReturnData)
+        matches!(self, BlockType::CallData(_) | BlockType::ReturnData)
     }
 }
 
@@ -67,7 +67,7 @@ pub enum Opcode<F> {
     ///
     /// Aztec's Barretenberg uses BN254 as the main curve and Grumpkin as the
     /// embedded curve.
-    BlackBoxFuncCall(BlackBoxFuncCall),
+    BlackBoxFuncCall(BlackBoxFuncCall<F>),
 
     /// This opcode is a specialization of a Brillig opcode. Instead of having
     /// some generic assembly code like Brillig, a directive has a hardcoded
@@ -111,7 +111,7 @@ pub enum Opcode<F> {
     BrilligCall {
         /// Id for the function being called. It is the responsibility of the executor
         /// to fetch the appropriate Brillig bytecode from this id.
-        id: u32,
+        id: BrilligFunctionId,
         /// Inputs to the function call
         inputs: Vec<BrilligInputs<F>>,
         /// Outputs to the function call
@@ -183,7 +183,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::MemoryInit { block_id, init, block_type: databus } => {
                 match databus {
                     BlockType::Memory => write!(f, "INIT ")?,
-                    BlockType::CallData => write!(f, "INIT CALLDATA ")?,
+                    BlockType::CallData(id) => write!(f, "INIT CALLDATA {} ", id)?,
                     BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
                 }
                 write!(f, "(id: {}, len: {}) ", block_id.0, init.len())

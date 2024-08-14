@@ -1,4 +1,4 @@
-use acvm::acir::native_types::WitnessStackError;
+use acvm::{acir::native_types::WitnessStackError, FieldElement};
 use nargo::{errors::CompileError, NargoError};
 use nargo_toml::ManifestError;
 use noir_debugger::errors::DapError;
@@ -54,7 +54,7 @@ pub(crate) enum CliError {
 
     /// Error from Nargo
     #[error(transparent)]
-    NargoError(#[from] NargoError),
+    NargoError(#[from] NargoError<FieldElement>),
 
     /// Error from Manifest
     #[error(transparent)]

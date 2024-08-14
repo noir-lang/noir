@@ -10,8 +10,8 @@ license.workspace = true
 
 [dependencies]
 codespan-reporting.workspace = true
+iter-extended.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
-tempfile.workspace = true
 iter-extended.workspace = true

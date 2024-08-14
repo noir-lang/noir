@@ -2,8 +2,8 @@ use noirc_errors::{Span, Spanned};
 use noirc_frontend::ast::{
     BinaryOpKind, CallExpression, CastExpression, Expression, ExpressionKind, FunctionReturnType,
     Ident, IndexExpression, InfixExpression, Lambda, LetStatement, MemberAccessExpression,
-    MethodCallExpression, NoirTraitImpl, Path, Pattern, PrefixExpression, Statement, StatementKind,
-    TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
+    MethodCallExpression, NoirTraitImpl, Path, PathSegment, Pattern, PrefixExpression, Statement,
+    StatementKind, TraitImplItem, UnaryOp, UnresolvedType, UnresolvedTypeData,
 };
 use noirc_frontend::token::SecondaryAttribute;
 
@@ -18,6 +18,10 @@ pub fn ident_path(name: &str) -> Path {
     Path::from_ident(ident(name))
 }
 
+pub fn path_segment(name: &str) -> PathSegment {
+    PathSegment::from(ident(name))
+}
+
 pub fn path(ident: Ident) -> Path {
     Path::from_ident(ident)
 }
@@ -27,15 +31,15 @@ pub fn expression(kind: ExpressionKind) -> Expression {
 }
 
 pub fn variable(name: &str) -> Expression {
-    expression(ExpressionKind::Variable(ident_path(name), None))
+    expression(ExpressionKind::Variable(ident_path(name)))
 }
 
 pub fn variable_ident(identifier: Ident) -> Expression {
-    expression(ExpressionKind::Variable(path(identifier), None))
+    expression(ExpressionKind::Variable(path(identifier)))
 }
 
 pub fn variable_path(path: Path) -> Expression {
-    expression(ExpressionKind::Variable(path, None))
+    expression(ExpressionKind::Variable(path))
 }
 
 pub fn method_call(
@@ -47,12 +51,17 @@ pub fn method_call(
         object,
         method_name: ident(method_name),
         arguments,
+        is_macro_call: false,
         generics: None,
     })))
 }
 
 pub fn call(func: Expression, arguments: Vec<Expression>) -> Expression {
-    expression(ExpressionKind::Call(Box::new(CallExpression { func: Box::new(func), arguments })))
+    expression(ExpressionKind::Call(Box::new(CallExpression {
+        func: Box::new(func),
+        is_macro_call: false,
+        arguments,
+    })))
 }
 
 pub fn pattern(name: &str) -> Pattern {
@@ -144,7 +153,7 @@ macro_rules! chained_path {
         {
             let mut base_path = ident_path($base);
             $(
-                base_path.segments.push(ident($tail));
+                base_path.segments.push(path_segment($tail));
             )*
             base_path
         }
@@ -156,9 +165,9 @@ macro_rules! chained_dep {
     ( $base:expr $(, $tail:expr)* ) => {
         {
             let mut base_path = ident_path($base);
-            base_path.kind = PathKind::Dep;
+            base_path.kind = PathKind::Plain;
             $(
-                base_path.segments.push(ident($tail));
+                base_path.segments.push(path_segment($tail));
             )*
             base_path
         }

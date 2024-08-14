@@ -1,0 +1,6 @@
+[package]
+name = "local_variable"
+type = "bin"
+authors = [""]
+
+[dependencies]

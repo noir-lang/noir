@@ -1,0 +1,5 @@
+[package]
+name = "fuzzer_checks"
+type = "bin"
+authors = [""]
+[dependencies]

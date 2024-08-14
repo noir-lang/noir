@@ -27,12 +27,13 @@ pub(crate) fn commit_native_with_index(
 #[cfg(test)]
 mod test {
 
-    use acir::{AcirField, FieldElement};
+    use acir::AcirField;
     use ark_ec::short_weierstrass::Affine;
     use ark_std::{One, Zero};
     use grumpkin::Fq;
 
     use crate::pedersen::commitment::commit_native_with_index;
+    use crate::FieldElement;
 
     #[test]
     fn commitment() {

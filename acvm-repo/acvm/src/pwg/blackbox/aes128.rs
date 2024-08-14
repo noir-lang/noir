@@ -11,9 +11,9 @@ use super::utils::{to_u8_array, to_u8_vec};
 
 pub(super) fn solve_aes128_encryption_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
-    inputs: &[FunctionInput],
-    iv: &[FunctionInput; 16],
-    key: &[FunctionInput; 16],
+    inputs: &[FunctionInput<F>],
+    iv: &[FunctionInput<F>; 16],
+    key: &[FunctionInput<F>; 16],
     outputs: &[Witness],
 ) -> Result<(), OpcodeResolutionError<F>> {
     let scalars = to_u8_vec(initial_witness, inputs)?;
