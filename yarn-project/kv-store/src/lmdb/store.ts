@@ -3,7 +3,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { mkdtemp } from 'fs/promises';
 import { type Database, type Key, type RootDatabase, open } from 'lmdb';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
 
 import { type AztecArray } from '../interfaces/array.js';
 import { type AztecCounter } from '../interfaces/counter.js';
@@ -25,7 +25,7 @@ export class AztecLmdbStore implements AztecKVStore {
   #data: Database<unknown, Key>;
   #multiMapData: Database<unknown, Key>;
 
-  constructor(rootDb: RootDatabase, public readonly isEphemeral: boolean) {
+  constructor(rootDb: RootDatabase, public readonly isEphemeral: boolean, private path?: string) {
     this.#rootDb = rootDb;
 
     // big bucket to store all the data
@@ -61,7 +61,7 @@ export class AztecLmdbStore implements AztecKVStore {
   ): AztecLmdbStore {
     log.info(`Opening LMDB database at ${path || 'temporary location'}`);
     const rootDb = open({ path, noSync: ephemeral });
-    return new AztecLmdbStore(rootDb, ephemeral);
+    return new AztecLmdbStore(rootDb, ephemeral, path);
   }
 
   /**
@@ -69,10 +69,11 @@ export class AztecLmdbStore implements AztecKVStore {
    * @returns A new AztecLmdbStore.
    */
   async fork() {
-    const forkPath = join(await mkdtemp(join(tmpdir(), 'aztec-store-fork-')), 'root.mdb');
+    const baseDir = this.path ? dirname(this.path) : tmpdir();
+    const forkPath = join(await mkdtemp(join(baseDir, 'aztec-store-fork-')), 'root.mdb');
     await this.#rootDb.backup(forkPath, false);
     const forkDb = open(forkPath, { noSync: this.isEphemeral });
-    return new AztecLmdbStore(forkDb, this.isEphemeral);
+    return new AztecLmdbStore(forkDb, this.isEphemeral, forkPath);
   }
 
   /**
