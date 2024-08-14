@@ -425,7 +425,7 @@ impl<'context> Elaborator<'context> {
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
         };
-        
+
         // Don't verify the return type for builtin functions & trait function declarations
         if !func_meta.is_stub() {
             self.type_check_function_body(body_type, &func_meta, hir_func.as_expr());

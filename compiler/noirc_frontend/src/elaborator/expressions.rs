@@ -114,7 +114,7 @@ impl<'context> Elaborator<'context> {
         self.in_unsafe_block = true;
 
         let (hir_block_expression, typ) = self.elaborate_block_expression(block);
-        
+
         // Finally, we restore the original value of `self.in_unsafe_block`.
         self.in_unsafe_block = old_in_unsafe_block;
 
