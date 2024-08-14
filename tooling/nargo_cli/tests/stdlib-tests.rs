@@ -53,6 +53,8 @@ fn run_stdlib_tests() {
                 &test_function,
                 false,
                 None,
+                Some(dummy_package.root_dir.clone()),
+                Some(dummy_package.name.to_string()),
                 &CompileOptions::default(),
             );
             (test_name, status)

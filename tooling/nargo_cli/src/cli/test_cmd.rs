@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{io::Write, path::PathBuf};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -91,6 +91,8 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
                 pattern,
                 args.show_output,
                 args.oracle_resolver.as_deref(),
+                Some(workspace.root_dir.clone()),
+                Some(package.name.to_string()),
                 &args.compile_options,
             )
         })
@@ -119,6 +121,7 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
@@ -126,6 +129,8 @@ fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     fn_name: FunctionNameMatch,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
+    root_path: Option<PathBuf>,
+    package_name: Option<String>,
     compile_options: &CompileOptions,
 ) -> Result<Vec<(String, TestStatus)>, CliError> {
     let test_functions =
@@ -146,6 +151,8 @@ fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
                 &test_name,
                 show_output,
                 foreign_call_resolver_url,
+                root_path.clone(),
+                package_name.clone(),
                 compile_options,
             );
 
@@ -157,6 +164,7 @@ fn run_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     Ok(test_report)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
@@ -164,6 +172,8 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     fn_name: &str,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
+    root_path: Option<PathBuf>,
+    package_name: Option<String>,
     compile_options: &CompileOptions,
 ) -> TestStatus {
     // This is really hacky but we can't share `Context` or `S` across threads.
@@ -185,6 +195,8 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         test_function,
         show_output,
         foreign_call_resolver_url,
+        root_path,
+        package_name,
         compile_options,
     )
 }

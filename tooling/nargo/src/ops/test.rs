@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use acvm::{
     acir::native_types::{WitnessMap, WitnessStack},
     BlackBoxFunctionSolver, FieldElement,
@@ -23,12 +25,15 @@ impl TestStatus {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     context: &mut Context,
     test_function: &TestFunction,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
+    root_path: Option<PathBuf>,
+    package_name: Option<String>,
     config: &CompileOptions,
 ) -> TestStatus {
     let test_function_has_no_arguments = context
@@ -47,7 +52,12 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                     &compiled_program.program,
                     WitnessMap::new(),
                     blackbox_solver,
-                    &mut DefaultForeignCallExecutor::new(show_output, foreign_call_resolver_url),
+                    &mut DefaultForeignCallExecutor::new(
+                        show_output,
+                        foreign_call_resolver_url,
+                        root_path,
+                        package_name,
+                    ),
                 );
                 test_status_program_compile_pass(
                     test_function,
@@ -83,6 +93,8 @@ pub fn run_test<B: BlackBoxFunctionSolver<FieldElement>>(
                                 &mut DefaultForeignCallExecutor::<FieldElement>::new(
                                     false,
                                     foreign_call_resolver_url,
+                                    root_path.clone(),
+                                    package_name.clone(),
                                 ),
                             )
                             .map_err(|err| err.to_string())

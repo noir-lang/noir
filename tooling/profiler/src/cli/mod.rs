@@ -30,7 +30,4 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         ProfilerCommand::GatesFlamegraph(args) => gates_flamegraph_cmd::run(args),
         ProfilerCommand::OpcodesFlamegraph(args) => opcodes_flamegraph_cmd::run(args),
     }
-    .map_err(|err| eyre::eyre!("{}", err))?;
-
-    Ok(())
 }
