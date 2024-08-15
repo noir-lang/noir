@@ -7,8 +7,8 @@ use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     check_argument_count, check_function_not_yet_resolved, check_one_argument,
     check_three_arguments, check_two_arguments, get_expr, get_function_def, get_module, get_quoted,
-    get_slice, get_struct, get_trait_constraint, get_trait_def, get_tuple, get_type, get_u32,
-    hir_pattern_to_tokens, mutate_func_meta_type, parse, parse_tokens,
+    get_slice, get_struct, get_trait_constraint, get_trait_def, get_trait_impl, get_tuple,
+    get_type, get_u32, hir_pattern_to_tokens, mutate_func_meta_type, parse, parse_tokens,
     replace_func_meta_parameters, replace_func_meta_return_type,
 };
 use iter_extended::{try_vecmap, vecmap};
@@ -48,6 +48,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
+            "expr_as_if" => expr_as_if(arguments, return_type, location),
+            "expr_as_index" => expr_as_index(arguments, return_type, location),
+            "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -86,6 +89,10 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             }
             "trait_def_eq" => trait_def_eq(interner, arguments, location),
             "trait_def_hash" => trait_def_hash(interner, arguments, location),
+            "trait_impl_methods" => trait_impl_methods(interner, arguments, location),
+            "trait_impl_trait_generic_args" => {
+                trait_impl_trait_generic_args(interner, arguments, location)
+            }
             "type_as_array" => type_as_array(arguments, return_type, location),
             "type_as_constant" => type_as_constant(arguments, return_type, location),
             "type_as_integer" => type_as_integer(arguments, return_type, location),
@@ -630,6 +637,41 @@ fn trait_def_eq(
     Ok(Value::Bool(id_a == id_b))
 }
 
+// fn methods(self) -> [FunctionDefinition]
+fn trait_impl_methods(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+
+    let trait_impl_id = get_trait_impl(argument)?;
+    let trait_impl = interner.get_trait_implementation(trait_impl_id);
+    let trait_impl = trait_impl.borrow();
+    let methods =
+        trait_impl.methods.iter().map(|func_id| Value::FunctionDefinition(*func_id)).collect();
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
+
+    Ok(Value::Slice(methods, slice_type))
+}
+
+// fn trait_generic_args(self) -> [Type]
+fn trait_impl_trait_generic_args(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+
+    let trait_impl_id = get_trait_impl(argument)?;
+    let trait_impl = interner.get_trait_implementation(trait_impl_id);
+    let trait_impl = trait_impl.borrow();
+    let trait_generics = trait_impl.trait_generics.iter().map(|t| Value::Type(t.clone())).collect();
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::Type)));
+
+    Ok(Value::Slice(trait_generics, slice_type))
+}
+
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type) -> IResult<Value> {
     match return_type {
@@ -731,6 +773,71 @@ fn expr_as_function_call(
     })
 }
 
+// fn as_if(self) -> Option<(Expr, Expr, Option<Expr>)>
+fn expr_as_if(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type.clone(), location, |expr| {
+        if let ExpressionKind::If(if_expr) = expr {
+            // Get the type of `Option<Expr>`
+            let option_type = extract_option_generic_type(return_type.clone());
+            let Type::Tuple(option_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(option_types.len(), 3);
+            let alternative_option_type = option_types[2].clone();
+
+            let alternative =
+                option(alternative_option_type, if_expr.alternative.map(|e| Value::Expr(e.kind)));
+
+            Some(Value::Tuple(vec![
+                Value::Expr(if_expr.condition.kind),
+                Value::Expr(if_expr.consequence.kind),
+                alternative.ok()?,
+            ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_index(self) -> Option<Expr>
+fn expr_as_index(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Index(index_expr) = expr {
+            Some(Value::Tuple(vec![
+                Value::Expr(index_expr.collection.kind),
+                Value::Expr(index_expr.index.kind),
+            ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_tuple(self) -> Option<[Expr]>
+fn expr_as_tuple(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Tuple(expressions) = expr {
+            let expressions = expressions.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            Some(Value::Slice(expressions, typ))
+        } else {
+            None
+        }
+    })
+}
+
 // Helper function for implementing the `expr_as_...` functions.
 fn expr_as<F>(
     arguments: Vec<(Value, Location)>,
@@ -742,8 +849,12 @@ where
     F: FnOnce(ExpressionKind) -> Option<Value>,
 {
     let self_argument = check_one_argument(arguments, location)?;
-    let expr = get_expr(self_argument)?;
-    let option_value = f(expr);
+    let mut expression_kind = get_expr(self_argument)?;
+    while let ExpressionKind::Parenthesized(expression) = expression_kind {
+        expression_kind = expression.kind;
+    }
+
+    let option_value = f(expression_kind);
     option(return_type, option_value)
 }
 

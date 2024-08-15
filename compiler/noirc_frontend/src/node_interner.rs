@@ -951,12 +951,12 @@ impl NodeInterner {
     /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
     pub fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
-            if let Some(DefinitionKind::Function(func_id)) =
-                self.try_definition(id).map(|def| &def.kind)
-            {
-                Some(*func_id)
-            } else {
-                None
+            match self.try_definition(id).map(|def| &def.kind) {
+                Some(DefinitionKind::Function(func_id)) => Some(*func_id),
+                Some(DefinitionKind::Local(Some(expr_id))) => {
+                    self.lookup_function_from_expr(expr_id)
+                }
+                _ => None,
             }
         } else {
             None
