@@ -550,7 +550,7 @@ impl Builder {
 
     fn is_function_call_safe_to_ignore(&self, function_id: FunctionId) -> bool {
         let func_name = &self.function_names[&function_id];
-        (func_name == "print") || (func_name == "println")
+        func_name == "print_unconstrained"
     }
 
     fn get_integer_bitsize(typ: &P2Type) -> Option<usize> {
