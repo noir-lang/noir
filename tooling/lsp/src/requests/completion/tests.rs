@@ -1308,4 +1308,19 @@ mod completion_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn test_completes_trait_methods() {
+        let src = r#"
+            trait One {
+                fn one() -> Self;
+            }
+
+            fn main() {
+                One::>|<
+            }
+        "#;
+        assert_completion(src, vec![function_completion_item("one()", "one()", "fn() -> Self")])
+            .await;
+    }
 }
