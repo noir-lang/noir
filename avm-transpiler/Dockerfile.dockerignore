@@ -1,0 +1,5 @@
+*
+!noir
+!avm-transpiler
+**/target
+**/node_modules

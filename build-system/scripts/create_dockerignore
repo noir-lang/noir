@@ -11,6 +11,12 @@ DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
 
 cd $BUILD_DIR
 DOCKERIGNOREFILE=$DOCKERFILE.dockerignore
+
+# If there is a dockerignore file committed to git, use it.
+if git ls-files --error-unmatch $DOCKERIGNOREFILE > /dev/null 2>&1; then
+  exit 0
+fi
+
 echo '*' > $DOCKERIGNOREFILE
 (git ls-files; git ls-files --others --exclude-standard) | sort -u | sed 's/^/!/' >> $DOCKERIGNOREFILE
 echo '**/Dockerfile*' >> $DOCKERIGNOREFILE
