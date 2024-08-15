@@ -1,35 +1,39 @@
-mod lib;
+mod settings;
 
 contract PrivateFPC {
-    use dep::aztec::{protocol_types::{address::AztecAddress, hash::poseidon2_hash}, state_vars::SharedImmutable};
+    use dep::aztec::{protocol_types::{address::AztecAddress, hash::compute_siloed_nullifier}, state_vars::SharedImmutable};
     use dep::token_with_refunds::TokenWithRefunds;
-    use crate::lib::emit_randomness_as_unencrypted_log;
+    use crate::settings::Settings;
 
     #[aztec(storage)]
     struct Storage {
-        other_asset: SharedImmutable<AztecAddress>,
-        admin: SharedImmutable<AztecAddress>,
+        settings: SharedImmutable<Settings>,
     }
 
     #[aztec(public)]
     #[aztec(initializer)]
     fn constructor(other_asset: AztecAddress, admin: AztecAddress) {
-        storage.other_asset.initialize(other_asset);
-        storage.admin.initialize(admin);
+        let settings = Settings { other_asset, admin };
+        storage.settings.initialize(settings);
     }
 
     #[aztec(private)]
     fn fund_transaction_privately(amount: Field, asset: AztecAddress, user_randomness: Field) {
-        assert(asset == storage.other_asset.read_private());
+        // TODO: Once SharedImmutable performs only 1 merkle proof here, we'll save ~4k gates
+        let settings = storage.settings.read_private();
+
+        assert(asset == settings.other_asset);
 
         // We use different randomness for fee payer to prevent a potential privacy leak (see description
         // of `setup_refund(...)` function in TokenWithRefunds for details.
-        let fee_payer_randomness = poseidon2_hash([user_randomness]);
-        // We emit fee payer randomness to ensure FPC admin can reconstruct their fee note
-        emit_randomness_as_unencrypted_log(&mut context, fee_payer_randomness);
+        let fee_payer_randomness = compute_siloed_nullifier(context.this_address(), user_randomness);
+        // We emit fee payer randomness as nullifier to ensure FPC admin can reconstruct their fee note - note that
+        // protocol circuits will perform the siloing as was done above and hence the final nullifier will be correct
+        // fee payer randomness.
+        context.push_nullifier(user_randomness);
 
         TokenWithRefunds::at(asset).setup_refund(
-            storage.admin.read_private(),
+            settings.admin,
             context.msg_sender(),
             amount,
             user_randomness,
