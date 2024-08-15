@@ -290,7 +290,7 @@ impl ChildrenAcceptor for NoirTrait {
 
 impl Acceptor for TraitItem {
     fn accept(&self, visitor: &mut impl Visitor) {
-        visitor.visit_trait_item(self)
+        visitor.visit_trait_item(self);
     }
 }
 
@@ -412,7 +412,7 @@ impl ChildrenAcceptor for Literal {
     fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
             Literal::Array(array_literal) | Literal::Slice(array_literal) => {
-                array_literal.accept(visitor)
+                array_literal.accept(visitor);
             }
             Literal::Bool(_)
             | Literal::Integer(_, _)
