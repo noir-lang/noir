@@ -17,7 +17,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, UnresolvedType,
+        ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal, UnresolvedType,
         UnresolvedTypeData, Visibility,
     },
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
@@ -47,6 +47,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
+            "expr_as_bool" => expr_as_bool(arguments, return_type, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
             "expr_as_index" => expr_as_index(arguments, return_type, location),
@@ -751,6 +752,21 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::TraitAsType(_, _, _)
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
+}
+
+// fn as_bool(self) -> Option<bool>
+fn expr_as_bool(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Literal(Literal::Bool(bool)) = expr {
+            Some(Value::Bool(bool))
+        } else {
+            None
+        }
+    })
 }
 
 // fn as_function_call(self) -> Option<(Expr, [Expr])>
