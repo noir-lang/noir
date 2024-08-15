@@ -1,4 +1,5 @@
 use crate::option::Option;
+use crate::meta::op::UnaryOp;
 
 impl Expr {
     #[builtin(expr_as_bool)]
@@ -15,4 +16,7 @@ impl Expr {
 
     #[builtin(expr_as_tuple)]
     fn as_tuple(self) -> Option<[Expr]> {}
+
+    #[builtin(expr_as_unary_op)]
+    fn as_unary_op(self) -> Option<(UnaryOp, Expr)> {}
 }

@@ -17,8 +17,8 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal, UnresolvedType,
-        UnresolvedTypeData, Visibility,
+        ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal, UnaryOp,
+        UnresolvedType, UnresolvedTypeData, Visibility,
     },
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     hir_def::function::FunctionBody,
@@ -51,6 +51,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
             "expr_as_index" => expr_as_index(arguments, return_type, location),
+            "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
@@ -831,6 +832,43 @@ fn expr_as_index(
                 Value::Expr(index_expr.collection.kind),
                 Value::Expr(index_expr.index.kind),
             ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_unary_op(self) -> Option<(UnaryOp, Expr)>
+fn expr_as_unary_op(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type.clone(), location, |expr| {
+        if let ExpressionKind::Prefix(prefix_expr) = expr {
+            let option_type = extract_option_generic_type(return_type);
+            let Type::Tuple(mut tuple_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(tuple_types.len(), 2);
+
+            tuple_types.pop().unwrap();
+            let unary_op_type = tuple_types.pop().unwrap();
+
+            // These values should match the values used in noir_stdlib/src/meta/op.nr
+            let unary_op_value = match prefix_expr.operator {
+                UnaryOp::Minus => 0_u128,
+                UnaryOp::Not => 1_u128,
+                UnaryOp::MutableReference => 2_u128,
+                UnaryOp::Dereference { .. } => 3_u128,
+            };
+
+            let mut fields = HashMap::default();
+            fields.insert(Rc::new("op".to_string()), Value::Field(unary_op_value.into()));
+
+            let unary_op = Value::Struct(fields, unary_op_type);
+            let rhs = Value::Expr(prefix_expr.rhs.kind);
+            Some(Value::Tuple(vec![unary_op, rhs]))
         } else {
             None
         }
