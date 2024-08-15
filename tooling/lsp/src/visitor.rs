@@ -11,6 +11,12 @@ use noirc_frontend::{
     ParsedModule,
 };
 
+/// Implements the [Visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern) for Noir's AST.
+///
+/// In this implementation, methods must return a bool:
+/// - true means children must be visited
+/// - false means children must not be visited, either because the visitor implementation
+///   will visit children of interest manually, or because no children are of interest
 pub(crate) trait Visitor {
     fn visit_parsed_module(&mut self, _: &ParsedModule) -> bool {
         true
