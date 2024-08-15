@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.49.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.48.0...barretenberg-v0.49.0) (2024-08-15)
+
+
+### Features
+
+* **avm:** More no fake rows + virtual dyn gas (part 1) ([#7942](https://github.com/AztecProtocol/aztec-packages/issues/7942)) ([9e8ba96](https://github.com/AztecProtocol/aztec-packages/commit/9e8ba96cc1a5eed9a4d4cf764a7c3d3a2d975617))
+* IVC integration tests using new accumulate model ([#7946](https://github.com/AztecProtocol/aztec-packages/issues/7946)) ([c527ae9](https://github.com/AztecProtocol/aztec-packages/commit/c527ae94521c4d76153224b7e10cf176038df76b))
+* Update honk ultra_recursive_verifier to do aggregation ([#7582](https://github.com/AztecProtocol/aztec-packages/issues/7582)) ([a96a5ad](https://github.com/AztecProtocol/aztec-packages/commit/a96a5ad2b153cbe995de753cb7db1da0d0072e0c))
+
+
+### Miscellaneous
+
+* **avm:** Fewer errors unless testing ([#7943](https://github.com/AztecProtocol/aztec-packages/issues/7943)) ([33b65a9](https://github.com/AztecProtocol/aztec-packages/commit/33b65a9e6a5072df8ba45991545b6e5386c99622))
+* **bb:** Constexpr simplifications ([#7906](https://github.com/AztecProtocol/aztec-packages/issues/7906)) ([65d3b7f](https://github.com/AztecProtocol/aztec-packages/commit/65d3b7f68fe921d7cf7495a92863c555783636d9))
+* **bb:** Prereq work for polynomial mem optimization ([#7949](https://github.com/AztecProtocol/aztec-packages/issues/7949)) ([5ca5138](https://github.com/AztecProtocol/aztec-packages/commit/5ca513881409880e8581a3fc6c9f3b3452087957))
+
 ## [0.48.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.47.1...barretenberg-v0.48.0) (2024-08-12)
 
 
