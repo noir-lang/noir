@@ -490,7 +490,8 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn complete_constructor_field_name(&mut self, constructor_expression: &ConstructorExpression) {
-        let location = Location::new(constructor_expression.type_name.span, self.file);
+        let location =
+            Location::new(constructor_expression.type_name.last_ident().span(), self.file);
         let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
             return;
         };

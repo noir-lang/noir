@@ -1394,15 +1394,17 @@ mod completion_tests {
     #[test]
     async fn test_completes_constructor_fields() {
         let src = r#"
-            struct Foo {
-                bb: i32,
-                bbb: Field,
-                bbbb: bool,
-                bbbbb: str<6>,
+            mod foobar {
+                struct Foo {
+                    bb: i32,
+                    bbb: Field,
+                    bbbb: bool,
+                    bbbbb: str<6>,
+                }
             }
 
             fn main() {
-                Foo { bbb: 1, b>|<, bbbbb }
+                foobar::Foo { bbb: 1, b>|<, bbbbb }
             }
         "#;
         assert_completion(
