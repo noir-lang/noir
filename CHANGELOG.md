@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.49.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.49.0...aztec-packages-v0.49.1) (2024-08-15)
+
+
+### Features
+
+* Add pending reorg chain resistance in contracts ([#7926](https://github.com/AztecProtocol/aztec-packages/issues/7926)) ([f769f84](https://github.com/AztecProtocol/aztec-packages/commit/f769f84cf89a9c447d7d5e2e53749ff47d67cc1b))
+* **avm:** Base and dynamic gas in TS and CPP (part 2) ([#8016](https://github.com/AztecProtocol/aztec-packages/issues/8016)) ([5801732](https://github.com/AztecProtocol/aztec-packages/commit/58017328a409357b56eabdd6cac365ebbac776b9))
+
+
+### Bug Fixes
+
+* Docker.dockerignore file can be huge. ([#8023](https://github.com/AztecProtocol/aztec-packages/issues/8023)) ([cee9d9a](https://github.com/AztecProtocol/aztec-packages/commit/cee9d9ac0c56b95df048976920d68f7af8010a9f))
+* Forking world state in prover-node ([#7995](https://github.com/AztecProtocol/aztec-packages/issues/7995)) ([ebffe96](https://github.com/AztecProtocol/aztec-packages/commit/ebffe964486d23a90cc055f2a7eca579f824c626))
+
+
+### Miscellaneous
+
+* **avm:** Separate binary and bytes finalization ([#8010](https://github.com/AztecProtocol/aztec-packages/issues/8010)) ([3ad6dd9](https://github.com/AztecProtocol/aztec-packages/commit/3ad6dd91c5bd30ca3b8b522855e9c04106e0ec9f))
+* Private reset kernel ([#7984](https://github.com/AztecProtocol/aztec-packages/issues/7984)) ([0d82c79](https://github.com/AztecProtocol/aztec-packages/commit/0d82c790aa13f7067b1e00f2c5f9efb357091da7))
+* Sync alphanet back to master ([#7970](https://github.com/AztecProtocol/aztec-packages/issues/7970)) ([523724d](https://github.com/AztecProtocol/aztec-packages/commit/523724d35a874eea8355e9f7b080a9d84985808d))
+
 ## [0.49.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.48.0...aztec-packages-v0.49.0) (2024-08-15)
 
 

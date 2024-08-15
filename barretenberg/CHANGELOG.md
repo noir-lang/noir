@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.49.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.49.0...barretenberg-v0.49.1) (2024-08-15)
+
+
+### Features
+
+* **avm:** Base and dynamic gas in TS and CPP (part 2) ([#8016](https://github.com/AztecProtocol/aztec-packages/issues/8016)) ([5801732](https://github.com/AztecProtocol/aztec-packages/commit/58017328a409357b56eabdd6cac365ebbac776b9))
+
+
+### Miscellaneous
+
+* **avm:** Separate binary and bytes finalization ([#8010](https://github.com/AztecProtocol/aztec-packages/issues/8010)) ([3ad6dd9](https://github.com/AztecProtocol/aztec-packages/commit/3ad6dd91c5bd30ca3b8b522855e9c04106e0ec9f))
+
 ## [0.49.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.48.0...barretenberg-v0.49.0) (2024-08-15)
 
 
