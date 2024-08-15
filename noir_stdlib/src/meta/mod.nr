@@ -5,6 +5,7 @@ use crate::hash::poseidon2::Poseidon2Hasher;
 mod expr;
 mod function_def;
 mod module;
+mod op;
 mod struct_def;
 mod trait_constraint;
 mod trait_def;

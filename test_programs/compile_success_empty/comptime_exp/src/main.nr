@@ -34,5 +34,22 @@ fn main() {
 
         let expr = quote { true }.as_expr().unwrap();
         assert_eq(expr.as_bool().unwrap(), true);
+
+        // Check Expr::as_unary_op
+        let expr = quote { -x }.as_expr().unwrap();
+        let (op, _) = expr.as_unary_op().unwrap();
+        assert(op.is_minus());
+
+        let expr = quote { !x }.as_expr().unwrap();
+        let (op, _) = expr.as_unary_op().unwrap();
+        assert(op.is_not());
+
+        let expr = quote { &mut x }.as_expr().unwrap();
+        let (op, _) = expr.as_unary_op().unwrap();
+        assert(op.is_mutable_reference());
+
+        let expr = quote { *x }.as_expr().unwrap();
+        let (op, _) = expr.as_unary_op().unwrap();
+        assert(op.is_dereference());
     }
 }
