@@ -334,12 +334,14 @@ impl Ssa {
                 acirs.push(generated_acir);
             }
         }
-        let names = vecmap(&shared_context.generated_brillig, |brillig| brillig.name.clone());
-        let brillig_op = vecmap(shared_context.generated_brillig, |brillig| BrilligBytecode {
-            bytecode: brillig.byte_code,
-        });
 
-        Ok((acirs, brillig_op, names, self.error_selector_to_type))
+        let (brillig_bytecode, brillig_names) = shared_context
+            .generated_brillig
+            .into_iter()
+            .map(|brillig| (BrilligBytecode { bytecode: brillig.byte_code }, brillig.name))
+            .unzip();
+
+        Ok((acirs, brillig_bytecode, brillig_names, self.error_selector_to_type))
     }
 }
 
