@@ -1,9 +1,8 @@
 import { type FunctionAbi, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
-import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
-import { FUNCTION_DATA_LENGTH, GeneratorIndex } from '../constants.gen.js';
+import { FUNCTION_DATA_LENGTH } from '../constants.gen.js';
 import { type ContractFunctionDao } from '../types/contract_function_dao.js';
 
 /** Function description for circuit. */
@@ -88,9 +87,5 @@ export class FunctionData {
     const isPrivate = reader.readBoolean();
 
     return new FunctionData(selector, isPrivate);
-  }
-
-  hash(): Fr {
-    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.FUNCTION_DATA);
   }
 }

@@ -63,8 +63,8 @@ mod tests {
         note_hash::{NoteHash, ScopedNoteHash}, nullifier::{Nullifier, ScopedNullifier},
         log_hash::{LogHash, NoteLogHash}
     },
-        address::{AztecAddress, EthAddress}, tests::fixture_builder::FixtureBuilder,
-        utils::{arrays::array_eq}, point::Point,
+        address::{AztecAddress, EthAddress},
+        tests::{fixture_builder::FixtureBuilder, utils::assert_array_eq}, point::Point,
         constants::{BASE_ROLLUP_INDEX, PRIVATE_KERNEL_INNER_INDEX}
     };
 
@@ -181,18 +181,14 @@ mod tests {
 
         let output_nullifiers = builder.compute_output_nullifiers(nullifiers);
 
-        assert(
-            array_eq(
-                public_inputs.end_non_revertible.nullifiers,
-                [output_nullifiers[0], output_nullifiers[1], output_nullifiers[2]]
-            )
+        assert_array_eq(
+            public_inputs.end_non_revertible.nullifiers,
+            [output_nullifiers[0], output_nullifiers[1], output_nullifiers[2]]
         );
 
-        assert(
-            array_eq(
-                public_inputs.end.nullifiers,
-                [output_nullifiers[3], output_nullifiers[4]]
-            )
+        assert_array_eq(
+            public_inputs.end.nullifiers,
+            [output_nullifiers[3], output_nullifiers[4]]
         );
 
         assert_eq(
@@ -226,18 +222,14 @@ mod tests {
 
         let exposed_note_hashes = builder.compute_output_note_hashes(note_hashes);
 
-        assert(
-            array_eq(
-                public_inputs.end_non_revertible.note_hashes,
-                [exposed_note_hashes[0], exposed_note_hashes[1]]
-            )
+        assert_array_eq(
+            public_inputs.end_non_revertible.note_hashes,
+            [exposed_note_hashes[0], exposed_note_hashes[1]]
         );
 
-        assert(
-            array_eq(
-                public_inputs.end.note_hashes,
-                [exposed_note_hashes[2], exposed_note_hashes[3]]
-            )
+        assert_array_eq(
+            public_inputs.end.note_hashes,
+            [exposed_note_hashes[2], exposed_note_hashes[3]]
         );
 
         assert_eq(

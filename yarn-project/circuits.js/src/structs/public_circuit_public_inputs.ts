@@ -1,6 +1,5 @@
 import { makeTuple } from '@aztec/foundation/array';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import {
   BufferReader,
@@ -12,7 +11,6 @@ import {
 import { type FieldsOf } from '@aztec/foundation/types';
 
 import {
-  GeneratorIndex,
   MAX_L1_TO_L2_MSG_READ_REQUESTS_PER_CALL,
   MAX_L2_TO_L1_MSGS_PER_CALL,
   MAX_NOTE_HASHES_PER_CALL,
@@ -325,9 +323,5 @@ export class PublicCircuitPublicInputs {
       Gas.fromFields(reader),
       reader.readField(),
     );
-  }
-
-  hash(): Fr {
-    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.PUBLIC_CIRCUIT_PUBLIC_INPUTS);
   }
 }

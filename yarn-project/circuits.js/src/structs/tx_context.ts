@@ -1,9 +1,8 @@
-import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
-import { GeneratorIndex, TX_CONTEXT_LENGTH } from '../constants.gen.js';
+import { TX_CONTEXT_LENGTH } from '../constants.gen.js';
 import { GasSettings } from './gas_settings.js';
 
 /**
@@ -88,9 +87,5 @@ export class TxContext {
    */
   static getFields(fields: FieldsOf<TxContext>) {
     return [fields.chainId, fields.version, fields.gasSettings] as const;
-  }
-
-  hash(): Fr {
-    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.TX_CONTEXT);
   }
 }

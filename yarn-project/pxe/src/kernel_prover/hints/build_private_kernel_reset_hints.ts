@@ -69,7 +69,9 @@ async function getMasterSecretKeysAndAppKeyGenerators(
   keyValidationRequests: Tuple<ScopedKeyValidationRequestAndGenerator, typeof MAX_KEY_VALIDATION_REQUESTS_PER_TX>,
   oracle: ProvingDataOracle,
 ) {
-  const keysHints = makeTuple(MAX_KEY_VALIDATION_REQUESTS_PER_TX, KeyValidationHint.empty);
+  const keysHints = makeTuple(MAX_KEY_VALIDATION_REQUESTS_PER_TX, () =>
+    KeyValidationHint.nada(MAX_KEY_VALIDATION_REQUESTS_PER_TX),
+  );
 
   let keyIndex = 0;
   for (let i = 0; i < keyValidationRequests.length; ++i) {
@@ -158,7 +160,7 @@ export async function buildPrivateKernelResetInputs(
 
   const noteHashes = publicInputs.end.noteHashes;
   const nullifiers = publicInputs.end.nullifiers;
-  const [transientNullifierIndexesForNoteHashes, transientNoteHashIndexesForNullifiers] = buildTransientDataHints(
+  const { numTransientData, hints: transientDataIndexHints } = buildTransientDataHints(
     noteHashes,
     nullifiers,
     futureNoteHashReads,
@@ -168,15 +170,9 @@ export async function buildPrivateKernelResetInputs(
     MAX_NULLIFIERS_PER_TX,
   );
 
-  const numNoteHashes = countAccumulatedItems(noteHashes);
-  const remainingNoteHashes = transientNullifierIndexesForNoteHashes
-    .slice(0, numNoteHashes)
-    .reduce((remaining, index) => remaining + (index === nullifiers.length ? 1 : 0), 0);
+  const remainingNoteHashes = countAccumulatedItems(noteHashes) - numTransientData;
 
-  const numNullifiers = countAccumulatedItems(nullifiers);
-  const remainingNullifiers = transientNoteHashIndexesForNullifiers
-    .slice(0, numNullifiers)
-    .reduce((remaining, index) => remaining + (index === noteHashes.length ? 1 : 0), 0);
+  const remainingNullifiers = countAccumulatedItems(nullifiers) - numTransientData;
 
   const numEncryptedLogHashes = countAccumulatedItems(publicInputs.end.encryptedLogsHashes);
 
@@ -197,16 +193,16 @@ export async function buildPrivateKernelResetInputs(
       hintSizes.NULLIFIER_PENDING_AMOUNT >= nullifierPendingReadHints &&
       hintSizes.NULLIFIER_SETTLED_AMOUNT >= nullifierSettledReadHints &&
       hintSizes.NULLIFIER_KEYS >= keysCount &&
+      hintSizes.TRANSIENT_DATA_AMOUNT >= numTransientData &&
       ((!shouldSilo && noSiloing) || (shouldSilo && enoughSiloing))
     ) {
       privateInputs = new PrivateKernelResetCircuitPrivateInputs(
         previousKernelData,
         new PrivateKernelResetHints(
-          transientNullifierIndexesForNoteHashes,
-          transientNoteHashIndexesForNullifiers,
           noteHashReadRequestHints,
           nullifierReadRequestHints,
           keysHints,
+          transientDataIndexHints,
           validationRequestsSplitCounter,
         ).trimToSizes(
           hintSizes.NOTE_HASH_PENDING_AMOUNT,
@@ -214,6 +210,7 @@ export async function buildPrivateKernelResetInputs(
           hintSizes.NULLIFIER_PENDING_AMOUNT,
           hintSizes.NULLIFIER_SETTLED_AMOUNT,
           hintSizes.NULLIFIER_KEYS,
+          hintSizes.TRANSIENT_DATA_AMOUNT,
         ),
         sizeTag,
       );

@@ -122,6 +122,7 @@ import {
   type SettledReadHint,
   type StateDiffHints,
   StateReference,
+  type TransientDataIndexHint,
   TxContext,
   type TxRequest,
   type VerificationKeyAsFields,
@@ -234,6 +235,7 @@ import type {
   StateReference as StateReferenceNoir,
   StorageRead as StorageReadNoir,
   StorageUpdateRequest as StorageUpdateRequestNoir,
+  TransientDataIndexHint as TransientDataIndexHintNoir,
   TxContext as TxContextNoir,
   TxRequest as TxRequestNoir,
 } from './types/index.js';
@@ -1632,32 +1634,47 @@ export function mapPrivateKernelInnerCircuitPrivateInputsToNoir(
   };
 }
 
+function mapTransientDataIndexHintToNoir(indexHint: TransientDataIndexHint): TransientDataIndexHintNoir {
+  return {
+    nullifier_index: mapNumberToNoir(indexHint.nullifierIndex),
+    note_hash_index: mapNumberToNoir(indexHint.noteHashIndex),
+  };
+}
+
 function mapPrivateKernelResetHintsToNoir<
   NH_RR_PENDING extends number,
   NH_RR_SETTLED extends number,
   NLL_RR_PENDING extends number,
   NLL_RR_SETTLED extends number,
   KEY_VALIDATION_REQUESTS extends number,
+  NUM_TRANSIENT_DATA_HINTS extends number,
 >(
   inputs: PrivateKernelResetHints<
     NH_RR_PENDING,
     NH_RR_SETTLED,
     NLL_RR_PENDING,
     NLL_RR_SETTLED,
-    KEY_VALIDATION_REQUESTS
+    KEY_VALIDATION_REQUESTS,
+    NUM_TRANSIENT_DATA_HINTS
   >,
-): PrivateKernelResetHintsNoir<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
+): PrivateKernelResetHintsNoir<
+  NH_RR_PENDING,
+  NH_RR_SETTLED,
+  NLL_RR_PENDING,
+  NLL_RR_SETTLED,
+  KEY_VALIDATION_REQUESTS,
+  NUM_TRANSIENT_DATA_HINTS
+> {
   return {
-    transient_nullifier_indexes_for_note_hashes: mapTuple(
-      inputs.transientNullifierIndexesForNoteHashes,
-      mapNumberToNoir,
-    ),
-    transient_note_hash_indexes_for_nullifiers: mapTuple(inputs.transientNoteHashIndexesForNullifiers, mapNumberToNoir),
     note_hash_read_request_hints: mapNoteHashReadRequestHintsToNoir(inputs.noteHashReadRequestHints),
     nullifier_read_request_hints: mapNullifierReadRequestHintsToNoir(inputs.nullifierReadRequestHints),
     key_validation_hints: inputs.keyValidationHints.map(mapKeyValidationHintToNoir) as FixedLengthArray<
       KeyValidationHintNoir,
       KEY_VALIDATION_REQUESTS
+    >,
+    transient_data_index_hints: inputs.transientDataIndexHints.map(mapTransientDataIndexHintToNoir) as FixedLengthArray<
+      TransientDataIndexHintNoir,
+      NUM_TRANSIENT_DATA_HINTS
     >,
     validation_requests_split_counter: mapNumberToNoir(inputs.validationRequestsSplitCounter),
   };
@@ -1669,6 +1686,7 @@ export function mapPrivateKernelResetCircuitPrivateInputsToNoir<
   NLL_RR_PENDING extends number,
   NLL_RR_SETTLED extends number,
   KEY_VALIDATION_REQUESTS extends number,
+  NUM_TRANSIENT_DATA_HINTS extends number,
   TAG extends string,
 >(
   inputs: PrivateKernelResetCircuitPrivateInputs<
@@ -1677,6 +1695,7 @@ export function mapPrivateKernelResetCircuitPrivateInputsToNoir<
     NLL_RR_PENDING,
     NLL_RR_SETTLED,
     KEY_VALIDATION_REQUESTS,
+    NUM_TRANSIENT_DATA_HINTS,
     TAG
   >,
 ): PrivateKernelResetCircuitPrivateInputsNoir<
@@ -1684,7 +1703,8 @@ export function mapPrivateKernelResetCircuitPrivateInputsToNoir<
   NH_RR_SETTLED,
   NLL_RR_PENDING,
   NLL_RR_SETTLED,
-  KEY_VALIDATION_REQUESTS
+  KEY_VALIDATION_REQUESTS,
+  NUM_TRANSIENT_DATA_HINTS
 > {
   return {
     previous_kernel: mapPrivateKernelDataToNoir(inputs.previousKernel),

@@ -19,6 +19,7 @@ interface ResetVariant {
     NULLIFIER_PENDING_AMOUNT: number;
     NULLIFIER_SETTLED_AMOUNT: number;
     NULLIFIER_KEYS: number;
+    TRANSIENT_DATA_AMOUNT: number;
     NOTE_HASH_SILOING_AMOUNT: number;
     NULLIFIER_SILOING_AMOUNT: number;
     ENCRYPTED_LOG_SILOING_AMOUNT: number;
@@ -49,6 +50,7 @@ function buildPrivateResetVariantsObject(variants: ResetVariant[]): string {
       NULLIFIER_PENDING_AMOUNT: ${variant.replacements.NULLIFIER_PENDING_AMOUNT},
       NULLIFIER_SETTLED_AMOUNT: ${variant.replacements.NULLIFIER_SETTLED_AMOUNT},
       NULLIFIER_KEYS:  ${variant.replacements.NULLIFIER_KEYS},
+      TRANSIENT_DATA_AMOUNT:  ${variant.replacements.TRANSIENT_DATA_AMOUNT},
       NOTE_HASH_SILOING_AMOUNT:  ${variant.replacements.NOTE_HASH_SILOING_AMOUNT},
       NULLIFIER_SILOING_AMOUNT:  ${variant.replacements.NULLIFIER_SILOING_AMOUNT},
       ENCRYPTED_LOG_SILOING_AMOUNT:  ${variant.replacements.ENCRYPTED_LOG_SILOING_AMOUNT},
@@ -62,6 +64,7 @@ function buildPrivateResetVariantsObject(variants: ResetVariant[]): string {
       NULLIFIER_PENDING_AMOUNT: MAX_NULLIFIER_READ_REQUESTS_PER_TX,
       NULLIFIER_SETTLED_AMOUNT: MAX_NULLIFIER_READ_REQUESTS_PER_TX,
       NULLIFIER_KEYS: MAX_KEY_VALIDATION_REQUESTS_PER_TX,
+      TRANSIENT_DATA_AMOUNT: MAX_NULLIFIERS_PER_TX,
       NOTE_HASH_SILOING_AMOUNT: MAX_NOTE_HASHES_PER_TX,
       NULLIFIER_SILOING_AMOUNT: MAX_NULLIFIERS_PER_TX,
       ENCRYPTED_LOG_SILOING_AMOUNT: MAX_ENCRYPTED_LOGS_PER_TX,
@@ -81,6 +84,7 @@ function buildPrivateResetVariantsType(variants: ResetVariant[]): string {
       ${variant.replacements.NULLIFIER_PENDING_AMOUNT},
       ${variant.replacements.NULLIFIER_SETTLED_AMOUNT},
       ${variant.replacements.NULLIFIER_KEYS},
+      ${variant.replacements.TRANSIENT_DATA_AMOUNT},
       '${variant.tag}'
     >
     `;
@@ -93,6 +97,7 @@ function buildPrivateResetVariantsType(variants: ResetVariant[]): string {
     typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     typeof MAX_NULLIFIER_READ_REQUESTS_PER_TX,
     typeof MAX_KEY_VALIDATION_REQUESTS_PER_TX,
+    typeof MAX_NULLIFIERS_PER_TX,
     'full'
   >;`;
   return output;
@@ -114,6 +119,9 @@ function validateVariants(variants: ResetVariant[]) {
     }
     if (variant.replacements.NULLIFIER_KEYS > MAX_KEY_VALIDATION_REQUESTS_PER_TX) {
       throw new Error(`NULLIFIER_KEYS must be less than or equal to ${MAX_KEY_VALIDATION_REQUESTS_PER_TX}`);
+    }
+    if (variant.replacements.TRANSIENT_DATA_AMOUNT > MAX_NULLIFIERS_PER_TX) {
+      throw new Error(`TRANSIENT_DATA_AMOUNT must be less than or equal to ${MAX_NULLIFIERS_PER_TX}`);
     }
     if (variant.replacements.NOTE_HASH_SILOING_AMOUNT > MAX_NOTE_HASHES_PER_TX) {
       throw new Error(`NOTE_HASH_SILOING_AMOUNT must be less than or equal to ${MAX_NOTE_HASHES_PER_TX}`);

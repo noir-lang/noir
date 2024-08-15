@@ -1,7 +1,6 @@
 use crate::{
-    abis::function_selector::FunctionSelector,
-    constants::{GENERATOR_INDEX__FUNCTION_DATA, FUNCTION_DATA_LENGTH},
-    hash::poseidon2_hash_with_separator, traits::{Serialize, Hash, Deserialize, Empty}
+    abis::function_selector::FunctionSelector, constants::FUNCTION_DATA_LENGTH,
+    traits::{Serialize, Deserialize, Empty}
 };
 
 struct FunctionData {
@@ -37,12 +36,6 @@ impl Deserialize<FUNCTION_DATA_LENGTH> for FunctionData {
     }
 }
 
-impl Hash for FunctionData {
-    fn hash(self) -> Field {
-        poseidon2_hash_with_separator(self.serialize(), GENERATOR_INDEX__FUNCTION_DATA)
-    }
-}
-
 impl Empty for FunctionData {
     fn empty() -> Self {
         FunctionData {
@@ -59,14 +52,4 @@ fn serialization_of_empty() {
     let serialized = data.serialize();
     let deserialized = FunctionData::deserialize(serialized);
     assert(data.eq(deserialized));
-}
-
-#[test]
-fn empty_hash() {
-    let data = FunctionData::empty();
-    let hash = data.hash();
-
-    // Value from function_data.test.ts "computes empty function data hash" test
-    let test_data_empty_hash = 0x2ee7682681179c2d8290a805cdeb64cc9744167fd5c801c26f1b3f9757c4eebc;
-    assert_eq(hash, test_data_empty_hash);
 }

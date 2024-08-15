@@ -1,22 +1,15 @@
 use crate::{
     note_hash_read_request_reset::NoteHashReadRequestHints,
-    nullifier_read_request_reset::NullifierReadRequestHints, reset::read_request::reset_read_requests,
-    reset::key_validation_hint::{KeyValidationHint, reset_key_validation_requests}
+    nullifier_read_request_reset::NullifierReadRequestHints,
+    reset::read_request::{get_unverified_read_requests, verify_reset_read_requests},
+    reset::key_validation_hint::{get_unverified_key_validation_requests, KeyValidationHint, verify_reset_key_validation_requests}
 };
 use dep::types::{
-    abis::{
-    note_hash::ScopedNoteHash, nullifier::ScopedNullifier,
-    validation_requests::{PrivateValidationRequests, ScopedKeyValidationRequestAndGenerator},
-    read_request::ScopedReadRequest
-},
-    constants::{
-    MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX, MAX_KEY_VALIDATION_REQUESTS_PER_TX,
-    GENERATOR_INDEX__NSK_M, MAX_NOTE_HASH_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX
-},
-    scalar::Scalar, hash::poseidon2_hash, traits::is_empty, utils::arrays::filter_array_to_bounded_vec
+    abis::{note_hash::ScopedNoteHash, nullifier::ScopedNullifier, validation_requests::PrivateValidationRequests},
+    constants::{MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX}
 };
 
-struct PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
+struct PrivateValidationRequestProcessor<let NH_RR_PENDING: u32, let NH_RR_SETTLED: u32, let NLL_RR_PENDING: u32, let NLL_RR_SETTLED: u32, let KEY_VALIDATION_REQUESTS: u32> {
     validation_requests: PrivateValidationRequests,
     note_hash_read_request_hints: NoteHashReadRequestHints<NH_RR_PENDING, NH_RR_SETTLED>,
     pending_note_hashes: [ScopedNoteHash; MAX_NOTE_HASHES_PER_TX],
@@ -28,56 +21,80 @@ struct PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PE
     validation_requests_split_counter: u32,
 }
 
-impl<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
-    pub fn validate(self) -> PrivateValidationRequests {
-        let remaining_note_hash_read_requests = self.validate_note_hash_read_requests();
-        let remaining_nullifier_read_requests = self.validate_nullifier_read_requests();
-        let remaining_key_validation_requests = self.validate_keys();
+impl<
+    let NH_RR_PENDING: u32,
+    let NH_RR_SETTLED: u32,
+    let NLL_RR_PENDING: u32,
+    let NLL_RR_SETTLED: u32,
+    let KEY_VALIDATION_REQUESTS: u32
+> PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS> {
+    pub fn compose(self) -> PrivateValidationRequests {
+        let note_hash_read_requests = get_unverified_read_requests(
+            self.validation_requests.note_hash_read_requests,
+            self.note_hash_read_request_hints.read_request_statuses
+        );
+
+        let nullifier_read_requests = get_unverified_read_requests(
+            self.validation_requests.nullifier_read_requests,
+            self.nullifier_read_request_hints.read_request_statuses
+        );
+
+        let scoped_key_validation_requests_and_generators = get_unverified_key_validation_requests(
+            self.validation_requests.scoped_key_validation_requests_and_generators,
+            self.key_validation_hints
+        );
 
         PrivateValidationRequests {
             for_rollup: self.validation_requests.for_rollup,
-            note_hash_read_requests: remaining_note_hash_read_requests.storage,
-            nullifier_read_requests: remaining_nullifier_read_requests.storage,
-            scoped_key_validation_requests_and_generators: remaining_key_validation_requests.storage,
-            split_counter: Option::some(self.validate_split_counter())
+            note_hash_read_requests,
+            nullifier_read_requests,
+            scoped_key_validation_requests_and_generators,
+            split_counter: Option::some(self.validation_requests_split_counter)
         }
     }
 
-    fn validate_split_counter(self) -> u32 {
-        if self.validation_requests.split_counter.is_some() {
-            assert_eq(
-                self.validation_requests.split_counter.unwrap_unchecked(), self.validation_requests_split_counter, "mismatch hinted split counter"
-            );
-        }
-        self.validation_requests_split_counter
-    }
+    pub fn validate(self, output: PrivateValidationRequests) {
+        assert_eq(
+            output.for_rollup, self.validation_requests.for_rollup, "mismatch validation request for rollup"
+        );
 
-    fn validate_note_hash_read_requests(self) -> BoundedVec<ScopedReadRequest, MAX_NOTE_HASH_READ_REQUESTS_PER_TX> {
-        reset_read_requests(
+        // note_hash_read_requests
+        verify_reset_read_requests(
             self.validation_requests.note_hash_read_requests,
             self.pending_note_hashes,
             self.note_hash_read_request_hints.read_request_statuses,
             self.note_hash_read_request_hints.pending_read_hints,
             self.note_hash_read_request_hints.settled_read_hints,
-            self.note_hash_tree_root
-        )
-    }
+            self.note_hash_tree_root,
+            output.note_hash_read_requests
+        );
 
-    fn validate_nullifier_read_requests(self) -> BoundedVec<ScopedReadRequest, MAX_NULLIFIER_READ_REQUESTS_PER_TX> {
-        reset_read_requests(
+        // nullifier_read_requests
+        verify_reset_read_requests(
             self.validation_requests.nullifier_read_requests,
             self.pending_nullifiers,
             self.nullifier_read_request_hints.read_request_statuses,
             self.nullifier_read_request_hints.pending_read_hints,
             self.nullifier_read_request_hints.settled_read_hints,
-            self.nullifier_tree_root
-        )
-    }
+            self.nullifier_tree_root,
+            output.nullifier_read_requests
+        );
 
-    fn validate_keys(self) -> BoundedVec<ScopedKeyValidationRequestAndGenerator, MAX_KEY_VALIDATION_REQUESTS_PER_TX> {
-        reset_key_validation_requests(
+        // key_validation_requests
+        verify_reset_key_validation_requests(
             self.validation_requests.scoped_key_validation_requests_and_generators,
-            self.key_validation_hints
-        )
+            self.key_validation_hints,
+            output.scoped_key_validation_requests_and_generators
+        );
+
+        // split_counter
+        assert_eq(
+            output.split_counter.unwrap(), self.validation_requests_split_counter, "mismatch split counter"
+        );
+        if self.validation_requests.split_counter.is_some() {
+            assert_eq(
+                self.validation_requests.split_counter.unwrap_unchecked(), self.validation_requests_split_counter, "mismatch hinted split counter"
+            );
+        }
     }
 }

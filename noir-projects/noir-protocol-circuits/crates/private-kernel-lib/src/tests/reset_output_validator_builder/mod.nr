@@ -2,17 +2,25 @@ mod validate_sorted_siloed_note_hashes;
 mod validate_sorted_siloed_nullifiers;
 
 use crate::components::{
-    reset_output_composer::{PrivateKernelResetOutputs, reset_output_hints::{generate_reset_output_hints, ResetOutputHints}},
+    reset_output_composer::{reset_output_hints::{generate_reset_output_hints, ResetOutputHints}},
     reset_output_validator::ResetOutputValidator
 };
-use dep::types::{constants::{MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX}, tests::fixture_builder::FixtureBuilder};
+use dep::reset_kernel_lib::{
+    KeyValidationHint, PrivateValidationRequestProcessor,
+    tests::{NoteHashReadRequestHintsBuilder, NullifierReadRequestHintsBuilder}, TransientDataIndexHint
+};
+use dep::types::{
+    constants::{MAX_KEY_VALIDATION_REQUESTS_PER_TX, MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX},
+    tests::fixture_builder::FixtureBuilder
+};
 
 struct ResetOutputValidatorBuilder {
     output: FixtureBuilder,
     previous_kernel: FixtureBuilder,
-    transient_nullifier_indexes_for_note_hashes: [u32; MAX_NOTE_HASHES_PER_TX],
-    transient_note_hash_indexes_for_nullifiers: [u32; MAX_NULLIFIERS_PER_TX],
-    split_counter: u32,
+    note_hash_read_request_hints_builder: NoteHashReadRequestHintsBuilder<6, 3>,
+    nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder<5, 2>,
+    key_validation_hints: [KeyValidationHint; 2],
+    transient_data_index_hints: [TransientDataIndexHint; 5],
     note_hash_siloing_amount: u32,
     nullifier_siloing_amount: u32,
     encrypted_log_siloing_amount: u32,
@@ -24,50 +32,59 @@ impl ResetOutputValidatorBuilder {
         let mut previous_kernel = FixtureBuilder::new();
         output.set_first_nullifier();
         previous_kernel.set_first_nullifier();
+        output.validation_requests_split_counter = Option::some(0);
+        previous_kernel.validation_requests_split_counter = Option::some(0);
 
-        let transient_nullifier_indexes_for_note_hashes = [MAX_NULLIFIERS_PER_TX; MAX_NOTE_HASHES_PER_TX];
-        let transient_note_hash_indexes_for_nullifiers = [MAX_NOTE_HASHES_PER_TX; MAX_NULLIFIERS_PER_TX];
+        let note_hash_read_request_hints_builder = NoteHashReadRequestHintsBuilder::new();
+        let nullifier_read_request_hints_builder = NullifierReadRequestHintsBuilder::new();
+        let key_validation_hints = [KeyValidationHint::nada(MAX_KEY_VALIDATION_REQUESTS_PER_TX); 2];
+        let transient_data_index_hints = [TransientDataIndexHint::nada(MAX_NULLIFIERS_PER_TX, MAX_NOTE_HASHES_PER_TX); 5];
 
         ResetOutputValidatorBuilder {
             output,
             previous_kernel,
-            transient_nullifier_indexes_for_note_hashes,
-            transient_note_hash_indexes_for_nullifiers,
-            split_counter: 0,
+            note_hash_read_request_hints_builder,
+            nullifier_read_request_hints_builder,
+            key_validation_hints,
+            transient_data_index_hints,
             note_hash_siloing_amount: 0,
             nullifier_siloing_amount: 0,
             encrypted_log_siloing_amount: 0
         }
     }
 
-    pub fn get_hints(self) -> ResetOutputHints {
+    pub fn get_validation_request_processor(self) -> PrivateValidationRequestProcessor<6, 3, 5, 2, 2> {
         let previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
-        generate_reset_output_hints(
-            previous_kernel,
-            self.transient_nullifier_indexes_for_note_hashes,
-            self.transient_note_hash_indexes_for_nullifiers
-        )
-    }
+        let note_hash_read_request_hints = self.note_hash_read_request_hints_builder.to_hints();
+        let nullifier_read_request_hints = self.nullifier_read_request_hints_builder.to_hints();
 
-    pub fn get_output(self) -> PrivateKernelResetOutputs {
-        let data = self.output.to_private_accumulated_data();
-        PrivateKernelResetOutputs {
-            note_hashes: data.note_hashes,
-            nullifiers: data.nullifiers,
-            note_encrypted_log_hashes: data.note_encrypted_logs_hashes,
-            encrypted_log_hashes: data.encrypted_logs_hashes
+        PrivateValidationRequestProcessor {
+            validation_requests: previous_kernel.validation_requests,
+            note_hash_read_request_hints,
+            pending_note_hashes: previous_kernel.end.note_hashes,
+            note_hash_tree_root: 0,
+            nullifier_read_request_hints,
+            pending_nullifiers: previous_kernel.end.nullifiers,
+            nullifier_tree_root: 0,
+            key_validation_hints: self.key_validation_hints,
+            validation_requests_split_counter: previous_kernel.min_revertible_side_effect_counter
         }
     }
 
-    pub fn validate_with_hints(self, hints: ResetOutputHints) {
-        let output = self.get_output();
+    pub fn get_hints(self) -> ResetOutputHints {
         let previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
+        generate_reset_output_hints(previous_kernel, self.transient_data_index_hints)
+    }
+
+    pub fn validate_with_hints(self, hints: ResetOutputHints) {
+        let output = self.output.to_private_kernel_circuit_public_inputs();
+        let previous_kernel = self.previous_kernel.to_private_kernel_circuit_public_inputs();
+        let validation_request_processor = self.get_validation_request_processor();
         ResetOutputValidator::new(
             output,
             previous_kernel,
-            self.transient_nullifier_indexes_for_note_hashes,
-            self.transient_note_hash_indexes_for_nullifiers,
-            self.split_counter,
+            validation_request_processor,
+            self.transient_data_index_hints,
             self.note_hash_siloing_amount,
             self.nullifier_siloing_amount,
             self.encrypted_log_siloing_amount,

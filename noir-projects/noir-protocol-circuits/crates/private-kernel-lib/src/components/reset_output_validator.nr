@@ -1,35 +1,46 @@
-use crate::components::{reset_output_composer::{PrivateKernelResetOutputs, ResetOutputHints}};
-use dep::reset_kernel_lib::verify_squashed_transient_data;
+use crate::components::{reset_output_composer::ResetOutputHints};
+use dep::reset_kernel_lib::{PrivateValidationRequestProcessor, TransientDataIndexHint, verify_squashed_transient_data};
 use dep::types::{
     abis::{
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
     log_hash::{NoteLogHash, ScopedEncryptedLogHash}, note_hash::ScopedNoteHash,
     nullifier::ScopedNullifier
 },
-    constants::{MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX},
     hash::{mask_encrypted_log_hash, silo_note_hash, silo_nullifier}, traits::is_empty,
     utils::arrays::{assert_sorted_transformed_value_array, assert_sorted_transformed_value_array_capped_size}
 };
 
-struct ResetOutputValidator {
-    output: PrivateKernelResetOutputs,
+struct ResetOutputValidator<
+    let NH_RR_PENDING: u32,
+    let NH_RR_SETTLED: u32,
+    let NLL_RR_PENDING: u32,
+    let NLL_RR_SETTLED: u32,
+    let KEY_VALIDATION_REQUESTS: u32, 
+    let NUM_TRANSIENT_DATA_INDEX_HINTS: u32
+> {
+    output: PrivateKernelCircuitPublicInputs,
     previous_kernel: PrivateKernelCircuitPublicInputs,
-    transient_nullifier_indexes_for_note_hashes: [u32; MAX_NOTE_HASHES_PER_TX],
-    transient_note_hash_indexes_for_nullifiers: [u32; MAX_NULLIFIERS_PER_TX],
-    split_counter: u32,
+    validation_request_processor: PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS>,
+    transient_data_index_hints: [TransientDataIndexHint; NUM_TRANSIENT_DATA_INDEX_HINTS],
     note_hash_siloing_amount: u32,
     nullifier_siloing_amount: u32,
     encrypted_log_siloing_amount: u32,
     hints: ResetOutputHints,
 }
 
-impl ResetOutputValidator {
+impl<
+    let NH_RR_PENDING: u32,
+    let NH_RR_SETTLED: u32,
+    let NLL_RR_PENDING: u32,
+    let NLL_RR_SETTLED: u32,
+    let KEY_VALIDATION_REQUESTS: u32, 
+    let NUM_TRANSIENT_DATA_INDEX_HINTS: u32
+> ResetOutputValidator<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS, NUM_TRANSIENT_DATA_INDEX_HINTS> {
     pub fn new(
-        output: PrivateKernelResetOutputs,
+        output: PrivateKernelCircuitPublicInputs,
         previous_kernel: PrivateKernelCircuitPublicInputs,
-        transient_nullifier_indexes_for_note_hashes: [u32; MAX_NOTE_HASHES_PER_TX],
-        transient_note_hash_indexes_for_nullifiers: [u32; MAX_NULLIFIERS_PER_TX],
-        split_counter: u32,
+        validation_request_processor: PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS>,
+        transient_data_index_hints: [TransientDataIndexHint; NUM_TRANSIENT_DATA_INDEX_HINTS],
         note_hash_siloing_amount: u32,
         nullifier_siloing_amount: u32,
         encrypted_log_siloing_amount: u32,
@@ -38,9 +49,8 @@ impl ResetOutputValidator {
         ResetOutputValidator {
             output,
             previous_kernel,
-            transient_nullifier_indexes_for_note_hashes,
-            transient_note_hash_indexes_for_nullifiers,
-            split_counter,
+            validation_request_processor,
+            transient_data_index_hints,
             note_hash_siloing_amount,
             nullifier_siloing_amount,
             encrypted_log_siloing_amount,
@@ -49,6 +59,10 @@ impl ResetOutputValidator {
     }
 
     pub fn validate(self) {
+        self.validate_unchanged_data();
+
+        self.validation_request_processor.validate(self.output.validation_requests);
+
         verify_squashed_transient_data(
             self.previous_kernel.end.note_hashes,
             self.previous_kernel.end.nullifiers,
@@ -56,31 +70,56 @@ impl ResetOutputValidator {
             self.hints.kept_note_hashes,
             self.hints.kept_nullifiers,
             self.hints.kept_note_encrypted_log_hashes,
-            self.transient_nullifier_indexes_for_note_hashes,
-            self.transient_note_hash_indexes_for_nullifiers,
+            self.transient_data_index_hints,
             self.hints.transient_or_propagated_note_hash_indexes_for_logs,
-            self.split_counter
+            self.output.validation_requests.split_counter.unwrap_unchecked()
         );
 
+        self.validate_sorted_siloed_data();
+    }
+
+    fn validate_unchanged_data(self) {
+        assert_eq(self.output.constants, self.previous_kernel.constants);
+
+        assert_eq(
+            self.output.min_revertible_side_effect_counter, self.previous_kernel.min_revertible_side_effect_counter
+        );
+
+        assert_eq(self.output.public_teardown_call_request, self.previous_kernel.public_teardown_call_request);
+
+        assert_eq(self.output.fee_payer, self.previous_kernel.fee_payer);
+
+        // accumulated_data
+        assert_eq(self.output.end.l2_to_l1_msgs, self.previous_kernel.end.l2_to_l1_msgs);
+        assert_eq(self.output.end.unencrypted_logs_hashes, self.previous_kernel.end.unencrypted_logs_hashes);
+        assert_eq(self.output.end.public_call_requests, self.previous_kernel.end.public_call_requests);
+        assert_eq(self.output.end.private_call_stack, self.previous_kernel.end.private_call_stack);
+    }
+
+    fn validate_sorted_siloed_data(self) {
+        // note_hashes
+        // note_encrypted_logs_hashes
         if self.note_hash_siloing_amount == 0 {
-            assert_eq(self.output.note_hashes, self.hints.kept_note_hashes, "output note hashes mismatch");
+            assert_eq(self.output.end.note_hashes, self.hints.kept_note_hashes, "output note hashes mismatch");
             assert_eq(
-                self.output.note_encrypted_log_hashes, self.hints.kept_note_encrypted_log_hashes, "output note logs mismatch"
+                self.output.end.note_encrypted_logs_hashes, self.hints.kept_note_encrypted_log_hashes, "output note logs mismatch"
             );
         } else {
             self.validate_sorted_siloed_note_hashes();
             self.validate_sorted_note_logs();
         }
 
+        // nullifiers
         if self.nullifier_siloing_amount == 0 {
-            assert_eq(self.output.nullifiers, self.hints.kept_nullifiers, "output nullifiers mismatch");
+            assert_eq(self.output.end.nullifiers, self.hints.kept_nullifiers, "output nullifiers mismatch");
         } else {
             self.validate_sorted_siloed_nullifiers();
         }
 
+        // encrypted_logs_hashes
         if self.encrypted_log_siloing_amount == 0 {
             assert_eq(
-                self.output.encrypted_log_hashes, self.previous_kernel.end.encrypted_logs_hashes, "output encrypted logs mismatch"
+                self.output.end.encrypted_logs_hashes, self.previous_kernel.end.encrypted_logs_hashes, "output encrypted logs mismatch"
             );
         } else {
             self.validate_sorted_masked_encrypted_logs();
@@ -99,9 +138,9 @@ impl ResetOutputValidator {
 
         // Check siloing.
         let kept_note_hashes = self.hints.kept_note_hashes;
-        let siloed_note_hashes = self.output.note_hashes;
+        let siloed_note_hashes = self.output.end.note_hashes;
         let sorted_indexes = self.hints.sorted_note_hash_indexes;
-        let tx_hash = self.output.nullifiers[0].value(); // First nullifier is tx hash.
+        let tx_hash = self.output.end.nullifiers[0].value(); // First nullifier is tx hash.
         for i in 0..kept_note_hashes.len() {
             if i < self.note_hash_siloing_amount {
                 let note_hash = kept_note_hashes[i];
@@ -111,7 +150,7 @@ impl ResetOutputValidator {
                 assert_eq(siloed_note_hash.value(), siloed_value, "incorrect siloed note hashes");
             } else {
                 // Don't have to check empty items here.
-                // assert_sorted_transformed_value_array_capped_size ensures that there are the same amount of empty items padded in kept_note_hashes and in self.output.note_hashes.
+                // assert_sorted_transformed_value_array_capped_size ensures that there are the same amount of empty items padded in kept_note_hashes and in self.output.end.note_hashes.
             }
         }
 
@@ -130,7 +169,7 @@ impl ResetOutputValidator {
         // silo_nullifier() will return the already-siloed value if contract address is zero.
         assert_sorted_transformed_value_array_capped_size(
             self.hints.kept_nullifiers,
-            self.output.nullifiers,
+            self.output.end.nullifiers,
             |prev: ScopedNullifier, out: ScopedNullifier|
                 (out.value() == silo_nullifier(prev)) &
                 (out.counter() == prev.counter()) &
@@ -156,7 +195,7 @@ impl ResetOutputValidator {
         // Consider adding a constant for it only when this becomes too costly.
         assert_sorted_transformed_value_array(
             self.hints.kept_note_encrypted_log_hashes,
-            self.output.note_encrypted_log_hashes,
+            self.output.end.note_encrypted_logs_hashes,
             |prev: NoteLogHash, out: NoteLogHash|
                 (out.value == prev.value) &
                 (out.length == prev.length) &
@@ -171,7 +210,7 @@ impl ResetOutputValidator {
         // If run repeatedly, it will return the masked contract address when randomness becomes 0.
         assert_sorted_transformed_value_array_capped_size(
             self.previous_kernel.end.encrypted_logs_hashes,
-            self.output.encrypted_log_hashes,
+            self.output.end.encrypted_logs_hashes,
             |prev: ScopedEncryptedLogHash, out: ScopedEncryptedLogHash|
                 (out.contract_address == mask_encrypted_log_hash(prev)) &
                 (out.log_hash.value == prev.log_hash.value) &

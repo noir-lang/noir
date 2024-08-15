@@ -2,11 +2,12 @@ import {
   type ScopedNoteHash,
   type ScopedNullifier,
   type ScopedReadRequest,
+  TransientDataIndexHint,
   countAccumulatedItems,
   isValidNoteHashReadRequest,
   isValidNullifierReadRequest,
 } from '@aztec/circuits.js';
-import { makeTuple } from '@aztec/foundation/array';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { type Tuple } from '@aztec/foundation/serialize';
 
 import { ScopedValueCache } from './scoped_value_cache.js';
@@ -19,26 +20,17 @@ export function buildTransientDataHints<NOTE_HASHES_LEN extends number, NULLIFIE
   noteHashNullifierCounterMap: Map<number, number>,
   noteHashesLength: NOTE_HASHES_LEN = noteHashes.length as NOTE_HASHES_LEN,
   nullifiersLength: NULLIFIERS_LEN = nullifiers.length as NULLIFIERS_LEN,
-): [Tuple<number, NOTE_HASHES_LEN>, Tuple<number, NULLIFIERS_LEN>] {
+): { numTransientData: number; hints: Tuple<TransientDataIndexHint, NULLIFIERS_LEN> } {
   const futureNoteHashReadsMap = new ScopedValueCache(futureNoteHashReads);
   const futureNullifierReadsMap = new ScopedValueCache(futureNullifierReads);
 
   const nullifierIndexMap: Map<number, number> = new Map();
   nullifiers.forEach((n, i) => nullifierIndexMap.set(n.counter, i));
 
-  const nullifierIndexesForNoteHashes: Tuple<number, NOTE_HASHES_LEN> = makeTuple(
-    noteHashesLength,
-    () => nullifiersLength,
-  );
-
-  const noteHashIndexesForNullifiers: Tuple<number, NULLIFIERS_LEN> = makeTuple(
-    nullifiersLength,
-    () => noteHashesLength,
-  );
-
+  const hints = [];
   const numNoteHashes = countAccumulatedItems(noteHashes);
-  for (let i = 0; i < numNoteHashes; i++) {
-    const noteHash = noteHashes[i];
+  for (let noteHashIndex = 0; noteHashIndex < numNoteHashes; noteHashIndex++) {
+    const noteHash = noteHashes[noteHashIndex];
     const noteHashNullifierCounter = noteHashNullifierCounterMap.get(noteHash.counter);
     // The note hash might not be linked to a nullifier or it might be read in the future
     if (
@@ -75,9 +67,11 @@ export function buildTransientDataHints<NOTE_HASHES_LEN extends number, NULLIFIE
       continue;
     }
 
-    nullifierIndexesForNoteHashes[i] = nullifierIndex;
-    noteHashIndexesForNullifiers[nullifierIndex] = i;
+    hints.push(new TransientDataIndexHint(nullifierIndex, noteHashIndex));
   }
 
-  return [nullifierIndexesForNoteHashes, noteHashIndexesForNullifiers];
+  return {
+    numTransientData: hints.length,
+    hints: padArrayEnd(hints, new TransientDataIndexHint(nullifiersLength, noteHashesLength), nullifiersLength),
+  };
 }

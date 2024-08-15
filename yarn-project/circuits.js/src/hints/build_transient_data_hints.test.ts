@@ -7,6 +7,7 @@ import {
   type ScopedNoteHash,
   type ScopedNullifier,
   ScopedReadRequest,
+  TransientDataIndexHint,
 } from '@aztec/circuits.js';
 
 import { buildTransientDataHints } from './build_transient_data_hints.js';
@@ -16,6 +17,7 @@ describe('buildTransientDataHints', () => {
 
   let noteHashes: ScopedNoteHash[];
   let nullifiers: ScopedNullifier[];
+  let nadaIndexHint: TransientDataIndexHint;
   let futureNoteHashReads: ScopedReadRequest[];
   let futureNullifierReads: ScopedReadRequest[];
   let noteHashNullifierCounterMap: Map<number, number>;
@@ -43,6 +45,7 @@ describe('buildTransientDataHints', () => {
       new Nullifier(new Fr(77), 600, new Fr(44)).scope(contractAddress),
       new Nullifier(new Fr(88), 700, new Fr(11)).scope(contractAddress),
     ];
+    nadaIndexHint = new TransientDataIndexHint(nullifiers.length, noteHashes.length);
     futureNoteHashReads = [new ScopedReadRequest(new ReadRequest(new Fr(44), 351), contractAddress)];
     futureNullifierReads = [new ScopedReadRequest(new ReadRequest(new Fr(66), 502), contractAddress)];
     noteHashNullifierCounterMap = new Map();
@@ -60,20 +63,20 @@ describe('buildTransientDataHints', () => {
   });
 
   it('builds index hints that link transient note hashes and nullifiers', () => {
-    const [nullifierIndexes, noteHashIndexesForNullifiers] = buildHints();
+    const { numTransientData, hints } = buildHints();
     // Only first one is squashed, since:
     // second one is not linked to a nullifier
     // third one's nullifier will be read
     // and fourth note hash will be read.
-    expect(nullifierIndexes).toEqual([3, 4, 4, 4, 4]);
-    expect(noteHashIndexesForNullifiers).toEqual([5, 5, 5, 0]);
+    expect(numTransientData).toBe(1);
+    expect(hints).toEqual([new TransientDataIndexHint(3, 0), nadaIndexHint, nadaIndexHint, nadaIndexHint]);
   });
 
   it('keeps the pair if note hash does not match', () => {
     nullifiers[3].nullifier.noteHash = new Fr(9999);
-    const [nullifierIndexes, noteHashIndexesForNullifiers] = buildHints();
-    expect(nullifierIndexes).toEqual([4, 4, 4, 4, 4]);
-    expect(noteHashIndexesForNullifiers).toEqual([5, 5, 5, 5]);
+    const { numTransientData, hints } = buildHints();
+    expect(numTransientData).toBe(0);
+    expect(hints).toEqual(Array(nullifiers.length).fill(nadaIndexHint));
   });
 
   it('throws if contract address does not match', () => {

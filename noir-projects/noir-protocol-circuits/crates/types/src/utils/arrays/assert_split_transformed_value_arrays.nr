@@ -1,4 +1,4 @@
-use crate::{abis::side_effect::Ordered, traits::{Empty, is_empty}, utils::arrays::find_index};
+use crate::{abis::side_effect::Ordered, traits::{Empty, is_empty}, utils::arrays::find_index_hint};
 
 pub fn assert_split_transformed_value_arrays_with_hint<T, S, let N: u32, Env>(
     sorted_array: [T; N],
@@ -46,7 +46,7 @@ unconstrained fn get_num_non_revertibles<T, let N: u32>(
     sorted_array: [T; N],
     split_counter: u32
 ) -> u32 where T: Ordered {
-    find_index(sorted_array, |n: T| n.counter() >= split_counter)
+    find_index_hint(sorted_array, |n: T| n.counter() >= split_counter)
 }
 
 pub fn assert_split_transformed_value_arrays<T, S, let N: u32, Env>(

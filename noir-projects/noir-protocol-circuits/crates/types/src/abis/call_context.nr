@@ -15,7 +15,11 @@ struct CallContext {
 
 impl Eq for CallContext {
     fn eq(self, other: CallContext) -> bool {
-        self.serialize() == other.serialize()
+        (self.msg_sender == other.msg_sender) &
+        (self.storage_contract_address == other.storage_contract_address) &
+        (self.function_selector == other.function_selector) &
+        (self.is_delegate_call == other.is_delegate_call) &
+        (self.is_static_call == other.is_static_call)
     }
 }
 

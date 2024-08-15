@@ -10,12 +10,12 @@ use crate::{
     MAX_NOTE_HASHES_PER_CALL, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
     MAX_NULLIFIER_READ_REQUESTS_PER_CALL, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_CALL,
     MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_DATA_READS_PER_CALL,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,
-    PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH, MAX_UNENCRYPTED_LOGS_PER_CALL
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL, PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
+    MAX_UNENCRYPTED_LOGS_PER_CALL
 },
-    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest},
-    hash::poseidon2_hash_with_separator, header::Header, messaging::l2_to_l1_message::L2ToL1Message,
-    traits::{Hash, Serialize, Deserialize, Empty}, utils::reader::Reader
+    contrakt::{storage_read::StorageRead, storage_update_request::StorageUpdateRequest}, header::Header,
+    messaging::l2_to_l1_message::L2ToL1Message, traits::{Serialize, Deserialize, Empty},
+    utils::reader::Reader
 };
 
 struct PublicCircuitPublicInputs {
@@ -153,12 +153,6 @@ impl Deserialize<PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> for PublicCircuitPublicInp
     }
 }
 
-impl Hash for PublicCircuitPublicInputs {
-    fn hash(self) -> Field {
-        poseidon2_hash_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)
-    }
-}
-
 impl Empty for PublicCircuitPublicInputs {
     fn empty() -> Self {
         PublicCircuitPublicInputs {
@@ -195,14 +189,4 @@ fn serialization_of_empty() {
     let serialized = pcpi.serialize();
     let deserialized = PublicCircuitPublicInputs::deserialize(serialized);
     assert(pcpi.eq(deserialized));
-}
-
-#[test]
-fn empty_hash() {
-    let inputs = PublicCircuitPublicInputs::empty();
-    let hash = inputs.hash();
-
-    // Value from public_circuit_public_inputs.test.ts "computes empty item hash" test
-    let test_data_empty_hash = 0x0ce92e52cdf4f36c4734556eca0cc66f264ac7548ab7556227bca067fc7b5e84;
-    assert_eq(hash, test_data_empty_hash);
 }

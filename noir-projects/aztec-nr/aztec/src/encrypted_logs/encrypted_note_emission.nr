@@ -4,7 +4,7 @@ use crate::{
 };
 use dep::protocol_types::{
     hash::sha256_to_field, address::AztecAddress, point::Point, abis::note_hash::NoteHash,
-    constants::MAX_NOTE_HASHES_PER_CALL, utils::arrays::find_index
+    constants::MAX_NOTE_HASHES_PER_CALL
 };
 
 unconstrained fn compute_unconstrained<Note, let N: u32, let NB: u32, let M: u32>(
@@ -61,13 +61,8 @@ fn emit_with_keys<Note, let N: u32, let NB: u32, let M: u32>(
     let note_hash_counter = note_header.note_hash_counter;
     let storage_slot = note_header.storage_slot;
 
-    let note_exists_index = find_index(
-        context.note_hashes.storage,
-        |n: NoteHash| n.counter == note_hash_counter
-    );
-    assert(
-        note_exists_index as u32 != MAX_NOTE_HASHES_PER_CALL, "Can only emit a note log for an existing note."
-    );
+    let note_exists = context.note_hashes.storage.any(|n: NoteHash| n.counter == note_hash_counter);
+    assert(note_exists, "Can only emit a note log for an existing note.");
 
     let contract_address: AztecAddress = context.this_address();
     let ovsk_app: Field  = context.request_ovsk_app(ovpk.hash());

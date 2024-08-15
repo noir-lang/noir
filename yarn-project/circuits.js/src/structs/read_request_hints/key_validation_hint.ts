@@ -18,7 +18,7 @@ export class KeyValidationHint {
     return serializeToBuffer(this.skM, this.requestIndex);
   }
 
-  static empty() {
-    return new KeyValidationHint(GrumpkinScalar.zero(), 0);
+  static nada(keyValidationRequestLen: number) {
+    return new KeyValidationHint(GrumpkinScalar.zero(), keyValidationRequestLen);
   }
 }

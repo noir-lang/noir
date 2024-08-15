@@ -1,6 +1,6 @@
 use dep::types::{
     abis::{kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs, note_hash::ScopedNoteHash},
-    constants::{MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX}, utils::arrays::find_index
+    constants::{MAX_NOTE_HASHES_PER_TX, MAX_NULLIFIERS_PER_TX}, utils::arrays::find_index_hint
 };
 
 struct PreviousKernelValidatorHints {
@@ -13,7 +13,7 @@ unconstrained pub fn generate_previous_kernel_validator_hints(previous_kernel: P
     let nullifiers = previous_kernel.end.nullifiers;
     for i in 0..nullifiers.len() {
         let nullified_note_hash = nullifiers[i].nullifier.note_hash;
-        let note_hash_index = find_index(
+        let note_hash_index = find_index_hint(
             note_hashes,
             |n: ScopedNoteHash| n.value() == nullified_note_hash
         );

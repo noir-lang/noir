@@ -1,10 +1,9 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
-import { GeneratorIndex, PUBLIC_CALL_STACK_ITEM_COMPRESSED_LENGTH } from '../constants.gen.js';
+import { PUBLIC_CALL_STACK_ITEM_COMPRESSED_LENGTH } from '../constants.gen.js';
 import { CallContext } from './call_context.js';
 import { Gas } from './gas.js';
 import { RevertCode } from './revert_code.js';
@@ -109,13 +108,5 @@ export class PublicCallStackItemCompressed {
       this.startGasLeft.isEmpty() &&
       this.endGasLeft.isEmpty()
     );
-  }
-
-  /**
-   * Computes this call stack item hash.
-   * @returns Hash.
-   */
-  public hash() {
-    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.CALL_STACK_ITEM);
   }
 }

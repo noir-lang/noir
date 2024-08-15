@@ -1,10 +1,9 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
 import { type Fr } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
-import { GeneratorIndex, PRIVATE_CALL_STACK_ITEM_LENGTH } from '../constants.gen.js';
+import { PRIVATE_CALL_STACK_ITEM_LENGTH } from '../constants.gen.js';
 import { FunctionData } from './function_data.js';
 import { PrivateCircuitPublicInputs } from './private_circuit_public_inputs.js';
 
@@ -82,13 +81,5 @@ export class PrivateCallStackItem {
 
   isEmpty() {
     return this.contractAddress.isZero() && this.functionData.isEmpty() && this.publicInputs.isEmpty();
-  }
-
-  /**
-   * Computes this call stack item hash.
-   * @returns Hash.
-   */
-  public hash(): Fr {
-    return poseidon2HashWithSeparator(this.toFields(), GeneratorIndex.CALL_STACK_ITEM);
   }
 }

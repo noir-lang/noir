@@ -37,9 +37,10 @@ impl Empty for PreviousRollupData {
 }
 
 impl PreviousRollupData {
-    fn validate_in_vk_tree<N>(self, allowed_indices: [u32; N]) {
-        let index_hint = find_index_hint(allowed_indices, self.vk_witness.leaf_index as u32);
-        assert_eq(allowed_indices[index_hint], self.vk_witness.leaf_index as u32, "Invalid vk index");
+    fn validate_in_vk_tree<let N: u32>(self, allowed_indices: [u32; N]) {
+        let leaf_index = self.vk_witness.leaf_index as u32;
+        let index_hint = find_index_hint(allowed_indices, |index: u32| index == leaf_index);
+        assert_eq(allowed_indices[index_hint], leaf_index, "Invalid vk index");
 
         assert_check_membership(
             self.vk.hash,

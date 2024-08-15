@@ -1,11 +1,15 @@
 mod reset_output_hints;
 
 use crate::components::reset_output_composer::{reset_output_hints::{generate_reset_output_hints, ResetOutputHints}};
+use dep::reset_kernel_lib::{
+    KeyValidationHint, NoteHashReadRequestHints, NullifierReadRequestHints, TransientDataIndexHint,
+    PrivateValidationRequestProcessor
+};
 use dep::types::{
     abis::{
     kernel_circuit_public_inputs::PrivateKernelCircuitPublicInputs,
     log_hash::{NoteLogHash, ScopedEncryptedLogHash}, note_hash::ScopedNoteHash,
-    nullifier::ScopedNullifier
+    nullifier::ScopedNullifier, validation_requests::PrivateValidationRequests
 },
     address::AztecAddress,
     constants::{
@@ -15,64 +19,83 @@ use dep::types::{
     hash::{mask_encrypted_log_hash, silo_note_hash, silo_nullifier}, utils::arrays::sort_by_counters_asc
 };
 
-struct PrivateKernelResetOutputs {
-    note_hashes: [ScopedNoteHash; MAX_NOTE_HASHES_PER_TX],
-    nullifiers: [ScopedNullifier; MAX_NULLIFIERS_PER_TX],
-    note_encrypted_log_hashes: [NoteLogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX],
-    encrypted_log_hashes: [ScopedEncryptedLogHash; MAX_ENCRYPTED_LOGS_PER_TX],
-}
-
-struct ResetOutputComposer {
+struct ResetOutputComposer<
+    let NH_RR_PENDING: u32,
+    let NH_RR_SETTLED: u32,
+    let NLL_RR_PENDING: u32,
+    let NLL_RR_SETTLED: u32,
+    let KEY_VALIDATION_REQUESTS: u32,
+> {
     previous_kernel: PrivateKernelCircuitPublicInputs,
+    validation_request_processor: PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS>,
     note_hash_siloing_amount: u32,
     nullifier_siloing_amount: u32,
     encrypted_log_siloing_amount: u32,
     hints: ResetOutputHints,
 }
 
-impl ResetOutputComposer {
-    pub fn new(
+impl<
+    let NH_RR_PENDING: u32,
+    let NH_RR_SETTLED: u32,
+    let NLL_RR_PENDING: u32,
+    let NLL_RR_SETTLED: u32,
+    let KEY_VALIDATION_REQUESTS: u32,
+> ResetOutputComposer<
+    NH_RR_PENDING,
+    NH_RR_SETTLED,
+    NLL_RR_PENDING,
+    NLL_RR_SETTLED,
+    KEY_VALIDATION_REQUESTS,
+> {
+    pub fn new<let TRANSIENT_DATA_AMOUNT: u32>(
         previous_kernel: PrivateKernelCircuitPublicInputs,
-        transient_nullifier_indexes_for_note_hashes: [u32; MAX_NOTE_HASHES_PER_TX],
-        transient_note_hash_indexes_for_nullifiers: [u32; MAX_NULLIFIERS_PER_TX],
+        validation_request_processor: PrivateValidationRequestProcessor<NH_RR_PENDING, NH_RR_SETTLED, NLL_RR_PENDING, NLL_RR_SETTLED, KEY_VALIDATION_REQUESTS>,
+        transient_data_index_hints: [TransientDataIndexHint; TRANSIENT_DATA_AMOUNT],
         note_hash_siloing_amount: u32,
         nullifier_siloing_amount: u32,
         encrypted_log_siloing_amount: u32
     ) -> Self {
-        let hints = generate_reset_output_hints(
+        let hints = generate_reset_output_hints(previous_kernel, transient_data_index_hints);
+        ResetOutputComposer {
             previous_kernel,
-            transient_nullifier_indexes_for_note_hashes,
-            transient_note_hash_indexes_for_nullifiers
-        );
-        ResetOutputComposer { previous_kernel, note_hash_siloing_amount, nullifier_siloing_amount, encrypted_log_siloing_amount, hints }
+            validation_request_processor,
+            note_hash_siloing_amount,
+            nullifier_siloing_amount,
+            encrypted_log_siloing_amount,
+            hints
+        }
     }
 
-    pub fn finish(self) -> PrivateKernelResetOutputs {
-        let note_hashes = if self.note_hash_siloing_amount == 0 {
+    pub fn finish(self) -> PrivateKernelCircuitPublicInputs {
+        let mut output = self.previous_kernel;
+
+        output.validation_requests = self.validation_request_processor.compose();
+
+        output.end.note_hashes = if self.note_hash_siloing_amount == 0 {
             self.hints.kept_note_hashes
         } else {
             self.get_sorted_siloed_note_hashes()
         };
 
-        let nullifiers = if self.nullifier_siloing_amount == 0 {
+        output.end.nullifiers = if self.nullifier_siloing_amount == 0 {
             self.hints.kept_nullifiers
         } else {
             self.get_sorted_siloed_nullifiers()
         };
 
-        let note_encrypted_log_hashes = if self.note_hash_siloing_amount == 0 {
+        output.end.note_encrypted_logs_hashes = if self.note_hash_siloing_amount == 0 {
             self.hints.kept_note_encrypted_log_hashes
         } else {
             self.get_sorted_note_encrypted_log_hashes()
         };
 
-        let encrypted_log_hashes = if self.encrypted_log_siloing_amount == 0 {
+        output.end.encrypted_logs_hashes = if self.encrypted_log_siloing_amount == 0 {
             self.previous_kernel.end.encrypted_logs_hashes
         } else {
             self.get_sorted_masked_encrypted_log_hashes()
         };
 
-        PrivateKernelResetOutputs { note_hashes, nullifiers, note_encrypted_log_hashes, encrypted_log_hashes }
+        output
     }
 
     fn get_sorted_siloed_note_hashes(self) -> [ScopedNoteHash; MAX_NOTE_HASHES_PER_TX] {

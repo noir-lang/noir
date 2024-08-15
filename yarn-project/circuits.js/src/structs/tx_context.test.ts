@@ -1,5 +1,5 @@
 import { randomInt } from '@aztec/foundation/crypto';
-import { setupCustomSnapshotSerializers, updateInlineTestData } from '@aztec/foundation/testing';
+import { setupCustomSnapshotSerializers } from '@aztec/foundation/testing';
 
 import { TX_CONTEXT_LENGTH } from '../constants.gen.js';
 import { makeTxContext } from '../tests/factories.js';
@@ -23,20 +23,5 @@ describe('TxContext', () => {
   it('number of fields matches constant', () => {
     const fields = context.toFields();
     expect(fields.length).toBe(TX_CONTEXT_LENGTH);
-  });
-
-  it('computes empty context hash', () => {
-    const tc = TxContext.empty();
-    expect(tc.isEmpty()).toBe(true);
-
-    const hash = tc.hash();
-    expect(hash).toMatchSnapshot();
-
-    // Run with AZTEC_GENERATE_TEST_DATA=1 to update noir test data
-    updateInlineTestData(
-      'noir-projects/noir-protocol-circuits/crates/types/src/transaction/tx_context.nr',
-      'test_data_empty_hash',
-      hash.toString(),
-    );
   });
 });

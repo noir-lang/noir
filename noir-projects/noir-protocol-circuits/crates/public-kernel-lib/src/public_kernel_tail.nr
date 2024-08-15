@@ -169,7 +169,7 @@ mod tests {
     struct PublicKernelTailCircuitPrivateInputsBuilder {
         previous_kernel: FixtureBuilder,
         previous_revertible: FixtureBuilder,
-        nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder,
+        nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder<MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_READ_REQUESTS_PER_TX>,
         nullifier_non_existent_read_request_hints_builder: NullifierNonExistentReadRequestHintsBuilder,
         public_data_read_request_hints_builder: PublicDataReadRequestHintsBuilder,
         public_data_hints: BoundedVec<PublicDataHint, MAX_PUBLIC_DATA_HINTS>,
@@ -186,7 +186,7 @@ mod tests {
             let mut builder = PublicKernelTailCircuitPrivateInputsBuilder {
                 previous_kernel,
                 previous_revertible,
-                nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder::new(MAX_NULLIFIER_READ_REQUESTS_PER_TX),
+                nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder::new(),
                 nullifier_non_existent_read_request_hints_builder,
                 public_data_read_request_hints_builder: PublicDataReadRequestHintsBuilder::new(MAX_PUBLIC_DATA_READS_PER_TX),
                 public_data_hints: BoundedVec::new(),
