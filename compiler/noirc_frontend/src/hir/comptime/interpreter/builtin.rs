@@ -855,6 +855,7 @@ fn expr_as_unary_op(
             tuple_types.pop().unwrap();
             let unary_op_type = tuple_types.pop().unwrap();
 
+            // These values should match the values used in noir_stdlib/src/meta/op.nr
             let unary_op_value = match prefix_expr.operator {
                 UnaryOp::Minus => 0_u128,
                 UnaryOp::Not => 1_u128,
