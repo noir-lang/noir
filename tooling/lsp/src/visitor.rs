@@ -1,11 +1,12 @@
 use noirc_frontend::{
     ast::{
-        ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression,
-        ConstrainStatement, ConstructorExpression, Expression, ExpressionKind, ForLoopStatement,
-        ForRange, IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement,
-        Literal, MemberAccessExpression, MethodCallExpression, ModuleDeclaration, NoirFunction,
-        NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, PrefixExpression, Statement,
-        StatementKind, TraitImplItem, TraitItem, TypeImpl, UseTree, UseTreeKind,
+        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
+        CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
+        ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
+        Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
+        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
+        PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl, UseTree,
+        UseTreeKind,
     },
     parser::{Item, ItemKind, ParsedSubModule},
     ParsedModule,
@@ -50,15 +51,15 @@ pub(crate) trait Visitor {
         true
     }
 
-    fn visit_trait_item(&mut self, _: &TraitItem) {}
+    fn visit_trait_item(&mut self, _: &TraitItem) -> bool {
+        true
+    }
 
     fn visit_use_tree(&mut self, _: &UseTree) -> bool {
         true
     }
 
-    fn visit_noir_struct(&mut self, _: &NoirStruct) -> bool {
-        true
-    }
+    fn visit_noir_struct(&mut self, _: &NoirStruct) {}
 
     fn visit_noir_type_alias(&mut self, _: &NoirTypeAlias) {}
 
@@ -112,6 +113,28 @@ pub(crate) trait Visitor {
         true
     }
 
+    fn visit_tuple(&mut self, _: &[Expression]) -> bool {
+        true
+    }
+
+    fn visit_parenthesized(&mut self, _: &Expression) -> bool {
+        true
+    }
+
+    fn visit_unquote(&mut self, _: &Expression) -> bool {
+        true
+    }
+
+    fn visit_comptime_expression(&mut self, _: &BlockExpression) -> bool {
+        true
+    }
+
+    fn visit_unsafe(&mut self, _: &BlockExpression) -> bool {
+        true
+    }
+
+    fn visit_variable(&mut self, _: &Path) {}
+
     fn visit_lambda(&mut self, _: &Lambda) -> bool {
         true
     }
@@ -121,6 +144,10 @@ pub(crate) trait Visitor {
     }
 
     fn visit_statement(&mut self, _: &Statement) -> bool {
+        true
+    }
+
+    fn visit_global(&mut self, _: &LetStatement) -> bool {
         true
     }
 
@@ -140,13 +167,21 @@ pub(crate) trait Visitor {
         true
     }
 
+    fn visit_comptime_statement(&mut self, _: &Statement) -> bool {
+        true
+    }
+
     fn visit_lvalue(&mut self, _: &LValue) -> bool {
         true
     }
 
+    fn visit_lvalue_ident(&mut self, _: &Ident) {}
+
     fn visit_for_range(&mut self, _: &ForRange) -> bool {
         true
     }
+
+    fn visit_as_trait_path(&mut self, _: &AsTraitPath) {}
 }
 
 pub(crate) trait Acceptor {
@@ -192,7 +227,11 @@ impl ChildrenAcceptor for Item {
                 noir_trait_impl.accept(visitor);
             }
             ItemKind::Impl(type_impl) => type_impl.accept(visitor),
-            ItemKind::Global(let_statement) => let_statement.accept(visitor),
+            ItemKind::Global(let_statement) => {
+                if visitor.visit_global(let_statement) {
+                    let_statement.accept(visitor)
+                }
+            }
             ItemKind::Trait(noir_trait) => noir_trait.accept(visitor),
             ItemKind::Import(use_tree) => use_tree.accept(visitor),
             ItemKind::TypeAlias(noir_type_alias) => noir_type_alias.accept(visitor),
@@ -296,7 +335,34 @@ impl ChildrenAcceptor for NoirTrait {
 
 impl Acceptor for TraitItem {
     fn accept(&self, visitor: &mut impl Visitor) {
-        visitor.visit_trait_item(self);
+        if visitor.visit_trait_item(self) {
+            self.accept_children(visitor);
+        }
+    }
+}
+
+impl ChildrenAcceptor for TraitItem {
+    fn accept_children(&self, visitor: &mut impl Visitor) {
+        match self {
+            TraitItem::Function {
+                name: _,
+                generics: _,
+                parameters: _,
+                return_type: _,
+                where_clause: _,
+                body,
+            } => {
+                if let Some(body) = body {
+                    body.accept(visitor);
+                }
+            }
+            TraitItem::Constant { name: _, typ: _, default_value } => {
+                if let Some(default_value) = default_value {
+                    default_value.accept(visitor);
+                }
+            }
+            TraitItem::Type { name: _ } => (),
+        }
     }
 }
 
@@ -382,26 +448,38 @@ impl ChildrenAcceptor for Expression {
                 if_expression.accept(visitor);
             }
             ExpressionKind::Tuple(expressions) => {
-                visit_expressions(expressions, visitor);
+                if visitor.visit_tuple(expressions) {
+                    visit_expressions(expressions, visitor);
+                }
             }
             ExpressionKind::Lambda(lambda) => lambda.accept(visitor),
             ExpressionKind::Parenthesized(expression) => {
-                expression.accept(visitor);
+                if visitor.visit_parenthesized(expression) {
+                    expression.accept(visitor);
+                }
             }
             ExpressionKind::Unquote(expression) => {
-                expression.accept(visitor);
+                if visitor.visit_unquote(expression) {
+                    expression.accept(visitor);
+                }
             }
             ExpressionKind::Comptime(block_expression, _) => {
-                block_expression.accept(visitor);
+                if visitor.visit_comptime_expression(block_expression) {
+                    block_expression.accept(visitor);
+                }
             }
             ExpressionKind::Unsafe(block_expression, _) => {
-                block_expression.accept(visitor);
+                if visitor.visit_unsafe(block_expression) {
+                    block_expression.accept(visitor);
+                }
             }
-            ExpressionKind::Variable(_)
-            | ExpressionKind::AsTraitPath(_)
-            | ExpressionKind::Quote(_)
-            | ExpressionKind::Resolved(_)
-            | ExpressionKind::Error => (),
+            ExpressionKind::Variable(path) => {
+                visitor.visit_variable(path);
+            }
+            ExpressionKind::AsTraitPath(as_trait_path) => {
+                as_trait_path.accept(visitor);
+            }
+            ExpressionKind::Quote(_) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
         }
     }
 }
@@ -643,7 +721,9 @@ impl ChildrenAcceptor for Statement {
                 for_loop_statement.accept(visitor);
             }
             StatementKind::Comptime(statement) => {
-                statement.accept(visitor);
+                if visitor.visit_comptime_statement(statement) {
+                    statement.accept(visitor);
+                }
             }
             StatementKind::Semi(expression) => {
                 expression.accept(visitor);
@@ -726,7 +806,7 @@ impl Acceptor for LValue {
 impl ChildrenAcceptor for LValue {
     fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            LValue::Ident(..) => (),
+            LValue::Ident(ident) => visitor.visit_lvalue_ident(ident),
             LValue::MemberAccess { object, field_name: _, span: _ } => object.accept(visitor),
             LValue::Index { array, index, span: _ } => {
                 array.accept(visitor);
@@ -754,6 +834,12 @@ impl ChildrenAcceptor for ForRange {
             }
             ForRange::Array(expression) => expression.accept(visitor),
         }
+    }
+}
+
+impl Acceptor for AsTraitPath {
+    fn accept(&self, visitor: &mut impl Visitor) {
+        visitor.visit_as_trait_path(self);
     }
 }
 
