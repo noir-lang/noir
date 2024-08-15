@@ -1,0 +1,6 @@
+*
+!noir
+!avm-transpiler
+!aztec-nargo
+**/target
+**/node_modules
