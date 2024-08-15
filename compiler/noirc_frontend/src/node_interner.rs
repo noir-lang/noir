@@ -3,6 +3,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
 use std::ops::Deref;
+use std::sync::atomic::AtomicUsize;
 
 use fm::FileId;
 use iter_extended::vecmap;
@@ -45,6 +46,8 @@ use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeV
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
+
+static INDENTATION: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug)]
 pub struct ModuleAttributes {
@@ -1445,25 +1448,25 @@ impl NodeInterner {
 
         let object_type = object_type.substitute(type_bindings);
 
-        let n = self.get_trait(trait_id).name.to_string();
-        if n == "Serialize" {
             let t = vecmap(trait_generics, |t| format!("{t:?}")).join(", ");
             let n =
                 vecmap(trait_associated_types, |t| format!("{} = {:?}", t.name, t.typ)).join(", ");
-            eprintln!("? {object_type:?}: Serialize<{t}><{n}>");
-        }
+
+            let i = INDENTATION.load(std::sync::atomic::Ordering::SeqCst);
+            let i = " ".repeat(i);
+            eprintln!("{i}? {object_type:?}: Serialize<{t}><{n}>");
 
         // If the object type isn't known, just return an error saying type annotations are needed.
         if object_type.is_bindable() {
-            let n = self.get_trait(trait_id).name.to_string();
-            if n == "Serialize" {
-                eprintln!("  type is bindable");
-            }
+                eprintln!("{i}type is bindable");
             return Err(Vec::new());
         }
 
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
+
+        let i = INDENTATION.fetch_add(6, std::sync::atomic::Ordering::SeqCst);
+        let i = " ".repeat(i);
 
         let mut matching_impls = Vec::new();
 
@@ -1478,28 +1481,24 @@ impl NodeInterner {
 
             let mut check_trait_generics =
                 |impl_generics: &[Type], impl_associated_types: &[NamedType]| {
-                    let n = self.get_trait(trait_id).name.to_string();
-                    if n == "Serialize" {
                         let t = vecmap(impl_generics, |t| format!("{t:?}")).join(", ");
                         let n =
                             vecmap(impl_associated_types, |t| format!("{} = {:?}", t.name, t.typ))
                                 .join(", ");
-                        eprintln!("  ?? {existing_object_type:?}: Serialize<{t}><{n}>");
-                        eprintln!("  Instantiation bindings = {instantiation_bindings:?}");
-                    }
+
+                        eprintln!("  {i}?? {existing_object_type:?}: Serialize<{t}><{n}>");
+
+                        eprintln!("    {i}Instantiation bindings = {instantiation_bindings:?}");
+
                     trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic)| {
                         let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
-                        eprintln!("    {:?} =? {:?}", trait_generic, impl_generic);
+                        eprintln!("    {i}{:?} =? {:?}", trait_generic, impl_generic);
                         trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
                     }) && trait_associated_types.iter().zip(impl_associated_types).all(
                         |(trait_generic, impl_generic)| {
                             let impl_generic2 =
                                 impl_generic.typ.force_substitute(&instantiation_bindings);
-                            eprintln!(
-                                "    {:?} substituted is {:?}",
-                                impl_generic.typ, impl_generic2
-                            );
-                            eprintln!("    {:?} =? {:?}", trait_generic.typ, impl_generic2);
+                            eprintln!("    {i}{:?} =? {:?}", trait_generic.typ, impl_generic2);
                             trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
                         },
                     )
@@ -1518,10 +1517,7 @@ impl NodeInterner {
             };
 
             if !generics_match {
-                let n = self.get_trait(trait_id).name.to_string();
-                if n == "Serialize" {
-                    eprintln!("  Generics don't match");
-                }
+                    eprintln!("  {i}Generics don't match");
                 continue;
             }
 
@@ -1536,6 +1532,7 @@ impl NodeInterner {
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
+                    eprintln!("  {i}rejected, where clause can't validate");
                         // Only keep the first errors we get from a failing where clause
                         if where_clause_errors.is_empty() {
                             where_clause_errors.extend(errors);
@@ -1544,14 +1541,15 @@ impl NodeInterner {
                     }
                 }
 
-                let n = self.get_trait(trait_id).name.to_string();
-                if n == "Serialize" {
-                    eprintln!("    selected");
-                }
+                    eprintln!("  {i}selected");
                 matching_impls.push((impl_kind.clone(), fresh_bindings));
+                break;
+            } else {
+                    eprintln!("  {i}rejected, object types don't match");
             }
         }
-
+                    INDENTATION.fetch_sub(6, std::sync::atomic::Ordering::SeqCst);
+  
         if matching_impls.len() == 1 {
             let (impl_, fresh_bindings) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;

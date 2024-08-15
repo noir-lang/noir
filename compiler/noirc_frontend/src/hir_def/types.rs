@@ -1611,6 +1611,16 @@ impl Type {
                     } else {
                         Err(UnificationError)
                     }
+                } else if let InfixExpr(lhs, op, rhs) = other {
+                    if let Some(inverse) = op.inverse() {
+                        // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
+                        let new_type = InfixExpr(Box::new(Constant(*value)), inverse, rhs.clone());
+                        new_type.try_unify(lhs, bindings)?;
+                        eprintln!("Unified {new_type:?} and {lhs:?}");
+                        Ok(())
+                    } else {
+                        Err(UnificationError)
+                    }
                 } else {
                     Err(UnificationError)
                 }
@@ -1644,6 +1654,11 @@ impl Type {
 
                 let lhs = lhs.canonicalize();
                 let rhs = rhs.canonicalize();
+                eprintln!("Canonicalizing {:?} {} {:?}", lhs, op, rhs);
+
+                if let Some(result) = Self::try_simplify_addition(&lhs, op, &rhs) {
+                    return result;
+                }
 
                 if let Some(result) = Self::try_simplify_subtraction(&lhs, op, &rhs) {
                     return result;
@@ -1698,6 +1713,27 @@ impl Type {
         } else {
             // Every type must have been a constant
             Type::Constant(constant)
+        }
+    }
+
+    /// Try to simplify an addition expression of `lhs + rhs`.
+    ///
+    /// - Simplifies `(a - b) + b` to `a`.
+    fn try_simplify_addition(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Option<Type> {
+        use BinaryTypeOperator::*;
+        match lhs {
+            Type::InfixExpr(l_lhs, l_op, l_rhs) => {
+                // Simplify `(N + 2) - 1`
+                if op == Addition && *l_op == Subtraction {
+                    // TODO: Propagate type bindings. Can do in another PR, this one is large enough.
+                    let unifies = dbg!(l_rhs).try_unify(dbg!(rhs), &mut TypeBindings::new());
+                    if unifies.is_ok() {
+                        return Some(l_lhs.as_ref().clone());
+                    }
+                }
+                None
+            }
+            _ => None,
         }
     }
 
@@ -2370,6 +2406,17 @@ impl BinaryTypeOperator {
 
     fn is_commutative(self) -> bool {
         matches!(self, BinaryTypeOperator::Addition | BinaryTypeOperator::Multiplication)
+    }
+
+    /// Return the operator that will "undo" this operation if applied to the rhs
+    fn inverse(self) -> Option<BinaryTypeOperator> {
+        match self {
+            BinaryTypeOperator::Addition => Some(BinaryTypeOperator::Subtraction),
+            BinaryTypeOperator::Subtraction => Some(BinaryTypeOperator::Addition),
+            BinaryTypeOperator::Multiplication => Some(BinaryTypeOperator::Division),
+            BinaryTypeOperator::Division => Some(BinaryTypeOperator::Multiplication),
+            BinaryTypeOperator::Modulo => None,
+        }
     }
 }
 

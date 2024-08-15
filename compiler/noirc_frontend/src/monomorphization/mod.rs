@@ -936,6 +936,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let length = match length.evaluate_to_u32() {
                     Some(length) => length,
                     None => {
+                        dbg!(length);
                         return Err(dbg!(MonomorphizationError::TypeAnnotationsNeeded { location }))
                     }
                 };
