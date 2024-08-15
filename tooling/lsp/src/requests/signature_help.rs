@@ -7,19 +7,22 @@ use lsp_types::{
 };
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::{CallExpression, Expression, FunctionReturnType, MethodCallExpression},
+    ast::{CallExpression, Expression, ExpressionKind, FunctionReturnType, MethodCallExpression},
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::NodeInterner,
     node_interner::ReferenceId,
     ParsedModule, Type,
 };
 
-use crate::{utils, LspState};
+use crate::{
+    utils,
+    visitor::{Acceptor, ChildrenAcceptor, Visitor},
+    LspState,
+};
 
 use super::process_request;
 
 mod tests;
-mod traversal;
 
 pub(crate) fn on_signature_help_request(
     state: &mut LspState,
@@ -61,15 +64,12 @@ impl<'a> SignatureFinder<'a> {
     }
 
     fn find(&mut self, parsed_module: &ParsedModule) -> Option<SignatureHelp> {
-        self.find_in_parsed_module(parsed_module);
+        parsed_module.accept(self);
 
         self.signature_help.clone()
     }
 
     fn find_in_call_expression(&mut self, call_expression: &CallExpression, span: Span) {
-        self.find_in_expression(&call_expression.func);
-        self.find_in_expressions(&call_expression.arguments);
-
         let arguments_span = Span::from(call_expression.func.span.end() + 1..span.end() - 1);
         let span = call_expression.func.span;
         let name_span = Span::from(span.end() - 1..span.end());
@@ -88,9 +88,6 @@ impl<'a> SignatureFinder<'a> {
         method_call_expression: &MethodCallExpression,
         span: Span,
     ) {
-        self.find_in_expression(&method_call_expression.object);
-        self.find_in_expressions(&method_call_expression.arguments);
-
         let arguments_span =
             Span::from(method_call_expression.method_name.span().end() + 1..span.end() - 1);
         let name_span = method_call_expression.method_name.span();
@@ -287,5 +284,27 @@ impl<'a> SignatureFinder<'a> {
 
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
+    }
+}
+
+impl<'a> Visitor for SignatureFinder<'a> {
+    fn visit_expression(&mut self, expression: &Expression) -> bool {
+        match &expression.kind {
+            ExpressionKind::Call(call_expression) => {
+                call_expression.accept_children(self);
+
+                self.find_in_call_expression(call_expression, expression.span);
+
+                false
+            }
+            ExpressionKind::MethodCall(method_call_expression) => {
+                method_call_expression.accept_children(self);
+
+                self.find_in_method_call_expression(method_call_expression, expression.span);
+
+                false
+            }
+            _ => true,
+        }
     }
 }
