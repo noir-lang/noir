@@ -11,10 +11,11 @@ use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, Completion
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        AsTraitPath, BlockExpression, ConstructorExpression, Expression, ForLoopStatement, Ident,
-        IfExpression, LValue, Lambda, LetStatement, MemberAccessExpression, NoirFunction,
-        NoirStruct, NoirTraitImpl, Path, PathKind, PathSegment, Pattern, Statement, TraitItem,
-        TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind,
+        AsTraitPath, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
+        ForLoopStatement, Ident, IfExpression, LValue, Lambda, LetStatement,
+        MemberAccessExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind,
+        PathSegment, Pattern, Statement, StatementKind, TraitItem, TypeImpl, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -308,22 +309,22 @@ impl<'a> NodeFinder<'a> {
 
     fn find_in_statement(&mut self, statement: &Statement) {
         match &statement.kind {
-            noirc_frontend::ast::StatementKind::Let(let_statement) => {
+            StatementKind::Let(let_statement) => {
                 self.find_in_let_statement(let_statement, true);
             }
-            noirc_frontend::ast::StatementKind::Constrain(constrain_statement) => {
+            StatementKind::Constrain(constrain_statement) => {
                 self.find_in_constrain_statement(constrain_statement);
             }
-            noirc_frontend::ast::StatementKind::Expression(expression) => {
+            StatementKind::Expression(expression) => {
                 self.find_in_expression(expression);
             }
-            noirc_frontend::ast::StatementKind::Assign(assign_statement) => {
+            StatementKind::Assign(assign_statement) => {
                 self.find_in_assign_statement(assign_statement);
             }
-            noirc_frontend::ast::StatementKind::For(for_loop_statement) => {
+            StatementKind::For(for_loop_statement) => {
                 self.find_in_for_loop_statement(for_loop_statement);
             }
-            noirc_frontend::ast::StatementKind::Comptime(statement) => {
+            StatementKind::Comptime(statement) => {
                 // When entering a comptime block, regular local variables shouldn't be offered anymore
                 let old_local_variables = self.local_variables.clone();
                 self.local_variables.clear();
@@ -332,12 +333,10 @@ impl<'a> NodeFinder<'a> {
 
                 self.local_variables = old_local_variables;
             }
-            noirc_frontend::ast::StatementKind::Semi(expression) => {
+            StatementKind::Semi(expression) => {
                 self.find_in_expression(expression);
             }
-            noirc_frontend::ast::StatementKind::Break
-            | noirc_frontend::ast::StatementKind::Continue
-            | noirc_frontend::ast::StatementKind::Error => (),
+            StatementKind::Break | StatementKind::Continue | StatementKind::Error => (),
         }
     }
 
@@ -390,51 +389,51 @@ impl<'a> NodeFinder<'a> {
 
     fn find_in_expression(&mut self, expression: &Expression) {
         match &expression.kind {
-            noirc_frontend::ast::ExpressionKind::Literal(literal) => self.find_in_literal(literal),
-            noirc_frontend::ast::ExpressionKind::Block(block_expression) => {
+            ExpressionKind::Literal(literal) => self.find_in_literal(literal),
+            ExpressionKind::Block(block_expression) => {
                 self.find_in_block_expression(block_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Prefix(prefix_expression) => {
+            ExpressionKind::Prefix(prefix_expression) => {
                 self.find_in_expression(&prefix_expression.rhs);
             }
-            noirc_frontend::ast::ExpressionKind::Index(index_expression) => {
+            ExpressionKind::Index(index_expression) => {
                 self.find_in_index_expression(index_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Call(call_expression) => {
+            ExpressionKind::Call(call_expression) => {
                 self.find_in_call_expression(call_expression);
             }
-            noirc_frontend::ast::ExpressionKind::MethodCall(method_call_expression) => {
+            ExpressionKind::MethodCall(method_call_expression) => {
                 self.find_in_method_call_expression(method_call_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Constructor(constructor_expression) => {
+            ExpressionKind::Constructor(constructor_expression) => {
                 self.find_in_constructor_expression(constructor_expression);
             }
-            noirc_frontend::ast::ExpressionKind::MemberAccess(member_access_expression) => {
+            ExpressionKind::MemberAccess(member_access_expression) => {
                 self.find_in_member_access_expression(member_access_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Cast(cast_expression) => {
+            ExpressionKind::Cast(cast_expression) => {
                 self.find_in_cast_expression(cast_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Infix(infix_expression) => {
+            ExpressionKind::Infix(infix_expression) => {
                 self.find_in_infix_expression(infix_expression);
             }
-            noirc_frontend::ast::ExpressionKind::If(if_expression) => {
+            ExpressionKind::If(if_expression) => {
                 self.find_in_if_expression(if_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Variable(path) => {
+            ExpressionKind::Variable(path) => {
                 self.find_in_path(path, RequestedItems::AnyItems);
             }
-            noirc_frontend::ast::ExpressionKind::Tuple(expressions) => {
+            ExpressionKind::Tuple(expressions) => {
                 self.find_in_expressions(expressions);
             }
-            noirc_frontend::ast::ExpressionKind::Lambda(lambda) => self.find_in_lambda(lambda),
-            noirc_frontend::ast::ExpressionKind::Parenthesized(expression) => {
+            ExpressionKind::Lambda(lambda) => self.find_in_lambda(lambda),
+            ExpressionKind::Parenthesized(expression) => {
                 self.find_in_expression(expression);
             }
-            noirc_frontend::ast::ExpressionKind::Unquote(expression) => {
+            ExpressionKind::Unquote(expression) => {
                 self.find_in_expression(expression);
             }
-            noirc_frontend::ast::ExpressionKind::Comptime(block_expression, _) => {
+            ExpressionKind::Comptime(block_expression, _) => {
                 // When entering a comptime block, regular local variables shouldn't be offered anymore
                 let old_local_variables = self.local_variables.clone();
                 self.local_variables.clear();
@@ -443,15 +442,13 @@ impl<'a> NodeFinder<'a> {
 
                 self.local_variables = old_local_variables;
             }
-            noirc_frontend::ast::ExpressionKind::Unsafe(block_expression, _) => {
+            ExpressionKind::Unsafe(block_expression, _) => {
                 self.find_in_block_expression(block_expression);
             }
-            noirc_frontend::ast::ExpressionKind::AsTraitPath(as_trait_path) => {
+            ExpressionKind::AsTraitPath(as_trait_path) => {
                 self.find_in_as_trait_path(as_trait_path);
             }
-            noirc_frontend::ast::ExpressionKind::Quote(_)
-            | noirc_frontend::ast::ExpressionKind::Resolved(_)
-            | noirc_frontend::ast::ExpressionKind::Error => (),
+            ExpressionKind::Quote(_) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
         }
 
         // "foo." (no identifier afterwards) is parsed as the expression on the left hand-side of the dot.
@@ -541,48 +538,48 @@ impl<'a> NodeFinder<'a> {
         }
 
         match &unresolved_type.typ {
-            noirc_frontend::ast::UnresolvedTypeData::Array(_, unresolved_type) => {
+            UnresolvedTypeData::Array(_, unresolved_type) => {
                 self.find_in_unresolved_type(unresolved_type);
             }
-            noirc_frontend::ast::UnresolvedTypeData::Slice(unresolved_type) => {
+            UnresolvedTypeData::Slice(unresolved_type) => {
                 self.find_in_unresolved_type(unresolved_type);
             }
-            noirc_frontend::ast::UnresolvedTypeData::Parenthesized(unresolved_type) => {
+            UnresolvedTypeData::Parenthesized(unresolved_type) => {
                 self.find_in_unresolved_type(unresolved_type);
             }
-            noirc_frontend::ast::UnresolvedTypeData::Named(path, unresolved_types, _) => {
+            UnresolvedTypeData::Named(path, unresolved_types, _) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
                 self.find_in_unresolved_types(unresolved_types);
             }
-            noirc_frontend::ast::UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
+            UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
                 self.find_in_unresolved_types(unresolved_types);
             }
-            noirc_frontend::ast::UnresolvedTypeData::MutableReference(unresolved_type) => {
+            UnresolvedTypeData::MutableReference(unresolved_type) => {
                 self.find_in_unresolved_type(unresolved_type);
             }
-            noirc_frontend::ast::UnresolvedTypeData::Tuple(unresolved_types) => {
+            UnresolvedTypeData::Tuple(unresolved_types) => {
                 self.find_in_unresolved_types(unresolved_types);
             }
-            noirc_frontend::ast::UnresolvedTypeData::Function(args, ret, env, _) => {
+            UnresolvedTypeData::Function(args, ret, env, _) => {
                 self.find_in_unresolved_types(args);
                 self.find_in_unresolved_type(ret);
                 self.find_in_unresolved_type(env);
             }
-            noirc_frontend::ast::UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+            UnresolvedTypeData::AsTraitPath(as_trait_path) => {
                 self.find_in_as_trait_path(as_trait_path);
             }
-            noirc_frontend::ast::UnresolvedTypeData::Expression(_)
-            | noirc_frontend::ast::UnresolvedTypeData::FormatString(_, _)
-            | noirc_frontend::ast::UnresolvedTypeData::String(_)
-            | noirc_frontend::ast::UnresolvedTypeData::Unspecified
-            | noirc_frontend::ast::UnresolvedTypeData::Quoted(_)
-            | noirc_frontend::ast::UnresolvedTypeData::FieldElement
-            | noirc_frontend::ast::UnresolvedTypeData::Integer(_, _)
-            | noirc_frontend::ast::UnresolvedTypeData::Bool
-            | noirc_frontend::ast::UnresolvedTypeData::Unit
-            | noirc_frontend::ast::UnresolvedTypeData::Resolved(_)
-            | noirc_frontend::ast::UnresolvedTypeData::Error => (),
+            UnresolvedTypeData::Expression(_)
+            | UnresolvedTypeData::FormatString(_, _)
+            | UnresolvedTypeData::String(_)
+            | UnresolvedTypeData::Unspecified
+            | UnresolvedTypeData::Quoted(_)
+            | UnresolvedTypeData::FieldElement
+            | UnresolvedTypeData::Integer(_, _)
+            | UnresolvedTypeData::Bool
+            | UnresolvedTypeData::Unit
+            | UnresolvedTypeData::Resolved(_)
+            | UnresolvedTypeData::Error => (),
         }
     }
 

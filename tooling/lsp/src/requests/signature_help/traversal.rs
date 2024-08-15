@@ -4,10 +4,11 @@ use super::SignatureFinder;
 
 use noirc_frontend::{
     ast::{
-        ArrayLiteral, BlockExpression, CastExpression, ConstrainStatement, ConstructorExpression,
-        Expression, ForLoopStatement, ForRange, IfExpression, IndexExpression, InfixExpression,
-        LValue, Lambda, LetStatement, Literal, MemberAccessExpression, NoirFunction, NoirTrait,
-        NoirTraitImpl, Statement, TraitImplItem, TraitItem, TypeImpl,
+        ArrayLiteral, AssignStatement, BlockExpression, CastExpression, ConstrainStatement,
+        ConstructorExpression, Expression, ExpressionKind, ForLoopStatement, ForRange,
+        IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
+        MemberAccessExpression, NoirFunction, NoirTrait, NoirTraitImpl, Statement, StatementKind,
+        TraitImplItem, TraitItem, TypeImpl,
     },
     parser::{Item, ItemKind},
     ParsedModule,
@@ -103,30 +104,28 @@ impl<'a> SignatureFinder<'a> {
         }
 
         match &statement.kind {
-            noirc_frontend::ast::StatementKind::Let(let_statement) => {
+            StatementKind::Let(let_statement) => {
                 self.find_in_let_statement(let_statement);
             }
-            noirc_frontend::ast::StatementKind::Constrain(constrain_statement) => {
+            StatementKind::Constrain(constrain_statement) => {
                 self.find_in_constrain_statement(constrain_statement);
             }
-            noirc_frontend::ast::StatementKind::Expression(expression) => {
+            StatementKind::Expression(expression) => {
                 self.find_in_expression(expression);
             }
-            noirc_frontend::ast::StatementKind::Assign(assign_statement) => {
+            StatementKind::Assign(assign_statement) => {
                 self.find_in_assign_statement(assign_statement);
             }
-            noirc_frontend::ast::StatementKind::For(for_loop_statement) => {
+            StatementKind::For(for_loop_statement) => {
                 self.find_in_for_loop_statement(for_loop_statement);
             }
-            noirc_frontend::ast::StatementKind::Comptime(statement) => {
+            StatementKind::Comptime(statement) => {
                 self.find_in_statement(statement);
             }
-            noirc_frontend::ast::StatementKind::Semi(expression) => {
+            StatementKind::Semi(expression) => {
                 self.find_in_expression(expression);
             }
-            noirc_frontend::ast::StatementKind::Break
-            | noirc_frontend::ast::StatementKind::Continue
-            | noirc_frontend::ast::StatementKind::Error => (),
+            StatementKind::Break | StatementKind::Continue | StatementKind::Error => (),
         }
     }
 
@@ -142,10 +141,7 @@ impl<'a> SignatureFinder<'a> {
         }
     }
 
-    pub(super) fn find_in_assign_statement(
-        &mut self,
-        assign_statement: &noirc_frontend::ast::AssignStatement,
-    ) {
+    pub(super) fn find_in_assign_statement(&mut self, assign_statement: &AssignStatement) {
         self.find_in_lvalue(&assign_statement.lvalue);
         self.find_in_expression(&assign_statement.expression);
     }
@@ -185,58 +181,58 @@ impl<'a> SignatureFinder<'a> {
 
     pub(super) fn find_in_expression(&mut self, expression: &Expression) {
         match &expression.kind {
-            noirc_frontend::ast::ExpressionKind::Literal(literal) => self.find_in_literal(literal),
-            noirc_frontend::ast::ExpressionKind::Block(block_expression) => {
+            ExpressionKind::Literal(literal) => self.find_in_literal(literal),
+            ExpressionKind::Block(block_expression) => {
                 self.find_in_block_expression(block_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Prefix(prefix_expression) => {
+            ExpressionKind::Prefix(prefix_expression) => {
                 self.find_in_expression(&prefix_expression.rhs);
             }
-            noirc_frontend::ast::ExpressionKind::Index(index_expression) => {
+            ExpressionKind::Index(index_expression) => {
                 self.find_in_index_expression(index_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Call(call_expression) => {
+            ExpressionKind::Call(call_expression) => {
                 self.find_in_call_expression(call_expression, expression.span);
             }
-            noirc_frontend::ast::ExpressionKind::MethodCall(method_call_expression) => {
+            ExpressionKind::MethodCall(method_call_expression) => {
                 self.find_in_method_call_expression(method_call_expression, expression.span);
             }
-            noirc_frontend::ast::ExpressionKind::Constructor(constructor_expression) => {
+            ExpressionKind::Constructor(constructor_expression) => {
                 self.find_in_constructor_expression(constructor_expression);
             }
-            noirc_frontend::ast::ExpressionKind::MemberAccess(member_access_expression) => {
+            ExpressionKind::MemberAccess(member_access_expression) => {
                 self.find_in_member_access_expression(member_access_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Cast(cast_expression) => {
+            ExpressionKind::Cast(cast_expression) => {
                 self.find_in_cast_expression(cast_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Infix(infix_expression) => {
+            ExpressionKind::Infix(infix_expression) => {
                 self.find_in_infix_expression(infix_expression);
             }
-            noirc_frontend::ast::ExpressionKind::If(if_expression) => {
+            ExpressionKind::If(if_expression) => {
                 self.find_in_if_expression(if_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Tuple(expressions) => {
+            ExpressionKind::Tuple(expressions) => {
                 self.find_in_expressions(expressions);
             }
-            noirc_frontend::ast::ExpressionKind::Lambda(lambda) => self.find_in_lambda(lambda),
-            noirc_frontend::ast::ExpressionKind::Parenthesized(expression) => {
+            ExpressionKind::Lambda(lambda) => self.find_in_lambda(lambda),
+            ExpressionKind::Parenthesized(expression) => {
                 self.find_in_expression(expression);
             }
-            noirc_frontend::ast::ExpressionKind::Unquote(expression) => {
+            ExpressionKind::Unquote(expression) => {
                 self.find_in_expression(expression);
             }
-            noirc_frontend::ast::ExpressionKind::Comptime(block_expression, _) => {
+            ExpressionKind::Comptime(block_expression, _) => {
                 self.find_in_block_expression(block_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Unsafe(block_expression, _) => {
+            ExpressionKind::Unsafe(block_expression, _) => {
                 self.find_in_block_expression(block_expression);
             }
-            noirc_frontend::ast::ExpressionKind::Variable(_)
-            | noirc_frontend::ast::ExpressionKind::AsTraitPath(_)
-            | noirc_frontend::ast::ExpressionKind::Quote(_)
-            | noirc_frontend::ast::ExpressionKind::Resolved(_)
-            | noirc_frontend::ast::ExpressionKind::Error => (),
+            ExpressionKind::Variable(_)
+            | ExpressionKind::AsTraitPath(_)
+            | ExpressionKind::Quote(_)
+            | ExpressionKind::Resolved(_)
+            | ExpressionKind::Error => (),
         }
     }
 
