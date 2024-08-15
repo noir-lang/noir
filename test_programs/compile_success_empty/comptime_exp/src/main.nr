@@ -27,5 +27,12 @@ fn main() {
         // Check parenthesized expression is automatically unwrapped
         let expr = quote { ((if 1 { 2 })) }.as_expr().unwrap();
         assert(expr.as_if().is_some());
+
+        // Check Expr::as_bool
+        let expr = quote { false }.as_expr().unwrap();
+        assert(expr.as_bool().unwrap() == false);
+
+        let expr = quote { true }.as_expr().unwrap();
+        assert_eq(expr.as_bool().unwrap(), true);
     }
 }
