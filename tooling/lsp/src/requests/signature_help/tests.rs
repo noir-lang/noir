@@ -76,7 +76,7 @@ mod signature_help_tests {
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
-        assert_eq!(signature.label, "foo(x: i32, y: Field) -> u32");
+        assert_eq!(signature.label, "fn foo(x: i32, y: Field) -> u32");
 
         let params = signature.parameters.as_ref().unwrap();
         assert_eq!(params.len(), 2);
@@ -158,7 +158,7 @@ mod signature_help_tests {
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
-        assert_eq!(signature.label, "foo(self, x: i32, y: Field) -> u32");
+        assert_eq!(signature.label, "fn foo(self, x: i32, y: Field) -> u32");
 
         let params = signature.parameters.as_ref().unwrap();
         assert_eq!(params.len(), 2);

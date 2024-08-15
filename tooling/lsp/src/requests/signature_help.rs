@@ -171,6 +171,7 @@ impl<'a> SignatureFinder<'a> {
         let mut label = String::new();
         let mut parameters = Vec::new();
 
+        label.push_str("fn ");
         label.push_str(name);
         label.push('(');
         for (index, (pattern, typ, _)) in func_meta.parameters.0.iter().enumerate() {
