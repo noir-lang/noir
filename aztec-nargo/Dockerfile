@@ -1,8 +1,8 @@
 # to get built nargo binary
-FROM aztecprotocol/noir as built-noir
+FROM aztecprotocol/noir AS built-noir
 
 # to get built avm-transpiler binary
-FROM aztecprotocol/avm-transpiler as built-transpiler
+FROM aztecprotocol/avm-transpiler AS built-transpiler
 
 
 FROM ubuntu:noble
