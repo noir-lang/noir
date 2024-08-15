@@ -48,6 +48,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
+            "expr_as_parenthesized" => expr_as_parenthesized(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
@@ -765,6 +766,21 @@ fn expr_as_function_call(
             let arguments =
                 Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
             Some(Value::Tuple(vec![function, arguments]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_parentehsized(self) -> Option<Expr>
+fn expr_as_parenthesized(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Parenthesized(expr) = expr {
+            Some(Value::Expr(expr.kind))
         } else {
             None
         }
