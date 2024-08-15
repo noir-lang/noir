@@ -209,6 +209,7 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
             .proof = proof_indices,
             .public_inputs = inner_public_inputs,
             .key_hash = key_hash_start_idx,
+            .proof_type = PLONK_RECURSION,
         };
         recursion_constraints.push_back(recursion_constraint);
 

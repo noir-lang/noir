@@ -94,7 +94,7 @@ struct AcirFormat {
     std::vector<MultiScalarMul> multi_scalar_mul_constraints;
     std::vector<EcAdd> ec_add_constraints;
     std::vector<RecursionConstraint> recursion_constraints;
-    std::vector<HonkRecursionConstraint> honk_recursion_constraints;
+    std::vector<RecursionConstraint> honk_recursion_constraints;
     std::vector<BigIntFromLeBytes> bigint_from_le_bytes_constraints;
     std::vector<BigIntToLeBytes> bigint_to_le_bytes_constraints;
     std::vector<BigIntOperation> bigint_operations;
@@ -203,5 +203,50 @@ void build_constraints(
     bool collect_gates_per_opcode = false); // honk_recursion means we will honk to recursively verify this
                                             // circuit. This distinction is needed to not add the default
                                             // aggregation object when we're not using the honk RV.
+
+/**
+ * @brief Utility class for tracking the gate count of acir constraints
+ *
+ */
+template <typename Builder> class GateCounter {
+  public:
+    GateCounter(Builder* builder, bool collect_gates_per_opcode)
+        : builder(builder)
+        , collect_gates_per_opcode(collect_gates_per_opcode)
+    {}
+
+    size_t compute_diff()
+    {
+        if (!collect_gates_per_opcode) {
+            return 0;
+        }
+        size_t new_gate_count = builder->get_num_gates();
+        size_t diff = new_gate_count - prev_gate_count;
+        prev_gate_count = new_gate_count;
+        return diff;
+    }
+
+    void track_diff(std::vector<size_t>& gates_per_opcode, size_t opcode_index)
+    {
+        if (collect_gates_per_opcode) {
+            gates_per_opcode[opcode_index] = compute_diff();
+        }
+    }
+
+  private:
+    Builder* builder;
+    bool collect_gates_per_opcode;
+    size_t prev_gate_count{};
+};
+
+void process_plonk_recursion_constraints(Builder& builder,
+                                         AcirFormat& constraint_system,
+                                         bool has_valid_witness_assignments,
+                                         GateCounter<Builder>& gate_counter);
+void process_honk_recursion_constraints(Builder& builder,
+                                        AcirFormat& constraint_system,
+                                        bool has_valid_witness_assignments,
+                                        bool honk_recursion,
+                                        GateCounter<Builder>& gate_counter);
 
 } // namespace acir_format

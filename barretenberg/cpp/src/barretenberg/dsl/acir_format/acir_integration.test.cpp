@@ -543,4 +543,26 @@ TEST_F(AcirIntegrationTest, DISABLED_UpdateAcirCircuit)
     EXPECT_TRUE(prove_and_verify_honk<Flavor>(circuit));
 }
 
+/**
+ * @brief Test recursive honk recursive verification
+ *
+ */
+TEST_F(AcirIntegrationTest, DISABLED_HonkRecursion)
+{
+    using Flavor = UltraFlavor;
+    using Builder = Flavor::CircuitBuilder;
+
+    std::string test_name = "verify_honk_proof"; // arbitrary program with RAM gates
+    // Note: honk_recursion set to false here because the selection of the honk recursive verifier is indicated by the
+    // proof_type field of the constraint generated from noir.
+    auto acir_program = get_program_data_from_test_file(test_name,
+                                                        /*honk_recursion=*/false);
+
+    // Construct a bberg circuit from the acir representation
+    auto circuit = acir_format::create_circuit<Builder>(acir_program.constraints, 0, acir_program.witness);
+
+    EXPECT_TRUE(CircuitChecker::check(circuit));
+    EXPECT_TRUE(prove_and_verify_honk<Flavor>(circuit));
+}
+
 #endif

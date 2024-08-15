@@ -48,7 +48,6 @@ UltraRecursiveVerifier_<Flavor>::AggregationObject UltraRecursiveVerifier_<Flavo
     using RelationParams = ::bb::RelationParameters<FF>;
     using Transcript = typename Flavor::Transcript;
 
-    info("in honk recursive verifier");
     transcript = std::make_shared<Transcript>(proof);
 
     RelationParams relation_parameters;

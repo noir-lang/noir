@@ -933,6 +933,7 @@ namespace Program {
             std::vector<Program::FunctionInput> proof;
             std::vector<Program::FunctionInput> public_inputs;
             Program::FunctionInput key_hash;
+            uint32_t proof_type;
 
             friend bool operator==(const RecursiveAggregation&, const RecursiveAggregation&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -3149,6 +3150,7 @@ namespace Program {
         if (!(lhs.proof == rhs.proof)) { return false; }
         if (!(lhs.public_inputs == rhs.public_inputs)) { return false; }
         if (!(lhs.key_hash == rhs.key_hash)) { return false; }
+        if (!(lhs.proof_type == rhs.proof_type)) { return false; }
         return true;
     }
 
@@ -3176,6 +3178,7 @@ void serde::Serializable<Program::BlackBoxFuncCall::RecursiveAggregation>::seria
     serde::Serializable<decltype(obj.proof)>::serialize(obj.proof, serializer);
     serde::Serializable<decltype(obj.public_inputs)>::serialize(obj.public_inputs, serializer);
     serde::Serializable<decltype(obj.key_hash)>::serialize(obj.key_hash, serializer);
+    serde::Serializable<decltype(obj.proof_type)>::serialize(obj.proof_type, serializer);
 }
 
 template <>
@@ -3186,6 +3189,7 @@ Program::BlackBoxFuncCall::RecursiveAggregation serde::Deserializable<Program::B
     obj.proof = serde::Deserializable<decltype(obj.proof)>::deserialize(deserializer);
     obj.public_inputs = serde::Deserializable<decltype(obj.public_inputs)>::deserialize(deserializer);
     obj.key_hash = serde::Deserializable<decltype(obj.key_hash)>::deserialize(deserializer);
+    obj.proof_type = serde::Deserializable<decltype(obj.proof_type)>::deserialize(deserializer);
     return obj;
 }
 

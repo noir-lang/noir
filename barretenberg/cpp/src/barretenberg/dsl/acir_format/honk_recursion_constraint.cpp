@@ -27,7 +27,7 @@ using aggregation_state_ct = bb::stdlib::recursion::aggregation_state<bn254>;
  * @param proof_fields
  */
 void create_dummy_vkey_and_proof(Builder& builder,
-                                 const HonkRecursionConstraint& input,
+                                 const RecursionConstraint& input,
                                  std::vector<field_ct>& key_fields,
                                  std::vector<field_ct>& proof_fields)
 {
@@ -36,16 +36,15 @@ void create_dummy_vkey_and_proof(Builder& builder,
     // Set vkey->circuit_size correctly based on the proof size
     size_t num_frs_comm = bb::field_conversion::calc_num_bn254_frs<UltraFlavor::Commitment>();
     size_t num_frs_fr = bb::field_conversion::calc_num_bn254_frs<UltraFlavor::FF>();
-    assert((input.proof.size() - HonkRecursionConstraint::inner_public_input_offset -
-            UltraFlavor::NUM_WITNESS_ENTITIES * num_frs_comm - UltraFlavor::NUM_ALL_ENTITIES * num_frs_fr -
-            2 * num_frs_comm) %
+    assert((input.proof.size() - HONK_RECURSION_PUBLIC_INPUT_OFFSET - UltraFlavor::NUM_WITNESS_ENTITIES * num_frs_comm -
+            UltraFlavor::NUM_ALL_ENTITIES * num_frs_fr - 2 * num_frs_comm) %
                (num_frs_comm + num_frs_fr * UltraFlavor::BATCHED_RELATION_PARTIAL_LENGTH) ==
            0);
     // Note: this computation should always result in log_circuit_size = CONST_PROOF_SIZE_LOG_N
-    auto log_circuit_size = (input.proof.size() - HonkRecursionConstraint::inner_public_input_offset -
-                             UltraFlavor::NUM_WITNESS_ENTITIES * num_frs_comm -
-                             UltraFlavor::NUM_ALL_ENTITIES * num_frs_fr - 2 * num_frs_comm) /
-                            (num_frs_comm + num_frs_fr * UltraFlavor::BATCHED_RELATION_PARTIAL_LENGTH);
+    auto log_circuit_size =
+        (input.proof.size() - HONK_RECURSION_PUBLIC_INPUT_OFFSET - UltraFlavor::NUM_WITNESS_ENTITIES * num_frs_comm -
+         UltraFlavor::NUM_ALL_ENTITIES * num_frs_fr - 2 * num_frs_comm) /
+        (num_frs_comm + num_frs_fr * UltraFlavor::BATCHED_RELATION_PARTIAL_LENGTH);
     // First key field is circuit size
     builder.assert_equal(builder.add_variable(1 << log_circuit_size), key_fields[0].witness_index);
     // Second key field is number of public inputs
@@ -73,7 +72,7 @@ void create_dummy_vkey_and_proof(Builder& builder,
         offset += 4;
     }
 
-    offset = HonkRecursionConstraint::inner_public_input_offset;
+    offset = HONK_RECURSION_PUBLIC_INPUT_OFFSET;
     // first 3 things
     builder.assert_equal(builder.add_variable(1 << log_circuit_size), proof_fields[0].witness_index);
     builder.assert_equal(builder.add_variable(input.public_inputs.size()), proof_fields[1].witness_index);
@@ -151,13 +150,15 @@ void create_dummy_vkey_and_proof(Builder& builder,
  *       or we need non-witness data to be provided as metadata in the ACIR opcode
  */
 AggregationObjectIndices create_honk_recursion_constraints(Builder& builder,
-                                                           const HonkRecursionConstraint& input,
+                                                           const RecursionConstraint& input,
                                                            AggregationObjectIndices input_aggregation_object_indices,
                                                            bool has_valid_witness_assignments)
 {
     using Flavor = UltraRecursiveFlavor_<Builder>;
     using RecursiveVerificationKey = Flavor::VerificationKey;
     using RecursiveVerifier = bb::stdlib::recursion::honk::UltraRecursiveVerifier_<Flavor>;
+
+    ASSERT(input.proof_type == HONK_RECURSION);
 
     // Construct an in-circuit representation of the verification key.
     // For now, the v-key is a circuit constant and is fixed for the circuit.
@@ -179,7 +180,7 @@ AggregationObjectIndices create_honk_recursion_constraints(Builder& builder,
         auto field = field_ct::from_witness_index(&builder, idx);
         proof_fields.emplace_back(field);
         i++;
-        if (i == HonkRecursionConstraint::inner_public_input_offset) {
+        if (i == HONK_RECURSION_PUBLIC_INPUT_OFFSET) {
             for (const auto& idx : input.public_inputs) {
                 auto field = field_ct::from_witness_index(&builder, idx);
                 proof_fields.emplace_back(field);
