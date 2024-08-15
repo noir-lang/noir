@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, rc::Rc};
+use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
 
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
@@ -32,8 +32,8 @@ use crate::{
         SecondaryAttribute, Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TraitImplId,
-        TraitImplKind, TraitMethodId,
+        DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TraitImplKind,
+        TraitMethodId,
     },
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
@@ -470,35 +470,20 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
-        // TODO! Need to resolve typ, this should be a trait constraint not just a lookup
-        if path.trait_path.segments.len() == 1 && path.trait_path.first_name() == SELF_TYPE_NAME {
-            if let Some(impl_id) = self.current_trait_impl {
-                self.get_associated_type_from_trait_impl(path, impl_id)
-            } else if let Some(trait_id) = self.current_trait {
-                self.get_associated_type_from_trait(trait_id, &path.impl_item)
-            } else {
-                todo!("No Self in scope error");
-            }
-        } else {
-            let Some(trait_id) = self.resolve_trait_by_path(path.trait_path) else {
-                // Error should already be pushed in the None case
-                return Type::Error;
-            };
-            self.get_associated_type_from_trait(trait_id, &path.impl_item)
-        }
-    }
+        let span = path.trait_path.span;
+        let Some(trait_id) = self.resolve_trait_by_path(path.trait_path.clone()) else {
+            // Error should already be pushed in the None case
+            return Type::Error;
+        };
 
-    /// Retrieves an associated type with the given name from the given trait.
-    /// If there is no such type, we push an error and return Type::Error.
-    fn get_associated_type_from_trait(&mut self, trait_id: TraitId, name: &Ident) -> Type {
-        let the_trait = self.interner.get_trait(trait_id);
-        match the_trait.get_associated_type(&name.0.contents) {
-            Some(generic) => generic.clone().as_named_generic(),
-            None => {
-                let name = name.clone();
-                let item = the_trait.name.to_string();
-                self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item });
-                Type::Error
+        let (ordered, named) = self.resolve_type_args(path.trait_generics.clone(), trait_id, span);
+        let object_type = self.resolve_type(path.typ.clone());
+
+        match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
+            Ok(impl_kind) => self.get_associated_type_from_trait_impl(path, impl_kind),
+            Err(constraints) => {
+                self.push_trait_constraint_error(constraints, span);
+                return Type::Error;
             }
         }
     }
@@ -506,10 +491,17 @@ impl<'context> Elaborator<'context> {
     fn get_associated_type_from_trait_impl(
         &mut self,
         path: AsTraitPath,
-        impl_id: TraitImplId,
+        impl_kind: TraitImplKind,
     ) -> Type {
-        match self.interner.find_associated_type_for_impl(impl_id, &path.impl_item.0.contents) {
-            Some(generic) => generic.clone(),
+        let associated_types = match impl_kind {
+            TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
+            TraitImplKind::Normal(impl_id) => {
+                Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
+            }
+        };
+
+        match associated_types.iter().find(|named| named.name == path.impl_item) {
+            Some(generic) => generic.typ.clone(),
             None => {
                 let name = path.impl_item.clone();
                 let item = format!("<{} as {}>", path.typ, path.trait_path);
@@ -1582,7 +1574,7 @@ impl<'context> Elaborator<'context> {
         let t = vecmap(trait_generics, |t| format!("{t}")).join(", ");
         let u = vecmap(associated_types, |n| format!("{} = {}", n.name, n.typ)).join(", ");
         if name == "Serialize" {
-            eprintln!("Looking up {object_type}: {name}<{t}><{u}>");
+            eprintln!("Looking up {object_type}: Serialize<{t}><{u}>");
         }
 
         match self.interner.lookup_trait_implementation(
@@ -1597,20 +1589,23 @@ impl<'context> Elaborator<'context> {
                 let u = vecmap(associated_types, |n| format!("{} = {}", n.name, n.typ)).join(", ");
 
                 if name == "Serialize" {
-                    eprintln!("           {object_type}: {name}<{t}><{u}>");
+                    eprintln!("           {object_type}: Serialize<{t}><{u}>");
                 }
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
-            Err(erroring_constraints) => {
-                eprintln!("Pushing error!");
-                if erroring_constraints.is_empty() {
-                    self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
-                } else if let Some(error) =
-                    NoMatchingImplFoundError::new(self.interner, erroring_constraints, span)
-                {
-                    self.push_err(TypeCheckError::NoMatchingImplFound(error));
-                }
+            Err(constraints) => {
+                eprintln!("\n!! Error !!\n");
+                self.push_trait_constraint_error(constraints, span)
             }
+        }
+    }
+
+    fn push_trait_constraint_error(&mut self, constraints: Vec<TraitConstraint>, span: Span) {
+        if constraints.is_empty() {
+            self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+        } else if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
+        {
+            self.push_err(TypeCheckError::NoMatchingImplFound(error));
         }
     }
 

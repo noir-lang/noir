@@ -245,4 +245,28 @@ impl<'context> Elaborator<'context> {
         }
         associated_types
     }
+
+    // Associated types aren't required to be specified in a trait constraint.
+    // If they aren't we have to implicitly add them and introduce a new generic
+    // into scope for them.
+    // pub(super) fn add_implicit_associated_types(&mut self) {
+    //     // Add any associated types that weren't mentioend as implicit generics.
+    //     if let Some(trait_id) = trait_impl.trait_id {
+    //         let the_trait = self.interner.get_trait(trait_id);
+    //         for associated_type in &the_trait.associated_types {
+    //             if !associated_types.iter().any(|typ| typ.0.0.contents == *associated_type.name.as_ref()) {
+    //                 let name = Ident::new(associated_type.name.as_ref().clone(), associated_type.span);
+    //                 let type_var = TypeVariable::unbound(self.interner.next_type_variable_id());
+
+    //                 self.generics.push(ResolvedGeneric {
+    //                     name: associated_type.name.clone(),
+    //                     type_var,
+    //                     kind: associated_type.kind.clone(),
+    //                     span: trait_impl.trait_path.span,
+    //                 });
+    //                 associated_types.push((name, Type::TypeVariable(type_var, TypeVariableKind::Normal)));
+    //             }
+    //         }
+    //     }
+    // }
 }

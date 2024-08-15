@@ -1484,15 +1484,23 @@ impl NodeInterner {
                         let n =
                             vecmap(impl_associated_types, |t| format!("{} = {:?}", t.name, t.typ))
                                 .join(", ");
-                        eprintln!("  ?? {object_type:?}: Serialize<{t}><{n}>");
+                        eprintln!("  ?? {existing_object_type:?}: Serialize<{t}><{n}>");
+                        eprintln!("  Instantiation bindings = {instantiation_bindings:?}");
                     }
                     trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic)| {
-                        let impl_generic = impl_generic.substitute(&instantiation_bindings);
+                        let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
+                        eprintln!("    {:?} =? {:?}", trait_generic, impl_generic);
                         trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
                     }) && trait_associated_types.iter().zip(impl_associated_types).all(
                         |(trait_generic, impl_generic)| {
-                            let impl_generic = impl_generic.typ.substitute(&instantiation_bindings);
-                            trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
+                            let impl_generic2 =
+                                impl_generic.typ.force_substitute(&instantiation_bindings);
+                            eprintln!(
+                                "    {:?} substituted is {:?}",
+                                impl_generic.typ, impl_generic2
+                            );
+                            eprintln!("    {:?} =? {:?}", trait_generic.typ, impl_generic2);
+                            trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
                         },
                     )
                 };
@@ -1659,7 +1667,7 @@ impl NodeInterner {
         let instantiated_object_type = object_type.substitute(&substitutions);
 
         let trait_generics = &trait_impl.borrow().trait_generics;
-        let associated_types = dbg!(self.get_associated_types_for_impl(impl_id));
+        let associated_types = self.get_associated_types_for_impl(impl_id);
 
         // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
         // It should never happen since impls are defined at global scope, but even
@@ -2100,6 +2108,7 @@ impl NodeInterner {
 
         for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
             let type_variable = trait_type.type_var.clone();
+            eprintln!("Adding binding {:?} := {:?}", type_variable.id(), impl_type.typ);
             bindings.insert(type_variable.id(), (type_variable, impl_type.typ.clone()));
         }
 

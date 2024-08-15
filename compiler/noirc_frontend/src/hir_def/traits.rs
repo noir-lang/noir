@@ -123,6 +123,10 @@ impl TraitConstraint {
         for typ in &mut self.trait_generics {
             *typ = typ.substitute(type_bindings);
         }
+
+        for named in &mut self.associated_types {
+            named.typ = named.typ.substitute(type_bindings);
+        }
     }
 }
 

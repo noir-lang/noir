@@ -1379,7 +1379,7 @@ impl<'context> Elaborator<'context> {
                 .unwrap_or_default();
 
             trait_impl.resolved_trait_generics = ordered_generics;
-            self.interner.set_associated_types_for_impl(impl_id, dbg!(named_generics));
+            self.interner.set_associated_types_for_impl(impl_id, named_generics);
 
             let self_type = self.resolve_type(unresolved_type);
             self.self_type = Some(self_type.clone());

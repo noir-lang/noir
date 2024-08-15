@@ -618,6 +618,13 @@ impl<'context> Elaborator<'context> {
             _ => 0,
         });
 
+        if matches!(t, Type::Forall(..)) {
+            if let Some(d) = definition {
+                let n = &d.name;
+                eprintln!("{n}: {t:?}");
+            }
+        }
+
         let span = self.interner.expr_span(&expr_id);
         let location = self.interner.expr_location(&expr_id);
 
