@@ -48,6 +48,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
+            "expr_as_index" => expr_as_index(arguments, return_type, location),
             "expr_as_parenthesized" => expr_as_parenthesized(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
@@ -766,6 +767,24 @@ fn expr_as_function_call(
             let arguments =
                 Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
             Some(Value::Tuple(vec![function, arguments]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_index(self) -> Option<Expr>
+fn expr_as_index(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Index(index_expr) = expr {
+            Some(Value::Tuple(vec![
+                Value::Expr(index_expr.collection.kind),
+                Value::Expr(index_expr.index.kind),
+            ]))
         } else {
             None
         }

@@ -4,6 +4,9 @@ impl Expr {
     #[builtin(expr_as_function_call)]
     fn as_function_call(self) -> Option<(Expr, [Expr])> {}
 
+    #[builtin(expr_as_index)]
+    fn as_index(self) -> Option<(Expr, Expr)> {}
+
     #[builtin(expr_as_parenthesized)]
     fn as_parenthesized(self) -> Option<Expr> {}
 

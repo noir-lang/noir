@@ -6,6 +6,10 @@ fn main() {
         let (_function, args) = expr.as_function_call().unwrap();
         assert_eq(args.len(), 1);
 
+        // Check Expr::as_index
+        let expr = quote { foo[bar] }.as_expr().unwrap();
+        let _ = expr.as_index().unwrap();
+
         // Check Expr::as_parenthesized
         let expr = quote { (1) }.as_expr().unwrap();
         let _ = expr.as_parenthesized().unwrap();
