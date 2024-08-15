@@ -48,6 +48,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
+            "expr_as_if" => expr_as_if(arguments, return_type, location),
             "expr_as_index" => expr_as_index(arguments, return_type, location),
             "expr_as_parenthesized" => expr_as_parenthesized(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
@@ -767,6 +768,36 @@ fn expr_as_function_call(
             let arguments =
                 Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
             Some(Value::Tuple(vec![function, arguments]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_if(self) -> Option<(Expr, Expr, Option<Expr>)>
+fn expr_as_if(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type.clone(), location, |expr| {
+        if let ExpressionKind::If(if_expr) = expr {
+            // Get the type of `Option<Expr>`
+            let option_type = extract_option_generic_type(return_type.clone());
+            let Type::Tuple(option_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(option_types.len(), 3);
+            let alternative_option_type = option_types[2].clone();
+
+            let alternative =
+                option(alternative_option_type, if_expr.alternative.map(|e| Value::Expr(e.kind)));
+
+            Some(Value::Tuple(vec![
+                Value::Expr(if_expr.condition.kind),
+                Value::Expr(if_expr.consequence.kind),
+                alternative.ok()?,
+            ]))
         } else {
             None
         }

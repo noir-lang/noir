@@ -18,5 +18,14 @@ fn main() {
         let expr = quote { (1, 2) }.as_expr().unwrap();
         let tuple_exprs = expr.as_tuple().unwrap();
         assert_eq(tuple_exprs.len(), 2);
+
+        // Check Expr::as_if
+        let expr = quote { if 1 { 2 } }.as_expr().unwrap();
+        let (_condition, _consequence, alternative) = expr.as_if().unwrap();
+        assert(alternative.is_none());
+
+        let expr = quote { if 1 { 2 } else { 3 } }.as_expr().unwrap();
+        let (_condition, _consequence, alternative) = expr.as_if().unwrap();
+        assert(alternative.is_some());
     }
 }
