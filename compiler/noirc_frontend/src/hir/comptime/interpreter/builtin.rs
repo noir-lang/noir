@@ -50,7 +50,6 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
             "expr_as_index" => expr_as_index(arguments, return_type, location),
-            "expr_as_parenthesized" => expr_as_parenthesized(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
@@ -822,21 +821,6 @@ fn expr_as_index(
     })
 }
 
-// fn as_parentehsized(self) -> Option<Expr>
-fn expr_as_parenthesized(
-    arguments: Vec<(Value, Location)>,
-    return_type: Type,
-    location: Location,
-) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Parenthesized(expr) = expr {
-            Some(Value::Expr(expr.kind))
-        } else {
-            None
-        }
-    })
-}
-
 // fn as_tuple(self) -> Option<[Expr]>
 fn expr_as_tuple(
     arguments: Vec<(Value, Location)>,
@@ -865,8 +849,12 @@ where
     F: FnOnce(ExpressionKind) -> Option<Value>,
 {
     let self_argument = check_one_argument(arguments, location)?;
-    let expr = get_expr(self_argument)?;
-    let option_value = f(expr);
+    let mut expression_kind = get_expr(self_argument)?;
+    while let ExpressionKind::Parenthesized(expression) = expression_kind {
+        expression_kind = expression.kind;
+    }
+
+    let option_value = f(expression_kind);
     option(return_type, option_value)
 }
 

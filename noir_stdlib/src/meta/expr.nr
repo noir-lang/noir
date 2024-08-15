@@ -10,9 +10,6 @@ impl Expr {
     #[builtin(expr_as_index)]
     fn as_index(self) -> Option<(Expr, Expr)> {}
 
-    #[builtin(expr_as_parenthesized)]
-    fn as_parenthesized(self) -> Option<Expr> {}
-
     #[builtin(expr_as_tuple)]
     fn as_tuple(self) -> Option<[Expr]> {}
 }

@@ -10,10 +10,6 @@ fn main() {
         let expr = quote { foo[bar] }.as_expr().unwrap();
         let _ = expr.as_index().unwrap();
 
-        // Check Expr::as_parenthesized
-        let expr = quote { (1) }.as_expr().unwrap();
-        let _ = expr.as_parenthesized().unwrap();
-
         // Check Expr::as_tuple
         let expr = quote { (1, 2) }.as_expr().unwrap();
         let tuple_exprs = expr.as_tuple().unwrap();
@@ -27,5 +23,9 @@ fn main() {
         let expr = quote { if 1 { 2 } else { 3 } }.as_expr().unwrap();
         let (_condition, _consequence, alternative) = expr.as_if().unwrap();
         assert(alternative.is_some());
+
+        // Check parenthesized expression is automatically unwrapped
+        let expr = quote { ((if 1 { 2 })) }.as_expr().unwrap();
+        assert(expr.as_if().is_some());
     }
 }
