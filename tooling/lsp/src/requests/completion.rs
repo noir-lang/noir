@@ -5,7 +5,8 @@ use std::{
 
 use async_lsp::ResponseError;
 use completion_items::{
-    crate_completion_item, simple_completion_item, struct_field_completion_item,
+    crate_completion_item, field_completion_item, simple_completion_item,
+    struct_field_completion_item,
 };
 use fm::{FileId, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, ModuleCompletionKind, RequestedItems};
@@ -24,6 +25,7 @@ use noirc_frontend::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
         resolution::path_resolver::{PathResolver, StandardPathResolver},
     },
+    hir_def::traits::Trait,
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
     parser::{Item, ItemKind},
@@ -674,8 +676,9 @@ impl<'a> NodeFinder<'a> {
                     self.complete_type_methods(&type_alias.typ, &prefix, FunctionKind::Any);
                     return;
                 }
-                ModuleDefId::TraitId(_) => {
-                    // For now we don't suggest trait methods
+                ModuleDefId::TraitId(trait_id) => {
+                    let trait_ = self.interner.get_trait(trait_id);
+                    self.complete_trait_methods(trait_, &prefix, FunctionKind::Any);
                     return;
                 }
                 ModuleDefId::GlobalId(_) => return,
@@ -938,6 +941,25 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    fn complete_trait_methods(
+        &mut self,
+        trait_: &Trait,
+        prefix: &str,
+        function_kind: FunctionKind,
+    ) {
+        for (name, func_id) in &trait_.method_ids {
+            if name_matches(name, prefix) {
+                if let Some(completion_item) = self.function_completion_item(
+                    *func_id,
+                    FunctionCompletionKind::NameAndParameters,
+                    function_kind,
+                ) {
+                    self.completion_items.push(completion_item);
+                }
+            }
+        }
+    }
+
     fn complete_struct_fields(
         &mut self,
         struct_type: &StructType,
@@ -953,11 +975,7 @@ impl<'a> NodeFinder<'a> {
 
     fn complete_tuple_fields(&mut self, types: &[Type]) {
         for (index, typ) in types.iter().enumerate() {
-            self.completion_items.push(simple_completion_item(
-                index.to_string(),
-                CompletionItemKind::FIELD,
-                Some(typ.to_string()),
-            ));
+            self.completion_items.push(field_completion_item(&index.to_string(), typ.to_string()));
         }
     }
 
