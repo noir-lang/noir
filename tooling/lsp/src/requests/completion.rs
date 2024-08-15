@@ -5,7 +5,8 @@ use std::{
 
 use async_lsp::ResponseError;
 use completion_items::{
-    crate_completion_item, simple_completion_item, struct_field_completion_item,
+    crate_completion_item, field_completion_item, simple_completion_item,
+    struct_field_completion_item,
 };
 use fm::{FileId, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, ModuleCompletionKind, RequestedItems};
@@ -953,11 +954,7 @@ impl<'a> NodeFinder<'a> {
 
     fn complete_tuple_fields(&mut self, types: &[Type]) {
         for (index, typ) in types.iter().enumerate() {
-            self.completion_items.push(simple_completion_item(
-                index.to_string(),
-                CompletionItemKind::FIELD,
-                Some(typ.to_string()),
-            ));
+            self.completion_items.push(field_completion_item(&index.to_string(), typ.to_string()));
         }
     }
 

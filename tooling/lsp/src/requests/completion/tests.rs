@@ -7,7 +7,8 @@ mod completion_tests {
                 completion_items::{
                     completion_item_with_sort_text,
                     completion_item_with_trigger_parameter_hints_command, crate_completion_item,
-                    module_completion_item, simple_completion_item, snippet_completion_item,
+                    field_completion_item, module_completion_item, simple_completion_item,
+                    snippet_completion_item,
                 },
                 sort_text::self_mismatch_sort_text,
             },
@@ -971,15 +972,7 @@ mod completion_tests {
                 s.p>|<
             }
         "#;
-        assert_completion(
-            src,
-            vec![simple_completion_item(
-                "property",
-                CompletionItemKind::FIELD,
-                Some("i32".to_string()),
-            )],
-        )
-        .await;
+        assert_completion(src, vec![field_completion_item("property", "i32")]).await;
     }
 
     #[test]
@@ -993,15 +986,7 @@ mod completion_tests {
                 s.p>|<
             }
         "#;
-        assert_completion(
-            src,
-            vec![simple_completion_item(
-                "property",
-                CompletionItemKind::FIELD,
-                Some("i32".to_string()),
-            )],
-        )
-        .await;
+        assert_completion(src, vec![field_completion_item("property", "i32")]).await;
     }
 
     #[test]
@@ -1015,15 +1000,7 @@ mod completion_tests {
                 s.>|<
             }
         "#;
-        assert_completion(
-            src,
-            vec![simple_completion_item(
-                "property",
-                CompletionItemKind::FIELD,
-                Some("i32".to_string()),
-            )],
-        )
-        .await;
+        assert_completion(src, vec![field_completion_item("property", "i32")]).await;
     }
 
     #[test]
@@ -1041,11 +1018,7 @@ mod completion_tests {
                 some.property.>|<
             }
         "#;
-        assert_completion(
-            src,
-            vec![simple_completion_item("bar", CompletionItemKind::FIELD, Some("i32".to_string()))],
-        )
-        .await;
+        assert_completion(src, vec![field_completion_item("bar", "i32")]).await;
     }
 
     #[test]
@@ -1243,11 +1216,7 @@ mod completion_tests {
                 if s.>|<
             }
         "#;
-        assert_completion(
-            src,
-            vec![simple_completion_item("foo", CompletionItemKind::FIELD, Some("i32".to_string()))],
-        )
-        .await;
+        assert_completion(src, vec![field_completion_item("foo", "i32")]).await;
     }
 
     #[test]
@@ -1260,11 +1229,7 @@ mod completion_tests {
                 f.bar & f.>|<
             }
         "#;
-        assert_completion(
-            src,
-            vec![simple_completion_item("bar", CompletionItemKind::FIELD, Some("Bar".to_string()))],
-        )
-        .await;
+        assert_completion(src, vec![field_completion_item("bar", "Bar")]).await;
     }
 
     #[test]
@@ -1299,11 +1264,7 @@ mod completion_tests {
                 x = 2;
             }
         "#;
-        assert_completion(
-            src,
-            vec![simple_completion_item("bar", CompletionItemKind::FIELD, Some("i32".to_string()))],
-        )
-        .await;
+        assert_completion(src, vec![field_completion_item("bar", "i32")]).await;
     }
 
     #[test]
@@ -1321,10 +1282,7 @@ mod completion_tests {
 
         assert_items_match(
             items,
-            vec![
-                simple_completion_item("0", CompletionItemKind::FIELD, Some("Field".to_string())),
-                simple_completion_item("1", CompletionItemKind::FIELD, Some("bool".to_string())),
-            ],
+            vec![field_completion_item("0", "Field"), field_completion_item("1", "bool")],
         );
     }
 
@@ -1346,10 +1304,7 @@ mod completion_tests {
         "#;
         assert_completion(
             src,
-            vec![
-                simple_completion_item("bb", CompletionItemKind::FIELD, Some("i32".to_string())),
-                simple_completion_item("bbbb", CompletionItemKind::FIELD, Some("bool".to_string())),
-            ],
+            vec![field_completion_item("bb", "i32"), field_completion_item("bbbb", "bool")],
         )
         .await;
     }
