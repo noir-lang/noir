@@ -421,24 +421,44 @@ impl<'a> SignatureFinder<'a> {
         }
 
         let location = Location::new(name_span, self.file);
-        let Some(ReferenceId::Function(func_id)) = self.interner.find_referenced(location) else {
+        if let Some(ReferenceId::Function(func_id)) = self.interner.find_referenced(location) {
+            let name = self.interner.function_name(&func_id);
+            let func_meta = self.interner.function_meta(&func_id);
+
+            let signature_information =
+                self.func_meta_signature_information(func_meta, name, active_parameter, has_self);
+            let signature_help = SignatureHelp {
+                active_parameter: signature_information.active_parameter.clone(),
+                signatures: vec![signature_information],
+                active_signature: Some(0),
+            };
+            self.signature_help = Some(signature_help);
             return;
-        };
+        }
 
-        let name = self.interner.function_name(&func_id);
-        let func_meta = self.interner.function_meta(&func_id);
-
-        let signature_information =
-            self.compute_signature_information(func_meta, name, active_parameter, has_self);
-        let signature_help = SignatureHelp {
-            active_parameter: signature_information.active_parameter.clone(),
-            signatures: vec![signature_information],
-            active_signature: Some(0),
-        };
-        self.signature_help = Some(signature_help);
+        if let Some(mut typ) = self.interner.type_at_location(location) {
+            if let Type::Forall(_, forall_typ) = typ {
+                typ = *forall_typ;
+            }
+            if let Type::Function(args, ret, _, unconstrained) = typ {
+                let signature_information = self.function_type_signature_information(
+                    &args,
+                    &ret,
+                    unconstrained,
+                    active_parameter,
+                );
+                let signature_help = SignatureHelp {
+                    active_parameter: signature_information.active_parameter.clone(),
+                    signatures: vec![signature_information],
+                    active_signature: Some(0),
+                };
+                self.signature_help = Some(signature_help);
+                return;
+            }
+        }
     }
 
-    fn compute_signature_information(
+    fn func_meta_signature_information(
         &self,
         func_meta: &FuncMeta,
         name: &str,
@@ -487,6 +507,51 @@ impl<'a> SignatureFinder<'a> {
                 label.push_str(" -> ");
                 label.push_str(&typ.to_string());
             }
+        }
+
+        SignatureInformation {
+            label,
+            documentation: None,
+            parameters: Some(parameters),
+            active_parameter,
+        }
+    }
+
+    fn function_type_signature_information(
+        &self,
+        args: &[Type],
+        return_type: &Type,
+        unconstrained: bool,
+        active_parameter: Option<u32>,
+    ) -> SignatureInformation {
+        let mut label = String::new();
+        let mut parameters = Vec::new();
+
+        if unconstrained {
+            label.push_str("unconstrained ");
+        }
+        label.push_str("fn(");
+        for (index, typ) in args.iter().enumerate() {
+            if index > 0 {
+                label.push_str(", ");
+            }
+
+            let parameter_start = label.chars().count();
+            label.push_str(&typ.to_string());
+            let parameter_end = label.chars().count();
+
+            parameters.push(ParameterInformation {
+                label: ParameterLabel::LabelOffsets([parameter_start as u32, parameter_end as u32]),
+                documentation: None,
+            })
+        }
+        label.push(')');
+
+        if let Type::Unit = return_type {
+            // Nothing
+        } else {
+            label.push_str(" -> ");
+            label.push_str(&return_type.to_string());
         }
 
         SignatureInformation {
@@ -679,6 +744,32 @@ mod signature_help_tests {
 
         check_label(&signature.label, &params[0].label, "x: i32");
         check_label(&signature.label, &params[1].label, "y: Field");
+
+        assert_eq!(signature.active_parameter, Some(0));
+    }
+
+    #[test]
+    async fn test_signature_help_for_fn_call() {
+        let src = r#"
+            fn foo(x: i32, y: Field) -> u32 { 0 }
+
+            fn bar() {
+                let f = foo;
+                f(>|<1, 2);
+            }
+        "#;
+
+        let signature_help = get_signature_help(src).await;
+        assert_eq!(signature_help.signatures.len(), 1);
+
+        let signature = &signature_help.signatures[0];
+        assert_eq!(signature.label, "fn(i32, Field) -> u32");
+
+        let params = signature.parameters.as_ref().unwrap();
+        assert_eq!(params.len(), 2);
+
+        check_label(&signature.label, &params[0].label, "i32");
+        check_label(&signature.label, &params[1].label, "Field");
 
         assert_eq!(signature.active_parameter, Some(0));
     }
