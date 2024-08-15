@@ -7,7 +7,10 @@ use lsp_types::{
 };
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::{CallExpression, Expression, ExpressionKind, FunctionReturnType, MethodCallExpression},
+    ast::{
+        CallExpression, Expression, ExpressionKind, FunctionReturnType, MethodCallExpression,
+        Statement,
+    },
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::NodeInterner,
     node_interner::ReferenceId,
@@ -289,6 +292,10 @@ impl<'a> SignatureFinder<'a> {
 
 impl<'a> Visitor for SignatureFinder<'a> {
     fn visit_expression(&mut self, expression: &Expression) -> bool {
+        if !self.includes_span(expression.span) {
+            return false;
+        }
+
         match &expression.kind {
             ExpressionKind::Call(call_expression) => {
                 call_expression.accept_children(self);
@@ -306,5 +313,9 @@ impl<'a> Visitor for SignatureFinder<'a> {
             }
             _ => true,
         }
+    }
+
+    fn visit_statement(&mut self, statement: &Statement) -> bool {
+        self.includes_span(statement.span)
     }
 }
