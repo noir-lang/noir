@@ -17,10 +17,9 @@ mod signature_help_tests {
         let (line, column) = src
             .lines()
             .enumerate()
-            .filter_map(|(line_index, line)| {
+            .find_map(|(line_index, line)| {
                 line.find(">|<").map(|char_index| (line_index, char_index))
             })
-            .next()
             .expect("Expected to find one >|< in the source code");
 
         let src = src.replace(">|<", "");
