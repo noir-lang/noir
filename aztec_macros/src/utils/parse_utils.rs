@@ -267,6 +267,9 @@ fn empty_expression(expression: &mut Expression) {
         ExpressionKind::Comptime(block_expression, _span) => {
             empty_block_expression(block_expression);
         }
+        ExpressionKind::Unsafe(block_expression, _span) => {
+            empty_block_expression(block_expression);
+        }
         ExpressionKind::Quote(..) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
         ExpressionKind::AsTraitPath(path) => {
             empty_unresolved_type(&mut path.typ);
@@ -325,7 +328,7 @@ fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
             empty_unresolved_type(unresolved_type)
         }
         UnresolvedTypeData::Tuple(unresolved_types) => empty_unresolved_types(unresolved_types),
-        UnresolvedTypeData::Function(args, ret, _env) => {
+        UnresolvedTypeData::Function(args, ret, _env, _) => {
             empty_unresolved_types(args);
             empty_unresolved_type(ret);
         }

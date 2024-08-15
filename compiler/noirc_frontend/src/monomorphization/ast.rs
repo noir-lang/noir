@@ -288,7 +288,12 @@ pub enum Type {
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     MutableReference(Box<Type>),
-    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>, /*env:*/ Box<Type>),
+    Function(
+        /*args:*/ Vec<Type>,
+        /*ret:*/ Box<Type>,
+        /*env:*/ Box<Type>,
+        /*unconstrained:*/ bool,
+    ),
 }
 
 impl Type {
@@ -419,7 +424,11 @@ impl std::fmt::Display for Type {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    write!(f, "unconstrained ")?;
+                }
+
                 let args = vecmap(args, ToString::to_string);
                 let closure_env_text = match **env {
                     Type::Unit => "".to_string(),

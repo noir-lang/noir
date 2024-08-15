@@ -125,7 +125,7 @@ impl<'context> Elaborator<'context> {
             Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, kind)))
             }
-            Function(args, ret, env) => {
+            Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, kind));
                 let ret = Box::new(self.resolve_type_inner(*ret, kind));
 
@@ -139,7 +139,7 @@ impl<'context> Elaborator<'context> {
 
                 match *env {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _, _) => {
-                        Type::Function(args, ret, env)
+                        Type::Function(args, ret, env, unconstrained)
                     }
                     _ => {
                         self.push_err(ResolverError::InvalidClosureEnvironment {
@@ -735,8 +735,8 @@ impl<'context> Elaborator<'context> {
             return Type::Error;
         }
 
-        for (param, (arg, _, arg_span)) in fn_params.iter().zip(callsite_args) {
-            self.unify(arg, param, || TypeCheckError::TypeMismatch {
+        for (param, (arg, arg_expr_id, arg_span)) in fn_params.iter().zip(callsite_args) {
+            self.unify_with_coercions(arg, param, *arg_expr_id, || TypeCheckError::TypeMismatch {
                 expected_typ: param.to_string(),
                 expr_typ: arg.to_string(),
                 expr_span: *arg_span,
@@ -763,7 +763,8 @@ impl<'context> Elaborator<'context> {
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
                 let env_type = self.interner.next_type_variable();
-                let expected = Type::Function(args, Box::new(ret.clone()), Box::new(env_type));
+                let expected =
+                    Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
 
                 if let Err(error) = binding.try_bind(expected, span) {
                     self.push_err(error);
@@ -772,7 +773,7 @@ impl<'context> Elaborator<'context> {
             }
             // The closure env is ignored on purpose: call arguments never place
             // constraints on closure environments.
-            Type::Function(parameters, ret, _env) => {
+            Type::Function(parameters, ret, _env, _unconstrained) => {
                 self.bind_function_type_impl(&parameters, &ret, &args, span)
             }
             Type::Error => Type::Error,
@@ -1128,7 +1129,7 @@ impl<'context> Elaborator<'context> {
         let (method_type, mut bindings) = method.typ.clone().instantiate(self.interner);
 
         match method_type {
-            Type::Function(args, _, _) => {
+            Type::Function(args, _, _, _) => {
                 // We can cheat a bit and match against only the object type here since no operator
                 // overload uses other generic parameters or return types aside from the object type.
                 let expected_object_type = &args[0];
@@ -1314,22 +1315,33 @@ impl<'context> Elaborator<'context> {
 
         let is_current_func_constrained = self.in_constrained_function();
 
-        let is_unconstrained_call = self.is_unconstrained_call(call.func);
+        let func_type_is_unconstrained =
+            if let Type::Function(_args, _ret, _env, unconstrained) = &func_type {
+                *unconstrained
+            } else {
+                false
+            };
+
+        let is_unconstrained_call =
+            func_type_is_unconstrained || self.is_unconstrained_call(call.func);
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
         if crossing_runtime_boundary {
-            let called_func_id = self
-                .interner
-                .lookup_function_from_expr(&call.func)
-                .expect("Called function should exist");
-            self.run_lint(|elaborator| {
-                lints::oracle_called_from_constrained_function(
-                    elaborator.interner,
-                    &called_func_id,
-                    is_current_func_constrained,
-                    span,
-                )
-                .map(Into::into)
-            });
+            if !self.in_unsafe_block {
+                self.push_err(TypeCheckError::Unsafe { span });
+            }
+
+            if let Some(called_func_id) = self.interner.lookup_function_from_expr(&call.func) {
+                self.run_lint(|elaborator| {
+                    lints::oracle_called_from_constrained_function(
+                        elaborator.interner,
+                        &called_func_id,
+                        is_current_func_constrained,
+                        span,
+                    )
+                    .map(Into::into)
+                });
+            }
+
             let errors = lints::unconstrained_function_args(&args);
             for error in errors {
                 self.push_err(error);
@@ -1373,9 +1385,9 @@ impl<'context> Elaborator<'context> {
         object: &mut ExprId,
     ) {
         let expected_object_type = match function_type {
-            Type::Function(args, _, _) => args.first(),
+            Type::Function(args, _, _, _) => args.first(),
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(args, _, _) => args.first(),
+                Type::Function(args, _, _, _) => args.first(),
                 typ => unreachable!("Unexpected type for function: {typ}"),
             },
             typ => unreachable!("Unexpected type for function: {typ}"),
@@ -1577,7 +1589,7 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            Type::Function(parameters, return_type, _env) => {
+            Type::Function(parameters, return_type, _env, _unconstrained) => {
                 for parameter in parameters {
                     Self::find_numeric_generics_in_type(parameter, found);
                 }
