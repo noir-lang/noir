@@ -472,8 +472,48 @@ impl<'a> NodeFinder<'a> {
     fn find_in_constructor_expression(&mut self, constructor_expression: &ConstructorExpression) {
         self.find_in_path(&constructor_expression.type_name, RequestedItems::OnlyTypes);
 
+        // Check if we need to autocomplete the field name
+        if constructor_expression
+            .fields
+            .iter()
+            .any(|(field_name, _)| field_name.span().end() as usize == self.byte_index)
+        {
+            self.complete_constructor_field_name(constructor_expression);
+            return;
+        }
+
         for (_field_name, expression) in &constructor_expression.fields {
             self.find_in_expression(expression);
+        }
+    }
+
+    fn complete_constructor_field_name(&mut self, constructor_expression: &ConstructorExpression) {
+        let location = Location::new(constructor_expression.type_name.span, self.file);
+        let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
+            return;
+        };
+
+        let struct_type = self.interner.get_struct(struct_id);
+        let struct_type = struct_type.borrow();
+
+        // First get all of the struct's fields
+        let mut fields = HashMap::new();
+        let fields_as_written = struct_type.get_fields_as_written();
+        for (field, typ) in &fields_as_written {
+            fields.insert(field, typ);
+        }
+
+        // Remove the ones that already exists in the constructor
+        for (field, _) in &constructor_expression.fields {
+            fields.remove(&field.0.contents);
+        }
+
+        for (field, typ) in fields {
+            self.completion_items.push(simple_completion_item(
+                field,
+                CompletionItemKind::FIELD,
+                Some(typ.to_string()),
+            ));
         }
     }
 

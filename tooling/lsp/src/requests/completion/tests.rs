@@ -1390,4 +1390,28 @@ mod completion_tests {
             ],
         );
     }
+
+    #[test]
+    async fn test_completes_constructor_fields() {
+        let src = r#"
+            struct Foo {
+                bb: i32,
+                bbb: Field,
+                bbbb: bool,
+                bbbbb: str<6>,
+            }
+
+            fn main() {
+                Foo { bbb: 1, b>|<, bbbbb }
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                simple_completion_item("bb", CompletionItemKind::FIELD, Some("i32".to_string())),
+                simple_completion_item("bbbb", CompletionItemKind::FIELD, Some("bool".to_string())),
+            ],
+        )
+        .await;
+    }
 }
