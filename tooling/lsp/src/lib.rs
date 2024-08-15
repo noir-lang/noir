@@ -66,6 +66,7 @@ mod requests;
 mod solver;
 mod types;
 mod utils;
+mod visitor;
 
 #[cfg(test)]
 mod test_utils;
