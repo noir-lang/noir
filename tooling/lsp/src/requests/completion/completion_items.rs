@@ -298,6 +298,10 @@ fn type_to_self_string(typ: &Type, string: &mut String) {
     }
 }
 
+pub(super) fn struct_field_completion_item(field: &str, typ: &Type) -> CompletionItem {
+    simple_completion_item(field, CompletionItemKind::FIELD, Some(typ.to_string()))
+}
+
 pub(super) fn simple_completion_item(
     label: impl Into<String>,
     kind: CompletionItemKind,

@@ -4,7 +4,9 @@ use std::{
 };
 
 use async_lsp::ResponseError;
-use completion_items::{crate_completion_item, simple_completion_item};
+use completion_items::{
+    crate_completion_item, simple_completion_item, struct_field_completion_item,
+};
 use fm::{FileId, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, ModuleCompletionKind, RequestedItems};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
@@ -509,11 +511,7 @@ impl<'a> NodeFinder<'a> {
         }
 
         for (field, typ) in fields {
-            self.completion_items.push(simple_completion_item(
-                field,
-                CompletionItemKind::FIELD,
-                Some(typ.to_string()),
-            ));
+            self.completion_items.push(struct_field_completion_item(field, typ));
         }
     }
 
@@ -945,13 +943,9 @@ impl<'a> NodeFinder<'a> {
         generics: &[Type],
         prefix: &str,
     ) {
-        for (name, typ) in struct_type.get_fields(generics) {
-            if name_matches(&name, prefix) {
-                self.completion_items.push(simple_completion_item(
-                    name,
-                    CompletionItemKind::FIELD,
-                    Some(typ.to_string()),
-                ));
+        for (name, typ) in &struct_type.get_fields(generics) {
+            if name_matches(name, prefix) {
+                self.completion_items.push(struct_field_completion_item(name, typ));
             }
         }
     }
