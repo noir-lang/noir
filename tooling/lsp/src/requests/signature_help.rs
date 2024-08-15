@@ -421,39 +421,31 @@ impl<'a> SignatureFinder<'a> {
         }
 
         let location = Location::new(name_span, self.file);
+
+        // Check if the call references a named function
         if let Some(ReferenceId::Function(func_id)) = self.interner.find_referenced(location) {
             let name = self.interner.function_name(&func_id);
             let func_meta = self.interner.function_meta(&func_id);
 
             let signature_information =
                 self.func_meta_signature_information(func_meta, name, active_parameter, has_self);
-            let signature_help = SignatureHelp {
-                active_parameter: signature_information.active_parameter.clone(),
-                signatures: vec![signature_information],
-                active_signature: Some(0),
-            };
-            self.signature_help = Some(signature_help);
+            self.set_signature_help(signature_information);
             return;
         }
 
+        // Otherwise, the call must be a reference to an fn type
         if let Some(mut typ) = self.interner.type_at_location(location) {
             if let Type::Forall(_, forall_typ) = typ {
                 typ = *forall_typ;
             }
-            if let Type::Function(args, ret, _, unconstrained) = typ {
+            if let Type::Function(args, return_type, _, unconstrained) = typ {
                 let signature_information = self.function_type_signature_information(
                     &args,
-                    &ret,
+                    &return_type,
                     unconstrained,
                     active_parameter,
                 );
-                let signature_help = SignatureHelp {
-                    active_parameter: signature_information.active_parameter.clone(),
-                    signatures: vec![signature_information],
-                    active_signature: Some(0),
-                };
-                self.signature_help = Some(signature_help);
-                return;
+                self.set_signature_help(signature_information);
             }
         }
     }
@@ -570,6 +562,15 @@ impl<'a> SignatureFinder<'a> {
             HirPattern::Mutable(pattern, _) => self.hir_pattern_to_argument(pattern, text),
             HirPattern::Tuple(_, _) | HirPattern::Struct(_, _, _) => text.push('_'),
         }
+    }
+
+    fn set_signature_help(&mut self, signature_information: SignatureInformation) {
+        let signature_help = SignatureHelp {
+            active_parameter: signature_information.active_parameter.clone(),
+            signatures: vec![signature_information],
+            active_signature: Some(0),
+        };
+        self.signature_help = Some(signature_help);
     }
 
     fn includes_span(&self, span: Span) -> bool {
