@@ -854,6 +854,9 @@ impl<'a> NodeFinder<'a> {
                 let type_alias = type_alias.borrow();
                 return self.complete_type_fields_and_methods(&type_alias.typ, prefix);
             }
+            Type::Tuple(types) => {
+                self.complete_tuple_fields(types);
+            }
             Type::FieldElement
             | Type::Array(_, _)
             | Type::Slice(_)
@@ -862,7 +865,6 @@ impl<'a> NodeFinder<'a> {
             | Type::String(_)
             | Type::FmtString(_, _)
             | Type::Unit
-            | Type::Tuple(_)
             | Type::TypeVariable(_, _)
             | Type::TraitAsType(_, _, _)
             | Type::NamedGeneric(_, _, _)
@@ -911,6 +913,16 @@ impl<'a> NodeFinder<'a> {
                     Some(typ.to_string()),
                 ));
             }
+        }
+    }
+
+    fn complete_tuple_fields(&mut self, types: &[Type]) {
+        for (index, typ) in types.iter().enumerate() {
+            self.completion_items.push(simple_completion_item(
+                index.to_string(),
+                CompletionItemKind::FIELD,
+                Some(typ.to_string()),
+            ))
         }
     }
 

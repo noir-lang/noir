@@ -23,7 +23,7 @@ mod completion_tests {
     };
     use tokio::test;
 
-    async fn assert_completion(src: &str, expected: Vec<CompletionItem>) {
+    async fn get_completions(src: &str) -> Vec<CompletionItem> {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
 
         let (line, column) = src
@@ -49,8 +49,6 @@ mod completion_tests {
             },
         );
 
-        // Get inlay hints. These should now be relative to the changed text,
-        // not the saved file's text.
         let response = on_completion_request(
             &mut state,
             CompletionParams {
@@ -71,10 +69,12 @@ mod completion_tests {
             panic!("Expected response to be CompletionResponse::Array");
         };
 
-        let mut items = items.clone();
+        items
+    }
+
+    fn assert_items_match(mut items: Vec<CompletionItem>, mut expected: Vec<CompletionItem>) {
         items.sort_by_key(|item| item.label.clone());
 
-        let mut expected = expected.clone();
         expected.sort_by_key(|item| item.label.clone());
 
         if items != expected {
@@ -89,6 +89,11 @@ mod completion_tests {
         }
 
         assert_eq!(items, expected);
+    }
+
+    async fn assert_completion(src: &str, expected: Vec<CompletionItem>) {
+        let items = get_completions(src).await;
+        assert_items_match(items, expected);
     }
 
     pub(super) fn function_completion_item(
@@ -1362,5 +1367,27 @@ mod completion_tests {
             vec![simple_completion_item("bar", CompletionItemKind::FIELD, Some("i32".to_string()))],
         )
         .await;
+    }
+
+    #[test]
+    async fn test_completes_tuple_fields() {
+        let src = r#"
+            fn main() {
+                let tuple = (1, true);
+                tuple.>|<
+            }
+        "#;
+
+        let items = get_completions(src).await;
+        let items = items.into_iter().filter(|item| item.kind == Some(CompletionItemKind::FIELD));
+        let items = items.collect();
+
+        assert_items_match(
+            items,
+            vec![
+                simple_completion_item("0", CompletionItemKind::FIELD, Some("Field".to_string())),
+                simple_completion_item("1", CompletionItemKind::FIELD, Some("bool".to_string())),
+            ],
+        )
     }
 }
