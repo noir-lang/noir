@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.49.2](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.49.1...aztec-packages-v0.49.2) (2024-08-15)
+
+
+### Miscellaneous
+
+* Add whitespace to README.md to trigger release ([#8029](https://github.com/AztecProtocol/aztec-packages/issues/8029)) ([bc5666d](https://github.com/AztecProtocol/aztec-packages/commit/bc5666db6236e51adeb7c13d7edd84d5c9891113))
+
 ## [0.49.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.49.0...aztec-packages-v0.49.1) (2024-08-15)
 
 
