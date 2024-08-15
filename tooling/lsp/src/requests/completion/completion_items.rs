@@ -1,4 +1,6 @@
-use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
+use lsp_types::{
+    Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
+};
 use noirc_frontend::{
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::{ModuleDefId, StructId},
@@ -162,6 +164,13 @@ impl<'a> NodeFinder<'a> {
             completion_item_with_sort_text(completion_item, self_mismatch_sort_text())
         } else {
             completion_item
+        };
+
+        let completion_item = match function_completion_kind {
+            FunctionCompletionKind::Name => completion_item,
+            FunctionCompletionKind::NameAndParameters => {
+                completion_item_with_trigger_parameter_hints_command(completion_item)
+            }
         };
 
         Some(completion_item)
@@ -341,4 +350,17 @@ pub(super) fn completion_item_with_sort_text(
     sort_text: String,
 ) -> CompletionItem {
     CompletionItem { sort_text: Some(sort_text), ..completion_item }
+}
+
+pub(super) fn completion_item_with_trigger_parameter_hints_command(
+    completion_item: CompletionItem,
+) -> CompletionItem {
+    CompletionItem {
+        command: Some(Command {
+            title: "Trigger parameter hints".to_string(),
+            command: "editor.action.triggerParameterHints".to_string(),
+            arguments: None,
+        }),
+        ..completion_item
+    }
 }
