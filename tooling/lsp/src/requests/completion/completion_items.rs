@@ -123,6 +123,14 @@ impl<'a> NodeFinder<'a> {
                         if self_type != func_self_type {
                             return None;
                         }
+                    } else if let Type::Tuple(self_tuple_types) = self_type {
+                        // Tuple types of different lengths seem to also have methods defined on all of them,
+                        // so here we reject methods for tuples where the length doesn't match.
+                        if let Type::Tuple(func_self_tuple_types) = func_self_type {
+                            if self_tuple_types.len() != func_self_tuple_types.len() {
+                                return None;
+                            }
+                        }
                     }
                 } else {
                     return None;
