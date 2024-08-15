@@ -10,11 +10,6 @@
 
 namespace bb::avm_trace {
 
-std::vector<AvmBinaryTraceBuilder::BinaryTraceEntry> AvmBinaryTraceBuilder::finalize()
-{
-    return std::move(binary_trace);
-}
-
 void AvmBinaryTraceBuilder::reset()
 {
     binary_trace.clear();
@@ -164,6 +159,49 @@ FF AvmBinaryTraceBuilder::op_xor(FF const& a, FF const& b, AvmMemoryTag instr_ta
 
     entry_builder(a_uint128, b_uint128, c_uint128, instr_tag, clk, 2);
     return uint256_t::from_uint128(c_uint128);
+}
+
+void AvmBinaryTraceBuilder::finalize(std::vector<AvmFullRow<FF>>& main_trace)
+{
+    for (size_t i = 0; i < size(); i++) {
+        auto const& src = binary_trace.at(i);
+        auto& dest = main_trace.at(i);
+        dest.binary_clk = src.binary_clk;
+        dest.binary_sel_bin = static_cast<uint8_t>(src.bin_sel);
+        dest.binary_acc_ia = src.acc_ia;
+        dest.binary_acc_ib = src.acc_ib;
+        dest.binary_acc_ic = src.acc_ic;
+        dest.binary_in_tag = src.in_tag;
+        dest.binary_op_id = src.op_id;
+        dest.binary_ia_bytes = src.bin_ia_bytes;
+        dest.binary_ib_bytes = src.bin_ib_bytes;
+        dest.binary_ic_bytes = src.bin_ic_bytes;
+        dest.binary_start = FF(static_cast<uint8_t>(src.start));
+        dest.binary_mem_tag_ctr = src.mem_tag_ctr;
+        dest.binary_mem_tag_ctr_inv = src.mem_tag_ctr_inv;
+    }
+
+    reset();
+}
+
+void AvmBinaryTraceBuilder::finalize_lookups(std::vector<AvmFullRow<FF>>& main_trace)
+{
+    for (auto const& [clk, count] : byte_operation_counter) {
+        main_trace.at(clk).lookup_byte_operations_counts = count;
+    }
+
+    for (uint8_t avm_in_tag = 0; avm_in_tag < 5; avm_in_tag++) {
+        // The +1 here is because the instruction tags we care about (i.e excl U0 and FF) has the range [1,5]
+        main_trace.at(avm_in_tag).lookup_byte_lengths_counts = byte_length_counter[avm_in_tag + 1];
+    }
+}
+
+void AvmBinaryTraceBuilder::finalize_lookups_for_testing(std::vector<AvmFullRow<FF>>& main_trace)
+{
+    for (uint8_t avm_in_tag = 0; avm_in_tag < 5; avm_in_tag++) {
+        // The +1 here is because the instruction tags we care about (i.e excl U0 and FF) has the range [1,5]
+        main_trace.at(avm_in_tag).lookup_byte_lengths_counts = byte_length_counter[avm_in_tag + 1];
+    }
 }
 
 } // namespace bb::avm_trace

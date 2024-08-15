@@ -1,6 +1,7 @@
 #pragma once
 
 #include "barretenberg/numeric/uint128/uint128.hpp"
+#include "barretenberg/vm/avm/generated/full_row.hpp"
 #include "barretenberg/vm/avm/trace/common.hpp"
 
 #include <unordered_map>
@@ -32,9 +33,15 @@ class AvmBinaryTraceBuilder {
     std::unordered_map<uint32_t, uint32_t> byte_length_counter;
 
     AvmBinaryTraceBuilder() = default;
+
+    size_t size() const { return binary_trace.size(); }
     void reset();
-    // Finalize the trace
-    std::vector<BinaryTraceEntry> finalize();
+
+    // These two have to be separate because the lookups need to be finalized
+    // after the extra first row is inserted in the main trace.
+    void finalize(std::vector<AvmFullRow<FF>>& main_trace);
+    void finalize_lookups(std::vector<AvmFullRow<FF>>& main_trace);
+    void finalize_lookups_for_testing(std::vector<AvmFullRow<FF>>& main_trace);
 
     FF op_and(FF const& a, FF const& b, AvmMemoryTag instr_tag, uint32_t clk);
     FF op_or(FF const& a, FF const& b, AvmMemoryTag instr_tag, uint32_t clk);
