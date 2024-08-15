@@ -1388,6 +1388,6 @@ mod completion_tests {
                 simple_completion_item("0", CompletionItemKind::FIELD, Some("Field".to_string())),
                 simple_completion_item("1", CompletionItemKind::FIELD, Some("bool".to_string())),
             ],
-        )
+        );
     }
 }
