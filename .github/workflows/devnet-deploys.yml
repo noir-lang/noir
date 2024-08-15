@@ -584,6 +584,17 @@ jobs:
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-2
 
+      # Unneded for now, since the prover-node runs with simulated proofs and submits them to L1, which does not verify them yet.
+      # - name: Set latest block as proven
+      #   working-directory: ./yarn-project/aztec/terraform/pxe
+      #   run: |
+      #     set -eo pipefail
+      #     docker run aztecprotocol/aztec:${{ env.DEPLOY_TAG }} set-proven-until \
+      #       --rpc-url https://api.aztec.network/${{ env.DEPLOY_TAG }}/aztec-pxe/${{ env.API_KEY }} \
+      #       --l1-rpc-url https://${{ env.DEPLOY_TAG }}-mainnet-fork.aztec.network:8545/${{ env.API_KEY }} \
+      #       --l1-chain-id ${{ env.L1_CHAIN_ID }} \
+      #       --l1-private-key ${{ env.CONTRACT_PUBLISHER_PRIVATE_KEY }}
+
       - name: Deploy PXE
         working-directory: ./yarn-project/aztec/terraform/pxe
         run: |

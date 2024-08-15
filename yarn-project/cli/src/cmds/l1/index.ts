@@ -154,5 +154,37 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       await getL1Balance(who, options.token, options.l1RpcUrl, options.l1ChainId, options.json, log);
     });
 
+  program
+    .command('set-proven-until')
+    .description(
+      'Instructs the L1 rollup contract to assume all blocks until the given number are automatically proven.',
+    )
+    .argument('[blockNumber]', 'The target block number, defaults to the latest pending block number.', parseBigint)
+    .requiredOption(
+      '--l1-rpc-url <string>',
+      'Url of the ethereum host. Chain identifiers localhost and testnet can be used',
+      ETHEREUM_HOST,
+    )
+    .addOption(pxeOption)
+    .option(
+      '-m, --mnemonic <string>',
+      'The mnemonic to use for deriving the Ethereum address that will mint and bridge',
+      'test test test test test test test test test test test junk',
+    )
+    .addOption(l1ChainIdOption)
+    .option('--l1-private-key <string>', 'The private key to use for deployment', PRIVATE_KEY)
+    .action(async (blockNumber, options) => {
+      const { assumeProvenUntil } = await import('./assume_proven_until.js');
+      await assumeProvenUntil(
+        blockNumber,
+        options.l1RpcUrl,
+        options.rpcUrl,
+        options.l1ChainId,
+        options.l1PrivateKey,
+        options.mnemonic,
+        log,
+      );
+    });
+
   return program;
 }
