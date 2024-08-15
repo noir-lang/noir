@@ -29,7 +29,7 @@ const testSetup = async (): Promise<UniswapSetupContext> => {
 
   teardown = teardown_;
 
-  return { aztecNode, pxe, logger, publicClient, walletClient, ownerWallet, sponsorWallet };
+  return { aztecNode, pxe, logger, publicClient, walletClient, ownerWallet, sponsorWallet, deployL1ContractsValues };
 };
 // docs:end:uniswap_setup
 

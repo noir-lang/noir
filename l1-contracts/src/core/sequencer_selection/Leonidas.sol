@@ -43,7 +43,7 @@ contract Leonidas is Ownable, ILeonidas {
     uint256 nextSeed;
   }
 
-  // @note @LHerskind - The multiple cause pain and suffering in the E2E tests as we introduce
+  // @note  @LHerskind  The multiple cause pain and suffering in the E2E tests as we introduce
   //                    a timeliness requirement into the publication that did not exists before,
   //                    and at the same time have a setup that will impact the time at every tx
   //                    because of auto-mine. By using just 1, we can make our test work
@@ -51,14 +51,16 @@ contract Leonidas is Ownable, ILeonidas {
   //                    transactions is slower than an actual ethereum slot.
   //
   //                    The value should be a higher multiple for any actual chain
+  // @todo  #8019
   uint256 public constant SLOT_DURATION = Constants.ETHEREUM_SLOT_DURATION * 1;
 
   // The duration of an epoch in slots
-  // @todo @LHerskind - This value should be updated when we are not blind.
+  // @todo  @LHerskind - This value should be updated when we are not blind.
+  // @todo  #8020
   uint256 public constant EPOCH_DURATION = 32;
 
   // The target number of validators in a committee
-  // @todo @LHerskind - This value should be updated when we are not blind.
+  // @todo #8021
   uint256 public constant TARGET_COMMITTEE_SIZE = EPOCH_DURATION;
 
   // The time that the contract was deployed

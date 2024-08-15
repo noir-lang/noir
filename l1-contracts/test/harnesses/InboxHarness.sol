@@ -22,10 +22,10 @@ contract InboxHarness is Inbox {
     return trees[inProgress].isFull();
   }
 
-  function getToConsumeRoot() external view returns (bytes32) {
+  function getToConsumeRoot(uint256 _toConsume) external view returns (bytes32) {
     bytes32 root = EMPTY_ROOT;
-    if (toConsume > Constants.INITIAL_L2_BLOCK_NUM) {
-      root = trees[toConsume].root();
+    if (_toConsume > Constants.INITIAL_L2_BLOCK_NUM) {
+      root = trees[_toConsume].root();
     }
     return root;
   }

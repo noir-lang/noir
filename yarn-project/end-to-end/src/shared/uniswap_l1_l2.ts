@@ -8,9 +8,9 @@ import {
   type PXE,
   computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
-import { deployL1Contract } from '@aztec/ethereum';
+import { type DeployL1Contracts, deployL1Contract } from '@aztec/ethereum';
 import { sha256ToField } from '@aztec/foundation/crypto';
-import { InboxAbi, UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
+import { InboxAbi, RollupAbi, UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { UniswapContract } from '@aztec/noir-contracts.js/Uniswap';
 
 import { jest } from '@jest/globals';
@@ -56,6 +56,8 @@ export type UniswapSetupContext = {
   ownerWallet: AccountWallet;
   /** The sponsor wallet. */
   sponsorWallet: AccountWallet;
+  /**  */
+  deployL1ContractsValues: DeployL1Contracts;
 };
 // docs:end:uniswap_l1_l2_test_setup_const
 
@@ -88,6 +90,8 @@ export const uniswapL1L2TestSuite = (
     let daiCrossChainHarness: CrossChainTestHarness;
     let wethCrossChainHarness: CrossChainTestHarness;
 
+    let deployL1ContractsValues: DeployL1Contracts;
+    let rollup: any;
     let uniswapPortal: GetContractReturnType<typeof UniswapPortalAbi, WalletClient<HttpTransport, Chain>>;
     let uniswapPortalAddress: EthAddress;
     let uniswapL2Contract: UniswapContract;
@@ -97,11 +101,18 @@ export const uniswapL1L2TestSuite = (
     const minimumOutputAmount = 0n;
 
     beforeAll(async () => {
-      ({ aztecNode, pxe, logger, publicClient, walletClient, ownerWallet, sponsorWallet } = await setup());
+      ({ aztecNode, pxe, logger, publicClient, walletClient, ownerWallet, sponsorWallet, deployL1ContractsValues } =
+        await setup());
 
       if (Number(await publicClient.getBlockNumber()) < expectedForkBlockNumber) {
         throw new Error('This test must be run on a fork of mainnet with the expected fork block');
       }
+
+      rollup = getContract({
+        address: deployL1ContractsValues.l1ContractAddresses.rollupAddress.toString(),
+        abi: RollupAbi,
+        client: deployL1ContractsValues.walletClient,
+      });
 
       ownerAddress = ownerWallet.getAddress();
       // sponsorAddress = sponsorWallet.getAddress();
@@ -284,6 +295,9 @@ export const uniswapL1L2TestSuite = (
       await wethCrossChainHarness.expectPrivateBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
       // ensure that uniswap contract didn't eat the funds.
       await wethCrossChainHarness.expectPublicBalanceOnL2(uniswapL2Contract.address, 0n);
+
+      // Since the outbox is only consumable when the block is proven, we need to set the block to be proven
+      await rollup.write.setAssumeProvenUntilBlockNumber([await rollup.read.pendingBlockCount()]);
 
       // 5. Consume L2 to L1 message by calling uniswapPortal.swap_private()
       logger.info('Execute withdraw and swap on the uniswapPortal!');
@@ -917,6 +931,9 @@ export const uniswapL1L2TestSuite = (
       // ensure that user's funds were burnt
       await wethCrossChainHarness.expectPrivateBalanceOnL2(ownerAddress, wethL2BalanceBeforeSwap - wethAmountToBridge);
 
+      // Since the outbox is only consumable when the block is proven, we need to set the block to be proven
+      await rollup.write.setAssumeProvenUntilBlockNumber([await rollup.read.pendingBlockCount()]);
+
       // On L1 call swap_public!
       logger.info('call swap_public on L1');
       const swapArgs = [
@@ -1047,6 +1064,9 @@ export const uniswapL1L2TestSuite = (
 
       // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
       await wethCrossChainHarness.expectPublicBalanceOnL2(ownerAddress, 0n);
+
+      // Since the outbox is only consumable when the block is proven, we need to set the block to be proven
+      await rollup.write.setAssumeProvenUntilBlockNumber([await rollup.read.pendingBlockCount()]);
 
       // Call swap_private on L1
       const secretHashForRedeemingDai = Fr.random(); // creating my own secret hash

@@ -47,6 +47,8 @@ contract UniswapPortalTest is Test {
   bytes32 internal aztecRecipient = bytes32(uint256(0x3));
   bytes32 internal secretHashForRedeemingMintedNotes = bytes32(uint256(0x4));
 
+  uint256 internal l2BlockNumber = 69;
+
   function setUp() public {
     // fork mainnet
     uint256 forkId = vm.createFork(vm.rpcUrl("mainnet_fork"));
@@ -67,6 +69,10 @@ contract UniswapPortalTest is Test {
 
     uniswapPortal = new UniswapPortal();
     uniswapPortal.initialize(address(registry), l2UniswapAddress);
+
+    // Modify the proven block count
+    vm.store(address(rollup), bytes32(uint256(7)), bytes32(l2BlockNumber + 1));
+    assertEq(rollup.provenBlockCount(), l2BlockNumber + 1);
 
     // have DAI locked in portal that can be moved when funds are withdrawn
     deal(address(DAI), address(daiTokenPortal), amount);
@@ -182,7 +188,6 @@ contract UniswapPortalTest is Test {
   // Creates a withdraw transaction without a designated caller.
   // Should fail when uniswap portal tries to consume it since it tries using a designated caller.
   function testRevertIfWithdrawMessageHasNoDesignatedCaller() public {
-    uint256 l2BlockNumber = 69;
     bytes32 l2ToL1MessageToInsert = _createDaiWithdrawMessage(address(uniswapPortal), address(0));
     (, bytes32[] memory withdrawSiblingPath, bytes32[] memory swapSiblingPath) =
       _addMessagesToOutbox(l2ToL1MessageToInsert, bytes32(uint256(0x1)), l2BlockNumber);
@@ -237,7 +242,6 @@ contract UniswapPortalTest is Test {
     vm.assume(_recipient != address(uniswapPortal));
 
     // malformed withdraw message (wrong recipient)
-    uint256 l2BlockNumber = 69;
     bytes32 l2ToL1MessageToInsert = _createDaiWithdrawMessage(_recipient, address(uniswapPortal));
 
     (, bytes32[] memory withdrawSiblingPath, bytes32[] memory swapSiblingPath) =
@@ -290,8 +294,6 @@ contract UniswapPortalTest is Test {
   }
 
   function testRevertIfSwapParamsDifferentToOutboxMessage() public {
-    uint256 l2BlockNumber = 69;
-
     bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
     bytes32 swapMessageHash = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
@@ -355,8 +357,6 @@ contract UniswapPortalTest is Test {
   }
 
   function testSwapWithDesignatedCaller() public {
-    uint256 l2BlockNumber = 69;
-
     bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
     bytes32 swapMessageHash = _createUniswapSwapMessagePublic(aztecRecipient, address(this));
@@ -400,7 +400,6 @@ contract UniswapPortalTest is Test {
 
   function testSwapCalledByAnyoneIfDesignatedCallerNotSet(address _caller) public {
     vm.assume(_caller != address(uniswapPortal));
-    uint256 l2BlockNumber = 69;
 
     bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
@@ -447,7 +446,6 @@ contract UniswapPortalTest is Test {
 
   function testRevertIfSwapWithDesignatedCallerCalledByWrongCaller(address _caller) public {
     vm.assume(_caller != address(this));
-    uint256 l2BlockNumber = 69;
 
     bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
@@ -549,8 +547,6 @@ contract UniswapPortalTest is Test {
   }
 
   function testRevertIfSwapMessageWasForDifferentPublicOrPrivateFlow() public {
-    uint256 l2BlockNumber = 69;
-
     bytes32 daiWithdrawMessageHash =
       _createDaiWithdrawMessage(address(uniswapPortal), address(uniswapPortal));
 

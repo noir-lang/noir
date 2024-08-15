@@ -199,7 +199,6 @@ contract SpartaTest is DecoderBase {
 
     availabilityOracle.publish(body);
 
-    uint256 toConsume = inbox.toConsume();
     ree.proposer = rollup.getCurrentProposer();
     ree.shouldRevert = false;
 
@@ -253,8 +252,6 @@ contract SpartaTest is DecoderBase {
 
     assertEq(_expectRevert, ree.shouldRevert, "Invalid revert expectation");
 
-    assertEq(inbox.toConsume(), toConsume + 1, "Message subtree not consumed");
-
     bytes32 l2ToL1MessageTreeRoot;
     {
       uint32 numTxs = full.block.numTxs;
@@ -284,9 +281,14 @@ contract SpartaTest is DecoderBase {
       l2ToL1MessageTreeRoot = tree.computeRoot();
     }
 
-    (bytes32 root,) = outbox.roots(full.block.decodedHeader.globalVariables.blockNumber);
+    (bytes32 root,) = outbox.getRootData(full.block.decodedHeader.globalVariables.blockNumber);
 
-    assertEq(l2ToL1MessageTreeRoot, root, "Invalid l2 to l1 message tree root");
+    // If we are trying to read a block beyond the proven chain, we should see "nothing".
+    if (rollup.provenBlockCount() > full.block.decodedHeader.globalVariables.blockNumber) {
+      assertEq(l2ToL1MessageTreeRoot, root, "Invalid l2 to l1 message tree root");
+    } else {
+      assertEq(root, bytes32(0), "Invalid outbox root");
+    }
 
     assertEq(rollup.archive(), archive, "Invalid archive");
   }
@@ -298,10 +300,6 @@ contract SpartaTest is DecoderBase {
         DataStructures.L2Actor({actor: _recipient, version: 1}), _contents[i], bytes32(0)
       );
     }
-  }
-
-  function max(uint256 a, uint256 b) internal pure returns (uint256) {
-    return a > b ? a : b;
   }
 
   function createSignature(address _signer, bytes32 _digest)

@@ -9,7 +9,7 @@ import {
 } from '@aztec/aztec.js';
 import { sha256ToField } from '@aztec/foundation/crypto';
 import { truncateAndPad } from '@aztec/foundation/serialize';
-import { OutboxAbi } from '@aztec/l1-artifacts';
+import { OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import { SHA256 } from '@aztec/merkle-tree';
 import { TestContract } from '@aztec/noir-contracts.js';
 
@@ -26,6 +26,7 @@ describe('E2E Outbox Tests', () => {
   let wallets: AccountWalletWithSecretKey[];
   let deployL1ContractsValues: DeployL1Contracts;
   let outbox: any;
+  let rollup: any;
 
   beforeEach(async () => {
     ({ teardown, aztecNode, wallets, deployL1ContractsValues } = await setup(1));
@@ -37,6 +38,12 @@ describe('E2E Outbox Tests', () => {
 
     const receipt = await TestContract.deploy(wallets[0]).send({ contractAddressSalt: Fr.ZERO }).wait();
     contract = receipt.contract;
+
+    rollup = getContract({
+      address: deployL1ContractsValues.l1ContractAddresses.rollupAddress.toString(),
+      abi: RollupAbi,
+      client: deployL1ContractsValues.walletClient,
+    });
   });
 
   afterAll(() => teardown());
@@ -92,8 +99,11 @@ describe('E2E Outbox Tests', () => {
 
     // Outbox L1 tests
 
+    // Since the outbox is only consumable when the block is proven, we need to set the block to be proven
+    await rollup.write.setAssumeProvenUntilBlockNumber([1 + (txReceipt.blockNumber ?? 0)]);
+
     // Check L1 has expected message tree
-    const [l1Root, l1MinHeight] = await outbox.read.roots([txReceipt.blockNumber]);
+    const [l1Root, l1MinHeight] = await outbox.read.getRootData([txReceipt.blockNumber]);
     expect(l1Root).toEqual(`0x${block?.header.contentCommitment.outHash.toString('hex')}`);
     // The path for the message should have the shortest possible height, since we only have 2 msgs
     expect(l1MinHeight).toEqual(BigInt(siblingPath.pathSize));
@@ -207,9 +217,11 @@ describe('E2E Outbox Tests', () => {
     expect(siblingPath2.pathSize).toBe(3);
 
     // Outbox L1 tests
+    // Since the outbox is only consumable when the block is proven, we need to set the block to be proven
+    await rollup.write.setAssumeProvenUntilBlockNumber([1 + (l2TxReceipt0.blockNumber ?? 0)]);
 
     // Check L1 has expected message tree
-    const [l1Root, l1MinHeight] = await outbox.read.roots([l2TxReceipt0.blockNumber]);
+    const [l1Root, l1MinHeight] = await outbox.read.getRootData([l2TxReceipt0.blockNumber]);
     expect(l1Root).toEqual(`0x${block?.header.contentCommitment.outHash.toString('hex')}`);
 
     // The path for the single message should have the shortest possible height
@@ -323,9 +335,11 @@ describe('E2E Outbox Tests', () => {
     expect(index2).toBe(2n);
 
     // Outbox L1 tests
+    // Since the outbox is only consumable when the block is proven, we need to set the block to be proven
+    await rollup.write.setAssumeProvenUntilBlockNumber([1 + (l2TxReceipt0.blockNumber ?? 0)]);
 
     // Check L1 has expected message tree
-    const [l1Root, l1MinHeight] = await outbox.read.roots([l2TxReceipt0.blockNumber]);
+    const [l1Root, l1MinHeight] = await outbox.read.getRootData([l2TxReceipt0.blockNumber]);
     expect(l1Root).toEqual(`0x${block?.header.contentCommitment.outHash.toString('hex')}`);
     // The path for the message should have the shortest possible height, since we only have one msg per tx
     expect(l1MinHeight).toEqual(BigInt(siblingPath.pathSize));

@@ -20,6 +20,8 @@ import {FrontierMerkle} from "./frontier_tree/Frontier.sol";
  * @title Inbox
  * @author Aztec Labs
  * @notice Lives on L1 and is used to pass messages into the rollup, e.g., L1 -> L2 messages.
+ *
+ * @dev     The current code is horribly gas inefficient, and should only be used as a reference implementation.
  */
 contract Inbox is IInbox {
   using Hash for DataStructures.L1ToL2Msg;
@@ -30,12 +32,10 @@ contract Inbox is IInbox {
   uint256 internal immutable SIZE;
   bytes32 internal immutable EMPTY_ROOT; // The root of an empty frontier tree
 
-  // Number of a tree which is ready to be consumed
-  uint256 public toConsume = Constants.INITIAL_L2_BLOCK_NUM;
   // Number of a tree which is currently being filled
   uint256 public inProgress = Constants.INITIAL_L2_BLOCK_NUM + 1;
 
-  mapping(uint256 blockNumber => IFrontier tree) internal trees;
+  mapping(uint256 blockNumber => IFrontier tree) public trees;
 
   constructor(address _rollup, uint256 _height) {
     ROLLUP = _rollup;
@@ -52,10 +52,13 @@ contract Inbox is IInbox {
 
   /**
    * @notice Inserts a new message into the Inbox
+   *
    * @dev Emits `MessageSent` with data for easy access by the sequencer
+   *
    * @param _recipient - The recipient of the message
    * @param _content - The content of the message (application specific)
    * @param _secretHash - The secret hash of the message (make it possible to hide when a specific message is consumed on L2)
+   *
    * @return Hash of the sent message.
    */
   function sendL2Message(
@@ -96,28 +99,30 @@ contract Inbox is IInbox {
 
   /**
    * @notice Consumes the current tree, and starts a new one if needed
+   *
    * @dev Only callable by the rollup contract
    * @dev In the first iteration we return empty tree root because first block's messages tree is always
    * empty because there has to be a 1 block lag to prevent sequencer DOS attacks
+   *
+   * @param _toConsume - The block number to consume
+   *
    * @return The root of the consumed tree
    */
-  function consume() external override(IInbox) returns (bytes32) {
+  function consume(uint256 _toConsume) external override(IInbox) returns (bytes32) {
     if (msg.sender != ROLLUP) {
       revert Errors.Inbox__Unauthorized();
     }
 
     bytes32 root = EMPTY_ROOT;
-    if (toConsume > Constants.INITIAL_L2_BLOCK_NUM) {
-      root = trees[toConsume].root();
+    if (_toConsume > Constants.INITIAL_L2_BLOCK_NUM) {
+      root = trees[_toConsume].root();
     }
 
     // If we are "catching up" we skip the tree creation as it is already there
-    if (toConsume + 1 == inProgress) {
+    if (_toConsume + 1 == inProgress) {
       inProgress += 1;
       trees[inProgress] = IFrontier(new FrontierMerkle(HEIGHT));
     }
-
-    toConsume += 1;
 
     return root;
   }

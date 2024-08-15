@@ -56,6 +56,8 @@ contract TokenPortalTest is Test {
   address internal recipient = address(0xdead);
   uint256 internal withdrawAmount = 654;
 
+  uint256 internal l2BlockNumber = 69;
+
   function setUp() public {
     registry = new Registry();
     portalERC20 = new PortalERC20();
@@ -70,6 +72,10 @@ contract TokenPortalTest is Test {
     tokenPortal = new TokenPortal();
 
     tokenPortal.initialize(address(registry), address(portalERC20), l2TokenAddress);
+
+    // Modify the proven block count
+    vm.store(address(rollup), bytes32(uint256(7)), bytes32(l2BlockNumber + 1));
+    assertEq(rollup.provenBlockCount(), l2BlockNumber + 1);
 
     vm.deal(address(this), 100 ether);
   }
@@ -203,7 +209,6 @@ contract TokenPortalTest is Test {
   function testAnyoneCanCallWithdrawIfNoDesignatedCaller(address _caller) public {
     vm.assume(_caller != address(0));
 
-    uint256 l2BlockNumber = 69;
     // add message with caller as this address
     (bytes32 l2ToL1Message, bytes32[] memory siblingPath, bytes32 treeRoot) =
       _addWithdrawMessageInOutbox(address(0), l2BlockNumber);
@@ -227,7 +232,6 @@ contract TokenPortalTest is Test {
 
   function testWithdrawWithDesignatedCallerFailsForOtherCallers(address _caller) public {
     vm.assume(_caller != address(this));
-    uint256 l2BlockNumber = 69;
     // add message with caller as this address
     (, bytes32[] memory siblingPath, bytes32 treeRoot) =
       _addWithdrawMessageInOutbox(address(this), l2BlockNumber);
@@ -252,7 +256,6 @@ contract TokenPortalTest is Test {
   }
 
   function testWithdrawWithDesignatedCallerSucceedsForDesignatedCaller() public {
-    uint256 l2BlockNumber = 69;
     // add message with caller as this address
     (bytes32 l2ToL1Message, bytes32[] memory siblingPath, bytes32 treeRoot) =
       _addWithdrawMessageInOutbox(address(this), l2BlockNumber);

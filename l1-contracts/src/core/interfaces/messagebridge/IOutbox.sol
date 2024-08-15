@@ -64,4 +64,18 @@ interface IOutbox {
     view
     returns (bool);
   // docs:end:outbox_has_message_been_consumed_at_block_and_index
+
+  /**
+   * @notice  Fetch the root data for a given block number
+   *          Returns (0, 0) if the block is not proven
+   *
+   * @param _l2BlockNumber - The block number to fetch the root data for
+   *
+   * @return root - The root of the merkle tree containing the L2 to L1 messages
+   * @return minHeight - The min height for the the merkle tree that the root corresponds to
+   */
+  function getRootData(uint256 _l2BlockNumber)
+    external
+    view
+    returns (bytes32 root, uint256 minHeight);
 }

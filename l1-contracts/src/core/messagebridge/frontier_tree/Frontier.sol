@@ -4,12 +4,13 @@ pragma solidity >=0.8.18;
 
 import {Hash} from "../../libraries/Hash.sol";
 import {IFrontier} from "../../interfaces/messagebridge/IFrontier.sol";
+import {Ownable} from "@oz/access/Ownable.sol";
 
 // This truncates each hash and hash preimage to 31 bytes to follow Noir.
 // It follows the logic in /noir-protocol-circuits/crates/parity-lib/src/utils/sha256_merkle_tree.nr
 // TODO(Miranda): Possibly nuke this contract, and use a generic version which can either use
 // regular sha256 or sha256ToField when emulating circuits
-contract FrontierMerkle is IFrontier {
+contract FrontierMerkle is IFrontier, Ownable {
   uint256 public immutable HEIGHT;
   uint256 public immutable SIZE;
 
@@ -21,7 +22,7 @@ contract FrontierMerkle is IFrontier {
   // for the zeros at each level. This would save gas on computations
   mapping(uint256 level => bytes32 zero) public zeros;
 
-  constructor(uint256 _height) {
+  constructor(uint256 _height) Ownable(msg.sender) {
     HEIGHT = _height;
     SIZE = 2 ** _height;
 
@@ -31,7 +32,7 @@ contract FrontierMerkle is IFrontier {
     }
   }
 
-  function insertLeaf(bytes32 _leaf) external override(IFrontier) returns (uint256) {
+  function insertLeaf(bytes32 _leaf) external override(IFrontier) onlyOwner returns (uint256) {
     uint256 index = nextIndex;
     uint256 level = _computeLevel(index);
     bytes32 right = _leaf;

@@ -74,6 +74,8 @@ describe('e2e_public_cross_chain_messaging l2_to_l1', () => {
         leaf,
       );
 
+      await t.assumeProven();
+
       const txHash = await outbox.write.consume(
         [
           l2ToL1Message,

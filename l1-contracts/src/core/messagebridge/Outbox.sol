@@ -5,10 +5,11 @@ pragma solidity >=0.8.18;
 // Libraries
 import {DataStructures} from "../libraries/DataStructures.sol";
 import {Errors} from "../libraries/Errors.sol";
-import {Constants} from "../libraries/ConstantsGen.sol";
 import {MerkleLib} from "../libraries/MerkleLib.sol";
 import {Hash} from "../libraries/Hash.sol";
 import {IOutbox} from "../interfaces/messagebridge/IOutbox.sol";
+
+import {Rollup} from "../Rollup.sol";
 
 /**
  * @title Outbox
@@ -26,18 +27,19 @@ contract Outbox is IOutbox {
     mapping(uint256 => bool) nullified;
   }
 
-  address public immutable ROLLUP_CONTRACT;
-  mapping(uint256 l2BlockNumber => RootData) public roots;
+  Rollup public immutable ROLLUP;
+  mapping(uint256 l2BlockNumber => RootData) internal roots;
 
   constructor(address _rollup) {
-    ROLLUP_CONTRACT = _rollup;
+    ROLLUP = Rollup(_rollup);
   }
 
   /**
-   * @notice Inserts the root of a merkle tree containing all of the L2 to L1 messages in
-   * a block specified by _l2BlockNumber.
+   * @notice Inserts the root of a merkle tree containing all of the L2 to L1 messages in a block
+   *
    * @dev Only callable by the rollup contract
    * @dev Emits `RootAdded` upon inserting the root successfully
+   *
    * @param _l2BlockNumber - The L2 Block Number in which the L2 to L1 messages reside
    * @param _root - The merkle root of the tree where all the L2 to L1 messages are leaves
    * @param _minHeight - The min height of the merkle tree that the root corresponds to
@@ -46,12 +48,8 @@ contract Outbox is IOutbox {
     external
     override(IOutbox)
   {
-    if (msg.sender != ROLLUP_CONTRACT) {
+    if (msg.sender != address(ROLLUP)) {
       revert Errors.Outbox__Unauthorized();
-    }
-
-    if (roots[_l2BlockNumber].root != bytes32(0)) {
-      revert Errors.Outbox__RootAlreadySetAtBlock(_l2BlockNumber);
     }
 
     if (_root == bytes32(0)) {
@@ -66,8 +64,10 @@ contract Outbox is IOutbox {
 
   /**
    * @notice Consumes an entry from the Outbox
+   *
    * @dev Only useable by portals / recipients of messages
    * @dev Emits `MessageConsumed` when consuming messages
+   *
    * @param _message - The L2 to L1 message
    * @param _l2BlockNumber - The block number specifying the block that contains the message we want to consume
    * @param _leafIndex - The index inside the merkle tree where the message is located
@@ -81,6 +81,10 @@ contract Outbox is IOutbox {
     uint256 _leafIndex,
     bytes32[] calldata _path
   ) external override(IOutbox) {
+    if (_l2BlockNumber >= ROLLUP.provenBlockCount()) {
+      revert Errors.Outbox__BlockNotProven(_l2BlockNumber);
+    }
+
     if (msg.sender != _message.recipient.actor) {
       revert Errors.Outbox__InvalidRecipient(_message.recipient.actor, msg.sender);
     }
@@ -121,9 +125,13 @@ contract Outbox is IOutbox {
 
   /**
    * @notice Checks to see if an index of the L2 to L1 message tree for a specific block has been consumed
+   *
    * @dev - This function does not throw. Out-of-bounds access is considered valid, but will always return false
+   *
    * @param _l2BlockNumber - The block number specifying the block that contains the index of the message we want to check
    * @param _leafIndex - The index of the message inside the merkle tree
+   *
+   * @return bool - True if the message has been consumed, false otherwise
    */
   function hasMessageBeenConsumedAtBlockAndIndex(uint256 _l2BlockNumber, uint256 _leafIndex)
     external
@@ -132,5 +140,27 @@ contract Outbox is IOutbox {
     returns (bool)
   {
     return roots[_l2BlockNumber].nullified[_leafIndex];
+  }
+
+  /**
+   * @notice  Fetch the root data for a given block number
+   *          Returns (0, 0) if the block is not proven
+   *
+   * @param _l2BlockNumber - The block number to fetch the root data for
+   *
+   * @return root - The root of the merkle tree containing the L2 to L1 messages
+   * @return minHeight - The min height for the the merkle tree that the root corresponds to
+   */
+  function getRootData(uint256 _l2BlockNumber)
+    external
+    view
+    override(IOutbox)
+    returns (bytes32 root, uint256 minHeight)
+  {
+    if (_l2BlockNumber >= ROLLUP.provenBlockCount()) {
+      return (bytes32(0), 0);
+    }
+    RootData storage rootData = roots[_l2BlockNumber];
+    return (rootData.root, rootData.minHeight);
   }
 }

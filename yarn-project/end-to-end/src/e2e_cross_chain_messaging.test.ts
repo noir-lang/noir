@@ -11,8 +11,10 @@ import {
   computeAuthWitMessageHash,
 } from '@aztec/aztec.js';
 import { sha256ToField } from '@aztec/foundation/crypto';
+import { RollupAbi } from '@aztec/l1-artifacts';
 import { type TokenBridgeContract, type TokenContract } from '@aztec/noir-contracts.js';
 
+import { getContract } from 'viem';
 import { toFunctionSelector } from 'viem/utils';
 
 import { NO_L1_TO_L2_MSG_ERROR } from './fixtures/fixtures.js';
@@ -32,6 +34,7 @@ describe('e2e_cross_chain_messaging', () => {
   let crossChainTestHarness: CrossChainTestHarness;
   let l2Token: TokenContract;
   let l2Bridge: TokenBridgeContract;
+  let rollup: any;
 
   beforeEach(async () => {
     const {
@@ -51,6 +54,12 @@ describe('e2e_cross_chain_messaging', () => {
       wallets[0],
       logger_,
     );
+
+    rollup = getContract({
+      address: deployL1ContractsValues.l1ContractAddresses.rollupAddress.toString(),
+      abi: RollupAbi,
+      client: deployL1ContractsValues.walletClient,
+    });
 
     l2Token = crossChainTestHarness.l2Token;
     l2Bridge = crossChainTestHarness.l2Bridge;
@@ -123,6 +132,9 @@ describe('e2e_cross_chain_messaging', () => {
       l2TxReceipt.blockNumber!,
       l2ToL1Message,
     );
+
+    // Since the outbox is only consumable when the block is proven, we need to set the block to be proven
+    await rollup.write.setAssumeProvenUntilBlockNumber([await rollup.read.pendingBlockCount()]);
 
     // Check balance before and after exit.
     expect(await crossChainTestHarness.getL1BalanceOf(ethAccount)).toBe(l1TokenBalance - bridgeAmount);

@@ -36,6 +36,7 @@ library Errors {
   error Outbox__InvalidRecipient(address expected, address actual); // 0x57aad581
   error Outbox__AlreadyNullified(uint256 l2BlockNumber, uint256 leafIndex); // 0xfd71c2d4
   error Outbox__NothingToConsumeAtBlock(uint256 l2BlockNumber); // 0xa4508f22
+  error Outbox__BlockNotProven(uint256 l2BlockNumber); // 0x0e194a6d
 
   // Rollup
   error Rollup__InvalidArchive(bytes32 expected, bytes32 actual); // 0xb682a40e
@@ -53,6 +54,8 @@ library Errors {
   error Rollup__TimestampInFuture(); // 0xbc1ce916
   error Rollup__TimestampTooOld(); // 0x72ed9c81
   error Rollup__UnavailableTxs(bytes32 txsHash); // 0x414906c3
+  error Rollup__NothingToPrune(); // 0x850defd3
+  error Rollup__NotReadyToPrune(uint256 currentSlot, uint256 prunableAt); // 0x9fdf1614
 
   // Registry
   error Registry__RollupNotRegistered(address rollup); // 0xa1fee4cf

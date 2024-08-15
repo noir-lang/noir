@@ -11,12 +11,16 @@ interface ITestRollup {
   function setDevNet(bool _devNet) external;
   function setVerifier(address _verifier) external;
   function setVkTreeRoot(bytes32 _vkTreeRoot) external;
+  function setAssumeProvenUntilBlockNumber(uint256 blockNumber) external;
 }
 
 interface IRollup {
   event L2BlockProcessed(uint256 indexed blockNumber);
   event L2ProofVerified(uint256 indexed blockNumber, bytes32 indexed proverId);
   event ProgressedState(uint256 provenBlockCount, uint256 pendingBlockCount);
+  event PrunedPending(uint256 provenBlockCount, uint256 pendingBlockCount);
+
+  function prune() external;
 
   function INBOX() external view returns (IInbox);
 

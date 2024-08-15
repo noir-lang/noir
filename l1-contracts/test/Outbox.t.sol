@@ -11,19 +11,30 @@ import {Hash} from "../src/core/libraries/Hash.sol";
 import {NaiveMerkle} from "./merkle/Naive.sol";
 import {MerkleTestUtil} from "./merkle/TestUtil.sol";
 
+contract FakeRollup {
+  uint256 public provenBlockCount = 1;
+
+  function setProvenBlockCount(uint256 _provenBlockCount) public {
+    provenBlockCount = _provenBlockCount;
+  }
+}
+
 contract OutboxTest is Test {
   using Hash for DataStructures.L2ToL1Msg;
 
-  address internal constant ROLLUP_CONTRACT = address(0x42069123);
   address internal constant NOT_RECIPIENT = address(0x420);
   uint256 internal constant DEFAULT_TREE_HEIGHT = 2;
   uint256 internal constant AZTEC_VERSION = 1;
 
+  address internal ROLLUP_CONTRACT;
   Outbox internal outbox;
   NaiveMerkle internal zeroedTree;
   MerkleTestUtil internal merkleTestUtil;
 
   function setUp() public {
+    ROLLUP_CONTRACT = address(new FakeRollup());
+    FakeRollup(ROLLUP_CONTRACT).setProvenBlockCount(2);
+
     outbox = new Outbox(ROLLUP_CONTRACT);
     zeroedTree = new NaiveMerkle(DEFAULT_TREE_HEIGHT);
     merkleTestUtil = new MerkleTestUtil();
@@ -54,9 +65,13 @@ contract OutboxTest is Test {
 
     vm.prank(ROLLUP_CONTRACT);
     outbox.insert(1, root, DEFAULT_TREE_HEIGHT);
+  }
+
+  function testRevertIfInsertingEmptyRoot() public {
+    bytes32 root = bytes32(0);
 
     vm.prank(ROLLUP_CONTRACT);
-    vm.expectRevert(abi.encodeWithSelector(Errors.Outbox__RootAlreadySetAtBlock.selector, 1));
+    vm.expectRevert(abi.encodeWithSelector(Errors.Outbox__InsertingInvalidRoot.selector));
     outbox.insert(1, root, DEFAULT_TREE_HEIGHT);
   }
 
@@ -80,7 +95,7 @@ contract OutboxTest is Test {
     vm.prank(ROLLUP_CONTRACT);
     outbox.insert(1, root, treeHeight);
 
-    (bytes32 actualRoot, uint256 actualHeight) = outbox.roots(1);
+    (bytes32 actualRoot, uint256 actualHeight) = outbox.getRootData(1);
     assertEq(root, actualRoot);
     assertEq(treeHeight, actualHeight);
   }
@@ -187,6 +202,28 @@ contract OutboxTest is Test {
     outbox.consume(fakeMessage, 1, 0, path);
   }
 
+  function testRevertIfConsumingFromTreeNotProven() public {
+    FakeRollup(ROLLUP_CONTRACT).setProvenBlockCount(1);
+
+    DataStructures.L2ToL1Msg memory fakeMessage = _fakeMessage(address(this));
+    bytes32 leaf = fakeMessage.sha256ToField();
+
+    NaiveMerkle tree = new NaiveMerkle(DEFAULT_TREE_HEIGHT);
+    tree.insertLeaf(leaf);
+    bytes32 root = tree.computeRoot();
+
+    vm.prank(ROLLUP_CONTRACT);
+    outbox.insert(1, root, DEFAULT_TREE_HEIGHT);
+
+    (bytes32[] memory path,) = tree.computeSiblingPath(0);
+
+    bool statusBeforeConsumption = outbox.hasMessageBeenConsumedAtBlockAndIndex(1, 0);
+    assertEq(abi.encode(0), abi.encode(statusBeforeConsumption));
+
+    vm.expectRevert(abi.encodeWithSelector(Errors.Outbox__BlockNotProven.selector, 1));
+    outbox.consume(fakeMessage, 1, 0, path);
+  }
+
   function testValidInsertAndConsume() public {
     DataStructures.L2ToL1Msg memory fakeMessage = _fakeMessage(address(this));
     bytes32 leaf = fakeMessage.sha256ToField();
@@ -218,6 +255,8 @@ contract OutboxTest is Test {
     uint256 _blockNumber,
     uint8 _size
   ) public {
+    uint256 blockNumber = bound(_blockNumber, 1, 256);
+    FakeRollup(ROLLUP_CONTRACT).setProvenBlockCount(blockNumber + 1);
     uint256 numberOfMessages = bound(_size, 1, _recipients.length);
     DataStructures.L2ToL1Msg[] memory messages = new DataStructures.L2ToL1Msg[](numberOfMessages);
 
@@ -235,22 +274,43 @@ contract OutboxTest is Test {
     bytes32 root = tree.computeRoot();
 
     vm.expectEmit(true, true, true, true, address(outbox));
-    emit IOutbox.RootAdded(_blockNumber, root, treeHeight);
+    emit IOutbox.RootAdded(blockNumber, root, treeHeight);
     vm.prank(ROLLUP_CONTRACT);
-    outbox.insert(_blockNumber, root, treeHeight);
+    outbox.insert(blockNumber, root, treeHeight);
 
     for (uint256 i = 0; i < numberOfMessages; i++) {
       (bytes32[] memory path, bytes32 leaf) = tree.computeSiblingPath(i);
 
       vm.expectEmit(true, true, true, true, address(outbox));
-      emit IOutbox.MessageConsumed(_blockNumber, root, leaf, i);
+      emit IOutbox.MessageConsumed(blockNumber, root, leaf, i);
       vm.prank(_recipients[i]);
-      outbox.consume(messages[i], _blockNumber, i, path);
+      outbox.consume(messages[i], blockNumber, i, path);
     }
   }
 
-  function testCheckOutOfBoundsStatus(uint256 _blockNumber, uint256 _leafIndex) external {
+  function testCheckOutOfBoundsStatus(uint256 _blockNumber, uint256 _leafIndex) public {
     bool outOfBounds = outbox.hasMessageBeenConsumedAtBlockAndIndex(_blockNumber, _leafIndex);
-    assertEq(abi.encode(0), abi.encode(outOfBounds));
+    assertFalse(outOfBounds);
+  }
+
+  function testGetRootData() public {
+    bytes32 root = zeroedTree.computeRoot();
+
+    vm.startPrank(ROLLUP_CONTRACT);
+    outbox.insert(1, root, DEFAULT_TREE_HEIGHT);
+    outbox.insert(2, root, DEFAULT_TREE_HEIGHT);
+    vm.stopPrank();
+
+    {
+      (bytes32 actualRoot, uint256 actualHeight) = outbox.getRootData(1);
+      assertEq(root, actualRoot);
+      assertEq(DEFAULT_TREE_HEIGHT, actualHeight);
+    }
+
+    {
+      (bytes32 actualRoot, uint256 actualHeight) = outbox.getRootData(2);
+      assertEq(bytes32(0), actualRoot);
+      assertEq(0, actualHeight);
+    }
   }
 }

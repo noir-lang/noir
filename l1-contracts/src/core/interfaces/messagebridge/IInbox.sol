@@ -40,8 +40,11 @@ interface IInbox {
    * @dev Only callable by the rollup contract
    * @dev In the first iteration we return empty tree root because first block's messages tree is always
    * empty because there has to be a 1 block lag to prevent sequencer DOS attacks
+   *
+   * @param _toConsume - The block number to consume
+   *
    * @return The root of the consumed tree
    */
-  function consume() external returns (bytes32);
+  function consume(uint256 _toConsume) external returns (bytes32);
   // docs:end:consume
 }

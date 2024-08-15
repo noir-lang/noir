@@ -37,7 +37,7 @@ import { fr, makeScopedL2ToL1Message } from '@aztec/circuits.js/testing';
 import { type L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { makeTuple, range } from '@aztec/foundation/array';
 import { openTmpStore } from '@aztec/kv-store/utils';
-import { AvailabilityOracleAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
+import { AvailabilityOracleAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import { SHA256Trunc, StandardTree } from '@aztec/merkle-tree';
 import { getVKTreeRoot } from '@aztec/noir-protocol-circuits-types';
 import { TxProver } from '@aztec/prover-client';
@@ -84,11 +84,9 @@ describe('L1Publisher integration', () => {
   let deployerAccount: PrivateKeyAccount;
 
   let rollupAddress: Address;
-  let inboxAddress: Address;
   let outboxAddress: Address;
 
   let rollup: GetContractReturnType<typeof RollupAbi, PublicClient<HttpTransport, Chain>>;
-  let inbox: GetContractReturnType<typeof InboxAbi, PublicClient<HttpTransport, Chain>>;
   let outbox: GetContractReturnType<typeof OutboxAbi, PublicClient<HttpTransport, Chain>>;
 
   let publisher: L1Publisher;
@@ -135,7 +133,6 @@ describe('L1Publisher integration', () => {
     ethCheatCodes = new EthCheatCodes(config.l1RpcUrl);
 
     rollupAddress = getAddress(l1ContractAddresses.rollupAddress.toString());
-    inboxAddress = getAddress(l1ContractAddresses.inboxAddress.toString());
     outboxAddress = getAddress(l1ContractAddresses.outboxAddress.toString());
 
     // Set up contract instances
@@ -143,11 +140,6 @@ describe('L1Publisher integration', () => {
       address: rollupAddress,
       abi: RollupAbi,
       client: publicClient,
-    });
-    inbox = getContract({
-      address: inboxAddress,
-      abi: InboxAbi,
-      client: walletClient,
     });
     outbox = getContract({
       address: outboxAddress,
@@ -364,9 +356,6 @@ describe('L1Publisher integration', () => {
     let currentL1ToL2Messages: Fr[] = [];
     let nextL1ToL2Messages: Fr[] = [];
 
-    // We store which tree is about to be consumed so that we can later check the value advanced
-    let toConsume = await inbox.read.toConsume();
-
     for (let i = 0; i < numberOfConsecutiveBlocks; i++) {
       // @note  Make sure that the state is up to date before we start building.
       await worldStateSynchronizer.syncImmediate();
@@ -409,7 +398,7 @@ describe('L1Publisher integration', () => {
 
       const l2ToL1MsgsArray = block.body.txEffects.flatMap(txEffect => txEffect.l2ToL1Msgs);
 
-      const [emptyRoot] = await outbox.read.roots([block.header.globalVariables.blockNumber.toBigInt()]);
+      const [emptyRoot] = await outbox.read.getRootData([block.header.globalVariables.blockNumber.toBigInt()]);
 
       // Check that we have not yet written a root to this blocknumber
       expect(BigInt(emptyRoot)).toStrictEqual(0n);
@@ -444,11 +433,6 @@ describe('L1Publisher integration', () => {
       });
       expect(ethTx.input).toEqual(expectedData);
 
-      // Check a tree have been consumed from the inbox
-      const newToConsume = await inbox.read.toConsume();
-      expect(newToConsume).toEqual(toConsume + 1n);
-      toConsume = newToConsume;
-
       const treeHeight = Math.ceil(Math.log2(l2ToL1MsgsArray.length));
 
       const tree = new StandardTree(
@@ -462,10 +446,16 @@ describe('L1Publisher integration', () => {
       await tree.appendLeaves(l2ToL1MsgsArray);
 
       const expectedRoot = tree.getRoot(true);
-      const [actualRoot] = await outbox.read.roots([block.header.globalVariables.blockNumber.toBigInt()]);
+      const [returnedRoot] = await outbox.read.getRootData([block.header.globalVariables.blockNumber.toBigInt()]);
 
       // check that values are inserted into the outbox
-      expect(`0x${expectedRoot.toString('hex')}`).toEqual(actualRoot);
+      expect(Fr.ZERO.toString()).toEqual(returnedRoot);
+
+      const actualRoot = await ethCheatCodes.load(
+        EthAddress.fromString(outbox.address),
+        ethCheatCodes.keccak256(0n, 1n + BigInt(i)),
+      );
+      expect(`0x${expectedRoot.toString('hex')}`).toEqual(new Fr(actualRoot).toString());
 
       // There is a 1 block lag between before messages get consumed from the inbox
       currentL1ToL2Messages = nextL1ToL2Messages;

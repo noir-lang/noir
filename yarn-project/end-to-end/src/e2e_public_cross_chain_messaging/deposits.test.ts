@@ -99,6 +99,8 @@ describe('e2e_public_cross_chain_messaging deposits', () => {
       l2ToL1Message,
     );
 
+    await t.assumeProven();
+
     await crossChainTestHarness.withdrawFundsFromBridgeOnL1(
       withdrawAmount,
       l2TxReceipt.blockNumber!,

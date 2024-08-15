@@ -85,12 +85,16 @@ contract DecoderBase is Test {
     AppendOnlyTreeSnapshot publicDataTree;
   }
 
-  function load(string memory name) public view returns (Full memory) {
+  function load(string memory name) internal view returns (Full memory) {
     string memory root = vm.projectRoot();
     string memory path = string.concat(root, "/test/fixtures/", name, ".json");
     string memory json = vm.readFile(path);
-    bytes memory json_bytes = vm.parseJson(json);
-    Full memory full = abi.decode(json_bytes, (Full));
+    bytes memory jsonBytes = vm.parseJson(json);
+    Full memory full = abi.decode(jsonBytes, (Full));
     return full;
+  }
+
+  function max(uint256 a, uint256 b) internal pure returns (uint256) {
+    return a > b ? a : b;
   }
 }
