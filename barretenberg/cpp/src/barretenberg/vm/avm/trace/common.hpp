@@ -30,6 +30,11 @@ static const size_t KERNEL_OUTPUTS_VALUE = 1;
 static const size_t KERNEL_OUTPUTS_SIDE_EFFECT_COUNTER = 2;
 static const size_t KERNEL_OUTPUTS_METADATA = 3;
 
+constexpr size_t L2_HI_GAS_COUNTS_IDX = 0;
+constexpr size_t L2_LO_GAS_COUNTS_IDX = 1;
+constexpr size_t DA_HI_GAS_COUNTS_IDX = 2;
+constexpr size_t DA_LO_GAS_COUNTS_IDX = 3;
+
 // Number of rows
 static const size_t AVM_TRACE_SIZE = 1 << 18;
 enum class IntermRegister : uint32_t { IA = 0, IB = 1, IC = 2, ID = 3 };

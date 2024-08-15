@@ -149,7 +149,7 @@ function processConstantsTS(constants: { [key: string]: string }): string {
 function processConstantsCpp(constants: { [key: string]: string }): string {
   const code: string[] = [];
   Object.entries(constants).forEach(([key, value]) => {
-    if (CPP_CONSTANTS.includes(key)) {
+    if (CPP_CONSTANTS.includes(key) || key.startsWith('AVM_')) {
       code.push(`#define ${key} ${value}`);
     }
   });
@@ -203,7 +203,9 @@ function processEnumTS(enumName: string, enumValues: { [key: string]: number }):
 function processConstantsSolidity(constants: { [key: string]: string }, prefix = ''): string {
   const code: string[] = [];
   Object.entries(constants).forEach(([key, value]) => {
-    code.push(`  uint256 internal constant ${prefix}${key} = ${value};`);
+    if (!key.startsWith('AVM_')) {
+      code.push(`  uint256 internal constant ${prefix}${key} = ${value};`);
+    }
   });
   return code.join('\n');
 }

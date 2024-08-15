@@ -241,7 +241,7 @@ export class EmitUnencryptedLog extends Instruction {
     const contractAddress = context.environment.address;
 
     const memoryOperations = { reads: 1 + logSize, indirect: this.indirect };
-    context.machineState.consumeGas(this.gasCost(memoryOperations));
+    context.machineState.consumeGas(this.gasCost({ ...memoryOperations, dynMultiplier: logSize }));
     const log = memory.getSlice(logOffset, logSize).map(f => f.toFr());
     context.persistableState.writeUnencryptedLog(contractAddress, log);
 

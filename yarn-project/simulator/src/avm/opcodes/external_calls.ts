@@ -67,7 +67,7 @@ abstract class ExternalCall extends Instruction {
 
     // First we consume the gas for this operation.
     const memoryOperations = { reads: calldataSize + 5, writes: 1 + this.retSize, indirect: this.indirect };
-    context.machineState.consumeGas(this.gasCost(memoryOperations));
+    context.machineState.consumeGas(this.gasCost({ ...memoryOperations, dynMultiplier: calldataSize + this.retSize }));
     // Then we consume the gas allocated for the nested call. The excess will be refunded later.
     // Gas allocation is capped by the amount of gas left in the current context.
     // We have to do some dancing here because the gas allocation is a field,
@@ -170,7 +170,7 @@ export class Return extends Instruction {
   public async execute(context: AvmContext): Promise<void> {
     const memoryOperations = { reads: this.copySize, indirect: this.indirect };
     const memory = context.machineState.memory.track(this.type);
-    context.machineState.consumeGas(this.gasCost(memoryOperations));
+    context.machineState.consumeGas(this.gasCost({ ...memoryOperations, dynMultiplier: this.copySize }));
 
     const [returnOffset] = Addressing.fromWire(this.indirect).resolve([this.returnOffset], memory);
 
@@ -199,7 +199,7 @@ export class Revert extends Instruction {
   public async execute(context: AvmContext): Promise<void> {
     const memoryOperations = { reads: this.retSize, indirect: this.indirect };
     const memory = context.machineState.memory.track(this.type);
-    context.machineState.consumeGas(this.gasCost(memoryOperations));
+    context.machineState.consumeGas(this.gasCost({ ...memoryOperations, dynMultiplier: this.retSize }));
 
     const [returnOffset] = Addressing.fromWire(this.indirect).resolve([this.returnOffset], memory);
 

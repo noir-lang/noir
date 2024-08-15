@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 
 import type { AvmContext } from '../avm_context.js';
-import { getBaseGasCost, sumGas } from '../avm_gas.js';
+import { getBaseGasCost, getDynamicGasCost, mulGas, sumGas } from '../avm_gas.js';
 import { type MemoryOperations } from '../avm_memory_types.js';
 import { type BufferCursor } from '../serialization/buffer_cursor.js';
 import { Opcode, type OperandType, deserialize, serialize } from '../serialization/instruction_serialization.js';
@@ -67,12 +67,15 @@ export abstract class Instruction {
    * @param memoryOps Memory operations performed by the instruction.
    * @returns Gas cost.
    */
-  protected gasCost(_memoryOps: Partial<MemoryOperations & { indirect: number }> = {}) {
+  protected gasCost(ops: Partial<MemoryOperations & { indirect: number; dynMultiplier: number }> = {}) {
     const baseGasCost = getBaseGasCost(this.opcode);
+    // TODO: We are using a simplified gas model to reduce complexity in the circuit.
+    // Memory accounting will probably be removed.
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6861): reconsider.
     // const memoryGasCost = getMemoryGasCost(memoryOps);
-    const memoryGasCost = { l2Gas: 0, daGas: 0 };
-    return sumGas(baseGasCost, memoryGasCost);
+    // const memoryGasCost = { l2Gas: 0, daGas: 0 };
+    const dynGasCost = mulGas(getDynamicGasCost(this.opcode), ops.dynMultiplier ?? 0);
+    return sumGas(baseGasCost, dynGasCost);
   }
 
   /**

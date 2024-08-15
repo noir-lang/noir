@@ -63,12 +63,11 @@ describe('AVM simulator: injected bytecode', () => {
 
   it('Should execute bytecode that performs basic addition', async () => {
     const context = initContext({ env: initExecutionEnvironment({ calldata }) });
-    const { l2Gas: initialL2GasLeft } = context.machineState.gasLeft;
     const results = await new AvmSimulator(context).executeBytecode(markBytecodeAsAvm(bytecode));
 
     expect(results.reverted).toBe(false);
     expect(results.output).toEqual([new Fr(3)]);
-    expect(context.machineState.l2GasLeft).toEqual(initialL2GasLeft - 30);
+    expect(context.machineState.l2GasLeft).toEqual(99999100);
   });
 
   it('Should halt if runs out of gas', async () => {

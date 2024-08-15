@@ -35,7 +35,7 @@ export class ToRadixLE extends Instruction {
     const memory = context.machineState.memory.track(this.type);
     const [srcOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve([this.srcOffset, this.dstOffset], memory);
     const memoryOperations = { reads: 1, writes: this.numLimbs, indirect: this.indirect };
-    context.machineState.consumeGas(this.gasCost(memoryOperations));
+    context.machineState.consumeGas(this.gasCost({ ...memoryOperations, dynMultiplier: this.numLimbs }));
 
     // The radix gadget only takes in a Field
     memory.checkTag(TypeTag.FIELD, srcOffset);

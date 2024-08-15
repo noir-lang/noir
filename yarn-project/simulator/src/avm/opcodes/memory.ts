@@ -208,7 +208,7 @@ export class CalldataCopy extends Instruction {
   public async execute(context: AvmContext): Promise<void> {
     const memoryOperations = { writes: this.copySize, indirect: this.indirect };
     const memory = context.machineState.memory.track(this.type);
-    context.machineState.consumeGas(this.gasCost(memoryOperations));
+    context.machineState.consumeGas(this.gasCost({ ...memoryOperations, dynMultiplier: this.copySize }));
 
     // We don't need to check tags here because: (1) the calldata is NOT in memory, and (2) we are the ones writing to destination.
     const [cdOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve([this.cdOffset, this.dstOffset], memory);

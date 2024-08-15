@@ -36,11 +36,6 @@ namespace bb::avm_trace {
  **************************************************************************************************/
 namespace {
 
-constexpr size_t L2_HI_GAS_COUNTS_IDX = 0;
-constexpr size_t L2_LO_GAS_COUNTS_IDX = 1;
-constexpr size_t DA_HI_GAS_COUNTS_IDX = 2;
-constexpr size_t DA_LO_GAS_COUNTS_IDX = 3;
-
 // WARNING: FOR TESTING ONLY
 // Generates the lookup table for the range checks without doing a full 2**16 rows
 uint32_t finalize_rng_chks_for_testing(
@@ -2534,7 +2529,7 @@ void AvmTraceBuilder::op_call(uint8_t indirect,
                               uint32_t gas_offset,
                               uint32_t addr_offset,
                               uint32_t args_offset,
-                              uint32_t args_size,
+                              uint32_t args_size_offset,
                               uint32_t ret_offset,
                               uint32_t ret_size,
                               uint32_t success_offset,
@@ -2543,18 +2538,14 @@ void AvmTraceBuilder::op_call(uint8_t indirect,
     auto clk = static_cast<uint32_t>(main_trace.size()) + 1;
     const ExternalCallHint& hint = execution_hints.externalcall_hints.at(external_call_counter);
 
-    gas_trace_builder.constrain_gas_for_external_call(clk,
-                                                      /*dyn_gas_multiplier=*/0,
-                                                      static_cast<uint32_t>(hint.l2_gas_used),
-                                                      static_cast<uint32_t>(hint.da_gas_used));
-
     auto [resolved_gas_offset,
           resolved_addr_offset,
           resolved_args_offset,
-          resolved_args_size,
+          resolved_args_size_offset,
           resolved_ret_offset,
           resolved_success_offset] =
-        unpack_indirects<6>(indirect, { gas_offset, addr_offset, args_offset, args_size, ret_offset, success_offset });
+        unpack_indirects<6>(indirect,
+                            { gas_offset, addr_offset, args_offset, args_size_offset, ret_offset, success_offset });
 
     // Should read the address next to read_gas as well (tuple of gas values (l2Gas, daGas))
     auto read_gas_l2 = constrained_read_from_memory(
@@ -2566,6 +2557,14 @@ void AvmTraceBuilder::op_call(uint8_t indirect,
     auto read_args = constrained_read_from_memory(
         call_ptr, clk, resolved_args_offset, AvmMemoryTag::FF, AvmMemoryTag::U0, IntermRegister::ID);
     bool tag_match = read_gas_l2.tag_match && read_gas_da.tag_match && read_addr.tag_match && read_args.tag_match;
+
+    // TODO: constrain this
+    auto args_size = static_cast<uint32_t>(unconstrained_read_from_memory(resolved_args_size_offset));
+
+    gas_trace_builder.constrain_gas_for_external_call(clk,
+                                                      /*dyn_gas_multiplier=*/args_size + ret_size,
+                                                      static_cast<uint32_t>(hint.l2_gas_used),
+                                                      static_cast<uint32_t>(hint.da_gas_used));
 
     // We read the input and output addresses in one row as they should contain FF elements
     main_trace.push_back(Row{
@@ -3419,7 +3418,6 @@ std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
     auto poseidon2_trace = poseidon2_trace_builder.finalize();
     auto keccak_trace = keccak_trace_builder.finalize();
     auto pedersen_trace = pedersen_trace_builder.finalize();
-    auto gas_trace = gas_trace_builder.finalize();
     auto slice_trace = slice_trace_builder.finalize();
     const auto& fixed_gas_table = FixedGasTable::get();
     size_t mem_trace_size = mem_trace.size();
@@ -3431,7 +3429,7 @@ std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
     size_t keccak_trace_size = keccak_trace.size();
     size_t pedersen_trace_size = pedersen_trace.size();
     size_t bin_trace_size = bin_trace_builder.size();
-    size_t gas_trace_size = gas_trace.size();
+    size_t gas_trace_size = gas_trace_builder.size();
     size_t slice_trace_size = slice_trace.size();
 
     // Data structure to collect all lookup counts pertaining to 16-bit/32-bit range checks in memory trace
@@ -3831,79 +3829,14 @@ std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
      * GAS TRACE INCLUSION
      **********************************************************************************************/
 
-    // Add the gas cost table to the main trace
-    // TODO: do i need a way to produce an interupt that will stop the execution of the trace when the gas left
-    // becomes zero in the gas_trace_builder Does all of the gas trace information need to be added to this main
-    // machine?????
+    gas_trace_builder.finalize(main_trace);
+    const auto& rem_gas_rng_check_counts = gas_trace_builder.rem_gas_rng_check_counts;
 
-    // Add the gas accounting for each row
-    // We can assume that the gas trace will never be larger than the main trace
-    // We infer that a row is active for gas (.main_gas_cost_active = 1) based on the presence
-    // of a gas entry row.
-    // Set the initial gas
-    auto& first_opcode_row = main_trace.at(0);
-    first_opcode_row.main_l2_gas_remaining = gas_trace_builder.initial_l2_gas;
-    first_opcode_row.main_da_gas_remaining = gas_trace_builder.initial_da_gas;
-    uint32_t current_clk = 1;
-    uint32_t current_l2_gas_remaining = gas_trace_builder.initial_l2_gas;
-    uint32_t current_da_gas_remaining = gas_trace_builder.initial_da_gas;
+    /**********************************************************************************************
+     * ONLY FIXED TABLES FROM HERE ON
+     **********************************************************************************************/
 
-    // Data structure to collect all lookup counts pertaining to 16-bit range checks related to remaining gas
-    std::array<std::unordered_map<uint16_t, uint32_t>, 4> rem_gas_rng_check_counts;
-
-    std::unordered_map<uint16_t, uint32_t> l2_rem_gas_rng_check_hi_counts;
-    std::unordered_map<uint16_t, uint32_t> l2_rem_gas_rng_check_lo_counts;
-    std::unordered_map<uint16_t, uint32_t> da_rem_gas_rng_check_hi_counts;
-    std::unordered_map<uint16_t, uint32_t> da_rem_gas_rng_check_lo_counts;
-
-    // Assume that gas_trace entries are ordered by a strictly increasing clk sequence.
-    for (auto const& gas_entry : gas_trace) {
-        // There should be no gaps in the gas_trace.
-        ASSERT(gas_entry.clk == current_clk);
-
-        auto& dest = main_trace.at(gas_entry.clk - 1);
-        auto& next = main_trace.at(gas_entry.clk);
-
-        // Write each of the relevant gas accounting values
-        dest.main_opcode_val = static_cast<uint8_t>(gas_entry.opcode);
-        dest.main_base_l2_gas_op_cost = gas_entry.base_l2_gas_cost;
-        dest.main_base_da_gas_op_cost = gas_entry.base_da_gas_cost;
-        dest.main_dyn_l2_gas_op_cost = gas_entry.dyn_l2_gas_cost;
-        dest.main_dyn_da_gas_op_cost = gas_entry.dyn_da_gas_cost;
-        dest.main_dyn_gas_multiplier = gas_entry.dyn_gas_multiplier;
-
-        // If gas remaining is increasing, it means we underflowed in uint32_t
-        bool l2_out_of_gas = current_l2_gas_remaining < gas_entry.remaining_l2_gas;
-        bool da_out_of_gas = current_da_gas_remaining < gas_entry.remaining_da_gas;
-
-        uint32_t abs_l2_gas_remaining = l2_out_of_gas ? -gas_entry.remaining_l2_gas : gas_entry.remaining_l2_gas;
-        uint32_t abs_da_gas_remaining = da_out_of_gas ? -gas_entry.remaining_da_gas : gas_entry.remaining_da_gas;
-
-        dest.main_abs_l2_rem_gas_hi = abs_l2_gas_remaining >> 16;
-        dest.main_abs_da_rem_gas_hi = abs_da_gas_remaining >> 16;
-        dest.main_abs_l2_rem_gas_lo = static_cast<uint16_t>(abs_l2_gas_remaining);
-        dest.main_abs_da_rem_gas_lo = static_cast<uint16_t>(abs_da_gas_remaining);
-
-        // lookups counting
-        rem_gas_rng_check_counts[L2_HI_GAS_COUNTS_IDX][static_cast<uint16_t>(dest.main_abs_l2_rem_gas_hi)]++;
-        rem_gas_rng_check_counts[L2_LO_GAS_COUNTS_IDX][static_cast<uint16_t>(dest.main_abs_l2_rem_gas_lo)]++;
-        rem_gas_rng_check_counts[DA_HI_GAS_COUNTS_IDX][static_cast<uint16_t>(dest.main_abs_da_rem_gas_hi)]++;
-        rem_gas_rng_check_counts[DA_LO_GAS_COUNTS_IDX][static_cast<uint16_t>(dest.main_abs_da_rem_gas_lo)]++;
-
-        dest.main_l2_out_of_gas = static_cast<uint32_t>(l2_out_of_gas);
-        dest.main_da_out_of_gas = static_cast<uint32_t>(da_out_of_gas);
-
-        current_l2_gas_remaining = gas_entry.remaining_l2_gas;
-        current_da_gas_remaining = gas_entry.remaining_da_gas;
-        next.main_l2_gas_remaining =
-            l2_out_of_gas ? FF::modulus - uint256_t(abs_l2_gas_remaining) : current_l2_gas_remaining;
-        next.main_da_gas_remaining =
-            da_out_of_gas ? FF::modulus - uint256_t(abs_da_gas_remaining) : current_da_gas_remaining;
-
-        current_clk++;
-    }
-
-    // Adding extra row for the shifted values at the top of the execution trace.
+    // Adding extra row for the shifted values at the top of the traces with shifts.
     Row first_row = Row{ .main_sel_first = FF(1), .mem_lastAccess = FF(1) };
     main_trace.insert(main_trace.begin(), first_row);
 
@@ -4002,14 +3935,16 @@ std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
             r.lookup_div_u16_6_counts = alu_trace_builder.div_u64_range_chk_counters[6][static_cast<uint16_t>(counter)];
             r.lookup_div_u16_7_counts = alu_trace_builder.div_u64_range_chk_counters[7][static_cast<uint16_t>(counter)];
 
+            auto at_or_zero = [](const auto& map, auto idx) { return map.contains(idx) ? map.at(idx) : 0; };
+
             r.range_check_l2_gas_hi_counts =
-                rem_gas_rng_check_counts[L2_HI_GAS_COUNTS_IDX][static_cast<uint16_t>(counter)];
+                at_or_zero(rem_gas_rng_check_counts[L2_HI_GAS_COUNTS_IDX], static_cast<uint16_t>(counter));
             r.range_check_l2_gas_lo_counts =
-                rem_gas_rng_check_counts[L2_LO_GAS_COUNTS_IDX][static_cast<uint16_t>(counter)];
+                at_or_zero(rem_gas_rng_check_counts[L2_LO_GAS_COUNTS_IDX], static_cast<uint16_t>(counter));
             r.range_check_da_gas_hi_counts =
-                rem_gas_rng_check_counts[DA_HI_GAS_COUNTS_IDX][static_cast<uint16_t>(counter)];
+                at_or_zero(rem_gas_rng_check_counts[DA_HI_GAS_COUNTS_IDX], static_cast<uint16_t>(counter));
             r.range_check_da_gas_lo_counts =
-                rem_gas_rng_check_counts[DA_LO_GAS_COUNTS_IDX][static_cast<uint16_t>(counter)];
+                at_or_zero(rem_gas_rng_check_counts[DA_LO_GAS_COUNTS_IDX], static_cast<uint16_t>(counter));
 
             r.main_sel_rng_16 = FF(1);
         }
@@ -4229,11 +4164,8 @@ std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
     for (size_t i = 0; i < fixed_gas_table.size(); i++) {
         merge_into(main_trace.at(i), fixed_gas_table.at(i));
     }
-
-    // Finalise gas left lookup counts
-    for (auto const& [opcode, count] : gas_trace_builder.gas_opcode_lookup_counter) {
-        main_trace.at(static_cast<uint8_t>(opcode)).lookup_opcode_gas_counts = count;
-    }
+    // Finalize the gas -> fixed gas lookup counts.
+    gas_trace_builder.finalize_lookups(main_trace);
 
     auto trace = std::move(main_trace);
     reset();
