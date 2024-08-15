@@ -579,9 +579,10 @@ mod signature_help_tests {
     async fn test_signature_help_for_call_at_first_argument() {
         let src = r#"
             fn foo(x: i32, y: Field) -> u32 { 0 }
+            fn wrapper(x: u32) {}
 
             fn bar() {
-                foo(>|<1, 2);
+                wrapper(foo(>|<1, 2));
             }
         "#;
 
@@ -660,8 +661,10 @@ mod signature_help_tests {
               fn foo(self, x: i32, y: Field) -> u32 { 0 }
             }
 
+            fn wrapper(x: u32) {}
+
             fn bar(f: Foo) {
-                f.foo(>|<1, 2);
+                wrapper(f.foo(>|<1, 2));
             }
         "#;
 
