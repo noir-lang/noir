@@ -199,7 +199,7 @@ impl<'a> SignatureFinder<'a> {
                         parameter_end as u32,
                     ]),
                     documentation: None,
-                })
+                });
             }
         }
         label.push(')');
@@ -246,7 +246,7 @@ impl<'a> SignatureFinder<'a> {
             parameters.push(ParameterInformation {
                 label: ParameterLabel::LabelOffsets([parameter_start as u32, parameter_end as u32]),
                 documentation: None,
-            })
+            });
         }
         label.push(')');
 
@@ -277,7 +277,7 @@ impl<'a> SignatureFinder<'a> {
 
     fn set_signature_help(&mut self, signature_information: SignatureInformation) {
         let signature_help = SignatureHelp {
-            active_parameter: signature_information.active_parameter.clone(),
+            active_parameter: signature_information.active_parameter,
             signatures: vec![signature_information],
             active_signature: Some(0),
         };
