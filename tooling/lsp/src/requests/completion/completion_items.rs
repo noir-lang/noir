@@ -90,7 +90,7 @@ impl<'a> NodeFinder<'a> {
         let func_meta = self.interner.function_meta(&func_id);
         let name = &self.interner.function_name(&func_id).to_string();
 
-        let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.get(0) {
+        let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.first() {
             if self.hir_pattern_is_self_type(pattern) {
                 if let Type::MutableReference(mut_typ) = typ {
                     let typ: &Type = mut_typ;

@@ -922,7 +922,7 @@ impl<'a> NodeFinder<'a> {
                 index.to_string(),
                 CompletionItemKind::FIELD,
                 Some(typ.to_string()),
-            ))
+            ));
         }
     }
 
