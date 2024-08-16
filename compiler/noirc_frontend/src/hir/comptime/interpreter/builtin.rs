@@ -17,8 +17,8 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, UnresolvedType,
-        UnresolvedTypeData, Visibility,
+        ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal, UnaryOp,
+        UnresolvedType, UnresolvedTypeData, Visibility,
     },
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     hir_def::function::FunctionBody,
@@ -47,7 +47,12 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
+            "expr_as_bool" => expr_as_bool(arguments, return_type, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
+            "expr_as_if" => expr_as_if(arguments, return_type, location),
+            "expr_as_index" => expr_as_index(arguments, return_type, location),
+            "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
+            "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -750,6 +755,21 @@ fn zeroed(return_type: Type) -> IResult<Value> {
     }
 }
 
+// fn as_bool(self) -> Option<bool>
+fn expr_as_bool(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Literal(Literal::Bool(bool)) = expr {
+            Some(Value::Bool(bool))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_function_call(self) -> Option<(Expr, [Expr])>
 fn expr_as_function_call(
     arguments: Vec<(Value, Location)>,
@@ -770,6 +790,108 @@ fn expr_as_function_call(
     })
 }
 
+// fn as_if(self) -> Option<(Expr, Expr, Option<Expr>)>
+fn expr_as_if(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type.clone(), location, |expr| {
+        if let ExpressionKind::If(if_expr) = expr {
+            // Get the type of `Option<Expr>`
+            let option_type = extract_option_generic_type(return_type.clone());
+            let Type::Tuple(option_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(option_types.len(), 3);
+            let alternative_option_type = option_types[2].clone();
+
+            let alternative =
+                option(alternative_option_type, if_expr.alternative.map(|e| Value::Expr(e.kind)));
+
+            Some(Value::Tuple(vec![
+                Value::Expr(if_expr.condition.kind),
+                Value::Expr(if_expr.consequence.kind),
+                alternative.ok()?,
+            ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_index(self) -> Option<Expr>
+fn expr_as_index(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Index(index_expr) = expr {
+            Some(Value::Tuple(vec![
+                Value::Expr(index_expr.collection.kind),
+                Value::Expr(index_expr.index.kind),
+            ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_unary_op(self) -> Option<(UnaryOp, Expr)>
+fn expr_as_unary_op(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type.clone(), location, |expr| {
+        if let ExpressionKind::Prefix(prefix_expr) = expr {
+            let option_type = extract_option_generic_type(return_type);
+            let Type::Tuple(mut tuple_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(tuple_types.len(), 2);
+
+            tuple_types.pop().unwrap();
+            let unary_op_type = tuple_types.pop().unwrap();
+
+            // These values should match the values used in noir_stdlib/src/meta/op.nr
+            let unary_op_value = match prefix_expr.operator {
+                UnaryOp::Minus => 0_u128,
+                UnaryOp::Not => 1_u128,
+                UnaryOp::MutableReference => 2_u128,
+                UnaryOp::Dereference { .. } => 3_u128,
+            };
+
+            let mut fields = HashMap::default();
+            fields.insert(Rc::new("op".to_string()), Value::Field(unary_op_value.into()));
+
+            let unary_op = Value::Struct(fields, unary_op_type);
+            let rhs = Value::Expr(prefix_expr.rhs.kind);
+            Some(Value::Tuple(vec![unary_op, rhs]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_tuple(self) -> Option<[Expr]>
+fn expr_as_tuple(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Tuple(expressions) = expr {
+            let expressions = expressions.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            Some(Value::Slice(expressions, typ))
+        } else {
+            None
+        }
+    })
+}
+
 // Helper function for implementing the `expr_as_...` functions.
 fn expr_as<F>(
     arguments: Vec<(Value, Location)>,
@@ -781,8 +903,12 @@ where
     F: FnOnce(ExpressionKind) -> Option<Value>,
 {
     let self_argument = check_one_argument(arguments, location)?;
-    let expr = get_expr(self_argument)?;
-    let option_value = f(expr);
+    let mut expression_kind = get_expr(self_argument)?;
+    while let ExpressionKind::Parenthesized(expression) = expression_kind {
+        expression_kind = expression.kind;
+    }
+
+    let option_value = f(expression_kind);
     option(return_type, option_value)
 }
 

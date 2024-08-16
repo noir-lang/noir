@@ -1,4 +1,6 @@
-use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
+use lsp_types::{
+    Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
+};
 use noirc_frontend::{
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::{ModuleDefId, StructId},
@@ -88,7 +90,7 @@ impl<'a> NodeFinder<'a> {
         let func_meta = self.interner.function_meta(&func_id);
         let name = &self.interner.function_name(&func_id).to_string();
 
-        let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.get(0) {
+        let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.first() {
             if self.hir_pattern_is_self_type(pattern) {
                 if let Type::MutableReference(mut_typ) = typ {
                     let typ: &Type = mut_typ;
@@ -120,6 +122,14 @@ impl<'a> NodeFinder<'a> {
 
                         if self_type != func_self_type {
                             return None;
+                        }
+                    } else if let Type::Tuple(self_tuple_types) = self_type {
+                        // Tuple types of different lengths seem to also have methods defined on all of them,
+                        // so here we reject methods for tuples where the length doesn't match.
+                        if let Type::Tuple(func_self_tuple_types) = func_self_type {
+                            if self_tuple_types.len() != func_self_tuple_types.len() {
+                                return None;
+                            }
                         }
                     }
                 } else {
@@ -162,6 +172,13 @@ impl<'a> NodeFinder<'a> {
             completion_item_with_sort_text(completion_item, self_mismatch_sort_text())
         } else {
             completion_item
+        };
+
+        let completion_item = match function_completion_kind {
+            FunctionCompletionKind::Name => completion_item,
+            FunctionCompletionKind::NameAndParameters => {
+                completion_item_with_trigger_parameter_hints_command(completion_item)
+            }
         };
 
         Some(completion_item)
@@ -281,6 +298,14 @@ fn type_to_self_string(typ: &Type, string: &mut String) {
     }
 }
 
+pub(super) fn struct_field_completion_item(field: &str, typ: &Type) -> CompletionItem {
+    field_completion_item(field, typ.to_string())
+}
+
+pub(super) fn field_completion_item(field: &str, typ: impl Into<String>) -> CompletionItem {
+    simple_completion_item(field, CompletionItemKind::FIELD, Some(typ.into()))
+}
+
 pub(super) fn simple_completion_item(
     label: impl Into<String>,
     kind: CompletionItemKind,
@@ -341,4 +366,17 @@ pub(super) fn completion_item_with_sort_text(
     sort_text: String,
 ) -> CompletionItem {
     CompletionItem { sort_text: Some(sort_text), ..completion_item }
+}
+
+pub(super) fn completion_item_with_trigger_parameter_hints_command(
+    completion_item: CompletionItem,
+) -> CompletionItem {
+    CompletionItem {
+        command: Some(Command {
+            title: "Trigger parameter hints".to_string(),
+            command: "editor.action.triggerParameterHints".to_string(),
+            arguments: None,
+        }),
+        ..completion_item
+    }
 }
