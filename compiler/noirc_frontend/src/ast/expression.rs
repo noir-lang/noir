@@ -8,7 +8,7 @@ use crate::ast::{
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::macros_api::StructId;
 use crate::node_interner::{ExprId, QuotedTypeId};
-use crate::token::{Attributes, Token, Tokens};
+use crate::token::{Attributes, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -476,6 +476,20 @@ pub struct FunctionDefinition {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
+}
+
+impl FunctionDefinition {
+    pub fn is_private(&self) -> bool {
+        self.visibility == ItemVisibility::Private
+    }
+
+    pub fn is_test(&self) -> bool {
+        if let Some(attribute) = &self.attributes.function {
+            matches!(attribute, FunctionAttribute::Test(..))
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

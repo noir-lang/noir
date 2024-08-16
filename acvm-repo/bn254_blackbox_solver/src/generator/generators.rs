@@ -91,7 +91,7 @@ mod test {
     fn test_derive_generators() {
         let res = derive_generators("test domain".as_bytes(), 128, 0);
 
-        let is_unique = |y: Affine<grumpkin::GrumpkinParameters>, j: usize| -> bool {
+        let is_unique = |y: Affine<GrumpkinParameters>, j: usize| -> bool {
             for (i, res) in res.iter().enumerate() {
                 if i != j && *res == y {
                     return false;

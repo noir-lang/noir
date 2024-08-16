@@ -274,11 +274,8 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let macros: &[&dyn MacroProcessor] = if options.disable_macros {
-        &[]
-    } else {
-        &[&aztec_macros::AztecMacro as &dyn MacroProcessor]
-    };
+    let macros: &[&dyn MacroProcessor] =
+        if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro] };
 
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(

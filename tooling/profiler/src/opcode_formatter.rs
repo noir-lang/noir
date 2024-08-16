@@ -100,7 +100,7 @@ fn format_binary_field_op(op: &BinaryFieldOp) -> String {
     }
 }
 
-fn format_binary_int(op: &acir::brillig::BinaryIntOp) -> String {
+fn format_binary_int(op: &BinaryIntOp) -> String {
     match op {
         BinaryIntOp::Add => "add".to_string(),
         BinaryIntOp::Sub => "sub".to_string(),

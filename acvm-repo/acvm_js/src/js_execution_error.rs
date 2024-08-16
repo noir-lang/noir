@@ -54,16 +54,14 @@ impl JsExecutionError {
             None => JsValue::UNDEFINED,
         };
         let assertion_payload = match assertion_payload {
-            Some(raw) => <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&raw)
+            Some(raw) => <JsValue as JsValueSerdeExt>::from_serde(&raw)
                 .expect("Cannot serialize assertion payload"),
             None => JsValue::UNDEFINED,
         };
 
         let brillig_function_id = match brillig_function_id {
-            Some(function_id) => {
-                <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&function_id)
-                    .expect("Cannot serialize Brillig function id")
-            }
+            Some(function_id) => <JsValue as JsValueSerdeExt>::from_serde(&function_id)
+                .expect("Cannot serialize Brillig function id"),
             None => JsValue::UNDEFINED,
         };
 
