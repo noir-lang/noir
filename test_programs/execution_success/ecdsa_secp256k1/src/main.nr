@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main(
     message: [u8; 38],
     hashed_message: [u8; 32],

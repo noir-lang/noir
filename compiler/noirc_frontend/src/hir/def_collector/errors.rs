@@ -1,4 +1,4 @@
-use crate::ast::{Ident, Path};
+use crate::ast::{Ident, Path, UnresolvedTypeData};
 use crate::hir::resolution::import::PathResolutionError;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
@@ -26,8 +26,12 @@ pub enum DuplicateType {
 pub enum DefCollectorErrorKind {
     #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
+    #[error("duplicate struct field {first_def}")]
+    DuplicateField { first_def: Ident, second_def: Ident },
     #[error("unresolved import")]
-    UnresolvedModuleDecl { mod_name: Ident, expected_path: String },
+    UnresolvedModuleDecl { mod_name: Ident, expected_path: String, alternative_path: String },
+    #[error("overlapping imports")]
+    OverlappingModuleDecls { mod_name: Ident, expected_path: String, alternative_path: String },
     #[error("path resolution error")]
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
@@ -66,6 +70,17 @@ pub enum DefCollectorErrorKind {
     TraitImplOrphaned { span: Span },
     #[error("macro error : {0:?}")]
     MacroError(MacroError),
+    #[error("The only supported types of numeric generics are integers, fields, and booleans")]
+    UnsupportedNumericGenericType { ident: Ident, typ: UnresolvedTypeData },
+    #[error("impl has stricter requirements than trait")]
+    ImplIsStricterThanTrait {
+        constraint_typ: crate::Type,
+        constraint_name: String,
+        constraint_generics: Vec<crate::Type>,
+        constraint_span: Span,
+        trait_method_name: String,
+        trait_method_span: Span,
+    },
 }
 
 /// An error struct that macro processors can return.
@@ -119,12 +134,39 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     diag
                 }
             }
-            DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path } => {
+            DefCollectorErrorKind::DuplicateField { first_def, second_def } => {
+                let primary_message = format!(
+                    "Duplicate definitions of struct field with name {} found",
+                    &first_def.0.contents
+                );
+                {
+                    let first_span = first_def.0.span();
+                    let second_span = second_def.0.span();
+                    let mut diag = Diagnostic::simple_error(
+                        primary_message,
+                    "First definition found here".to_string(),
+                        first_span,
+                    );
+                    diag.add_secondary("Second definition found here".to_string(), second_span);
+                    diag
+                }
+            }
+            DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path, alternative_path } => {
                 let span = mod_name.0.span();
                 let mod_name = &mod_name.0.contents;
 
                 Diagnostic::simple_error(
-                    format!("No module `{mod_name}` at path `{expected_path}`"),
+                    format!("No module `{mod_name}` at path `{expected_path}` or `{alternative_path}`"),
+                    String::new(),
+                    span,
+                )
+            }
+            DefCollectorErrorKind::OverlappingModuleDecls { mod_name, expected_path, alternative_path } => {
+                let span = mod_name.0.span();
+                let mod_name = &mod_name.0.contents;
+
+                Diagnostic::simple_error(
+                    format!("Overlapping modules `{mod_name}` at  path `{expected_path}` and `{alternative_path}`"),
                     String::new(),
                     span,
                 )
@@ -228,6 +270,33 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             DefCollectorErrorKind::MacroError(macro_error) => {
                 Diagnostic::simple_error(macro_error.primary_message.clone(), macro_error.secondary_message.clone().unwrap_or_default(), macro_error.span.unwrap_or_default())
             },
+            DefCollectorErrorKind::UnsupportedNumericGenericType { ident, typ } => {
+                let name = &ident.0.contents;
+
+                Diagnostic::simple_error(
+                    format!("{name} has a type of {typ}. The only supported types of numeric generics are integers and fields"),
+                    "Unsupported numeric generic type".to_string(),
+                    ident.0.span(),
+                )
+            }
+            DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_span, trait_method_name, trait_method_span } => {
+                let mut constraint_name_with_generics = constraint_name.to_owned();
+                if !constraint_generics.is_empty() {
+                    constraint_name_with_generics.push('<');
+                    for generic in constraint_generics.iter() {
+                        constraint_name_with_generics.push_str(generic.to_string().as_str());
+                    }
+                    constraint_name_with_generics.push('>');
+                }
+
+                let mut diag = Diagnostic::simple_error(
+                    "impl has stricter requirements than trait".to_string(),
+                    format!("impl has extra requirement `{constraint_typ}: {constraint_name_with_generics}`"),
+                    *constraint_span,
+                );
+                diag.add_secondary(format!("definition of `{trait_method_name}` from trait"), *trait_method_span);
+                diag
+            }
         }
     }
 }

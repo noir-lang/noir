@@ -3,7 +3,7 @@ use noirc_errors::{Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    ast::ERROR_IDENT,
+    ast::{UnresolvedType, ERROR_IDENT},
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
@@ -14,8 +14,8 @@ use crate::{
         stmt::HirPattern,
     },
     macros_api::{HirExpression, Ident, Path, Pattern},
-    node_interner::{DefinitionId, DefinitionKind, ExprId, TraitImplKind},
-    Shared, StructType, Type, TypeBindings,
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
+    ResolvedGeneric, Shared, StructType, Type, TypeBindings,
 };
 
 use super::{Elaborator, ResolverMeta};
@@ -27,19 +27,34 @@ impl<'context> Elaborator<'context> {
         expected_type: Type,
         definition_kind: DefinitionKind,
     ) -> HirPattern {
-        self.elaborate_pattern_mut(pattern, expected_type, definition_kind, None, &mut Vec::new())
+        self.elaborate_pattern_mut(
+            pattern,
+            expected_type,
+            definition_kind,
+            None,
+            &mut Vec::new(),
+            None,
+        )
     }
 
     /// Equivalent to `elaborate_pattern`, this version just also
     /// adds any new DefinitionIds that were created to the given Vec.
-    pub(super) fn elaborate_pattern_and_store_ids(
+    pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
         expected_type: Type,
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
+        global_id: Option<GlobalId>,
     ) -> HirPattern {
-        self.elaborate_pattern_mut(pattern, expected_type, definition_kind, None, created_ids)
+        self.elaborate_pattern_mut(
+            pattern,
+            expected_type,
+            definition_kind,
+            None,
+            created_ids,
+            global_id,
+        )
     }
 
     fn elaborate_pattern_mut(
@@ -49,6 +64,7 @@ impl<'context> Elaborator<'context> {
         definition: DefinitionKind,
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
+        global_id: Option<GlobalId>,
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
@@ -58,7 +74,14 @@ impl<'context> Elaborator<'context> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let ident = self.add_variable_decl(name, mutable.is_some(), true, definition);
+                let ident = if let Some(global_id) = global_id {
+                    // Globals don't need to be added to scope, they're already in the def_maps
+                    let id = self.interner.get_global(global_id).definition_id;
+                    let location = Location::new(name.span(), self.file);
+                    HirIdent::non_trait_method(id, location)
+                } else {
+                    self.add_variable_decl(name, mutable.is_some(), true, definition)
+                };
                 self.interner.push_definition_type(ident.id, expected_type);
                 new_definitions.push(ident.clone());
                 HirPattern::Identifier(ident)
@@ -74,6 +97,7 @@ impl<'context> Elaborator<'context> {
                     definition,
                     Some(span),
                     new_definitions,
+                    global_id,
                 );
                 let location = Location::new(span, self.file);
                 HirPattern::Mutable(Box::new(pattern), location)
@@ -104,6 +128,7 @@ impl<'context> Elaborator<'context> {
                         definition.clone(),
                         mutable,
                         new_definitions,
+                        global_id,
                     )
                 });
                 let location = Location::new(span, self.file);
@@ -132,6 +157,13 @@ impl<'context> Elaborator<'context> {
         mutable: Option<Span>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&name, exclude_last_segment);
+
+        let last_segment = name.last_segment();
+        let name_span = last_segment.ident.span();
+        let is_self_type = last_segment.ident.is_self_type_name();
+
         let error_identifier = |this: &mut Self| {
             // Must create a name here to return a HirPattern::Identifier. Allowing
             // shadowing here lets us avoid further errors if we define ERROR_IDENT
@@ -149,6 +181,15 @@ impl<'context> Elaborator<'context> {
                 return error_identifier(self);
             }
         };
+
+        let turbofish_span = last_segment.turbofish_span();
+
+        let generics = self.resolve_struct_turbofish_generics(
+            &struct_type.borrow(),
+            generics,
+            last_segment.generics,
+            turbofish_span,
+        );
 
         let actual_type = Type::Struct(struct_type.clone(), generics);
         let location = Location::new(span, self.file);
@@ -170,6 +211,16 @@ impl<'context> Elaborator<'context> {
             mutable,
             new_definitions,
         );
+
+        let struct_id = struct_type.borrow().id;
+
+        let reference_location = Location::new(name_span, self.file);
+        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
+
+        for (field_index, field) in fields.iter().enumerate() {
+            let reference_location = Location::new(field.0.span(), self.file);
+            self.interner.add_struct_member_reference(struct_id, field_index, reference_location);
+        }
 
         HirPattern::Struct(expected_type, fields, location)
     }
@@ -200,6 +251,7 @@ impl<'context> Elaborator<'context> {
                 definition.clone(),
                 mutable,
                 new_definitions,
+                None,
             );
 
             if unseen_fields.contains(&field) {
@@ -253,19 +305,21 @@ impl<'context> Elaborator<'context> {
         }
 
         let location = Location::new(name.span(), self.file);
+        let name = name.0.contents;
+        let comptime = self.in_comptime_context();
         let id =
-            self.interner.push_definition(name.0.contents.clone(), mutable, definition, location);
+            self.interner.push_definition(name.clone(), mutable, comptime, definition, location);
         let ident = HirIdent::non_trait_method(id, location);
         let resolver_meta =
             ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused };
 
         let scope = self.scopes.get_mut_scope();
-        let old_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
+        let old_value = scope.add_key_value(name.clone(), resolver_meta);
 
         if !allow_shadowing {
             if let Some(old_value) = old_value {
                 self.push_err(ResolverError::DuplicateDefinition {
-                    name: name.0.contents,
+                    name,
                     first_span: old_value.ident.location.span,
                     second_span: location.span,
                 });
@@ -275,9 +329,14 @@ impl<'context> Elaborator<'context> {
         ident
     }
 
-    pub fn add_existing_variable_to_scope(&mut self, name: String, ident: HirIdent) {
+    pub fn add_existing_variable_to_scope(
+        &mut self,
+        name: String,
+        ident: HirIdent,
+        warn_if_unused: bool,
+    ) {
         let second_span = ident.location.span;
-        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused: true };
+        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
@@ -292,6 +351,7 @@ impl<'context> Elaborator<'context> {
         name: Ident,
         definition: DefinitionKind,
     ) -> HirIdent {
+        let comptime = self.in_comptime_context();
         let scope = self.scopes.get_mut_scope();
 
         // This check is necessary to maintain the same definition ids in the interner. Currently, each function uses a new resolver that has its own ScopeForest and thus global scope.
@@ -300,7 +360,7 @@ impl<'context> Elaborator<'context> {
         let mut global_id = None;
         let global = self.interner.get_all_globals();
         for global_info in global {
-            if global_info.ident == name && global_info.local_id == self.local_module {
+            if global_info.local_id == self.local_module && global_info.ident == name {
                 global_id = Some(global_info.id);
             }
         }
@@ -313,8 +373,8 @@ impl<'context> Elaborator<'context> {
             (hir_ident, resolver_meta)
         } else {
             let location = Location::new(name.span(), self.file);
-            let id =
-                self.interner.push_definition(name.0.contents.clone(), false, definition, location);
+            let name = name.0.contents.clone();
+            let id = self.interner.push_definition(name, false, comptime, definition, location);
             let ident = HirIdent::non_trait_method(id, location);
             let resolver_meta =
                 ResolverMeta { num_times_used: 0, ident: ident.clone(), warn_if_unused: true };
@@ -330,22 +390,6 @@ impl<'context> Elaborator<'context> {
             });
         }
         ident
-    }
-
-    // Checks for a variable having been declared before.
-    // (Variable declaration and definition cannot be separate in Noir.)
-    // Once the variable has been found, intern and link `name` to this definition,
-    // returning (the ident, the IdentId of `name`)
-    //
-    // If a variable is not found, then an error is logged and a dummy id
-    // is returned, for better error reporting UX
-    pub(super) fn find_variable_or_default(&mut self, name: &Ident) -> (HirIdent, usize) {
-        self.use_variable(name).unwrap_or_else(|error| {
-            self.push_err(error);
-            let id = DefinitionId::dummy_id();
-            let location = Location::new(name.span(), self.file);
-            (HirIdent::non_trait_method(id, location), 0)
-        })
     }
 
     /// Lookup and use the specified variable.
@@ -372,17 +416,101 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn elaborate_variable(
+    /// Resolve generics using the expected kinds of the function we are calling
+    pub(super) fn resolve_function_turbofish_generics(
         &mut self,
-        variable: Path,
-        generics: Option<Vec<Type>>,
-    ) -> (ExprId, Type) {
+        func_id: &FuncId,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Option<Vec<Type>> {
+        let direct_generics = self.interner.function_meta(func_id).direct_generics.clone();
+
+        unresolved_turbofish.map(|unresolved_turbofish| {
+            if unresolved_turbofish.len() != direct_generics.len() {
+                let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
+                    expected_count: direct_generics.len(),
+                    actual_count: unresolved_turbofish.len(),
+                    span,
+                };
+                self.push_err(type_check_err);
+            }
+
+            self.resolve_turbofish_generics(&direct_generics, unresolved_turbofish)
+        })
+    }
+
+    pub(super) fn resolve_struct_turbofish_generics(
+        &mut self,
+        struct_type: &StructType,
+        generics: Vec<Type>,
+        unresolved_turbofish: Option<Vec<UnresolvedType>>,
+        span: Span,
+    ) -> Vec<Type> {
+        let Some(turbofish_generics) = unresolved_turbofish else {
+            return generics;
+        };
+
+        if turbofish_generics.len() != generics.len() {
+            self.push_err(TypeCheckError::GenericCountMismatch {
+                item: format!("struct {}", struct_type.name),
+                expected: generics.len(),
+                found: turbofish_generics.len(),
+                span,
+            });
+            return generics;
+        }
+
+        self.resolve_turbofish_generics(&struct_type.generics, turbofish_generics)
+    }
+
+    pub(super) fn resolve_turbofish_generics(
+        &mut self,
+        generics: &[ResolvedGeneric],
+        turbofish_generics: Vec<UnresolvedType>,
+    ) -> Vec<Type> {
+        let generics_with_types = generics.iter().zip(turbofish_generics);
+        vecmap(generics_with_types, |(generic, unresolved_type)| {
+            self.resolve_type_inner(unresolved_type, &generic.kind)
+        })
+    }
+
+    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+        let exclude_last_segment = true;
+        self.check_unsupported_turbofish_usage(&variable, exclude_last_segment);
+
+        let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
+
         let span = variable.span;
         let expr = self.resolve_variable(variable);
+        let definition_id = expr.id;
+
+        let definition_kind =
+            self.interner.try_definition(definition_id).map(|definition| definition.kind.clone());
+
+        // Resolve any generics if we the variable we have resolved is a function
+        // and if the turbofish operator was used.
+        let generics = definition_kind.and_then(|definition_kind| match &definition_kind {
+            DefinitionKind::Function(function) => {
+                self.resolve_function_turbofish_generics(function, unresolved_turbofish, span)
+            }
+            _ => None,
+        });
+
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
+
         self.interner.push_expr_location(id, span, self.file);
         let typ = self.type_check_variable(expr, id, generics);
         self.interner.push_expr_type(id, typ.clone());
+
+        // Comptime variables must be replaced with their values
+        if let Some(definition) = self.interner.try_definition(definition_id) {
+            if definition.comptime && !self.in_comptime_context() {
+                let mut interpreter = self.setup_interpreter();
+                let value = interpreter.evaluate(id);
+                return self.inline_comptime_value(value, span);
+            }
+        }
+
         (id, typ)
     }
 
@@ -398,19 +526,27 @@ impl<'context> Elaborator<'context> {
             // Otherwise, then it is referring to an Identifier
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
+            let span = path.span();
             let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
 
             if hir_ident.id != DefinitionId::dummy_id() {
                 match self.interner.definition(hir_ident.id).kind {
-                    DefinitionKind::Function(id) => {
+                    DefinitionKind::Function(func_id) => {
                         if let Some(current_item) = self.current_item {
-                            self.interner.add_function_dependency(current_item, id);
+                            self.interner.add_function_dependency(current_item, func_id);
                         }
+
+                        self.interner.add_function_reference(func_id, hir_ident.location);
                     }
                     DefinitionKind::Global(global_id) => {
+                        if let Some(global) = self.unresolved_globals.remove(&global_id) {
+                            self.elaborate_global(global);
+                        }
                         if let Some(current_item) = self.current_item {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
+
+                        self.interner.add_global_reference(global_id, hir_ident.location);
                     }
                     DefinitionKind::GenericType(_) => {
                         // Initialize numeric generics to a polymorphic integer type in case
@@ -425,6 +561,9 @@ impl<'context> Elaborator<'context> {
                     DefinitionKind::Local(_) => {
                         // only local variables can be captured by closures.
                         self.resolve_local_variable(hir_ident.clone(), var_scope_index);
+
+                        let reference_location = Location::new(span, self.file);
+                        self.interner.add_local_reference(hir_ident.id, reference_location);
                     }
                 }
             }
@@ -451,8 +590,8 @@ impl<'context> Elaborator<'context> {
 
             for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
                 // Avoid binding t = t
-                if !arg.occurs(param.id()) {
-                    bindings.insert(param.id(), (param.clone(), arg.clone()));
+                if !arg.occurs(param.type_var.id()) {
+                    bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
                 }
             }
 
@@ -494,10 +633,9 @@ impl<'context> Elaborator<'context> {
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
-
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
-                    self.trait_constraints.push((constraint, expr_id));
+                    self.push_trait_constraint(constraint, expr_id);
                 }
             }
         }
@@ -514,7 +652,7 @@ impl<'context> Elaborator<'context> {
                 // Currently only one impl can be selected per expr_id, so this
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
-                self.trait_constraints.push((constraint, expr_id));
+                self.push_trait_constraint(constraint, expr_id);
             }
         }
 
@@ -555,8 +693,8 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
-        let location = Location::new(path.span(), self.file);
+    pub fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
+        let location = Location::new(path.last_ident().span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.use_variable(ident)) {
             Some(Ok(found)) => return found,

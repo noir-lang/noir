@@ -4,11 +4,9 @@ use crate::compile::{
 };
 use crate::errors::{CompileError, JsCompileError};
 use acvm::acir::circuit::ExpressionWidth;
-use nargo::artifacts::contract::{ContractArtifact, ContractFunctionArtifact};
 use nargo::parse_all;
 use noirc_driver::{
     add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
-    NOIR_ARTIFACT_VERSION_STRING,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -102,7 +100,10 @@ impl CompilerContext {
         } else {
             ExpressionWidth::Bounded { width: 4 }
         };
-        let compile_options = CompileOptions { expression_width, ..CompileOptions::default() };
+        let compile_options = CompileOptions {
+            expression_width: Some(expression_width),
+            ..CompileOptions::default()
+        };
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_program =
@@ -116,8 +117,7 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program =
-            nargo::ops::transform_program(compiled_program, compile_options.expression_width);
+        let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
         let warnings = optimized_program.warnings.clone();
 
         Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
@@ -132,7 +132,10 @@ impl CompilerContext {
         } else {
             ExpressionWidth::Bounded { width: 4 }
         };
-        let compile_options = CompileOptions { expression_width, ..CompileOptions::default() };
+        let compile_options = CompileOptions {
+            expression_width: Some(expression_width),
+            ..CompileOptions::default()
+        };
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_contract =
@@ -147,20 +150,10 @@ impl CompilerContext {
                 .0;
 
         let optimized_contract =
-            nargo::ops::transform_contract(compiled_contract, compile_options.expression_width);
+            nargo::ops::transform_contract(compiled_contract, expression_width);
+        let warnings = optimized_contract.warnings.clone();
 
-        let functions =
-            optimized_contract.functions.into_iter().map(ContractFunctionArtifact::from).collect();
-
-        let contract_artifact = ContractArtifact {
-            noir_version: String::from(NOIR_ARTIFACT_VERSION_STRING),
-            name: optimized_contract.name,
-            functions,
-            outputs: optimized_contract.outputs.into(),
-            file_map: optimized_contract.file_map,
-        };
-
-        Ok(JsCompileContractResult::new(contract_artifact, optimized_contract.warnings))
+        Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))
     }
 }
 

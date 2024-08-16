@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{Ident, NoirFunction};
 use crate::{
@@ -16,6 +16,8 @@ pub struct TraitFunction {
     pub location: Location,
     pub default_impl: Option<Box<NoirFunction>>,
     pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
+    pub trait_constraints: Vec<TraitConstraint>,
+    pub direct_generics: Generics,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,16 +84,17 @@ pub struct TraitImpl {
     pub where_clause: Vec<TraitConstraint>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraitConstraint {
     pub typ: Type,
     pub trait_id: TraitId,
     pub trait_generics: Vec<Type>,
+    pub span: Span,
 }
 
 impl TraitConstraint {
-    pub fn new(typ: Type, trait_id: TraitId, trait_generics: Vec<Type>) -> Self {
-        Self { typ, trait_id, trait_generics }
+    pub fn new(typ: Type, trait_id: TraitId, trait_generics: Vec<Type>, span: Span) -> Self {
+        Self { typ, trait_id, trait_generics, span }
     }
 
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
@@ -139,9 +142,9 @@ impl std::fmt::Display for Trait {
 impl TraitFunction {
     pub fn arguments(&self) -> &[Type] {
         match &self.typ {
-            Type::Function(args, _, _) => args,
+            Type::Function(args, _, _, _) => args,
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(args, _, _) => args,
+                Type::Function(args, _, _, _) => args,
                 _ => unreachable!("Trait function does not have a function type"),
             },
             _ => unreachable!("Trait function does not have a function type"),
@@ -158,9 +161,9 @@ impl TraitFunction {
 
     pub fn return_type(&self) -> &Type {
         match &self.typ {
-            Type::Function(_, return_type, _) => return_type,
+            Type::Function(_, return_type, _, _) => return_type,
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(_, return_type, _) => return_type,
+                Type::Function(_, return_type, _, _) => return_type,
                 _ => unreachable!("Trait function does not have a function type"),
             },
             _ => unreachable!("Trait function does not have a function type"),

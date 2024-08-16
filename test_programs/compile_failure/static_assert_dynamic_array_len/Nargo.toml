@@ -1,0 +1,7 @@
+[package]
+name = "static_assert_dynamic_array_len"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.31.0"
+
+[dependencies]

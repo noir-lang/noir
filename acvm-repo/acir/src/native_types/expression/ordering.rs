@@ -1,5 +1,3 @@
-use acir_field::AcirField;
-
 use crate::native_types::Witness;
 use std::cmp::Ordering;
 
@@ -8,7 +6,7 @@ use super::Expression;
 // TODO: It's undecided whether `Expression` should implement `Ord/PartialOrd`.
 // This is currently used in ACVM in the compiler.
 
-impl<F: AcirField> Ord for Expression<F> {
+impl<F: Ord> Ord for Expression<F> {
     fn cmp(&self, other: &Self) -> Ordering {
         let mut i1 = self.get_max_idx();
         let mut i2 = other.get_max_idx();
@@ -25,7 +23,7 @@ impl<F: AcirField> Ord for Expression<F> {
     }
 }
 
-impl<F: AcirField> PartialOrd for Expression<F> {
+impl<F: Ord> PartialOrd for Expression<F> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -37,7 +35,7 @@ struct WitnessIdx {
     second_term: bool,
 }
 
-impl<F: AcirField> Expression<F> {
+impl<F: Ord> Expression<F> {
     fn get_max_idx(&self) -> WitnessIdx {
         WitnessIdx {
             linear: self.linear_combinations.len(),

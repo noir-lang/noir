@@ -1,4 +1,3 @@
-use dep::std;
 
 // This circuit aggregates two recursive proofs from `double_verify_proof_recursive`.
 // Recursive aggregation is a backend-specific process and it is expected for backends 
@@ -20,17 +19,7 @@ fn main(
     key_hash: Field,
     proof_b: [Field; 109]
 ) {
-    std::verify_proof(
-        verification_key.as_slice(),
-        proof.as_slice(),
-        public_inputs.as_slice(),
-        key_hash
-    );
+    std::verify_proof(verification_key, proof, public_inputs, key_hash);
 
-    std::verify_proof(
-        verification_key.as_slice(),
-        proof_b.as_slice(),
-        public_inputs.as_slice(),
-        key_hash
-    );
+    std::verify_proof(verification_key, proof_b, public_inputs, key_hash);
 }

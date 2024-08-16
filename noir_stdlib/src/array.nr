@@ -1,24 +1,30 @@
 use crate::cmp::Ord;
+use crate::option::Option;
+use crate::convert::From;
 
-// TODO: Once we fully move to the new SSA pass this module can be removed and replaced
-// by the methods in the `slice` module
-impl<T, N> [T; N] {
+impl<T, let N: u32> [T; N] {
     #[builtin(array_len)]
-    pub fn len(self) -> u64 {}
+    pub fn len(self) -> u32 {}
 
     pub fn sort(self) -> Self where T: Ord {
         self.sort_via(|a: T, b: T| a <= b)
     }
 
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
-        let sorted_index = self.get_sorting_index(ordering);
-        let mut result = self;
-        // Ensure the indexes are correct
-        for i in 0..N {
-            let pos = find_index(sorted_index, i);
-            assert(sorted_index[pos] == i);
-        }
+        let sorted_index = unsafe {
+            // Safety: These indices are asserted to be the sorted element indices via `find_index`
+            let sorted_index: [u32; N] = self.get_sorting_index(ordering);
+
+            for i in 0..N {
+                let pos = find_index(sorted_index, i);
+                assert(sorted_index[pos] == i);
+            }
+
+            sorted_index
+        };
+
         // Sort the array using the indexes
+        let mut result = self;
         for i in 0..N {
             result[i] = self[sorted_index[i]];
         }
@@ -31,7 +37,7 @@ impl<T, N> [T; N] {
     }
 
     /// Returns the index of the elements in the array that would sort it, using the provided custom sorting function.
-    unconstrained fn get_sorting_index<Env>(self, ordering: fn[Env](T, T) -> bool) -> [u64; N] {
+    unconstrained fn get_sorting_index<Env>(self, ordering: fn[Env](T, T) -> bool) -> [u32; N] {
         let mut result = [0; N];
         let mut a = self;
         for i in 0..N {
@@ -108,9 +114,16 @@ impl<T, N> [T; N] {
     }
 }
 
+impl<let N: u32> [u8; N] {
+    /// Convert a sequence of bytes as-is into a string.
+    /// This function performs no UTF-8 validation or similar.
+    #[builtin(array_as_str_unchecked)]
+    pub fn as_str_unchecked(self) -> str<N> {}
+}
+
 // helper function used to look up the position of a value in an array of Field
 // Note that function returns 0 if the value is not found
-unconstrained fn find_index<N>(a: [u64; N], find: u64) -> u64 {
+unconstrained fn find_index<let N: u32>(a: [u32; N], find: u32) -> u32 {
     let mut result = 0;
     for i in 0..a.len() {
         if a[i] == find {
@@ -118,4 +131,10 @@ unconstrained fn find_index<N>(a: [u64; N], find: u64) -> u64 {
         }
     }
     result
+}
+
+impl<let N: u32> From<str<N>> for [u8; N] {
+    fn from(s: str<N>) -> Self {
+        s.as_bytes()
+    }
 }

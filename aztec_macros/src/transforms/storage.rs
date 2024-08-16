@@ -10,18 +10,18 @@ use noirc_frontend::{
         FieldElement, FileId, HirContext, HirExpression, HirLiteral, HirStatement, NodeInterner,
     },
     node_interner::TraitId,
-    parse_program,
     parser::SortedModule,
     token::SecondaryAttribute,
     Type,
 };
 
+use crate::utils::parse_utils::parse_program;
 use crate::{
     chained_path,
     utils::{
         ast_utils::{
             call, expression, ident, ident_path, is_custom_attribute, lambda, make_statement,
-            make_type, pattern, return_type, variable, variable_path,
+            make_type, path_segment, pattern, return_type, variable, variable_path,
         },
         errors::AztecMacroError,
         hir_utils::{
@@ -59,7 +59,7 @@ fn inject_context_in_storage_field(field: &mut UnresolvedType) -> Result<(), Azt
                 vec![],
                 false,
             )));
-            match path.segments.last().unwrap().0.contents.as_str() {
+            match path.last_name() {
                 "Map" => inject_context_in_storage_field(&mut generics[1]),
                 _ => Ok(()),
             }
@@ -91,7 +91,7 @@ pub fn inject_context_in_storage(module: &mut SortedModule) -> Result<(), AztecM
             r#struct.attributes.iter().any(|attr| is_custom_attribute(attr, "aztec(storage)"))
         })
         .unwrap();
-    storage_struct.generics.push(ident("Context"));
+    storage_struct.generics.push(ident("Context").into());
     storage_struct
         .fields
         .iter_mut()
@@ -106,9 +106,7 @@ pub fn check_for_storage_implementation(
     storage_struct_name: &String,
 ) -> bool {
     module.impls.iter().any(|r#impl| match &r#impl.object_type.typ {
-        UnresolvedTypeData::Named(path, _, _) => {
-            path.segments.last().is_some_and(|segment| segment.0.contents == *storage_struct_name)
-        }
+        UnresolvedTypeData::Named(path, _, _) => path.last_name() == *storage_struct_name,
         _ => false,
     })
 }
@@ -123,8 +121,8 @@ pub fn generate_storage_field_constructor(
     match typ {
         UnresolvedTypeData::Named(path, generics, _) => {
             let mut new_path = path.clone().to_owned();
-            new_path.segments.push(ident("new"));
-            match path.segments.last().unwrap().0.contents.as_str() {
+            new_path.segments.push(path_segment("new"));
+            match path.last_name() {
                 "Map" => Ok(call(
                     variable_path(new_path),
                     vec![
@@ -243,9 +241,11 @@ pub fn generate_storage_implementation(
             span: Some(Span::default()),
         },
         type_span: Span::default(),
-        generics: vec![generic_context_ident],
+        generics: vec![generic_context_ident.into()],
 
         methods: vec![(init, Span::default())],
+
+        where_clause: vec![],
     };
     module.impls.push(storage_impl);
 
@@ -257,7 +257,7 @@ pub fn get_storage_serialized_length(
     traits: &[TraitId],
     typ: &Type,
     interner: &NodeInterner,
-) -> Result<u64, AztecMacroError> {
+) -> Result<u32, AztecMacroError> {
     let (struct_name, maybe_stored_in_state) = match typ {
         Type::Struct(struct_type, generics) => {
             Ok((struct_type.borrow().name.0.contents.clone(), generics.first()))
@@ -394,7 +394,7 @@ pub fn assign_storage_slots(
                 )),
             }?;
 
-            let mut storage_slot: u64 = 1;
+            let mut storage_slot: u32 = 1;
             for (index, (_, expr_id)) in storage_constructor_expression.fields.iter().enumerate() {
                 let fields = storage_struct
                     .borrow()
@@ -497,6 +497,8 @@ pub fn assign_storage_slots(
 pub fn generate_storage_layout(
     module: &mut SortedModule,
     storage_struct_name: String,
+    module_name: &str,
+    empty_spans: bool,
 ) -> Result<(), AztecMacroError> {
     let definition = module
         .types
@@ -504,37 +506,32 @@ pub fn generate_storage_layout(
         .find(|r#struct| r#struct.name.0.contents == *storage_struct_name)
         .unwrap();
 
-    let mut generic_args = vec![];
     let mut storable_fields = vec![];
     let mut storable_fields_impl = vec![];
 
-    definition.fields.iter().enumerate().for_each(|(index, (field_ident, field_type))| {
-        storable_fields.push(format!("{}: dep::aztec::prelude::Storable<N{}>", field_ident, index));
-        generic_args.push(format!("N{}", index));
-        storable_fields_impl.push(format!(
-            "{}: dep::aztec::prelude::Storable {{ slot: 0, typ: \"{}\" }}",
-            field_ident,
-            field_type.to_string().replace("plain::", "")
-        ));
+    definition.fields.iter().for_each(|(field_ident, _)| {
+        storable_fields.push(format!("{}: dep::aztec::prelude::Storable", field_ident));
+        storable_fields_impl
+            .push(format!("{}: dep::aztec::prelude::Storable {{ slot: 0 }}", field_ident,));
     });
 
     let storage_fields_source = format!(
         "
-        struct StorageLayout<{}> {{
+        struct StorageLayout {{
             {}
         }}
 
         #[abi(storage)]
-        global STORAGE_LAYOUT = StorageLayout {{
+        global {}_STORAGE_LAYOUT = StorageLayout {{
             {}
         }};
     ",
-        generic_args.join(", "),
         storable_fields.join(",\n"),
+        module_name,
         storable_fields_impl.join(",\n")
     );
 
-    let (struct_ast, errors) = parse_program(&storage_fields_source);
+    let (struct_ast, errors) = parse_program(&storage_fields_source, empty_spans);
     if !errors.is_empty() {
         dbg!(errors);
         return Err(AztecMacroError::CouldNotExportStorageLayout {

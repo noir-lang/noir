@@ -1,3 +1,4 @@
+use acir::FieldElement;
 use nargo::NargoError;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -34,7 +35,7 @@ pub(crate) enum CliError {
 
     /// Error related to circuit execution
     #[error(transparent)]
-    CircuitExecutionError(#[from] NargoError),
+    CircuitExecutionError(#[from] NargoError<FieldElement>),
 
     /// Input Witness Value Error
     #[error("Error: failed to parse witness value {0}")]

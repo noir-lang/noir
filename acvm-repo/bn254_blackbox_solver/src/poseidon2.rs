@@ -1,6 +1,8 @@
-use acir::{AcirField, FieldElement};
+use acir::AcirField;
 use acvm_blackbox_solver::BlackBoxResolutionError;
 use lazy_static::lazy_static;
+
+use crate::FieldElement;
 
 pub fn poseidon2_permutation(
     inputs: &[FieldElement],
@@ -543,9 +545,9 @@ impl<'a> Poseidon2<'a> {
 
 #[cfg(test)]
 mod test {
-    use acir::{AcirField, FieldElement};
+    use acir::AcirField;
 
-    use super::{field_from_hex, poseidon2_permutation};
+    use super::{field_from_hex, poseidon2_permutation, FieldElement};
 
     #[test]
     fn smoke_test() {

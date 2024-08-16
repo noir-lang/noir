@@ -33,8 +33,8 @@ mod reflection {
 
     use acir_field::FieldElement;
     use brillig::{
-        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapValueType, Opcode as BrilligOpcode,
-        ValueOrArray,
+        BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, IntegerBitSize,
+        Opcode as BrilligOpcode, ValueOrArray,
     };
     use serde_reflection::{Tracer, TracerConfig};
 
@@ -42,7 +42,7 @@ mod reflection {
         circuit::{
             brillig::{BrilligInputs, BrilligOutputs},
             directives::Directive,
-            opcodes::{BlackBoxFuncCall, BlockType},
+            opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
         },
@@ -68,7 +68,9 @@ mod reflection {
         tracer.trace_simple_type::<Opcode<FieldElement>>().unwrap();
         tracer.trace_simple_type::<OpcodeLocation>().unwrap();
         tracer.trace_simple_type::<BinaryFieldOp>().unwrap();
-        tracer.trace_simple_type::<BlackBoxFuncCall>().unwrap();
+        tracer.trace_simple_type::<ConstantOrWitnessEnum<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<FunctionInput<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<BlackBoxFuncCall<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BrilligInputs<FieldElement>>().unwrap();
         tracer.trace_simple_type::<BrilligOutputs>().unwrap();
         tracer.trace_simple_type::<BrilligOpcode<FieldElement>>().unwrap();
@@ -79,6 +81,8 @@ mod reflection {
         tracer.trace_simple_type::<HeapValueType>().unwrap();
         tracer.trace_simple_type::<AssertionPayload<FieldElement>>().unwrap();
         tracer.trace_simple_type::<ExpressionOrMemory<FieldElement>>().unwrap();
+        tracer.trace_simple_type::<BitSize>().unwrap();
+        tracer.trace_simple_type::<IntegerBitSize>().unwrap();
 
         let registry = tracer.registry().unwrap();
 

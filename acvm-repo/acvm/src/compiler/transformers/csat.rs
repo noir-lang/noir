@@ -326,7 +326,7 @@ impl CSatTransformer {
 
         // First check if this polynomial actually needs a partial opcode optimization
         // There is the chance that it fits perfectly within the assert-zero opcode
-        if opcode.fits_in_one_identity(self.width) {
+        if fits_in_one_identity(&opcode, self.width) {
             return opcode;
         }
 
@@ -407,6 +407,16 @@ impl CSatTransformer {
         opcode.linear_combinations.extend(added);
         self.partial_opcode_scan_optimization(opcode, intermediate_variables, num_witness)
     }
+}
+
+/// Checks if this expression can fit into one arithmetic identity
+fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> bool {
+    // A Polynomial with more than one mul term cannot fit into one opcode
+    if expr.mul_terms.len() > 1 {
+        return false;
+    };
+
+    expr.width() <= width
 }
 
 #[cfg(test)]
@@ -517,5 +527,21 @@ mod tests {
         // Since b is not known, it cannot be put inside intermediate opcodes, so it must belong to the transformed opcode.
         let contains_b = got_optimized_opcode_a.linear_combinations.iter().any(|(_, w)| *w == b);
         assert!(contains_b);
+    }
+
+    #[test]
+    fn recognize_expr_with_single_shared_witness_which_fits_in_single_identity() {
+        // Regression test for an expression which Zac found which should have been preserved but
+        // was being split into two expressions.
+        let expr = Expression {
+            mul_terms: vec![(-FieldElement::from(555u128), Witness(8), Witness(10))],
+            linear_combinations: vec![
+                (FieldElement::one(), Witness(10)),
+                (FieldElement::one(), Witness(11)),
+                (-FieldElement::one(), Witness(13)),
+            ],
+            q_c: FieldElement::zero(),
+        };
+        assert!(fits_in_one_identity(&expr, 4));
     }
 }

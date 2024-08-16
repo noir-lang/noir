@@ -1,5 +1,3 @@
-use dep::std;
-
 fn must_be_zero(x: u8) {
     assert(x == 0);
 }

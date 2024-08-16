@@ -57,7 +57,7 @@ You can instantiate a new array of a fixed size with the same value repeated for
 let array: [Field; 32] = [0; 32];
 ```
 
-Like in Rust, arrays in Noir are a fixed size. However, if you wish to convert an array to a [slice](./slices), you can just call `as_slice` on your array:
+Like in Rust, arrays in Noir are a fixed size. However, if you wish to convert an array to a [slice](./slices.mdx), you can just call `as_slice` on your array:
 
 ```rust
 let array: [Field; 32] = [0; 32];
@@ -70,7 +70,9 @@ You can define multidimensional arrays:
 let array : [[Field; 2]; 2];
 let element = array[0][0];
 ```
+
 However, multidimensional slices are not supported. For example, the following code will error at compile time:
+
 ```rust
 let slice : [[Field]] = &[];
 ```
@@ -197,7 +199,7 @@ fn main() {
 
 ### reduce
 
-Same as fold, but uses the first element as starting element.
+Same as fold, but uses the first element as the starting element.
 
 ```rust
 fn reduce(self, f: fn(T, T) -> T) -> T
@@ -248,4 +250,24 @@ fn main() {
     assert(any);
 }
 
+```
+
+### as_str_unchecked
+
+Converts a byte array of type `[u8; N]` to a string. Note that this performs no UTF-8 validation -
+the given array is interpreted as-is as a string.
+
+```rust
+impl<let N: u32> [u8; N] {
+    pub fn as_str_unchecked(self) -> str<N>
+}
+```
+
+example:
+
+```rust
+fn main() {
+    let hi = [104, 105].as_str_unchecked();
+    assert_eq(hi, "hi");
+}
 ```

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-NO_PARALLEL=${1:-}
-
 process_dir() {
     local dir=$1
     local current_dir=$2
@@ -47,7 +45,7 @@ rm -rf $current_dir/acir_artifacts
 mkdir -p $current_dir/acir_artifacts
 
 # Gather directories to process.
-dirs_to_process=()
+# dirs_to_process=()
 for dir in $base_path/*; do
     if [[ ! -d $dir ]] || [[ " ${excluded_dirs[@]} " =~ " $(basename "$dir") " ]]; then
         continue
@@ -55,28 +53,13 @@ for dir in $base_path/*; do
     dirs_to_process+=("$dir")
 done
 
-# Process each directory in parallel
-pids=()
-if [ -z $NO_PARALLEL ]; then
-for dir in "${dirs_to_process[@]}"; do
-    process_dir "$dir" "$current_dir" &
-    pids+=($!)
-done
-else
-for dir in "${dirs_to_process[@]}"; do
-    process_dir "$dir" "$current_dir"
-    pids+=($!)
-done
-fi
-
-# Check the exit status of each background job.
-for pid in "${pids[@]}"; do
-    wait $pid || exit_status=$?
+for dir in $current_dir/benchmarks/*; do
+    if [[ ! -d $dir ]]; then
+        continue
+    fi
+    dirs_to_process+=("$dir")
 done
 
-# Exit with a failure status if any job failed.
-if [ ! -z "$exit_status" ]; then
-    echo "Rebuild failed!"
-    exit $exit_status
-fi
+parallel -j0  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
+
 echo "Rebuild Succeeded!"

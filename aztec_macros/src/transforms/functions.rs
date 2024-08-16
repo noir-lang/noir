@@ -8,16 +8,18 @@ use noirc_frontend::ast::{
     UnresolvedTypeData, Visibility,
 };
 
-use noirc_frontend::{macros_api::FieldElement, parse_program};
+use noirc_frontend::macros_api::FieldElement;
 
 use crate::utils::ast_utils::member_access;
+use crate::utils::parse_utils::parse_program;
 use crate::{
     chained_dep, chained_path,
     utils::{
         ast_utils::{
             assignment, assignment_with_type, call, cast, expression, ident, ident_path,
             index_array, make_eq, make_statement, make_type, method_call, mutable_assignment,
-            mutable_reference, path, return_type, variable, variable_ident, variable_path,
+            mutable_reference, path, path_segment, return_type, variable, variable_ident,
+            variable_path,
         },
         errors::AztecMacroError,
     },
@@ -131,6 +133,7 @@ pub fn transform_function(
 pub fn export_fn_abi(
     types: &mut Vec<NoirStruct>,
     func: &NoirFunction,
+    empty_spans: bool,
 ) -> Result<(), AztecMacroError> {
     let mut parameters_struct_source: Option<&str> = None;
 
@@ -197,7 +200,7 @@ pub fn export_fn_abi(
 
     program.push_str(&export_struct_source);
 
-    let (ast, errors) = parse_program(&program);
+    let (ast, errors) = parse_program(&program, empty_spans);
     if !errors.is_empty() {
         return Err(AztecMacroError::CouldNotExportFunctionAbi {
             span: None,
@@ -216,12 +219,30 @@ pub fn export_fn_abi(
 ///
 /// Inserts the following code at the beginning of an unconstrained function
 /// ```noir
-/// let storage = Storage::init(Context::none());
+/// let context = UnconstrainedContext::new();
+/// let storage = Storage::init(context);
 /// ```
 ///
 /// This will allow developers to access their contract' storage struct in unconstrained functions
 pub fn transform_unconstrained(func: &mut NoirFunction, storage_struct_name: String) {
+    // let context = UnconstrainedContext::new();
+    let let_context = assignment(
+        "context", // Assigned to
+        call(
+            variable_path(chained_dep!(
+                "aztec",
+                "context",
+                "unconstrained_context",
+                "UnconstrainedContext",
+                "new"
+            )),
+            vec![],
+        ),
+    );
+
+    // We inject the statements at the beginning, in reverse order.
     func.def.body.statements.insert(0, abstract_storage(storage_struct_name, true));
+    func.def.body.statements.insert(0, let_context);
 }
 
 /// Helper function that returns what the private context would look like in the ast
@@ -597,7 +618,7 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
 /// ```noir
 /// #[aztec(private)]
 /// fn lol() {
-///     let storage = Storage::init(context);
+///     let storage = Storage::init(&mut context);
 /// }
 /// ```
 ///
@@ -605,22 +626,18 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
 /// ```noir
 /// #[aztec(public)]
 /// fn lol() {
-///    let storage = Storage::init(context);
+///    let storage = Storage::init(&mut context);
 /// }
 /// ```
 ///
 /// For unconstrained functions:
 /// ```noir
 /// unconstrained fn lol() {
-///   let storage = Storage::init(());
+///   let storage = Storage::init(context);
 /// }
 fn abstract_storage(storage_struct_name: String, unconstrained: bool) -> Statement {
-    let context_expr = if unconstrained {
-        // Note that the literal unit type (i.e. '()') is not the same as a tuple with zero elements
-        expression(ExpressionKind::Literal(Literal::Unit))
-    } else {
-        mutable_reference("context")
-    };
+    let context_expr =
+        if unconstrained { variable("context") } else { mutable_reference("context") };
 
     assignment(
         "storage", // Assigned to
@@ -708,8 +725,8 @@ fn add_struct_to_hasher(identifier: &Ident, hasher_name: &str) -> Statement {
 fn str_to_bytes(identifier: &Ident) -> (Statement, Ident) {
     // let identifier_as_bytes = identifier.as_bytes();
     let var = variable_ident(identifier.clone());
-    let contents = if let ExpressionKind::Variable(p, _) = &var.kind {
-        p.segments.first().cloned().unwrap_or_else(|| panic!("No segments")).0.contents
+    let contents = if let ExpressionKind::Variable(p) = &var.kind {
+        p.first_name()
     } else {
         panic!("Unexpected identifier type")
     };

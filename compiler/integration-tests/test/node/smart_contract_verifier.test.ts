@@ -38,19 +38,20 @@ test_cases.forEach((testInfo) => {
 
     const noir_program = compileResult.program;
 
-    const backend = new BarretenbergBackend(noir_program);
-    const program = new Noir(noir_program, backend);
+    const program = new Noir(noir_program);
 
     // JS Proving
 
     const prover_toml = readFileSync(resolve(`${base_relative_path}/${test_case}/Prover.toml`)).toString();
     const inputs = toml.parse(prover_toml);
+    const { witness } = await program.execute(inputs);
 
-    const proofData = await program.generateProof(inputs);
+    const backend = new BarretenbergBackend(noir_program);
+    const proofData = await backend.generateProof(witness);
 
     // JS verification
 
-    const verified = await program.verifyProof(proofData);
+    const verified = await backend.verifyProof(proofData);
     expect(verified, 'Proof fails verification in JS').to.be.true;
 
     // Smart contract verification

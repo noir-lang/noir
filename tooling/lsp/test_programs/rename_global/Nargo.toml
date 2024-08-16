@@ -1,0 +1,6 @@
+[package]
+name = "rename_global"
+type = "bin"
+authors = [""]
+
+[dependencies]

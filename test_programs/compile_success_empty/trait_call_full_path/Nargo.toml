@@ -1,0 +1,6 @@
+[package]
+name = "trait_call_full_path"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -75,16 +75,6 @@ it('successfully processes complex brillig foreign call opcodes', async () => {
   expect(solved_witness).to.be.deep.eq(expectedWitnessMap);
 });
 
-it('successfully executes a Pedersen opcode', async function () {
-  const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/pedersen');
-
-  const solvedWitness: WitnessMap = await executeCircuit(bytecode, initialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
-
-  expect(solvedWitness).to.be.deep.eq(expectedWitnessMap);
-});
-
 it('successfully executes a MultiScalarMul opcode', async () => {
   const { bytecode, initialWitnessMap, expectedWitnessMap } = await import('../shared/multi_scalar_mul');
 

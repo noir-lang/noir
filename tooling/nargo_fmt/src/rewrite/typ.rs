@@ -37,7 +37,9 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
                 format!("({types})")
             }
         }
-        UnresolvedTypeData::Function(args, return_type, env) => {
+        UnresolvedTypeData::Function(args, return_type, env, unconstrained) => {
+            let unconstrained = if unconstrained { "unconstrained " } else { "" };
+
             let env = if span_is_empty(env.span.unwrap()) {
                 "".into()
             } else {
@@ -53,8 +55,13 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
 
             let return_type = rewrite(visitor, _shape, *return_type);
 
-            format!("fn{env}({args}) -> {return_type}")
+            format!("{unconstrained}fn{env}({args}) -> {return_type}")
         }
+        UnresolvedTypeData::Resolved(_) => {
+            unreachable!("Unexpected macro expansion of a type in nargo fmt input")
+        }
+        UnresolvedTypeData::AsTraitPath(path) => path.to_string(),
+
         UnresolvedTypeData::Unspecified => todo!(),
         UnresolvedTypeData::FieldElement
         | UnresolvedTypeData::Integer(_, _)
@@ -64,7 +71,7 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
         | UnresolvedTypeData::Expression(_)
         | UnresolvedTypeData::String(_)
         | UnresolvedTypeData::FormatString(_, _)
-        | UnresolvedTypeData::Code
+        | UnresolvedTypeData::Quoted(_)
         | UnresolvedTypeData::TraitAsType(_, _) => visitor.slice(typ.span.unwrap()).into(),
         UnresolvedTypeData::Error => unreachable!(),
     }

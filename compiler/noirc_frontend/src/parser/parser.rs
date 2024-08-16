@@ -23,7 +23,10 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use self::primitives::{keyword, mutable_reference, variable};
+use self::path::as_trait_path;
+use self::primitives::{keyword, macro_quote_marker, mutable_reference, variable};
+use self::types::{generic_type_args, maybe_comp_time};
+pub use types::parse_type;
 
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
@@ -35,8 +38,8 @@ use super::{spanned, Item, ItemKind};
 use crate::ast::{
     BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
     InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
-    Recoverable, Statement, TraitBound, TypeImpl, UnaryRhsMemberAccess, UnresolvedTraitConstraint,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    Recoverable, Statement, TypeImpl, UnaryRhsMemberAccess, UnaryRhsMethodCall, UseTree,
+    UseTreeKind, Visibility,
 };
 use crate::ast::{
     Expression, ExpressionKind, LetStatement, StatementKind, UnresolvedType, UnresolvedTypeData,
@@ -44,6 +47,7 @@ use crate::ast::{
 use crate::lexer::{lexer::from_spanned_token_result, Lexer};
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Keyword, Token, TokenKind};
+use acvm::AcirField;
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
@@ -55,10 +59,11 @@ mod attributes;
 mod function;
 mod lambdas;
 mod literals;
-mod path;
+pub(super) mod path;
 mod primitives;
 mod structs;
-mod traits;
+pub(super) mod traits;
+mod types;
 
 // synthesized by LALRPOP
 lalrpop_mod!(pub noir_parser);
@@ -69,6 +74,7 @@ mod test_helpers;
 use literals::literal;
 use path::{maybe_empty_path, path};
 use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
+use traits::where_clause;
 
 /// Entry function for the parser - also handles lexing internally.
 ///
@@ -169,24 +175,17 @@ fn module() -> impl NoirParser<ParsedModule> {
             .to(ParsedModule::default())
             .then(spanned(top_level_statement(module_parser)).repeated())
             .foldl(|mut program, (statement, span)| {
-                let mut push_item = |kind| program.items.push(Item { kind, span });
-
-                match statement {
-                    TopLevelStatement::Function(f) => push_item(ItemKind::Function(f)),
-                    TopLevelStatement::Module(m) => push_item(ItemKind::ModuleDecl(m)),
-                    TopLevelStatement::Import(i) => push_item(ItemKind::Import(i)),
-                    TopLevelStatement::Struct(s) => push_item(ItemKind::Struct(s)),
-                    TopLevelStatement::Trait(t) => push_item(ItemKind::Trait(t)),
-                    TopLevelStatement::TraitImpl(t) => push_item(ItemKind::TraitImpl(t)),
-                    TopLevelStatement::Impl(i) => push_item(ItemKind::Impl(i)),
-                    TopLevelStatement::TypeAlias(t) => push_item(ItemKind::TypeAlias(t)),
-                    TopLevelStatement::SubModule(s) => push_item(ItemKind::Submodules(s)),
-                    TopLevelStatement::Global(c) => push_item(ItemKind::Global(c)),
-                    TopLevelStatement::Error => (),
+                if let Some(kind) = statement.into_item_kind() {
+                    program.items.push(Item { kind, span });
                 }
                 program
             })
     })
+}
+
+/// This parser is used for parsing top level statements in macros
+pub fn top_level_items() -> impl NoirParser<Vec<TopLevelStatement>> {
+    top_level_statement(module()).repeated()
 }
 
 /// top_level_statement: function_definition
@@ -197,9 +196,9 @@ fn module() -> impl NoirParser<ParsedModule> {
 ///                    | module_declaration
 ///                    | use_statement
 ///                    | global_declaration
-fn top_level_statement(
-    module_parser: impl NoirParser<ParsedModule>,
-) -> impl NoirParser<TopLevelStatement> {
+fn top_level_statement<'a>(
+    module_parser: impl NoirParser<ParsedModule> + 'a,
+) -> impl NoirParser<TopLevelStatement> + 'a {
     choice((
         function::function_definition(false).map(TopLevelStatement::Function),
         structs::struct_definition(),
@@ -223,11 +222,20 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
         .ignore_then(function::generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
+        .then(where_clause())
         .then_ignore(just(Token::LeftBrace))
         .then(spanned(function::function_definition(true)).repeated())
         .then_ignore(just(Token::RightBrace))
-        .map(|((generics, (object_type, type_span)), methods)| {
-            TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
+        .map(|args| {
+            let ((other_args, where_clause), methods) = args;
+            let (generics, (object_type, type_span)) = other_args;
+            TopLevelStatement::Impl(TypeImpl {
+                generics,
+                object_type,
+                type_span,
+                where_clause,
+                methods,
+            })
         })
 }
 
@@ -359,57 +367,17 @@ fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedTy
         .labelled(ParsingRuleLabel::Parameter)
 }
 
-fn where_clause() -> impl NoirParser<Vec<UnresolvedTraitConstraint>> {
-    struct MultiTraitConstraint {
-        typ: UnresolvedType,
-        trait_bounds: Vec<TraitBound>,
-    }
-
-    let constraints = parse_type()
-        .then_ignore(just(Token::Colon))
-        .then(trait_bounds())
-        .map(|(typ, trait_bounds)| MultiTraitConstraint { typ, trait_bounds });
-
-    keyword(Keyword::Where)
-        .ignore_then(constraints.separated_by(just(Token::Comma)))
-        .or_not()
-        .map(|option| option.unwrap_or_default())
-        .map(|x: Vec<MultiTraitConstraint>| {
-            let mut result: Vec<UnresolvedTraitConstraint> = Vec::new();
-            for constraint in x {
-                for bound in constraint.trait_bounds {
-                    result.push(UnresolvedTraitConstraint {
-                        typ: constraint.typ.clone(),
-                        trait_bound: bound,
-                    });
-                }
-            }
-            result
-        })
-}
-
-fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
-    trait_bound().separated_by(just(Token::Plus)).at_least(1).allow_trailing()
-}
-
-fn trait_bound() -> impl NoirParser<TraitBound> {
-    path().then(generic_type_args(parse_type())).map(|(trait_path, trait_generics)| TraitBound {
-        trait_path,
-        trait_generics,
-        trait_id: None,
-    })
-}
-
 fn block_expr<'a>(
     statement: impl NoirParser<StatementKind> + 'a,
 ) -> impl NoirParser<Expression> + 'a {
     block(statement).map(ExpressionKind::Block).map_with_span(Expression::new)
 }
 
-fn block<'a>(
+pub fn block<'a>(
     statement: impl NoirParser<StatementKind> + 'a,
 ) -> impl NoirParser<BlockExpression> + 'a {
     use Token::*;
+
     statement
         .recover_via(statement_recovery())
         .then(just(Semicolon).or_not().map_with_span(|s, span| (s, span)))
@@ -461,8 +429,8 @@ fn rename() -> impl NoirParser<Option<Ident>> {
 
 fn use_tree() -> impl NoirParser<UseTree> {
     recursive(|use_tree| {
-        let simple = path().then(rename()).map(|(mut prefix, alias)| {
-            let ident = prefix.pop();
+        let simple = path::path_no_turbofish().then(rename()).map(|(mut prefix, alias)| {
+            let ident = prefix.pop().ident;
             UseTree { prefix, kind: UseTreeKind::Path(ident, alias) }
         });
 
@@ -496,6 +464,8 @@ where
             assertion::assertion_eq(expr_parser.clone()),
             declaration(expr_parser.clone()),
             assignment(expr_parser.clone()),
+            if_statement(expr_no_constructors.clone(), statement.clone()),
+            block_statement(statement.clone()),
             for_loop(expr_no_constructors.clone(), statement.clone()),
             break_statement(),
             continue_statement(),
@@ -506,7 +476,7 @@ where
     })
 }
 
-fn fresh_statement() -> impl NoirParser<StatementKind> {
+pub fn fresh_statement() -> impl NoirParser<StatementKind> {
     statement(expression(), expression_no_constructors(expression()))
 }
 
@@ -545,10 +515,23 @@ fn comptime_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
 where
     S: NoirParser<StatementKind> + 'a,
 {
-    keyword(Keyword::Comptime).ignore_then(block(statement)).map(ExpressionKind::Comptime)
+    keyword(Keyword::Comptime)
+        .ignore_then(spanned(block(statement)))
+        .map(|(block, span)| ExpressionKind::Comptime(block, span))
 }
 
-fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
+fn unsafe_expr<'a, S>(statement: S) -> impl NoirParser<ExpressionKind> + 'a
+where
+    S: NoirParser<StatementKind> + 'a,
+{
+    keyword(Keyword::Unsafe)
+        .ignore_then(spanned(block(statement)))
+        .map(|(block, span)| ExpressionKind::Unsafe(block, span))
+}
+
+fn let_statement<'a, P>(
+    expr_parser: P,
+) -> impl NoirParser<((Pattern, UnresolvedType), Expression)> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -556,11 +539,17 @@ where
         ignore_then_commit(keyword(Keyword::Let).labelled(ParsingRuleLabel::Statement), pattern());
     let p = p.then(optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
-    let p = then_commit(p, expr_parser);
-    p.map(StatementKind::new_let)
+    then_commit(p, expr_parser)
 }
 
-fn pattern() -> impl NoirParser<Pattern> {
+fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<StatementKind> + 'a
+where
+    P: ExprParser + 'a,
+{
+    let_statement(expr_parser).map(StatementKind::new_let)
+}
+
+pub fn pattern() -> impl NoirParser<Pattern> {
     recursive(|pattern| {
         let ident_pattern = ident().map(Pattern::Identifier).map_err(|mut error| {
             if matches!(error.found(), Token::IntType(..)) {
@@ -585,7 +574,7 @@ fn pattern() -> impl NoirParser<Pattern> {
             .separated_by(just(Token::Comma))
             .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-        let struct_pattern = path()
+        let struct_pattern = path(super::parse_type())
             .then(struct_pattern_fields)
             .map_with_span(|(typename, fields), span| Pattern::Struct(typename, fields, span));
 
@@ -672,238 +661,31 @@ where
     })
 }
 
-fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
-    recursive(parse_type_inner)
-}
-
-fn parse_type_inner<'a>(
-    recursive_type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    choice((
-        field_type(),
-        int_type(),
-        bool_type(),
-        string_type(),
-        format_string_type(recursive_type_parser.clone()),
-        named_type(recursive_type_parser.clone()),
-        named_trait(recursive_type_parser.clone()),
-        slice_type(recursive_type_parser.clone()),
-        array_type(recursive_type_parser.clone()),
-        parenthesized_type(recursive_type_parser.clone()),
-        tuple_type(recursive_type_parser.clone()),
-        function_type(recursive_type_parser.clone()),
-        mutable_reference_type(recursive_type_parser),
-    ))
-}
-
-fn parenthesized_type(
-    recursive_type_parser: impl NoirParser<UnresolvedType>,
-) -> impl NoirParser<UnresolvedType> {
-    recursive_type_parser
-        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-        .map_with_span(|typ, span| UnresolvedType {
-            typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
-            span: span.into(),
-        })
+fn call_data() -> impl NoirParser<Visibility> {
+    keyword(Keyword::CallData).then(parenthesized(literal())).validate(|token, span, emit| {
+        match token {
+            (_, ExpressionKind::Literal(Literal::Integer(x, _))) => {
+                let id = x.to_u128() as u32;
+                Visibility::CallData(id)
+            }
+            _ => {
+                emit(ParserError::with_reason(ParserErrorReason::InvalidCallDataIdentifier, span));
+                Visibility::CallData(0)
+            }
+        }
+    })
 }
 
 fn optional_visibility() -> impl NoirParser<Visibility> {
     keyword(Keyword::Pub)
-        .or(keyword(Keyword::CallData))
-        .or(keyword(Keyword::ReturnData))
+        .map(|_| Visibility::Public)
+        .or(call_data())
+        .or(keyword(Keyword::ReturnData).map(|_| Visibility::ReturnData))
         .or_not()
-        .map(|opt| match opt {
-            Some(Token::Keyword(Keyword::Pub)) => Visibility::Public,
-            Some(Token::Keyword(Keyword::CallData)) | Some(Token::Keyword(Keyword::ReturnData)) => {
-                Visibility::DataBus
-            }
-            None => Visibility::Private,
-            _ => unreachable!("unexpected token found"),
-        })
+        .map(|opt| opt.unwrap_or(Visibility::Private))
 }
 
-fn maybe_comp_time() -> impl NoirParser<bool> {
-    keyword(Keyword::Comptime).or_not().validate(|opt, span, emit| {
-        if opt.is_some() {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("Comptime values"),
-                span,
-            ));
-        }
-        opt.is_some()
-    })
-}
-
-fn field_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Field)
-        .map_with_span(|_, span| UnresolvedTypeData::FieldElement.with_span(span))
-}
-
-fn bool_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Bool).map_with_span(|_, span| UnresolvedTypeData::Bool.with_span(span))
-}
-
-fn string_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::String)
-        .ignore_then(type_expression().delimited_by(just(Token::Less), just(Token::Greater)))
-        .map_with_span(|expr, span| UnresolvedTypeData::String(expr).with_span(span))
-}
-
-fn format_string_type<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    keyword(Keyword::FormatString)
-        .ignore_then(
-            type_expression()
-                .then_ignore(just(Token::Comma))
-                .then(type_parser)
-                .delimited_by(just(Token::Less), just(Token::Greater)),
-        )
-        .map_with_span(|(size, fields), span| {
-            UnresolvedTypeData::FormatString(size, Box::new(fields)).with_span(span)
-        })
-}
-
-fn int_type() -> impl NoirParser<UnresolvedType> {
-    filter_map(|span, token: Token| match token {
-        Token::IntType(int_type) => Ok(int_type),
-        unexpected => {
-            Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
-        }
-    })
-    .validate(|token, span, emit| {
-        UnresolvedTypeData::from_int_token(token).map(|data| data.with_span(span)).unwrap_or_else(
-            |err| {
-                emit(ParserError::with_reason(ParserErrorReason::InvalidBitSize(err.0), span));
-                UnresolvedType::error(span)
-            },
-        )
-    })
-}
-
-fn named_type<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    path().then(generic_type_args(type_parser)).map_with_span(|(path, args), span| {
-        UnresolvedTypeData::Named(path, args, false).with_span(span)
-    })
-}
-
-fn named_trait<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    keyword(Keyword::Impl).ignore_then(path()).then(generic_type_args(type_parser)).map_with_span(
-        |(path, args), span| UnresolvedTypeData::TraitAsType(path, args).with_span(span),
-    )
-}
-
-fn generic_type_args<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
-    type_parser
-        .clone()
-        // Without checking for a terminating ',' or '>' here we may incorrectly
-        // parse a generic `N * 2` as just the type `N` then fail when there is no
-        // separator afterward. Failing early here ensures we try the `type_expression`
-        // parser afterward.
-        .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(type_expression()
-            .map_with_span(|expr, span| UnresolvedTypeData::Expression(expr).with_span(span)))
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .at_least(1)
-        .delimited_by(just(Token::Less), just(Token::Greater))
-        .or_not()
-        .map(Option::unwrap_or_default)
-}
-
-fn array_type<'a>(
-    type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<UnresolvedType> + 'a {
-    just(Token::LeftBracket)
-        .ignore_then(type_parser)
-        .then(just(Token::Semicolon).ignore_then(type_expression()))
-        .then_ignore(just(Token::RightBracket))
-        .map_with_span(|(element_type, size), span| {
-            UnresolvedTypeData::Array(size, Box::new(element_type)).with_span(span)
-        })
-}
-
-fn slice_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
-    just(Token::LeftBracket)
-        .ignore_then(type_parser)
-        .then_ignore(just(Token::RightBracket))
-        .map_with_span(|element_type, span| {
-            UnresolvedTypeData::Slice(Box::new(element_type)).with_span(span)
-        })
-}
-
-fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
-    recursive(|expr| {
-        expression_with_precedence(
-            Precedence::lowest_type_precedence(),
-            expr,
-            nothing(),
-            nothing(),
-            true,
-            false,
-        )
-    })
-    .labelled(ParsingRuleLabel::TypeExpression)
-    .try_map(UnresolvedTypeExpression::from_expr)
-}
-
-fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
-where
-    T: NoirParser<UnresolvedType>,
-{
-    let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
-    parenthesized(fields).map_with_span(|fields, span| {
-        if fields.is_empty() {
-            UnresolvedTypeData::Unit.with_span(span)
-        } else {
-            UnresolvedTypeData::Tuple(fields).with_span(span)
-        }
-    })
-}
-
-fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
-where
-    T: NoirParser<UnresolvedType>,
-{
-    let args = parenthesized(type_parser.clone().separated_by(just(Token::Comma)).allow_trailing());
-
-    let env = just(Token::LeftBracket)
-        .ignore_then(type_parser.clone())
-        .then_ignore(just(Token::RightBracket))
-        .or_not()
-        .map_with_span(|t, span| {
-            t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
-        });
-
-    keyword(Keyword::Fn)
-        .ignore_then(env)
-        .then(args)
-        .then_ignore(just(Token::Arrow))
-        .then(type_parser)
-        .map_with_span(|((env, args), ret), span| {
-            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env)).with_span(span)
-        })
-}
-
-fn mutable_reference_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
-where
-    T: NoirParser<UnresolvedType>,
-{
-    just(Token::Ampersand)
-        .ignore_then(keyword(Keyword::Mut))
-        .ignore_then(type_parser)
-        .map_with_span(|element, span| {
-            UnresolvedTypeData::MutableReference(Box::new(element)).with_span(span)
-        })
-}
-
-fn expression() -> impl ExprParser {
+pub fn expression() -> impl ExprParser {
     recursive(|expr| {
         expression_with_precedence(
             Precedence::Lowest,
@@ -1071,14 +853,21 @@ where
     S: NoirParser<StatementKind> + 'a,
 {
     enum UnaryRhs {
-        Call(Vec<Expression>),
+        Call((Option<Token>, Vec<Expression>)),
         ArrayIndex(Expression),
         Cast(UnresolvedType),
         MemberAccess(UnaryRhsMemberAccess),
+        /// This is to allow `foo.` (no identifier afterwards) to be parsed as `foo`
+        /// and produce an error, rather than just erroring (for LSP).
+        JustADot,
     }
 
     // `(arg1, ..., argN)` in `my_func(arg1, ..., argN)`
-    let call_rhs = parenthesized(expression_list(expr_parser.clone())).map(UnaryRhs::Call);
+    // Optionally accepts a leading `!` for macro calls.
+    let call_rhs = just(Token::Bang)
+        .or_not()
+        .then(parenthesized(expression_list(expr_parser.clone())))
+        .map(UnaryRhs::Call);
 
     // `[expr]` in `arr[expr]`
     let array_rhs = expr_parser
@@ -1095,25 +884,49 @@ where
     // A turbofish operator is optional in a method call to specify generic types
     let turbofish = primitives::turbofish(type_parser);
 
+    // `::<A, B>!(arg1, .., argN)` with the turbofish and macro portions being optional.
+    let method_call_rhs = turbofish
+        .then(just(Token::Bang).or_not())
+        .then(parenthesized(expression_list(expr_parser.clone())))
+        .map(|((turbofish, macro_call), args)| UnaryRhsMethodCall {
+            turbofish,
+            macro_call: macro_call.is_some(),
+            args,
+        });
+
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
     let member_rhs = just(Token::Dot)
         .ignore_then(field_name())
-        .then(turbofish.then(parenthesized(expression_list(expr_parser.clone()))).or_not())
-        .map(UnaryRhs::MemberAccess)
+        .then(method_call_rhs.or_not())
+        .map(|(method_or_field, method_call)| {
+            UnaryRhs::MemberAccess(UnaryRhsMemberAccess { method_or_field, method_call })
+        })
         .labelled(ParsingRuleLabel::FieldAccess);
 
-    let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs));
+    let just_a_dot =
+        just(Token::Dot).map(|_| UnaryRhs::JustADot).validate(|value, span, emit_error| {
+            emit_error(ParserError::with_reason(
+                ParserErrorReason::ExpectedIdentifierAfterDot,
+                span,
+            ));
+            value
+        });
+
+    let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs, just_a_dot));
 
     foldl_with_span(
         atom(expr_parser, expr_no_constructors, statement, allow_constructors),
         rhs,
         |lhs, rhs, span| match rhs {
-            UnaryRhs::Call(args) => Expression::call(lhs, args, span),
+            UnaryRhs::Call((is_macro, args)) => {
+                Expression::call(lhs, is_macro.is_some(), args, span)
+            }
             UnaryRhs::ArrayIndex(index) => Expression::index(lhs, index, span),
             UnaryRhs::Cast(r#type) => Expression::cast(lhs, r#type, span),
             UnaryRhs::MemberAccess(field) => {
                 Expression::member_access_or_method_call(lhs, field, span)
             }
+            UnaryRhs::JustADot => lhs,
         },
     )
 }
@@ -1141,11 +954,55 @@ where
 
         keyword(Keyword::If)
             .ignore_then(expr_no_constructors)
-            .then(if_block)
-            .then(keyword(Keyword::Else).ignore_then(else_block).or_not())
-            .map(|((condition, consequence), alternative)| {
-                ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative }))
+            .then(if_block.then(keyword(Keyword::Else).ignore_then(else_block).or_not()).or_not())
+            .validate(|(condition, consequence_and_alternative), span, emit_error| {
+                if let Some((consequence, alternative)) = consequence_and_alternative {
+                    ExpressionKind::If(Box::new(IfExpression {
+                        condition,
+                        consequence,
+                        alternative,
+                    }))
+                } else {
+                    // We allow `if cond` without a block mainly for LSP, so that it parses right
+                    // and autocompletion works there.
+                    emit_error(ParserError::with_reason(
+                        ParserErrorReason::ExpectedLeftBraceAfterIfCondition,
+                        span,
+                    ));
+
+                    let span_end = condition.span.end();
+                    ExpressionKind::If(Box::new(IfExpression {
+                        condition,
+                        consequence: Expression::new(
+                            ExpressionKind::Error,
+                            Span::from(span_end..span_end),
+                        ),
+                        alternative: None,
+                    }))
+                }
             })
+    })
+}
+
+fn if_statement<'a, P, S>(
+    expr_no_constructors: P,
+    statement: S,
+) -> impl NoirParser<StatementKind> + 'a
+where
+    P: ExprParser + 'a,
+    S: NoirParser<StatementKind> + 'a,
+{
+    if_expr(expr_no_constructors, statement).map_with_span(|expression_kind, span| {
+        StatementKind::Expression(Expression::new(expression_kind, span))
+    })
+}
+
+fn block_statement<'a, S>(statement: S) -> impl NoirParser<StatementKind> + 'a
+where
+    S: NoirParser<StatementKind> + 'a,
+{
+    block(statement).map_with_span(|block, span| {
+        StatementKind::Expression(Expression::new(ExpressionKind::Block(block), span))
     })
 }
 
@@ -1269,9 +1126,13 @@ where
         lambdas::lambda(expr_parser.clone()),
         block(statement.clone()).map(ExpressionKind::Block),
         comptime_expr(statement.clone()),
-        quote(statement),
+        unsafe_expr(statement),
+        quote(),
+        unquote(expr_parser.clone()),
         variable(),
         literal(),
+        as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
+        macro_quote_marker(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {
@@ -1294,17 +1155,23 @@ where
         .labelled(ParsingRuleLabel::Atom)
 }
 
-fn quote<'a, P>(statement: P) -> impl NoirParser<ExpressionKind> + 'a
-where
-    P: NoirParser<StatementKind> + 'a,
-{
-    keyword(Keyword::Quote).ignore_then(block(statement)).validate(|block, span, emit| {
-        emit(ParserError::with_reason(
-            ParserErrorReason::ExperimentalFeature("quoted expressions"),
-            span,
-        ));
-        ExpressionKind::Quote(block)
+fn quote() -> impl NoirParser<ExpressionKind> {
+    token_kind(TokenKind::Quote).map(|token| {
+        ExpressionKind::Quote(match token {
+            Token::Quote(tokens) => tokens,
+            _ => unreachable!("token_kind(Quote) should guarantee parsing only a quote token"),
+        })
     })
+}
+
+/// unquote: '$' variable
+///        | '$' '(' expression ')'
+fn unquote<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
+where
+    P: ExprParser + 'a,
+{
+    let unquote = variable().map_with_span(Expression::new).or(parenthesized(expr_parser));
+    just(Token::DollarSign).ignore_then(unquote).map(|expr| ExpressionKind::Unquote(Box::new(expr)))
 }
 
 fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
@@ -1337,7 +1204,7 @@ fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> 
         .allow_trailing()
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
-    path().then(args).map(ExpressionKind::constructor)
+    path(super::parse_type()).then(args).map(ExpressionKind::constructor)
 }
 
 fn constructor_field<P>(expr_parser: P) -> impl NoirParser<(Ident, Expression)>
@@ -1451,11 +1318,6 @@ mod test {
     }
 
     #[test]
-    fn parse_type_expression() {
-        parse_all(type_expression(), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
-    }
-
-    #[test]
     fn parse_array_sugar() {
         let valid = vec!["[0;7]", "[(1, 2); 4]", "[0;Four]", "[2;1+3-a]"];
         parse_all(array_expr(expression()), valid);
@@ -1512,20 +1374,6 @@ mod test {
     fn parse_block() {
         parse_with(block(fresh_statement()), "{ [0,1,2,3,4] }").unwrap();
 
-        // Regression for #1310: this should be parsed as a block and not a function call
-        let res =
-            parse_with(block(fresh_statement()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
-        match unwrap_expr(&res.statements.last().unwrap().kind) {
-            // The `if` followed by a tuple is currently creates a block around both in case
-            // there was none to start with, so there is an extra block here.
-            ExpressionKind::Block(block) => {
-                assert_eq!(block.statements.len(), 2);
-                assert!(matches!(unwrap_expr(&block.statements[0].kind), ExpressionKind::If(_)));
-                assert!(matches!(unwrap_expr(&block.statements[1].kind), ExpressionKind::Tuple(_)));
-            }
-            _ => unreachable!(),
-        }
-
         parse_all_failing(
             block(fresh_statement()),
             vec![
@@ -1537,14 +1385,6 @@ mod test {
                 "[[0,1,2,3,4]}",
             ],
         );
-    }
-
-    /// Extract an Statement::Expression from a statement or panic
-    fn unwrap_expr(stmt: &StatementKind) -> &ExpressionKind {
-        match stmt {
-            StatementKind::Expression(expr) => &expr.kind,
-            _ => unreachable!(),
-        }
     }
 
     #[test]
@@ -1614,6 +1454,24 @@ mod test {
     }
 
     #[test]
+    fn parse_if_without_block() {
+        let src = "if foo";
+        let parser = if_expr(expression_no_constructors(expression()), fresh_statement());
+        let (expression_kind, errors) = parse_recover(parser, src);
+
+        let expression_kind = expression_kind.unwrap();
+        let ExpressionKind::If(if_expression) = expression_kind else {
+            panic!("Expected an if expression, got {:?}", expression_kind);
+        };
+
+        assert_eq!(if_expression.consequence.kind, ExpressionKind::Error);
+        assert_eq!(if_expression.alternative, None);
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected { after if condition");
+    }
+
+    #[test]
     fn parse_module_declaration() {
         parse_with(module_declaration(), "mod foo").unwrap();
         parse_with(module_declaration(), "mod 1").unwrap_err();
@@ -1631,7 +1489,7 @@ mod test {
             "use foo::{bar, hello}",
             "use foo::{bar as bar2, hello}",
             "use foo::{bar as bar2, hello::{foo}, nested::{foo, bar}}",
-            "use dep::{std::println, bar::baz}",
+            "use std::{println, bar::baz}",
         ];
 
         let invalid_use_statements = [
@@ -1733,27 +1591,19 @@ mod test {
             Case { source: "let = 4 + 3", expect: "let $error: unspecified = (4 + 3)", errors: 1 },
             Case { source: "let = ", expect: "let $error: unspecified = Error", errors: 2 },
             Case { source: "let", expect: "let $error: unspecified = Error", errors: 3 },
-            Case { source: "foo = one two three", expect: "foo = plain::one", errors: 1 },
+            Case { source: "foo = one two three", expect: "foo = one", errors: 1 },
             Case { source: "constrain", expect: "constrain Error", errors: 2 },
             Case { source: "assert", expect: "constrain Error", errors: 1 },
-            Case { source: "constrain x ==", expect: "constrain (plain::x == Error)", errors: 2 },
-            Case { source: "assert(x ==)", expect: "constrain (plain::x == Error)", errors: 1 },
-            Case {
-                source: "assert(x == x, x)",
-                expect: "constrain (plain::x == plain::x)",
-                errors: 0,
-            },
+            Case { source: "constrain x ==", expect: "constrain (x == Error)", errors: 2 },
+            Case { source: "assert(x ==)", expect: "constrain (x == Error)", errors: 1 },
+            Case { source: "assert(x == x, x)", expect: "constrain (x == x)", errors: 0 },
             Case { source: "assert_eq(x,)", expect: "constrain (Error == Error)", errors: 1 },
             Case {
                 source: "assert_eq(x, x, x, x)",
                 expect: "constrain (Error == Error)",
                 errors: 1,
             },
-            Case {
-                source: "assert_eq(x, x, x)",
-                expect: "constrain (plain::x == plain::x)",
-                errors: 0,
-            },
+            Case { source: "assert_eq(x, x, x)", expect: "constrain (x == x)", errors: 0 },
         ];
 
         check_cases_with_errors(&cases[..], fresh_statement());
@@ -1795,7 +1645,7 @@ mod test {
                 source: "{ if structure { a: 1 } {} }",
                 expect: concat!(
                     "{\n",
-                    "    if plain::structure {\n",
+                    "    if structure {\n",
                     "        Error\n",
                     "    }\n",
                     "    {\n",
@@ -1806,22 +1656,17 @@ mod test {
             },
             Case {
                 source: "{ if ( structure { a: 1 } ) {} }",
-                expect: concat!("{\n", "    if ((plain::structure { a: 1 })) {\n", "    }\n", "}",),
+                expect: concat!("{\n", "    if ((structure { a: 1 })) {\n", "    }\n", "}",),
                 errors: 0,
             },
             Case {
                 source: "{ if ( structure {} ) {} }",
-                expect: concat!("{\n", "    if ((plain::structure {  })) {\n", "    }\n", "}"),
+                expect: concat!("{\n", "    if ((structure {  })) {\n", "    }\n", "}"),
                 errors: 0,
             },
             Case {
                 source: "{ if (a { x: 1 }, b { y: 2 }) {} }",
-                expect: concat!(
-                    "{\n",
-                    "    if ((plain::a { x: 1 }), (plain::b { y: 2 })) {\n",
-                    "    }\n",
-                    "}",
-                ),
+                expect: concat!("{\n", "    if ((a { x: 1 }), (b { y: 2 })) {\n", "    }\n", "}",),
                 errors: 0,
             },
             Case {
@@ -1829,8 +1674,8 @@ mod test {
                 expect: concat!(
                     "{\n",
                     "    if ({\n",
-                    "        let foo: unspecified = (plain::bar { baz: 42 })\n",
-                    "        (plain::foo == (plain::bar { baz: 42 }))\n",
+                    "        let foo: unspecified = (bar { baz: 42 })\n",
+                    "        (foo == (bar { baz: 42 }))\n",
                     "    }) {\n",
                     "    }\n",
                     "}",
@@ -1840,5 +1685,79 @@ mod test {
         ];
 
         check_cases_with_errors(&cases[..], block(fresh_statement()));
+    }
+
+    #[test]
+    fn test_quote() {
+        let cases = vec![
+            "quote {}",
+            "quote { a.b }",
+            "quote { ) ( }", // invalid syntax is fine in a quote
+            "quote { { } }", // Nested `{` and `}` shouldn't close the quote as long as they are matched.
+            "quote { 1 { 2 { 3 { 4 { 5 } 4 4 } 3 3 } 2 2 } 1 1 }",
+        ];
+        parse_all(quote(), cases);
+
+        let failing = vec!["quote {}}", "quote a", "quote { { { } } } }"];
+        parse_all_failing(quote(), failing);
+    }
+
+    #[test]
+    fn test_parses_block_statement_not_infix_expression() {
+        let src = r#"
+        {
+          {}
+          -1
+        }"#;
+        let (block_expr, _) = parse_recover(block(fresh_statement()), src);
+        let block_expr = block_expr.expect("Failed to parse module");
+        assert_eq!(block_expr.statements.len(), 2);
+    }
+
+    #[test]
+    fn test_parses_if_statement_not_infix_expression() {
+        let src = r#"
+        {
+          if 1 { 2 } else { 3 }
+          -1
+        }"#;
+        let (block_expr, _) = parse_recover(block(fresh_statement()), src);
+        let block_expr = block_expr.expect("Failed to parse module");
+        assert_eq!(block_expr.statements.len(), 2);
+    }
+
+    #[test]
+    fn test_parses_if_statement_followed_by_tuple_as_two_separate_statements() {
+        // Regression for #1310: this should not be parsed as a function call
+        let src = r#"
+        {
+          if 1 { 2 } else { 3 } (1, 2)
+        }"#;
+        let (block_expr, _) = parse_recover(block(fresh_statement()), src);
+        let block_expr = block_expr.expect("Failed to parse module");
+        assert_eq!(block_expr.statements.len(), 2);
+    }
+
+    #[test]
+    fn test_parses_member_access_without_member_name() {
+        let src = "{ foo. }";
+
+        let (Some(block_expression), errors) = parse_recover(block(fresh_statement()), src) else {
+            panic!("Expected to be able to parse a block expression");
+        };
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected an identifier after .");
+
+        let statement = &block_expression.statements[0];
+        let StatementKind::Expression(expr) = &statement.kind else {
+            panic!("Expected an expression statement");
+        };
+
+        let ExpressionKind::Variable(var) = &expr.kind else {
+            panic!("Expected a variable expression");
+        };
+
+        assert_eq!(var.to_string(), "foo");
     }
 }

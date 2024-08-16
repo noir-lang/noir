@@ -25,18 +25,20 @@ mod instructions;
 
 pub(crate) use instructions::BrilligBinaryOp;
 
-use self::{artifact::BrilligArtifact, registers::BrilligRegistersContext};
+use self::{
+    artifact::BrilligArtifact, debug_show::DebugToString, registers::BrilligRegistersContext,
+};
 use crate::ssa::ir::dfg::CallStack;
 use acvm::{
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
-    FieldElement,
+    AcirField,
 };
 use debug_show::DebugShow;
 
 /// The Brillig VM does not apply a limit to the memory address space,
-/// As a convention, we take use 64 bits. This means that we assume that
-/// memory has 2^64 memory slots.
-pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
+/// As a convention, we take use 32 bits. This means that we assume that
+/// memory has 2^32 memory slots.
+pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 32;
 
 // Registers reserved in runtime for special purposes.
 pub(crate) enum ReservedRegisters {
@@ -76,8 +78,8 @@ impl ReservedRegisters {
 
 /// Brillig context object that is used while constructing the
 /// Brillig bytecode.
-pub(crate) struct BrilligContext {
-    obj: BrilligArtifact,
+pub(crate) struct BrilligContext<F> {
+    obj: BrilligArtifact<F>,
     /// Tracks register allocations
     registers: BrilligRegistersContext,
     /// Context label, must be unique with respect to the function
@@ -89,13 +91,11 @@ pub(crate) struct BrilligContext {
     next_section: usize,
     /// IR printer
     debug_show: DebugShow,
-    /// Counter for generating bigint ids in unconstrained functions
-    bigint_new_id: u32,
 }
 
-impl BrilligContext {
+impl<F: AcirField + DebugToString> BrilligContext<F> {
     /// Initial context state
-    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext {
+    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext<F> {
         BrilligContext {
             obj: BrilligArtifact::default(),
             registers: BrilligRegistersContext::new(),
@@ -103,22 +103,16 @@ impl BrilligContext {
             section_label: 0,
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
-            bigint_new_id: 0,
         }
     }
 
-    pub(crate) fn get_new_bigint_id(&mut self) -> u32 {
-        let result = self.bigint_new_id;
-        self.bigint_new_id += 1;
-        result
-    }
     /// Adds a brillig instruction to the brillig byte code
-    fn push_opcode(&mut self, opcode: BrilligOpcode<FieldElement>) {
+    fn push_opcode(&mut self, opcode: BrilligOpcode<F>) {
         self.obj.push_opcode(opcode);
     }
 
     /// Returns the artifact
-    pub(crate) fn artifact(self) -> BrilligArtifact {
+    pub(crate) fn artifact(self) -> BrilligArtifact<F> {
         self.obj
     }
 
@@ -133,7 +127,8 @@ pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
-        ForeignCallParam, ForeignCallResult, HeapArray, HeapVector, MemoryAddress, ValueOrArray,
+        BitSize, ForeignCallParam, ForeignCallResult, HeapArray, HeapVector, IntegerBitSize,
+        MemoryAddress, ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
     use acvm::brillig_vm::{VMStatus, VM};
@@ -200,17 +195,17 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn create_context() -> BrilligContext {
+    pub(crate) fn create_context() -> BrilligContext<FieldElement> {
         let mut context = BrilligContext::new(true);
         context.enter_context("test");
         context
     }
 
     pub(crate) fn create_entry_point_bytecode(
-        context: BrilligContext,
+        context: BrilligContext<FieldElement>,
         arguments: Vec<BrilligParameter>,
         returns: Vec<BrilligParameter>,
-    ) -> GeneratedBrillig {
+    ) -> GeneratedBrillig<FieldElement> {
         let artifact = context.artifact();
         let mut entry_point_artifact =
             BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
@@ -259,9 +254,11 @@ pub(crate) mod tests {
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[ValueOrArray::MemoryAddress(r_input_size)],
-            &[HeapValueType::Simple(32)],
+            &[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
             &[ValueOrArray::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
-            &[HeapValueType::Vector { value_types: vec![HeapValueType::Simple(32)] }],
+            &[HeapValueType::Vector {
+                value_types: vec![HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
+            }],
         );
         // push stack frame by r_returned_size
         context.memory_op_instruction(r_stack, r_output_size, r_stack, BrilligBinaryOp::Add);

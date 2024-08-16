@@ -1,0 +1,6 @@
+[package]
+name = "go_to_definition"
+type = "bin"
+authors = [""]
+
+[dependencies]

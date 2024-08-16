@@ -6,7 +6,7 @@ use acvm::{
         ResolvedOpcodeLocation,
     },
     pwg::{ErrorLocation, OpcodeResolutionError},
-    FieldElement,
+    AcirField, FieldElement,
 };
 use noirc_abi::{display_abi_error, Abi, AbiErrorType};
 use noirc_errors::{
@@ -40,21 +40,21 @@ impl From<ReportedErrors> for CompileError {
 }
 
 #[derive(Debug, Error)]
-pub enum NargoError {
+pub enum NargoError<F: AcirField> {
     /// Error while compiling Noir into ACIR.
     #[error("Failed to compile circuit")]
     CompilationError,
 
     /// ACIR circuit execution error
     #[error(transparent)]
-    ExecutionError(#[from] ExecutionError),
+    ExecutionError(#[from] ExecutionError<F>),
 
     /// Oracle handling error
     #[error(transparent)]
     ForeignCallError(#[from] ForeignCallError),
 }
 
-impl NargoError {
+impl<F: AcirField> NargoError<F> {
     /// Extracts the user defined failure message from the ExecutionError
     /// If one exists.
     ///
@@ -64,47 +64,41 @@ impl NargoError {
         &self,
         error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
     ) -> Option<String> {
-        let execution_error = match self {
-            NargoError::ExecutionError(error) => error,
-            _ => return None,
-        };
-
-        match execution_error {
-            ExecutionError::AssertionFailed(payload, _) => match payload {
-                ResolvedAssertionPayload::String(message) => Some(message.to_string()),
-                ResolvedAssertionPayload::Raw(raw) => {
-                    let abi_type = error_types.get(&raw.selector)?;
-                    let decoded = display_abi_error(&raw.data, abi_type.clone());
-                    Some(decoded.to_string())
-                }
+        match self {
+            NargoError::ExecutionError(error) => match error {
+                ExecutionError::AssertionFailed(payload, _) => match payload {
+                    ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                    ResolvedAssertionPayload::Raw(raw) => {
+                        let abi_type = error_types.get(&raw.selector)?;
+                        let decoded = display_abi_error(&raw.data, abi_type.clone());
+                        Some(decoded.to_string())
+                    }
+                },
+                ExecutionError::SolvingError(error, _) => match error {
+                    OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
+                        Some(reason.to_string())
+                    }
+                    _ => None,
+                },
             },
-            ExecutionError::SolvingError(error, _) => match error {
-                OpcodeResolutionError::IndexOutOfBounds { .. }
-                | OpcodeResolutionError::OpcodeNotSolvable(_)
-                | OpcodeResolutionError::UnsatisfiedConstrain { .. }
-                | OpcodeResolutionError::AcirMainCallAttempted { .. }
-                | OpcodeResolutionError::BrilligFunctionFailed { .. }
-                | OpcodeResolutionError::AcirCallOutputsMismatch { .. } => None,
-                OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
-                    Some(reason.to_string())
-                }
-            },
+            NargoError::ForeignCallError(error) => Some(error.to_string()),
+            _ => None,
         }
     }
 }
 
 #[derive(Debug, Error)]
-pub enum ExecutionError {
+pub enum ExecutionError<F: AcirField> {
     #[error("Failed assertion")]
-    AssertionFailed(ResolvedAssertionPayload<FieldElement>, Vec<ResolvedOpcodeLocation>),
+    AssertionFailed(ResolvedAssertionPayload<F>, Vec<ResolvedOpcodeLocation>),
 
     #[error("Failed to solve program: '{}'", .0)]
-    SolvingError(OpcodeResolutionError<FieldElement>, Option<Vec<ResolvedOpcodeLocation>>),
+    SolvingError(OpcodeResolutionError<F>, Option<Vec<ResolvedOpcodeLocation>>),
 }
 
 /// Extracts the opcode locations from a nargo error.
-fn extract_locations_from_error(
-    error: &ExecutionError,
+fn extract_locations_from_error<F: AcirField>(
+    error: &ExecutionError<F>,
     debug: &[DebugInfo],
 ) -> Option<Vec<Location>> {
     let mut opcode_locations = match error {
@@ -149,13 +143,34 @@ fn extract_locations_from_error(
         }
     }
 
+    let brillig_function_id = match error {
+        ExecutionError::SolvingError(
+            OpcodeResolutionError::BrilligFunctionFailed { function_id, .. },
+            _,
+        ) => Some(*function_id),
+        _ => None,
+    };
+
     Some(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
                 debug[resolved_location.acir_function_index]
                     .opcode_location(&resolved_location.opcode_location)
-                    .unwrap_or_default()
+                    .unwrap_or_else(|| {
+                        if let Some(brillig_function_id) = brillig_function_id {
+                            let brillig_locations = debug[resolved_location.acir_function_index]
+                                .brillig_locations
+                                .get(&brillig_function_id);
+                            brillig_locations
+                                .unwrap()
+                                .get(&resolved_location.opcode_location)
+                                .cloned()
+                                .unwrap_or_default()
+                        } else {
+                            vec![]
+                        }
+                    })
             })
             .collect(),
     )
@@ -163,7 +178,7 @@ fn extract_locations_from_error(
 
 fn extract_message_from_error(
     error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
-    nargo_err: &NargoError,
+    nargo_err: &NargoError<FieldElement>,
 ) -> String {
     match nargo_err {
         NargoError::ExecutionError(ExecutionError::AssertionFailed(
@@ -198,7 +213,7 @@ fn extract_message_from_error(
 
 /// Tries to generate a runtime diagnostic from a nargo error. It will successfully do so if it's a runtime error with a call stack.
 pub fn try_to_diagnose_runtime_error(
-    nargo_err: &NargoError,
+    nargo_err: &NargoError<FieldElement>,
     abi: &Abi,
     debug: &[DebugInfo],
 ) -> Option<FileDiagnostic> {

@@ -1,0 +1,6 @@
+[package]
+name = "document_symbol"
+type = "bin"
+authors = [""]
+
+[dependencies]

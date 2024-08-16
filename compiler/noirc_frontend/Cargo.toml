@@ -10,6 +10,7 @@ license.workspace = true
 
 [dependencies]
 acvm.workspace = true
+bn254_blackbox_solver.workspace = true
 noirc_arena.workspace = true
 noirc_errors.workspace = true
 noirc_printable_type.workspace = true
@@ -29,14 +30,14 @@ regex = "1.9.1"
 cfg-if = "1.0.0"
 tracing.workspace = true
 petgraph = "0.6"
+rangemap = "1.4.0"
 lalrpop-util = { version = "0.20.2", features = ["lexer"] }
+strum = "0.24"
+strum_macros = "0.24"
 
 
 [dev-dependencies]
 base64.workspace = true
-strum = "0.24"
-strum_macros = "0.24"
-tempfile.workspace = true
 
 [build-dependencies]
 lalrpop = "0.20.2"

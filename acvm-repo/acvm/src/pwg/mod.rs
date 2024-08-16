@@ -5,9 +5,10 @@ use std::collections::HashMap;
 use acir::{
     brillig::ForeignCallResult,
     circuit::{
-        brillig::BrilligBytecode, opcodes::BlockId, AssertionPayload, ErrorSelector,
-        ExpressionOrMemory, Opcode, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
-        STRING_ERROR_SELECTOR,
+        brillig::{BrilligBytecode, BrilligFunctionId},
+        opcodes::{BlockId, ConstantOrWitnessEnum, FunctionInput},
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
+        RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
     },
     native_types::{Expression, Witness, WitnessMap},
     AcirField, BlackBoxFunc,
@@ -131,6 +132,7 @@ pub enum OpcodeResolutionError<F> {
     BlackBoxFunctionFailed(BlackBoxFunc, String),
     #[error("Failed to solve brillig function")]
     BrilligFunctionFailed {
+        function_id: BrilligFunctionId,
         call_stack: Vec<OpcodeLocation>,
         payload: Option<ResolvedAssertionPayload<F>>,
     },
@@ -474,9 +476,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 &self.witness_map,
                 &self.block_solvers,
                 inputs,
-                &self.unconstrained_functions[*id as usize].bytecode,
+                &self.unconstrained_functions[id.as_usize()].bytecode,
                 self.backend,
                 self.instruction_pointer,
+                *id,
             )?,
         };
 
@@ -501,7 +504,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
 
     fn map_brillig_error(&self, mut err: OpcodeResolutionError<F>) -> OpcodeResolutionError<F> {
         match &mut err {
-            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload } => {
+            OpcodeResolutionError::BrilligFunctionFailed { call_stack, payload, .. } => {
                 // Some brillig errors have static strings as payloads, we can resolve them here
                 let last_location =
                     call_stack.last().expect("Call stacks should have at least one item");
@@ -545,9 +548,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             witness,
             &self.block_solvers,
             inputs,
-            &self.unconstrained_functions[*id as usize].bytecode,
+            &self.unconstrained_functions[id.as_usize()].bytecode,
             self.backend,
             self.instruction_pointer,
+            *id,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),
@@ -629,6 +633,16 @@ pub fn witness_to_value<F>(
     }
 }
 
+pub fn input_to_value<F: AcirField>(
+    initial_witness: &WitnessMap<F>,
+    input: FunctionInput<F>,
+) -> Result<F, OpcodeResolutionError<F>> {
+    match input.input {
+        ConstantOrWitnessEnum::Witness(witness) => Ok(*witness_to_value(initial_witness, witness)?),
+        ConstantOrWitnessEnum::Constant(value) => Ok(value),
+    }
+}
+
 // TODO: There is an issue open to decide on whether we need to get values from Expressions
 // TODO versus just getting values from Witness
 pub fn get_value<F: AcirField>(
@@ -637,7 +651,7 @@ pub fn get_value<F: AcirField>(
 ) -> Result<F, OpcodeResolutionError<F>> {
     let expr = ExpressionSolver::evaluate(expr, initial_witness);
     match expr.to_const() {
-        Some(value) => Ok(value),
+        Some(value) => Ok(*value),
         None => Err(OpcodeResolutionError::OpcodeNotSolvable(
             OpcodeNotSolvable::MissingAssignment(any_witness_from_expression(&expr).unwrap().0),
         )),

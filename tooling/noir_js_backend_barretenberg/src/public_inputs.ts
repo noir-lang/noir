@@ -1,16 +1,16 @@
-import { Abi, WitnessMap } from '@noir-lang/types';
+import { WitnessMap } from '@noir-lang/types';
 
-export function flattenPublicInputsAsArray(publicInputs: string[]): Uint8Array {
-  const flattenedPublicInputs = publicInputs.map(hexToUint8Array);
+export function flattenFieldsAsArray(fields: string[]): Uint8Array {
+  const flattenedPublicInputs = fields.map(hexToUint8Array);
   return flattenUint8Arrays(flattenedPublicInputs);
 }
 
-export function deflattenPublicInputs(flattenedPublicInputs: Uint8Array): string[] {
+export function deflattenFields(flattenedFields: Uint8Array): string[] {
   const publicInputSize = 32;
   const chunkedFlattenedPublicInputs: Uint8Array[] = [];
 
-  for (let i = 0; i < flattenedPublicInputs.length; i += publicInputSize) {
-    const publicInput = flattenedPublicInputs.slice(i, i + publicInputSize);
+  for (let i = 0; i < flattenedFields.length; i += publicInputSize) {
+    const publicInput = flattenedFields.slice(i, i + publicInputSize);
     chunkedFlattenedPublicInputs.push(publicInput);
   }
 
@@ -21,30 +21,6 @@ export function witnessMapToPublicInputs(publicInputs: WitnessMap): string[] {
   const publicInputIndices = [...publicInputs.keys()].sort((a, b) => a - b);
   const flattenedPublicInputs = publicInputIndices.map((index) => publicInputs.get(index) as string);
   return flattenedPublicInputs;
-}
-
-export function publicInputsToWitnessMap(publicInputs: string[], abi: Abi): WitnessMap {
-  const return_value_witnesses = abi.return_witnesses;
-  const public_parameters = abi.parameters.filter((param) => param.visibility === 'public');
-  const public_parameter_witnesses: number[] = public_parameters.flatMap((param) =>
-    abi.param_witnesses[param.name].flatMap((witness_range) =>
-      Array.from({ length: witness_range.end - witness_range.start }, (_, i) => witness_range.start + i),
-    ),
-  );
-
-  // We now have an array of witness indices which have been deduplicated and sorted in ascending order.
-  // The elements of this array should correspond to the elements of `flattenedPublicInputs` so that we can build up a `WitnessMap`.
-  const public_input_witnesses = [...new Set(public_parameter_witnesses.concat(return_value_witnesses))].sort(
-    (a, b) => a - b,
-  );
-
-  const witnessMap: WitnessMap = new Map();
-  public_input_witnesses.forEach((witness_index, index) => {
-    const witness_value = publicInputs[index];
-    witnessMap.set(witness_index, witness_value);
-  });
-
-  return witnessMap;
 }
 
 function flattenUint8Arrays(arrays: Uint8Array[]): Uint8Array {

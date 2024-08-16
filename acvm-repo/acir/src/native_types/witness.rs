@@ -17,10 +17,6 @@ impl Witness {
         // This is safe as long as the architecture is 32bits minimum
         self.0 as usize
     }
-
-    pub const fn can_defer_constraint(&self) -> bool {
-        true
-    }
 }
 
 impl From<u32> for Witness {

@@ -10,6 +10,7 @@ use super::{
     BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
     MethodCallExpression, UnresolvedType,
 };
+use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
 use crate::macros_api::SecondaryAttribute;
 use crate::parser::{ParserError, ParserErrorReason};
@@ -99,7 +100,9 @@ impl StatementKind {
             StatementKind::Expression(expr) => {
                 match (&expr.kind, semi, last_statement_in_block) {
                     // Semicolons are optional for these expressions
-                    (ExpressionKind::Block(_), semi, _) | (ExpressionKind::If(_), semi, _) => {
+                    (ExpressionKind::Block(_), semi, _)
+                    | (ExpressionKind::Unsafe(..), semi, _)
+                    | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
                         } else {
@@ -165,6 +168,12 @@ impl StatementKind {
 #[derive(Eq, Debug, Clone)]
 pub struct Ident(pub Spanned<String>);
 
+impl Ident {
+    pub fn is_self_type_name(&self) -> bool {
+        self.0.contents == SELF_TYPE_NAME
+    }
+}
+
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
         self.0.contents == other.0.contents
@@ -229,10 +238,11 @@ impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
         Expression {
             span: i.0.span(),
-            kind: ExpressionKind::Variable(
-                Path { span: i.span(), segments: vec![i], kind: PathKind::Plain },
-                None,
-            ),
+            kind: ExpressionKind::Variable(Path {
+                span: i.span(),
+                segments: vec![PathSegment::from(i)],
+                kind: PathKind::Plain,
+            }),
         }
     }
 }
@@ -292,6 +302,7 @@ pub enum PathKind {
     Crate,
     Dep,
     Plain,
+    Super,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -349,23 +360,37 @@ impl UseTree {
     }
 }
 
+/// A special kind of path in the form `<MyType as Trait>::ident`.
+/// Note that this path must consist of exactly two segments.
+///
+/// An AsTraitPath may be used in either a type context where `ident`
+/// refers to an associated type of a particular impl, or in a value
+/// context where `ident` may refer to an associated constant or a
+/// function within the impl.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct AsTraitPath {
+    pub typ: UnresolvedType,
+    pub trait_path: Path,
+    pub impl_item: Ident,
+}
+
 // Note: Path deliberately doesn't implement Recoverable.
 // No matter which default value we could give in Recoverable::error,
 // it would most likely cause further errors during name resolution
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Path {
-    pub segments: Vec<Ident>,
+    pub segments: Vec<PathSegment>,
     pub kind: PathKind,
     pub span: Span,
 }
 
 impl Path {
-    pub fn pop(&mut self) -> Ident {
+    pub fn pop(&mut self) -> PathSegment {
         self.segments.pop().unwrap()
     }
 
     fn join(mut self, ident: Ident) -> Path {
-        self.segments.push(ident);
+        self.segments.push(PathSegment::from(ident));
         self
     }
 
@@ -376,16 +401,35 @@ impl Path {
     }
 
     pub fn from_ident(name: Ident) -> Path {
-        Path { span: name.span(), segments: vec![name], kind: PathKind::Plain }
+        Path { span: name.span(), segments: vec![PathSegment::from(name)], kind: PathKind::Plain }
     }
 
     pub fn span(&self) -> Span {
         self.span
     }
 
-    pub fn last_segment(&self) -> Ident {
+    pub fn first_segment(&self) -> PathSegment {
+        assert!(!self.segments.is_empty());
+        self.segments.first().unwrap().clone()
+    }
+
+    pub fn last_segment(&self) -> PathSegment {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
+    }
+
+    pub fn last_ident(&self) -> Ident {
+        self.last_segment().ident
+    }
+
+    pub fn first_name(&self) -> &str {
+        assert!(!self.segments.is_empty());
+        &self.segments.first().unwrap().ident.0.contents
+    }
+
+    pub fn last_name(&self) -> &str {
+        assert!(!self.segments.is_empty());
+        &self.segments.last().unwrap().ident.0.contents
     }
 
     pub fn is_ident(&self) -> bool {
@@ -396,14 +440,14 @@ impl Path {
         if !self.is_ident() {
             return None;
         }
-        self.segments.first()
+        self.segments.first().map(|segment| &segment.ident)
     }
 
     pub fn to_ident(&self) -> Option<Ident> {
         if !self.is_ident() {
             return None;
         }
-        self.segments.first().cloned()
+        self.segments.first().cloned().map(|segment| segment.ident)
     }
 
     pub fn as_string(&self) -> String {
@@ -413,16 +457,55 @@ impl Path {
         match segments.next() {
             None => panic!("empty segment"),
             Some(seg) => {
-                string.push_str(&seg.0.contents);
+                string.push_str(&seg.ident.0.contents);
             }
         }
 
         for segment in segments {
             string.push_str("::");
-            string.push_str(&segment.0.contents);
+            string.push_str(&segment.ident.0.contents);
         }
 
         string
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct PathSegment {
+    pub ident: Ident,
+    pub generics: Option<Vec<UnresolvedType>>,
+    pub span: Span,
+}
+
+impl PathSegment {
+    /// Returns the span where turbofish happen. For example:
+    ///
+    ///    foo::<T>
+    ///       ~^^^^
+    ///
+    /// Returns an empty span at the end of `foo` if there's no turbofish.
+    pub fn turbofish_span(&self) -> Span {
+        Span::from(self.ident.span().end()..self.span.end())
+    }
+}
+
+impl From<Ident> for PathSegment {
+    fn from(ident: Ident) -> PathSegment {
+        let span = ident.span();
+        PathSegment { ident, generics: None, span }
+    }
+}
+
+impl Display for PathSegment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.ident.fmt(f)?;
+
+        if let Some(generics) = &self.generics {
+            let generics = vecmap(generics, ToString::to_string);
+            write!(f, "::<{}>", generics.join(", "))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -509,7 +592,7 @@ impl Recoverable for Pattern {
 impl LValue {
     fn as_expression(&self) -> Expression {
         let kind = match self {
-            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone()), None),
+            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
             LValue::MemberAccess { object, field_name, span: _ } => {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                     lhs: object.as_expression(),
@@ -598,16 +681,18 @@ impl ForRange {
                 };
 
                 // array.len()
-                let segments = vec![array_ident];
-                let array_ident = ExpressionKind::Variable(
-                    Path { segments, kind: PathKind::Plain, span: array_span },
-                    None,
-                );
+                let segments = vec![PathSegment::from(array_ident)];
+                let array_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
 
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                     object: Expression::new(array_ident.clone(), array_span),
                     method_name: Ident::new("len".to_string(), array_span),
                     generics: None,
+                    is_macro_call: false,
                     arguments: vec![],
                 }));
                 let end_range = Expression::new(end_range, array_span);
@@ -617,11 +702,12 @@ impl ForRange {
                 let fresh_identifier = Ident::new(index_name.clone(), array_span);
 
                 // array[i]
-                let segments = vec![Ident::new(index_name, array_span)];
-                let index_ident = ExpressionKind::Variable(
-                    Path { segments, kind: PathKind::Plain, span: array_span },
-                    None,
-                );
+                let segments = vec![PathSegment::from(Ident::new(index_name, array_span))];
+                let index_ident = ExpressionKind::Variable(Path {
+                    segments,
+                    kind: PathKind::Plain,
+                    span: array_span,
+                });
 
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
                     collection: Expression::new(array_ident, array_span),
@@ -661,8 +747,10 @@ impl ForRange {
                 let block = ExpressionKind::Block(BlockExpression {
                     statements: vec![let_array, for_loop],
                 });
-                let kind = StatementKind::Expression(Expression::new(block, for_loop_span));
-                Statement { kind, span: for_loop_span }
+                Statement {
+                    kind: StatementKind::Expression(Expression::new(block, for_loop_span)),
+                    span: for_loop_span,
+                }
             }
         }
     }
@@ -727,7 +815,11 @@ impl Display for LValue {
 impl Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let segments = vecmap(&self.segments, ToString::to_string);
-        write!(f, "{}::{}", self.kind, segments.join("::"))
+        if self.kind == PathKind::Plain {
+            write!(f, "{}", segments.join("::"))
+        } else {
+            write!(f, "{}::{}", self.kind, segments.join("::"))
+        }
     }
 }
 
@@ -736,6 +828,7 @@ impl Display for PathKind {
         match self {
             PathKind::Crate => write!(f, "crate"),
             PathKind::Dep => write!(f, "dep"),
+            PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
         }
     }

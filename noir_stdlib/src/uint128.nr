@@ -66,7 +66,7 @@ impl U128 {
         bytes
     }
 
-    pub fn from_hex<N>(hex: str<N>) -> U128 {
+    pub fn from_hex<let N: u32>(hex: str<N>) -> U128 {
         let N = N as u32;
         let bytes = hex.as_bytes();
         // string must starts with "0x"
@@ -100,14 +100,16 @@ impl U128 {
     }
 
     fn decode_ascii(ascii: u8) -> Field {
-        if ascii < 58 {
+        (if ascii < 58 {
             ascii - 48
         } else {
-            let ascii = ascii + 32 * (U128::uconstrained_check_is_upper_ascii(ascii) as u8);
+            let ascii = ascii + 32 * (unsafe {
+                        U128::uconstrained_check_is_upper_ascii(ascii) as u8
+                    });
             assert(ascii >= 97); // enforce >= 'a'
             assert(ascii <= 102); // enforce <= 'f'
             ascii - 87
-        } as Field
+        }) as Field
     }
 
     // TODO: Replace with a faster version. 
@@ -212,21 +214,26 @@ impl Mul for U128 {
 
 impl Div for U128 {
     fn div(self: Self, b: U128) -> U128 {
-        let (q,r) = self.unconstrained_div(b);
-        let a = b * q + r;
-        assert_eq(self, a);
-        assert(r < b);
-        q
+        unsafe {
+            let (q,r) = self.unconstrained_div(b);
+            let a = b * q + r;
+            assert_eq(self, a);
+            assert(r < b);
+            q
+        }
     }
 }
 
 impl Rem for U128 {
     fn rem(self: Self, b: U128) -> U128 {
-        let (q,r) = self.unconstrained_div(b);
-        let a = b * q + r;
-        assert_eq(self, a);
-        assert(r < b);
-        r
+        unsafe {
+            let (q,r) = self.unconstrained_div(b);
+            let a = b * q + r;
+            assert_eq(self, a);
+            assert(r < b);
+            
+            r
+        }
     }
 }
 
@@ -319,13 +326,12 @@ mod tests {
     use crate::uint128::{U128, pow64, pow63};
 
     #[test]
-    fn test_not() {
-        let num = U128::from_u64s_le(0, 0);
+    fn test_not(lo: u64, hi: u64) {
+        let num = U128::from_u64s_le(lo, hi);
         let not_num = num.not();
 
-        let max_u64: Field = pow64 - 1;
-        assert_eq(not_num.hi, max_u64);
-        assert_eq(not_num.lo, max_u64);
+        assert_eq(not_num.hi, (hi.not() as Field));
+        assert_eq(not_num.lo, (lo.not() as Field));
 
         let not_not_num = not_num.not();
         assert_eq(num, not_not_num);
@@ -440,31 +446,40 @@ mod tests {
         let b= U128::from_u64s_le(0x0, 0xfffffffffffffffe);
         let c= U128::one();
         let d= U128::from_u64s_le(0x0, 0x1);
-        let (q,r) = a.unconstrained_div(b);
-        assert_eq(q, c);
-        assert_eq(r, d);
+        unsafe {
+            let (q,r) = a.unconstrained_div(b);
+            assert_eq(q, c);
+            assert_eq(r, d);
+        }
 
         let a = U128::from_u64s_le(2, 0);
         let b = U128::one();
         // Check the case where a is a multiple of b
-        let (c,d ) = a.unconstrained_div(b);
-        assert_eq((c, d), (a, U128::zero()));
+        unsafe {
+            let (c, d) = a.unconstrained_div(b);
+            assert_eq((c, d), (a, U128::zero()));
+        }
 
         // Check where b is a multiple of a
-        let (c,d) = b.unconstrained_div(a);
-        assert_eq((c, d), (U128::zero(), b));
+        unsafe {
+            let (c,d) = b.unconstrained_div(a);
+            assert_eq((c, d), (U128::zero(), b));
+        }
 
         // Dividing by zero returns 0,0
         let a = U128::from_u64s_le(0x1, 0x0);
         let b = U128::zero();
-        let (c,d)= a.unconstrained_div(b);
-        assert_eq((c, d), (U128::zero(), U128::zero()));
-
+        unsafe {
+            let (c, d)= a.unconstrained_div(b);
+            assert_eq((c, d), (U128::zero(), U128::zero()));
+        }
         // Dividing 1<<127 by 1<<127 (special case)
         let a = U128::from_u64s_le(0x0, pow63 as u64);
         let b = U128::from_u64s_le(0x0, pow63 as u64);
-        let (c,d )= a.unconstrained_div(b);
-        assert_eq((c, d), (U128::one(), U128::zero()));
+        unsafe {
+            let (c, d) = a.unconstrained_div(b);
+            assert_eq((c, d), (U128::one(), U128::zero()));
+        }
     }
 
     #[test]
@@ -493,6 +508,15 @@ mod tests {
         let end = a.to_integer();
         assert_eq(start, end);
     }
+
+    #[test]
+    fn integer_conversions_fuzz(lo: u64, hi: u64) {
+        let start: Field = (lo as Field) + pow64 * (hi as Field);
+        let a = U128::from_integer(start);
+        let end = a.to_integer();
+        assert_eq(start, end);
+    }
+
     #[test]
     fn test_wrapping_mul() {
         // 1*0==0

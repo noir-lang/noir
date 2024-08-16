@@ -1,1 +1,1 @@
-use dep::std::hash::{sha256};
+use std::hash::{sha256};

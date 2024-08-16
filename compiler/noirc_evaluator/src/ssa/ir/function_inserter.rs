@@ -1,9 +1,11 @@
 use iter_extended::vecmap;
 
+use crate::ssa::ir::types::Type;
+
 use super::{
     basic_block::BasicBlockId,
     dfg::{CallStack, InsertInstructionResult},
-    function::Function,
+    function::{Function, RuntimeType},
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
@@ -16,11 +18,15 @@ pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
     values: HashMap<ValueId, ValueId>,
+    /// Map containing repeat array constants so that we do not initialize a new
+    /// array unnecessarily. An extra tuple field is included as part of the key to
+    /// distinguish between array/slice types.
+    const_arrays: HashMap<(im::Vector<ValueId>, Type), ValueId>,
 }
 
 impl<'f> FunctionInserter<'f> {
     pub(crate) fn new(function: &'f mut Function) -> FunctionInserter<'f> {
-        Self { function, values: HashMap::default() }
+        Self { function, values: HashMap::default(), const_arrays: HashMap::default() }
     }
 
     /// Resolves a ValueId to its new, updated value.
@@ -34,9 +40,26 @@ impl<'f> FunctionInserter<'f> {
                 super::value::Value::Array { array, typ } => {
                     let array = array.clone();
                     let typ = typ.clone();
-                    let new_array = array.iter().map(|id| self.resolve(*id)).collect();
-                    let new_id = self.function.dfg.make_array(new_array, typ);
+                    let new_array: im::Vector<ValueId> =
+                        array.iter().map(|id| self.resolve(*id)).collect();
+
+                    if let Some(fetched_value) =
+                        self.const_arrays.get(&(new_array.clone(), typ.clone()))
+                    {
+                        // Arrays in ACIR are immutable, but in Brillig arrays are copy-on-write
+                        // so for function's with a Brillig runtime we make sure to check that value
+                        // in our constants array map matches the resolved array value id.
+                        if matches!(self.function.runtime(), RuntimeType::Acir(_)) {
+                            return *fetched_value;
+                        } else if *fetched_value == value {
+                            return value;
+                        }
+                    };
+
+                    let new_array_clone = new_array.clone();
+                    let new_id = self.function.dfg.make_array(new_array, typ.clone());
                     self.values.insert(value, new_id);
+                    self.const_arrays.insert((new_array_clone, typ), new_id);
                     new_id
                 }
                 _ => value,

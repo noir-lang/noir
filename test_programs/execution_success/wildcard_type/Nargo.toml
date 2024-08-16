@@ -1,0 +1,6 @@
+[package]
+name = "wildcard_type"
+type = "bin"
+authors = [""]
+
+[dependencies]

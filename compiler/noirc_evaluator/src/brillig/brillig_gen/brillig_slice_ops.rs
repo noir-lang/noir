@@ -38,7 +38,11 @@ impl<'block> BrilligBlock<'block> {
                 target_index.address,
                 BrilligBinaryOp::Add,
             );
-            self.store_variable_in_array(target_vector.pointer, target_index, *variable);
+            self.brillig_context.codegen_store_variable_in_array(
+                target_vector.pointer,
+                target_index,
+                *variable,
+            );
             self.brillig_context.deallocate_single_addr(target_index);
         }
     }
@@ -79,7 +83,11 @@ impl<'block> BrilligBlock<'block> {
         // Then we write the items to insert at the start
         for (index, variable) in variables_to_insert.iter().enumerate() {
             let target_index = self.brillig_context.make_usize_constant_instruction(index.into());
-            self.store_variable_in_array(target_vector.pointer, target_index, *variable);
+            self.brillig_context.codegen_store_variable_in_array(
+                target_vector.pointer,
+                target_index,
+                *variable,
+            );
             self.brillig_context.deallocate_single_addr(target_index);
         }
 
@@ -239,7 +247,11 @@ impl<'block> BrilligBlock<'block> {
                 target_index.address,
                 BrilligBinaryOp::Add,
             );
-            self.store_variable_in_array(target_vector.pointer, target_index, *variable);
+            self.brillig_context.codegen_store_variable_in_array(
+                target_vector.pointer,
+                target_index,
+                *variable,
+            );
             self.brillig_context.deallocate_single_addr(target_index);
         }
 
@@ -372,7 +384,7 @@ mod tests {
     use crate::ssa::ir::map::Id;
     use crate::ssa::ssa_gen::Ssa;
 
-    fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext) {
+    fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
         builder.set_runtime(RuntimeType::Brillig);
 
@@ -385,7 +397,7 @@ mod tests {
 
     fn create_brillig_block<'a>(
         function_context: &'a mut FunctionContext,
-        brillig_context: &'a mut BrilligContext,
+        brillig_context: &'a mut BrilligContext<FieldElement>,
     ) -> BrilligBlock<'a> {
         let variables = BlockVariables::default();
         BrilligBlock {

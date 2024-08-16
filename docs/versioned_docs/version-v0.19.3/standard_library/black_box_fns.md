@@ -26,20 +26,20 @@ fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 Here is a list of the current black box functions that are supported by UltraPlonk:
 
 - AES
-- [SHA256](./cryptographic_primitives/hashes#sha256)
-- [Schnorr signature verification](./cryptographic_primitives/schnorr)
-- [Blake2s](./cryptographic_primitives/hashes#blake2s)
-- [Pedersen Hash](./cryptographic_primitives/hashes#pedersen_hash)
-- [Pedersen Commitment](./cryptographic_primitives/hashes#pedersen_commitment)
-- [HashToField128Security](./cryptographic_primitives/hashes#hash_to_field)
-- [ECDSA signature verification](./cryptographic_primitives/ecdsa_sig_verification)
-- [Fixed base scalar multiplication](./cryptographic_primitives/scalar)
-- [Compute merkle root](./merkle_trees#compute_merkle_root)
+- [SHA256](./cryptographic_primitives/hashes.mdx#sha256)
+- [Schnorr signature verification](./cryptographic_primitives/schnorr.mdx)
+- [Blake2s](./cryptographic_primitives/hashes.mdx#blake2s)
+- [Pedersen Hash](./cryptographic_primitives/hashes.mdx#pedersen_hash)
+- [Pedersen Commitment](./cryptographic_primitives/hashes.mdx#pedersen_commitment)
+- [HashToField128Security](./cryptographic_primitives/hashes.mdx#hash_to_field)
+- [ECDSA signature verification](./cryptographic_primitives/ecdsa_sig_verification.mdx)
+- [Fixed base scalar multiplication](./cryptographic_primitives/scalar.mdx)
+- [Compute merkle root](./merkle_trees.md#compute_merkle_root)
 - AND
 - XOR
 - RANGE
-- [Keccak256](./cryptographic_primitives/hashes#keccak256)
-- [Recursive proof verification](./recursion)
+- [Keccak256](./cryptographic_primitives/hashes.mdx#keccak256)
+- [Recursive proof verification](./recursion.md)
 
 Most black box functions are included as part of the Noir standard library, however `AND`, `XOR` and `RANGE` are used as part of the Noir language syntax. For instance, using the bitwise operator `&` will invoke the `AND` black box function. To ensure compatibility across backends, the ACVM has fallback implementations of `AND`, `XOR` and `RANGE` defined in its standard library which it can seamlessly fallback to if the backend doesn't support them.
 

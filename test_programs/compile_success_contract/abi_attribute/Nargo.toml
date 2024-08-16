@@ -1,0 +1,6 @@
+[package]
+name = "abi_attribute"
+type = "contract"
+authors = [""]
+
+[dependencies]

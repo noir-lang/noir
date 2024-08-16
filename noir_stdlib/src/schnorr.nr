@@ -1,6 +1,6 @@
 #[foreign(schnorr_verify)]
 // docs:start:schnorr_verify
-pub fn verify_signature<N>(
+pub fn verify_signature<let N: u32>(
     public_key_x: Field,
     public_key_y: Field,
     signature: [u8; 64],

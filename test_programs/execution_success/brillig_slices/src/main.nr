@@ -1,4 +1,4 @@
-use dep::std::slice;
+use std::slice;
 unconstrained fn main(x: Field, y: Field) {
     let mut slice: [Field] = &[y, x];
     assert(slice.len() == 2);

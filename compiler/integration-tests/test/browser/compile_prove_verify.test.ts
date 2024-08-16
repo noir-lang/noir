@@ -51,19 +51,20 @@ test_cases.forEach((testInfo) => {
       throw e;
     }
 
-    const backend = new BarretenbergBackend(noir_program);
-    const program = new Noir(noir_program, backend);
-
     const prover_toml = await new Response(await getFile(`${base_relative_path}/${test_case}/Prover.toml`)).text();
     const inputs: InputMap = TOML.parse(prover_toml) as InputMap;
 
     // JS Proving
 
-    const proofWithPublicInputs = await program.generateProof(inputs);
+    const program = new Noir(noir_program);
+    const { witness } = await program.execute(inputs);
+
+    const backend = new BarretenbergBackend(noir_program);
+    const proof = await backend.generateProof(witness);
 
     // JS verification
 
-    const verified = await program.verifyProof(proofWithPublicInputs);
+    const verified = await backend.verifyProof(proof);
     expect(verified, 'Proof fails verification in JS').to.be.true;
   });
 

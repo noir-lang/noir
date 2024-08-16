@@ -15,7 +15,7 @@ import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
 Given an array of bytes, returns the resulting sha256 hash.
 Specify a message_size to hash only the first `message_size` bytes of the input.
 
-#include_code sha256 noir_stdlib/src/hash.nr rust
+#include_code sha256 noir_stdlib/src/hash/mod.nr rust
 
 example:
 #include_code sha256_var test_programs/execution_success/sha256/src/main.nr rust
@@ -34,7 +34,7 @@ fn main() {
 
 Given an array of bytes, returns an array with the Blake2 hash
 
-#include_code blake2s noir_stdlib/src/hash.nr rust
+#include_code blake2s noir_stdlib/src/hash/mod.nr rust
 
 example:
 
@@ -51,7 +51,7 @@ fn main() {
 
 Given an array of bytes, returns an array with the Blake3 hash
 
-#include_code blake3 noir_stdlib/src/hash.nr rust
+#include_code blake3 noir_stdlib/src/hash/mod.nr rust
 
 example:
 
@@ -68,7 +68,7 @@ fn main() {
 
 Given an array of Fields, returns the Pedersen hash.
 
-#include_code pedersen_hash noir_stdlib/src/hash.nr rust
+#include_code pedersen_hash noir_stdlib/src/hash/mod.nr rust
 
 example:
 
@@ -80,7 +80,7 @@ example:
 
 Given an array of Fields, returns the Pedersen commitment.
 
-#include_code pedersen_commitment noir_stdlib/src/hash.nr rust
+#include_code pedersen_commitment noir_stdlib/src/hash/mod.nr rust
 
 example:
 
@@ -94,7 +94,7 @@ Given an array of bytes (`u8`), returns the resulting keccak hash as an array of
 32 bytes (`[u8; 32]`). Specify a message_size to hash only the first
 `message_size` bytes of the input.
 
-#include_code keccak256 noir_stdlib/src/hash.nr rust
+#include_code keccak256 noir_stdlib/src/hash/mod.nr rust
 
 example:
 
@@ -127,7 +127,9 @@ function, there is only one hash and you can specify a message_size to hash only
 Poseidon2::hash(input, 3);
 ```
 
-The above example for Poseidon also includes Poseidon2.
+example:
+
+#include_code poseidon2 test_programs/execution_success/poseidon2/src/main.nr rust
 
 ## mimc_bn254 and mimc
 

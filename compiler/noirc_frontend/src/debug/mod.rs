@@ -1,3 +1,4 @@
+use crate::ast::PathSegment;
 use crate::parser::{parse_program, ParsedModule};
 use crate::{
     ast,
@@ -171,14 +172,11 @@ impl DebugInstrumenter {
         let last_stmt = if has_ret_expr {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
-                    kind: ast::ExpressionKind::Variable(
-                        ast::Path {
-                            segments: vec![ident("__debug_expr", span)],
-                            kind: PathKind::Plain,
-                            span,
-                        },
-                        None,
-                    ),
+                    kind: ast::ExpressionKind::Variable(ast::Path {
+                        segments: vec![PathSegment::from(ident("__debug_expr", span))],
+                        kind: PathKind::Plain,
+                        span,
+                    }),
                     span,
                 }),
                 span,
@@ -470,7 +468,7 @@ impl DebugInstrumenter {
             .join(",\n");
         let (program, errors) = parse_program(&format!(
             r#"
-            use dep::__debug::{{
+            use __debug::{{
                 __debug_var_assign,
                 __debug_var_drop,
                 __debug_fn_enter,
@@ -495,7 +493,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_assign_oracle(var_id, value);
             }
             pub fn __debug_var_assign<T>(var_id: u32, value: T) {
-                __debug_var_assign_inner(var_id, value);
+                unsafe {{
+                    __debug_var_assign_inner(var_id, value);
+                }}
             }
 
             #[oracle(__debug_var_drop)]
@@ -504,7 +504,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_drop_oracle(var_id);
             }
             pub fn __debug_var_drop(var_id: u32) {
-                __debug_var_drop_inner(var_id);
+                unsafe {{
+                    __debug_var_drop_inner(var_id);
+                }}
             }
 
             #[oracle(__debug_fn_enter)]
@@ -513,7 +515,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_enter_oracle(fn_id);
             }
             pub fn __debug_fn_enter(fn_id: u32) {
-                __debug_fn_enter_inner(fn_id);
+                unsafe {{
+                    __debug_fn_enter_inner(fn_id);
+                }}
             }
 
             #[oracle(__debug_fn_exit)]
@@ -522,7 +526,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_exit_oracle(fn_id);
             }
             pub fn __debug_fn_exit(fn_id: u32) {
-                __debug_fn_exit_inner(fn_id);
+                unsafe {{
+                    __debug_fn_exit_inner(fn_id);
+                }}
             }
 
             #[oracle(__debug_dereference_assign)]
@@ -531,7 +537,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_dereference_assign_oracle(var_id, value);
             }
             pub fn __debug_dereference_assign<T>(var_id: u32, value: T) {
-                __debug_dereference_assign_inner(var_id, value);
+                unsafe {{
+                    __debug_dereference_assign_inner(var_id, value);
+                }}
             }
         "#
         .to_string(),
@@ -555,7 +563,9 @@ pub fn build_debug_crate_file() -> String {
                     __debug_oracle_member_assign_{n}(var_id, value, {vars});
                 }}
                 pub fn __debug_member_assign_{n}<T, Index>(var_id: u32, value: T, {var_sig}) {{
-                    __debug_inner_member_assign_{n}(var_id, value, {vars});
+                    unsafe {{
+                        __debug_inner_member_assign_{n}(var_id, value, {vars});
+                    }}
                 }}
 
             "#
@@ -571,16 +581,14 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
     let span = expr.span;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(
-                ast::Path {
-                    segments: vec![ident("__debug_var_assign", span)],
-                    kind: PathKind::Plain,
-                    span,
-                },
-                None,
-            ),
+            kind: ast::ExpressionKind::Variable(ast::Path {
+                segments: vec![PathSegment::from(ident("__debug_var_assign", span))],
+                kind: PathKind::Plain,
+                span,
+            }),
             span,
         }),
+        is_macro_call: false,
         arguments: vec![uint_expr(var_id.0 as u128, span), expr],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
@@ -589,16 +597,14 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
 fn build_drop_var_stmt(var_id: SourceVarId, span: Span) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(
-                ast::Path {
-                    segments: vec![ident("__debug_var_drop", span)],
-                    kind: PathKind::Plain,
-                    span,
-                },
-                None,
-            ),
+            kind: ast::ExpressionKind::Variable(ast::Path {
+                segments: vec![PathSegment::from(ident("__debug_var_drop", span))],
+                kind: PathKind::Plain,
+                span,
+            }),
             span,
         }),
+        is_macro_call: false,
         arguments: vec![uint_expr(var_id.0 as u128, span)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
@@ -616,16 +622,17 @@ fn build_assign_member_stmt(
     let span = expr.span;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(
-                ast::Path {
-                    segments: vec![ident(&format!["__debug_member_assign_{arity}"], span)],
-                    kind: PathKind::Plain,
+            kind: ast::ExpressionKind::Variable(ast::Path {
+                segments: vec![PathSegment::from(ident(
+                    &format!["__debug_member_assign_{arity}"],
                     span,
-                },
-                None,
-            ),
+                ))],
+                kind: PathKind::Plain,
+                span,
+            }),
             span,
         }),
+        is_macro_call: false,
         arguments: [
             vec![uint_expr(var_id.0 as u128, span)],
             vec![expr.clone()],
@@ -639,16 +646,14 @@ fn build_assign_member_stmt(
 fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, span: Span) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(
-                ast::Path {
-                    segments: vec![ident(&format!["__debug_fn_{fname}"], span)],
-                    kind: PathKind::Plain,
-                    span,
-                },
-                None,
-            ),
+            kind: ast::ExpressionKind::Variable(ast::Path {
+                segments: vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], span))],
+                kind: PathKind::Plain,
+                span,
+            }),
             span,
         }),
+        is_macro_call: false,
         arguments: vec![uint_expr(fn_id.0 as u128, span)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
@@ -708,10 +713,11 @@ fn ident(s: &str, span: Span) -> ast::Ident {
 
 fn id_expr(id: &ast::Ident) -> ast::Expression {
     ast::Expression {
-        kind: ast::ExpressionKind::Variable(
-            Path { segments: vec![id.clone()], kind: PathKind::Plain, span: id.span() },
-            None,
-        ),
+        kind: ast::ExpressionKind::Variable(Path {
+            segments: vec![PathSegment::from(id.clone())],
+            kind: PathKind::Plain,
+            span: id.span(),
+        }),
         span: id.span(),
     }
 }

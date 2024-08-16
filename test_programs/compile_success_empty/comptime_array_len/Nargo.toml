@@ -1,0 +1,6 @@
+[package]
+name = "comptime_array_len"
+type = "bin"
+authors = [""]
+
+[dependencies]

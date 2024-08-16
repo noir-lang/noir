@@ -38,7 +38,7 @@ fn default_generators() -> &'static [Affine<GrumpkinParameters>; NUM_DEFAULT_GEN
 /// index-addressable generators.
 ///
 /// [hash_to_curve]: super::hash_to_curve::hash_to_curve
-pub(crate) fn derive_generators(
+pub fn derive_generators(
     domain_separator_bytes: &[u8],
     num_generators: u32,
     starting_index: u32,
@@ -91,7 +91,7 @@ mod test {
     fn test_derive_generators() {
         let res = derive_generators("test domain".as_bytes(), 128, 0);
 
-        let is_unique = |y: Affine<grumpkin::GrumpkinParameters>, j: usize| -> bool {
+        let is_unique = |y: Affine<GrumpkinParameters>, j: usize| -> bool {
             for (i, res) in res.iter().enumerate() {
                 if i != j && *res == y {
                     return false;

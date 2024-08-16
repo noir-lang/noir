@@ -1,5 +1,5 @@
-use dep::std::embedded_curve_ops::EmbeddedCurvePoint;
-use dep::std::embedded_curve_ops::EmbeddedCurveScalar;
+use std::embedded_curve_ops::EmbeddedCurvePoint;
+use std::embedded_curve_ops::EmbeddedCurveScalar;
 
 fn main(is_active: bool) {
     let a = EmbeddedCurvePoint {
@@ -11,10 +11,10 @@ fn main(is_active: bool) {
     if is_active {
         let bad = EmbeddedCurvePoint { x: 0, y: 5, is_infinite: false };
         let d = bad.double();
-        let e = dep::std::embedded_curve_ops::multi_scalar_mul(
+        let e = std::embedded_curve_ops::multi_scalar_mul(
             [a, bad],
             [EmbeddedCurveScalar { lo: 1, hi: 0 }, EmbeddedCurveScalar { lo: 1, hi: 0 }]
         );
-        assert(e[0] != d.x);
+        assert(e.x != d.x);
     }
 }

@@ -6,9 +6,11 @@ use super::{
         token_to_borrowed_token, BorrowedToken, IntType, Keyword, SpannedToken, Token, Tokens,
     },
 };
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use noirc_errors::{Position, Span};
-use std::str::CharIndices;
+use num_bigint::BigInt;
+use num_traits::{Num, One};
+use std::str::{CharIndices, FromStr};
 
 /// The job of the lexer is to transform an iterator of characters (`char_iter`)
 /// into an iterator of `SpannedToken`. Each `Token` corresponds roughly to 1 word or operator.
@@ -19,6 +21,7 @@ pub struct Lexer<'a> {
     done: bool,
     skip_comments: bool,
     skip_whitespaces: bool,
+    max_integer: BigInt,
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
@@ -61,6 +64,8 @@ impl<'a> Lexer<'a> {
             done: false,
             skip_comments: true,
             skip_whitespaces: true,
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
+                - BigInt::one(),
         }
     }
 
@@ -141,9 +146,11 @@ impl<'a> Lexer<'a> {
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
+            Some('$') => self.single_char_token(Token::DollarSign),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
+            Some('q') => self.eat_quote_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
@@ -309,14 +316,25 @@ impl<'a> Lexer<'a> {
     //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
     fn eat_word(&mut self, initial_char: char) -> SpannedTokenResult {
-        let start = self.position;
+        let (start, word, end) = self.lex_word(initial_char);
+        self.lookup_word_token(word, start, end)
+    }
 
+    /// Lex the next word in the input stream. Returns (start position, word, end position)
+    fn lex_word(&mut self, initial_char: char) -> (Position, String, Position) {
+        let start = self.position;
         let word = self.eat_while(Some(initial_char), |ch| {
             ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
         });
+        (start, word, self.position)
+    }
 
-        let end = self.position;
-
+    fn lookup_word_token(
+        &self,
+        word: String,
+        start: Position,
+        end: Position,
+    ) -> SpannedTokenResult {
         // Check if word either an identifier or a keyword
         if let Some(keyword_token) = Keyword::lookup_keyword(&word) {
             return Ok(keyword_token.into_span(start, end));
@@ -363,14 +381,28 @@ impl<'a> Lexer<'a> {
         // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
         let integer_str = integer_str.replace('_', "");
 
-        let integer = match FieldElement::try_from_str(&integer_str) {
-            None => {
+        let bigint_result = match integer_str.strip_prefix("0x") {
+            Some(integer_str) => BigInt::from_str_radix(integer_str, 16),
+            None => BigInt::from_str(&integer_str),
+        };
+
+        let integer = match bigint_result {
+            Ok(bigint) => {
+                if bigint > self.max_integer {
+                    return Err(LexerErrorKind::IntegerLiteralTooLarge {
+                        span: Span::inclusive(start, end),
+                        limit: self.max_integer.to_string(),
+                    });
+                }
+                let big_uint = bigint.magnitude();
+                FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be())
+            }
+            Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
                     span: Span::inclusive(start, end),
                     found: integer_str,
                 })
             }
-            Some(integer) => integer,
         };
 
         let integer_token = Token::Int(integer);
@@ -508,6 +540,50 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn eat_quote_or_alpha_numeric(&mut self) -> SpannedTokenResult {
+        let (start, word, end) = self.lex_word('q');
+        if word != "quote" {
+            return self.lookup_word_token(word, start, end);
+        }
+
+        let delimiter = self.next_token()?;
+        let (start_delim, end_delim) = match delimiter.token() {
+            Token::LeftBrace => (Token::LeftBrace, Token::RightBrace),
+            Token::LeftBracket => (Token::LeftBracket, Token::RightBracket),
+            Token::LeftParen => (Token::LeftParen, Token::RightParen),
+            _ => return Err(LexerErrorKind::InvalidQuoteDelimiter { delimiter }),
+        };
+
+        let mut tokens = Vec::new();
+
+        // Keep track of each nested delimiter we need to close.
+        let mut nested_delimiters = vec![delimiter];
+
+        while !nested_delimiters.is_empty() {
+            let token = self.next_token()?;
+
+            if *token.token() == start_delim {
+                nested_delimiters.push(token.clone());
+            } else if *token.token() == end_delim {
+                nested_delimiters.pop();
+            } else if *token.token() == Token::EOF {
+                let start_delim =
+                    nested_delimiters.pop().expect("If this were empty, we wouldn't be looping");
+                return Err(LexerErrorKind::UnclosedQuote { start_delim, end_delim });
+            }
+
+            tokens.push(token);
+        }
+
+        // Pop the closing delimiter from the token stream
+        if !tokens.is_empty() {
+            tokens.pop();
+        }
+
+        let end = self.position;
+        Ok(Token::Quote(Tokens(tokens)).into_span(start, end))
+    }
+
     fn parse_comment(&mut self, start: u32) -> SpannedTokenResult {
         let doc_style = match self.peek_char() {
             Some('!') => {
@@ -603,6 +679,8 @@ impl<'a> Iterator for Lexer<'a> {
 
 #[cfg(test)]
 mod tests {
+    use iter_extended::vecmap;
+
     use super::*;
     use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 
@@ -838,6 +916,19 @@ mod tests {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
+    }
+
+    #[test]
+    fn test_int_too_large() {
+        let modulus = FieldElement::modulus();
+        let input = modulus.to_string();
+
+        let mut lexer = Lexer::new(&input);
+        let token = lexer.next_token();
+        assert!(
+            matches!(token, Err(LexerErrorKind::IntegerLiteralTooLarge { .. })),
+            "expected {input} to throw error"
+        );
     }
 
     #[test]
@@ -1228,6 +1319,47 @@ mod tests {
                         "expected token not found: {token_discriminator_opt:?}\noutput:\n{result_tokens:?}",
                     );
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn test_quote() {
+        // cases is a vector of pairs of (test string, expected # of tokens in token stream)
+        let cases = vec![
+            ("quote {}", 0),
+            ("quote { a.b }", 3),
+            ("quote { ) ( }", 2), // invalid syntax is fine in a quote
+            ("quote { { } }", 2), // Nested `{` and `}` shouldn't close the quote as long as they are matched.
+            ("quote { 1 { 2 { 3 { 4 { 5 } 4 4 } 3 3 } 2 2 } 1 1 }", 21),
+            ("quote [ } } ]", 2), // In addition to `{}`, `[]`, and `()` can also be used as delimiters.
+            ("quote [ } foo[] } ]", 5),
+            ("quote ( } () } )", 4),
+        ];
+
+        for (source, expected_stream_length) in cases {
+            let mut tokens = vecmap(Lexer::new(source), |result| result.unwrap().into_token());
+
+            // All examples should be a single TokenStream token followed by an EOF token.
+            assert_eq!(tokens.len(), 2, "Unexpected token count: {tokens:?}");
+
+            tokens.pop();
+            match tokens.pop().unwrap() {
+                Token::Quote(stream) => assert_eq!(stream.0.len(), expected_stream_length),
+                other => panic!("test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`")
+            }
+        }
+    }
+
+    #[test]
+    fn test_unclosed_quote() {
+        let cases = vec!["quote {", "quote { {  }", "quote [ []", "quote (((((((())))"];
+
+        for source in cases {
+            // `quote` is not itself a keyword so if the token stream fails to
+            // parse we don't expect any valid tokens from the quote construct
+            for token in Lexer::new(source) {
+                assert!(token.is_err(), "Expected Err, found {token:?}");
             }
         }
     }

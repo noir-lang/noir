@@ -9,9 +9,12 @@ pub struct BlockId(pub u32);
 /// We can either write or read at an index in memory
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub struct MemOp<F> {
-    /// Can be 0 (read) or 1 (write)
+    /// A constant expression that can be 0 (read) or 1 (write)
     pub operation: Expression<F>,
+    /// array index, it must be less than the array length
     pub index: Expression<F>,
+    /// the value we are reading, when operation is 0, or the value we write at
+    /// the specified index, when operation is 1
     pub value: Expression<F>,
 }
 

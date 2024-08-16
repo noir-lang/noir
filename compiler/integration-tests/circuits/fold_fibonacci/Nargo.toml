@@ -1,0 +1,7 @@
+[package]
+name = "fold_fibonacci"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.28.0"
+
+[dependencies]

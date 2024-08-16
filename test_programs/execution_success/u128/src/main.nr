@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main(mut x: u32, y: u32, z: u32, big_int: U128, hexa: str<7>) {
     let a = U128::from_u64s_le(x as u64, x as u64);
     let b = U128::from_u64s_le(y as u64, x as u64);

@@ -12,7 +12,7 @@ mod tests {
         let nargo_bin =
             cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
 
-        let timeout_seconds = 20;
+        let timeout_seconds = 25;
         let mut dbg_session =
             spawn_bash(Some(timeout_seconds * 1000)).expect("Could not start bash session");
 
