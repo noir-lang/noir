@@ -3,6 +3,9 @@ use crate::meta::op::UnaryOp;
 use crate::meta::op::BinaryOp;
 
 impl Expr {
+    #[builtin(expr_as_any_integer)]
+    fn as_any_integer(self) -> Option<(Field, bool)> {}
+
     #[builtin(expr_as_binary_op)]
     fn as_binary_op(self) -> Option<(Expr, BinaryOp, Expr)> {}
 
