@@ -1,4 +1,4 @@
-use crate::{test::utils, TokenWithRefunds, types::token_note::TokenNote};
+use crate::{test::utils, Token, types::token_note::TokenNote};
 
 use dep::aztec::{
     test::helpers::cheatcodes, oracle::unsafe_rand::unsafe_rand, hash::compute_secret_hash,
@@ -11,7 +11,7 @@ use dep::authwit::cheatcodes as authwit_cheatcodes;
 unconstrained fn setup_refund_success() {
     let (env, token_contract_address, owner, recipient, mint_amount) = utils::setup_and_mint(true);
 
-    // Renaming owner and recipient to match naming in TokenWithRefunds
+    // Renaming owner and recipient to match naming in Token
     let user = owner;
     let fee_payer = recipient;
 
@@ -20,7 +20,7 @@ unconstrained fn setup_refund_success() {
     let fee_payer_randomness = 123;
     let mut context = env.private();
 
-    let setup_refund_from_call_interface = TokenWithRefunds::at(token_contract_address).setup_refund(
+    let setup_refund_from_call_interface = Token::at(token_contract_address).setup_refund(
         fee_payer,
         user,
         funded_amount,
@@ -37,8 +37,8 @@ unconstrained fn setup_refund_success() {
     let user_npk_m_hash = get_current_public_keys(&mut context, user).npk_m.hash();
     let fee_payer_npk_m_hash = get_current_public_keys(&mut context, fee_payer).npk_m.hash();
 
-    let fee_payer_balances_slot = derive_storage_slot_in_map(TokenWithRefunds::storage().balances.slot, fee_payer);
-    let user_balances_slot = derive_storage_slot_in_map(TokenWithRefunds::storage().balances.slot, user);
+    let fee_payer_balances_slot = derive_storage_slot_in_map(Token::storage().balances.slot, fee_payer);
+    let user_balances_slot = derive_storage_slot_in_map(Token::storage().balances.slot, user);
 
     // When the refund was set up, we would've spent the note worth mint_amount, and inserted a note worth
     //`mint_amount - funded_amount`. When completing the refund, we would've constructed a hash corresponding to a note
@@ -76,7 +76,7 @@ unconstrained fn setup_refund_success() {
 unconstrained fn setup_refund_insufficient_funded_amount() {
     let (env, token_contract_address, owner, recipient, mint_amount) = utils::setup_and_mint(true);
 
-    // Renaming owner and recipient to match naming in TokenWithRefunds
+    // Renaming owner and recipient to match naming in Token
     let user = owner;
     let fee_payer = recipient;
 
@@ -86,7 +86,7 @@ unconstrained fn setup_refund_insufficient_funded_amount() {
     let fee_payer_randomness = 123;
     let mut context = env.private();
 
-    let setup_refund_from_call_interface = TokenWithRefunds::at(token_contract_address).setup_refund(
+    let setup_refund_from_call_interface = Token::at(token_contract_address).setup_refund(
         fee_payer,
         user,
         funded_amount,
