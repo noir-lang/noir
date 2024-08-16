@@ -575,7 +575,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     ) {
         // Check whether we have a call to this Brillig function already exists.
         // This helps us optimize the Brillig metadata to only be stored once per Brillig entry point.
-        let inserted_func_before = self.brillig_locations.get(&brillig_function_index).is_some();
+        let inserted_func_before = self.brillig_locations.contains_key(&brillig_function_index);
 
         let opcode =
             AcirOpcode::BrilligCall { id: brillig_function_index, inputs, outputs, predicate };

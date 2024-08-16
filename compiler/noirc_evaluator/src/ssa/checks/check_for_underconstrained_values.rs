@@ -221,7 +221,7 @@ impl Context {
                                 self.value_sets.push(instruction_arguments_and_results);
                             }
                         },
-                        Value::Function(callee) => match all_functions[&callee].runtime() {
+                        Value::Function(callee) => match all_functions[callee].runtime() {
                             RuntimeType::Brillig => {
                                 // For calls to brillig functions we memorize the mapping of results to argument ValueId's and InstructionId's
                                 // The latter are needed to produce the callstack later

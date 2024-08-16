@@ -212,7 +212,7 @@ fn get_functions_to_inline_into(
     let brillig_recursive_functions: BTreeSet<_> = find_all_recursive_functions(ssa)
         .into_iter()
         .filter(|recursive_function_id| {
-            let function = &ssa.functions[&recursive_function_id];
+            let function = &ssa.functions[recursive_function_id];
             function.runtime() == RuntimeType::Brillig
         })
         .collect();

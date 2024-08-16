@@ -65,7 +65,7 @@ impl FlamegraphGenerator for InfernoFlamegraphGenerator {
         options.frame_height = 24;
         options.color_diffusion = true;
         options.min_width = 0.0;
-        options.count_name = self.count_name.clone();
+        options.count_name.clone_from(&self.count_name);
         options.text_truncate_direction = TextTruncateDirection::Right;
 
         from_lines(

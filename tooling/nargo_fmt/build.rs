@@ -10,9 +10,9 @@ fn main() {
 
     // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
     // is the root of the repository and append the crate path
-    let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
+    let manifest_dir = match env::var("CARGO_MANIFEST_DIR") {
         Ok(dir) => PathBuf::from(dir),
-        Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
+        Err(_) => env::current_dir().unwrap().join("crates").join("nargo_cli"),
     };
     let test_dir = manifest_dir.join("tests");
 
@@ -38,7 +38,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
         };
 
         let input_source_path = file.path();
-        let input_source = std::fs::read_to_string(input_source_path).unwrap();
+        let input_source = fs::read_to_string(input_source_path).unwrap();
 
         let config = input_source
             .lines()
@@ -47,7 +47,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
             .join("\n");
 
         let output_source_path = outputs_dir.join(file_name).display().to_string();
-        let output_source = std::fs::read_to_string(output_source_path.clone()).unwrap();
+        let output_source = fs::read_to_string(output_source_path.clone()).unwrap();
 
         let skip_idempotent_test =
             // TODO(https://github.com/noir-lang/noir/issues/4766): spurious trailing space

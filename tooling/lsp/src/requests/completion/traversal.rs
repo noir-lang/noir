@@ -119,8 +119,8 @@ impl<'a> NodeFinder<'a> {
 
     pub(super) fn find_in_function_return_type(&mut self, return_type: &FunctionReturnType) {
         match return_type {
-            noirc_frontend::ast::FunctionReturnType::Default(_) => (),
-            noirc_frontend::ast::FunctionReturnType::Ty(unresolved_type) => {
+            FunctionReturnType::Default(_) => (),
+            FunctionReturnType::Ty(unresolved_type) => {
                 self.find_in_unresolved_type(unresolved_type);
             }
         }

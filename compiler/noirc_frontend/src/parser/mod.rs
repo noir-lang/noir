@@ -147,14 +147,14 @@ where
     first_parser.then_ignore(second_parser)
 }
 
-fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a>(
+fn ignore_then_commit<'a, P1, P2, T1: 'a, T2>(
     first_parser: P1,
     second_parser: P2,
 ) -> impl NoirParser<T2> + 'a
 where
     P1: NoirParser<T1> + 'a,
     P2: NoirParser<T2> + 'a,
-    T2: Recoverable,
+    T2: Clone + Recoverable + 'a,
 {
     let second_parser = skip_then_retry_until(second_parser)
         .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));

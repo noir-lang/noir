@@ -310,7 +310,7 @@ impl<'context> Elaborator<'context> {
         // Avoid cloning arguments unless this is a macro call
         let mut comptime_args = Vec::new();
         if call.is_macro_call {
-            comptime_args = arguments.clone();
+            comptime_args.clone_from(&arguments);
         }
 
         let location = Location::new(span, self.file);

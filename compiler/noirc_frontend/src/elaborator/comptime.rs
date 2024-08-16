@@ -397,7 +397,7 @@ impl<'context> Elaborator<'context> {
     ) {
         for function_set in function_sets {
             self.file = function_set.file_id;
-            self.self_type = function_set.self_type.clone();
+            self.self_type.clone_from(&function_set.self_type);
 
             for (local_module, function_id, function) in &function_set.functions {
                 self.local_module = *local_module;

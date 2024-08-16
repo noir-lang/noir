@@ -393,13 +393,13 @@ impl<'context> Elaborator<'context> {
 
         self.local_module = func_meta.source_module;
         self.file = func_meta.source_file;
-        self.self_type = func_meta.self_type.clone();
+        self.self_type.clone_from(&func_meta.self_type);
         self.current_trait_impl = func_meta.trait_impl;
 
         self.scopes.start_function();
         let old_item = std::mem::replace(&mut self.current_item, Some(DependencyId::Function(id)));
 
-        self.trait_bounds = func_meta.trait_constraints.clone();
+        self.trait_bounds.clone_from(&func_meta.trait_constraints);
         self.function_context.push(FunctionContext::default());
 
         self.introduce_generics_into_scope(func_meta.all_generics.clone());
@@ -1027,7 +1027,7 @@ impl<'context> Elaborator<'context> {
         }
 
         if let Some(trait_id) = trait_impl.trait_id {
-            self.generics = trait_impl.resolved_generics.clone();
+            self.generics.clone_from(&trait_impl.resolved_generics);
 
             let where_clause = trait_impl
                 .where_clause
@@ -1387,7 +1387,7 @@ impl<'context> Elaborator<'context> {
             let unresolved_type = &trait_impl.object_type;
 
             self.add_generics(&trait_impl.generics);
-            trait_impl.resolved_generics = self.generics.clone();
+            trait_impl.resolved_generics.clone_from(&self.generics);
 
             for (_, _, method) in trait_impl.methods.functions.iter_mut() {
                 // Attach any trait constraints on the impl to the function
