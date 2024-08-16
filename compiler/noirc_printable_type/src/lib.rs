@@ -40,6 +40,7 @@ pub enum PrintableType {
         arguments: Vec<PrintableType>,
         return_type: Box<PrintableType>,
         env: Box<PrintableType>,
+        unconstrained: bool,
     },
     MutableReference {
         typ: Box<PrintableType>,

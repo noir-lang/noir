@@ -97,6 +97,7 @@ pub struct Elaborator<'context> {
 
     file: FileId,
 
+    in_unsafe_block: bool,
     nested_loops: usize,
 
     /// Contains a mapping of the current struct or functions's generics to
@@ -194,6 +195,7 @@ impl<'context> Elaborator<'context> {
             interner,
             def_maps,
             file: FileId::dummy(),
+            in_unsafe_block: false,
             nested_loops: 0,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
@@ -802,7 +804,12 @@ impl<'context> Elaborator<'context> {
 
         let return_type = Box::new(self.resolve_type(func.return_type()));
 
-        let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
+        let mut typ = Type::Function(
+            parameter_types,
+            return_type,
+            Box::new(Type::Unit),
+            func.def.is_unconstrained,
+        );
 
         if !generics.is_empty() {
             typ = Type::Forall(generics, Box::new(typ));

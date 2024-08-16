@@ -4,7 +4,9 @@ use std::meta::unquote;
 fn main() {
     comptime
     {
-        foo::<3>(5);
+        unsafe {
+            foo::<3>(5)
+        };
         submodule::bar();
     }
 }

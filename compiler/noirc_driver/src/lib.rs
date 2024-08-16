@@ -557,6 +557,7 @@ pub fn compile_no_check(
     let force_compile = force_compile
         || options.print_acir
         || options.show_brillig
+        || options.force_brillig
         || options.show_ssa
         || options.emit_ssa;
 
@@ -578,7 +579,7 @@ pub fn compile_no_check(
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
     };
 
-    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
+    let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         create_program(program, &ssa_evaluator_options)?;
 
     let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
@@ -593,5 +594,6 @@ pub fn compile_no_check(
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
         names,
+        brillig_names,
     })
 }

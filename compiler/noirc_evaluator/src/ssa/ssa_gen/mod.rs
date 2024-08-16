@@ -83,8 +83,11 @@ pub(crate) fn generate_ssa(
                     _ => unreachable!("ICE - expect return on the last block"),
                 };
 
-            return_data =
-                function_context.builder.initialize_data_bus(&return_data_values, return_data);
+            return_data = function_context.builder.initialize_data_bus(
+                &return_data_values,
+                return_data,
+                None,
+            );
         }
         let return_instruction =
             function_context.builder.current_function.dfg[block].unwrap_terminator_mut();

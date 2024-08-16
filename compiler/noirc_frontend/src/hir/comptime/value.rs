@@ -9,12 +9,15 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
     hir::def_map::ModuleId,
-    hir_def::expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
+    hir_def::{
+        expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
+        traits::TraitConstraint,
+    },
     macros_api::{
         Expression, ExpressionKind, HirExpression, HirLiteral, Literal, NodeInterner, Path,
         StructId,
     },
-    node_interner::{ExprId, FuncId, TraitId},
+    node_interner::{ExprId, FuncId, TraitId, TraitImplId},
     parser::{self, NoirParser, TopLevelStatement},
     token::{SpannedToken, Token, Tokens},
     QuotedType, Shared, Type, TypeBindings,
@@ -53,10 +56,12 @@ pub enum Value {
     StructDefinition(StructId),
     TraitConstraint(TraitId, /* trait generics */ Vec<Type>),
     TraitDefinition(TraitId),
+    TraitImpl(TraitImplId),
     FunctionDefinition(FuncId),
     ModuleDefinition(ModuleId),
     Type(Type),
     Zeroed(Type),
+    Expr(ExpressionKind),
 }
 
 impl Value {
@@ -99,10 +104,12 @@ impl Value {
             }
             Value::TraitConstraint { .. } => Type::Quoted(QuotedType::TraitConstraint),
             Value::TraitDefinition(_) => Type::Quoted(QuotedType::TraitDefinition),
+            Value::TraitImpl(_) => Type::Quoted(QuotedType::TraitImpl),
             Value::FunctionDefinition(_) => Type::Quoted(QuotedType::FunctionDefinition),
             Value::ModuleDefinition(_) => Type::Quoted(QuotedType::Module),
             Value::Type(_) => Type::Quoted(QuotedType::Type),
             Value::Zeroed(typ) => return Cow::Borrowed(typ),
+            Value::Expr(_) => Type::Quoted(QuotedType::Expr),
         })
     }
 
@@ -223,10 +230,12 @@ impl Value {
                     }
                 };
             }
+            Value::Expr(expr) => expr,
             Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
             | Value::Type(_)
@@ -345,10 +354,12 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => HirExpression::Unquote(add_token_spans(tokens, location.span)),
-            Value::Pointer(..)
+            Value::Expr(..)
+            | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
             | Value::Type(_)
@@ -512,17 +523,39 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 write!(f, "{}", def.name)
             }
             Value::TraitConstraint(trait_id, generics) => {
-                let trait_ = self.interner.get_trait(*trait_id);
-                let generic_string = vecmap(generics, ToString::to_string).join(", ");
-                if generics.is_empty() {
-                    write!(f, "{}", trait_.name)
-                } else {
-                    write!(f, "{}<{generic_string}>", trait_.name)
-                }
+                write!(f, "{}", display_trait_id_and_generics(self.interner, trait_id, generics))
             }
             Value::TraitDefinition(trait_id) => {
                 let trait_ = self.interner.get_trait(*trait_id);
                 write!(f, "{}", trait_.name)
+            }
+            Value::TraitImpl(trait_impl_id) => {
+                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+
+                let generic_string =
+                    vecmap(&trait_impl.trait_generics, ToString::to_string).join(", ");
+                let generic_string = if generic_string.is_empty() {
+                    generic_string
+                } else {
+                    format!("<{}>", generic_string)
+                };
+
+                let where_clause = vecmap(&trait_impl.where_clause, |trait_constraint| {
+                    display_trait_constraint(self.interner, trait_constraint)
+                });
+                let where_clause = where_clause.join(", ");
+                let where_clause = if where_clause.is_empty() {
+                    where_clause
+                } else {
+                    format!(" where {}", where_clause)
+                };
+
+                write!(
+                    f,
+                    "impl {}{} for {}{}",
+                    trait_impl.ident, generic_string, trait_impl.typ, where_clause
+                )
             }
             Value::FunctionDefinition(function_id) => {
                 write!(f, "{}", self.interner.function_name(function_id))
@@ -530,6 +563,30 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::ModuleDefinition(_) => write!(f, "(module)"),
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
             Value::Type(typ) => write!(f, "{}", typ),
+            Value::Expr(expr) => write!(f, "{}", expr),
         }
     }
+}
+
+fn display_trait_id_and_generics(
+    interner: &NodeInterner,
+    trait_id: &TraitId,
+    generics: &Vec<Type>,
+) -> String {
+    let trait_ = interner.get_trait(*trait_id);
+    let generic_string = vecmap(generics, ToString::to_string).join(", ");
+    if generics.is_empty() {
+        format!("{}", trait_.name)
+    } else {
+        format!("{}<{generic_string}>", trait_.name)
+    }
+}
+
+fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitConstraint) -> String {
+    let trait_constraint_string = display_trait_id_and_generics(
+        interner,
+        &trait_constraint.trait_id,
+        &trait_constraint.trait_generics,
+    );
+    format!("{}: {}", trait_constraint.typ, trait_constraint_string)
 }

@@ -32,7 +32,7 @@ pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
     /// This id references which Brillig function within the main ACIR program we are solving.
     /// This is used for appropriately resolving errors as the ACIR program artifacts
     /// set up their Brillig debug metadata by function id.
-    function_id: BrilligFunctionId,
+    pub function_id: BrilligFunctionId,
 }
 
 impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {

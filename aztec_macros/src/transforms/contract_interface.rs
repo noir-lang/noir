@@ -324,101 +324,105 @@ pub fn update_fn_signatures_in_contract_interface(
             });
 
         if let Some(interface_struct) = maybe_interface_struct {
-            let methods = context.def_interner.get_struct_methods(interface_struct.borrow().id);
+            if let Some(methods) =
+                context.def_interner.get_struct_methods(interface_struct.borrow().id).cloned()
+            {
+                for func_id in methods.iter().flat_map(|(_name, methods)| methods.direct.iter()) {
+                    let name = context.def_interner.function_name(func_id);
+                    let fn_parameters =
+                        &context.def_interner.function_meta(func_id).parameters.clone();
 
-            for func_id in methods.iter().flat_map(|methods| methods.direct.iter()) {
-                let name = context.def_interner.function_name(func_id);
-                let fn_parameters = &context.def_interner.function_meta(func_id).parameters.clone();
+                    if name == "at" || name == "interface" || name == "storage" {
+                        continue;
+                    }
 
-                if name == "at" || name == "interface" || name == "storage" {
-                    continue;
-                }
+                    let fn_signature_hash = compute_fn_signature_hash(
+                        name,
+                        &fn_parameters
+                            .iter()
+                            .skip(1)
+                            .map(|(_, typ, _)| typ.clone())
+                            .collect::<Vec<Type>>(),
+                    );
+                    let hir_func =
+                        context.def_interner.function(func_id).block(&context.def_interner);
 
-                let fn_signature_hash = compute_fn_signature_hash(
-                    name,
-                    &fn_parameters
-                        .iter()
-                        .skip(1)
-                        .map(|(_, typ, _)| typ.clone())
-                        .collect::<Vec<Type>>(),
-                );
-                let hir_func = context.def_interner.function(func_id).block(&context.def_interner);
+                    let function_selector_statement = context.def_interner.statement(
+                        hir_func.statements().get(hir_func.statements().len() - 2).ok_or((
+                            AztecMacroError::CouldNotGenerateContractInterface {
+                                secondary_message: Some(
+                                    "Function signature statement not found, invalid body length"
+                                        .to_string(),
+                                ),
+                            },
+                            file_id,
+                        ))?,
+                    );
+                    let function_selector_expression_id = match function_selector_statement {
+                        HirStatement::Let(let_statement) => Ok(let_statement.expression),
+                        _ => Err((
+                            AztecMacroError::CouldNotGenerateContractInterface {
+                                secondary_message: Some(
+                                    "Function selector statement must be an expression".to_string(),
+                                ),
+                            },
+                            file_id,
+                        )),
+                    }?;
+                    let function_selector_expression =
+                        context.def_interner.expression(&function_selector_expression_id);
 
-                let function_selector_statement = context.def_interner.statement(
-                    hir_func.statements().get(hir_func.statements().len() - 2).ok_or((
-                        AztecMacroError::CouldNotGenerateContractInterface {
-                            secondary_message: Some(
-                                "Function signature statement not found, invalid body length"
-                                    .to_string(),
-                            ),
-                        },
-                        file_id,
-                    ))?,
-                );
-                let function_selector_expression_id = match function_selector_statement {
-                    HirStatement::Let(let_statement) => Ok(let_statement.expression),
-                    _ => Err((
-                        AztecMacroError::CouldNotGenerateContractInterface {
-                            secondary_message: Some(
-                                "Function selector statement must be an expression".to_string(),
-                            ),
-                        },
-                        file_id,
-                    )),
-                }?;
-                let function_selector_expression =
-                    context.def_interner.expression(&function_selector_expression_id);
+                    let current_fn_signature_expression_id = match function_selector_expression {
+                        HirExpression::Call(call_expr) => Ok(call_expr.arguments[0]),
+                        _ => Err((
+                            AztecMacroError::CouldNotGenerateContractInterface {
+                                secondary_message: Some(
+                                    "Function selector argument expression must be call expression"
+                                        .to_string(),
+                                ),
+                            },
+                            file_id,
+                        )),
+                    }?;
 
-                let current_fn_signature_expression_id = match function_selector_expression {
-                    HirExpression::Call(call_expr) => Ok(call_expr.arguments[0]),
-                    _ => Err((
-                        AztecMacroError::CouldNotGenerateContractInterface {
-                            secondary_message: Some(
-                                "Function selector argument expression must be call expression"
-                                    .to_string(),
-                            ),
-                        },
-                        file_id,
-                    )),
-                }?;
+                    let current_fn_signature_expression =
+                        context.def_interner.expression(&current_fn_signature_expression_id);
 
-                let current_fn_signature_expression =
-                    context.def_interner.expression(&current_fn_signature_expression_id);
-
-                match current_fn_signature_expression {
-                    HirExpression::Literal(HirLiteral::Integer(value, _)) => {
-                        if !value.is_zero() {
-                            Err((
+                    match current_fn_signature_expression {
+                        HirExpression::Literal(HirLiteral::Integer(value, _)) => {
+                            if !value.is_zero() {
+                                Err((
                                 AztecMacroError::CouldNotGenerateContractInterface {
                                     secondary_message: Some(
                                         "Function signature argument must be a placeholder with value 0".to_string()),
                                 },
                                 file_id,
                             ))
-                        } else {
-                            Ok(())
+                            } else {
+                                Ok(())
+                            }
                         }
-                    }
-                    _ => Err((
-                        AztecMacroError::CouldNotGenerateContractInterface {
-                            secondary_message: Some(
-                                "Function signature argument must be a literal field element"
-                                    .to_string(),
-                            ),
-                        },
-                        file_id,
-                    )),
-                }?;
+                        _ => Err((
+                            AztecMacroError::CouldNotGenerateContractInterface {
+                                secondary_message: Some(
+                                    "Function signature argument must be a literal field element"
+                                        .to_string(),
+                                ),
+                            },
+                            file_id,
+                        )),
+                    }?;
 
-                context.def_interner.update_expression(
-                    current_fn_signature_expression_id,
-                    |expr| {
-                        *expr = HirExpression::Literal(HirLiteral::Integer(
-                            FieldElement::from(fn_signature_hash as u128),
-                            false,
-                        ))
-                    },
-                );
+                    context.def_interner.update_expression(
+                        current_fn_signature_expression_id,
+                        |expr| {
+                            *expr = HirExpression::Literal(HirLiteral::Integer(
+                                FieldElement::from(fn_signature_hash as u128),
+                                false,
+                            ))
+                        },
+                    );
+                }
             }
         }
     }

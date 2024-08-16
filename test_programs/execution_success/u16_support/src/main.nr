@@ -1,6 +1,8 @@
 fn main(x: u16) {
     test_u16(x);
-    test_u16_unconstrained(x);
+    unsafe {
+        test_u16_unconstrained(x);
+    }
 }
 
 unconstrained fn test_u16_unconstrained(x: u16) {
