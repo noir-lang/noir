@@ -123,7 +123,7 @@ fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
     }
 }
 
-/// Computes the path of `module_id` reltive to `current_module_id`.
+/// Computes the path of `module_id` relative to `current_module_id`.
 /// If it's not relative, the full path is returned.
 fn module_id_path(
     module_id: &ModuleId,
