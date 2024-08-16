@@ -34,33 +34,50 @@ impl<'a> NodeFinder<'a> {
                     continue;
                 };
 
-                let Some(parent_module) = get_parent_module(self.interner, *module_def_id) else {
-                    continue;
-                };
-
-                match *visibility {
-                    ItemVisibility::Public => (),
-                    ItemVisibility::Private => {
-                        // Technically this can't be reached because we don't record private items for auto-import,
-                        // but this is here for completeness.
+                let module_full_path;
+                if let ModuleDefId::ModuleId(module_id) = module_def_id {
+                    module_full_path = module_id_path(
+                        module_id,
+                        &self.module_id,
+                        self.interner,
+                        self.dependencies,
+                    );
+                } else {
+                    let Some(parent_module) = get_parent_module(self.interner, *module_def_id)
+                    else {
                         continue;
-                    }
-                    ItemVisibility::PublicCrate => {
-                        if self.module_id.krate != parent_module.krate {
+                    };
+
+                    match *visibility {
+                        ItemVisibility::Public => (),
+                        ItemVisibility::Private => {
+                            // Technically this can't be reached because we don't record private items for auto-import,
+                            // but this is here for completeness.
                             continue;
                         }
+                        ItemVisibility::PublicCrate => {
+                            if self.module_id.krate != parent_module.krate {
+                                continue;
+                            }
+                        }
                     }
+
+                    module_full_path = module_id_path(
+                        parent_module,
+                        &self.module_id,
+                        self.interner,
+                        self.dependencies,
+                    );
                 }
 
-                let module_full_path = module_id_path(
-                    parent_module,
-                    &self.module_id,
-                    self.interner,
-                    self.dependencies,
-                );
+                let full_path = if let ModuleDefId::ModuleId(..) = module_def_id {
+                    module_full_path
+                } else {
+                    format!("{}::{}", module_full_path, name)
+                };
 
                 let mut label_details = completion_item.label_details.unwrap();
-                label_details.detail = Some(format!("(use {}::{})", module_full_path, name));
+                label_details.detail = Some(format!("(use {})", full_path));
                 completion_item.label_details = Some(label_details);
 
                 let line = self.autoimport_line as u32;
@@ -72,7 +89,7 @@ impl<'a> NodeFinder<'a> {
                         start: Position { line, character },
                         end: Position { line, character },
                     },
-                    new_text: format!("use {}::{};\n{}", module_full_path, name, indent),
+                    new_text: format!("use {};\n{}", full_path, indent),
                 }]);
 
                 self.completion_items.push(completion_item);

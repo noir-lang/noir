@@ -1527,4 +1527,31 @@ mod completion_tests {
         let items = get_completions(src).await;
         assert!(items.is_empty());
     }
+
+    #[test]
+    async fn test_autoimport_suggests_modules_too() {
+        let src = r#"
+            mod foo {
+                mod barbaz {
+                    fn hello_world() {}
+                }
+            }
+
+            fn main() {
+                barb>|<
+            }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.label, "barbaz");
+        assert_eq!(
+            item.label_details,
+            Some(CompletionItemLabelDetails {
+                detail: Some("(use foo::barbaz)".to_string()),
+                description: None
+            })
+        );
+    }
 }

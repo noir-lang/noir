@@ -801,6 +801,14 @@ impl<'a> ModCollector<'a> {
                     parent: self.module_id,
                 },
             );
+
+            if context.def_interner.is_in_lsp_mode() {
+                context.def_interner.register_name_for_autoimport(
+                    mod_name.0.contents.clone(),
+                    ModuleDefId::ModuleId(mod_id),
+                    ItemVisibility::Public,
+                );
+            }
         }
 
         Ok(mod_id)
