@@ -54,10 +54,11 @@ contract UniswapPortalTest is Test {
     uint256 forkId = vm.createFork(vm.rpcUrl("mainnet_fork"));
     vm.selectFork(forkId);
 
-    registry = new Registry();
+    registry = new Registry(address(this));
     PortalERC20 portalERC20 = new PortalERC20();
-    rollup =
-      new Rollup(registry, new AvailabilityOracle(), IERC20(address(portalERC20)), bytes32(0));
+    rollup = new Rollup(
+      registry, new AvailabilityOracle(), IERC20(address(portalERC20)), bytes32(0), address(this)
+    );
     registry.upgrade(address(rollup));
     portalERC20.mint(address(rollup), 1000000);
 

@@ -7,11 +7,12 @@ export async function deployL1Contracts(
   chainId: number,
   privateKey: string | undefined,
   mnemonic: string,
+  salt: number | undefined,
   json: boolean,
   log: LogFn,
   debugLogger: DebugLogger,
 ) {
-  const { l1ContractAddresses } = await deployAztecContracts(rpcUrl, chainId, privateKey, mnemonic, debugLogger);
+  const { l1ContractAddresses } = await deployAztecContracts(rpcUrl, chainId, privateKey, mnemonic, salt, debugLogger);
 
   if (json) {
     log(

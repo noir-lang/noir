@@ -24,10 +24,10 @@ contract Registry is IRegistry, Ownable {
   mapping(uint256 version => DataStructures.RegistrySnapshot snapshot) internal snapshots;
   mapping(address rollup => uint256 version) internal rollupToVersion;
 
-  constructor() Ownable(msg.sender) {
+  constructor(address _owner) Ownable(_owner) {
     // Inserts a "dead" rollup at version 0
     // This is simply done to make first version 1, which fits better with the rest of the system
-    upgrade(address(0xdead));
+    _upgrade(address(0xdead));
   }
 
   /**
@@ -47,6 +47,16 @@ contract Registry is IRegistry, Ownable {
     (uint256 version, bool exists) = _getVersionFor(_rollup);
     if (!exists) revert Errors.Registry__RollupNotRegistered(_rollup);
     return version;
+  }
+
+  /**
+   * @notice Returns whther the rollup is registered
+   * @param _rollup - The address of the rollup contract
+   * @return Whether the rollup is registered
+   */
+  function isRollupRegistered(address _rollup) external view override(IRegistry) returns (bool) {
+    (, bool exists) = _getVersionFor(_rollup);
+    return exists;
   }
 
   /**
@@ -87,6 +97,10 @@ contract Registry is IRegistry, Ownable {
    * @return The version of the new snapshot
    */
   function upgrade(address _rollup) public override(IRegistry) onlyOwner returns (uint256) {
+    return _upgrade(_rollup);
+  }
+
+  function _upgrade(address _rollup) internal returns (uint256) {
     (, bool exists) = _getVersionFor(_rollup);
     if (exists) revert Errors.Registry__RollupAlreadyRegistered(_rollup);
 

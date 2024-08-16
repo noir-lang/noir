@@ -132,6 +132,7 @@ export async function deployContractsToL1(
       l2FeeJuiceAddress: FeeJuiceAddress,
       vkTreeRoot: getVKTreeRoot(),
       assumeProvenUntil: opts.assumeProvenUntilBlockNumber,
+      salt: undefined,
     }),
   );
 

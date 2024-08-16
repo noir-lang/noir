@@ -57,10 +57,12 @@ contract DevNetTest is DecoderBase {
       vm.warp(initialTime);
     }
 
-    registry = new Registry();
+    registry = new Registry(address(this));
     availabilityOracle = new AvailabilityOracle();
     portalERC20 = new PortalERC20();
-    rollup = new Rollup(registry, availabilityOracle, IERC20(address(portalERC20)), bytes32(0));
+    rollup = new Rollup(
+      registry, availabilityOracle, IERC20(address(portalERC20)), bytes32(0), address(this)
+    );
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));
 

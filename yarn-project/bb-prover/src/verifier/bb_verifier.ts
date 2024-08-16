@@ -37,6 +37,7 @@ export class BBCircuitVerifier implements ClientProtocolCircuitVerifier {
     initialCircuits: ProtocolArtifact[] = [],
     logger = createDebugLogger('aztec:bb-verifier'),
   ) {
+    await fs.mkdir(config.bbWorkingDirectory, { recursive: true });
     const keys = new Map<ProtocolArtifact, Promise<VerificationKeyData>>();
     for (const circuit of initialCircuits) {
       const vkData = await this.generateVerificationKey(

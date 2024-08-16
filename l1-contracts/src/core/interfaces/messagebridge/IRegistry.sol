@@ -31,4 +31,6 @@ interface IRegistry {
   // docs:start:registry_number_of_versions
   function numberOfVersions() external view returns (uint256);
   // docs:end:registry_number_of_versions
+
+  function isRollupRegistered(address _rollup) external view returns (bool);
 }

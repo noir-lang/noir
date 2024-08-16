@@ -15,7 +15,7 @@ contract RegistryTest is Test {
   Registry internal registry;
 
   function setUp() public {
-    registry = new Registry();
+    registry = new Registry(address(this));
   }
 
   function testConstructorSetup() public {

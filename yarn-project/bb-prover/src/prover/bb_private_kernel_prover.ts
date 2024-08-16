@@ -22,7 +22,7 @@ import {
 } from '@aztec/circuits.js';
 import { siloNoteHash } from '@aztec/circuits.js/hash';
 import { runInDirectory } from '@aztec/foundation/fs';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { type DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import {
   ClientCircuitArtifacts,
@@ -57,6 +57,7 @@ import {
   executeBbClientIvcProof,
   verifyProof,
 } from '../bb/execute.js';
+import { type BBConfig } from '../config.js';
 import { mapProtocolArtifactNameToCircuitName } from '../stats.js';
 import { extractVkData } from '../verification_key/verification_key_data.js';
 
@@ -73,12 +74,17 @@ export class BBNativePrivateKernelProver implements PrivateKernelProver {
     Promise<VerificationKeyData>
   >();
 
-  constructor(
+  private constructor(
     private bbBinaryPath: string,
     private bbWorkingDirectory: string,
     private skipCleanup: boolean,
     private log = createDebugLogger('aztec:bb-native-prover'),
   ) {}
+
+  public static async new(config: BBConfig, log?: DebugLogger) {
+    await fs.mkdir(config.bbWorkingDirectory, { recursive: true });
+    return new BBNativePrivateKernelProver(config.bbBinaryPath, config.bbWorkingDirectory, !!config.bbSkipCleanup, log);
+  }
 
   private async _createClientIvcProof(
     directory: string,

@@ -75,8 +75,9 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     IRegistry _registry,
     IAvailabilityOracle _availabilityOracle,
     IERC20 _fpcJuice,
-    bytes32 _vkTreeRoot
-  ) Leonidas(msg.sender) {
+    bytes32 _vkTreeRoot,
+    address _ares
+  ) Leonidas(_ares) {
     verifier = new MockVerifier();
     REGISTRY = _registry;
     AVAILABILITY_ORACLE = _availabilityOracle;

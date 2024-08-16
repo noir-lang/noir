@@ -124,6 +124,7 @@ export class ProverNode {
     }
 
     // Fast forward world state to right before the target block and get a fork
+    this.log.verbose(`Creating proving job for block ${fromBlock}`);
     const db = await this.worldState.syncImmediateAndFork(fromBlock - 1, true);
 
     // Create a processor using the forked world state

@@ -149,18 +149,6 @@ resource "aws_ecs_task_definition" "aztec-prover-node" {
 
   container_definitions = jsonencode([
     {
-      name      = "init-container"
-      image     = "amazonlinux:latest"
-      essential = false
-      command   = ["sh", "-c", "mkdir -p ${local.data_dir}/prover_node_${count.index + 1}/data ${local.data_dir}/prover_node_${count.index + 1}/temp"]
-      mountPoints = [
-        {
-          containerPath = local.data_dir
-          sourceVolume  = "efs-data-store"
-        }
-      ]
-    },
-    {
       name              = "${var.DEPLOY_TAG}-aztec-prover-node-${count.index + 1}"
       image             = "${var.DOCKERHUB_ACCOUNT}/aztec:${var.IMAGE_TAG}"
       command           = ["start", "--prover-node", "--archiver"]
@@ -246,10 +234,6 @@ resource "aws_ecs_task_definition" "aztec-prover-node" {
         }
       ]
       dependsOn = [
-        {
-          containerName = "init-container"
-          condition     = "COMPLETE"
-        }
       ]
       logConfiguration = {
         logDriver = "awslogs"

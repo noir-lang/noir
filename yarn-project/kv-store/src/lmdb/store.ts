@@ -1,5 +1,6 @@
 import { createDebugLogger } from '@aztec/foundation/log';
 
+import { mkdirSync } from 'fs';
 import { mkdtemp } from 'fs/promises';
 import { type Database, type Key, type RootDatabase, open } from 'lmdb';
 import { tmpdir } from 'os';
@@ -60,7 +61,10 @@ export class AztecLmdbStore implements AztecKVStore {
     ephemeral: boolean = false,
     log = createDebugLogger('aztec:kv-store:lmdb'),
   ): AztecLmdbStore {
-    log.verbose(`Opening LMDB database at ${path || 'temporary location'}`);
+    log.debug(`Opening LMDB database at ${path || 'temporary location'}`);
+    if (path) {
+      mkdirSync(path, { recursive: true });
+    }
     const rootDb = open({ path, noSync: ephemeral });
     return new AztecLmdbStore(rootDb, ephemeral, path);
   }

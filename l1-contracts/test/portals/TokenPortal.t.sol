@@ -59,10 +59,11 @@ contract TokenPortalTest is Test {
   uint256 internal l2BlockNumber = 69;
 
   function setUp() public {
-    registry = new Registry();
+    registry = new Registry(address(this));
     portalERC20 = new PortalERC20();
-    rollup =
-      new Rollup(registry, new AvailabilityOracle(), IERC20(address(portalERC20)), bytes32(0));
+    rollup = new Rollup(
+      registry, new AvailabilityOracle(), IERC20(address(portalERC20)), bytes32(0), address(this)
+    );
     inbox = rollup.INBOX();
     outbox = rollup.OUTBOX();
 

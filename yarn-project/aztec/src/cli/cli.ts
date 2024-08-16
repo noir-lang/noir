@@ -99,6 +99,7 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
         process.exit(1);
       }
     }
+
     installSignalHandlers(debugLogger.info, signalHandlers);
 
     if (services.length) {
