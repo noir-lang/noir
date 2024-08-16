@@ -47,12 +47,12 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
-            "expr_as_any_integer" => expr_as_any_integer(arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
             "expr_as_index" => expr_as_index(arguments, return_type, location),
+            "expr_as_integer" => expr_as_integer(arguments, return_type, location),
             "expr_as_member_access" => expr_as_member_access(arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
@@ -758,21 +758,6 @@ fn zeroed(return_type: Type) -> IResult<Value> {
     }
 }
 
-// fn as_any_integer(self) -> Option<(Field, bool)>
-fn expr_as_any_integer(
-    arguments: Vec<(Value, Location)>,
-    return_type: Type,
-    location: Location,
-) -> IResult<Value> {
-    expr_as(arguments, return_type.clone(), location, |expr| {
-        if let ExpressionKind::Literal(Literal::Integer(field, sign)) = expr {
-            Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
-        } else {
-            None
-        }
-    })
-}
-
 // fn as_bool(self) -> Option<bool>
 fn expr_as_bool(
     arguments: Vec<(Value, Location)>,
@@ -850,6 +835,21 @@ fn expr_as_index(
                 Value::Expr(index_expr.collection.kind),
                 Value::Expr(index_expr.index.kind),
             ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_integer(self) -> Option<(Field, bool)>
+fn expr_as_integer(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type.clone(), location, |expr| {
+        if let ExpressionKind::Literal(Literal::Integer(field, sign)) = expr {
+            Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
         } else {
             None
         }

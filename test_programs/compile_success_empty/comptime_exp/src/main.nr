@@ -60,12 +60,12 @@ fn main() {
         assert(get_binary_op(quote { x << y }).is_shift_left());
         assert(get_binary_op(quote { x % y }).is_modulo());
 
-        // Check Expr::as_any_integer
+        // Check Expr::as_integer
         let expr = quote { 1 }.as_expr().unwrap();
-        assert_eq((1, false), expr.as_any_integer().unwrap());
+        assert_eq((1, false), expr.as_integer().unwrap());
 
         let expr = quote { -2 }.as_expr().unwrap();
-        assert_eq((2, true), expr.as_any_integer().unwrap());
+        assert_eq((2, true), expr.as_integer().unwrap());
 
         // Check Expr::as_member_access
         let expr = quote { foo.bar }.as_expr().unwrap();
