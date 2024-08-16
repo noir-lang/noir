@@ -9,6 +9,11 @@ pub(super) fn default_sort_text() -> String {
     "5".to_string()
 }
 
+/// Sort text for auto-import items. We want these to show up after local definitions.
+pub(super) fn auto_import_sort_text() -> String {
+    "6".to_string()
+}
+
 /// When completing something like `Foo::`, we want to show methods that take
 /// self after the other ones.
 pub(super) fn self_mismatch_sort_text() -> String {

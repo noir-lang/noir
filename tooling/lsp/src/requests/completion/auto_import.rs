@@ -9,7 +9,9 @@ use noirc_frontend::{
 
 use super::{
     kinds::{FunctionCompletionKind, FunctionKind, RequestedItems},
-    name_matches, NodeFinder,
+    name_matches,
+    sort_text::auto_import_sort_text,
+    NodeFinder,
 };
 
 impl<'a> NodeFinder<'a> {
@@ -99,6 +101,8 @@ impl<'a> NodeFinder<'a> {
                     },
                     new_text: format!("use {};{}{}", full_path, newlines, indent),
                 }]);
+
+                completion_item.sort_text = Some(auto_import_sort_text());
 
                 self.completion_items.push(completion_item);
                 self.suggested_module_def_ids.insert(*module_def_id);

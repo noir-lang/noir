@@ -10,7 +10,7 @@ mod completion_tests {
                     field_completion_item, module_completion_item, simple_completion_item,
                     snippet_completion_item,
                 },
-                sort_text::self_mismatch_sort_text,
+                sort_text::{auto_import_sort_text, self_mismatch_sort_text},
             },
             on_completion_request,
         },
@@ -1335,7 +1335,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_auto_imports_x() {
+    async fn test_auto_imports() {
         let src = r#"
             mod foo {
                 mod bar {
@@ -1378,6 +1378,8 @@ mod completion_tests {
                 new_text: "use foo::bar::hello_world;\n".to_string(),
             }])
         );
+
+        assert_eq!(item.sort_text, Some(auto_import_sort_text()));
     }
 
     #[test]
