@@ -1298,11 +1298,7 @@ impl<'context> Elaborator<'context> {
         let let_stmt = global.stmt_def;
 
         let name = if self.interner.is_in_lsp_mode() {
-            if let Pattern::Identifier(ident) = &let_stmt.pattern {
-                Some(ident.to_string())
-            } else {
-                None
-            }
+            Some(let_stmt.pattern.name_ident().to_string())
         } else {
             None
         };
