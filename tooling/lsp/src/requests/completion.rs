@@ -112,6 +112,7 @@ struct NodeFinder<'a> {
 }
 
 impl<'a> NodeFinder<'a> {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         files: &'a FileMap,
         file: FileId,

@@ -34,7 +34,7 @@ impl<'a> NodeFinder<'a> {
                     continue;
                 };
 
-                let Some(parent_module) = get_parent_module(&self.interner, *module_def_id) else {
+                let Some(parent_module) = get_parent_module(self.interner, *module_def_id) else {
                     continue;
                 };
 
@@ -56,7 +56,7 @@ impl<'a> NodeFinder<'a> {
                     parent_module,
                     &self.module_id,
                     self.interner,
-                    &self.dependencies,
+                    self.dependencies,
                 );
 
                 let mut label_details = completion_item.label_details.unwrap();
