@@ -59,5 +59,9 @@ export async function createProverNode(
     txProvider,
     simulationProvider,
     telemetry,
+    {
+      disableAutomaticProving: config.proverNodeDisableAutomaticProving,
+      maxPendingJobs: config.proverNodeMaxPendingJobs,
+    },
   );
 }

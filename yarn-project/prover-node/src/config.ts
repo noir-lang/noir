@@ -1,5 +1,10 @@
 import { type ArchiverConfig, archiverConfigMappings, getArchiverConfigFromEnv } from '@aztec/archiver';
-import { type ConfigMappingsType } from '@aztec/foundation/config';
+import {
+  type ConfigMappingsType,
+  booleanConfigHelper,
+  getConfigFromMappings,
+  numberConfigHelper,
+} from '@aztec/foundation/config';
 import { type ProverClientConfig, getProverEnvVars, proverClientConfigMappings } from '@aztec/prover-client';
 import {
   type PublisherConfig,
@@ -18,7 +23,25 @@ export type ProverNodeConfig = ArchiverConfig &
   WorldStateConfig &
   PublisherConfig &
   TxSenderConfig &
-  TxProviderConfig;
+  TxProviderConfig & {
+    proverNodeDisableAutomaticProving?: boolean;
+    proverNodeMaxPendingJobs?: number;
+  };
+
+const specificProverNodeConfigMappings: ConfigMappingsType<
+  Pick<ProverNodeConfig, 'proverNodeDisableAutomaticProving' | 'proverNodeMaxPendingJobs'>
+> = {
+  proverNodeDisableAutomaticProving: {
+    env: 'PROVER_NODE_DISABLE_AUTOMATIC_PROVING',
+    description: 'Whether to disable automatic proving of pending blocks seen on L1',
+    ...booleanConfigHelper(false),
+  },
+  proverNodeMaxPendingJobs: {
+    env: 'PROVER_NODE_MAX_PENDING_JOBS',
+    description: 'The maximum number of pending jobs for the prover node',
+    ...numberConfigHelper(100),
+  },
+};
 
 export const proverNodeConfigMappings: ConfigMappingsType<ProverNodeConfig> = {
   ...archiverConfigMappings,
@@ -27,6 +50,7 @@ export const proverNodeConfigMappings: ConfigMappingsType<ProverNodeConfig> = {
   ...getPublisherConfigMappings('PROVER'),
   ...getTxSenderConfigMappings('PROVER'),
   ...txProviderConfigMappings,
+  ...specificProverNodeConfigMappings,
 };
 
 export function getProverNodeConfigFromEnv(): ProverNodeConfig {
@@ -37,5 +61,6 @@ export function getProverNodeConfigFromEnv(): ProverNodeConfig {
     ...getPublisherConfigFromEnv('PROVER'),
     ...getTxSenderConfigFromEnv('PROVER'),
     ...getTxProviderConfigFromEnv(),
+    ...getConfigFromMappings(specificProverNodeConfigMappings),
   };
 }

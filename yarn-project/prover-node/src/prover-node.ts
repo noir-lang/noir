@@ -1,13 +1,19 @@
-import { type L1ToL2MessageSource, type L2BlockSource, type ProverClient, type TxProvider } from '@aztec/circuit-types';
+import {
+  type L1ToL2MessageSource,
+  type L2BlockSource,
+  type MerkleTreeOperations,
+  type ProverClient,
+  type TxProvider,
+} from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { type L1Publisher } from '@aztec/sequencer-client';
 import { PublicProcessorFactory, type SimulationProvider } from '@aztec/simulator';
 import { type TelemetryClient } from '@aztec/telemetry-client';
+import { type ContractDataSource } from '@aztec/types/contracts';
 import { type WorldStateSynchronizer } from '@aztec/world-state';
 
-import { type ContractDataSource } from '../../types/src/contracts/contract_data_source.js';
-import { BlockProvingJob } from './job/block-proving-job.js';
+import { BlockProvingJob, type BlockProvingJobState } from './job/block-proving-job.js';
 
 /**
  * An Aztec Prover Node is a standalone process that monitors the unfinalised chain on L1 for unproven blocks,
@@ -18,6 +24,8 @@ export class ProverNode {
   private log = createDebugLogger('aztec:prover-node');
   private runningPromise: RunningPromise | undefined;
   private latestBlockWeAreProving: number | undefined;
+  private jobs: Map<string, BlockProvingJob> = new Map();
+  private options: { pollingIntervalMs: number; disableAutomaticProving: boolean; maxPendingJobs: number };
 
   constructor(
     private prover: ProverClient,
@@ -29,11 +37,15 @@ export class ProverNode {
     private txProvider: TxProvider,
     private simulator: SimulationProvider,
     private telemetryClient: TelemetryClient,
-    private options: { pollingIntervalMs: number; disableAutomaticProving: boolean } = {
+    options: { pollingIntervalMs?: number; disableAutomaticProving?: boolean; maxPendingJobs?: number } = {},
+  ) {
+    this.options = {
       pollingIntervalMs: 1_000,
       disableAutomaticProving: false,
-    },
-  ) {}
+      maxPendingJobs: 100,
+      ...options,
+    };
+  }
 
   /**
    * Starts the prover node so it periodically checks for unproven blocks in the unfinalised chain from L1 and proves them.
@@ -54,8 +66,8 @@ export class ProverNode {
     await this.prover.stop();
     await this.l2BlockSource.stop();
     this.publisher.interrupt();
+    this.jobs.forEach(job => job.stop());
     this.log.info('Stopped ProverNode');
-    // TODO(palla/prover-node): Keep a reference to all ongoing ProvingJobs and stop them.
   }
 
   /**
@@ -65,6 +77,14 @@ export class ProverNode {
   protected async work() {
     try {
       if (this.options.disableAutomaticProving) {
+        return;
+      }
+
+      if (!this.checkMaximumPendingJobs()) {
+        this.log.debug(`Maximum pending proving jobs reached. Skipping work.`, {
+          maxPendingJobs: this.options.maxPendingJobs,
+          pendingJobs: this.jobs.size,
+        });
         return;
       }
 
@@ -88,8 +108,13 @@ export class ProverNode {
       const fromBlock = latestProven + 1;
       const toBlock = fromBlock; // We only prove one block at a time for now
 
-      await this.startProof(fromBlock, toBlock);
-      this.latestBlockWeAreProving = toBlock;
+      try {
+        await this.startProof(fromBlock, toBlock);
+      } finally {
+        // If we fail to create a proving job for the given block, skip it instead of getting stuck on it.
+        this.log.verbose(`Setting ${toBlock} as latest block we are proving`);
+        this.latestBlockWeAreProving = toBlock;
+      }
     } catch (err) {
       this.log.error(`Error in prover node work`, err);
     }
@@ -118,7 +143,23 @@ export class ProverNode {
     return this.prover;
   }
 
+  /**
+   * Returns an array of jobs being processed.
+   */
+  public getJobs(): { uuid: string; status: BlockProvingJobState }[] {
+    return Array.from(this.jobs.entries()).map(([uuid, job]) => ({ uuid, status: job.getState() }));
+  }
+
+  private checkMaximumPendingJobs() {
+    const { maxPendingJobs } = this.options;
+    return maxPendingJobs === 0 || this.jobs.size < maxPendingJobs;
+  }
+
   private async createProvingJob(fromBlock: number) {
+    if (!this.checkMaximumPendingJobs()) {
+      throw new Error(`Maximum pending proving jobs ${this.options.maxPendingJobs} reached. Cannot create new job.`);
+    }
+
     if ((await this.worldState.status()).syncedToL2Block >= fromBlock) {
       throw new Error(`Cannot create proving job for block ${fromBlock} as it is behind the current world state`);
     }
@@ -135,6 +176,22 @@ export class ProverNode {
       this.telemetryClient,
     );
 
+    const cleanUp = async () => {
+      await db.delete();
+      this.jobs.delete(job.getId());
+    };
+
+    const job = this.doCreateBlockProvingJob(db, publicProcessorFactory, cleanUp);
+    this.jobs.set(job.getId(), job);
+    return job;
+  }
+
+  /** Extracted for testing purposes. */
+  protected doCreateBlockProvingJob(
+    db: MerkleTreeOperations,
+    publicProcessorFactory: PublicProcessorFactory,
+    cleanUp: () => Promise<void>,
+  ) {
     return new BlockProvingJob(
       this.prover.createBlockProver(db),
       publicProcessorFactory,
@@ -142,7 +199,7 @@ export class ProverNode {
       this.l2BlockSource,
       this.l1ToL2MessageSource,
       this.txProvider,
-      () => db.delete(),
+      cleanUp,
     );
   }
 }

@@ -15,7 +15,7 @@ import {
   sleep,
 } from '@aztec/aztec.js';
 import { StatefulTestContract, TestContract } from '@aztec/noir-contracts.js';
-import { createProverNode } from '@aztec/prover-node';
+import { type ProverNodeConfig, createProverNode } from '@aztec/prover-node';
 
 import { sendL1ToL2Message } from './fixtures/l1_to_l2_messaging.js';
 import {
@@ -127,7 +127,13 @@ describe('e2e_prover_node', () => {
     logger.info(`Creating prover node ${proverId.toString()}`);
     // HACK: We have to use the existing archiver to fetch L2 data, since anvil's chain dump/load used by the
     // snapshot manager does not include events nor txs, so a new archiver would not "see" old blocks.
-    const proverConfig = { ...ctx.aztecNodeConfig, txProviderNodeUrl: undefined, dataDirectory: undefined, proverId };
+    const proverConfig: ProverNodeConfig = {
+      ...ctx.aztecNodeConfig,
+      txProviderNodeUrl: undefined,
+      dataDirectory: undefined,
+      proverId,
+      proverNodeMaxPendingJobs: 100,
+    };
     const archiver = ctx.aztecNode.getBlockSource() as Archiver;
     const proverNode = await createProverNode(proverConfig, { aztecNodeTxProvider: ctx.aztecNode, archiver });
 
