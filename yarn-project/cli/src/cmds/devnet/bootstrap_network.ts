@@ -144,10 +144,10 @@ async function deployToken(
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
   const { TokenContract, TokenBridgeContract } = await import('@aztec/noir-contracts.js');
   const devCoin = await TokenContract.deploy(wallet, wallet.getAddress(), 'DevCoin', 'DEV', 18)
-    .send()
+    .send({ universalDeploy: true })
     .deployed({ proven: true, provenTimeout: 600 });
   const bridge = await TokenBridgeContract.deploy(wallet, devCoin.address, l1Portal)
-    .send()
+    .send({ universalDeploy: true })
     .deployed({ proven: true, provenTimeout: 600 });
 
   await new BatchCall(wallet, [
@@ -201,7 +201,9 @@ async function deployFPC(wallet: Wallet, tokenAddress: AztecAddress): Promise<Co
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
   const { FPCContract } = await import('@aztec/noir-contracts.js');
-  const fpc = await FPCContract.deploy(wallet, tokenAddress).send().deployed({ proven: true, provenTimeout: 600 });
+  const fpc = await FPCContract.deploy(wallet, tokenAddress)
+    .send({ universalDeploy: true })
+    .deployed({ proven: true, provenTimeout: 600 });
   const info: ContractDeploymentInfo = {
     address: fpc.address,
     initHash: fpc.instance.initializationHash,
@@ -215,7 +217,7 @@ async function deployCounter(wallet: Wallet): Promise<ContractDeploymentInfo> {
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
   const { CounterContract } = await import('@aztec/noir-contracts.js');
   const counter = await CounterContract.deploy(wallet, 1, wallet.getAddress(), wallet.getAddress())
-    .send()
+    .send({ universalDeploy: true })
     .deployed({ proven: true, provenTimeout: 600 });
   const info: ContractDeploymentInfo = {
     address: counter.address,
