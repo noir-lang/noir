@@ -24,5 +24,5 @@ fn main() {
     // Use zeroed here so that we don't help by adding another type constraint.
     // We should know Elem = Field from the associated type alone.
     let array = [1, 2, 3, 0, 5];
-    assert_eq(array.ctake(3), std::unsafe::zeroed());
+    assert_eq(array.ctake(3), std::mem::zeroed());
 }
