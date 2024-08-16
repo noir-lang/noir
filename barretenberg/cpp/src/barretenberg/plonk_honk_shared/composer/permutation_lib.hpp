@@ -98,7 +98,7 @@ template <typename Flavor, bool generalized>
 PermutationMapping<Flavor::NUM_WIRES, generalized> compute_permutation_mapping(
     const typename Flavor::CircuitBuilder& circuit_constructor,
     typename Flavor::ProvingKey* proving_key,
-    std::vector<CyclicPermutation> wire_copy_cycles)
+    const std::vector<CyclicPermutation>& wire_copy_cycles)
 {
 
     // Initialize the table of permutations so that every element points to itself
@@ -368,7 +368,7 @@ inline std::tuple<LegacyPolynomial<FF>, LegacyPolynomial<FF>> compute_first_and_
 template <typename Flavor>
 void compute_permutation_argument_polynomials(const typename Flavor::CircuitBuilder& circuit,
                                               typename Flavor::ProvingKey* key,
-                                              std::vector<CyclicPermutation> copy_cycles)
+                                              const std::vector<CyclicPermutation>& copy_cycles)
 {
     constexpr bool generalized = IsUltraPlonkFlavor<Flavor> || IsUltraFlavor<Flavor>;
     auto mapping = compute_permutation_mapping<Flavor, generalized>(circuit, key, copy_cycles);
