@@ -107,9 +107,7 @@ pub(super) fn arb_abi_type() -> BoxedStrategy<AbiType> {
                 (1..10u32, inner.clone())
                     .prop_map(|(length, typ)| { AbiType::Array { length, typ: Box::new(typ) } })
                     .boxed(),
-                vec(inner.clone(), 1..10)
-                    .prop_map(|fields| { AbiType::Tuple { fields } })
-                    .boxed(),
+                vec(inner.clone(), 1..10).prop_map(|fields| { AbiType::Tuple { fields } }).boxed(),
                 (".*", vec((".+", inner), 1..10))
                     .prop_map(|(path, mut fields)| {
                         // Require that all field names are unique.

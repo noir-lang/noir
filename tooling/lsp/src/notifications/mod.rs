@@ -223,7 +223,9 @@ mod notification_tests {
 
     use super::*;
     use lsp_types::{
-        InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier, WorkDoneProgressParams
+        InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
+        TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
+        WorkDoneProgressParams,
     };
     use tokio::test;
 

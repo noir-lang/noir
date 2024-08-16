@@ -172,7 +172,9 @@ impl DataFlowGraph {
         call_stack: CallStack,
     ) -> InsertInstructionResult {
         match instruction.simplify(self, block, ctrl_typevars.clone(), &call_stack) {
-            SimplifyResult::SimplifiedTo(simplification) => InsertInstructionResult::SimplifiedTo(simplification),
+            SimplifyResult::SimplifiedTo(simplification) => {
+                InsertInstructionResult::SimplifiedTo(simplification)
+            }
             SimplifyResult::SimplifiedToMultiple(simplification) => {
                 InsertInstructionResult::SimplifiedToMultiple(simplification)
             }

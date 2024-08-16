@@ -438,11 +438,7 @@ impl<'a> FunctionContext<'a> {
     /// Prepare a slice access.
     /// Check that the index being used to access a slice element
     /// is less than the dynamic slice length.
-    fn codegen_slice_access_check(
-        &mut self,
-        index: ValueId,
-        length: Option<ValueId>,
-    ) {
+    fn codegen_slice_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self

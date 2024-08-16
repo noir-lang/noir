@@ -60,10 +60,8 @@ impl JsExecutionError {
         };
 
         let brillig_function_id = match brillig_function_id {
-            Some(function_id) => {
-                <JsValue as JsValueSerdeExt>::from_serde(&function_id)
-                    .expect("Cannot serialize Brillig function id")
-            }
+            Some(function_id) => <JsValue as JsValueSerdeExt>::from_serde(&function_id)
+                .expect("Cannot serialize Brillig function id"),
             None => JsValue::UNDEFINED,
         };
 
