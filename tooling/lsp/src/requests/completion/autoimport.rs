@@ -13,12 +13,12 @@ use super::{
 
 impl<'a> NodeFinder<'a> {
     pub(super) fn complete_autoimports(&mut self, prefix: &str, requested_items: RequestedItems) {
-        for (name, module_def_ids) in self.interner.get_autoimport_names() {
+        for (name, entries) in self.interner.get_autoimport_names() {
             if !name_matches(name, prefix) {
                 continue;
             }
 
-            for module_def_id in module_def_ids {
+            for (module_def_id, visibility) in entries {
                 if self.suggested_module_def_ids.contains(module_def_id) {
                     continue;
                 }

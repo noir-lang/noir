@@ -1508,4 +1508,23 @@ mod completion_tests {
         let items = get_completions(src).await;
         assert!(items.is_empty());
     }
+
+    #[test]
+    async fn test_does_not_autoimport_private_functions() {
+        let src = r#"
+            mod foo {
+                mod bar {
+                    fn hello_world() {}
+                }
+            }
+
+            use foo::bar;
+
+            fn main() {
+                hel>|<
+            }
+        "#;
+        let items = get_completions(src).await;
+        assert!(items.is_empty());
+    }
 }

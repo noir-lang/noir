@@ -479,6 +479,10 @@ pub struct FunctionDefinition {
 }
 
 impl FunctionDefinition {
+    pub fn is_private(&self) -> bool {
+        self.visibility == ItemVisibility::Private
+    }
+
     pub fn is_test(&self) -> bool {
         if let Some(attribute) = &self.attributes.function {
             matches!(attribute, FunctionAttribute::Test(..))

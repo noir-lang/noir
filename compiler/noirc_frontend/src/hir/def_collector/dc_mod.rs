@@ -232,10 +232,14 @@ impl<'a> ModCollector<'a> {
             let location = Location::new(function.span(), self.file_id);
             context.def_interner.push_function(func_id, &function.def, module, location);
 
-            if context.def_interner.is_in_lsp_mode() && !function.def.is_test() {
+            if context.def_interner.is_in_lsp_mode()
+                && !function.def.is_test()
+                && !function.def.is_private()
+            {
                 context.def_interner.register_name_for_autoimport(
                     function.def.name.0.contents.clone(),
                     ModuleDefId::FunctionId(func_id),
+                    function.def.visibility,
                 );
             }
 
@@ -335,9 +339,11 @@ impl<'a> ModCollector<'a> {
                     Some(ModuleId { krate, local_id: self.module_id }),
                 );
 
-                context
-                    .def_interner
-                    .register_name_for_autoimport(name.to_string(), ModuleDefId::TypeId(id));
+                context.def_interner.register_name_for_autoimport(
+                    name.to_string(),
+                    ModuleDefId::TypeId(id),
+                    ItemVisibility::Public,
+                );
             }
         }
         definition_errors
@@ -418,6 +424,7 @@ impl<'a> ModCollector<'a> {
                 context.def_interner.register_name_for_autoimport(
                     name.to_string(),
                     ModuleDefId::TypeAliasId(type_alias_id),
+                    ItemVisibility::Public,
                 );
             }
         }
@@ -593,9 +600,11 @@ impl<'a> ModCollector<'a> {
                     Some(ModuleId { krate, local_id: self.module_id }),
                 );
 
-                context
-                    .def_interner
-                    .register_name_for_autoimport(name.to_string(), ModuleDefId::TraitId(trait_id));
+                context.def_interner.register_name_for_autoimport(
+                    name.to_string(),
+                    ModuleDefId::TraitId(trait_id),
+                    ItemVisibility::Public,
+                );
             }
 
             self.def_collector.items.traits.insert(trait_id, unresolved);

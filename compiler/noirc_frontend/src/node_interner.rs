@@ -235,7 +235,7 @@ pub struct NodeInterner {
     // All names (and their definitions) that can be offered for autoimport.
     // These include top-level functions, global variables and types, but excludes
     // impl and trait-impl methods.
-    pub(crate) autoimport_names: HashMap<String, Vec<ModuleDefId>>,
+    pub(crate) autoimport_names: HashMap<String, Vec<(ModuleDefId, ItemVisibility)>>,
 
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making

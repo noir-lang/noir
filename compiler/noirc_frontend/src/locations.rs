@@ -4,6 +4,7 @@ use rangemap::RangeMap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
+    ast::ItemVisibility,
     hir::def_map::{ModuleDefId, ModuleId},
     macros_api::{NodeInterner, StructId},
     node_interner::{DefinitionId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
@@ -280,15 +281,16 @@ impl NodeInterner {
         &mut self,
         name: String,
         module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
     ) {
         if !self.lsp_mode {
             return;
         }
 
-        self.autoimport_names.entry(name).or_default().push(module_def_id);
+        self.autoimport_names.entry(name).or_default().push((module_def_id, visibility));
     }
 
-    pub fn get_autoimport_names(&self) -> &HashMap<String, Vec<ModuleDefId>> {
+    pub fn get_autoimport_names(&self) -> &HashMap<String, Vec<(ModuleDefId, ItemVisibility)>> {
         &self.autoimport_names
     }
 }

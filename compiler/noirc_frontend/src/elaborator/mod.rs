@@ -1333,7 +1333,11 @@ impl<'context> Elaborator<'context> {
             .add_definition_location(ReferenceId::Global(global_id), Some(self.module_id()));
 
         if let Some(name) = name {
-            self.interner.register_name_for_autoimport(name, ModuleDefId::GlobalId(global_id));
+            self.interner.register_name_for_autoimport(
+                name,
+                ModuleDefId::GlobalId(global_id),
+                ItemVisibility::Public,
+            );
         }
 
         self.local_module = old_module;
