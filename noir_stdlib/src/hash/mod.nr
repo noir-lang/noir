@@ -195,7 +195,19 @@ impl Hash for Field {
     }
 }
 
+impl Hash for u1 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, self as Field);
+    }
+}
+
 impl Hash for u8 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, self as Field);
+    }
+}
+
+impl Hash for u16 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
         H::write(state, self as Field);
     }
