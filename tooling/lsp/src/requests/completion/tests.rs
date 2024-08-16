@@ -1458,4 +1458,35 @@ mod completion_tests {
             }])
         );
     }
+
+    #[test]
+    async fn test_autoimport_inserts_after_last_use() {
+        let src = r#"
+            mod foo {
+                mod bar {
+                    pub fn hello_world() {}
+                }
+            }
+
+            use foo::bar;
+
+            fn main() {
+                hel>|<
+            }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(
+            item.additional_text_edits,
+            Some(vec![TextEdit {
+                range: Range {
+                    start: Position { line: 8, character: 0 },
+                    end: Position { line: 8, character: 0 },
+                },
+                new_text: "use foo::bar::hello_world;\n".to_string(),
+            }])
+        );
+    }
 }

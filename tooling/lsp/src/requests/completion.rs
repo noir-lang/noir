@@ -172,6 +172,12 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_item(&mut self, item: &Item) {
+        if let ItemKind::Import(..) = &item.kind {
+            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
+                self.autoimport_line = (lsp_location.range.end.line + 1) as usize;
+            }
+        }
+
         if !self.includes_span(item.span) {
             return;
         }
