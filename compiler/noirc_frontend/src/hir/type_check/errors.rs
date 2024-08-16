@@ -139,6 +139,8 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error("Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block")]
+    Unsafe { span: Span },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -379,6 +381,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = format!("`{item}` is missing the associated type `{name}`");
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
             },
+            TypeCheckError::Unsafe { span } => {
+                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
         }
     }
 }

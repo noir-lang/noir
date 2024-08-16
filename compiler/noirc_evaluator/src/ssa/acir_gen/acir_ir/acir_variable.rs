@@ -2005,7 +2005,7 @@ impl<F: PartialEq> PartialEq for AcirVarData<F> {
 }
 
 // TODO: check/test this hash impl
-impl<F> std::hash::Hash for AcirVarData<F> {
+impl<F> Hash for AcirVarData<F> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
     }

@@ -15,13 +15,13 @@ pub use memory_operation::{BlockId, MemOp};
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlockType {
     Memory,
-    CallData,
+    CallData(u32),
     ReturnData,
 }
 
 impl BlockType {
     pub fn is_databus(&self) -> bool {
-        matches!(self, BlockType::CallData | BlockType::ReturnData)
+        matches!(self, BlockType::CallData(_) | BlockType::ReturnData)
     }
 }
 
@@ -183,7 +183,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::MemoryInit { block_id, init, block_type: databus } => {
                 match databus {
                     BlockType::Memory => write!(f, "INIT ")?,
-                    BlockType::CallData => write!(f, "INIT CALLDATA ")?,
+                    BlockType::CallData(id) => write!(f, "INIT CALLDATA {} ", id)?,
                     BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
                 }
                 write!(f, "(id: {}, len: {}) ", block_id.0, init.len())

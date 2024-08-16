@@ -22,6 +22,7 @@ pub(crate) struct GeneratedBrillig<F> {
     pub(crate) byte_code: Vec<BrilligOpcode<F>>,
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
     pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+    pub(crate) name: String,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -49,6 +50,8 @@ pub(crate) struct BrilligArtifact<F> {
     locations: BTreeMap<OpcodeLocation, CallStack>,
     /// The current call stack. All opcodes that are pushed will be associated with this call stack.
     call_stack: CallStack,
+    /// Name of the function, only used for debugging purposes.
+    pub(crate) name: String,
 }
 
 /// A pointer to a location in the opcode.
@@ -81,6 +84,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
             byte_code: self.byte_code,
             locations: self.locations,
             assert_messages: self.assert_messages,
+            name: self.name,
         }
     }
 

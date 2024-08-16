@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use acvm::{
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
@@ -112,6 +114,10 @@ pub struct DefaultForeignCallExecutor<F> {
     show_output: bool,
     /// JSON RPC client to resolve foreign calls
     external_resolver: Option<Client>,
+    /// Root path to the program or workspace in execution.
+    root_path: Option<PathBuf>,
+    /// Name of the package in execution
+    package_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -126,10 +132,22 @@ struct ResolveForeignCallRequest<F> {
     #[serde(flatten)]
     /// The foreign call which the external RPC server is to provide a response for.
     function_call: ForeignCallWaitInfo<F>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Root path to the program or workspace in execution.
+    root_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Name of the package in execution
+    package_name: Option<String>,
 }
 
 impl<F> DefaultForeignCallExecutor<F> {
-    pub fn new(show_output: bool, resolver_url: Option<&str>) -> Self {
+    pub fn new(
+        show_output: bool,
+        resolver_url: Option<&str>,
+        root_path: Option<PathBuf>,
+        package_name: Option<String>,
+    ) -> Self {
         let oracle_resolver = resolver_url.map(|resolver_url| {
             let mut transport_builder =
                 Builder::new().url(resolver_url).expect("Invalid oracle resolver URL");
@@ -148,6 +166,8 @@ impl<F> DefaultForeignCallExecutor<F> {
             id: rand::thread_rng().gen(),
             mocked_responses: Vec::new(),
             last_mock_id: 0,
+            root_path,
+            package_name,
         }
     }
 }
@@ -302,6 +322,11 @@ impl<F: AcirField + Serialize + for<'a> Deserialize<'a>> ForeignCallExecutor<F>
                     let encoded_params = vec![build_json_rpc_arg(ResolveForeignCallRequest {
                         session_id: self.id,
                         function_call: foreign_call.clone(),
+                        root_path: self
+                            .root_path
+                            .clone()
+                            .map(|path| path.to_str().unwrap().to_string()),
+                        package_name: self.package_name.clone(),
                     })];
 
                     let req =
@@ -402,7 +427,8 @@ mod tests {
     fn test_oracle_resolver_echo() {
         let (server, url) = build_oracle_server();
 
-        let mut executor = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
+        let mut executor =
+            DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url), None, None);
 
         let foreign_call = ForeignCallWaitInfo {
             function: "echo".to_string(),
@@ -419,7 +445,7 @@ mod tests {
     fn test_oracle_resolver_sum() {
         let (server, url) = build_oracle_server();
 
-        let mut executor = DefaultForeignCallExecutor::new(false, Some(&url));
+        let mut executor = DefaultForeignCallExecutor::new(false, Some(&url), None, None);
 
         let foreign_call = ForeignCallWaitInfo {
             function: "sum".to_string(),
@@ -436,7 +462,8 @@ mod tests {
     fn foreign_call_executor_id_is_persistent() {
         let (server, url) = build_oracle_server();
 
-        let mut executor = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
+        let mut executor =
+            DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url), None, None);
 
         let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 
@@ -451,8 +478,10 @@ mod tests {
     fn oracle_resolver_rpc_can_distinguish_executors() {
         let (server, url) = build_oracle_server();
 
-        let mut executor_1 = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
-        let mut executor_2 = DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url));
+        let mut executor_1 =
+            DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url), None, None);
+        let mut executor_2 =
+            DefaultForeignCallExecutor::<FieldElement>::new(false, Some(&url), None, None);
 
         let foreign_call = ForeignCallWaitInfo { function: "id".to_string(), inputs: Vec::new() };
 

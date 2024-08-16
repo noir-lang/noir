@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 
 /// This trait is extremely unstable and WILL have breaking changes.
 pub trait AcirField:
-    std::marker::Sized
+    Sized
     + std::fmt::Display
     + std::fmt::Debug
     + Default
@@ -24,7 +24,7 @@ pub trait AcirField:
     // + From<u8>
     + From<bool>
     + std::hash::Hash
-    + std::cmp::Eq
+    + Eq
 {
     fn one() -> Self;
     fn zero() -> Self;
