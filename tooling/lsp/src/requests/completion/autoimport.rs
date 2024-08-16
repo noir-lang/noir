@@ -83,13 +83,21 @@ impl<'a> NodeFinder<'a> {
                 let line = self.autoimport_line as u32;
                 let character = (self.nesting * 4) as u32;
                 let indent = " ".repeat(self.nesting * 4);
+                let mut newlines = "\n";
+
+                // If the line we are inserting into is not an empty line, insert an extra line to make some room
+                if let Some(line_text) = self.lines.get(line as usize) {
+                    if !line_text.trim().is_empty() {
+                        newlines = "\n\n";
+                    }
+                }
 
                 completion_item.additional_text_edits = Some(vec![TextEdit {
                     range: Range {
                         start: Position { line, character },
                         end: Position { line, character },
                     },
-                    new_text: format!("use {};\n{}", full_path, indent),
+                    new_text: format!("use {};{}{}", full_path, newlines, indent),
                 }]);
 
                 self.completion_items.push(completion_item);

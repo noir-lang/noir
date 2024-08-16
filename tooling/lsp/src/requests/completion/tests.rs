@@ -1335,7 +1335,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_autoimports() {
+    async fn test_autoimports_x() {
         let src = r#"
             mod foo {
                 mod bar {
@@ -1413,7 +1413,7 @@ mod completion_tests {
                     start: Position { line: 2, character: 4 },
                     end: Position { line: 2, character: 4 },
                 },
-                new_text: "use bar::hello_world;\n    ".to_string(),
+                new_text: "use bar::hello_world;\n\n    ".to_string(),
             }])
         );
     }
@@ -1453,7 +1453,7 @@ mod completion_tests {
                     start: Position { line: 7, character: 8 },
                     end: Position { line: 7, character: 8 },
                 },
-                new_text: "use crate::foo::bar::hello_world;\n        ".to_string(),
+                new_text: "use crate::foo::bar::hello_world;\n\n        ".to_string(),
             }])
         );
     }

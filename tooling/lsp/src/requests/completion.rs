@@ -68,6 +68,7 @@ pub(crate) fn on_completion_request(
                 let mut finder = NodeFinder::new(
                     args.files,
                     file_id,
+                    source,
                     byte_index,
                     byte,
                     args.crate_id,
@@ -85,6 +86,7 @@ pub(crate) fn on_completion_request(
 struct NodeFinder<'a> {
     files: &'a FileMap,
     file: FileId,
+    lines: Vec<&'a str>,
     byte_index: usize,
     byte: Option<u8>,
     /// The module ID of the current file.
@@ -116,6 +118,7 @@ impl<'a> NodeFinder<'a> {
     fn new(
         files: &'a FileMap,
         file: FileId,
+        source: &'a str,
         byte_index: usize,
         byte: Option<u8>,
         krate: CrateId,
@@ -137,6 +140,7 @@ impl<'a> NodeFinder<'a> {
         Self {
             files,
             file,
+            lines: source.lines().collect(),
             byte_index,
             byte,
             root_module_id,
