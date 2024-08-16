@@ -53,6 +53,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
             "expr_as_index" => expr_as_index(arguments, return_type, location),
+            "expr_as_member_access" => expr_as_member_access(arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
@@ -849,6 +850,22 @@ fn expr_as_index(
                 Value::Expr(index_expr.collection.kind),
                 Value::Expr(index_expr.index.kind),
             ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_member_access(self) -> Option<(Expr, Quoted)>
+fn expr_as_member_access(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::MemberAccess(member_access) = expr {
+            let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
+            Some(Value::Tuple(vec![Value::Expr(member_access.lhs.kind), Value::Quoted(tokens)]))
         } else {
             None
         }

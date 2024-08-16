@@ -66,6 +66,11 @@ fn main() {
 
         let expr = quote { -2 }.as_expr().unwrap();
         assert_eq((2, true), expr.as_any_integer().unwrap());
+
+        // Check Expr::as_member_access
+        let expr = quote { foo.bar }.as_expr().unwrap();
+        let (_, name) = expr.as_member_access().unwrap();
+        assert_eq(name, quote { bar });
     }
 }
 
