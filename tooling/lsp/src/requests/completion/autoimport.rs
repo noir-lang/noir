@@ -1,5 +1,6 @@
 use lsp_types::{Position, Range, TextEdit};
 use noirc_frontend::{
+    ast::ItemVisibility,
     graph::{CrateId, Dependency},
     hir::def_map::ModuleId,
     macros_api::{ModuleDefId, NodeInterner},
@@ -36,6 +37,20 @@ impl<'a> NodeFinder<'a> {
                 let Some(parent_module) = get_parent_module(&self.interner, *module_def_id) else {
                     continue;
                 };
+
+                match *visibility {
+                    ItemVisibility::Public => (),
+                    ItemVisibility::Private => {
+                        // Technically this can't be reached because we don't record private items for auto-import,
+                        // but this is here for completeness.
+                        continue;
+                    }
+                    ItemVisibility::PublicCrate => {
+                        if self.module_id.krate != parent_module.krate {
+                            continue;
+                        }
+                    }
+                }
 
                 let module_full_path = module_id_path(
                     parent_module,
