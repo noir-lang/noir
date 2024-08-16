@@ -1,3 +1,6 @@
+use std::meta::op::UnaryOp;
+use std::meta::op::BinaryOp;
+
 fn main() {
     comptime
     {
@@ -36,20 +39,49 @@ fn main() {
         assert_eq(expr.as_bool().unwrap(), true);
 
         // Check Expr::as_unary_op
-        let expr = quote { -x }.as_expr().unwrap();
-        let (op, _) = expr.as_unary_op().unwrap();
-        assert(op.is_minus());
+        assert(get_unary_op(quote { -x }).is_minus());
+        assert(get_unary_op(quote { !x }).is_not());
+        assert(get_unary_op(quote { &mut x }).is_mutable_reference());
+        assert(get_unary_op(quote { *x }).is_dereference());
 
-        let expr = quote { !x }.as_expr().unwrap();
-        let (op, _) = expr.as_unary_op().unwrap();
-        assert(op.is_not());
+        // Check Expr::as_binary_op
+        assert(get_binary_op(quote { x + y }).is_add());
+        assert(get_binary_op(quote { x - y }).is_subtract());
+        assert(get_binary_op(quote { x * y }).is_multiply());
+        assert(get_binary_op(quote { x / y }).is_divide());
+        assert(get_binary_op(quote { x == y }).is_equal());
+        assert(get_binary_op(quote { x != y }).is_not_equal());
+        assert(get_binary_op(quote { x > y }).is_greater());
+        assert(get_binary_op(quote { x >= y }).is_greater_or_equal());
+        assert(get_binary_op(quote { x & y }).is_and());
+        assert(get_binary_op(quote { x | y }).is_or());
+        assert(get_binary_op(quote { x ^ y }).is_xor());
+        assert(get_binary_op(quote { x >> y }).is_shift_right());
+        assert(get_binary_op(quote { x << y }).is_shift_left());
+        assert(get_binary_op(quote { x % y }).is_modulo());
 
-        let expr = quote { &mut x }.as_expr().unwrap();
-        let (op, _) = expr.as_unary_op().unwrap();
-        assert(op.is_mutable_reference());
+        // Check Expr::as_integer
+        let expr = quote { 1 }.as_expr().unwrap();
+        assert_eq((1, false), expr.as_integer().unwrap());
 
-        let expr = quote { *x }.as_expr().unwrap();
-        let (op, _) = expr.as_unary_op().unwrap();
-        assert(op.is_dereference());
+        let expr = quote { -2 }.as_expr().unwrap();
+        assert_eq((2, true), expr.as_integer().unwrap());
+
+        // Check Expr::as_member_access
+        let expr = quote { foo.bar }.as_expr().unwrap();
+        let (_, name) = expr.as_member_access().unwrap();
+        assert_eq(name, quote { bar });
     }
+}
+
+comptime fn get_unary_op(quoted: Quoted) -> UnaryOp {
+    let expr = quoted.as_expr().unwrap();
+    let (op, _) = expr.as_unary_op().unwrap();
+    op
+}
+
+comptime fn get_binary_op(quoted: Quoted) -> BinaryOp {
+    let expr = quoted.as_expr().unwrap();
+    let (_, op, _) = expr.as_binary_op().unwrap();
+    op
 }
