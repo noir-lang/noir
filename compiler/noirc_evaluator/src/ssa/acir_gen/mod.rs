@@ -235,7 +235,7 @@ impl Debug for AcirDynamicArray {
 #[derive(Debug, Clone)]
 pub(crate) enum AcirValue {
     Var(AcirVar, AcirType),
-    Array(im::Vector<AcirValue>),
+    Array(Vector<AcirValue>),
     DynamicArray(AcirDynamicArray),
 }
 
@@ -1650,7 +1650,7 @@ impl<'a> Context<'a> {
             let read = self.acir_context.read_from_memory(source, &index_var)?;
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
         })?;
-        let array: im::Vector<AcirValue> = init_values.into();
+        let array: Vector<AcirValue> = init_values.into();
         self.initialize_array(destination, array_len, Some(AcirValue::Array(array)))?;
         Ok(())
     }

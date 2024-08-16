@@ -30,7 +30,7 @@ use lsp_types::{
 use nargo::{
     package::{Package, PackageType},
     parse_all,
-    workspace::{self, Workspace},
+    workspace::Workspace,
 };
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
@@ -384,7 +384,7 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
 
 pub fn insert_all_files_for_workspace_into_file_manager(
     state: &LspState,
-    workspace: &workspace::Workspace,
+    workspace: &Workspace,
     file_manager: &mut FileManager,
 ) {
     // First add files we cached: these have the source code of files that are modified
@@ -411,7 +411,7 @@ fn prepare_package_from_source_string() {
     let client = ClientSocket::new_closed();
     let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
 
-    let (mut context, crate_id) = crate::prepare_source(source.to_string(), &mut state);
+    let (mut context, crate_id) = prepare_source(source.to_string(), &mut state);
     let _check_result = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
     let main_func_id = context.get_main_function(&crate_id);
     assert!(main_func_id.is_some());

@@ -128,7 +128,7 @@ mod tests {
     }
 
     impl GatesProvider for TestGateProvider {
-        fn get_gates(&self, artifact_path: &std::path::Path) -> eyre::Result<BackendGatesResponse> {
+        fn get_gates(&self, artifact_path: &Path) -> eyre::Result<BackendGatesResponse> {
             let response = self
                 .mock_responses
                 .get(artifact_path)
