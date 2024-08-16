@@ -45,7 +45,7 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
     result
 }
 
-unconstrained pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
+pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
     HANDLERS.insert(t, f);
 }
 
