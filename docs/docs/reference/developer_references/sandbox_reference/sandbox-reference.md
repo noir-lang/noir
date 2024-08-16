@@ -76,6 +76,9 @@ SEQ_MAX_TX_PER_BLOCK=32 # Maximum txs to go on a block. (default: 32)
 SEQ_MIN_TX_PER_BLOCK=1 # Minimum txs to go on a block. (default: 1)
 SEQ_MAX_SECONDS_BETWEEN_BLOCKS=0 # Sequencer will produce a block with less than the min number of txs once this threshold is reached. (default: 0, means disabled)
 SEQ_MIN_SECONDS_BETWEEN_BLOCKS=0 # Minimum seconds to wait between consecutive blocks. (default: 0)
+
+## Validator variables ##
+VALIDATOR_PRIVATE_KEY=0x01234567890abcde01234567890abcde  # Private key of the ethereum account that will be used to perform validator duties 
 ```
 
 **PXE**

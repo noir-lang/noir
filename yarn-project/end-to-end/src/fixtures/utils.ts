@@ -101,6 +101,12 @@ const getAztecUrl = () => {
   return PXE_URL;
 };
 
+export const getPrivateKeyFromIndex = (index: number): Buffer | null => {
+  const hdAccount = mnemonicToAccount(MNEMONIC, { addressIndex: index });
+  const privKeyRaw = hdAccount.getHdKey().privateKey;
+  return privKeyRaw === null ? null : Buffer.from(privKeyRaw);
+};
+
 export const setupL1Contracts = async (
   l1RpcUrl: string,
   account: HDAccount | PrivateKeyAccount,
@@ -319,6 +325,7 @@ export async function setup(
   opts: SetupOptions = {},
   pxeOpts: Partial<PXEServiceConfig> = {},
   enableGas = false,
+  enableValidators = false,
 ): Promise<EndToEndContext> {
   const config = { ...getConfigEnvVars(), ...opts };
   const logger = getLogger();
@@ -349,20 +356,27 @@ export async function setup(
     await ethCheatCodes.loadChainState(opts.stateLoad);
   }
 
-  const hdAccount = mnemonicToAccount(MNEMONIC);
-  const privKeyRaw = hdAccount.getHdKey().privateKey;
-  const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
+  const publisherHdAccount = mnemonicToAccount(MNEMONIC, { addressIndex: 0 });
+  const publisherPrivKeyRaw = publisherHdAccount.getHdKey().privateKey;
+  const publisherPrivKey = publisherPrivKeyRaw === null ? null : Buffer.from(publisherPrivKeyRaw);
 
   if (PXE_URL) {
     // we are setting up against a remote environment, l1 contracts are assumed to already be deployed
-    return await setupWithRemoteEnvironment(hdAccount, config, logger, numberOfAccounts, enableGas);
+    return await setupWithRemoteEnvironment(publisherHdAccount, config, logger, numberOfAccounts, enableGas);
   }
 
   const deployL1ContractsValues =
-    opts.deployL1ContractsValues ?? (await setupL1Contracts(config.l1RpcUrl, hdAccount, logger));
+    opts.deployL1ContractsValues ?? (await setupL1Contracts(config.l1RpcUrl, publisherHdAccount, logger));
 
   config.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
   config.l1Contracts = deployL1ContractsValues.l1ContractAddresses;
+
+  // Run the test with validators enabled
+  if (enableValidators) {
+    const validatorPrivKey = getPrivateKeyFromIndex(1);
+    config.validatorPrivateKey = `0x${validatorPrivKey!.toString('hex')}`;
+  }
+  config.disableValidator = !enableValidators;
 
   logger.verbose('Creating and synching an aztec node...');
 
@@ -378,6 +392,7 @@ export async function setup(
     config.bbWorkingDirectory = bbConfig.bbWorkingDirectory;
   }
   config.l1PublishRetryIntervalMS = 100;
+
   const aztecNode = await AztecNodeService.createAndSync(config, telemetry);
   const sequencer = aztecNode.getSequencer();
 

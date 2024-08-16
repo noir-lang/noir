@@ -1,4 +1,4 @@
-import { type BaseHashType } from '@aztec/foundation/hash';
+import { type Buffer32 } from '@aztec/foundation/buffer';
 
 /**
  * Gossipable
@@ -16,7 +16,7 @@ export abstract class Gossipable {
    *
    *  - A digest of the message information, this key is used for deduplication
    */
-  abstract p2pMessageIdentifier(): BaseHashType;
+  abstract p2pMessageIdentifier(): Buffer32;
 
   /** To Buffer
    *

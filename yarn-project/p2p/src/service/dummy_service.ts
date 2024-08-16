@@ -1,4 +1,4 @@
-import type { Tx, TxHash } from '@aztec/circuit-types';
+import type { BlockAttestation, BlockProposal, Gossipable, TxHash } from '@aztec/circuit-types';
 
 import type { PeerId } from '@libp2p/interface';
 import EventEmitter from 'events';
@@ -26,16 +26,21 @@ export class DummyP2PService implements P2PService {
   }
 
   /**
-   * Called to have the given transaction propagated through the P2P network.
-   * @param _ - The transaction to be propagated.
+   * Called to have the given message propagated through the P2P network.
+   * @param _ - The message to be propagated.
    */
-  public propagateTx(_: Tx) {}
+  public propagate<T extends Gossipable>(_: T) {}
 
   /**
    * Called upon receipt of settled transactions.
    * @param _ - The hashes of the settled transactions.
    */
   public settledTxs(_: TxHash[]) {}
+
+  /**
+   * Register a callback into the validator client for when a block proposal is received
+   */
+  public registerBlockReceivedCallback(_: (block: BlockProposal) => Promise<BlockAttestation>) {}
 }
 
 /**

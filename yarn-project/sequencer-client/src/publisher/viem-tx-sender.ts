@@ -16,14 +16,12 @@ import {
   getContract,
   hexToBytes,
   http,
-  parseSignature,
 } from 'viem';
 import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import * as chains from 'viem/chains';
 
 import { type TxSenderConfig } from './config.js';
 import {
-  type Attestation,
   type L1PublisherTxSender,
   type L1SubmitProofArgs,
   type MinimalTransactionReceipt,
@@ -75,20 +73,6 @@ export class ViemTxSender implements L1PublisherTxSender {
     });
   }
 
-  async attest(archive: `0x{string}`): Promise<Attestation> {
-    // @note  Something seems slightly off in viem, think it should be Hex instead of Hash
-    //        but as they both are just `0x${string}` it should be fine anyways.
-    const signature = await this.account.signMessage({ message: { raw: archive } });
-    const { r, s, v } = parseSignature(signature as `0x${string}`);
-
-    return {
-      isEmpty: false,
-      v: v ? Number(v) : 0,
-      r: r,
-      s: s,
-    };
-  }
-
   getSenderAddress(): Promise<EthAddress> {
     return Promise.resolve(EthAddress.fromString(this.account.address));
   }
@@ -105,6 +89,11 @@ export class ViemTxSender implements L1PublisherTxSender {
       this.log.warn(`Failed to get submitter: ${err}`);
       return EthAddress.ZERO;
     }
+  }
+
+  async getCurrentEpochCommittee(): Promise<EthAddress[]> {
+    const committee = await this.rollupContract.read.getCurrentEpochCommittee();
+    return committee.map(address => EthAddress.fromString(address));
   }
 
   async getCurrentArchive(): Promise<Buffer> {
@@ -179,10 +168,13 @@ export class ViemTxSender implements L1PublisherTxSender {
    */
   async sendProcessTx(encodedData: ProcessTxArgs): Promise<string | undefined> {
     if (encodedData.attestations) {
+      // Get `0x${string}` encodings
+      const attestations = encodedData.attestations.map(attest => attest.toViemSignature());
+
       const args = [
         `0x${encodedData.header.toString('hex')}`,
         `0x${encodedData.archive.toString('hex')}`,
-        encodedData.attestations,
+        attestations,
       ] as const;
 
       const gas = await this.rollupContract.estimateGas.process(args, {
@@ -213,10 +205,11 @@ export class ViemTxSender implements L1PublisherTxSender {
   async sendPublishAndProcessTx(encodedData: ProcessTxArgs): Promise<string | undefined> {
     // @note  This is quite a sin, but I'm committing war crimes in this code already.
     if (encodedData.attestations) {
+      const attestations = encodedData.attestations.map(attest => attest.toViemSignature());
       const args = [
         `0x${encodedData.header.toString('hex')}`,
         `0x${encodedData.archive.toString('hex')}`,
-        encodedData.attestations,
+        attestations,
         `0x${encodedData.body.toString('hex')}`,
       ] as const;
 

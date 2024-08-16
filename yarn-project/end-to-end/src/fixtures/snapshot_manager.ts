@@ -33,7 +33,7 @@ import { MNEMONIC } from './fixtures.js';
 import { getACVMConfig } from './get_acvm_config.js';
 import { getBBConfig } from './get_bb_config.js';
 import { setupL1Contracts } from './setup_l1_contracts.js';
-import { deployCanonicalAuthRegistry, deployCanonicalKeyRegistry } from './utils.js';
+import { deployCanonicalAuthRegistry, deployCanonicalKeyRegistry, getPrivateKeyFromIndex } from './utils.js';
 
 export type SubsystemsContext = {
   anvil: Anvil;
@@ -255,11 +255,16 @@ async function setupFromFresh(
 
   // Deploy our L1 contracts.
   logger.verbose('Deploying L1 contracts...');
-  const hdAccount = mnemonicToAccount(MNEMONIC);
-  const privKeyRaw = hdAccount.getHdKey().privateKey;
-  const publisherPrivKey = privKeyRaw === null ? null : Buffer.from(privKeyRaw);
-  const deployL1ContractsValues = await setupL1Contracts(aztecNodeConfig.l1RpcUrl, hdAccount, logger);
+  const hdAccount = mnemonicToAccount(MNEMONIC, { accountIndex: 0 });
+  const publisherPrivKeyRaw = hdAccount.getHdKey().privateKey;
+  const publisherPrivKey = publisherPrivKeyRaw === null ? null : Buffer.from(publisherPrivKeyRaw);
+
+  const validatorPrivKey = getPrivateKeyFromIndex(1);
+
   aztecNodeConfig.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
+  aztecNodeConfig.validatorPrivateKey = `0x${validatorPrivKey!.toString('hex')}`;
+
+  const deployL1ContractsValues = await setupL1Contracts(aztecNodeConfig.l1RpcUrl, hdAccount, logger);
   aztecNodeConfig.l1Contracts = deployL1ContractsValues.l1ContractAddresses;
   aztecNodeConfig.l1PublishRetryIntervalMS = 100;
 

@@ -95,7 +95,8 @@
     "jest-mock-extended": "^3.0.4",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4",
-    "uint8arrays": "^5.0.3"
+    "uint8arrays": "^5.0.3",
+    "viem": "^2.7.15"
   },
   "files": [
     "dest",

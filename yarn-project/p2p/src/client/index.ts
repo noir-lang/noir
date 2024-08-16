@@ -1,6 +1,7 @@
 import { type L2BlockSource } from '@aztec/circuit-types';
 import { type AztecKVStore } from '@aztec/kv-store';
 
+import { type AttestationPool } from '../attestation_pool/attestation_pool.js';
 import { P2PClient } from '../client/p2p_client.js';
 import { type P2PConfig } from '../config.js';
 import { DiscV5Service } from '../service/discV5_service.js';
@@ -15,6 +16,7 @@ export const createP2PClient = async (
   config: P2PConfig,
   store: AztecKVStore,
   txPool: TxPool,
+  attestationsPool: AttestationPool,
   l2BlockSource: L2BlockSource,
 ) => {
   let p2pService;
@@ -59,9 +61,9 @@ export const createP2PClient = async (
     // Create peer discovery service
     const peerId = await createLibP2PPeerId(config.peerIdPrivateKey);
     const discoveryService = new DiscV5Service(peerId, config);
-    p2pService = await LibP2PService.new(config, discoveryService, peerId, txPool, store);
+    p2pService = await LibP2PService.new(config, discoveryService, peerId, txPool, attestationsPool, store);
   } else {
     p2pService = new DummyP2PService();
   }
-  return new P2PClient(store, l2BlockSource, txPool, p2pService, config.keepProvenTxsInPoolFor);
+  return new P2PClient(store, l2BlockSource, txPool, attestationsPool, p2pService, config.keepProvenTxsInPoolFor);
 };

@@ -52,6 +52,9 @@
       "path": "../types"
     },
     {
+      "path": "../validator-client"
+    },
+    {
       "path": "../world-state"
     },
     {

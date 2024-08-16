@@ -3,6 +3,7 @@ import { type ConfigMappingsType, booleanConfigHelper, getConfigFromMappings } f
 import { type P2PConfig, p2pConfigMappings } from '@aztec/p2p';
 import { type ProverClientConfig, proverClientConfigMappings } from '@aztec/prover-client';
 import { type SequencerClientConfig, sequencerClientConfigMappings } from '@aztec/sequencer-client';
+import { type ValidatorClientConfig, validatorClientConfigMappings } from '@aztec/validator-client';
 import { type WorldStateConfig, worldStateConfigMappings } from '@aztec/world-state';
 
 import { readFileSync } from 'fs';
@@ -16,23 +17,33 @@ export { sequencerClientConfigMappings, SequencerClientConfig } from '@aztec/seq
  */
 export type AztecNodeConfig = ArchiverConfig &
   SequencerClientConfig &
+  ValidatorClientConfig &
   ProverClientConfig &
   WorldStateConfig &
   Pick<ProverClientConfig, 'bbBinaryPath' | 'bbWorkingDirectory' | 'realProofs'> &
   P2PConfig & {
     /** Whether the sequencer is disabled for this node. */
     disableSequencer: boolean;
+
+    /** Whether the validator is disabled for this node */
+    disableValidator: boolean;
   };
 
 export const aztecNodeConfigMappings: ConfigMappingsType<AztecNodeConfig> = {
   ...archiverConfigMappings,
   ...sequencerClientConfigMappings,
+  ...validatorClientConfigMappings,
   ...proverClientConfigMappings,
   ...worldStateConfigMappings,
   ...p2pConfigMappings,
   disableSequencer: {
     env: 'SEQ_DISABLED',
     description: 'Whether the sequencer is disabled for this node.',
+    ...booleanConfigHelper(),
+  },
+  disableValidator: {
+    env: 'VALIDATOR_DISABLED',
+    description: 'Whether the validator is disabled for this node.',
     ...booleanConfigHelper(),
   },
 };

@@ -1,24 +1,28 @@
 // Serde test for the block proposal type
-import { makeHeader } from '@aztec/circuits.js/testing';
-
-import { TxHash } from '../index.js';
 import { BlockProposal } from './block_proposal.js';
+import { makeBlockProposal, randomSigner } from './mocks.js';
 
 describe('Block Proposal serialization / deserialization', () => {
-  const makeBlockProposal = (): BlockProposal => {
-    const blockHeader = makeHeader(1);
-    const txs = [0, 1, 2, 3, 4, 5].map(() => TxHash.random());
-    const signature = Buffer.alloc(64, 1);
-
-    return new BlockProposal(blockHeader, txs, signature);
-  };
-
-  it('Should serialize / deserialize', () => {
-    const proposal = makeBlockProposal();
+  it('Should serialize / deserialize', async () => {
+    const proposal = await makeBlockProposal();
 
     const serialized = proposal.toBuffer();
     const deserialized = BlockProposal.fromBuffer(serialized);
 
     expect(deserialized).toEqual(proposal);
+  });
+
+  it('Should serialize / deserialize + recover sender', async () => {
+    const account = randomSigner();
+
+    const proposal = await makeBlockProposal(account);
+    const serialized = proposal.toBuffer();
+    const deserialized = BlockProposal.fromBuffer(serialized);
+
+    expect(deserialized).toEqual(proposal);
+
+    // Recover signature
+    const sender = await deserialized.getSender();
+    expect(sender.toChecksumString()).toEqual(account.address);
   });
 });

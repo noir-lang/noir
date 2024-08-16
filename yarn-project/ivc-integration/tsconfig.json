@@ -18,7 +18,7 @@
     },
     {
       "path": "../bb-prover"
-    },
+    }
   ],
   "include": ["src", "artifacts/*.d.json.ts", "artifacts/**/*.d.json.ts"]
 }

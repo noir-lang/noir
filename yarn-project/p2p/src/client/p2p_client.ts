@@ -1,8 +1,17 @@
-import { type L2Block, L2BlockDownloader, type L2BlockSource, type Tx, type TxHash } from '@aztec/circuit-types';
+import {
+  type BlockAttestation,
+  type BlockProposal,
+  type L2Block,
+  L2BlockDownloader,
+  type L2BlockSource,
+  type Tx,
+  type TxHash,
+} from '@aztec/circuit-types';
 import { INITIAL_L2_BLOCK_NUM } from '@aztec/circuits.js/constants';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore, type AztecSingleton } from '@aztec/kv-store';
 
+import { type AttestationPool } from '../attestation_pool/attestation_pool.js';
 import { getP2PConfigEnvVars } from '../config.js';
 import type { P2PService } from '../service/service.js';
 import { type TxPool } from '../tx_pool/index.js';
@@ -35,6 +44,31 @@ export interface P2PSyncState {
  * Interface of a P2P client.
  **/
 export interface P2P {
+  /**
+   * Broadcasts a block proposal to other peers.
+   *
+   * @param proposal - the block proposal
+   */
+  broadcastProposal(proposal: BlockProposal): void;
+
+  /**
+   * Queries the Attestation pool for attestations for the given slot
+   *
+   * @param slot - the slot to query
+   * @returns BlockAttestations
+   */
+  getAttestationsForSlot(slot: bigint): Promise<BlockAttestation[]>;
+
+  /**
+   * Registers a callback from the validator client that determines how to behave when
+   * foreign block proposals are received
+   *
+   * @param handler - A function taking a received block proposal and producing an attestation
+   */
+  // REVIEW: https://github.com/AztecProtocol/aztec-packages/issues/7963
+  // ^ This pattern is not my favorite (md)
+  registerBlockProposalHandler(handler: (block: BlockProposal) => Promise<BlockAttestation>): void;
+
   /**
    * Verifies the 'tx' and, if valid, adds it to local tx pool and forwards it to other peers.
    * @param tx - The transaction.
@@ -130,6 +164,7 @@ export class P2PClient implements P2P {
     store: AztecKVStore,
     private l2BlockSource: L2BlockSource,
     private txPool: TxPool,
+    private attestationPool: AttestationPool,
     private p2pService: P2PService,
     private keepProvenTxsFor: number,
     private log = createDebugLogger('aztec:p2p'),
@@ -220,6 +255,20 @@ export class P2PClient implements P2P {
     this.log.info('P2P client stopped.');
   }
 
+  public broadcastProposal(proposal: BlockProposal): void {
+    return this.p2pService.propagate(proposal);
+  }
+
+  public getAttestationsForSlot(slot: bigint): Promise<BlockAttestation[]> {
+    return Promise.resolve(this.attestationPool.getAttestationsForSlot(slot));
+  }
+
+  // REVIEW: https://github.com/AztecProtocol/aztec-packages/issues/7963
+  // ^ This pattern is not my favorite (md)
+  public registerBlockProposalHandler(handler: (block: BlockProposal) => Promise<BlockAttestation>): void {
+    this.p2pService.registerBlockReceivedCallback(handler);
+  }
+
   /**
    * Returns all transactions in the transaction pool.
    * @returns An array of Txs.
@@ -263,7 +312,7 @@ export class P2PClient implements P2P {
       throw new Error('P2P client not ready');
     }
     await this.txPool.addTxs([tx]);
-    this.p2pService.propagateTx(tx);
+    this.p2pService.propagate(tx);
   }
 
   /**
@@ -425,7 +474,7 @@ export class P2PClient implements P2P {
     const txs = this.txPool.getAllTxs();
     if (txs.length > 0) {
       this.log.debug(`Publishing ${txs.length} previously stored txs`);
-      await Promise.all(txs.map(tx => this.p2pService.propagateTx(tx)));
+      await Promise.all(txs.map(tx => this.p2pService.propagate(tx)));
     }
   }
 }

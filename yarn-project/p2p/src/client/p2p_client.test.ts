@@ -5,6 +5,7 @@ import { openTmpStore } from '@aztec/kv-store/utils';
 
 import { expect, jest } from '@jest/globals';
 
+import { type AttestationPool } from '../attestation_pool/attestation_pool.js';
 import { type P2PService } from '../index.js';
 import { type TxPool } from '../tx_pool/index.js';
 import { MockBlockSource } from './mocks.js';
@@ -19,6 +20,7 @@ type Mockify<T> = {
 
 describe('In-Memory P2P Client', () => {
   let txPool: Mockify<TxPool>;
+  let attestationPool: Mockify<AttestationPool>;
   let blockSource: MockBlockSource;
   let p2pService: Mockify<P2PService>;
   let kvStore: AztecKVStore;
@@ -40,13 +42,21 @@ describe('In-Memory P2P Client', () => {
     p2pService = {
       start: jest.fn(),
       stop: jest.fn(),
-      propagateTx: jest.fn(),
+      propagate: jest.fn(),
+      registerBlockReceivedCallback: jest.fn(),
+    };
+
+    attestationPool = {
+      addAttestations: jest.fn(),
+      deleteAttestations: jest.fn(),
+      deleteAttestationsForSlot: jest.fn(),
+      getAttestationsForSlot: jest.fn().mockReturnValue(undefined),
     };
 
     blockSource = new MockBlockSource();
 
     kvStore = openTmpStore();
-    client = new P2PClient(kvStore, blockSource, txPool, p2pService, 0);
+    client = new P2PClient(kvStore, blockSource, txPool, attestationPool, p2pService, 0);
   });
 
   const advanceToProvenBlock = async (provenBlockNum: number) => {
@@ -95,16 +105,16 @@ describe('In-Memory P2P Client', () => {
     txPool.getAllTxs.mockReturnValue([tx1, tx2]);
 
     await client.start();
-    expect(p2pService.propagateTx).toHaveBeenCalledTimes(2);
-    expect(p2pService.propagateTx).toHaveBeenCalledWith(tx1);
-    expect(p2pService.propagateTx).toHaveBeenCalledWith(tx2);
+    expect(p2pService.propagate).toHaveBeenCalledTimes(2);
+    expect(p2pService.propagate).toHaveBeenCalledWith(tx1);
+    expect(p2pService.propagate).toHaveBeenCalledWith(tx2);
   });
 
   it('restores the previous block number it was at', async () => {
     await client.start();
     await client.stop();
 
-    const client2 = new P2PClient(kvStore, blockSource, txPool, p2pService, 0);
+    const client2 = new P2PClient(kvStore, blockSource, txPool, attestationPool, p2pService, 0);
     expect(client2.getSyncedLatestBlockNum()).toEqual(client.getSyncedLatestBlockNum());
   });
 
@@ -119,7 +129,7 @@ describe('In-Memory P2P Client', () => {
   });
 
   it('deletes txs after waiting the set number of blocks', async () => {
-    client = new P2PClient(kvStore, blockSource, txPool, p2pService, 10);
+    client = new P2PClient(kvStore, blockSource, txPool, attestationPool, p2pService, 10);
     blockSource.setProvenBlockNumber(0);
     await client.start();
     expect(txPool.deleteTxs).not.toHaveBeenCalled();
@@ -134,4 +144,6 @@ describe('In-Memory P2P Client', () => {
     expect(txPool.deleteTxs).toHaveBeenCalledTimes(10);
     await client.stop();
   });
+
+  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/7971): tests for attestation pool pruning
 });

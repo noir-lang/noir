@@ -1,4 +1,4 @@
-import { type L2Block } from '@aztec/circuit-types';
+import { type L2Block, type Signature } from '@aztec/circuit-types';
 import { type L1PublishBlockStats, type L1PublishProofStats } from '@aztec/circuit-types/stats';
 import { type EthAddress, type Header, type Proof } from '@aztec/circuits.js';
 import { type Fr } from '@aztec/foundation/fields';
@@ -43,24 +43,17 @@ export type MinimalTransactionReceipt = {
 };
 
 /**
- * @notice An attestation for the sequencing model.
- * @todo    This is not where it belongs. But I think we should do a bigger rewrite of some of
- *          this spaghetti.
- */
-export type Attestation = { isEmpty: boolean; v: number; r: `0x${string}`; s: `0x${string}` };
-
-/**
  * Pushes txs to the L1 chain and waits for their completion.
  */
 export interface L1PublisherTxSender {
-  /** Attests to the given archive root. */
-  attest(archive: `0x${string}`): Promise<Attestation>;
-
   /** Returns the EOA used for sending txs to L1.  */
   getSenderAddress(): Promise<EthAddress>;
 
   /** Returns the address of the L2 proposer at the NEXT Ethereum block zero if anyone can submit. */
   getProposerAtNextEthBlock(): Promise<EthAddress>;
+
+  /** Returns the current epoch committee */
+  getCurrentEpochCommittee(): Promise<EthAddress[]>;
 
   /**
    * Publishes tx effects to Availability Oracle.
@@ -126,7 +119,7 @@ export type L1ProcessArgs = {
   /** L2 block body. */
   body: Buffer;
   /** Attestations */
-  attestations?: Attestation[];
+  attestations?: Signature[];
 };
 
 /** Arguments to the submitProof method of the rollup contract */
@@ -163,10 +156,6 @@ export class L1Publisher implements L2BlockReceiver {
     this.metrics = new L1PublisherMetrics(client, 'L1Publisher');
   }
 
-  public async attest(archive: `0x${string}`): Promise<Attestation> {
-    return await this.txSender.attest(archive);
-  }
-
   public async senderAddress(): Promise<EthAddress> {
     return await this.txSender.getSenderAddress();
   }
@@ -177,12 +166,16 @@ export class L1Publisher implements L2BlockReceiver {
     return submitter.isZero() || submitter.equals(sender);
   }
 
+  public getCurrentEpochCommittee(): Promise<EthAddress[]> {
+    return this.txSender.getCurrentEpochCommittee();
+  }
+
   /**
    * Publishes L2 block on L1.
    * @param block - L2 block to publish.
    * @returns True once the tx has been confirmed and is successful, false on revert or interrupt, blocks otherwise.
    */
-  public async processL2Block(block: L2Block, attestations?: Attestation[]): Promise<boolean> {
+  public async processL2Block(block: L2Block, attestations?: Signature[]): Promise<boolean> {
     const ctx = { blockNumber: block.number, blockHash: block.hash().toString() };
     // TODO(#4148) Remove this block number check, it's here because we don't currently have proper genesis state on the contract
     const lastArchive = block.header.lastArchive.root.toBuffer();

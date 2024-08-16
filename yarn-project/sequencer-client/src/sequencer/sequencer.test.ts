@@ -28,6 +28,7 @@ import { type P2P, P2PClientState } from '@aztec/p2p';
 import { type PublicProcessor, type PublicProcessorFactory } from '@aztec/simulator';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { type ContractDataSource } from '@aztec/types/contracts';
+import { type ValidatorClient } from '@aztec/validator-client';
 import { type MerkleTreeOperations, WorldStateRunningState, type WorldStateSynchronizer } from '@aztec/world-state';
 
 import { type MockProxy, mock, mockFn } from 'jest-mock-extended';
@@ -40,6 +41,7 @@ import { Sequencer } from './sequencer.js';
 
 describe('sequencer', () => {
   let publisher: MockProxy<L1Publisher>;
+  let validatorClient: MockProxy<ValidatorClient>;
   let globalVariableBuilder: MockProxy<GlobalVariableBuilder>;
   let p2p: MockProxy<P2P>;
   let worldState: MockProxy<WorldStateSynchronizer>;
@@ -74,10 +76,6 @@ describe('sequencer', () => {
     lastBlockNumber = 0;
 
     publisher = mock<L1Publisher>();
-
-    publisher.attest.mockImplementation(_archive => {
-      return Promise.resolve(mockedAttestation);
-    });
 
     publisher.isItMyTurnToSubmit.mockResolvedValue(true);
 
@@ -127,6 +125,8 @@ describe('sequencer', () => {
 
     sequencer = new TestSubject(
       publisher,
+      // TDOO(md): add the relevant methods to the validator client that will prevent it stalling when waiting for attestations
+      validatorClient,
       globalVariableBuilder,
       p2p,
       worldState,

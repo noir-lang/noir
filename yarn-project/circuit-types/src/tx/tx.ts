@@ -4,8 +4,8 @@ import {
   PrivateKernelTailCircuitPublicInputs,
   type PublicKernelCircuitPublicInputs,
 } from '@aztec/circuits.js';
+import { type Buffer32 } from '@aztec/foundation/buffer';
 import { arraySerializedSizeOfNonEmpty } from '@aztec/foundation/collection';
-import { type BaseHashType } from '@aztec/foundation/hash';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { type GetUnencryptedLogsResponse } from '../logs/get_unencrypted_logs_response.js';
@@ -64,7 +64,7 @@ export class Tx extends Gossipable {
   }
 
   // Gossipable method
-  override p2pMessageIdentifier(): BaseHashType {
+  override p2pMessageIdentifier(): Buffer32 {
     return this.getTxHash();
   }
 

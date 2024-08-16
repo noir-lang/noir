@@ -160,6 +160,10 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
     const privKey = hdAccount.getHdKey().privateKey;
     aztecNodeConfig.publisherPrivateKey = `0x${Buffer.from(privKey!).toString('hex')}`;
   }
+  if (!aztecNodeConfig.validatorPrivateKey || aztecNodeConfig.validatorPrivateKey === NULL_KEY) {
+    const privKey = hdAccount.getHdKey().privateKey;
+    aztecNodeConfig.validatorPrivateKey = `0x${Buffer.from(privKey!).toString('hex')}`;
+  }
 
   if (!aztecNodeConfig.p2pEnabled) {
     await deployContractsToL1(aztecNodeConfig, hdAccount);

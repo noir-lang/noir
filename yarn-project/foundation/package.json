@@ -19,7 +19,7 @@
     "./eth-address": "./dest/eth-address/index.js",
     "./queue": "./dest/queue/index.js",
     "./fs": "./dest/fs/index.js",
-    "./hash": "./dest/hash/index.js",
+    "./buffer": "./dest/buffer/index.js",
     "./json-rpc": "./dest/json-rpc/index.js",
     "./json-rpc/server": "./dest/json-rpc/server/index.js",
     "./json-rpc/client": "./dest/json-rpc/client/index.js",
