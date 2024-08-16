@@ -269,7 +269,7 @@ impl<'context> Elaborator<'context> {
                 let module = self.module_id();
                 self.interner.push_function(id, &function.def, module, location);
 
-                if self.is_in_lsp_mode() {
+                if self.is_in_lsp_mode() && !function.def.is_test() {
                     self.interner.register_name_for_autoimport(
                         function.def.name.0.contents.clone(),
                         ModuleDefId::FunctionId(id),

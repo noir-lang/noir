@@ -232,7 +232,7 @@ impl<'a> ModCollector<'a> {
             let location = Location::new(function.span(), self.file_id);
             context.def_interner.push_function(func_id, &function.def, module, location);
 
-            if context.def_interner.is_in_lsp_mode() {
+            if context.def_interner.is_in_lsp_mode() && !function.def.is_test() {
                 context.def_interner.register_name_for_autoimport(
                     function.def.name.0.contents.clone(),
                     ModuleDefId::FunctionId(func_id),

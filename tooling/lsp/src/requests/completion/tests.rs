@@ -64,14 +64,13 @@ mod completion_tests {
             },
         )
         .await
-        .expect("Could not execute on_completion_request")
-        .unwrap();
+        .expect("Could not execute on_completion_request");
 
-        let CompletionResponse::Array(items) = response else {
-            panic!("Expected response to be CompletionResponse::Array");
-        };
-
-        items
+        if let Some(CompletionResponse::Array(items)) = response {
+            items
+        } else {
+            vec![]
+        }
     }
 
     fn assert_items_match(mut items: Vec<CompletionItem>, mut expected: Vec<CompletionItem>) {
@@ -1488,5 +1487,25 @@ mod completion_tests {
                 new_text: "use foo::bar::hello_world;\n".to_string(),
             }])
         );
+    }
+
+    #[test]
+    async fn test_does_not_autoimport_test_functions() {
+        let src = r#"
+            mod foo {
+                mod bar {
+                    #[test]
+                    pub fn hello_world() {}
+                }
+            }
+
+            use foo::bar;
+
+            fn main() {
+                hel>|<
+            }
+        "#;
+        let items = get_completions(src).await;
+        assert!(items.is_empty());
     }
 }
