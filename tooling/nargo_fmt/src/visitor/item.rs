@@ -137,8 +137,6 @@ impl super::FmtVisitor<'_> {
                 let typ = rewrite::typ(self, self.shape(), func.return_type());
                 result.push_str(&typ);
 
-                dbg!(span);
-                dbg!(func_span);
                 let slice = self.slice(span.end()..func_span.start());
                 if !slice.trim().is_empty() {
                     result.push_str(slice);
