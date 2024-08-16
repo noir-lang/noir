@@ -1297,7 +1297,7 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
 
-        let name = if self.is_in_lsp_mode() {
+        let name = if self.interner.is_in_lsp_mode() {
             if let Pattern::Identifier(ident) = &let_stmt.pattern {
                 Some(ident.to_string())
             } else {
@@ -1480,9 +1480,5 @@ impl<'context> Elaborator<'context> {
             DependencyId::Function(id) => !self.interner.function_modifiers(&id).is_unconstrained,
             _ => true,
         })
-    }
-
-    fn is_in_lsp_mode(&self) -> bool {
-        self.interner.is_in_lsp_mode()
     }
 }
