@@ -20,6 +20,7 @@ contract DocsExample {
     };
     use dep::aztec::encrypted_logs::encrypted_note_emission::{encode_and_encrypt_note, encode_and_encrypt_note_with_keys};
     use dep::aztec::note::note_getter_options::Comparator;
+    use dep::aztec::keys::getters::get_current_public_keys;
     // how to import methods from other files/folders within your workspace
     use crate::types::{card_note::{CardNote, CARD_NOTE_LEN}, leader::Leader};
 
@@ -168,8 +169,7 @@ contract DocsExample {
     // docs:start:initialize-private-mutable
     #[aztec(private)]
     fn initialize_private_immutable(randomness: Field, points: u8) {
-        let header = context.get_header();
-        let msg_sender_npk_m_hash = header.get_npk_m_hash(&mut context, context.msg_sender());
+        let msg_sender_npk_m_hash = get_current_public_keys(&mut context, context.msg_sender()).npk_m.hash();
 
         let mut new_card = CardNote::new(points, randomness, msg_sender_npk_m_hash);
         storage.private_immutable.initialize(&mut new_card).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), context.msg_sender()));
@@ -179,8 +179,7 @@ contract DocsExample {
     #[aztec(private)]
     // msg_sender() is 0 at deploy time. So created another function
     fn initialize_private(randomness: Field, points: u8) {
-        let header = context.get_header();
-        let msg_sender_npk_m_hash = header.get_npk_m_hash(&mut context, context.msg_sender());
+        let msg_sender_npk_m_hash = get_current_public_keys(&mut context, context.msg_sender()).npk_m.hash();
 
         let mut legendary_card = CardNote::new(points, randomness, msg_sender_npk_m_hash);
         // create and broadcast note
@@ -189,18 +188,16 @@ contract DocsExample {
 
     #[aztec(private)]
     fn insert_notes(amounts: [u8; 3]) {
-        let header = context.get_header();
-        let msg_sender_npk_m_hash = header.get_npk_m_hash(&mut context, context.msg_sender());
-        let msg_sender_ovpk_m = header.get_ovpk_m(&mut context, context.msg_sender());
-        let msg_sender_ivpk_m = header.get_ivpk_m(&mut context, context.msg_sender());
+        let sender_keys = get_current_public_keys(&mut context, context.msg_sender());
+        let sender_npk_m_hash = sender_keys.npk_m.hash();
 
         for i in 0..amounts.len() {
-            let mut note = CardNote::new(amounts[i], 1, msg_sender_npk_m_hash);
+            let mut note = CardNote::new(amounts[i], 1, sender_npk_m_hash);
             storage.set.insert(&mut note).emit(
                 encode_and_encrypt_note_with_keys(
                     &mut context,
-                    msg_sender_ovpk_m,
-                    msg_sender_ivpk_m,
+                    sender_keys.ovpk_m,
+                    sender_keys.ivpk_m,
                     context.msg_sender()
                 )
             );
@@ -209,10 +206,9 @@ contract DocsExample {
 
     #[aztec(private)]
     fn insert_note(amount: u8, randomness: Field) {
-        let header = context.get_header();
-        let msg_sender_npk_m_hash = header.get_npk_m_hash(&mut context, context.msg_sender());
+        let sender_npk_m_hash = get_current_public_keys(&mut context, context.msg_sender()).npk_m.hash();
 
-        let mut note = CardNote::new(amount, randomness, msg_sender_npk_m_hash);
+        let mut note = CardNote::new(amount, randomness, sender_npk_m_hash);
         storage.set.insert(&mut note).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), context.msg_sender()));
     }
 
@@ -231,10 +227,9 @@ contract DocsExample {
 
     #[aztec(private)]
     fn update_legendary_card(randomness: Field, points: u8) {
-        let header = context.get_header();
-        let msg_sender_npk_m_hash = header.get_npk_m_hash(&mut context, context.msg_sender());
+        let sender_npk_m_hash = get_current_public_keys(&mut context, context.msg_sender()).npk_m.hash();
 
-        let mut new_card = CardNote::new(points, randomness, msg_sender_npk_m_hash);
+        let mut new_card = CardNote::new(points, randomness, sender_npk_m_hash);
         storage.legendary_card.replace(&mut new_card).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), context.msg_sender()));
         DocsExample::at(context.this_address()).update_leader(context.msg_sender(), points).enqueue(&mut context);
     }
@@ -244,8 +239,7 @@ contract DocsExample {
         // Ensure `points` > current value
         // Also serves as a e2e test that you can `get_note()` and then `replace()`
 
-        let header = context.get_header();
-        let msg_sender_npk_m_hash = header.get_npk_m_hash(&mut context, context.msg_sender());
+        let sender_npk_m_hash = get_current_public_keys(&mut context, context.msg_sender()).npk_m.hash();
 
         // docs:start:state_vars-PrivateMutableGet
         let card = storage.legendary_card.get_note().note;
@@ -254,7 +248,7 @@ contract DocsExample {
 
         let points = card.points + 1;
 
-        let mut new_card = CardNote::new(points, card.randomness, msg_sender_npk_m_hash);
+        let mut new_card = CardNote::new(points, card.randomness, sender_npk_m_hash);
         // docs:start:state_vars-PrivateMutableReplace
         storage.legendary_card.replace(&mut new_card).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), context.msg_sender()));
         // docs:end:state_vars-PrivateMutableReplace

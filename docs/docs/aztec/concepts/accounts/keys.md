@@ -33,7 +33,10 @@ There is 1 key registry and its address is hardcoded in the protocol code.
 
 To retrieve them a developer can use one of the getters in Aztec.nr:
 
-#include_code key-getters /noir-projects/aztec-nr/aztec/src/keys/getters/mod.nr rust
+```
+fn get_current_public_keys(context: &mut PrivateContext, account: AztecAddress) -> PublicKeys;
+fn get_historical_public_keys(historical_header: Header, account: AztecAddress) -> PublicKeys;
+```
 
 If the keys are registered in the key registry these methods can be called without any setup.
 If they are not there, it is necessary to first register the user as a recipient in our PXE.

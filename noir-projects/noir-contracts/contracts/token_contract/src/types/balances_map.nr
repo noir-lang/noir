@@ -5,7 +5,8 @@ use dep::aztec::{
     note::{
     note_getter::view_notes, note_getter_options::SortOrder,
     note_emission::{NoteEmission, OuterNoteEmission}
-}
+},
+    keys::getters::get_current_public_keys
 };
 use crate::types::{token_note::{TokenNote, OwnedNote}};
 
@@ -67,10 +68,9 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
             OuterNoteEmission::new(Option::none())
         } else {
             let context = self.map.context;
-            let header = context.get_header();
 
             // We fetch the nullifier public key hash from the registry / from our PXE
-            let owner_npk_m_hash = header.get_npk_m_hash(context, owner);
+            let owner_npk_m_hash = get_current_public_keys(context, owner).npk_m.hash();
             let mut addend_note = T::new(addend, owner_npk_m_hash);
 
             // docs:start:insert

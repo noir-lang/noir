@@ -24,7 +24,8 @@ contract Token {
         encode_and_encrypt_note_with_keys_unconstrained
     },
         encrypted_event_emission::{encode_and_encrypt_event, encode_and_encrypt_event_with_keys_unconstrained}
-    }
+    },
+        keys::getters::get_current_public_keys
     };
 
     // docs:start:import_authwit
@@ -335,12 +336,8 @@ contract Token {
     fn transfer(to: AztecAddress, amount: Field) {
         let from = context.msg_sender();
 
-        // By fetching the keys here, we can avoid doing an extra read from the storage, since from_ovpk would
-        // be needed twice.
-        let header = context.get_header();
-        let from_ovpk = header.get_ovpk_m(&mut context, from);
-        let from_ivpk = header.get_ivpk_m(&mut context, from);
-        let to_ivpk = header.get_ivpk_m(&mut context, to);
+        let from_keys = get_current_public_keys(&mut context, from);
+        let to_keys = get_current_public_keys(&mut context, to);
 
         let amount = U128::from_integer(amount);
 
@@ -358,15 +355,21 @@ contract Token {
             INITIAL_TRANSFER_CALL_MAX_NOTES
         );
 
-        storage.balances.add(from, change).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, from_ivpk, from));
+        storage.balances.add(from, change).emit(
+            encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_keys.ovpk_m, from_keys.ivpk_m, from)
+        );
 
-        storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk, to));
+        storage.balances.add(to, amount).emit(
+            encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to)
+        );
 
         // We don't constrain encryption of the note log in `transfer` (unlike in `transfer_from`) because the transfer
         // function is only designed to be used in situations where the event is not strictly necessary (e.g. payment to
         // another person where the payment is considered to be successful when the other party successfully decrypts a
         // note).
-        Transfer { from, to, amount: amount.to_field() }.emit(encode_and_encrypt_event_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk, to));
+        Transfer { from, to, amount: amount.to_field() }.emit(
+            encode_and_encrypt_event_with_keys_unconstrained(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to)
+        );
     }
     // docs:end:transfer
 
@@ -447,20 +450,16 @@ contract Token {
         }
         // docs:end:assert_current_call_valid_authwit
 
-        // By fetching the keys here, we can avoid doing an extra read from the storage, since from_ovpk would
-        // be needed twice.
-        let header = context.get_header();
-        let from_ovpk = header.get_ovpk_m(&mut context, from);
-        let from_ivpk = header.get_ivpk_m(&mut context, from);
-        let to_ivpk = header.get_ivpk_m(&mut context, to);
+        let from_keys = get_current_public_keys(&mut context, from);
+        let to_keys = get_current_public_keys(&mut context, to);
 
         let amount = U128::from_integer(amount);
         // docs:start:increase_private_balance
         // docs:start:encrypted
-        storage.balances.sub(from, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, from_ivpk, from));
+        storage.balances.sub(from, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, from_keys.ivpk_m, from));
         // docs:end:encrypted
         // docs:end:increase_private_balance
-        storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, to_ivpk, to));
+        storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to));
     }
     // docs:end:transfer_from
 

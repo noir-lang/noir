@@ -22,6 +22,7 @@ contract Test {
     use dep::aztec::encrypted_logs::outgoing_body::EncryptedLogOutgoingBody;
 
     use dep::aztec::note::constants::MAX_NOTES_PER_PAGE;
+    use dep::aztec::keys::getters::get_current_public_keys;
 
     use dep::aztec::state_vars::{shared_mutable::SharedMutablePrivateGetter};
 
@@ -63,10 +64,9 @@ contract Test {
 
     #[aztec(private)]
     fn get_master_incoming_viewing_public_key(address: AztecAddress) -> [Field; 2] {
-        let header = context.get_header();
-        let pub_key = header.get_ivpk_m(&mut context, address);
+        let ivpk_m = get_current_public_keys(&mut context, address).ivpk_m;
 
-        [pub_key.x, pub_key.y]
+        [ivpk_m.x, ivpk_m.y]
     }
 
     // Get the address of this contract (taken from the input context)
@@ -99,8 +99,7 @@ contract Test {
             storage_slot != storage.example_constant.get_storage_slot(), "this storage slot is reserved for example_constant"
         );
 
-        let header = context.get_header();
-        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_npk_m_hash = get_current_public_keys(&mut context, owner).npk_m.hash();
 
         let mut note = ValueNote::new(value, owner_npk_m_hash);
         create_note(&mut context, storage_slot, &mut note).emit(encode_and_encrypt_note(&mut context, outgoing_viewer, owner));
@@ -266,9 +265,8 @@ contract Test {
         outgoing_viewer: AztecAddress,
         nest: bool
     ) {
-        let header = context.get_header();
-        let outgoing_viewer_ovpk_m = header.get_ovpk_m(&mut context, outgoing_viewer);
-        let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
+        let owner_ivpk_m = get_current_public_keys(&mut context, owner).ivpk_m;
+        let outgoing_viewer_ovpk_m = get_current_public_keys(&mut context, outgoing_viewer).ovpk_m;
 
         let event = ExampleEvent { value0: fields[0], value1: fields[1], value2: fields[2], value3: fields[3], value4: fields[4] };
 
@@ -309,8 +307,7 @@ contract Test {
         Test::at(context.this_address()).call_create_note(value, owner, outgoing_viewer, storage_slot).call(&mut context);
         storage_slot += 1;
 
-        let header = context.get_header();
-        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_npk_m_hash = get_current_public_keys(&mut context, owner).npk_m.hash();
 
         let mut note = ValueNote::new(value + 1, owner_npk_m_hash);
         create_note(&mut context, storage_slot, &mut note).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), owner));
@@ -504,7 +501,7 @@ contract Test {
 
     #[aztec(private)]
     fn test_nullifier_key_freshness(address: AztecAddress, public_nullifying_key: Point) {
-        assert_eq(context.get_header().get_npk_m(&mut context, address), public_nullifying_key);
+        assert_eq(get_current_public_keys(&mut context, address).npk_m, public_nullifying_key);
     }
 
     // Purely exists for testing

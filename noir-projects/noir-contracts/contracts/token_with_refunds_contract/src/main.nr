@@ -19,7 +19,8 @@ contract TokenWithRefunds {
         encode_and_encrypt_note_with_keys_unconstrained
     },
         encrypted_event_emission::{encode_and_encrypt_event, encode_and_encrypt_event_with_keys_unconstrained}
-    }
+    },
+        keys::getters::get_current_public_keys
     };
 
     // docs:start:import_authwit
@@ -331,12 +332,8 @@ contract TokenWithRefunds {
     fn transfer(to: AztecAddress, amount: Field) {
         let from = context.msg_sender();
 
-        // By fetching the keys here, we can avoid doing an extra read from the storage, since from_ovpk would
-        // be needed twice.
-        let header = context.get_header();
-        let from_ovpk = header.get_ovpk_m(&mut context, from);
-        let from_ivpk = header.get_ivpk_m(&mut context, from);
-        let to_ivpk = header.get_ivpk_m(&mut context, to);
+        let from_keys = get_current_public_keys(&mut context, from);
+        let to_keys = get_current_public_keys(&mut context, to);
 
         let amount = U128::from_integer(amount);
 
@@ -354,15 +351,21 @@ contract TokenWithRefunds {
             INITIAL_TRANSFER_CALL_MAX_NOTES
         );
 
-        storage.balances.add(from, change).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, from_ivpk, from));
+        storage.balances.add(from, change).emit(
+            encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_keys.ovpk_m, from_keys.ivpk_m, from)
+        );
 
-        storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk, to));
+        storage.balances.add(to, amount).emit(
+            encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to)
+        );
 
         // We don't constrain encryption of the note log in `transfer` (unlike in `transfer_from`) because the transfer
         // function is only designed to be used in situations where the event is not strictly necessary (e.g. payment to
         // another person where the payment is considered to be successful when the other party successfully decrypts a
         // note).
-        Transfer2 { from, to, amount: amount.to_field() }.emit(encode_and_encrypt_event_with_keys_unconstrained(&mut context, from_ovpk, to_ivpk, to));
+        Transfer2 { from, to, amount: amount.to_field() }.emit(
+            encode_and_encrypt_event_with_keys_unconstrained(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to)
+        );
     }
     // docs:end:transfer
 
@@ -443,20 +446,16 @@ contract TokenWithRefunds {
         }
         // docs:end:assert_current_call_valid_authwit
 
-        // By fetching the keys here, we can avoid doing an extra read from the storage, since from_ovpk would
-        // be needed twice.
-        let header = context.get_header();
-        let from_ovpk = header.get_ovpk_m(&mut context, from);
-        let from_ivpk = header.get_ivpk_m(&mut context, from);
-        let to_ivpk = header.get_ivpk_m(&mut context, to);
+        let from_keys = get_current_public_keys(&mut context, from);
+        let to_keys = get_current_public_keys(&mut context, to);
 
         let amount = U128::from_integer(amount);
         // docs:start:increase_private_balance
         // docs:start:encrypted
-        storage.balances.sub(from, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, from_ivpk, from));
+        storage.balances.sub(from, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, from_keys.ivpk_m, from));
         // docs:end:encrypted
         // docs:end:increase_private_balance
-        storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_ovpk, to_ivpk, to));
+        storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to));
     }
     // docs:end:transfer_from
 
@@ -537,10 +536,10 @@ contract TokenWithRefunds {
 
         // 2. Get all the relevant keys
         let header = context.get_header();
-        let fee_payer_npk_m_hash = header.get_npk_m_hash(&mut context, fee_payer);
-        let user_npk_m_hash = header.get_npk_m_hash(&mut context, user);
-        let user_ovpk = header.get_ovpk_m(&mut context, user);
-        let user_ivpk = header.get_ivpk_m(&mut context, user);
+
+        let fee_payer_npk_m_hash = get_current_public_keys(&mut context, fee_payer).npk_m.hash();
+        let user_keys = get_current_public_keys(&mut context, user);
+        let user_npk_m_hash = user_keys.npk_m.hash();
 
         // 3. Deduct the funded amount from the user's balance - this is a maximum fee a user is willing to pay
         // (called fee limit in aztec spec). The difference between fee limit and the actual tx fee will be refunded 
@@ -552,7 +551,9 @@ contract TokenWithRefunds {
             U128::from_integer(funded_amount),
             INITIAL_TRANSFER_CALL_MAX_NOTES
         );
-        storage.balances.add(user, change).emit(encode_and_encrypt_note_with_keys_unconstrained(&mut context, user_ovpk, user_ivpk, user));
+        storage.balances.add(user, change).emit(
+            encode_and_encrypt_note_with_keys_unconstrained(&mut context, user_keys.ovpk_m, user_keys.ivpk_m, user)
+        );
 
         // 4. We create the partial notes for the fee payer and the user.
         // --> Called "partial" because they don't have the amount set yet (that will be done in `complete_refund(...)`).

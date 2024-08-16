@@ -1,7 +1,10 @@
 // Sample escrow contract that stores a balance of a private token on behalf of an owner.
 contract Escrow {
     use dep::aztec::prelude::{AztecAddress, EthAddress, FunctionSelector, NoteHeader, PrivateContext, PrivateImmutable};
-    use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note;
+    use dep::aztec::{
+        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
+        keys::getters::get_current_public_keys
+    };
 
     // docs:start:addressnote_import
     use dep::address_note::address_note::AddressNote;
@@ -17,8 +20,7 @@ contract Escrow {
     #[aztec(private)]
     #[aztec(initializer)]
     fn constructor(owner: AztecAddress) {
-        let header = context.get_header();
-        let owner_npk_m_hash = header.get_npk_m_hash(&mut context, owner);
+        let owner_npk_m_hash = get_current_public_keys(&mut context, owner).npk_m.hash();
         // docs:start:addressnote_new
         let mut note = AddressNote::new(owner, owner_npk_m_hash);
         // docs:end:addressnote_new

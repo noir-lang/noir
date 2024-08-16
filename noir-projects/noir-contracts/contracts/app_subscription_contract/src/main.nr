@@ -10,7 +10,7 @@ contract AppSubscription {
         SharedImmutable
     },
         encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
-        protocol_types::constants::MAX_FIELD_VALUE
+        keys::getters::get_current_public_keys, protocol_types::constants::MAX_FIELD_VALUE
     };
     use authwit::{auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit};
     use token::Token;
@@ -109,8 +109,7 @@ contract AppSubscription {
 
         // Assert that the given expiry_block_number < current_block_number + SUBSCRIPTION_DURATION_IN_BLOCKS.
         AppSubscription::at(context.this_address()).assert_block_number(expiry_block_number).enqueue_view(&mut context);
-        let header = context.get_header();
-        let subscriber_npk_m_hash = header.get_npk_m_hash(&mut context, subscriber_address);
+        let subscriber_npk_m_hash = get_current_public_keys(&mut context, subscriber_address).npk_m.hash();
 
         let mut subscription_note = SubscriptionNote::new(subscriber_npk_m_hash, expiry_block_number, tx_count);
         storage.subscriptions.at(subscriber_address).initialize_or_replace(&mut subscription_note).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), subscriber_address));

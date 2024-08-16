@@ -1,6 +1,7 @@
 contract EasyPrivateVoting {
     // docs:start:imports
     use dep::aztec::prelude::{AztecAddress, FunctionSelector, PrivateContext, Map, PublicMutable, SharedImmutable};
+    use dep::aztec::keys::getters::get_historical_public_keys;
     // docs:end:imports
     // docs:start:storage_struct
     #[aztec(storage)]
@@ -28,7 +29,7 @@ contract EasyPrivateVoting {
         // Below, we make sure to get our nullifier public key at a specific block. By pinning the nullifier public key at a specific block,
         // rotating keys will have no effect on the nullifier being produced, and voting again after will fail because the same nullifier is computed each time the user votes.
         let header_at_active_at_block = context.get_header_at(storage.active_at_block.read_private());
-        let msg_sender_npk_m_hash = header_at_active_at_block.get_npk_m_hash(&mut context, context.msg_sender());
+        let msg_sender_npk_m_hash = get_historical_public_keys(header_at_active_at_block, context.msg_sender()).npk_m.hash();
 
         let secret = context.request_nsk_app(msg_sender_npk_m_hash); // get secret key of caller of function
         let nullifier = std::hash::pedersen_hash([context.msg_sender().to_field(), secret]); // derive nullifier from sender and secret

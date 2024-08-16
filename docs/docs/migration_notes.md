@@ -6,6 +6,38 @@ keywords: [sandbox, aztec, notes, migration, updating, upgrading]
 
 Aztec is in full-speed development. Literally every version breaks compatibility with the previous ones. This page attempts to target errors and difficulties you might encounter when upgrading, and how to resolve them.
 
+## TBD
+
+### Key Rotation API overhaul
+
+Public keys (ivpk, ovpk, npk, tpk) should no longer be fetched using the old `get_[x]pk_m` methods on the `Header` struct, but rather by calling `get_current_public_keys`, which returns a `PublicKeys` struct with all four keys at once:
+
+```diff
++use dep::aztec::keys::getters::get_current_public_keys;
+
+-let header = context.header();
+-let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
+-let owner_ovpk_m = header.get_ovpk_m(&mut context, owner);
++let owner_keys = get_current_public_keys(&mut context, owner);
++let owner_ivpk_m = owner_keys.ivpk_m;
++let owner_ovpk_m = owner_keys.ovpk_m;
+```
+
+If using more than one key per account, this will result in very large circuit gate count reductions.
+
+Additionally, `get_historical_public_keys` was added to support reading historical keys using a historical header:
+
+```diff
++use dep::aztec::keys::getters::get_historical_public_keys;
+
+let historical_header = context.header_at(some_block_number);
+-let owner_ivpk_m = header.get_ivpk_m(&mut context, owner);
+-let owner_ovpk_m = header.get_ovpk_m(&mut context, owner);
++let owner_keys = get_historical_public_keys(historical_header, owner);
++let owner_ivpk_m = owner_keys.ivpk_m;
++let owner_ovpk_m = owner_keys.ovpk_m;
+```
+
 ## 0.48.0
 
 ### NoteInterface changes

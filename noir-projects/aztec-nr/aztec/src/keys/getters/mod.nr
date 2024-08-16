@@ -16,53 +16,19 @@ use crate::{
 }
 };
 
-global DELAY = 5;
-
 mod test;
-
-// docs:start:key-getters
-trait KeyGetters {
-  fn get_npk_m(header: Header, context: &mut PrivateContext, address: AztecAddress) -> Point;
-  fn get_ivpk_m(header: Header, context: &mut PrivateContext, address: AztecAddress) -> Point;
-  fn get_ovpk_m(header: Header, context: &mut PrivateContext, address: AztecAddress) -> Point;
-  fn get_tpk_m(header: Header, context: &mut PrivateContext, address: AztecAddress) -> Point;
-  fn get_npk_m_hash(header: Header, context: &mut PrivateContext, address: AztecAddress) -> Field;
-}
-
-impl KeyGetters for Header {
-    fn get_npk_m(self, _context: &mut PrivateContext, address: AztecAddress) -> Point {
-        get_historical_public_keys(self, address).npk_m
-    }
-
-    fn get_ivpk_m(self, _context: &mut PrivateContext, address: AztecAddress) -> Point {
-        get_historical_public_keys(self, address).ivpk_m
-    }
-
-    fn get_ovpk_m(self, _context: &mut PrivateContext, address: AztecAddress) -> Point {
-        get_historical_public_keys(self, address).ovpk_m
-    }
-
-    fn get_tpk_m(self, _context: &mut PrivateContext, address: AztecAddress) -> Point {
-        get_historical_public_keys(self, address).tpk_m
-    }
-
-    fn get_npk_m_hash(self, context: &mut PrivateContext, address: AztecAddress) -> Field {
-        self.get_npk_m(context, address).hash()
-    }
-}
-// docs:end:key-getters
-
-// A helper function since requesting nsk_app is very common
-// TODO(#6543)
-pub fn get_nsk_app(npk_m_hash: Field) -> Field {
-    get_key_validation_request(npk_m_hash, NULLIFIER_INDEX).sk_app
-}
 
 // This is the number of blocks that must pass after a key rotation event until the old keys are fully phased out and
 // become invalid.
 global KEY_REGISTRY_UPDATE_BLOCKS = 5;
 
 global KEY_REGISTRY_STORAGE_SLOT = 1;
+
+// A helper function since requesting nsk_app is very common
+// TODO(#6543)
+pub fn get_nsk_app(npk_m_hash: Field) -> Field {
+    get_key_validation_request(npk_m_hash, NULLIFIER_INDEX).sk_app
+}
 
 // Returns all current public keys for a given account, applying proper constraints to the context. We read all
 // keys at once since the constraints for reading them all are actually fewer than if we read them one at a time - any
