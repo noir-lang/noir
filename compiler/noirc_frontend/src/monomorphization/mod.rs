@@ -1031,9 +1031,12 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::Forall(_, _)
             | HirType::Constant(_)
-            | HirType::InfixExpr(..)
-            | HirType::Error => {
-                unreachable!("Unexpected type {} found", typ)
+            | HirType::InfixExpr(..) => {
+                unreachable!("Unexpected type {typ} found")
+            }
+            HirType::Error => {
+                let message = "Unexpected Type::Error found during monomorphization";
+                return Err(MonomorphizationError::InternalError { message, location });
             }
             HirType::Quoted(_) => unreachable!("Tried to translate Code type into runtime code"),
         })
