@@ -1,7 +1,11 @@
 use crate::option::Option;
 use crate::meta::op::UnaryOp;
+use crate::meta::op::BinaryOp;
 
 impl Expr {
+    #[builtin(expr_as_binary_op)]
+    fn as_binary_op(self) -> Option<(Expr, BinaryOp, Expr)> {}
+
     #[builtin(expr_as_bool)]
     fn as_bool(self) -> Option<bool> {}
 
