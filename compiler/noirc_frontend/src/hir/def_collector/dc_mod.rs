@@ -13,8 +13,8 @@ use crate::ast::{
     NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
     TypeImpl,
 };
-use crate::macros_api::{ModuleDefId, NodeInterner};
-use crate::node_interner::{ModuleAttributes, ReferenceId};
+use crate::macros_api::NodeInterner;
+use crate::node_interner::ModuleAttributes;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -236,11 +236,7 @@ impl<'a> ModCollector<'a> {
                 && !function.def.is_test()
                 && !function.def.is_private()
             {
-                context.def_interner.register_name_for_auto_import(
-                    function.def.name.0.contents.clone(),
-                    ModuleDefId::FunctionId(func_id),
-                    function.def.visibility,
-                );
+                context.def_interner.register_function(func_id, &function.def);
             }
 
             // Now link this func_id to a crate level map with the noir function and the module id
@@ -334,16 +330,8 @@ impl<'a> ModCollector<'a> {
             self.def_collector.items.types.insert(id, unresolved);
 
             if context.def_interner.is_in_lsp_mode() {
-                context.def_interner.add_definition_location(
-                    ReferenceId::Struct(id),
-                    Some(ModuleId { krate, local_id: self.module_id }),
-                );
-
-                context.def_interner.register_name_for_auto_import(
-                    name.to_string(),
-                    ModuleDefId::TypeId(id),
-                    ItemVisibility::Public,
-                );
+                let parent_module_id = ModuleId { krate, local_id: self.module_id };
+                context.def_interner.register_struct(id, name.to_string(), parent_module_id);
             }
         }
         definition_errors
@@ -416,16 +404,9 @@ impl<'a> ModCollector<'a> {
             self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
 
             if context.def_interner.is_in_lsp_mode() {
-                context.def_interner.add_definition_location(
-                    ReferenceId::Alias(type_alias_id),
-                    Some(ModuleId { krate, local_id: self.module_id }),
-                );
-
-                context.def_interner.register_name_for_auto_import(
-                    name.to_string(),
-                    ModuleDefId::TypeAliasId(type_alias_id),
-                    ItemVisibility::Public,
-                );
+                let parent_module_id = ModuleId { krate, local_id: self.module_id };
+                let name = name.to_string();
+                context.def_interner.register_type_alias(type_alias_id, name, parent_module_id);
             }
         }
         errors
@@ -595,16 +576,8 @@ impl<'a> ModCollector<'a> {
             context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
 
             if context.def_interner.is_in_lsp_mode() {
-                context.def_interner.add_definition_location(
-                    ReferenceId::Trait(trait_id),
-                    Some(ModuleId { krate, local_id: self.module_id }),
-                );
-
-                context.def_interner.register_name_for_auto_import(
-                    name.to_string(),
-                    ModuleDefId::TraitId(trait_id),
-                    ItemVisibility::Public,
-                );
+                let parent_module_id = ModuleId { krate, local_id: self.module_id };
+                context.def_interner.register_trait(trait_id, name.to_string(), parent_module_id);
             }
 
             self.def_collector.items.traits.insert(trait_id, unresolved);
@@ -803,11 +776,7 @@ impl<'a> ModCollector<'a> {
             );
 
             if context.def_interner.is_in_lsp_mode() {
-                context.def_interner.register_name_for_auto_import(
-                    mod_name.0.contents.clone(),
-                    ModuleDefId::ModuleId(mod_id),
-                    ItemVisibility::Public,
-                );
+                context.def_interner.register_module(mod_id, mod_name.0.contents.clone());
             }
         }
 

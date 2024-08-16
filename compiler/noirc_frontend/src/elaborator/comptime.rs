@@ -20,8 +20,7 @@ use crate::{
     hir_def::expr::HirIdent,
     lexer::Lexer,
     macros_api::{
-        Expression, ExpressionKind, HirExpression, ModuleDefId, NodeInterner, SecondaryAttribute,
-        StructId,
+        Expression, ExpressionKind, HirExpression, NodeInterner, SecondaryAttribute, StructId,
     },
     node_interner::{DefinitionKind, DependencyId, FuncId, TraitId},
     parser::{self, TopLevelStatement},
@@ -273,11 +272,7 @@ impl<'context> Elaborator<'context> {
                     && !function.def.is_test()
                     && !function.def.is_private()
                 {
-                    self.interner.register_name_for_auto_import(
-                        function.def.name.0.contents.clone(),
-                        ModuleDefId::FunctionId(id),
-                        function.def.visibility,
-                    );
+                    self.interner.register_function(id, &function.def);
                 }
 
                 let functions = vec![(self.local_module, id, function)];

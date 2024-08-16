@@ -4,7 +4,7 @@ use rangemap::RangeMap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    ast::ItemVisibility,
+    ast::{FunctionDefinition, ItemVisibility},
     hir::def_map::{ModuleDefId, ModuleId},
     macros_api::{NodeInterner, StructId},
     node_interner::{DefinitionId, FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId},
@@ -277,7 +277,61 @@ impl NodeInterner {
             .next()
     }
 
-    pub(crate) fn register_name_for_auto_import(
+    pub(crate) fn register_module(&mut self, id: ModuleId, name: String) {
+        self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), ItemVisibility::Public);
+    }
+
+    pub(crate) fn register_global(
+        &mut self,
+        id: GlobalId,
+        name: String,
+        parent_module_id: ModuleId,
+    ) {
+        self.add_definition_location(ReferenceId::Global(id), Some(parent_module_id));
+
+        let visibility = ItemVisibility::Public;
+        self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility);
+    }
+
+    pub(crate) fn register_struct(
+        &mut self,
+        id: StructId,
+        name: String,
+        parent_module_id: ModuleId,
+    ) {
+        self.add_definition_location(ReferenceId::Struct(id), Some(parent_module_id));
+
+        let visibility = ItemVisibility::Public;
+        self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility);
+    }
+
+    pub(crate) fn register_trait(&mut self, id: TraitId, name: String, parent_module_id: ModuleId) {
+        self.add_definition_location(ReferenceId::Trait(id), Some(parent_module_id));
+
+        self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), ItemVisibility::Public);
+    }
+
+    pub(crate) fn register_type_alias(
+        &mut self,
+        id: TypeAliasId,
+        name: String,
+        parent_module_id: ModuleId,
+    ) {
+        self.add_definition_location(ReferenceId::Alias(id), Some(parent_module_id));
+
+        let visibility = ItemVisibility::Public;
+        self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility);
+    }
+
+    pub(crate) fn register_function(&mut self, id: FuncId, func_def: &FunctionDefinition) {
+        self.register_name_for_auto_import(
+            func_def.name.0.contents.clone(),
+            ModuleDefId::FunctionId(id),
+            func_def.visibility,
+        );
+    }
+
+    fn register_name_for_auto_import(
         &mut self,
         name: String,
         module_def_id: ModuleDefId,

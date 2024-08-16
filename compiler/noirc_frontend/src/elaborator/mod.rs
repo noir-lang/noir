@@ -1325,15 +1325,8 @@ impl<'context> Elaborator<'context> {
             self.elaborate_comptime_global(global_id);
         }
 
-        self.interner
-            .add_definition_location(ReferenceId::Global(global_id), Some(self.module_id()));
-
         if let Some(name) = name {
-            self.interner.register_name_for_auto_import(
-                name,
-                ModuleDefId::GlobalId(global_id),
-                ItemVisibility::Public,
-            );
+            self.interner.register_global(global_id, name, self.module_id());
         }
 
         self.local_module = old_module;
