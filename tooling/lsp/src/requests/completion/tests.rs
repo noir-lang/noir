@@ -1407,16 +1407,16 @@ mod completion_tests {
             })
         );
 
-        // assert_eq!(
-        //     item.additional_text_edits,
-        //     Some(vec![TextEdit {
-        //         range: Range {
-        //             start: Position { line: 0, character: 0 },
-        //             end: Position { line: 0, character: 0 },
-        //         },
-        //         new_text: "use foo::bar::hello_world;\n".to_string(),
-        //     }])
-        // );
+        assert_eq!(
+            item.additional_text_edits,
+            Some(vec![TextEdit {
+                range: Range {
+                    start: Position { line: 2, character: 4 },
+                    end: Position { line: 2, character: 4 },
+                },
+                new_text: "use bar::hello_world;\n    ".to_string(),
+            }])
+        );
     }
 
     #[test]
@@ -1447,15 +1447,15 @@ mod completion_tests {
             })
         );
 
-        // assert_eq!(
-        //     item.additional_text_edits,
-        //     Some(vec![TextEdit {
-        //         range: Range {
-        //             start: Position { line: 0, character: 0 },
-        //             end: Position { line: 0, character: 0 },
-        //         },
-        //         new_text: "use foo::bar::hello_world;\n".to_string(),
-        //     }])
-        // );
+        assert_eq!(
+            item.additional_text_edits,
+            Some(vec![TextEdit {
+                range: Range {
+                    start: Position { line: 7, character: 8 },
+                    end: Position { line: 7, character: 8 },
+                },
+                new_text: "use crate::foo::bar::hello_world;\n        ".to_string(),
+            }])
+        );
     }
 }

@@ -48,12 +48,16 @@ impl<'a> NodeFinder<'a> {
                 label_details.detail = Some(format!("(use {}::{})", module_full_path, name));
                 completion_item.label_details = Some(label_details);
 
+                let line = self.autoimport_line as u32;
+                let character = (self.nesting * 4) as u32;
+                let indent = " ".repeat(self.nesting * 4);
+
                 completion_item.additional_text_edits = Some(vec![TextEdit {
                     range: Range {
-                        start: Position { line: 0, character: 0 },
-                        end: Position { line: 0, character: 0 },
+                        start: Position { line, character },
+                        end: Position { line, character },
                     },
-                    new_text: format!("use {}::{};\n", module_full_path, name),
+                    new_text: format!("use {}::{};\n{}", module_full_path, name, indent),
                 }]);
 
                 self.completion_items.push(completion_item);

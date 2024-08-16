@@ -8,7 +8,7 @@ use completion_items::{
     crate_completion_item, field_completion_item, simple_completion_item,
     struct_field_completion_item,
 };
-use fm::{FileId, PathString};
+use fm::{FileId, FileMap, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, ModuleCompletionKind, RequestedItems};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use noirc_errors::{Location, Span};
@@ -33,7 +33,7 @@ use noirc_frontend::{
 };
 use sort_text::underscore_sort_text;
 
-use crate::{utils, LspState};
+use crate::{requests::to_lsp_location, utils, LspState};
 
 use super::process_request;
 
@@ -66,6 +66,7 @@ pub(crate) fn on_completion_request(
                 let (parsed_module, _errors) = noirc_frontend::parse_program(source);
 
                 let mut finder = NodeFinder::new(
+                    args.files,
                     file_id,
                     byte_index,
                     byte,
@@ -82,6 +83,7 @@ pub(crate) fn on_completion_request(
 }
 
 struct NodeFinder<'a> {
+    files: &'a FileMap,
     file: FileId,
     byte_index: usize,
     byte: Option<u8>,
@@ -103,10 +105,15 @@ struct NodeFinder<'a> {
     type_parameters: HashSet<String>,
     /// ModuleDefIds we already suggested, so we don't offer these for auto-import.
     suggested_module_def_ids: HashSet<ModuleDefId>,
+    /// How many nested `mod` we are in deep
+    nesting: usize,
+    /// The line where an autoimport must be inserted
+    autoimport_line: usize,
 }
 
 impl<'a> NodeFinder<'a> {
     fn new(
+        files: &'a FileMap,
         file: FileId,
         byte_index: usize,
         byte: Option<u8>,
@@ -127,6 +134,7 @@ impl<'a> NodeFinder<'a> {
         };
         let module_id = ModuleId { krate, local_id };
         Self {
+            files,
             file,
             byte_index,
             byte,
@@ -139,6 +147,8 @@ impl<'a> NodeFinder<'a> {
             local_variables: HashMap::new(),
             type_parameters: HashSet::new(),
             suggested_module_def_ids: HashSet::new(),
+            nesting: 0,
+            autoimport_line: 0,
         }
     }
 
@@ -184,10 +194,19 @@ impl<'a> NodeFinder<'a> {
                         ModuleId { krate: self.module_id.krate, local_id: *child_module };
                 }
 
+                let old_autoimport_line = self.autoimport_line;
+                self.nesting += 1;
+
+                if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
+                    self.autoimport_line = (lsp_location.range.start.line + 1) as usize;
+                }
+
                 self.find_in_parsed_module(&parsed_sub_module.contents);
 
                 // Restore the old module before continuing
                 self.module_id = previous_module_id;
+                self.nesting -= 1;
+                self.autoimport_line = old_autoimport_line;
             }
             ItemKind::Function(noir_function) => self.find_in_noir_function(noir_function),
             ItemKind::TraitImpl(noir_trait_impl) => self.find_in_noir_trait_impl(noir_trait_impl),
