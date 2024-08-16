@@ -30,7 +30,7 @@ contract AvmTest {
     use dep::aztec::state_vars::PublicMutable;
     use dep::aztec::protocol_types::{address::{AztecAddress, EthAddress}, constants::L1_TO_L2_MESSAGE_LENGTH, point::Point, scalar::Scalar};
     use dep::aztec::oracle::get_contract_instance::{get_contract_instance_avm, get_contract_instance_internal_avm};
-    use dep::aztec::protocol_types::abis::function_selector::FunctionSelector;
+    use dep::aztec::protocol_types::{abis::function_selector::FunctionSelector, storage::map::derive_storage_slot_in_map};
     use dep::aztec::context::gas::GasOpts;
     use dep::compressed_string::CompressedString;
 
@@ -76,7 +76,7 @@ contract AvmTest {
     fn set_storage_map(to: AztecAddress, amount: u32) -> Field {
         storage.map.at(to).write(amount);
         // returns storage slot for key
-        std::hash::pedersen_hash([storage.map.storage_slot, to.to_field()])
+        derive_storage_slot_in_map(storage.map.storage_slot, to)
     }
 
     #[aztec(public)]
@@ -84,7 +84,7 @@ contract AvmTest {
         let new_balance = storage.map.at(to).read().add(amount);
         storage.map.at(to).write(new_balance);
         // returns storage slot for key
-        std::hash::pedersen_hash([storage.map.storage_slot, to.to_field()])
+        derive_storage_slot_in_map(storage.map.storage_slot, to)
     }
 
     #[aztec(public)]

@@ -1,8 +1,7 @@
 use crate::{
     abis::function_selector::FunctionSelector, address::{EthAddress, AztecAddress},
-    constants::{GAS_LENGTH, FIXED_DA_GAS, FIXED_L2_GAS}, hash::pedersen_hash,
-    traits::{Deserialize, Hash, Serialize, Empty}, abis::side_effect::Ordered, utils::reader::Reader,
-    abis::gas_fees::GasFees
+    constants::{GAS_LENGTH, FIXED_DA_GAS, FIXED_L2_GAS}, traits::{Deserialize, Hash, Serialize, Empty},
+    abis::side_effect::Ordered, utils::reader::Reader, abis::gas_fees::GasFees
 };
 use std::ops::{Add, Sub};
 

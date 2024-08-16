@@ -1,5 +1,4 @@
-use dep::aztec::context::{PrivateContext, PublicContext};
-use dep::aztec::protocol_types::{address::AztecAddress, abis::function_selector::FunctionSelector, hash::pedersen_hash};
+use dep::aztec::context::PrivateContext;
 
 use crate::entrypoint::{app::AppPayload, fee::FeePayload};
 use crate::auth::{IS_VALID_SELECTOR, compute_authwit_message_hash};

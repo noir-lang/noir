@@ -1,16 +1,6 @@
-use dep::protocol_types::{
-    hash::{pedersen_hash, poseidon2_hash}, traits::{FromField, ToField}, address::AztecAddress,
-    header::Header
-};
+use dep::protocol_types::{traits::{FromField, ToField}, address::AztecAddress, header::Header};
 
-use crate::context::PrivateContext;
-use crate::state_vars::{
-    storage::Storage,
-    shared_mutable::{
-    shared_mutable::SharedMutable, scheduled_delay_change::ScheduledDelayChange,
-    scheduled_value_change::ScheduledValueChange
-}
-};
+use crate::{context::PrivateContext, state_vars::shared_mutable::shared_mutable::SharedMutable};
 
 struct SharedMutablePrivateGetter<T, INITIAL_DELAY> {
     context: &mut PrivateContext,

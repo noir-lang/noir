@@ -1,4 +1,4 @@
-use dep::protocol_types::{hash::pedersen_hash, storage::map::derive_storage_slot_in_map, traits::ToField};
+use dep::protocol_types::{storage::map::derive_storage_slot_in_map, traits::ToField};
 use crate::state_vars::storage::Storage;
 
 // docs:start:map

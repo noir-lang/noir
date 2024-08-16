@@ -1,6 +1,6 @@
 use dep::aztec::prelude::{AztecAddress, NoteGetterOptions, NoteViewerOptions, NoteHeader, NoteInterface, PrivateSet, Map};
 use dep::aztec::{
-    context::{PrivateContext, UnconstrainedContext}, hash::pedersen_hash,
+    context::{PrivateContext, UnconstrainedContext},
     protocol_types::constants::MAX_NOTE_HASH_READ_REQUESTS_PER_CALL,
     note::{note_getter::view_notes, note_getter_options::SortOrder, note_emission::OuterNoteEmission}
 };

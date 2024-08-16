@@ -1,6 +1,6 @@
 use crate::{
     abis::function_selector::FunctionSelector, address::{EthAddress, AztecAddress},
-    constants::GAS_FEES_LENGTH, hash::pedersen_hash, traits::{Deserialize, Hash, Serialize, Empty},
+    constants::GAS_FEES_LENGTH, traits::{Deserialize, Hash, Serialize, Empty},
     abis::side_effect::Ordered, utils::reader::Reader
 };
 

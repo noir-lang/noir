@@ -1,7 +1,4 @@
-use dep::aztec::{
-    note::{note_header::NoteHeader, note_interface::NoteInterface}, hash::pedersen_hash,
-    context::PrivateContext
-};
+use dep::aztec::{note::{note_header::NoteHeader, note_interface::NoteInterface}, context::PrivateContext};
 
 global TEST_NOTE_LEN: Field = 1;
 // TEST_NOTE_LENGTH * 32 + 32(storage_slot as bytes) + 32(note_type_id as bytes)

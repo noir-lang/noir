@@ -5,8 +5,7 @@ use crate::{
     GAS_SETTINGS_LENGTH, DEFAULT_GAS_LIMIT, DEFAULT_TEARDOWN_GAS_LIMIT, DEFAULT_MAX_FEE_PER_GAS,
     DEFAULT_INCLUSION_FEE
 },
-    hash::pedersen_hash, traits::{Deserialize, Hash, Serialize, Empty}, abis::side_effect::Ordered,
-    utils::reader::Reader
+    traits::{Deserialize, Hash, Serialize, Empty}, abis::side_effect::Ordered, utils::reader::Reader
 };
 
 struct GasSettings {
