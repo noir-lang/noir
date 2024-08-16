@@ -1,4 +1,4 @@
-name: Report Brillig opcodes diff
+name: Report Brillig bytecode size diff
 
 on:
   push:
@@ -42,7 +42,7 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-  compare_brillig_opcode_reports:
+  compare_brillig_bytecode_size_reports:
     needs: [build-nargo]
     runs-on: ubuntu-latest
     permissions:
@@ -65,26 +65,26 @@ jobs:
           export PATH="$PATH:$(dirname $nargo_binary)"
           nargo -V
 
-      - name: Generate Brillig opcodes report
+      - name: Generate Brillig bytecode size report
         working-directory: ./test_programs
         run: |
           chmod +x gates_report_brillig.sh
           ./gates_report_brillig.sh
           mv gates_report_brillig.json ../gates_report_brillig.json
 
-      - name: Compare Brillig opcode reports
-        id: gates_diff
+      - name: Compare Brillig bytecode size reports
+        id: brillig_bytecode_diff
         uses: noir-lang/noir-gates-diff@93e4cae1229d669de61f0ac76d32e47cefe4adcc
         with:
           report: gates_report_brillig.json
           header: |
             # Changes to Brillig byte code sizes
-          summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
+          summaryQuantile: 0.9 # only display the 10% most significant bytecode size diffs in the summary (defaults to 20%)
 
-      - name: Add gates diff to sticky comment
+      - name: Add bytecode size diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          # delete the comment in case changes no longer impact circuit sizes
-          delete: ${{ !steps.gates_diff.outputs.markdown }}
-          message: ${{ steps.gates_diff.outputs.markdown }}
+          # delete the comment in case changes no longer impact brillig bytecode sizes
+          delete: ${{ !steps.brillig_bytecode_diff.outputs.markdown }}
+          message: ${{ steps.brillig_bytecode_diff.outputs.markdown }}
