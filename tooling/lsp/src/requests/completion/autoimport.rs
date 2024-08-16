@@ -37,8 +37,12 @@ impl<'a> NodeFinder<'a> {
                     continue;
                 };
 
-                let module_full_path =
-                    module_id_full_path(parent_module, self.interner, &self.dependencies);
+                let module_full_path = module_id_path(
+                    parent_module,
+                    &self.module_id,
+                    self.interner,
+                    &self.dependencies,
+                );
 
                 let mut label_details = completion_item.label_details.unwrap();
                 label_details.detail = Some(format!("(use {}::{})", module_full_path, name));
@@ -75,16 +79,19 @@ fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
     }
 }
 
-fn module_id_full_path(
-    module: &ModuleId,
+/// Computes the path of `module_id` reltive to `current_module_id`.
+/// If it's not relative, the full path is returned.
+fn module_id_path(
+    module_id: &ModuleId,
+    current_module_id: &ModuleId,
     interner: &NodeInterner,
     dependencies: &[Dependency],
 ) -> String {
     let mut string = String::new();
 
-    let crate_id = module.krate;
+    let crate_id = module_id.krate;
     let crate_name = match crate_id {
-        CrateId::Root(_) => None,
+        CrateId::Root(_) => Some("crate".to_string()),
         CrateId::Crate(_) => dependencies
             .iter()
             .find(|dep| dep.crate_id == crate_id)
@@ -100,7 +107,7 @@ fn module_id_full_path(
         false
     };
 
-    let Some(module_attributes) = interner.try_module_attributes(module) else {
+    let Some(module_attributes) = interner.try_module_attributes(module_id) else {
         return string;
     };
 
@@ -110,10 +117,21 @@ fn module_id_full_path(
 
     let mut segments = Vec::new();
     let mut current_attributes = module_attributes;
-    while let Some(parent_attributes) = interner.try_module_attributes(&ModuleId {
-        krate: module.krate,
-        local_id: current_attributes.parent,
-    }) {
+    loop {
+        let parent_module_id =
+            &ModuleId { krate: module_id.krate, local_id: current_attributes.parent };
+
+        // If the parent module is the current module we stop because we want a relative path to the module
+        if current_module_id == parent_module_id {
+            // When the path is relative we don't want the "crate::" prefix anymore
+            string = string.strip_prefix("crate::").unwrap_or(&string).to_string();
+            break;
+        }
+
+        let Some(parent_attributes) = interner.try_module_attributes(parent_module_id) else {
+            break;
+        };
+
         segments.push(&parent_attributes.name);
         current_attributes = parent_attributes;
     }

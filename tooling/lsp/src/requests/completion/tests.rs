@@ -1380,4 +1380,82 @@ mod completion_tests {
             }])
         );
     }
+
+    #[test]
+    async fn test_autoimports_when_in_nested_module_and_item_is_further_nested() {
+        let src = r#"
+            mod foo {
+                mod bar {
+                    pub fn hello_world() {}
+                }
+
+                fn foo() {
+                    hel>|<
+                }
+            }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.label, "hello_world()");
+        assert_eq!(
+            item.label_details,
+            Some(CompletionItemLabelDetails {
+                detail: Some("(use bar::hello_world)".to_string()),
+                description: Some("fn()".to_string())
+            })
+        );
+
+        // assert_eq!(
+        //     item.additional_text_edits,
+        //     Some(vec![TextEdit {
+        //         range: Range {
+        //             start: Position { line: 0, character: 0 },
+        //             end: Position { line: 0, character: 0 },
+        //         },
+        //         new_text: "use foo::bar::hello_world;\n".to_string(),
+        //     }])
+        // );
+    }
+
+    #[test]
+    async fn test_autoimports_when_in_nested_module_and_item_is_not_further_nested() {
+        let src = r#"
+            mod foo {
+                mod bar {
+                    pub fn hello_world() {}
+                }
+
+                mod baz {
+                    fn foo() {
+                        hel>|<
+                    }
+                }
+            }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.label, "hello_world()");
+        assert_eq!(
+            item.label_details,
+            Some(CompletionItemLabelDetails {
+                detail: Some("(use crate::foo::bar::hello_world)".to_string()),
+                description: Some("fn()".to_string())
+            })
+        );
+
+        // assert_eq!(
+        //     item.additional_text_edits,
+        //     Some(vec![TextEdit {
+        //         range: Range {
+        //             start: Position { line: 0, character: 0 },
+        //             end: Position { line: 0, character: 0 },
+        //         },
+        //         new_text: "use foo::bar::hello_world;\n".to_string(),
+        //     }])
+        // );
+    }
 }
