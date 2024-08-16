@@ -159,7 +159,6 @@ impl Ord for u32 {
     }
 }
 
-
 impl Ord for u16 {
     fn cmp(self, other: u16) -> Ordering {
         if self < other {
