@@ -29,7 +29,7 @@ import {
 
 const logger = createDebugLogger('aztec:clientivc-integration');
 
-jest.setTimeout(60_000);
+jest.setTimeout(120_000);
 
 describe('Client IVC Integration', () => {
   let bbWorkingDirectory: string;

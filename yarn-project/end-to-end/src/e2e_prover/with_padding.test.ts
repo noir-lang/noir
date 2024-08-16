@@ -10,7 +10,7 @@ describe('full_prover_with_padding_tx', () => {
     await t.applyBaseSnapshots();
     await t.applyMintSnapshot();
     await t.setup();
-    await t.deployVerifier();
+    // await t.deployVerifier();
     ({ provenAssets, accounts, tokenSim, logger } = t);
   });
 

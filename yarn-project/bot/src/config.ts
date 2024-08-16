@@ -7,6 +7,9 @@ import {
   numberConfigHelper,
 } from '@aztec/foundation/config';
 
+const botFollowChain = ['NONE', 'PENDING', 'PROVEN'] as const;
+type BotFollowChain = (typeof botFollowChain)[number];
+
 export type BotConfig = {
   /** URL to the PXE for sending txs, or undefined if an in-proc PXE is used. */
   pxeUrl: string | undefined;
@@ -28,8 +31,7 @@ export type BotConfig = {
   noStart: boolean;
   /** How long to wait for a tx to be mined before reporting an error. */
   txMinedWaitSeconds: number;
-  /** Don't wait for transfer transactions. */
-  noWaitForTransfers: boolean;
+  followChain: BotFollowChain;
 };
 
 export const botConfigMappings: ConfigMappingsType<BotConfig> = {
@@ -86,10 +88,16 @@ export const botConfigMappings: ConfigMappingsType<BotConfig> = {
     description: 'How long to wait for a tx to be mined before reporting an error.',
     ...numberConfigHelper(180),
   },
-  noWaitForTransfers: {
-    env: 'BOT_NO_WAIT_FOR_TRANSFERS',
-    description: "Don't wait for transfer transactions.",
-    ...booleanConfigHelper(),
+  followChain: {
+    env: 'BOT_FOLLOW_CHAIN',
+    description: 'Which chain the bot follows',
+    defaultValue: 'none',
+    parseEnv(val) {
+      if (!botFollowChain.includes(val as any)) {
+        throw new Error(`Invalid value for BOT_FOLLOW_CHAIN: ${val}`);
+      }
+      return val as BotFollowChain;
+    },
   },
 };
 

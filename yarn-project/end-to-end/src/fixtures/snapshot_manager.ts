@@ -1,4 +1,5 @@
 import { SchnorrAccountContractArtifact, getSchnorrAccount } from '@aztec/accounts/schnorr';
+import { type Archiver, createArchiver } from '@aztec/archiver';
 import { type AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import {
   type AztecAddress,
@@ -19,7 +20,10 @@ import { asyncMap } from '@aztec/foundation/async-map';
 import { type Logger, createDebugLogger } from '@aztec/foundation/log';
 import { makeBackoff, retry } from '@aztec/foundation/retry';
 import { resolver, reviver } from '@aztec/foundation/serialize';
+import { createStore } from '@aztec/kv-store/utils';
+import { type ProverNode, type ProverNodeConfig, createProverNode } from '@aztec/prover-node';
 import { type PXEService, createPXEService, getPXEServiceConfig } from '@aztec/pxe';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { createAndStartTelemetryClient, getConfigEnvVars as getTelemetryConfig } from '@aztec/telemetry-client/start';
 
 import { type Anvil, createAnvil } from '@viem/anvil';
@@ -43,6 +47,7 @@ export type SubsystemsContext = {
   aztecNodeConfig: AztecNodeConfig;
   pxe: PXEService;
   deployL1ContractsValues: DeployL1Contracts;
+  proverNode: ProverNode;
 };
 
 type SnapshotEntry = {
@@ -216,6 +221,7 @@ async function teardown(context: SubsystemsContext | undefined) {
   if (!context) {
     return;
   }
+  await context.proverNode.stop();
   await context.aztecNode.stop();
   await context.pxe.stop();
   await context.acvmConfig?.cleanup();
@@ -260,6 +266,7 @@ async function setupFromFresh(
   const publisherPrivKey = publisherPrivKeyRaw === null ? null : Buffer.from(publisherPrivKeyRaw);
 
   const validatorPrivKey = getPrivateKeyFromIndex(1);
+  const proverNodePrivateKey = getPrivateKeyFromIndex(2);
 
   aztecNodeConfig.publisherPrivateKey = `0x${publisherPrivKey!.toString('hex')}`;
   aztecNodeConfig.validatorPrivateKey = `0x${validatorPrivKey!.toString('hex')}`;
@@ -283,6 +290,38 @@ async function setupFromFresh(
   const telemetry = createAndStartTelemetryClient(getTelemetryConfig());
   logger.verbose('Creating and synching an aztec node...');
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig, telemetry);
+
+  // Creating temp store and archiver for simulated prover node
+
+  const store = await createStore(
+    { dataDirectory: undefined },
+    deployL1ContractsValues.l1ContractAddresses.rollupAddress,
+  );
+
+  const archiver = await createArchiver(
+    { ...aztecNodeConfig, dataDirectory: undefined },
+    store,
+    new NoopTelemetryClient(),
+    { blockUntilSync: true },
+  );
+
+  // Prover node config is for simulated proofs
+  const proverConfig: ProverNodeConfig = {
+    ...aztecNodeConfig,
+    txProviderNodeUrl: undefined,
+    dataDirectory: undefined,
+    proverId: new Fr(42),
+    realProofs: false,
+    proverAgentConcurrency: 2,
+    publisherPrivateKey: `0x${proverNodePrivateKey!.toString('hex')}`,
+  };
+  const proverNode = await createProverNode(proverConfig, {
+    aztecNodeTxProvider: aztecNode,
+    archiver: archiver as Archiver,
+  });
+  proverNode.start();
+
+  logger.verbose('Prover node started');
 
   logger.verbose('Creating pxe...');
   const pxeConfig = getPXEServiceConfig();
@@ -310,6 +349,7 @@ async function setupFromFresh(
     acvmConfig,
     bbConfig,
     deployL1ContractsValues,
+    proverNode,
   };
 }
 
@@ -357,6 +397,34 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
   const telemetry = createAndStartTelemetryClient(getTelemetryConfig());
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig, telemetry);
 
+  // Creating temp store and archiver for simulated prover node
+
+  const store = await createStore({ dataDirectory: undefined }, aztecNodeConfig.l1Contracts.rollupAddress);
+
+  const archiver = await createArchiver(
+    { ...aztecNodeConfig, dataDirectory: undefined },
+    store,
+    new NoopTelemetryClient(),
+    { blockUntilSync: true },
+  );
+
+  // Prover node config is for simulated proofs
+  const proverConfig: ProverNodeConfig = {
+    ...aztecNodeConfig,
+    txProviderNodeUrl: undefined,
+    dataDirectory: undefined,
+    proverId: new Fr(42),
+    realProofs: false,
+    proverAgentConcurrency: 2,
+  };
+  const proverNode = await createProverNode(proverConfig, {
+    aztecNodeTxProvider: aztecNode,
+    archiver: archiver as Archiver,
+  });
+  proverNode.start();
+
+  logger.verbose('Prover node started');
+
   logger.verbose('Creating pxe...');
   const pxeConfig = getPXEServiceConfig();
   pxeConfig.dataDirectory = statePath;
@@ -369,6 +437,7 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
     pxe,
     acvmConfig,
     bbConfig,
+    proverNode,
     deployL1ContractsValues: {
       walletClient,
       publicClient,
@@ -409,7 +478,7 @@ export const addAccounts =
 
     logger.verbose('Deploying accounts...');
     const txs = await Promise.all(accountManagers.map(account => account.deploy()));
-    await Promise.all(txs.map(tx => tx.wait({ interval: 0.1 })));
+    await Promise.all(txs.map(tx => tx.wait({ interval: 0.1, proven: true })));
 
     return { accountKeys };
   };
@@ -427,5 +496,5 @@ export async function publicDeployAccounts(sender: Wallet, accountsToDeploy: (Co
     (await registerContractClass(sender, SchnorrAccountContractArtifact)).request(),
     ...instances.map(instance => deployInstance(sender, instance!).request()),
   ]);
-  await batch.send().wait();
+  await batch.send().wait({ proven: true });
 }

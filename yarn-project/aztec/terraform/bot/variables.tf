@@ -43,9 +43,8 @@ variable "BOT_TX_MINED_WAIT_SECONDS" {
   type = string
 }
 
-variable "BOT_NO_WAIT_FOR_TRANSFERS" {
-  type    = string
-  default = true
+variable "BOT_FOLLOW_CHAIN" {
+  type = string
 }
 
 variable "PROVING_ENABLED" {
