@@ -6,7 +6,7 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::ast::{NoirFunction, Visibility};
+use noirc_frontend::{ast::{NoirFunction, Visibility}, macros_api::UnresolvedTypeData};
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{Item, ItemKind},
@@ -115,27 +115,31 @@ impl super::FmtVisitor<'_> {
     ) -> String {
         let mut result = String::new();
 
-        if span.start() == span.end() {
-            result.push_str(self.slice(params_end..func_span.start()));
-        } else {
-            result.push_str(" -> ");
+        if func.return_type().typ != UnresolvedTypeData::Unit {
+            if span.start() == span.end() {
+                result.push_str(self.slice(params_end..func_span.start()));
+            } else {
+                result.push_str(" -> ");
 
-            let visibility = match func.def.return_visibility {
-                Visibility::Public => "pub",
-                Visibility::ReturnData => "return_data",
-                Visibility::Private => "",
-                Visibility::CallData(_) => {
-                    unreachable!("call_data cannot be used for return value")
+                let visibility = match func.def.return_visibility {
+                    Visibility::Public => "pub",
+                    Visibility::ReturnData => "return_data",
+                    Visibility::Private => "",
+                    Visibility::CallData(_) => {
+                        unreachable!("call_data cannot be used for return value")
+                    }
+                };
+                result.push_str(&append_space_if_nonempty(visibility.into()));
+
+                let typ = rewrite::typ(self, self.shape(), func.return_type());
+                result.push_str(&typ);
+
+                dbg!(span);
+                dbg!(func_span);
+                let slice = self.slice(span.end()..func_span.start());
+                if !slice.trim().is_empty() {
+                    result.push_str(slice);
                 }
-            };
-            result.push_str(&append_space_if_nonempty(visibility.into()));
-
-            let typ = rewrite::typ(self, self.shape(), func.return_type());
-            result.push_str(&typ);
-
-            let slice = self.slice(span.end()..func_span.start());
-            if !slice.trim().is_empty() {
-                result.push_str(slice);
             }
         }
 
