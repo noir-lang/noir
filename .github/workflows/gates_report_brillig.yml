@@ -68,12 +68,13 @@ jobs:
       - name: Generate Brillig opcodes report
         working-directory: ./test_programs
         run: |
+          chmod +x gates_report_brillig.sh
           ./gates_report_brillig.sh
           mv gates_report_brillig.json ../gates_report_brillig.json
 
       - name: Compare Brillig opcode reports
         id: gates_diff
-        uses: noir-lang/noir-gates-diff@6523ebb2b1eda8efef9cfc2fefada821ead948b7
+        uses: noir-lang/noir-gates-diff@93e4cae1229d669de61f0ac76d32e47cefe4adcc
         with:
           report: gates_report_brillig.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
