@@ -74,11 +74,11 @@ jobs:
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
-        uses: noir-lang/noir-gates-diff@93e4cae1229d669de61f0ac76d32e47cefe4adcc
+        uses: noir-lang/noir-gates-diff@cd8721ebe0ad9a67889c601063cccc33a8ca7f32
         with:
           report: gates_report_brillig.json
           header: |
-            # Changes to Brillig byte code sizes
+            # Changes to Brillig bytecode sizes
           summaryQuantile: 0.9 # only display the 10% most significant bytecode size diffs in the summary (defaults to 20%)
 
       - name: Add bytecode size diff to sticky comment
