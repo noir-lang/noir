@@ -13,8 +13,8 @@ use super::{
 };
 
 impl<'a> NodeFinder<'a> {
-    pub(super) fn complete_autoimports(&mut self, prefix: &str, requested_items: RequestedItems) {
-        for (name, entries) in self.interner.get_autoimport_names() {
+    pub(super) fn complete_auto_imports(&mut self, prefix: &str, requested_items: RequestedItems) {
+        for (name, entries) in self.interner.get_auto_import_names() {
             if !name_matches(name, prefix) {
                 continue;
             }
@@ -80,7 +80,7 @@ impl<'a> NodeFinder<'a> {
                 label_details.detail = Some(format!("(use {})", full_path));
                 completion_item.label_details = Some(label_details);
 
-                let line = self.autoimport_line as u32;
+                let line = self.auto_import_line as u32;
                 let character = (self.nesting * 4) as u32;
                 let indent = " ".repeat(self.nesting * 4);
                 let mut newlines = "\n";

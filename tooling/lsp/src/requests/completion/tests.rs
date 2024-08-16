@@ -97,7 +97,7 @@ mod completion_tests {
         assert_items_match(items, expected);
     }
 
-    async fn assert_completion_excluding_autoimport(src: &str, expected: Vec<CompletionItem>) {
+    async fn assert_completion_excluding_auto_import(src: &str, expected: Vec<CompletionItem>) {
         let items = get_completions(src).await;
         let items = items.into_iter().filter(|item| item.additional_text_edits.is_none()).collect();
         assert_items_match(items, expected);
@@ -374,7 +374,7 @@ mod completion_tests {
             l>|<
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "local",
@@ -394,7 +394,7 @@ mod completion_tests {
             l>|<
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "local",
@@ -412,7 +412,7 @@ mod completion_tests {
             l>|<
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "local",
@@ -432,7 +432,7 @@ mod completion_tests {
             h>|<
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![function_completion_item("hello()", "hello()", "fn()")],
         )
@@ -448,7 +448,7 @@ mod completion_tests {
             h>|<
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![function_completion_item(
                 "hello(…)",
@@ -466,7 +466,7 @@ mod completion_tests {
             a>|<
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![
                 snippet_completion_item(
@@ -498,7 +498,7 @@ mod completion_tests {
             }
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "SomeStruct",
@@ -521,7 +521,7 @@ mod completion_tests {
             }
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "SomeStruct",
@@ -541,7 +541,7 @@ mod completion_tests {
             }
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "index",
@@ -561,7 +561,7 @@ mod completion_tests {
             lambda(|var| v>|<)
           }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "var",
@@ -752,7 +752,7 @@ mod completion_tests {
                 let x = t>|<
             }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "true",
@@ -776,7 +776,7 @@ mod completion_tests {
                 }
             }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![
                 simple_completion_item(
@@ -804,7 +804,7 @@ mod completion_tests {
                 }
             }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![
                 simple_completion_item(
@@ -832,7 +832,7 @@ mod completion_tests {
                 g>|<
             }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "good",
@@ -854,7 +854,7 @@ mod completion_tests {
                 }
             }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![
                 simple_completion_item(
@@ -880,7 +880,7 @@ mod completion_tests {
                 g>|<
             }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item(
                 "good",
@@ -898,7 +898,7 @@ mod completion_tests {
                 context: C>|<
             }
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item("Context", CompletionItemKind::TYPE_PARAMETER, None)],
         )
@@ -964,7 +964,7 @@ mod completion_tests {
         let src = r#"
             fn foo<Context>(x: C>|<) {}
         "#;
-        assert_completion_excluding_autoimport(
+        assert_completion_excluding_auto_import(
             src,
             vec![simple_completion_item("Context", CompletionItemKind::TYPE_PARAMETER, None)],
         )
@@ -1335,7 +1335,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_autoimports_x() {
+    async fn test_auto_imports_x() {
         let src = r#"
             mod foo {
                 mod bar {
@@ -1381,7 +1381,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_autoimports_when_in_nested_module_and_item_is_further_nested() {
+    async fn test_auto_imports_when_in_nested_module_and_item_is_further_nested() {
         let src = r#"
             mod foo {
                 mod bar {
@@ -1419,7 +1419,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_autoimports_when_in_nested_module_and_item_is_not_further_nested() {
+    async fn test_auto_imports_when_in_nested_module_and_item_is_not_further_nested() {
         let src = r#"
             mod foo {
                 mod bar {
@@ -1459,7 +1459,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_autoimport_inserts_after_last_use() {
+    async fn test_auto_import_inserts_after_last_use() {
         let src = r#"
             mod foo {
                 mod bar {
@@ -1490,7 +1490,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_does_not_autoimport_test_functions() {
+    async fn test_does_not_auto_import_test_functions() {
         let src = r#"
             mod foo {
                 mod bar {
@@ -1510,7 +1510,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_does_not_autoimport_private_functions() {
+    async fn test_does_not_auto_import_private_functions() {
         let src = r#"
             mod foo {
                 mod bar {
@@ -1529,7 +1529,7 @@ mod completion_tests {
     }
 
     #[test]
-    async fn test_autoimport_suggests_modules_too() {
+    async fn test_auto_import_suggests_modules_too() {
         let src = r#"
             mod foo {
                 mod barbaz {

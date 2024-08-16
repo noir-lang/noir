@@ -232,10 +232,10 @@ pub struct NodeInterner {
     // (ReferenceId::Reference and ReferenceId::Local aren't included here)
     pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
 
-    // All names (and their definitions) that can be offered for autoimport.
+    // All names (and their definitions) that can be offered for auto_import.
     // These include top-level functions, global variables and types, but excludes
     // impl and trait-impl methods.
-    pub(crate) autoimport_names: HashMap<String, Vec<(ModuleDefId, ItemVisibility)>>,
+    pub(crate) auto_import_names: HashMap<String, Vec<(ModuleDefId, ItemVisibility)>>,
 
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making
@@ -608,7 +608,7 @@ impl Default for NodeInterner {
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),
             reference_modules: HashMap::default(),
-            autoimport_names: HashMap::default(),
+            auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
         }
     }

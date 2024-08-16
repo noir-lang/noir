@@ -277,7 +277,7 @@ impl NodeInterner {
             .next()
     }
 
-    pub(crate) fn register_name_for_autoimport(
+    pub(crate) fn register_name_for_auto_import(
         &mut self,
         name: String,
         module_def_id: ModuleDefId,
@@ -287,10 +287,10 @@ impl NodeInterner {
             return;
         }
 
-        self.autoimport_names.entry(name).or_default().push((module_def_id, visibility));
+        self.auto_import_names.entry(name).or_default().push((module_def_id, visibility));
     }
 
-    pub fn get_autoimport_names(&self) -> &HashMap<String, Vec<(ModuleDefId, ItemVisibility)>> {
-        &self.autoimport_names
+    pub fn get_auto_import_names(&self) -> &HashMap<String, Vec<(ModuleDefId, ItemVisibility)>> {
+        &self.auto_import_names
     }
 }

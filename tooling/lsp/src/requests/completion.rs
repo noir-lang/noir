@@ -37,7 +37,7 @@ use crate::{requests::to_lsp_location, utils, LspState};
 
 use super::process_request;
 
-mod autoimport;
+mod auto_import;
 mod builtins;
 mod completion_items;
 mod kinds;
@@ -109,8 +109,8 @@ struct NodeFinder<'a> {
     suggested_module_def_ids: HashSet<ModuleDefId>,
     /// How many nested `mod` we are in deep
     nesting: usize,
-    /// The line where an autoimport must be inserted
-    autoimport_line: usize,
+    /// The line where an auto_import must be inserted
+    auto_import_line: usize,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -153,7 +153,7 @@ impl<'a> NodeFinder<'a> {
             type_parameters: HashSet::new(),
             suggested_module_def_ids: HashSet::new(),
             nesting: 0,
-            autoimport_line: 0,
+            auto_import_line: 0,
         }
     }
 
@@ -179,7 +179,7 @@ impl<'a> NodeFinder<'a> {
     fn find_in_item(&mut self, item: &Item) {
         if let ItemKind::Import(..) = &item.kind {
             if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
-                self.autoimport_line = (lsp_location.range.end.line + 1) as usize;
+                self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
         }
 
@@ -205,11 +205,11 @@ impl<'a> NodeFinder<'a> {
                         ModuleId { krate: self.module_id.krate, local_id: *child_module };
                 }
 
-                let old_autoimport_line = self.autoimport_line;
+                let old_auto_import_line = self.auto_import_line;
                 self.nesting += 1;
 
                 if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
-                    self.autoimport_line = (lsp_location.range.start.line + 1) as usize;
+                    self.auto_import_line = (lsp_location.range.start.line + 1) as usize;
                 }
 
                 self.find_in_parsed_module(&parsed_sub_module.contents);
@@ -217,7 +217,7 @@ impl<'a> NodeFinder<'a> {
                 // Restore the old module before continuing
                 self.module_id = previous_module_id;
                 self.nesting -= 1;
-                self.autoimport_line = old_autoimport_line;
+                self.auto_import_line = old_auto_import_line;
             }
             ItemKind::Function(noir_function) => self.find_in_noir_function(noir_function),
             ItemKind::TraitImpl(noir_trait_impl) => self.find_in_noir_trait_impl(noir_trait_impl),
@@ -748,7 +748,7 @@ impl<'a> NodeFinder<'a> {
                     self.type_parameters_completion(&prefix);
                 }
             }
-            self.complete_autoimports(&prefix, requested_items);
+            self.complete_auto_imports(&prefix, requested_items);
         }
     }
 

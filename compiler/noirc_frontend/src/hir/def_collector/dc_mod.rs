@@ -236,7 +236,7 @@ impl<'a> ModCollector<'a> {
                 && !function.def.is_test()
                 && !function.def.is_private()
             {
-                context.def_interner.register_name_for_autoimport(
+                context.def_interner.register_name_for_auto_import(
                     function.def.name.0.contents.clone(),
                     ModuleDefId::FunctionId(func_id),
                     function.def.visibility,
@@ -339,7 +339,7 @@ impl<'a> ModCollector<'a> {
                     Some(ModuleId { krate, local_id: self.module_id }),
                 );
 
-                context.def_interner.register_name_for_autoimport(
+                context.def_interner.register_name_for_auto_import(
                     name.to_string(),
                     ModuleDefId::TypeId(id),
                     ItemVisibility::Public,
@@ -421,7 +421,7 @@ impl<'a> ModCollector<'a> {
                     Some(ModuleId { krate, local_id: self.module_id }),
                 );
 
-                context.def_interner.register_name_for_autoimport(
+                context.def_interner.register_name_for_auto_import(
                     name.to_string(),
                     ModuleDefId::TypeAliasId(type_alias_id),
                     ItemVisibility::Public,
@@ -600,7 +600,7 @@ impl<'a> ModCollector<'a> {
                     Some(ModuleId { krate, local_id: self.module_id }),
                 );
 
-                context.def_interner.register_name_for_autoimport(
+                context.def_interner.register_name_for_auto_import(
                     name.to_string(),
                     ModuleDefId::TraitId(trait_id),
                     ItemVisibility::Public,
@@ -803,7 +803,7 @@ impl<'a> ModCollector<'a> {
             );
 
             if context.def_interner.is_in_lsp_mode() {
-                context.def_interner.register_name_for_autoimport(
+                context.def_interner.register_name_for_auto_import(
                     mod_name.0.contents.clone(),
                     ModuleDefId::ModuleId(mod_id),
                     ItemVisibility::Public,
