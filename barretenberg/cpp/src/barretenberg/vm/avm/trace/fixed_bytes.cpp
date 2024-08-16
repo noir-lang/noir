@@ -23,11 +23,20 @@ void FixedBytesTable::finalize(std::vector<AvmFullRow<FF>>& main_trace) const
 
                 // Derive a unique row index given op_id, a, and b.
                 auto main_trace_index = (op_id << 16) + (input_a << 8) + b;
+                uint8_t bit_op = 0;
+                if (op_id == 0) {
+                    bit_op = a & b;
+                } else if (op_id == 1) {
+                    bit_op = a | b;
+                } else {
+                    bit_op = a ^ b;
+                }
 
                 main_trace.at(main_trace_index).byte_lookup_sel_bin = FF(1);
                 main_trace.at(main_trace_index).byte_lookup_table_op_id = op_id;
                 main_trace.at(main_trace_index).byte_lookup_table_input_a = a;
                 main_trace.at(main_trace_index).byte_lookup_table_input_b = b;
+                main_trace.at(main_trace_index).byte_lookup_table_output = bit_op;
             }
         }
     }

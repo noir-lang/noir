@@ -78,6 +78,8 @@ void AvmBinaryTraceBuilder::entry_builder(
         });
         // We only perform a lookup when bin_sel = 1, i.e. when we still have bytes to process
         if (i != num_bytes) {
+            // This is calculating the expected index in the bytes table.
+            // TODO: Ideally this piece of knowledge would be encapsulated in the bytes trace.
             auto lookup_index = static_cast<uint32_t>((op_id << 16) + (a_bytes[i] << 8) + b_bytes[i]);
             byte_operation_counter[lookup_index]++;
         }
