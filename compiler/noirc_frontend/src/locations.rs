@@ -1,7 +1,7 @@
 use fm::FileId;
 use noirc_errors::Location;
 use rangemap::RangeMap;
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     hir::def_map::{ModuleDefId, ModuleId},
@@ -12,7 +12,7 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 
 #[derive(Debug, Default)]
 pub(crate) struct LocationIndices {
-    map_file_to_range: FxHashMap<FileId, RangeMap<u32, PetGraphIndex>>,
+    map_file_to_range: HashMap<FileId, RangeMap<u32, PetGraphIndex>>,
 }
 
 impl LocationIndices {
@@ -274,5 +274,21 @@ impl NodeInterner {
         self.reference_graph
             .neighbors_directed(reference_index, petgraph::Direction::Outgoing)
             .next()
+    }
+
+    pub(crate) fn register_name_for_autoimport(
+        &mut self,
+        name: String,
+        module_def_id: ModuleDefId,
+    ) {
+        if !self.lsp_mode {
+            return;
+        }
+
+        self.autoimport_names.entry(name).or_default().push(module_def_id);
+    }
+
+    pub fn get_autoimport_names(&self) -> &HashMap<String, Vec<ModuleDefId>> {
+        &self.autoimport_names
     }
 }

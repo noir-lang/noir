@@ -37,6 +37,7 @@ use crate::{utils, LspState};
 
 use super::process_request;
 
+mod autoimport;
 mod builtins;
 mod completion_items;
 mod kinds;
@@ -100,6 +101,8 @@ struct NodeFinder<'a> {
     /// Type parameters in the current scope. These are collected when entering
     /// a struct, a function, etc., and cleared afterwards.
     type_parameters: HashSet<String>,
+    /// ModuleDefIds we already suggested, so we don't offer these for auto-import.
+    suggested_module_def_ids: HashSet<ModuleDefId>,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -135,6 +138,7 @@ impl<'a> NodeFinder<'a> {
             completion_items: Vec::new(),
             local_variables: HashMap::new(),
             type_parameters: HashSet::new(),
+            suggested_module_def_ids: HashSet::new(),
         }
     }
 
@@ -714,6 +718,7 @@ impl<'a> NodeFinder<'a> {
                     self.type_parameters_completion(&prefix);
                 }
             }
+            self.complete_autoimports(&prefix, requested_items);
         }
     }
 
@@ -935,6 +940,7 @@ impl<'a> NodeFinder<'a> {
                         function_kind,
                     ) {
                         self.completion_items.push(completion_item);
+                        self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
                     }
                 }
             }
@@ -955,6 +961,7 @@ impl<'a> NodeFinder<'a> {
                     function_kind,
                 ) {
                     self.completion_items.push(completion_item);
+                    self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(*func_id));
                 }
             }
         }
@@ -1038,6 +1045,7 @@ impl<'a> NodeFinder<'a> {
                         requested_items,
                     ) {
                         self.completion_items.push(completion_item);
+                        self.suggested_module_def_ids.insert(module_def_id);
                     }
                 }
 
@@ -1050,6 +1058,7 @@ impl<'a> NodeFinder<'a> {
                         requested_items,
                     ) {
                         self.completion_items.push(completion_item);
+                        self.suggested_module_def_ids.insert(module_def_id);
                     }
                 }
             }

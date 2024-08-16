@@ -1297,6 +1297,16 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
 
+        let name = if self.is_in_lsp_mode() {
+            if let Pattern::Identifier(ident) = &let_stmt.pattern {
+                Some(ident.to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
@@ -1321,6 +1331,10 @@ impl<'context> Elaborator<'context> {
 
         self.interner
             .add_definition_location(ReferenceId::Global(global_id), Some(self.module_id()));
+
+        if let Some(name) = name {
+            self.interner.register_name_for_autoimport(name, ModuleDefId::GlobalId(global_id));
+        }
 
         self.local_module = old_module;
         self.file = old_file;
@@ -1462,5 +1476,9 @@ impl<'context> Elaborator<'context> {
             DependencyId::Function(id) => !self.interner.function_modifiers(&id).is_unconstrained,
             _ => true,
         })
+    }
+
+    fn is_in_lsp_mode(&self) -> bool {
+        self.interner.is_in_lsp_mode()
     }
 }
