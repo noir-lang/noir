@@ -531,7 +531,7 @@ impl TypeVariable {
         };
 
         if binding.occurs(id) {
-            Err(dbg!(TypeCheckError::TypeAnnotationsNeeded { span }))
+            Err(TypeCheckError::TypeAnnotationsNeeded { span })
         } else {
             *self.1.borrow_mut() = TypeBinding::Bound(binding);
             Ok(())
@@ -1616,7 +1616,6 @@ impl Type {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
                         let new_type = InfixExpr(Box::new(Constant(*value)), inverse, rhs.clone());
                         new_type.try_unify(lhs, bindings)?;
-                        eprintln!("Unified {new_type:?} and {lhs:?}");
                         Ok(())
                     } else {
                         Err(UnificationError)
@@ -1648,14 +1647,14 @@ impl Type {
     pub fn canonicalize(&self) -> Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs) => {
-                if let Some(value) = self.evaluate_to_u32() {
-                    return Type::Constant(value);
+                // evaluate_to_u32 also calls canonicalize so if we just called
+                // `self.evaluate_to_u32()` we'd get infinite recursion.
+                if let (Some(lhs), Some(rhs)) = (lhs.evaluate_to_u32(), rhs.evaluate_to_u32()) {
+                    return Type::Constant(op.function(lhs, rhs));
                 }
 
                 let lhs = lhs.canonicalize();
                 let rhs = rhs.canonicalize();
-                eprintln!("Canonicalizing {:?} {} {:?}", lhs, op, rhs);
-
                 if let Some(result) = Self::try_simplify_addition(&lhs, op, &rhs) {
                     return result;
                 }
@@ -1723,10 +1722,9 @@ impl Type {
         use BinaryTypeOperator::*;
         match lhs {
             Type::InfixExpr(l_lhs, l_op, l_rhs) => {
-                // Simplify `(N + 2) - 1`
                 if op == Addition && *l_op == Subtraction {
                     // TODO: Propagate type bindings. Can do in another PR, this one is large enough.
-                    let unifies = dbg!(l_rhs).try_unify(dbg!(rhs), &mut TypeBindings::new());
+                    let unifies = l_rhs.try_unify(rhs, &mut TypeBindings::new());
                     if unifies.is_ok() {
                         return Some(l_lhs.as_ref().clone());
                     }
@@ -1856,10 +1854,10 @@ impl Type {
             }
         }
 
-        match self {
-            Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(*size),
+        match self.canonicalize() {
+            Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(size),
             Type::Array(len, _elem) => len.evaluate_to_u32(),
-            Type::Constant(x) => Some(*x),
+            Type::Constant(x) => Some(x),
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.evaluate_to_u32()?;
                 let rhs = rhs.evaluate_to_u32()?;

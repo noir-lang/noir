@@ -1321,7 +1321,6 @@ impl<'context> Elaborator<'context> {
 
             // The type variable must be unbound at this point since follow_bindings was called
             Type::TypeVariable(_, TypeVariableKind::Normal) => {
-                eprintln!("Pushing error: don't know object type");
                 self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
                 None
             }
@@ -1570,13 +1569,6 @@ impl<'context> Elaborator<'context> {
         function_ident_id: ExprId,
         span: Span,
     ) {
-        let name = &self.interner.get_trait(trait_id).name.to_string();
-        let t = vecmap(trait_generics, |t| format!("{t}")).join(", ");
-        let u = vecmap(associated_types, |n| format!("{} = {}", n.name, n.typ)).join(", ");
-        if name == "Serialize" {
-            eprintln!("Looking up {object_type}: Serialize<{t}><{u}>");
-        }
-
         match self.interner.lookup_trait_implementation(
             object_type,
             trait_id,
@@ -1584,19 +1576,9 @@ impl<'context> Elaborator<'context> {
             associated_types,
         ) {
             Ok(impl_kind) => {
-                let name = &self.interner.get_trait(trait_id).name.to_string();
-                let t = vecmap(trait_generics, |t| format!("{t}")).join(", ");
-                let u = vecmap(associated_types, |n| format!("{} = {}", n.name, n.typ)).join(", ");
-
-                if name == "Serialize" {
-                    eprintln!("           {object_type}: Serialize<{t}><{u}>");
-                }
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
-            Err(constraints) => {
-                eprintln!("\n!! Error !!\n");
-                self.push_trait_constraint_error(constraints, span)
-            }
+            Err(constraints) => self.push_trait_constraint_error(constraints, span),
         }
     }
 

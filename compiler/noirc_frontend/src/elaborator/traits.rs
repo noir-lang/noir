@@ -34,7 +34,6 @@ impl<'context> Elaborator<'context> {
 
                 // Each associated type in this trait is also an implicit generic
                 for associated_type in &this.interner.get_trait(*trait_id).associated_types {
-                    eprintln!("Pushing associated type generic {associated_type:?}");
                     this.generics.push(associated_type.clone());
                 }
 
@@ -272,10 +271,9 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone(), Kind::Normal);
-            bindings.insert(dbg!(trait_fn_generic.id()), (trait_fn_generic.clone(), arg));
+            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), arg));
         }
 
-        eprintln!("Instantiating {:?} with bindings {:?}", trait_fn_meta.typ, bindings);
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
 
         check_function_type_matches_expected_type(

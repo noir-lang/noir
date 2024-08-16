@@ -935,10 +935,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
                 let length = match length.evaluate_to_u32() {
                     Some(length) => length,
-                    None => {
-                        dbg!(length);
-                        return Err(dbg!(MonomorphizationError::TypeAnnotationsNeeded { location }))
-                    }
+                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
                 };
                 ast::Type::Array(length, element)
             }
@@ -971,9 +968,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // and within a larger generic type.
                 let default = match kind.default_type() {
                     Some(typ) => typ,
-                    None => {
-                        return Err(dbg!(MonomorphizationError::TypeAnnotationsNeeded { location }))
-                    }
+                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
                 };
 
                 let monomorphized_default = Self::convert_type(&default, location)?;
@@ -1075,9 +1070,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // and within a larger generic type.
                 let default = match kind.default_type() {
                     Some(typ) => typ,
-                    None => {
-                        return Err(dbg!(MonomorphizationError::TypeAnnotationsNeeded { location }))
-                    }
+                    None => return Err(MonomorphizationError::TypeAnnotationsNeeded { location }),
                 };
 
                 Self::check_type(&default, location)
@@ -1954,7 +1947,6 @@ pub fn resolve_trait_method(
                 }
                 Err(constraints) => {
                     let location = interner.expr_location(&expr_id);
-                    eprintln!("\n!!! Monomorphization error !!!\n");
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location.span)
                     {

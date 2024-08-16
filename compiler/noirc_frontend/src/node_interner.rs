@@ -47,8 +47,6 @@ use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId, TypeV
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 
-static INDENTATION: AtomicUsize = AtomicUsize::new(0);
-
 #[derive(Debug)]
 pub struct ModuleAttributes {
     pub name: String,
@@ -1448,25 +1446,13 @@ impl NodeInterner {
 
         let object_type = object_type.substitute(type_bindings);
 
-            let t = vecmap(trait_generics, |t| format!("{t:?}")).join(", ");
-            let n =
-                vecmap(trait_associated_types, |t| format!("{} = {:?}", t.name, t.typ)).join(", ");
-
-            let i = INDENTATION.load(std::sync::atomic::Ordering::SeqCst);
-            let i = " ".repeat(i);
-            eprintln!("{i}? {object_type:?}: Serialize<{t}><{n}>");
-
         // If the object type isn't known, just return an error saying type annotations are needed.
         if object_type.is_bindable() {
-                eprintln!("{i}type is bindable");
             return Err(Vec::new());
         }
 
         let impls =
             self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
-
-        let i = INDENTATION.fetch_add(6, std::sync::atomic::Ordering::SeqCst);
-        let i = " ".repeat(i);
 
         let mut matching_impls = Vec::new();
 
@@ -1481,24 +1467,13 @@ impl NodeInterner {
 
             let mut check_trait_generics =
                 |impl_generics: &[Type], impl_associated_types: &[NamedType]| {
-                        let t = vecmap(impl_generics, |t| format!("{t:?}")).join(", ");
-                        let n =
-                            vecmap(impl_associated_types, |t| format!("{} = {:?}", t.name, t.typ))
-                                .join(", ");
-
-                        eprintln!("  {i}?? {existing_object_type:?}: Serialize<{t}><{n}>");
-
-                        eprintln!("    {i}Instantiation bindings = {instantiation_bindings:?}");
-
                     trait_generics.iter().zip(impl_generics).all(|(trait_generic, impl_generic)| {
                         let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
-                        eprintln!("    {i}{:?} =? {:?}", trait_generic, impl_generic);
                         trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
                     }) && trait_associated_types.iter().zip(impl_associated_types).all(
                         |(trait_generic, impl_generic)| {
                             let impl_generic2 =
                                 impl_generic.typ.force_substitute(&instantiation_bindings);
-                            eprintln!("    {i}{:?} =? {:?}", trait_generic.typ, impl_generic2);
                             trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
                         },
                     )
@@ -1517,7 +1492,6 @@ impl NodeInterner {
             };
 
             if !generics_match {
-                    eprintln!("  {i}Generics don't match");
                 continue;
             }
 
@@ -1532,7 +1506,6 @@ impl NodeInterner {
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
-                    eprintln!("  {i}rejected, where clause can't validate");
                         // Only keep the first errors we get from a failing where clause
                         if where_clause_errors.is_empty() {
                             where_clause_errors.extend(errors);
@@ -1541,15 +1514,10 @@ impl NodeInterner {
                     }
                 }
 
-                    eprintln!("  {i}selected");
                 matching_impls.push((impl_kind.clone(), fresh_bindings));
-                break;
-            } else {
-                    eprintln!("  {i}rejected, object types don't match");
             }
         }
-                    INDENTATION.fetch_sub(6, std::sync::atomic::Ordering::SeqCst);
-  
+
         if matching_impls.len() == 1 {
             let (impl_, fresh_bindings) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
@@ -2106,7 +2074,6 @@ impl NodeInterner {
 
         for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
             let type_variable = trait_type.type_var.clone();
-            eprintln!("Adding binding {:?} := {:?}", type_variable.id(), impl_type.typ);
             bindings.insert(type_variable.id(), (type_variable, impl_type.typ.clone()));
         }
 
