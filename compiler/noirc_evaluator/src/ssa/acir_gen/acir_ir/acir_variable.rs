@@ -8,7 +8,7 @@ use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
-use acvm::acir::circuit::opcodes::{BlockId, BlockType, MemOp};
+use acvm::acir::circuit::opcodes::{BlockId, BlockType, MemOp, AcirFunctionId};
 use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode};
 use acvm::blackbox_solver;
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
@@ -1979,7 +1979,7 @@ impl<F: AcirField> AcirContext<F> {
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
 
         let predicate = Some(self.var_to_expression(predicate)?);
-        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
+        self.acir_ir.push_opcode(Opcode::Call { id: AcirFunctionId(id), inputs, outputs, predicate });
         Ok(results)
     }
 }
