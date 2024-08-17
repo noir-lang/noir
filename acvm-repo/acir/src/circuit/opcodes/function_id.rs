@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
 #[serde(transparent)]
@@ -15,6 +15,3 @@ impl std::fmt::Display for AcirFunctionId {
         write!(f, "{}", self.0)
     }
 }
-
-
-

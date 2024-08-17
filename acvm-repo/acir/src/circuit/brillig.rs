@@ -46,5 +46,3 @@ impl std::fmt::Display for BrilligFunctionId {
         write!(f, "{}", self.0)
     }
 }
-
-

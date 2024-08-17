@@ -3,7 +3,6 @@ use super::{
     directives::Directive,
 };
 
-
 pub mod function_id;
 pub use function_id::AcirFunctionId;
 

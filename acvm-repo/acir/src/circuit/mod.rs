@@ -3,7 +3,6 @@ pub mod brillig;
 pub mod directives;
 pub mod opcodes;
 
-
 use crate::native_types::{Expression, Witness};
 use acir_field::AcirField;
 pub use opcodes::Opcode;
@@ -18,7 +17,6 @@ use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serial
 use std::collections::BTreeSet;
 
 use self::{brillig::BrilligBytecode, opcodes::BlockId};
-
 
 /// Specifies the maximum width of the expressions which will be constrained.
 ///
