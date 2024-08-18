@@ -246,6 +246,7 @@ export class FullProverTest {
       realProofs: true,
       proverAgentConcurrency: 2,
       publisherPrivateKey: `0x${proverNodePrivateKey!.toString('hex')}`,
+      proverNodeMaxPendingJobs: 100,
     };
     this.proverNode = await createProverNode(proverConfig, {
       aztecNodeTxProvider: this.aztecNode,

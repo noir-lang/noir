@@ -3,10 +3,12 @@ import { type Archiver, createArchiver } from '@aztec/archiver';
 import { type AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import {
   type AztecAddress,
+  type AztecNode,
   BatchCall,
   type CompleteAddress,
   type DebugLogger,
   type DeployL1Contracts,
+  type EthAddress,
   EthCheatCodes,
   Fr,
   GrumpkinScalar,
@@ -228,6 +230,42 @@ async function teardown(context: SubsystemsContext | undefined) {
   await context.anvil.stop();
 }
 
+export async function createAndSyncProverNode(
+  rollupAddress: EthAddress,
+  proverNodePrivateKey: Buffer,
+  aztecNodeConfig: AztecNodeConfig,
+  aztecNode: AztecNode,
+) {
+  // Creating temp store and archiver for simulated prover node
+
+  const store = await createStore({ dataDirectory: undefined }, rollupAddress);
+
+  const archiver = await createArchiver(
+    { ...aztecNodeConfig, dataDirectory: undefined },
+    store,
+    new NoopTelemetryClient(),
+    { blockUntilSync: true },
+  );
+
+  // Prover node config is for simulated proofs
+  const proverConfig: ProverNodeConfig = {
+    ...aztecNodeConfig,
+    txProviderNodeUrl: undefined,
+    dataDirectory: undefined,
+    proverId: new Fr(42),
+    realProofs: false,
+    proverAgentConcurrency: 2,
+    publisherPrivateKey: `0x${proverNodePrivateKey.toString('hex')}`,
+    proverNodeMaxPendingJobs: 100,
+  };
+  const proverNode = await createProverNode(proverConfig, {
+    aztecNodeTxProvider: aztecNode,
+    archiver: archiver as Archiver,
+  });
+  proverNode.start();
+  return proverNode;
+}
+
 /**
  * Initializes a fresh set of subsystems.
  * If given a statePath, the state will be written to the path.
@@ -291,37 +329,13 @@ async function setupFromFresh(
   logger.verbose('Creating and synching an aztec node...');
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig, telemetry);
 
-  // Creating temp store and archiver for simulated prover node
-
-  const store = await createStore(
-    { dataDirectory: undefined },
+  logger.verbose('Creating and syncing a simulated prover node...');
+  const proverNode = await createAndSyncProverNode(
     deployL1ContractsValues.l1ContractAddresses.rollupAddress,
+    proverNodePrivateKey!,
+    aztecNodeConfig,
+    aztecNode,
   );
-
-  const archiver = await createArchiver(
-    { ...aztecNodeConfig, dataDirectory: undefined },
-    store,
-    new NoopTelemetryClient(),
-    { blockUntilSync: true },
-  );
-
-  // Prover node config is for simulated proofs
-  const proverConfig: ProverNodeConfig = {
-    ...aztecNodeConfig,
-    txProviderNodeUrl: undefined,
-    dataDirectory: undefined,
-    proverId: new Fr(42),
-    realProofs: false,
-    proverAgentConcurrency: 2,
-    publisherPrivateKey: `0x${proverNodePrivateKey!.toString('hex')}`,
-  };
-  const proverNode = await createProverNode(proverConfig, {
-    aztecNodeTxProvider: aztecNode,
-    archiver: archiver as Archiver,
-  });
-  proverNode.start();
-
-  logger.verbose('Prover node started');
 
   logger.verbose('Creating pxe...');
   const pxeConfig = getPXEServiceConfig();
@@ -397,33 +411,15 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
   const telemetry = createAndStartTelemetryClient(getTelemetryConfig());
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig, telemetry);
 
-  // Creating temp store and archiver for simulated prover node
+  const proverNodePrivateKey = getPrivateKeyFromIndex(2);
 
-  const store = await createStore({ dataDirectory: undefined }, aztecNodeConfig.l1Contracts.rollupAddress);
-
-  const archiver = await createArchiver(
-    { ...aztecNodeConfig, dataDirectory: undefined },
-    store,
-    new NoopTelemetryClient(),
-    { blockUntilSync: true },
+  logger.verbose('Creating and syncing a simulated prover node...');
+  const proverNode = await createAndSyncProverNode(
+    aztecNodeConfig.l1Contracts.rollupAddress,
+    proverNodePrivateKey!,
+    aztecNodeConfig,
+    aztecNode,
   );
-
-  // Prover node config is for simulated proofs
-  const proverConfig: ProverNodeConfig = {
-    ...aztecNodeConfig,
-    txProviderNodeUrl: undefined,
-    dataDirectory: undefined,
-    proverId: new Fr(42),
-    realProofs: false,
-    proverAgentConcurrency: 2,
-  };
-  const proverNode = await createProverNode(proverConfig, {
-    aztecNodeTxProvider: aztecNode,
-    archiver: archiver as Archiver,
-  });
-  proverNode.start();
-
-  logger.verbose('Prover node started');
 
   logger.verbose('Creating pxe...');
   const pxeConfig = getPXEServiceConfig();
