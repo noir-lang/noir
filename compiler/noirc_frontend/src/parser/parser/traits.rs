@@ -76,10 +76,21 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
         .then(parenthesized(function_declaration_parameters()))
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
-        .then(trait_function_body_or_semicolon)
-        .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
-        })
+        .then(trait_function_body_or_semicolon.or_not())
+        .validate(
+            |(((((name, generics), parameters), return_type), where_clause), body), span, emit| {
+                let body = if let Some(body) = body {
+                    body
+                } else {
+                    emit(ParserError::with_reason(
+                        ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
+                        span,
+                    ));
+                    None
+                };
+                TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
+            },
+        )
 }
 
 /// trait_type_declaration: 'type' ident generics
@@ -226,5 +237,22 @@ mod test {
             trait_definition(),
             vec!["trait MissingBody", "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }"],
         );
+    }
+
+    #[test]
+    fn parse_recover_function_without_left_brace_or_semicolon() {
+        let src = "fn foo(x: i32)";
+
+        let (trait_item, errors) = parse_recover(trait_function_declaration(), src);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected { or -> after function parameters");
+
+        let Some(TraitItem::Function { name, parameters, body, .. }) = trait_item else {
+            panic!("Expected to parser trait item as function");
+        };
+
+        assert_eq!(name.to_string(), "foo");
+        assert_eq!(parameters.len(), 1);
+        assert!(body.is_none());
     }
 }

@@ -20,6 +20,8 @@ pub enum ParserErrorReason {
     ExpectedIdentifierAfterDot,
     #[error("expected an identifier after ::")]
     ExpectedIdentifierAfterColons,
+    #[error("expected {{ or -> after function parameters")]
+    ExpectedLeftBraceOrArrowAfterFunctionParameters,
     #[error("expected {{ after if condition")]
     ExpectedLeftBraceAfterIfCondition,
     #[error("Expected a ; separating these two statements")]
