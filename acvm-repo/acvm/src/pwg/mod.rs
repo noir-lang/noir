@@ -6,7 +6,7 @@ use acir::{
     brillig::ForeignCallResult,
     circuit::{
         brillig::{BrilligBytecode, BrilligFunctionId},
-        opcodes::{function_id::AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput},
+        opcodes::{AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput},
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
     },

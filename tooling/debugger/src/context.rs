@@ -946,7 +946,7 @@ mod tests {
             brillig::IntegerBitSize,
             circuit::{
                 brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-                opcodes::{BlockId, BlockType},
+                opcodes::{AcirFunctionId, BlockId, BlockType},
             },
             native_types::Expression,
             AcirField,
@@ -1210,7 +1210,12 @@ mod tests {
                     outputs: vec![],
                     predicate: None,
                 },
-                Opcode::Call { id: 1, inputs: vec![], outputs: vec![], predicate: None },
+                Opcode::Call {
+                    id: AcirFunctionId(1),
+                    inputs: vec![],
+                    outputs: vec![],
+                    predicate: None,
+                },
                 Opcode::AssertZero(Expression::default()),
             ],
             ..Circuit::default()
