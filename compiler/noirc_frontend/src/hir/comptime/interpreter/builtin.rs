@@ -55,6 +55,12 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_index" => expr_as_index(arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(arguments, return_type, location),
             "expr_as_member_access" => expr_as_member_access(arguments, return_type, location),
+            "expr_as_repeated_element_array" => {
+                expr_as_repeated_element_array(arguments, return_type, location)
+            }
+            "expr_as_repeated_element_slice" => {
+                expr_as_repeated_element_slice(arguments, return_type, location)
+            }
             "expr_as_slice" => expr_as_slice(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
@@ -918,6 +924,44 @@ fn expr_as_member_access(
         if let ExpressionKind::MemberAccess(member_access) = expr {
             let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
             Some(Value::Tuple(vec![Value::Expr(member_access.lhs.kind), Value::Quoted(tokens)]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_repeated_element_array(self) -> Option<(Expr, Expr)>
+fn expr_as_repeated_element_array(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
+            repeated_element,
+            length,
+        })) = expr
+        {
+            Some(Value::Tuple(vec![Value::Expr(repeated_element.kind), Value::Expr(length.kind)]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_repeated_element_slice(self) -> Option<(Expr, Expr)>
+fn expr_as_repeated_element_slice(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Repeated {
+            repeated_element,
+            length,
+        })) = expr
+        {
+            Some(Value::Tuple(vec![Value::Expr(repeated_element.kind), Value::Expr(length.kind)]))
         } else {
             None
         }

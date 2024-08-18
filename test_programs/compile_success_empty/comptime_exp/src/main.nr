@@ -73,14 +73,32 @@ fn main() {
         assert_eq(name, quote { bar });
 
         // Check Expr::as_array
-        let expr = quote { [1, 2, 3] }.as_expr().unwrap();
+        let expr = quote { [1, 2, 4] }.as_expr().unwrap();
         let elems = expr.as_array().unwrap();
         assert_eq(elems.len(), 3);
+        assert_eq(elems[0].as_integer().unwrap(), (1, false));
+        assert_eq(elems[1].as_integer().unwrap(), (2, false));
+        assert_eq(elems[2].as_integer().unwrap(), (4, false));
 
         // Check Expr::as_slice
-        let expr = quote { &[1, 2, 3] }.as_expr().unwrap();
+        let expr = quote { &[1, 3, 5] }.as_expr().unwrap();
         let elems = expr.as_slice().unwrap();
         assert_eq(elems.len(), 3);
+        assert_eq(elems[0].as_integer().unwrap(), (1, false));
+        assert_eq(elems[1].as_integer().unwrap(), (3, false));
+        assert_eq(elems[2].as_integer().unwrap(), (5, false));
+
+        // Check Expr::as_repeated_element_array
+        let expr = quote { [1; 3] }.as_expr().unwrap();
+        let (expr, length) = expr.as_repeated_element_array().unwrap();
+        assert_eq(expr.as_integer().unwrap(), (1, false));
+        assert_eq(length.as_integer().unwrap(), (3, false));
+
+        // Check Expr::as_repeated_element_slice
+        let expr = quote { &[1; 3] }.as_expr().unwrap();
+        let (expr, length) = expr.as_repeated_element_slice().unwrap();
+        assert_eq(expr.as_integer().unwrap(), (1, false));
+        assert_eq(length.as_integer().unwrap(), (3, false));
     }
 }
 

@@ -27,6 +27,12 @@ impl Expr {
     #[builtin(expr_as_member_access)]
     fn as_member_access(self) -> Option<(Expr, Quoted)> {}
 
+    #[builtin(expr_as_repeated_element_array)]
+    fn as_repeated_element_array(self) -> Option<(Expr, Expr)> {}
+
+    #[builtin(expr_as_repeated_element_slice)]
+    fn as_repeated_element_slice(self) -> Option<(Expr, Expr)> {}
+
     #[builtin(expr_as_slice)]
     fn as_slice(self) -> Option<[Expr]> {}
 
