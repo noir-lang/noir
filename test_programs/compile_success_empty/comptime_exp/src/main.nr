@@ -71,6 +71,16 @@ fn main() {
         let expr = quote { foo.bar }.as_expr().unwrap();
         let (_, name) = expr.as_member_access().unwrap();
         assert_eq(name, quote { bar });
+
+        // Check Expr::as_array
+        let expr = quote { [1, 2, 3] }.as_expr().unwrap();
+        let elems = expr.as_array().unwrap();
+        assert_eq(elems.len(), 3);
+
+        // Check Expr::as_slice
+        let expr = quote { &[1, 2, 3] }.as_expr().unwrap();
+        let elems = expr.as_slice().unwrap();
+        assert_eq(elems.len(), 3);
     }
 }
 

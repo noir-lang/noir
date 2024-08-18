@@ -17,8 +17,8 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal, UnaryOp,
-        UnresolvedType, UnresolvedTypeData, Visibility,
+        ArrayLiteral, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal,
+        UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
     hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     hir_def::function::FunctionBody,
@@ -47,6 +47,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
+            "expr_as_array" => expr_as_array(arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
@@ -55,6 +56,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_integer" => expr_as_integer(arguments, return_type, location),
             "expr_as_member_access" => expr_as_member_access(arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
+            "expr_as_slice" => expr_as_slice(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
@@ -758,6 +760,23 @@ fn zeroed(return_type: Type) -> IResult<Value> {
     }
 }
 
+// fn as_array(self) -> Option<[Expr]>
+fn expr_as_array(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr {
+            let exprs = exprs.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            Some(Value::Slice(exprs, typ))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_bool(self) -> Option<bool>
 fn expr_as_bool(
     arguments: Vec<(Value, Location)>,
@@ -936,6 +955,23 @@ fn expr_as_binary_op(
             let lhs = Value::Expr(infix_expr.lhs.kind);
             let rhs = Value::Expr(infix_expr.rhs.kind);
             Some(Value::Tuple(vec![lhs, unary_op, rhs]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_slice(self) -> Option<[Expr]>
+fn expr_as_slice(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr {
+            let exprs = exprs.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            Some(Value::Slice(exprs, typ))
         } else {
             None
         }

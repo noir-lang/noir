@@ -3,6 +3,9 @@ use crate::meta::op::UnaryOp;
 use crate::meta::op::BinaryOp;
 
 impl Expr {
+    #[builtin(expr_as_array)]
+    fn as_array(self) -> Option<[Expr]> {}
+
     #[builtin(expr_as_integer)]
     fn as_integer(self) -> Option<(Field, bool)> {}
 
@@ -23,6 +26,9 @@ impl Expr {
 
     #[builtin(expr_as_member_access)]
     fn as_member_access(self) -> Option<(Expr, Quoted)> {}
+
+    #[builtin(expr_as_slice)]
+    fn as_slice(self) -> Option<[Expr]> {}
 
     #[builtin(expr_as_tuple)]
     fn as_tuple(self) -> Option<[Expr]> {}
