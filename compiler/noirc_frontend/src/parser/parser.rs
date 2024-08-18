@@ -223,12 +223,26 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .ignore_then(function::generics())
         .then(parse_type().map_with_span(|typ, span| (typ, span)))
         .then(where_clause())
-        .then_ignore(just(Token::LeftBrace))
-        .then(spanned(function::function_definition(true)).repeated())
-        .then_ignore(just(Token::RightBrace))
-        .map(|args| {
+        .then(
+            just(Token::LeftBrace)
+                .ignore_then(spanned(function::function_definition(true)).repeated())
+                .then_ignore(just(Token::RightBrace))
+                .or_not(),
+        )
+        .validate(|args, span, emit| {
             let ((other_args, where_clause), methods) = args;
             let (generics, (object_type, type_span)) = other_args;
+
+            let methods = if let Some(methods) = methods {
+                methods
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplName,
+                    span,
+                ));
+                vec![]
+            };
+
             TopLevelStatement::Impl(TypeImpl {
                 generics,
                 object_type,
@@ -1759,5 +1773,22 @@ mod test {
         };
 
         assert_eq!(var.to_string(), "foo");
+    }
+
+    #[test]
+    fn parse_recover_impl_without_body() {
+        let src = "impl Foo";
+
+        let (top_level_statement, errors) = parse_recover(implementation(), src);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected <, where or { after impl name");
+
+        let top_level_statement = top_level_statement.unwrap();
+        let TopLevelStatement::Impl(impl_) = top_level_statement else {
+            panic!("Expected to parse an impl");
+        };
+
+        assert_eq!(impl_.object_type.to_string(), "Foo");
+        assert!(impl_.methods.is_empty());
     }
 }
