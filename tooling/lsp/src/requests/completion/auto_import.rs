@@ -164,74 +164,63 @@ fn module_id_path(
     interner: &NodeInterner,
     dependencies: &[Dependency],
 ) -> String {
-    let mut string = String::new();
+    let mut segments: Vec<&str> = Vec::new();
+    let mut is_relative = false;
+
+    if let Some(module_attributes) = interner.try_module_attributes(&module_id) {
+        segments.push(&module_attributes.name);
+
+        let mut current_attributes = module_attributes;
+        loop {
+            let parent_module_id =
+                &ModuleId { krate: module_id.krate, local_id: current_attributes.parent };
+
+            if current_module_id == parent_module_id {
+                is_relative = true;
+                break;
+            }
+
+            if current_module_parent_id == Some(*parent_module_id) {
+                segments.push("super");
+                is_relative = true;
+                break;
+            }
+
+            let Some(parent_attributes) = interner.try_module_attributes(parent_module_id) else {
+                break;
+            };
+
+            segments.push(&parent_attributes.name);
+            current_attributes = parent_attributes;
+        }
+    }
 
     let crate_id = module_id.krate;
-    let crate_name = match crate_id {
-        CrateId::Root(_) => {
-            if Some(module_id) == current_module_parent_id {
-                Some("super".to_string())
-            } else {
-                Some("crate".to_string())
-            }
-        }
-
-        CrateId::Crate(_) => dependencies
-            .iter()
-            .find(|dep| dep.crate_id == crate_id)
-            .map(|dep| format!("{}", dep.name)),
-        CrateId::Stdlib(_) => Some("std".to_string()),
-        CrateId::Dummy => None,
-    };
-
-    let wrote_crate = if let Some(crate_name) = crate_name {
-        string.push_str(&crate_name);
-        true
+    let crate_name = if is_relative {
+        None
     } else {
-        false
+        match crate_id {
+            CrateId::Root(_) => {
+                if Some(module_id) == current_module_parent_id {
+                    Some("super".to_string())
+                } else {
+                    Some("crate".to_string())
+                }
+            }
+
+            CrateId::Crate(_) => dependencies
+                .iter()
+                .find(|dep| dep.crate_id == crate_id)
+                .map(|dep| format!("{}", dep.name)),
+            CrateId::Stdlib(_) => Some("std".to_string()),
+            CrateId::Dummy => None,
+        }
     };
 
-    let Some(module_attributes) = interner.try_module_attributes(&module_id) else {
-        return string;
+    if let Some(crate_name) = &crate_name {
+        segments.push(crate_name);
     };
 
-    if wrote_crate {
-        string.push_str("::");
-    }
-
-    let mut segments = Vec::new();
-    let mut current_attributes = module_attributes;
-    loop {
-        let parent_module_id =
-            &ModuleId { krate: module_id.krate, local_id: current_attributes.parent };
-
-        // If the parent module is the current module we stop because we want a relative path to the module
-        if current_module_id == parent_module_id {
-            // When the path is relative we don't want the "crate::" prefix anymore
-            string = string.strip_prefix("crate::").unwrap_or(&string).to_string();
-            break;
-        }
-
-        if current_module_parent_id == Some(*parent_module_id) {
-            string = string.strip_prefix("crate::").unwrap_or(&string).to_string();
-            string.insert_str(0, "super::");
-            break;
-        }
-
-        let Some(parent_attributes) = interner.try_module_attributes(parent_module_id) else {
-            break;
-        };
-
-        segments.push(&parent_attributes.name);
-        current_attributes = parent_attributes;
-    }
-
-    for segment in segments.iter().rev() {
-        string.push_str(segment);
-        string.push_str("::");
-    }
-
-    string.push_str(&module_attributes.name);
-
-    string
+    segments.reverse();
+    segments.join("::")
 }
