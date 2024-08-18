@@ -1979,7 +1979,7 @@ impl<F: AcirField> AcirContext<F> {
             vecmap(&outputs, |witness_index| self.add_data(AcirVarData::Witness(*witness_index)));
 
         let predicate = Some(self.var_to_expression(predicate)?);
-        self.acir_ir.push_opcode(Opcode::Call { id: id, inputs, outputs, predicate });
+        self.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
         Ok(results)
     }
 }
