@@ -133,12 +133,26 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(keyword(Keyword::For))
         .then(parse_type())
         .then(where_clause())
-        .then_ignore(just(Token::LeftBrace))
-        .then(trait_implementation_body())
-        .then_ignore(just(Token::RightBrace))
-        .map(|args| {
+        .then(
+            just(Token::LeftBrace)
+                .ignore_then(trait_implementation_body())
+                .then_ignore(just(Token::RightBrace))
+                .or_not(),
+        )
+        .validate(|args, span, emit| {
             let (((other_args, object_type), where_clause), items) = args;
             let ((impl_generics, trait_name), trait_generics) = other_args;
+
+            let items = if let Some(items) = items {
+                items
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
+                    span,
+                ));
+
+                vec![]
+            };
 
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
@@ -285,5 +299,21 @@ mod test {
 
         assert_eq!(trait_.name.to_string(), "Foo");
         assert!(trait_.items.is_empty());
+    }
+
+    #[test]
+    fn parse_recover_trait_impl_without_body() {
+        let src = "impl Foo for Bar";
+
+        let (top_level_statement, errors) = parse_recover(trait_implementation(), src);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected <, where or { after trait impl for type");
+
+        let top_level_statement = top_level_statement.unwrap();
+        let TopLevelStatement::TraitImpl(trait_impl) = top_level_statement else {
+            panic!("Expected to parse a trait impl");
+        };
+
+        assert!(trait_impl.items.is_empty());
     }
 }
