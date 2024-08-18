@@ -55,9 +55,9 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_index" => expr_as_index(arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(arguments, return_type, location),
             "expr_as_member_access" => expr_as_member_access(arguments, return_type, location),
-            "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
             "expr_as_slice" => expr_as_slice(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
+            "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -777,6 +777,39 @@ fn expr_as_array(
     })
 }
 
+// fn as_binary_op(self) -> Option<(Expr, BinaryOp, Expr)>
+fn expr_as_binary_op(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type.clone(), location, |expr| {
+        if let ExpressionKind::Infix(infix_expr) = expr {
+            let option_type = extract_option_generic_type(return_type);
+            let Type::Tuple(mut tuple_types) = option_type else {
+                panic!("Expected the return type option generic arg to be a tuple");
+            };
+            assert_eq!(tuple_types.len(), 3);
+
+            tuple_types.pop().unwrap();
+            let binary_op_type = tuple_types.pop().unwrap();
+
+            // For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
+            let binary_op_value = infix_expr.operator.contents as u128;
+
+            let mut fields = HashMap::default();
+            fields.insert(Rc::new("op".to_string()), Value::Field(binary_op_value.into()));
+
+            let unary_op = Value::Struct(fields, binary_op_type);
+            let lhs = Value::Expr(infix_expr.lhs.kind);
+            let rhs = Value::Expr(infix_expr.rhs.kind);
+            Some(Value::Tuple(vec![lhs, unary_op, rhs]))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_bool(self) -> Option<bool>
 fn expr_as_bool(
     arguments: Vec<(Value, Location)>,
@@ -891,6 +924,40 @@ fn expr_as_member_access(
     })
 }
 
+// fn as_slice(self) -> Option<[Expr]>
+fn expr_as_slice(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr {
+            let exprs = exprs.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            Some(Value::Slice(exprs, typ))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_tuple(self) -> Option<[Expr]>
+fn expr_as_tuple(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExpressionKind::Tuple(expressions) = expr {
+            let expressions = expressions.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            Some(Value::Slice(expressions, typ))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_unary_op(self) -> Option<(UnaryOp, Expr)>
 fn expr_as_unary_op(
     arguments: Vec<(Value, Location)>,
@@ -922,73 +989,6 @@ fn expr_as_unary_op(
             let unary_op = Value::Struct(fields, unary_op_type);
             let rhs = Value::Expr(prefix_expr.rhs.kind);
             Some(Value::Tuple(vec![unary_op, rhs]))
-        } else {
-            None
-        }
-    })
-}
-
-// fn as_binary_op(self) -> Option<(Expr, BinaryOp, Expr)>
-fn expr_as_binary_op(
-    arguments: Vec<(Value, Location)>,
-    return_type: Type,
-    location: Location,
-) -> IResult<Value> {
-    expr_as(arguments, return_type.clone(), location, |expr| {
-        if let ExpressionKind::Infix(infix_expr) = expr {
-            let option_type = extract_option_generic_type(return_type);
-            let Type::Tuple(mut tuple_types) = option_type else {
-                panic!("Expected the return type option generic arg to be a tuple");
-            };
-            assert_eq!(tuple_types.len(), 3);
-
-            tuple_types.pop().unwrap();
-            let binary_op_type = tuple_types.pop().unwrap();
-
-            // For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
-            let binary_op_value = infix_expr.operator.contents as u128;
-
-            let mut fields = HashMap::default();
-            fields.insert(Rc::new("op".to_string()), Value::Field(binary_op_value.into()));
-
-            let unary_op = Value::Struct(fields, binary_op_type);
-            let lhs = Value::Expr(infix_expr.lhs.kind);
-            let rhs = Value::Expr(infix_expr.rhs.kind);
-            Some(Value::Tuple(vec![lhs, unary_op, rhs]))
-        } else {
-            None
-        }
-    })
-}
-
-// fn as_slice(self) -> Option<[Expr]>
-fn expr_as_slice(
-    arguments: Vec<(Value, Location)>,
-    return_type: Type,
-    location: Location,
-) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr {
-            let exprs = exprs.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
-            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            Some(Value::Slice(exprs, typ))
-        } else {
-            None
-        }
-    })
-}
-
-// fn as_tuple(self) -> Option<[Expr]>
-fn expr_as_tuple(
-    arguments: Vec<(Value, Location)>,
-    return_type: Type,
-    location: Location,
-) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Tuple(expressions) = expr {
-            let expressions = expressions.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
-            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            Some(Value::Slice(expressions, typ))
         } else {
             None
         }
