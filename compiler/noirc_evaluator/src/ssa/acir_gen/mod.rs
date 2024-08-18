@@ -33,6 +33,7 @@ use acvm::acir::circuit::opcodes::BlockType;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
+use acvm::acir::circuit::opcodes::function_id::AcirFunctionId;
 use acvm::acir::circuit::{AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation};
 use acvm::acir::native_types::Witness;
 use acvm::acir::BlackBoxFunc;
@@ -775,7 +776,7 @@ impl<'a> Context<'a> {
                                     .get(id)
                                     .expect("ICE: should have an associated final index");
                                 let output_vars = self.acir_context.call_acir_function(
-                                    *acir_function_id,
+                                    AcirFunctionId(*acir_function_id),
                                     inputs,
                                     output_count,
                                     self.current_side_effects_enabled_var,
