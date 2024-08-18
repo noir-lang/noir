@@ -237,7 +237,7 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
                 methods
             } else {
                 emit(ParserError::with_reason(
-                    ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplName,
+                    ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplType,
                     span,
                 ));
                 vec![]
@@ -1781,7 +1781,7 @@ mod test {
 
         let (top_level_statement, errors) = parse_recover(implementation(), src);
         assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "expected <, where or { after impl name");
+        assert_eq!(errors[0].message, "expected <, where or { after impl type");
 
         let top_level_statement = top_level_statement.unwrap();
         let TopLevelStatement::Impl(impl_) = top_level_statement else {

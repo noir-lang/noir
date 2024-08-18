@@ -26,8 +26,8 @@ pub enum ParserErrorReason {
     ExpectedLeftBraceAfterIfCondition,
     #[error("expected <, where or {{ after trait name")]
     ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitName,
-    #[error("expected <, where or {{ after impl name")]
-    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplName,
+    #[error("expected <, where or {{ after impl typw")]
+    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplType,
     #[error("expected <, where or {{ after trait impl for type")]
     ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
     #[error("Expected a ; separating these two statements")]
