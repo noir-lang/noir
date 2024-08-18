@@ -28,11 +28,25 @@ pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(ident())
         .then(function::generics())
         .then(where_clause())
-        .then_ignore(just(Token::LeftBrace))
-        .then(trait_body())
-        .then_ignore(just(Token::RightBrace))
+        .then(
+            just(Token::LeftBrace)
+                .ignore_then(trait_body())
+                .then_ignore(just(Token::RightBrace))
+                .or_not(),
+        )
         .validate(|((((attributes, name), generics), where_clause), items), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
+
+            let items = if let Some(items) = items {
+                items
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitName,
+                    span,
+                ));
+                vec![]
+            };
+
             TopLevelStatement::Trait(NoirTrait {
                 name,
                 generics,
@@ -254,5 +268,22 @@ mod test {
         assert_eq!(name.to_string(), "foo");
         assert_eq!(parameters.len(), 1);
         assert!(body.is_none());
+    }
+
+    #[test]
+    fn parse_recover_trait_without_body() {
+        let src = "trait Foo";
+
+        let (top_level_statement, errors) = parse_recover(trait_definition(), src);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected <, where or { after trait name");
+
+        let top_level_statement = top_level_statement.unwrap();
+        let TopLevelStatement::Trait(trait_) = top_level_statement else {
+            panic!("Expected to parse a trait");
+        };
+
+        assert_eq!(trait_.name.to_string(), "Foo");
+        assert!(trait_.items.is_empty());
     }
 }
