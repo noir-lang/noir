@@ -2,6 +2,7 @@
 // 32 bytes.
 
 // Convert 64-byte array to array of 16 u32s
+#[no_predicates]
 fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
     let mut msg32: [u32; 16] = [0; 16];
 
@@ -40,21 +41,21 @@ fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
 }
 
 // Variable size SHA-256 hash
+#[no_predicates]
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     let mut msg_block: [u8; 64] = [0; 64];
     let mut h: [u32; 8] = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value
     let mut i: u64 = 0; // Message byte pointer
+    assert(message_size <= N as u64);
     for k in 0..N {
-        if k as u64 < message_size {
-            // Populate msg_block
-            msg_block[i] = msg[k];
-            i = i + 1;
-            if i == 64 {
-                // Enough to hash block
-                h = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), h);
-
-                i = 0;
-            }
+        // Populate msg_block
+        msg_block[i] = msg[k];
+        i = i + 1;
+        if i == 64 {
+            // Enough to hash block
+            h = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), h);
+            
+            i = 0;
         }
     }
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
