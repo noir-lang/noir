@@ -142,10 +142,10 @@ fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
     }
 }
 
-/// Returns the path to reach an item inside `module_id` from inside `current_module_id`.
+/// Returns the path to reach an item inside `target_module_id` from inside `current_module_id`.
 /// Returns a relative path if possible.
 fn module_id_path(
-    module_id: ModuleId,
+    target_module_id: ModuleId,
     current_module_id: &ModuleId,
     current_module_parent_id: Option<ModuleId>,
     interner: &NodeInterner,
@@ -154,13 +154,13 @@ fn module_id_path(
     let mut segments: Vec<&str> = Vec::new();
     let mut is_relative = false;
 
-    if let Some(module_attributes) = interner.try_module_attributes(&module_id) {
+    if let Some(module_attributes) = interner.try_module_attributes(&target_module_id) {
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
         loop {
             let parent_module_id =
-                &ModuleId { krate: module_id.krate, local_id: current_attributes.parent };
+                &ModuleId { krate: target_module_id.krate, local_id: current_attributes.parent };
 
             if current_module_id == parent_module_id {
                 is_relative = true;
@@ -182,13 +182,13 @@ fn module_id_path(
         }
     }
 
-    let crate_id = module_id.krate;
+    let crate_id = target_module_id.krate;
     let crate_name = if is_relative {
         None
     } else {
         match crate_id {
             CrateId::Root(_) => {
-                if Some(module_id) == current_module_parent_id {
+                if Some(target_module_id) == current_module_parent_id {
                     // This can happen if the item to import is inside the parent module
                     Some("super".to_string())
                 } else {
