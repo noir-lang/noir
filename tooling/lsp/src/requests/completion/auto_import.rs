@@ -50,8 +50,7 @@ impl<'a> NodeFinder<'a> {
                         self.dependencies,
                     );
                 } else {
-                    let Some(parent_module) =
-                        get_parent_module(self.interner, self.def_maps, *module_def_id)
+                    let Some(parent_module) = get_parent_module(self.interner, *module_def_id)
                     else {
                         continue;
                     };
@@ -118,19 +117,9 @@ impl<'a> NodeFinder<'a> {
     }
 }
 
-fn get_parent_module(
-    interner: &NodeInterner,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    module_def_id: ModuleDefId,
-) -> Option<ModuleId> {
-    if let ModuleDefId::ModuleId(module_id) = module_def_id {
-        // ModuleDefId::ModuelId isn't tracked in interner's reference modules,
-        // so we find the parent in def maps.
-        get_parent_module_id(def_maps, module_id)
-    } else {
-        let reference_id = module_def_id_to_reference_id(module_def_id);
-        interner.reference_module(reference_id).copied()
-    }
+fn get_parent_module(interner: &NodeInterner, module_def_id: ModuleDefId) -> Option<ModuleId> {
+    let reference_id = module_def_id_to_reference_id(module_def_id);
+    interner.reference_module(reference_id).copied()
 }
 
 fn get_parent_module_id(
