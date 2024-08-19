@@ -750,7 +750,7 @@ impl<'context> Elaborator<'context> {
     /// Insert as many dereference operations as necessary to automatically dereference a method
     /// call object to its base value type T.
     pub(super) fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
-        if let Type::MutableReference(element) = typ {
+        if let Type::MutableReference(element) = typ.follow_bindings() {
             let location = self.interner.id_location(object);
 
             let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {

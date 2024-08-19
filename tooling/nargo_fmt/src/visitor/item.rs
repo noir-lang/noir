@@ -6,7 +6,10 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::ast::{NoirFunction, Visibility};
+use noirc_frontend::{
+    ast::{NoirFunction, Visibility},
+    macros_api::UnresolvedTypeData,
+};
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{Item, ItemKind},
@@ -115,7 +118,7 @@ impl super::FmtVisitor<'_> {
     ) -> String {
         let mut result = String::new();
 
-        if span.start() == span.end() {
+        if func.return_type().typ == UnresolvedTypeData::Unit {
             result.push_str(self.slice(params_end..func_span.start()));
         } else {
             result.push_str(" -> ");

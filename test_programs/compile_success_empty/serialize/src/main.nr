@@ -10,7 +10,7 @@ impl<A, B, let AS: u32, let BS: u32> Serialize for (A, B) where A: Serialize<Siz
     let Size = AS + BS;
 
     fn serialize(self: Self) -> [Field; Self::Size] {
-        let mut array: [Field; Self::Size] = std::unsafe::zeroed();
+        let mut array: [Field; Self::Size] = std::mem::zeroed();
         let a: [Field; AS] = self.0.serialize();
         let b: [Field; BS] = self.1.serialize();
 
@@ -29,7 +29,7 @@ impl<T, let N: u32, let TS: u32> Serialize for [T; N] where T: Serialize<Size = 
     let Size = TS * N;
 
     fn serialize(self: Self) -> [Field; Self::Size] {
-        let mut array: [Field; Self::Size] = std::unsafe::zeroed();
+        let mut array: [Field; Self::Size] = std::mem::zeroed();
         let mut array_i = 0;
 
         for elem in self {
