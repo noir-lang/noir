@@ -5,71 +5,47 @@ import {
   GasFees,
   GlobalVariables,
 } from '@aztec/circuits.js';
+import { type L1ReaderConfig, createEthereumChain } from '@aztec/ethereum';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { RollupAbi } from '@aztec/l1-artifacts';
+
+import {
+  type GetContractReturnType,
+  type HttpTransport,
+  type PublicClient,
+  createPublicClient,
+  getAddress,
+  getContract,
+  http,
+} from 'viem';
+import type * as chains from 'viem/chains';
 
 /**
- * Reads values from L1 state that is used for the global values.
+ * Simple global variables builder.
  */
-export interface L1GlobalReader {
-  /**
-   * Fetches the version of the rollup contract.
-   * @returns The version of the rollup contract.
-   */
-  getVersion(): Promise<bigint>;
-  /**
-   * Gets the chain id.
-   * @returns The chain id.
-   */
-  getChainId(): Promise<bigint>;
+export class GlobalVariableBuilder {
+  private log = createDebugLogger('aztec:sequencer:global_variable_builder');
 
-  /**
-   * Gets the current L1 time.
-   * @returns The current L1 time.
-   */
-  getL1CurrentTime(): Promise<bigint>;
+  private rollupContract: GetContractReturnType<typeof RollupAbi, PublicClient<HttpTransport, chains.Chain>>;
+  private publicClient: PublicClient<HttpTransport, chains.Chain>;
 
-  /**
-   * Gets the current slot.
-   * @returns The current slot.
-   */
-  getCurrentSlot(): Promise<bigint>;
+  constructor(config: L1ReaderConfig) {
+    const { l1RpcUrl, l1ChainId: chainId, l1Contracts } = config;
 
-  /**
-   * Get the slot for a specific timestamp.
-   * @param timestamp - The timestamp to get the slot for.
-   */
-  getSlotAt(timestamp: readonly [bigint]): Promise<bigint>;
+    const chain = createEthereumChain(l1RpcUrl, chainId);
 
-  /**
-   * Gets the timestamp for a slot
-   * @param slot - The slot to get the timestamp for.
-   * @returns The timestamp for the slot.
-   */
-  getTimestampForSlot(slot: readonly [bigint]): Promise<bigint>;
-}
+    this.publicClient = createPublicClient({
+      chain: chain.chainInfo,
+      transport: http(chain.rpcUrl),
+    });
 
-/**
- * Builds global variables from L1 state.
- */
-export interface GlobalVariableBuilder {
-  /**
-   * Builds global variables.
-   * @param blockNumber - The block number to build global variables for.
-   * @param coinbase - The address to receive block reward.
-   * @param feeRecipient - The address to receive fees.
-   * @returns The global variables for the given block number.
-   */
-  buildGlobalVariables(blockNumber: Fr, coinbase: EthAddress, feeRecipient: AztecAddress): Promise<GlobalVariables>;
-}
-
-/**
- * Simple test implementation of a builder that uses the minimum time possible for the global variables.
- * Also uses a "hack" to make use of the warp cheatcode that manipulates time on Aztec.
- */
-export class SimpleTestGlobalVariableBuilder implements GlobalVariableBuilder {
-  private log = createDebugLogger('aztec:sequencer:simple_test_global_variable_builder');
-  constructor(private readonly reader: L1GlobalReader) {}
+    this.rollupContract = getContract({
+      address: getAddress(l1Contracts.rollupAddress.toString()),
+      abi: RollupAbi,
+      client: this.publicClient,
+    });
+  }
 
   /**
    * Simple builder of global variables that use the minimum time possible.
@@ -83,17 +59,17 @@ export class SimpleTestGlobalVariableBuilder implements GlobalVariableBuilder {
     coinbase: EthAddress,
     feeRecipient: AztecAddress,
   ): Promise<GlobalVariables> {
-    // Not just the current slot, the slot of the next block.
-    const ts = (await this.reader.getL1CurrentTime()) + BigInt(ETHEREUM_SLOT_DURATION);
+    const version = new Fr(await this.rollupContract.read.VERSION());
+    const chainId = new Fr(this.publicClient.chain.id);
 
-    const slot = await this.reader.getSlotAt([ts]);
-    const timestamp = await this.reader.getTimestampForSlot([slot]);
+    const ts = (await this.publicClient.getBlock()).timestamp;
+
+    // Not just the current slot, the slot of the next block.
+    const slot = await this.rollupContract.read.getSlotAt([ts + BigInt(ETHEREUM_SLOT_DURATION)]);
+    const timestamp = await this.rollupContract.read.getTimestampForSlot([slot]);
 
     const slotFr = new Fr(slot);
     const timestampFr = new Fr(timestamp);
-
-    const version = new Fr(await this.reader.getVersion());
-    const chainId = new Fr(await this.reader.getChainId());
 
     const gasFees = GasFees.default();
     const globalVariables = new GlobalVariables(

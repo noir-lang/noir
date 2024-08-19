@@ -58,13 +58,7 @@ import { getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
 import { getCanonicalInstanceDeployer } from '@aztec/protocol-contracts/instance-deployer';
 import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
 import { getCanonicalMultiCallEntrypointAddress } from '@aztec/protocol-contracts/multi-call-entrypoint';
-import {
-  AggregateTxValidator,
-  DataTxValidator,
-  type GlobalVariableBuilder,
-  SequencerClient,
-  getGlobalVariableBuilder,
-} from '@aztec/sequencer-client';
+import { AggregateTxValidator, DataTxValidator, GlobalVariableBuilder, SequencerClient } from '@aztec/sequencer-client';
 import { PublicProcessorFactory, WASMSimulator, createSimulationProvider } from '@aztec/simulator';
 import { type TelemetryClient } from '@aztec/telemetry-client';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
@@ -202,7 +196,7 @@ export class AztecNodeService implements AztecNode {
       sequencer,
       ethereumChain.chainInfo.id,
       config.version,
-      getGlobalVariableBuilder(config),
+      new GlobalVariableBuilder(config),
       store,
       txValidator,
       telemetry,
