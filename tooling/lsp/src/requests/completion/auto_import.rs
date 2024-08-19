@@ -151,6 +151,10 @@ fn module_id_path(
     interner: &NodeInterner,
     dependencies: &[Dependency],
 ) -> String {
+    if Some(target_module_id) == current_module_parent_id {
+        return "super".to_string();
+    }
+
     let mut segments: Vec<&str> = Vec::new();
     let mut is_relative = false;
 
@@ -187,20 +191,12 @@ fn module_id_path(
         None
     } else {
         match crate_id {
-            CrateId::Root(_) => {
-                if Some(target_module_id) == current_module_parent_id {
-                    // This can happen if the item to import is inside the parent module
-                    Some("super".to_string())
-                } else {
-                    Some("crate".to_string())
-                }
-            }
-
+            CrateId::Root(_) => Some("crate".to_string()),
+            CrateId::Stdlib(_) => Some("std".to_string()),
             CrateId::Crate(_) => dependencies
                 .iter()
                 .find(|dep| dep.crate_id == crate_id)
                 .map(|dep| format!("{}", dep.name)),
-            CrateId::Stdlib(_) => Some("std".to_string()),
             CrateId::Dummy => None,
         }
     };
