@@ -127,10 +127,15 @@ pub enum UnresolvedTypeData {
         /*args:*/ Vec<UnresolvedType>,
         /*ret:*/ Box<UnresolvedType>,
         /*env:*/ Box<UnresolvedType>,
+        /*unconstrained:*/ bool,
     ),
 
-    // The type of quoted code for metaprogramming
+    /// The type of quoted code for metaprogramming
     Quoted(crate::QuotedType),
+
+    /// An "as Trait" path leading to an associated type.
+    /// E.g. `<Foo as Trait>::Bar`
+    AsTraitPath(Box<crate::ast::AsTraitPath>),
 
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
@@ -218,7 +223,11 @@ impl std::fmt::Display for UnresolvedTypeData {
             Bool => write!(f, "bool"),
             String(len) => write!(f, "str<{len}>"),
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
-            Function(args, ret, env) => {
+            Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    write!(f, "unconstrained ")?;
+                }
+
                 let args = vecmap(args, ToString::to_string).join(", ");
 
                 match &env.as_ref().typ {
@@ -239,6 +248,7 @@ impl std::fmt::Display for UnresolvedTypeData {
             Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
             Resolved(_) => write!(f, "(resolved type)"),
+            AsTraitPath(path) => write!(f, "{path}"),
         }
     }
 }

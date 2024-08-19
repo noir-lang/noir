@@ -103,7 +103,7 @@ impl ErrorSelector {
 impl Serialize for ErrorSelector {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         self.0.to_string().serialize(serializer)
     }
@@ -112,7 +112,7 @@ impl Serialize for ErrorSelector {
 impl<'de> Deserialize<'de> for ErrorSelector {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         let s: String = Deserialize::deserialize(deserializer)?;
         let as_u64 = s.parse().map_err(serde::de::Error::custom)?;
@@ -224,7 +224,7 @@ impl<F> Circuit<F> {
 }
 
 impl<F: Serialize> Program<F> {
-    fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
+    fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = bincode::serialize(self).unwrap();
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
@@ -250,7 +250,7 @@ impl<F: Serialize> Program<F> {
 }
 
 impl<F: for<'a> Deserialize<'a>> Program<F> {
-    fn read<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
+    fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf_d = Vec::new();
         gz_decoder.read_to_end(&mut buf_d)?;

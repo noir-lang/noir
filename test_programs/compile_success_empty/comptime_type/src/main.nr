@@ -4,6 +4,21 @@ struct Foo<T> {
     x: T
 }
 
+trait SomeTrait<T> {
+
+}
+struct StructImplementsSomeTrait {
+
+}
+
+impl SomeTrait<i32> for StructImplementsSomeTrait {
+
+}
+
+struct StructDoesNotImplementSomeTrait {
+
+}
+
 fn main() {
     comptime
     {
@@ -82,5 +97,29 @@ fn main() {
 
         assert_eq(generics.len(), 1);
         assert_eq(generics[0], field_type_1);
+
+        // Check Type::implements
+        let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
+        let struct_implements_some_trait = quote { StructImplementsSomeTrait }.as_type();
+        let struct_does_not_implement_some_trait = quote { StructDoesNotImplementSomeTrait }.as_type();
+        assert(struct_implements_some_trait.implements(some_trait_i32));
+        assert(!struct_does_not_implement_some_trait.implements(some_trait_i32));
+
+        let some_trait_field = quote { SomeTrait<Field> }.as_trait_constraint();
+        assert(!struct_implements_some_trait.implements(some_trait_field));
+        assert(!struct_does_not_implement_some_trait.implements(some_trait_field));
+
+        let _trait_impl = struct_implements_some_trait.get_trait_impl(some_trait_i32).unwrap();
+    }
+}
+
+fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
+    comptime
+    {
+        let t = quote { T }.as_type();
+        let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
+        assert(t.implements(some_trait_i32));
+
+        assert(t.get_trait_impl(some_trait_i32).is_none());
     }
 }

@@ -111,8 +111,4 @@ pub(crate) trait HasItem {
     fn start(&self) -> u32 {
         self.span().start()
     }
-
-    fn end(&self) -> u32 {
-        self.span().end()
-    }
 }

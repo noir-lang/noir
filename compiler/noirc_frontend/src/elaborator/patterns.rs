@@ -39,7 +39,7 @@ impl<'context> Elaborator<'context> {
 
     /// Equivalent to `elaborate_pattern`, this version just also
     /// adds any new DefinitionIds that were created to the given Vec.
-    pub(super) fn elaborate_pattern_and_store_ids(
+    pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
         expected_type: Type,

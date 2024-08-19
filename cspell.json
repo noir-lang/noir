@@ -88,6 +88,7 @@
         "foralls",
         "formatcp",
         "frontends",
+        "fuzzer",
         "fxhash",
         "getrandom",
         "gloo",
@@ -215,7 +216,8 @@
         "wasi",
         "wasmer",
         "Weierstraß",
-        "zshell"
+        "zshell",
+        "Linea"
     ],
     "ignorePaths": [
         "./**/node_modules/**",
