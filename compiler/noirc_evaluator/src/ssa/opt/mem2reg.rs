@@ -658,8 +658,8 @@ mod tests {
         //     b1():
         //       store Field 1 at v3
         //       store Field 2 at v4
-        //       v8 = load v3
-        //       v9 = eq v8, Field 2
+        //       v7 = load v3
+        //       v8 = eq v7, Field 2
         //       return
         // }
         let main_id = Id::test_new(0);
@@ -698,12 +698,9 @@ mod tests {
         // acir fn main f0 {
         //   b0():
         //     v9 = allocate
-        //     store Field 0 at v9
         //     v10 = allocate
-        //     store v9 at v10
         //     jmp b1()
         //   b1():
-        //     store Field 2 at v9
         //     return
         // }
         let ssa = ssa.mem2reg();
@@ -715,14 +712,17 @@ mod tests {
         assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
         assert_eq!(count_loads(b1, &main.dfg), 0);
 
-        // Only the first store in b1 is removed since there is another store to the same reference
+        // All stores should be removed.
+        // The first store in b1 is removed since there is another store to the same reference
         // in the same block, and the store is not needed before the later store.
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 2);
-        assert_eq!(count_stores(b1, &main.dfg), 1);
+        // The rest of the stores are also removed as no loads are done within any blocks
+        // to the stored values.
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_stores(b1, &main.dfg), 0);
 
         let b1_instructions = main.dfg[b1].instructions();
 
         // We expect the last eq to be optimized out
-        assert_eq!(b1_instructions.len(), 1);
+        assert_eq!(b1_instructions.len(), 0);
     }
 }
