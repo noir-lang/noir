@@ -153,8 +153,8 @@ fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
     }
 }
 
-/// Computes the path of `module_id` relative to `current_module_id`.
-/// If it's not relative, the full path is returned.
+/// Returns the path to reach an item inside `module_id` from inside `current_module_id`.
+/// Returns a relative path if possible.
 fn module_id_path(
     module_id: ModuleId,
     current_module_id: &ModuleId,
@@ -200,6 +200,7 @@ fn module_id_path(
         match crate_id {
             CrateId::Root(_) => {
                 if Some(module_id) == current_module_parent_id {
+                    // This can happen if the item to import is inside the parent module
                     Some("super".to_string())
                 } else {
                     Some("crate".to_string())
