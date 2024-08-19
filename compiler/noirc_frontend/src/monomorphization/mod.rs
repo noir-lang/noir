@@ -1029,9 +1029,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _)
-            | HirType::Constant(_)
-            | HirType::InfixExpr(..) => {
+            HirType::Forall(_, _) | HirType::Constant(_) | HirType::InfixExpr(..) => {
                 unreachable!("Unexpected type {typ} found")
             }
             HirType::Error => {

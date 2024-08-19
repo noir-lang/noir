@@ -234,8 +234,8 @@ pub(super) fn required_generic_type_args<'a>(
     // We need to parse named arguments first since otherwise when we see
     // `Foo = Bar`, just `Foo` is a valid type, and we'd parse an ordered
     // generic before erroring that an `=` is invalid after an ordered generic.
-    named_arg
-        .or(generic_type_arg.map(GenericTypeArg::Ordered))
+    choice((named_arg, generic_type_arg.map(GenericTypeArg::Ordered)))
+        .boxed()
         // Without checking for a terminating ',' or '>' here we may incorrectly
         // parse a generic `N * 2` as just the type `N` then fail when there is no
         // separator afterward. Failing early here ensures we try the `type_expression`
