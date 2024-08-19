@@ -99,6 +99,8 @@ pub(crate) fn add_div_mod(
     numerator: Target,
     denominator: Target,
 ) -> (Target, Target) {
+    asm_writer.comment_divmod_begin(numerator, denominator);
+
     let generator = VariableIntDivGenerator::new(asm_writer, numerator, denominator);
     asm_writer.get_mut_builder().add_simple_generator(generator.clone());
 
@@ -111,6 +113,8 @@ pub(crate) fn add_div_mod(
     let d_is_zero = asm_writer.is_equal(denominator, z);
     let d_is_not_zero = asm_writer.not(d_is_zero);
     asm_writer.assert_bool(d_is_not_zero);
+
+    asm_writer.comment_divmod_end(generator.quotient, generator.remainder);
 
     (generator.quotient, generator.remainder)
 }

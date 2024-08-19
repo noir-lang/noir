@@ -520,4 +520,26 @@ impl AsmWriter {
         }
         result
     }
+
+    pub fn comment(&mut self, s: String) {
+        if self.output_enabled() {
+            self.handle_output(format!("# {}", s));
+        }
+    }
+
+    pub fn comment_divmod_begin(&mut self, numerator: Target, denominator: Target) {
+        self.comment(format!(
+            "divmod begin (numerator = {}, denominator = {})",
+            TargetDisplay { t: numerator },
+            TargetDisplay { t: denominator }
+        ));
+    }
+
+    pub fn comment_divmod_end(&mut self, quotient: Target, remainder: Target) {
+        self.comment(format!(
+            "divmod end (quotient = {}, remainder = {})",
+            TargetDisplay { t: quotient },
+            TargetDisplay { t: remainder }
+        ));
+    }
 }
