@@ -124,6 +124,8 @@ fn get_parent_module(
     module_def_id: ModuleDefId,
 ) -> Option<ModuleId> {
     if let ModuleDefId::ModuleId(module_id) = module_def_id {
+        // ModuleDefId::ModuelId isn't tracked in interner's reference modules,
+        // so we find the parent in def maps.
         get_parent_module_id(def_maps, module_id)
     } else {
         let reference_id = module_def_id_to_reference_id(module_def_id);
