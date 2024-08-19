@@ -1577,11 +1577,11 @@ mod completion_tests {
     #[test]
     async fn test_auto_import_with_super() {
         let src = r#"
-            pub fn barbaz() {}
+            pub fn bar_baz() {}
 
             mod tests {
                 fn foo() {
-                    barb>|<
+                    bar_b>|<
                 }
             }
         "#;
@@ -1589,11 +1589,11 @@ mod completion_tests {
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
-        assert_eq!(item.label, "barbaz()");
+        assert_eq!(item.label, "bar_baz()");
         assert_eq!(
             item.label_details,
             Some(CompletionItemLabelDetails {
-                detail: Some("(use super::barbaz)".to_string()),
+                detail: Some("(use super::bar_baz)".to_string()),
                 description: Some("fn()".to_string())
             })
         );
