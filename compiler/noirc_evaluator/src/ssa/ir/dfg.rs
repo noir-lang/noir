@@ -171,13 +171,14 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStack,
     ) -> InsertInstructionResult {
-        use InsertInstructionResult::*;
         match instruction.simplify(self, block, ctrl_typevars.clone(), &call_stack) {
-            SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
-            SimplifyResult::SimplifiedToMultiple(simplification) => {
-                SimplifiedToMultiple(simplification)
+            SimplifyResult::SimplifiedTo(simplification) => {
+                InsertInstructionResult::SimplifiedTo(simplification)
             }
-            SimplifyResult::Remove => InstructionRemoved,
+            SimplifyResult::SimplifiedToMultiple(simplification) => {
+                InsertInstructionResult::SimplifiedToMultiple(simplification)
+            }
+            SimplifyResult::Remove => InsertInstructionResult::InstructionRemoved,
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {

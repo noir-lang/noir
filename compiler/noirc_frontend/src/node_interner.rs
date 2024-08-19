@@ -19,6 +19,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::macros_api::ModuleDefId;
 use crate::macros_api::UnaryOp;
 use crate::QuotedType;
 
@@ -230,6 +231,11 @@ pub struct NodeInterner {
     // The module where each reference is
     // (ReferenceId::Reference and ReferenceId::Local aren't included here)
     pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
+
+    // All names (and their definitions) that can be offered for auto_import.
+    // These include top-level functions, global variables and types, but excludes
+    // impl and trait-impl methods.
+    pub(crate) auto_import_names: HashMap<String, Vec<(ModuleDefId, ItemVisibility)>>,
 
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making
@@ -602,6 +608,7 @@ impl Default for NodeInterner {
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),
             reference_modules: HashMap::default(),
+            auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
         }
     }
@@ -910,6 +917,7 @@ impl NodeInterner {
         // This needs to be done after pushing the definition since it will reference the
         // location that was stored
         self.add_definition_location(ReferenceId::Function(id), Some(module));
+
         definition_id
     }
 

@@ -2786,6 +2786,7 @@ dependencies = [
  "acvm",
  "async-lsp",
  "codespan-lsp",
+ "convert_case 0.6.0",
  "fm",
  "fxhash",
  "lsp-types 0.94.1",

@@ -722,9 +722,9 @@ mod inlay_hints_tests {
             InlayHintParams {
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 text_document: TextDocumentIdentifier { uri: noir_text_document },
-                range: lsp_types::Range {
-                    start: lsp_types::Position { line: start_line, character: 0 },
-                    end: lsp_types::Position { line: end_line, character: 0 },
+                range: Range {
+                    start: Position { line: start_line, character: 0 },
+                    end: Position { line: end_line, character: 0 },
                 },
             },
         )

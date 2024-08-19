@@ -267,6 +267,14 @@ impl<'context> Elaborator<'context> {
                 let id = self.interner.push_empty_fn();
                 let module = self.module_id();
                 self.interner.push_function(id, &function.def, module, location);
+
+                if self.interner.is_in_lsp_mode()
+                    && !function.def.is_test()
+                    && !function.def.is_private()
+                {
+                    self.interner.register_function(id, &function.def);
+                }
+
                 let functions = vec![(self.local_module, id, function)];
                 generated_items.functions.push(UnresolvedFunctions {
                     file_id: self.file,
