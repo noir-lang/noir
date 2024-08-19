@@ -28,6 +28,19 @@ use noirc_errors::Span;
 /// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 ///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
+    let body_or_error =
+        spanned(block(fresh_statement()).or_not()).validate(|(body, body_span), span, emit| {
+            if let Some(body) = body {
+                (body, body_span)
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
+                    span,
+                ));
+                (BlockExpression { statements: vec![] }, Span::from(span.end()..span.end()))
+            }
+        });
+
     attributes()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
@@ -36,22 +49,12 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(where_clause())
-        .then(spanned(block(fresh_statement()).or_not()))
+        .then(body_or_error)
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
             // Validate collected attributes, filtering them into function and secondary variants
             let attributes = validate_attributes(attributes, span, emit);
-
-            let (body, body_span) = if let Some(body) = body {
-                (body, body_span)
-            } else {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
-                    span,
-                ));
-                (BlockExpression { statements: vec![] }, Span::from(span.end()..span.end()))
-            };
 
             FunctionDefinition {
                 span: body_span,

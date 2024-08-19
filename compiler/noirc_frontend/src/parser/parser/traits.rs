@@ -23,21 +23,12 @@ use crate::{
 use super::{generic_type_args, parse_type, primitives::ident};
 
 pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
-    attributes()
-        .then_ignore(keyword(Keyword::Trait))
-        .then(ident())
-        .then(function::generics())
-        .then(where_clause())
-        .then(
-            just(Token::LeftBrace)
-                .ignore_then(trait_body())
-                .then_ignore(just(Token::RightBrace))
-                .or_not(),
-        )
-        .validate(|((((attributes, name), generics), where_clause), items), span, emit| {
-            let attributes = validate_secondary_attributes(attributes, span, emit);
-
-            let items = if let Some(items) = items {
+    let trait_body_or_error = just(Token::LeftBrace)
+        .ignore_then(trait_body())
+        .then_ignore(just(Token::RightBrace))
+        .or_not()
+        .validate(|items, span, emit| {
+            if let Some(items) = items {
                 items
             } else {
                 emit(ParserError::with_reason(
@@ -45,7 +36,17 @@ pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
                     span,
                 ));
                 vec![]
-            };
+            }
+        });
+
+    attributes()
+        .then_ignore(keyword(Keyword::Trait))
+        .then(ident())
+        .then(function::generics())
+        .then(where_clause())
+        .then(trait_body_or_error)
+        .validate(|((((attributes, name), generics), where_clause), items), span, emit| {
+            let attributes = validate_secondary_attributes(attributes, span, emit);
 
             TopLevelStatement::Trait(NoirTrait {
                 name,
@@ -84,27 +85,29 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
     let trait_function_body_or_semicolon =
         block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).to(Option::None));
 
+    let trait_function_body_or_semicolon_or_error =
+        trait_function_body_or_semicolon.or_not().validate(|body, span, emit| {
+            if let Some(body) = body {
+                body
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
+                    span,
+                ));
+                None
+            }
+        });
+
     keyword(Keyword::Fn)
         .ignore_then(ident())
         .then(function::generics())
         .then(parenthesized(function_declaration_parameters()))
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
-        .then(trait_function_body_or_semicolon.or_not())
-        .validate(
-            |(((((name, generics), parameters), return_type), where_clause), body), span, emit| {
-                let body = if let Some(body) = body {
-                    body
-                } else {
-                    emit(ParserError::with_reason(
-                        ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
-                        span,
-                    ));
-                    None
-                };
-                TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
-            },
-        )
+        .then(trait_function_body_or_semicolon_or_error)
+        .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
+        })
 }
 
 /// trait_type_declaration: 'type' ident generics
@@ -126,6 +129,24 @@ fn trait_type_declaration() -> impl NoirParser<TraitItem> {
 ///
 /// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
 pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
+    let body_or_error = 
+    just(Token::LeftBrace)
+                .ignore_then(trait_implementation_body())
+                .then_ignore(just(Token::RightBrace))
+                .or_not()
+                .validate(|items, span, emit| {
+                    if let Some(items) = items {
+                        items
+                    } else {
+                        emit(ParserError::with_reason(
+                            ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
+                            span,
+                        ));
+        
+                        vec![]
+                    }
+                });
+
     keyword(Keyword::Impl)
         .ignore_then(function::generics())
         .then(path_no_turbofish())
@@ -133,26 +154,10 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(keyword(Keyword::For))
         .then(parse_type())
         .then(where_clause())
-        .then(
-            just(Token::LeftBrace)
-                .ignore_then(trait_implementation_body())
-                .then_ignore(just(Token::RightBrace))
-                .or_not(),
-        )
-        .validate(|args, span, emit| {
+        .then(body_or_error)
+        .map(|args| {
             let (((other_args, object_type), where_clause), items) = args;
             let ((impl_generics, trait_name), trait_generics) = other_args;
-
-            let items = if let Some(items) = items {
-                items
-            } else {
-                emit(ParserError::with_reason(
-                    ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
-                    span,
-                ));
-
-                vec![]
-            };
 
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
