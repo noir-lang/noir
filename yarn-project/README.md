@@ -29,7 +29,7 @@ yarn formatting
 
 ## Tests
 
-To run tests for a specific package, in its folder just run 
+To run tests for a specific package, in its folder just run:
 
 ```
 yarn test
@@ -48,7 +48,7 @@ Consider installing the Prettier and ESLint extensions if using VSCode. Configur
 
 ## Package.json inheritance
 
-To simplify the management of all package.json files, we have a custom script that injects the contents of `package.common.json` into all packages that reference it via the `inherits` custom field. To run the script, just run 
+To simplify the management of all package.json files, we have a custom script that injects the contents of `package.common.json` into all packages that reference it via the `inherits` custom field. To run the script, just run
 
 ```
 yarn prepare
@@ -81,7 +81,7 @@ source /tmp/.bash_env*
 BUILD_SYSTEM_DEBUG=1
 COMMIT_TAG=<RELEASE_TAG_NUMBER_YOU_WANT e.g. aztec-packages-v0.8.8>
 ```
-4. Follow the [`deploy-npm` script](./deploy_npm.sh). 
+4. Follow the [`deploy-npm` script](./deploy_npm.sh).
     - Best to run the `deploy_package()` method line by line by manually setting `REPOSITORY` var.
     - Extract `VERSION` as the script shows (in the eg it should be 0.8.8)
     - Skip the version existing checks like `if [ "$VERSION" == "$PUBLISHED_VERSION" ]` and `if [ "$VERSION" != "$HIGHER_VERSION" ]`. Since this is our first time deploying the package, `PUBLISHED_VERSION` and `HIGHER_VERSION` will be empty and hence these checks would fail. These checks are necessary in the CI for continual releases.

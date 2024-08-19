@@ -3,6 +3,221 @@
 #include "barretenberg/ultra_honk/oink_prover.hpp"
 #include "protogalaxy_prover.hpp"
 namespace bb {
+// See protogalaxy_prover.hpp for details
+template <class ProverInstances_>
+std::vector<typename ProtoGalaxyProver_<ProverInstances_>::FF> ProtoGalaxyProver_<
+    ProverInstances_>::compute_full_honk_evaluations(const ProverPolynomials& instance_polynomials,
+                                                     const RelationSeparator& alpha,
+                                                     const RelationParameters<FF>& relation_parameters)
+{
+    auto instance_size = instance_polynomials.get_polynomial_size();
+    std::vector<FF> full_honk_evaluations(instance_size);
+    std::vector<FF> linearly_dependent_contributions(instance_size);
+#ifndef NO_MULTITHREADING
+    std::mutex evaluation_mutex;
+#endif
+    auto linearly_dependent_contribution_accumulator = FF(0);
+    run_loop_in_parallel(instance_size, [&](size_t start_row, size_t end_row) {
+        auto thread_accumulator = FF(0);
+        for (size_t row = start_row; row < end_row; row++) {
+            auto row_evaluations = instance_polynomials.get_row(row);
+            RelationEvaluations relation_evaluations;
+            Utils::zero_elements(relation_evaluations);
+
+            Utils::template accumulate_relation_evaluations<>(
+                row_evaluations, relation_evaluations, relation_parameters, FF(1));
+
+            auto output = FF(0);
+            auto running_challenge = FF(1);
+            auto linearly_dependent_contribution = FF(0);
+            Utils::scale_and_batch_elements(
+                relation_evaluations, alpha, running_challenge, output, linearly_dependent_contribution);
+            thread_accumulator += linearly_dependent_contribution;
+
+            full_honk_evaluations[row] = output;
+        }
+#ifndef NO_MULTITHREADING
+        std::unique_lock<std::mutex> evaluation_lock(evaluation_mutex);
+#endif
+        linearly_dependent_contribution_accumulator += thread_accumulator;
+    });
+    full_honk_evaluations[0] += linearly_dependent_contribution_accumulator;
+    return full_honk_evaluations;
+}
+
+// See protogalaxy_prover.hpp for details
+template <class ProverInstances_>
+std::vector<typename ProtoGalaxyProver_<ProverInstances_>::FF> ProtoGalaxyProver_<
+    ProverInstances_>::construct_coefficients_tree(const std::vector<FF>& betas,
+                                                   const std::vector<FF>& deltas,
+                                                   const std::vector<std::vector<FF>>& prev_level_coeffs,
+                                                   size_t level)
+{
+    if (level == betas.size()) {
+        return prev_level_coeffs[0];
+    }
+
+    auto degree = level + 1;
+    auto prev_level_width = prev_level_coeffs.size();
+    std::vector<std::vector<FF>> level_coeffs(prev_level_width >> 1, std::vector<FF>(degree + 1, 0));
+    run_loop_in_parallel(
+        prev_level_width >> 1,
+        [&](size_t start, size_t end) {
+            for (size_t node = start << 1; node < end << 1; node += 2) {
+                auto parent = node >> 1;
+                std::copy(prev_level_coeffs[node].begin(), prev_level_coeffs[node].end(), level_coeffs[parent].begin());
+                for (size_t d = 0; d < degree; d++) {
+                    level_coeffs[parent][d] += prev_level_coeffs[node + 1][d] * betas[level];
+                    level_coeffs[parent][d + 1] += prev_level_coeffs[node + 1][d] * deltas[level];
+                }
+            }
+        },
+        /*no_multhreading_if_less_or_equal=*/8);
+    return construct_coefficients_tree(betas, deltas, level_coeffs, level + 1);
+}
+
+// See protogalaxy_prover.hpp for details
+template <class ProverInstances_>
+std::vector<typename ProtoGalaxyProver_<ProverInstances_>::FF> ProtoGalaxyProver_<
+    ProverInstances_>::construct_perturbator_coefficients(const std::vector<FF>& betas,
+                                                          const std::vector<FF>& deltas,
+                                                          const std::vector<FF>& full_honk_evaluations)
+{
+    auto width = full_honk_evaluations.size();
+    std::vector<std::vector<FF>> first_level_coeffs(width >> 1, std::vector<FF>(2, 0));
+    run_loop_in_parallel(width >> 1, [&](size_t start, size_t end) {
+        for (size_t node = start << 1; node < end << 1; node += 2) {
+            auto parent = node >> 1;
+            first_level_coeffs[parent][0] = full_honk_evaluations[node] + full_honk_evaluations[node + 1] * betas[0];
+            first_level_coeffs[parent][1] = full_honk_evaluations[node + 1] * deltas[0];
+        }
+    });
+    return construct_coefficients_tree(betas, deltas, first_level_coeffs);
+}
+
+// See protogalaxy_prover.hpp for details
+template <class ProverInstances_>
+LegacyPolynomial<typename ProtoGalaxyProver_<ProverInstances_>::FF> ProtoGalaxyProver_<
+    ProverInstances_>::compute_perturbator(const std::shared_ptr<Instance> accumulator, const std::vector<FF>& deltas)
+{
+    BB_OP_COUNT_TIME();
+    auto full_honk_evaluations = compute_full_honk_evaluations(
+        accumulator->proving_key.polynomials, accumulator->alphas, accumulator->relation_parameters);
+    const auto betas = accumulator->gate_challenges;
+    assert(betas.size() == deltas.size());
+    auto coeffs = construct_perturbator_coefficients(betas, deltas, full_honk_evaluations);
+    return LegacyPolynomial<FF>(coeffs);
+}
+
+// See protogalaxy_prover.hpp for details
+template <class ProverInstances_>
+void ProtoGalaxyProver_<ProverInstances_>::deoptimise_univariates(
+    const OptimisedTupleOfTuplesOfUnivariates& optimised_univariate_accumulators,
+    TupleOfTuplesOfUnivariates& new_univariate_accumulators)
+{
+    auto deoptimise = [&]<size_t outer_idx, size_t inner_idx>(auto& element) {
+        auto& optimised_element = std::get<inner_idx>(std::get<outer_idx>(optimised_univariate_accumulators));
+        element = optimised_element.convert();
+    };
+
+    Utils::template apply_to_tuple_of_tuples<0, 0>(new_univariate_accumulators, deoptimise);
+}
+
+template <class ProverInstances_>
+ProtoGalaxyProver_<ProverInstances_>::ExtendedUnivariateWithRandomization ProtoGalaxyProver_<
+    ProverInstances_>::batch_over_relations(TupleOfTuplesOfUnivariates& univariate_accumulators,
+                                            const CombinedRelationSeparator& alpha)
+{
+    auto result = std::get<0>(std::get<0>(univariate_accumulators))
+                      .template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
+    size_t idx = 0;
+    auto scale_and_sum = [&]<size_t outer_idx, size_t inner_idx>(auto& element) {
+        auto extended = element.template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
+        extended *= alpha[idx];
+        result += extended;
+        idx++;
+    };
+
+    Utils::template apply_to_tuple_of_tuples<0, 1>(univariate_accumulators, scale_and_sum);
+    Utils::zero_univariates(univariate_accumulators);
+
+    return result;
+}
+
+// See protogalaxy_prover.hpp for details
+template <class ProverInstances_>
+Univariate<typename ProtoGalaxyProver_<ProverInstances_>::FF,
+           ProverInstances_::BATCHED_EXTENDED_LENGTH,
+           ProverInstances_::NUM>
+ProtoGalaxyProver_<ProverInstances_>::compute_combiner_quotient(const FF compressed_perturbator,
+                                                                ExtendedUnivariateWithRandomization combiner)
+{
+    std::array<FF, ProverInstances::BATCHED_EXTENDED_LENGTH - ProverInstances::NUM> combiner_quotient_evals = {};
+
+    constexpr FF inverse_two = FF(2).invert();
+    constexpr FF inverse_six = FF(6).invert();
+    for (size_t point = ProverInstances::NUM; point < combiner.size(); point++) {
+        auto idx = point - ProverInstances::NUM;
+        FF lagrange_0;
+        FF vanishing_polynomial;
+        if constexpr (ProverInstances::NUM == 2) {
+            lagrange_0 = FF(1) - FF(point);
+            vanishing_polynomial = FF(point) * (FF(point) - 1);
+        } else if constexpr (ProverInstances::NUM == 3) {
+            lagrange_0 = (FF(1) - FF(point)) * (FF(2) - FF(point)) * inverse_two;
+            vanishing_polynomial = FF(point) * (FF(point) - 1) * (FF(point) - 2);
+        } else if constexpr (ProverInstances::NUM == 4) {
+            lagrange_0 = (FF(1) - FF(point)) * (FF(2) - FF(point)) * (FF(3) - FF(point)) * inverse_six;
+            vanishing_polynomial = FF(point) * (FF(point) - 1) * (FF(point) - 2) * (FF(point) - 3);
+        }
+        static_assert(ProverInstances::NUM < 5);
+
+        combiner_quotient_evals[idx] =
+            (combiner.value_at(point) - compressed_perturbator * lagrange_0) * vanishing_polynomial.invert();
+    }
+
+    Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM> combiner_quotient(
+        combiner_quotient_evals);
+    return combiner_quotient;
+}
+
+// See protogalaxy_prover.hpp for details
+template <class ProverInstances_>
+void ProtoGalaxyProver_<ProverInstances_>::combine_relation_parameters(ProverInstances& instances)
+{
+    size_t param_idx = 0;
+    auto to_fold = instances.relation_parameters.get_to_fold();
+    auto to_fold_optimised = instances.optimised_relation_parameters.get_to_fold();
+    for (auto [folded_parameter, optimised_folded_parameter] : zip_view(to_fold, to_fold_optimised)) {
+        Univariate<FF, ProverInstances::NUM> tmp(0);
+        size_t instance_idx = 0;
+        for (auto& instance : instances) {
+            tmp.value_at(instance_idx) = instance->relation_parameters.get_to_fold()[param_idx];
+            instance_idx++;
+        }
+        folded_parameter = tmp.template extend_to<ProverInstances::EXTENDED_LENGTH>();
+        optimised_folded_parameter =
+            tmp.template extend_to<ProverInstances::EXTENDED_LENGTH, ProverInstances::NUM - 1>();
+        param_idx++;
+    }
+}
+
+// See protogalaxy_prover.hpp for details
+template <class ProverInstances_> void ProtoGalaxyProver_<ProverInstances_>::combine_alpha(ProverInstances& instances)
+{
+    size_t alpha_idx = 0;
+    for (auto& alpha : instances.alphas) {
+        Univariate<FF, ProverInstances::NUM> tmp;
+        size_t instance_idx = 0;
+        for (auto& instance : instances) {
+            tmp.value_at(instance_idx) = instance->alphas[alpha_idx];
+            instance_idx++;
+        }
+        alpha = tmp.template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
+        alpha_idx++;
+    }
+}
+
 template <class ProverInstances>
 void ProtoGalaxyProver_<ProverInstances>::finalise_and_send_instance(std::shared_ptr<Instance> instance,
                                                                      const std::string& domain_separator)
@@ -35,21 +250,19 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepa
     }
 }
 
+/**
+ * @brief Given the challenge \gamma, compute Z(\gamma) and {L_0(\gamma),L_1(\gamma)}
+ * TODO(https://github.com/AztecProtocol/barretenberg/issues/764): Generalize the vanishing polynomial formula
+ * and the computation of Lagrange basis for k instances
+ */
 template <class ProverInstances>
-std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverInstances>::compute_next_accumulator(
-    ProverInstances& instances,
-    Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM>& combiner_quotient,
-    FF& challenge,
-    const FF& compressed_perturbator)
+std::pair<typename ProverInstances::FF, std::array<typename ProverInstances::FF, ProverInstances::NUM>>
+ProtoGalaxyProver_<ProverInstances>::_compute_vanishing_polynomial_and_lagranges(const FF& challenge)
 {
-    auto combiner_quotient_at_challenge = combiner_quotient.evaluate(challenge);
-
-    // Given the challenge \gamma, compute Z(\gamma) and {L_0(\gamma),L_1(\gamma)}
-    // TODO(https://github.com/AztecProtocol/barretenberg/issues/764): Generalize the vanishing polynomial formula
-    // and the computation of Lagrange basis for k instances
     FF vanishing_polynomial_at_challenge;
     std::array<FF, ProverInstances::NUM> lagranges;
     constexpr FF inverse_two = FF(2).invert();
+
     if constexpr (ProverInstances::NUM == 2) {
         vanishing_polynomial_at_challenge = challenge * (challenge - FF(1));
         lagranges = { FF(1) - challenge, challenge };
@@ -68,6 +281,19 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
     }
     static_assert(ProverInstances::NUM < 5);
 
+    return { vanishing_polynomial_at_challenge, lagranges };
+}
+
+template <class ProverInstances>
+std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverInstances>::compute_next_accumulator(
+    ProverInstances& instances,
+    Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM>& combiner_quotient,
+    FF& challenge,
+    const FF& compressed_perturbator)
+{
+    auto combiner_quotient_at_challenge = combiner_quotient.evaluate(challenge);
+    auto [vanishing_polynomial_at_challenge, lagranges] = _compute_vanishing_polynomial_and_lagranges(challenge);
+
     // TODO(https://github.com/AztecProtocol/barretenberg/issues/881): bad pattern
     auto next_accumulator = std::move(instances[0]);
     next_accumulator->is_accumulator = true;
@@ -81,27 +307,16 @@ std::shared_ptr<typename ProverInstances::Instance> ProtoGalaxyProver_<ProverIns
 
     // Initialize accumulator proving key polynomials
     auto accumulator_polys = next_accumulator->proving_key.polynomials.get_all();
-    run_loop_in_parallel(Flavor::NUM_FOLDED_ENTITIES, [&](size_t start_idx, size_t end_idx) {
-        for (size_t poly_idx = start_idx; poly_idx < end_idx; poly_idx++) {
-            auto& acc_poly = accumulator_polys[poly_idx];
-            for (auto& acc_el : acc_poly) {
-                acc_el *= lagranges[0];
-            }
-        }
-    });
+    for (size_t poly_idx = 0; poly_idx < Flavor::NUM_FOLDED_ENTITIES; poly_idx++) {
+        accumulator_polys[poly_idx] *= lagranges[0];
+    }
 
     // Fold the proving key polynomials
     for (size_t inst_idx = 1; inst_idx < ProverInstances::NUM; inst_idx++) {
         auto input_polys = instances[inst_idx]->proving_key.polynomials.get_all();
-        run_loop_in_parallel(Flavor::NUM_FOLDED_ENTITIES, [&](size_t start_idx, size_t end_idx) {
-            for (size_t poly_idx = start_idx; poly_idx < end_idx; poly_idx++) {
-                auto& acc_poly = accumulator_polys[poly_idx];
-                auto& inst_poly = input_polys[poly_idx];
-                for (auto [acc_el, inst_el] : zip_view(acc_poly, inst_poly)) {
-                    acc_el += inst_el * lagranges[inst_idx];
-                }
-            }
-        });
+        for (size_t poly_idx = 0; poly_idx < Flavor::NUM_FOLDED_ENTITIES; poly_idx++) {
+            accumulator_polys[poly_idx].add_scaled(input_polys[poly_idx], lagranges[inst_idx]);
+        }
     }
 
     // Evaluate the combined batching  α_i univariate at challenge to obtain next α_i and send it to the
@@ -152,6 +367,21 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::pertu
         }
     }
 };
+
+template <class ProverInstances_>
+std::vector<typename bb::ProtoGalaxyProver_<ProverInstances_>::FF> bb::ProtoGalaxyProver_<
+    ProverInstances_>::update_gate_challenges(const FF perturbator_challenge,
+                                              const std::vector<FF>& gate_challenges,
+                                              const std::vector<FF>& round_challenges)
+{
+    auto log_instance_size = gate_challenges.size();
+    std::vector<FF> next_gate_challenges(log_instance_size);
+
+    for (size_t idx = 0; idx < log_instance_size; idx++) {
+        next_gate_challenges[idx] = gate_challenges[idx] + perturbator_challenge * round_challenges[idx];
+    }
+    return next_gate_challenges;
+}
 
 template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::combiner_quotient_round()
 {

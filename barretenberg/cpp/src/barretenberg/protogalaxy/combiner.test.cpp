@@ -327,53 +327,56 @@ TEST(Protogalaxy, CombinerOptimizationConsistency)
     run_test(false);
 };
 
-TEST(Protogalaxy, CombinerOn4Instances)
-{
-    constexpr size_t NUM_INSTANCES = 4;
-    using ProverInstance = ProverInstance_<Flavor>;
-    using ProverInstances = ProverInstances_<Flavor, NUM_INSTANCES>;
-    using ProtoGalaxyProver = ProtoGalaxyProver_<ProverInstances>;
+// Tests a combiner on 4 instances, note currently we don't plan
+// to fold with num instances > 2, this would require an additional explicit instantiation in
+// protogalaxy_prover_ultra.cpp. Currently, we rather save the compile time.
+// TEST(Protogalaxy, CombinerOn4Instances)
+// {
+//     constexpr size_t NUM_INSTANCES = 4;
+//     using ProverInstance = ProverInstance_<Flavor>;
+//     using ProverInstances = ProverInstances_<Flavor, NUM_INSTANCES>;
+//     using ProtoGalaxyProver = ProtoGalaxyProver_<ProverInstances>;
 
-    const auto zero_all_selectors = [](auto& polys) {
-        std::fill(polys.q_arith.begin(), polys.q_arith.end(), 0);
-        std::fill(polys.q_delta_range.begin(), polys.q_delta_range.end(), 0);
-        std::fill(polys.q_elliptic.begin(), polys.q_elliptic.end(), 0);
-        std::fill(polys.q_aux.begin(), polys.q_aux.end(), 0);
-        std::fill(polys.q_lookup.begin(), polys.q_lookup.end(), 0);
-        std::fill(polys.q_4.begin(), polys.q_4.end(), 0);
-        std::fill(polys.w_4.begin(), polys.w_4.end(), 0);
-        std::fill(polys.w_4_shift.begin(), polys.w_4_shift.end(), 0);
-    };
+//     const auto zero_all_selectors = [](auto& polys) {
+//         std::fill(polys.q_arith.begin(), polys.q_arith.end(), 0);
+//         std::fill(polys.q_delta_range.begin(), polys.q_delta_range.end(), 0);
+//         std::fill(polys.q_elliptic.begin(), polys.q_elliptic.end(), 0);
+//         std::fill(polys.q_aux.begin(), polys.q_aux.end(), 0);
+//         std::fill(polys.q_lookup.begin(), polys.q_lookup.end(), 0);
+//         std::fill(polys.q_4.begin(), polys.q_4.end(), 0);
+//         std::fill(polys.w_4.begin(), polys.w_4.end(), 0);
+//         std::fill(polys.w_4_shift.begin(), polys.w_4_shift.end(), 0);
+//     };
 
-    auto run_test = [&]() {
-        std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
-        ProtoGalaxyProver prover;
+//     auto run_test = [&]() {
+//         std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
+//         ProtoGalaxyProver prover;
 
-        for (size_t idx = 0; idx < NUM_INSTANCES; idx++) {
-            auto instance = std::make_shared<ProverInstance>();
-            auto prover_polynomials = get_zero_prover_polynomials<Flavor>(
-                /*log_circuit_size=*/1);
-            instance->proving_key.polynomials = std::move(prover_polynomials);
-            instance->proving_key.circuit_size = 2;
-            instance_data[idx] = instance;
-        }
+//         for (size_t idx = 0; idx < NUM_INSTANCES; idx++) {
+//             auto instance = std::make_shared<ProverInstance>();
+//             auto prover_polynomials = get_zero_prover_polynomials<Flavor>(
+//                 /*log_circuit_size=*/1);
+//             instance->proving_key.polynomials = std::move(prover_polynomials);
+//             instance->proving_key.circuit_size = 2;
+//             instance_data[idx] = instance;
+//         }
 
-        ProverInstances instances{ instance_data };
-        instances.alphas.fill(bb::Univariate<FF, 40>(FF(0))); // focus on the arithmetic relation only
+//         ProverInstances instances{ instance_data };
+//         instances.alphas.fill(bb::Univariate<FF, 40>(FF(0))); // focus on the arithmetic relation only
 
-        zero_all_selectors(instances[0]->proving_key.polynomials);
-        zero_all_selectors(instances[1]->proving_key.polynomials);
-        zero_all_selectors(instances[2]->proving_key.polynomials);
-        zero_all_selectors(instances[3]->proving_key.polynomials);
+//         zero_all_selectors(instances[0]->proving_key.polynomials);
+//         zero_all_selectors(instances[1]->proving_key.polynomials);
+//         zero_all_selectors(instances[2]->proving_key.polynomials);
+//         zero_all_selectors(instances[3]->proving_key.polynomials);
 
-        auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
-        auto result = prover.compute_combiner</*OptimisationEnabled=*/false>(instances, pow_polynomial);
-        auto optimised_result = prover.compute_combiner(instances, pow_polynomial);
-        std::array<FF, 40> zeroes;
-        std::fill(zeroes.begin(), zeroes.end(), 0);
-        auto expected_result = Univariate<FF, 40>(zeroes);
-        EXPECT_EQ(result, expected_result);
-        EXPECT_EQ(optimised_result, expected_result);
-    };
-    run_test();
-};
+//         auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
+//         auto result = prover.compute_combiner</*OptimisationEnabled=*/false>(instances, pow_polynomial);
+//         auto optimised_result = prover.compute_combiner(instances, pow_polynomial);
+//         std::array<FF, 40> zeroes;
+//         std::fill(zeroes.begin(), zeroes.end(), 0);
+//         auto expected_result = Univariate<FF, 40>(zeroes);
+//         EXPECT_EQ(result, expected_result);
+//         EXPECT_EQ(optimised_result, expected_result);
+//     };
+//     run_test();
+// };
