@@ -506,7 +506,7 @@ impl<'context> Elaborator<'context> {
                 unseen_fields.remove(&field_name);
                 seen_fields.insert(field_name.clone());
 
-                self.unify_with_coercions(&field_type, expected_type, resolved, || {
+                self.unify_with_coercions(&field_type, expected_type, resolved, field_span, || {
                     TypeCheckError::TypeMismatch {
                         expected_typ: expected_type.to_string(),
                         expr_typ: field_type.to_string(),
