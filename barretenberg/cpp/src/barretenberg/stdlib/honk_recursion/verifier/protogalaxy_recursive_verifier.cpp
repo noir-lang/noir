@@ -157,10 +157,20 @@ std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyRecursiveVerifi
     auto lagranges = std::vector<FF>{ FF(1) - combiner_challenge, combiner_challenge };
 
     auto next_accumulator = std::make_shared<Instance>(builder);
+
     next_accumulator->verification_key = std::make_shared<VerificationKey>(
         accumulator->verification_key->circuit_size, accumulator->verification_key->num_public_inputs);
     next_accumulator->verification_key->pcs_verification_key = accumulator->verification_key->pcs_verification_key;
     next_accumulator->verification_key->pub_inputs_offset = accumulator->verification_key->pub_inputs_offset;
+    next_accumulator->verification_key->contains_recursive_proof =
+        accumulator->verification_key->contains_recursive_proof;
+    next_accumulator->verification_key->recursive_proof_public_input_indices =
+        accumulator->verification_key->recursive_proof_public_input_indices;
+    if constexpr (IsGoblinFlavor<Flavor>) { // Databus commitment propagation data
+        next_accumulator->verification_key->databus_propagation_data =
+            accumulator->verification_key->databus_propagation_data;
+    }
+
     next_accumulator->public_inputs = accumulator->public_inputs;
 
     next_accumulator->is_accumulator = true;

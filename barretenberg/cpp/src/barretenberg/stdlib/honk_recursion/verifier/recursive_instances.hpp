@@ -28,11 +28,9 @@ template <IsRecursiveFlavor Flavor_, size_t NUM_> struct RecursiveVerifierInstan
         : builder(builder)
     {
         ASSERT(vks.size() == NUM - 1);
-        if (accumulator->is_accumulator) {
-            _data[0] = std::make_shared<Instance>(builder, accumulator);
-        } else {
-            _data[0] = std::make_shared<Instance>(builder, accumulator->verification_key);
-        }
+
+        _data[0] = std::make_shared<Instance>(builder, accumulator);
+
         size_t idx = 1;
         for (auto& vk : vks) {
             _data[idx] = std::make_shared<Instance>(builder, vk);
