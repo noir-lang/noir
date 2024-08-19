@@ -2,7 +2,6 @@
 // 32 bytes.
 
 // Convert 64-byte array to array of 16 u32s
-#[no_predicates]
 fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
     let mut msg32: [u32; 16] = [0; 16];
 
