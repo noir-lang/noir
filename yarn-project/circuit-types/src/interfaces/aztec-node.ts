@@ -284,6 +284,12 @@ export interface AztecNode {
   getPendingTxs(): Promise<Tx[]>;
 
   /**
+   * Retrieves the number of pending txs
+   * @returns The number of pending txs.
+   */
+  getPendingTxCount(): Promise<number>;
+
+  /**
    * Method to retrieve a single pending tx.
    * @param txHash - The transaction hash to return.
    * @returns The pending tx if it exists.

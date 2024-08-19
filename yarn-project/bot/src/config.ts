@@ -11,6 +11,8 @@ const botFollowChain = ['NONE', 'PENDING', 'PROVEN'] as const;
 type BotFollowChain = (typeof botFollowChain)[number];
 
 export type BotConfig = {
+  /** The URL to the Aztec node to check for tx pool status. */
+  nodeUrl: string | undefined;
   /** URL to the PXE for sending txs, or undefined if an in-proc PXE is used. */
   pxeUrl: string | undefined;
   /** Signing private key for the sender account. */
@@ -31,10 +33,17 @@ export type BotConfig = {
   noStart: boolean;
   /** How long to wait for a tx to be mined before reporting an error. */
   txMinedWaitSeconds: number;
+  /** Whether to wait for txs to be proven, to be mined, or no wait at all. */
   followChain: BotFollowChain;
+  /** Do not send a tx if the node's tx pool already has this many pending txs. */
+  maxPendingTxs: number;
 };
 
 export const botConfigMappings: ConfigMappingsType<BotConfig> = {
+  nodeUrl: {
+    env: 'AZTEC_NODE_URL',
+    description: 'The URL to the Aztec node to check for tx pool status.',
+  },
   pxeUrl: {
     env: 'BOT_PXE_URL',
     description: 'URL to the PXE for sending txs, or undefined if an in-proc PXE is used.',
@@ -98,6 +107,11 @@ export const botConfigMappings: ConfigMappingsType<BotConfig> = {
       }
       return val as BotFollowChain;
     },
+  },
+  maxPendingTxs: {
+    env: 'BOT_MAX_PENDING_TXS',
+    description: "Do not send a tx if the node's tx pool already has this many pending txs.",
+    ...numberConfigHelper(128),
   },
 };
 

@@ -113,7 +113,7 @@ export const startNode = async (
   // Add a txs bot if requested
   if (options.bot) {
     const { addBot } = await import('./start_bot.js');
-    await addBot(options, services, signalHandlers, { pxe });
+    await addBot(options, services, signalHandlers, { pxe, node });
   }
 
   return services;

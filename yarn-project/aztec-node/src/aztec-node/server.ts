@@ -379,6 +379,10 @@ export class AztecNodeService implements AztecNode {
     return Promise.resolve(this.p2pClient!.getTxs('pending'));
   }
 
+  public getPendingTxCount() {
+    return Promise.resolve(this.p2pClient!.getTxs('pending').length);
+  }
+
   /**
    * Method to retrieve a single tx from the mempool or unfinalised chain.
    * @param txHash - The transaction hash to return.

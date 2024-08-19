@@ -1,4 +1,4 @@
-import { type PXE, createDebugLogger } from '@aztec/aztec.js';
+import { type AztecNode, type PXE, createAztecNodeClient, createDebugLogger } from '@aztec/aztec.js';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 
 import { Bot } from './bot.js';
@@ -8,11 +8,16 @@ export class BotRunner {
   private log = createDebugLogger('aztec:bot');
   private bot?: Promise<Bot>;
   private pxe?: PXE;
+  private node: AztecNode;
   private runningPromise: RunningPromise;
 
-  public constructor(private config: BotConfig, dependencies: { pxe?: PXE } = {}) {
+  public constructor(private config: BotConfig, dependencies: { pxe?: PXE; node?: AztecNode }) {
     this.pxe = dependencies.pxe;
-    this.runningPromise = new RunningPromise(() => this.#safeRun(), config.txIntervalSeconds * 1000);
+    if (!dependencies.node && !config.nodeUrl) {
+      throw new Error(`Missing node URL in config or dependencies`);
+    }
+    this.node = dependencies.node ?? createAztecNodeClient(config.nodeUrl!);
+    this.runningPromise = new RunningPromise(() => this.#work(), config.txIntervalSeconds * 1000);
   }
 
   /** Initializes the bot if needed. Blocks until the bot setup is finished. */
@@ -112,7 +117,15 @@ export class BotRunner {
     }
   }
 
-  async #safeRun() {
+  async #work() {
+    if (this.config.maxPendingTxs > 0) {
+      const pendingTxs = await this.node.getPendingTxs();
+      if (pendingTxs.length >= this.config.maxPendingTxs) {
+        this.log.verbose(`Not sending bot tx since node has ${pendingTxs.length} pending txs`);
+        return;
+      }
+    }
+
     try {
       await this.run();
     } catch (err) {

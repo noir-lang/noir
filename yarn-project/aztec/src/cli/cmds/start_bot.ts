@@ -1,5 +1,5 @@
 import { type BotConfig, BotRunner, botConfigMappings, createBotRunnerRpcServer } from '@aztec/bot';
-import { type PXE } from '@aztec/circuit-types';
+import { type AztecNode, type PXE } from '@aztec/circuit-types';
 import { type ServerList } from '@aztec/foundation/json-rpc/server';
 import { type LogFn } from '@aztec/foundation/log';
 
@@ -35,11 +35,11 @@ export function addBot(
   options: any,
   services: ServerList,
   signalHandlers: (() => Promise<void>)[],
-  deps: { pxe?: PXE } = {},
+  deps: { pxe?: PXE; node?: AztecNode } = {},
 ) {
   const config = extractRelevantOptions<BotConfig>(options, botConfigMappings);
 
-  const botRunner = new BotRunner(config, { pxe: deps.pxe });
+  const botRunner = new BotRunner(config, deps);
   const botServer = createBotRunnerRpcServer(botRunner);
   if (!config.noStart) {
     void botRunner.start(); // Do not block since bot setup takes time
