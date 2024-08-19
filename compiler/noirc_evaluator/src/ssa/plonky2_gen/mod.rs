@@ -617,6 +617,8 @@ impl Builder {
                         assert!(type_of_a == type_of_b);
 
                         if let Some(bit_size) = Self::get_integer_bitsize(&type_of_a) {
+                            self.asm_writer.comment_lessthan_begin(target_a, target_b);
+
                             let mut split_a = self.asm_writer.split_le(target_a, bit_size);
                             let mut split_b = self.asm_writer.split_le(target_b, bit_size);
 
@@ -671,6 +673,8 @@ impl Builder {
                                     };
                                 }
                             }
+
+                            self.asm_writer.comment_lessthan_end(result.unwrap());
 
                             Ok(P2Value::make_boolean(result.unwrap()))
                         } else {

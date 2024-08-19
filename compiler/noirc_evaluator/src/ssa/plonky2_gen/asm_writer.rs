@@ -542,4 +542,16 @@ impl AsmWriter {
             TargetDisplay { t: remainder }
         ));
     }
+
+    pub fn comment_lessthan_begin(&mut self, a: Target, b: Target) {
+        self.comment(format!(
+            "lessthan begin (a = {}, b = {})",
+            TargetDisplay { t: a },
+            TargetDisplay { t: b }
+        ));
+    }
+
+    pub fn comment_lessthan_end(&mut self, result: BoolTarget) {
+        self.comment(format!("lessthan end (result = {})", BoolTargetDisplay { t: result }));
+    }
 }
