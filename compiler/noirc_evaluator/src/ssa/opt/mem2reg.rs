@@ -153,7 +153,8 @@ impl<'f> PerFunctionContext<'f> {
         for (block_id, block) in self.blocks.iter() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             for (value, store_instruction) in block.last_stores.iter() {
-                let is_reference_param = block_params.contains(&value) && self.inserter.function.dfg.value_is_reference(*value);
+                let is_reference_param = block_params.contains(&value)
+                    && self.inserter.function.dfg.value_is_reference(*value);
                 if self.last_loads.get(value).is_none() && !is_reference_param {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
@@ -620,7 +621,6 @@ mod tests {
         //     return v3, Field 5, Field 6
         // }
         let ssa = ssa.mem2reg();
-        println!("{}", ssa);
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);
