@@ -66,6 +66,8 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use fxhash::FxHashMap as HashMap;
+
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
@@ -111,6 +113,10 @@ struct PerFunctionContext<'f> {
     /// We avoid removing individual instructions as we go since removing elements
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
     instructions_to_remove: BTreeSet<InstructionId>,
+
+    /// Track across all blocks the last load of a value.
+    /// If that value is not used in anymore loads we can remove the last store to that value.
+    last_loads: HashMap<ValueId, InstructionId>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -124,6 +130,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: BTreeSet::new(),
+            last_loads: HashMap::default(),
         }
     }
 
@@ -139,6 +146,14 @@ impl<'f> PerFunctionContext<'f> {
         for block in block_order {
             let references = self.find_starting_references(block);
             self.analyze_block(block, references);
+        }
+
+        for (_, block) in self.blocks.iter() {
+            for (value, store_instruction) in block.last_stores.iter() {
+                if self.last_loads.get(value).is_none() {
+                    self.instructions_to_remove.insert(*store_instruction);
+                }
+            }
         }
     }
 
@@ -240,6 +255,8 @@ impl<'f> PerFunctionContext<'f> {
                 } else {
                     references.mark_value_used(address, self.inserter.function);
                 }
+
+                self.last_loads.insert(address, instruction);
             }
             Instruction::Store { address, value } => {
                 let address = self.inserter.function.dfg.resolve(*address);
