@@ -128,23 +128,23 @@ fn trait_type_declaration() -> impl NoirParser<TraitItem> {
 ///
 /// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
 pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
-    let body_or_error = 
-    just(Token::LeftBrace)
-                .ignore_then(trait_implementation_body())
-                .then_ignore(just(Token::RightBrace))
-                .or_not()
-                .validate(|items, span, emit| {
-                    if let Some(items) = items {
-                        items
-                    } else {
-                        emit(ParserError::with_reason(
-                            ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
-                            span,
-                        ));
-        
-                        vec![]
-                    }
-                });
+    let body_or_error =
+        just(Token::LeftBrace)
+            .ignore_then(trait_implementation_body())
+            .then_ignore(just(Token::RightBrace))
+            .or_not()
+            .validate(|items, span, emit| {
+                if let Some(items) = items {
+                    items
+                } else {
+                    emit(ParserError::with_reason(
+                        ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
+                        span,
+                    ));
+
+                    vec![]
+                }
+            });
 
     keyword(Keyword::Impl)
         .ignore_then(function::generics())
