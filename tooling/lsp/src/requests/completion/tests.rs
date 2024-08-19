@@ -1575,6 +1575,46 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_completes_in_impl_type() {
+        let src = r#"
+            struct FooBar {
+            }
+
+            impl FooB>|<
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "FooBar",
+                CompletionItemKind::STRUCT,
+                Some("FooBar".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_completes_in_impl_for_type() {
+        let src = r#"
+            struct FooBar {
+            }
+
+            impl Default for FooB>|<
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "FooBar",
+                CompletionItemKind::STRUCT,
+                Some("FooBar".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
     async fn test_auto_import_with_super() {
         let src = r#"
             pub fn bar_baz() {}

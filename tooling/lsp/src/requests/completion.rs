@@ -252,6 +252,9 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl) {
+        self.find_in_path(&noir_trait_impl.trait_name, RequestedItems::OnlyTypes);
+        self.find_in_unresolved_type(&noir_trait_impl.object_type);
+
         self.type_parameters.clear();
         self.collect_type_parameters_in_generics(&noir_trait_impl.impl_generics);
 
@@ -263,6 +266,8 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_type_impl(&mut self, type_impl: &TypeImpl) {
+        self.find_in_unresolved_type(&type_impl.object_type);
+
         self.type_parameters.clear();
         self.collect_type_parameters_in_generics(&type_impl.generics);
 

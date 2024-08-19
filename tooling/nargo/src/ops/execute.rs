@@ -139,9 +139,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     });
 
                     // Set current function to the circuit we are about to execute
-                    self.current_function_index = call_info.id as usize;
+                    self.current_function_index = call_info.id.as_usize();
                     // Execute the ACIR call
-                    let acir_to_call = &self.functions[call_info.id as usize];
+                    let acir_to_call = &self.functions[call_info.id.as_usize()];
                     let initial_witness = call_info.initial_witness;
                     let call_solved_witness = self.execute_circuit(initial_witness)?;
 
@@ -163,7 +163,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                         }
                     }
                     acvm.resolve_pending_acir_call(call_resolved_outputs);
-                    self.witness_stack.push(call_info.id, call_solved_witness);
+                    self.witness_stack.push(call_info.id.0, call_solved_witness);
                 }
             }
         }
