@@ -45,7 +45,7 @@ impl Ssa {
 
 #[derive(Default)]
 struct State {
-    array_gets: FxHashMap<ValueId, Vec<ArrayGet>>,
+    array_gets: HashMap<ValueId, Vec<ArrayGet>>,
 
     /// These array gets only depend on constant values or function inputs so they'd
     /// never be inserted if we're going through each instruction's outputs only.
