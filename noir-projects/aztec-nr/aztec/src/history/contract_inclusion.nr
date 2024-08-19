@@ -11,7 +11,7 @@ impl ProveContractDeployment for Header {
     fn prove_contract_deployment(self, contract_address: AztecAddress) {
         // Compute deployment nullifier
         let nullifier = compute_siloed_nullifier(
-            AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),
+            DEPLOYER_CONTRACT_ADDRESS,
             contract_address.to_field()
         );
 
@@ -27,7 +27,7 @@ impl ProveContractNonDeployment for Header {
     fn prove_contract_non_deployment(self, contract_address: AztecAddress) {
         // Compute deployment nullifier
         let nullifier = compute_siloed_nullifier(
-            AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),
+            DEPLOYER_CONTRACT_ADDRESS,
             contract_address.to_field()
         );
 

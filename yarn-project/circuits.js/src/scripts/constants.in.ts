@@ -289,8 +289,10 @@ function parseNoirFile(fileContent: string): ParsedContent {
     const [, name, _type, value] = line.match(/global\s+(\w+)(\s*:\s*\w+)?\s*=\s*(.+?);/) || [];
 
     if (!name || !value) {
-      // eslint-disable-next-line no-console
-      console.warn(`Unknown content: ${line}`);
+      if (!line.includes('use crate')) {
+        // eslint-disable-next-line no-console
+        console.warn(`Unknown content: ${line}`);
+      }
       return;
     }
 
@@ -327,6 +329,8 @@ function evaluateExpressions(expressions: [string, string][]): { [key: string]: 
         // Remove 'as u8' and 'as u32' castings
         .replaceAll(' as u8', '')
         .replaceAll(' as u32', '')
+        // Remove the 'AztecAddress::from_field(...)' pattern
+        .replace(/AztecAddress::from_field\((0x[a-fA-F0-9]+)\)/g, '$1')
         // We make some space around the parentheses, so that constant numbers are still split.
         .replace(/\(/g, '( ')
         .replace(/\)/g, ' )')

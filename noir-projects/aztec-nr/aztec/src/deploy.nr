@@ -24,7 +24,7 @@ pub fn deploy_contract(context: &mut PrivateContext, target: AztecAddress) {
     serialized_args[4] = universal_deploy as Field;
 
     let _call_result = context.call_private_function(
-        AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS),
+        DEPLOYER_CONTRACT_ADDRESS,
         FunctionSelector::from_field(0x7ebd3690),
         serialized_args
     );

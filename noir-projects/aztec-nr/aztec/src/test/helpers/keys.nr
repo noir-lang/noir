@@ -11,8 +11,14 @@ pub fn store_master_key(key_index: Field, address: AztecAddress, key: Point) {
     let x_coordinate_derived_slot = derive_storage_slot_in_map(x_coordinate_map_slot, address);
     let y_coordinate_derived_slot = derive_storage_slot_in_map(y_coordinate_map_slot, address);
 
-    let canonical_registry_address = AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS);
-
-    cheatcodes::direct_storage_write(canonical_registry_address, x_coordinate_derived_slot, [key.x]);
-    cheatcodes::direct_storage_write(canonical_registry_address, y_coordinate_derived_slot, [key.y]);
+    cheatcodes::direct_storage_write(
+        CANONICAL_KEY_REGISTRY_ADDRESS,
+        x_coordinate_derived_slot,
+        [key.x]
+    );
+    cheatcodes::direct_storage_write(
+        CANONICAL_KEY_REGISTRY_ADDRESS,
+        y_coordinate_derived_slot,
+        [key.y]
+    );
 }

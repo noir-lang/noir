@@ -92,10 +92,7 @@ fn key_registry_hash_public_historical_read(historical_header: Header, account: 
     // (prior to siloing!), we simply add the length to the base slot to get the last element.
     let hash_storage_slot = keys_storage_slot + PUBLIC_KEYS_LENGTH as Field;
 
-    historical_header.public_storage_historical_read(
-        hash_storage_slot,
-        AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS)
-    )
+    historical_header.public_storage_historical_read(hash_storage_slot, CANONICAL_KEY_REGISTRY_ADDRESS)
 }
 
 unconstrained fn key_registry_get_stored_keys_hint(account: AztecAddress, block_number: u32) -> PublicKeys {
@@ -105,10 +102,7 @@ unconstrained fn key_registry_get_stored_keys_hint(account: AztecAddress, block_
 
     // TODO (#7524): call the unconstrained KeyRegistry.get_current_keys() function instead
 
-    let context = UnconstrainedContext::at_historical(
-        AztecAddress::from_field(CANONICAL_KEY_REGISTRY_ADDRESS),
-        block_number
-    );
+    let context = UnconstrainedContext::at_historical(CANONICAL_KEY_REGISTRY_ADDRESS, block_number);
     let keys_storage = Map::new(
         context,
         KEY_REGISTRY_STORAGE_SLOT,

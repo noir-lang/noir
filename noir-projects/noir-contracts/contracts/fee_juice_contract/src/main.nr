@@ -52,12 +52,12 @@ contract FeeJuice {
         context.end_setup();
 
         // Register class and publicly deploy contract
-        let _register = ContractClassRegisterer::at(AztecAddress::from_field(REGISTERER_CONTRACT_ADDRESS)).register(
+        let _register = ContractClassRegisterer::at(REGISTERER_CONTRACT_ADDRESS).register(
             artifact_hash,
             private_functions_root,
             public_bytecode_commitment
         ).call(&mut context);
-        let _deploy = ContractInstanceDeployer::at(AztecAddress::from_field(DEPLOYER_CONTRACT_ADDRESS)).deploy(
+        let _deploy = ContractInstanceDeployer::at(DEPLOYER_CONTRACT_ADDRESS).deploy(
             instance.salt,
             instance.contract_class_id,
             instance.initialization_hash,

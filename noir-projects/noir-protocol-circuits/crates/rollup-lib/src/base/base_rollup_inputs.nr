@@ -420,9 +420,11 @@ fn insert_public_data_update_requests(
 
 fn compute_fee_payer_fee_juice_balance_leaf_slot(fee_payer: AztecAddress) -> Field {
     let balances_slot_in_fee_juice_contract = 1;
-    let fee_juice = AztecAddress::from_field(FEE_JUICE_ADDRESS);
     let fee_payer_balance_slot_in_fee_juice_contract = derive_storage_slot_in_map(balances_slot_in_fee_juice_contract, fee_payer);
-    compute_public_data_tree_index(fee_juice, fee_payer_balance_slot_in_fee_juice_contract)
+    compute_public_data_tree_index(
+        FEE_JUICE_ADDRESS,
+        fee_payer_balance_slot_in_fee_juice_contract
+    )
 }
 
 #[test]
