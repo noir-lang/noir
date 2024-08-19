@@ -9,7 +9,10 @@ use noirc_frontend::{
 };
 
 use super::{
-    sort_text::{default_sort_text, new_sort_text, operator_sort_text, self_mismatch_sort_text},
+    sort_text::{
+        crate_or_module_sort_text, default_sort_text, new_sort_text, operator_sort_text,
+        self_mismatch_sort_text,
+    },
     FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems,
 };
 
@@ -246,11 +249,17 @@ impl<'a> NodeFinder<'a> {
 }
 
 pub(super) fn module_completion_item(name: impl Into<String>) -> CompletionItem {
-    simple_completion_item(name, CompletionItemKind::MODULE, None)
+    completion_item_with_sort_text(
+        simple_completion_item(name, CompletionItemKind::MODULE, None),
+        crate_or_module_sort_text(),
+    )
 }
 
 pub(super) fn crate_completion_item(name: impl Into<String>) -> CompletionItem {
-    simple_completion_item(name, CompletionItemKind::MODULE, None)
+    completion_item_with_sort_text(
+        simple_completion_item(name, CompletionItemKind::MODULE, None),
+        crate_or_module_sort_text(),
+    )
 }
 
 fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String {

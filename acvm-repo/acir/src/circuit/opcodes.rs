@@ -2,6 +2,10 @@ use super::{
     brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     directives::Directive,
 };
+
+pub mod function_id;
+pub use function_id::AcirFunctionId;
+
 use crate::native_types::{Expression, Witness};
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
@@ -125,7 +129,7 @@ pub enum Opcode<F> {
     Call {
         /// Id for the function being called. It is the responsibility of the executor
         /// to fetch the appropriate circuit from this id.
-        id: u32,
+        id: AcirFunctionId,
         /// Inputs to the function call
         inputs: Vec<Witness>,
         /// Outputs of the function call

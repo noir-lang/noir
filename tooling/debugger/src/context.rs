@@ -566,7 +566,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         &mut self,
         call_info: AcirCallWaitInfo<FieldElement>,
     ) -> DebugCommandResult {
-        let callee_circuit = &self.circuits[call_info.id as usize];
+        let callee_circuit = &self.circuits[call_info.id.as_usize()];
         let callee_witness_map = call_info.initial_witness;
         let callee_acvm = ACVM::new(
             self.backend,
@@ -578,7 +578,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         let caller_acvm = std::mem::replace(&mut self.acvm, callee_acvm);
         self.acvm_stack
             .push(ExecutionFrame { circuit_id: self.current_circuit_id, acvm: caller_acvm });
-        self.current_circuit_id = call_info.id;
+        self.current_circuit_id = call_info.id.0;
 
         // Explicitly handling the new ACVM status here handles two edge cases:
         // 1. there is a breakpoint set at the beginning of a circuit
@@ -596,7 +596,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         let ACVMStatus::RequiresAcirCall(call_info) = self.acvm.get_status() else {
             unreachable!("Resolving an ACIR call, the caller is in an invalid state");
         };
-        let acir_to_call = &self.circuits[call_info.id as usize];
+        let acir_to_call = &self.circuits[call_info.id.as_usize()];
 
         let mut call_resolved_outputs = Vec::new();
         for return_witness_index in acir_to_call.return_values.indices() {
@@ -946,7 +946,7 @@ mod tests {
             brillig::IntegerBitSize,
             circuit::{
                 brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-                opcodes::{BlockId, BlockType},
+                opcodes::{AcirFunctionId, BlockId, BlockType},
             },
             native_types::Expression,
             AcirField,
@@ -1210,7 +1210,12 @@ mod tests {
                     outputs: vec![],
                     predicate: None,
                 },
-                Opcode::Call { id: 1, inputs: vec![], outputs: vec![], predicate: None },
+                Opcode::Call {
+                    id: AcirFunctionId(1),
+                    inputs: vec![],
+                    outputs: vec![],
+                    predicate: None,
+                },
                 Opcode::AssertZero(Expression::default()),
             ],
             ..Circuit::default()
