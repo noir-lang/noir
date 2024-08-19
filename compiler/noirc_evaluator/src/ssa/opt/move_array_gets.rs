@@ -45,6 +45,9 @@ impl Ssa {
 
 #[derive(Default)]
 struct State {
+    /// Every array_get in the current function, keyed by its last dependency in terms of
+    /// which was created latest. We can re-insert the array_get back into the program
+    /// after this dependency.
     array_gets: FxHashMap<ValueId, Vec<ArrayGet>>,
 
     /// These array gets only depend on constant values or function inputs so they'd
