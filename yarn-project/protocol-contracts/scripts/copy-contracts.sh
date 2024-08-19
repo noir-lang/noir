@@ -6,7 +6,7 @@ contracts=(
   contract_class_registerer_contract-ContractClassRegisterer
   contract_instance_deployer_contract-ContractInstanceDeployer
   fee_juice_contract-FeeJuice
-  new_key_registry_contract-NewKeyRegistry
+  key_registry_contract-KeyRegistry
   auth_registry_contract-AuthRegistry
   multi_call_entrypoint_contract-MultiCallEntrypoint
 )

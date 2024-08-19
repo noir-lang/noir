@@ -62,7 +62,7 @@ export async function deployCanonicalL2FeeJuice(
 export async function deployCanonicalKeyRegistry(deployer: Wallet, waitOpts = DefaultWaitOpts): Promise<AztecAddress> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
-  const { NewKeyRegistryContract: KeyRegistryContract } = await import('@aztec/noir-contracts.js');
+  const { KeyRegistryContract } = await import('@aztec/noir-contracts.js');
 
   const canonicalKeyRegistry = getCanonicalKeyRegistry();
 

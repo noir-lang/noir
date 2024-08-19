@@ -1,6 +1,6 @@
 import { type AccountWallet, AztecAddress, Fr, type PXE } from '@aztec/aztec.js';
 import { CompleteAddress, Point, PublicKeys } from '@aztec/circuits.js';
-import { NewKeyRegistryContract, TestContract } from '@aztec/noir-contracts.js';
+import { KeyRegistryContract, TestContract } from '@aztec/noir-contracts.js';
 import { getCanonicalKeyRegistryAddress } from '@aztec/protocol-contracts/key-registry';
 
 import { jest } from '@jest/globals';
@@ -10,7 +10,7 @@ import { publicDeployAccounts, setup } from './fixtures/utils.js';
 const TIMEOUT = 120_000;
 
 describe('Key Registry', () => {
-  let keyRegistry: NewKeyRegistryContract;
+  let keyRegistry: KeyRegistryContract;
 
   let pxe: PXE;
   let testContract: TestContract;
@@ -24,7 +24,7 @@ describe('Key Registry', () => {
 
   beforeAll(async () => {
     ({ teardown, pxe, wallets } = await setup(2));
-    keyRegistry = await NewKeyRegistryContract.at(getCanonicalKeyRegistryAddress(), wallets[0]);
+    keyRegistry = await KeyRegistryContract.at(getCanonicalKeyRegistryAddress(), wallets[0]);
 
     testContract = await TestContract.deploy(wallets[0]).send().deployed();
 
