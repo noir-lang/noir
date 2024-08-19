@@ -73,7 +73,7 @@ class AvmMemTraceBuilder {
         POSEIDON2,
     };
 
-    AvmMemTraceBuilder();
+    AvmMemTraceBuilder() = default;
 
     void reset();
 

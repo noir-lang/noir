@@ -1764,40 +1764,40 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
     auto emit_note_hash_row =
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_emit_note_hash == 1; });
     EXPECT_EQ(emit_note_hash_row->main_ia, 1);
-    EXPECT_EQ(emit_note_hash_row->kernel_side_effect_counter, 0);
+    EXPECT_EQ(emit_note_hash_row->main_side_effect_counter, 0);
 
     // Get the row of the first note hash out
     uint32_t emit_note_hash_out_offset = START_EMIT_NOTE_HASH_WRITE_OFFSET;
     auto emit_note_hash_kernel_out_row = std::ranges::find_if(
         trace.begin(), trace.end(), [&](Row r) { return r.main_clk == emit_note_hash_out_offset; });
-    EXPECT_EQ(emit_note_hash_kernel_out_row->kernel_kernel_value_out, 1);
-    EXPECT_EQ(emit_note_hash_kernel_out_row->kernel_kernel_side_effect_out, 0);
+    EXPECT_EQ(emit_note_hash_kernel_out_row->main_kernel_value_out, 1);
+    EXPECT_EQ(emit_note_hash_kernel_out_row->main_kernel_side_effect_out, 0);
     feed_output(emit_note_hash_out_offset, 1, 0, 0);
 
     // CHECK EMIT NULLIFIER
     auto emit_nullifier_row =
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_emit_nullifier == 1; });
     EXPECT_EQ(emit_nullifier_row->main_ia, 1);
-    EXPECT_EQ(emit_nullifier_row->kernel_side_effect_counter, 1);
+    EXPECT_EQ(emit_nullifier_row->main_side_effect_counter, 1);
 
     uint32_t emit_nullifier_out_offset = START_EMIT_NULLIFIER_WRITE_OFFSET;
     auto emit_nullifier_kernel_out_row = std::ranges::find_if(
         trace.begin(), trace.end(), [&](Row r) { return r.main_clk == emit_nullifier_out_offset; });
-    EXPECT_EQ(emit_nullifier_kernel_out_row->kernel_kernel_value_out, 1);
-    EXPECT_EQ(emit_nullifier_kernel_out_row->kernel_kernel_side_effect_out, 1);
+    EXPECT_EQ(emit_nullifier_kernel_out_row->main_kernel_value_out, 1);
+    EXPECT_EQ(emit_nullifier_kernel_out_row->main_kernel_side_effect_out, 1);
     feed_output(emit_nullifier_out_offset, 1, 1, 0);
 
     // CHECK EMIT UNENCRYPTED LOG
     auto emit_log_row =
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_emit_unencrypted_log == 1; });
     EXPECT_EQ(emit_log_row->main_ia, 1);
-    EXPECT_EQ(emit_log_row->kernel_side_effect_counter, 2);
+    EXPECT_EQ(emit_log_row->main_side_effect_counter, 2);
 
     uint32_t emit_log_out_offset = START_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET;
     auto emit_log_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.main_clk == emit_log_out_offset; });
-    EXPECT_EQ(emit_log_kernel_out_row->kernel_kernel_value_out, 1);
-    EXPECT_EQ(emit_log_kernel_out_row->kernel_kernel_side_effect_out, 2);
+    EXPECT_EQ(emit_log_kernel_out_row->main_kernel_value_out, 1);
+    EXPECT_EQ(emit_log_kernel_out_row->main_kernel_side_effect_out, 2);
     feed_output(emit_log_out_offset, 1, 2, 0);
 
     // CHECK SEND L2 TO L1 MSG
@@ -1805,13 +1805,13 @@ TEST_F(AvmExecutionTests, kernelOutputEmitOpcodes)
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_emit_l2_to_l1_msg == 1; });
     EXPECT_EQ(send_row->main_ia, 1);
     EXPECT_EQ(send_row->main_ib, 1);
-    EXPECT_EQ(send_row->kernel_side_effect_counter, 3);
+    EXPECT_EQ(send_row->main_side_effect_counter, 3);
 
     auto msg_out_row = std::ranges::find_if(
         trace.begin(), trace.end(), [&](Row r) { return r.main_clk == START_EMIT_L2_TO_L1_MSG_WRITE_OFFSET; });
-    EXPECT_EQ(msg_out_row->kernel_kernel_value_out, 1);
-    EXPECT_EQ(msg_out_row->kernel_kernel_side_effect_out, 3);
-    EXPECT_EQ(msg_out_row->kernel_kernel_metadata_out, 1);
+    EXPECT_EQ(msg_out_row->main_kernel_value_out, 1);
+    EXPECT_EQ(msg_out_row->main_kernel_side_effect_out, 3);
+    EXPECT_EQ(msg_out_row->main_kernel_metadata_out, 1);
     feed_output(START_EMIT_L2_TO_L1_MSG_WRITE_OFFSET, 1, 3, 1);
 
     validate_trace(std::move(trace), public_inputs);
@@ -1860,15 +1860,15 @@ TEST_F(AvmExecutionTests, kernelOutputStorageLoadOpcodeSimple)
     auto sload_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sload == 1; });
     EXPECT_EQ(sload_row->main_ia, 42); // Read value
     EXPECT_EQ(sload_row->main_ib, 9);  // Storage slot
-    EXPECT_EQ(sload_row->kernel_side_effect_counter, 0);
+    EXPECT_EQ(sload_row->main_side_effect_counter, 0);
 
     // Get the row of the first read storage read out
     uint32_t sload_out_offset = START_SLOAD_WRITE_OFFSET;
     auto sload_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.main_clk == sload_out_offset; });
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_value_out, 42); // value
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_side_effect_out, 0);
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_metadata_out, 9); // slot
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_value_out, 42); // value
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_side_effect_out, 0);
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_metadata_out, 9); // slot
     feed_output(sload_out_offset, 42, 0, 9);
     validate_trace(std::move(trace), public_inputs);
 }
@@ -1917,23 +1917,23 @@ TEST_F(AvmExecutionTests, kernelOutputStorageLoadOpcodeComplex)
     auto sload_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sload == 1; });
     EXPECT_EQ(sload_row->main_ia, 42); // Read value
     EXPECT_EQ(sload_row->main_ib, 9);  // Storage slot
-    EXPECT_EQ(sload_row->kernel_side_effect_counter, 0);
+    EXPECT_EQ(sload_row->main_side_effect_counter, 0);
     sload_row++;
     EXPECT_EQ(sload_row->main_ia, 123); // Read value
     EXPECT_EQ(sload_row->main_ib, 10);  // Storage slot
-    EXPECT_EQ(sload_row->kernel_side_effect_counter, 1);
+    EXPECT_EQ(sload_row->main_side_effect_counter, 1);
 
     // Get the row of the first read storage read out
     uint32_t sload_out_offset = START_SLOAD_WRITE_OFFSET;
     auto sload_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.main_clk == sload_out_offset; });
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_value_out, 42); // value
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_side_effect_out, 0);
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_metadata_out, 9); // slot
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_value_out, 42); // value
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_side_effect_out, 0);
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_metadata_out, 9); // slot
     sload_kernel_out_row++;
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_value_out, 123); // value
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_side_effect_out, 1);
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_metadata_out, 10); // slot
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_value_out, 123); // value
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_side_effect_out, 1);
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_metadata_out, 10); // slot
 
     feed_output(sload_out_offset, 42, 0, 9);
     feed_output(sload_out_offset + 1, 123, 1, 10);
@@ -1973,16 +1973,16 @@ TEST_F(AvmExecutionTests, kernelOutputStorageStoreOpcodeSimple)
     auto sstore_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sstore == 1; });
     EXPECT_EQ(sstore_row->main_ia, 42); // Read value
     EXPECT_EQ(sstore_row->main_ib, 9);  // Storage slot
-    EXPECT_EQ(sstore_row->kernel_side_effect_counter, 0);
+    EXPECT_EQ(sstore_row->main_side_effect_counter, 0);
 
     // Get the row of the first storage write out
     uint32_t sstore_out_offset = START_SSTORE_WRITE_OFFSET;
     auto sstore_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.main_clk == sstore_out_offset; });
 
-    auto value_out = sstore_kernel_out_row->kernel_kernel_value_out;
-    auto side_effect_out = sstore_kernel_out_row->kernel_kernel_side_effect_out;
-    auto metadata_out = sstore_kernel_out_row->kernel_kernel_metadata_out;
+    auto value_out = sstore_kernel_out_row->main_kernel_value_out;
+    auto side_effect_out = sstore_kernel_out_row->main_kernel_side_effect_out;
+    auto metadata_out = sstore_kernel_out_row->main_kernel_metadata_out;
     EXPECT_EQ(value_out, 42); // value
     EXPECT_EQ(side_effect_out, 0);
     EXPECT_EQ(metadata_out, 9); // slot
@@ -2028,24 +2028,24 @@ TEST_F(AvmExecutionTests, kernelOutputStorageStoreOpcodeComplex)
     auto sstore_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sstore == 1; });
     EXPECT_EQ(sstore_row->main_ia, 42); // Read value
     EXPECT_EQ(sstore_row->main_ib, 9);  // Storage slot
-    EXPECT_EQ(sstore_row->kernel_side_effect_counter, 0);
+    EXPECT_EQ(sstore_row->main_side_effect_counter, 0);
     sstore_row++;
 
     EXPECT_EQ(sstore_row->main_ia, 123); // Read value
     EXPECT_EQ(sstore_row->main_ib, 10);  // Storage slot
-    EXPECT_EQ(sstore_row->kernel_side_effect_counter, 1);
+    EXPECT_EQ(sstore_row->main_side_effect_counter, 1);
 
     // Get the row of the first storage write out
     uint32_t sstore_out_offset = START_SSTORE_WRITE_OFFSET;
     auto sstore_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.main_clk == sstore_out_offset; });
-    EXPECT_EQ(sstore_kernel_out_row->kernel_kernel_value_out, 42); // value
-    EXPECT_EQ(sstore_kernel_out_row->kernel_kernel_side_effect_out, 0);
-    EXPECT_EQ(sstore_kernel_out_row->kernel_kernel_metadata_out, 9); // slot
+    EXPECT_EQ(sstore_kernel_out_row->main_kernel_value_out, 42); // value
+    EXPECT_EQ(sstore_kernel_out_row->main_kernel_side_effect_out, 0);
+    EXPECT_EQ(sstore_kernel_out_row->main_kernel_metadata_out, 9); // slot
     sstore_kernel_out_row++;
-    EXPECT_EQ(sstore_kernel_out_row->kernel_kernel_value_out, 123); // value
-    EXPECT_EQ(sstore_kernel_out_row->kernel_kernel_side_effect_out, 1);
-    EXPECT_EQ(sstore_kernel_out_row->kernel_kernel_metadata_out, 10); // slot
+    EXPECT_EQ(sstore_kernel_out_row->main_kernel_value_out, 123); // value
+    EXPECT_EQ(sstore_kernel_out_row->main_kernel_side_effect_out, 1);
+    EXPECT_EQ(sstore_kernel_out_row->main_kernel_metadata_out, 10); // slot
 
     feed_output(sstore_out_offset, 42, 0, 9);
     feed_output(sstore_out_offset + 1, 123, 1, 10);
@@ -2102,30 +2102,30 @@ TEST_F(AvmExecutionTests, kernelOutputStorageOpcodes)
     auto sload_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sload == 1; });
     EXPECT_EQ(sload_row->main_ia, 42); // Read value
     EXPECT_EQ(sload_row->main_ib, 9);  // Storage slot
-    EXPECT_EQ(sload_row->kernel_side_effect_counter, 0);
+    EXPECT_EQ(sload_row->main_side_effect_counter, 0);
 
     // Get the row of the first storage read out
     uint32_t sload_out_offset = START_SLOAD_WRITE_OFFSET;
     auto sload_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.main_clk == sload_out_offset; });
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_value_out, 42); // value
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_side_effect_out, 0);
-    EXPECT_EQ(sload_kernel_out_row->kernel_kernel_metadata_out, 9); // slot
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_value_out, 42); // value
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_side_effect_out, 0);
+    EXPECT_EQ(sload_kernel_out_row->main_kernel_metadata_out, 9); // slot
     feed_output(sload_out_offset, 42, 0, 9);
 
     // CHECK SSTORE
     auto sstore_row = std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_sstore == 1; });
     EXPECT_EQ(sstore_row->main_ia, 42); // Read value
     EXPECT_EQ(sstore_row->main_ib, 9);  // Storage slot
-    EXPECT_EQ(sstore_row->kernel_side_effect_counter, 1);
+    EXPECT_EQ(sstore_row->main_side_effect_counter, 1);
 
     // Get the row of the first storage write out
     uint32_t sstore_out_offset = START_SSTORE_WRITE_OFFSET;
     auto sstore_kernel_out_row =
         std::ranges::find_if(trace.begin(), trace.end(), [&](Row r) { return r.main_clk == sstore_out_offset; });
-    EXPECT_EQ(sstore_kernel_out_row->kernel_kernel_value_out, 42); // value
-    EXPECT_EQ(sstore_kernel_out_row->kernel_kernel_side_effect_out, 1);
-    EXPECT_EQ(sstore_kernel_out_row->kernel_kernel_metadata_out, 9); // slot
+    EXPECT_EQ(sstore_kernel_out_row->main_kernel_value_out, 42); // value
+    EXPECT_EQ(sstore_kernel_out_row->main_kernel_side_effect_out, 1);
+    EXPECT_EQ(sstore_kernel_out_row->main_kernel_metadata_out, 9); // slot
     feed_output(sstore_out_offset, 42, 1, 9);
 
     validate_trace(std::move(trace), public_inputs);
@@ -2183,13 +2183,13 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_note_hash_exists == 1; });
     EXPECT_EQ(note_hash_row->main_ia, 1); // Read value
     EXPECT_EQ(note_hash_row->main_ib, 1); // Storage slot
-    EXPECT_EQ(note_hash_row->kernel_side_effect_counter, 0);
+    EXPECT_EQ(note_hash_row->main_side_effect_counter, 0);
 
     auto note_hash_out_row = std::ranges::find_if(
         trace.begin(), trace.end(), [&](Row r) { return r.main_clk == START_NOTE_HASH_EXISTS_WRITE_OFFSET; });
-    EXPECT_EQ(note_hash_out_row->kernel_kernel_value_out, 1); // value
-    EXPECT_EQ(note_hash_out_row->kernel_kernel_side_effect_out, 0);
-    EXPECT_EQ(note_hash_out_row->kernel_kernel_metadata_out, 1); // exists
+    EXPECT_EQ(note_hash_out_row->main_kernel_value_out, 1); // value
+    EXPECT_EQ(note_hash_out_row->main_kernel_side_effect_out, 0);
+    EXPECT_EQ(note_hash_out_row->main_kernel_metadata_out, 1); // exists
     feed_output(START_NOTE_HASH_EXISTS_WRITE_OFFSET, 1, 0, 1);
 
     // CHECK NULLIFIEREXISTS
@@ -2197,13 +2197,13 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_nullifier_exists == 1; });
     EXPECT_EQ(nullifier_row->main_ia, 1); // Read value
     EXPECT_EQ(nullifier_row->main_ib, 1); // Storage slot
-    EXPECT_EQ(nullifier_row->kernel_side_effect_counter, 1);
+    EXPECT_EQ(nullifier_row->main_side_effect_counter, 1);
 
     auto nullifier_out_row = std::ranges::find_if(
         trace.begin(), trace.end(), [&](Row r) { return r.main_clk == START_NULLIFIER_EXISTS_OFFSET; });
-    EXPECT_EQ(nullifier_out_row->kernel_kernel_value_out, 1); // value
-    EXPECT_EQ(nullifier_out_row->kernel_kernel_side_effect_out, 1);
-    EXPECT_EQ(nullifier_out_row->kernel_kernel_metadata_out, 1); // exists
+    EXPECT_EQ(nullifier_out_row->main_kernel_value_out, 1); // value
+    EXPECT_EQ(nullifier_out_row->main_kernel_side_effect_out, 1);
+    EXPECT_EQ(nullifier_out_row->main_kernel_metadata_out, 1); // exists
     feed_output(START_NULLIFIER_EXISTS_OFFSET, 1, 1, 1);
 
     // CHECK L1TOL2MSGEXISTS
@@ -2211,13 +2211,13 @@ TEST_F(AvmExecutionTests, kernelOutputHashExistsOpcodes)
         std::ranges::find_if(trace.begin(), trace.end(), [](Row r) { return r.main_sel_op_l1_to_l2_msg_exists == 1; });
     EXPECT_EQ(l1_to_l2_row->main_ia, 1); // Read value
     EXPECT_EQ(l1_to_l2_row->main_ib, 1); // Storage slot
-    EXPECT_EQ(l1_to_l2_row->kernel_side_effect_counter, 2);
+    EXPECT_EQ(l1_to_l2_row->main_side_effect_counter, 2);
 
     auto msg_out_row = std::ranges::find_if(
         trace.begin(), trace.end(), [&](Row r) { return r.main_clk == START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET; });
-    EXPECT_EQ(msg_out_row->kernel_kernel_value_out, 1); // value
-    EXPECT_EQ(msg_out_row->kernel_kernel_side_effect_out, 2);
-    EXPECT_EQ(msg_out_row->kernel_kernel_metadata_out, 1); // exists
+    EXPECT_EQ(msg_out_row->main_kernel_value_out, 1); // value
+    EXPECT_EQ(msg_out_row->main_kernel_side_effect_out, 2);
+    EXPECT_EQ(msg_out_row->main_kernel_metadata_out, 1); // exists
     feed_output(START_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET, 1, 2, 1);
 
     validate_trace(std::move(trace), public_inputs);

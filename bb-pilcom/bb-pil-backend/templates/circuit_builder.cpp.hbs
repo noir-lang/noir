@@ -65,16 +65,20 @@ bool {{name}}CircuitBuilder::check_circuit() const {
                 r = 0;
             }
 
+            std::array<bool, result.size()> subrelation_failed = { false };
             for (size_t r = 0; r < num_rows; ++r) {
                 Relation::accumulate(result, polys.get_row(r), {}, 1);
                 for (size_t j = 0; j < result.size(); ++j) {
-                    if (result[j] != 0) {
+                    if (!subrelation_failed[j] && result[j] != 0) {
                         signal_error(format("Relation ",
                                             Relation::NAME,
                                             ", subrelation ",
                                             Relation::get_subrelation_label(j),
                                             " failed at row ",
                                             r));
+                        // We will not check this subrelation for any other rows.
+                        // Since the accumulation will keep being != 0.
+                        subrelation_failed[j] = true;
                     }
                 }
             }
@@ -106,14 +110,9 @@ bool {{name}}CircuitBuilder::check_circuit() const {
 
     std::string errors;
     std::mutex m;
-    const bool verbose_errors = std::getenv("AVM_VERBOSE_ERRORS") != nullptr;
     auto signal_error = [&](const std::string& error) {
         std::lock_guard<std::mutex> lock(m);
-        if (verbose_errors) {
-            errors += error + "\n";
-        } else if (errors.empty()) {
-            errors = "Circuit check failed. Use AVM_VERBOSE_ERRORS=1 to see more details.";
-        }
+        errors += error + "\n";
     };
     bb::parallel_for(checks.size(), [&](size_t i) { checks[i](signal_error); });
     if (!errors.empty()) {

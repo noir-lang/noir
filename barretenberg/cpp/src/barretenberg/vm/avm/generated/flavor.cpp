@@ -21,10 +21,10 @@ AvmFlavor::AllConstRefValues::AllConstRefValues(
     , main_sel_first(il[13])
     , main_zeroes(il[14])
     , powers_power_of_2(il[15])
-    , kernel_kernel_inputs(il[16])
-    , kernel_kernel_value_out(il[17])
-    , kernel_kernel_side_effect_out(il[18])
-    , kernel_kernel_metadata_out(il[19])
+    , main_kernel_inputs(il[16])
+    , main_kernel_value_out(il[17])
+    , main_kernel_side_effect_out(il[18])
+    , main_kernel_metadata_out(il[19])
     , main_calldata(il[20])
     , main_returndata(il[21])
     , alu_a_hi(il[22])
@@ -132,140 +132,140 @@ AvmFlavor::AllConstRefValues::AllConstRefValues(
     , keccakf1600_input(il[124])
     , keccakf1600_output(il[125])
     , keccakf1600_sel_keccakf1600(il[126])
-    , kernel_emit_l2_to_l1_msg_write_offset(il[127])
-    , kernel_emit_note_hash_write_offset(il[128])
-    , kernel_emit_nullifier_write_offset(il[129])
-    , kernel_emit_unencrypted_log_write_offset(il[130])
-    , kernel_kernel_in_offset(il[131])
-    , kernel_kernel_out_offset(il[132])
-    , kernel_l1_to_l2_msg_exists_write_offset(il[133])
-    , kernel_note_hash_exist_write_offset(il[134])
-    , kernel_nullifier_exists_write_offset(il[135])
-    , kernel_nullifier_non_exists_write_offset(il[136])
-    , kernel_q_public_input_kernel_add_to_table(il[137])
-    , kernel_q_public_input_kernel_out_add_to_table(il[138])
-    , kernel_side_effect_counter(il[139])
-    , kernel_sload_write_offset(il[140])
-    , kernel_sstore_write_offset(il[141])
-    , main_abs_da_rem_gas_hi(il[142])
-    , main_abs_da_rem_gas_lo(il[143])
-    , main_abs_l2_rem_gas_hi(il[144])
-    , main_abs_l2_rem_gas_lo(il[145])
-    , main_alu_in_tag(il[146])
-    , main_base_da_gas_op_cost(il[147])
-    , main_base_l2_gas_op_cost(il[148])
-    , main_bin_op_id(il[149])
-    , main_call_ptr(il[150])
-    , main_da_gas_remaining(il[151])
-    , main_da_out_of_gas(il[152])
-    , main_dyn_da_gas_op_cost(il[153])
-    , main_dyn_gas_multiplier(il[154])
-    , main_dyn_l2_gas_op_cost(il[155])
-    , main_ia(il[156])
-    , main_ib(il[157])
-    , main_ic(il[158])
-    , main_id(il[159])
-    , main_id_zero(il[160])
-    , main_ind_addr_a(il[161])
-    , main_ind_addr_b(il[162])
-    , main_ind_addr_c(il[163])
-    , main_ind_addr_d(il[164])
-    , main_internal_return_ptr(il[165])
-    , main_inv(il[166])
-    , main_l2_gas_remaining(il[167])
-    , main_l2_out_of_gas(il[168])
-    , main_mem_addr_a(il[169])
-    , main_mem_addr_b(il[170])
-    , main_mem_addr_c(il[171])
-    , main_mem_addr_d(il[172])
-    , main_op_err(il[173])
-    , main_opcode_val(il[174])
-    , main_pc(il[175])
-    , main_r_in_tag(il[176])
-    , main_rwa(il[177])
-    , main_rwb(il[178])
-    , main_rwc(il[179])
-    , main_rwd(il[180])
-    , main_sel_alu(il[181])
-    , main_sel_bin(il[182])
-    , main_sel_calldata(il[183])
-    , main_sel_execution_row(il[184])
-    , main_sel_last(il[185])
-    , main_sel_mem_op_a(il[186])
-    , main_sel_mem_op_b(il[187])
-    , main_sel_mem_op_c(il[188])
-    , main_sel_mem_op_d(il[189])
-    , main_sel_mov_ia_to_ic(il[190])
-    , main_sel_mov_ib_to_ic(il[191])
-    , main_sel_op_add(il[192])
-    , main_sel_op_address(il[193])
-    , main_sel_op_and(il[194])
-    , main_sel_op_block_number(il[195])
-    , main_sel_op_calldata_copy(il[196])
-    , main_sel_op_cast(il[197])
-    , main_sel_op_chain_id(il[198])
-    , main_sel_op_cmov(il[199])
-    , main_sel_op_coinbase(il[200])
-    , main_sel_op_dagasleft(il[201])
-    , main_sel_op_div(il[202])
-    , main_sel_op_ecadd(il[203])
-    , main_sel_op_emit_l2_to_l1_msg(il[204])
-    , main_sel_op_emit_note_hash(il[205])
-    , main_sel_op_emit_nullifier(il[206])
-    , main_sel_op_emit_unencrypted_log(il[207])
-    , main_sel_op_eq(il[208])
-    , main_sel_op_external_call(il[209])
-    , main_sel_op_external_return(il[210])
-    , main_sel_op_external_revert(il[211])
-    , main_sel_op_fdiv(il[212])
-    , main_sel_op_fee_per_da_gas(il[213])
-    , main_sel_op_fee_per_l2_gas(il[214])
-    , main_sel_op_function_selector(il[215])
-    , main_sel_op_get_contract_instance(il[216])
-    , main_sel_op_internal_call(il[217])
-    , main_sel_op_internal_return(il[218])
-    , main_sel_op_jump(il[219])
-    , main_sel_op_jumpi(il[220])
-    , main_sel_op_keccak(il[221])
-    , main_sel_op_l1_to_l2_msg_exists(il[222])
-    , main_sel_op_l2gasleft(il[223])
-    , main_sel_op_lt(il[224])
-    , main_sel_op_lte(il[225])
-    , main_sel_op_mov(il[226])
-    , main_sel_op_msm(il[227])
-    , main_sel_op_mul(il[228])
-    , main_sel_op_not(il[229])
-    , main_sel_op_note_hash_exists(il[230])
-    , main_sel_op_nullifier_exists(il[231])
-    , main_sel_op_or(il[232])
-    , main_sel_op_pedersen(il[233])
-    , main_sel_op_pedersen_commit(il[234])
-    , main_sel_op_poseidon2(il[235])
-    , main_sel_op_radix_le(il[236])
-    , main_sel_op_sender(il[237])
-    , main_sel_op_set(il[238])
-    , main_sel_op_sha256(il[239])
-    , main_sel_op_shl(il[240])
-    , main_sel_op_shr(il[241])
-    , main_sel_op_sload(il[242])
-    , main_sel_op_sstore(il[243])
-    , main_sel_op_storage_address(il[244])
-    , main_sel_op_sub(il[245])
-    , main_sel_op_timestamp(il[246])
-    , main_sel_op_transaction_fee(il[247])
-    , main_sel_op_version(il[248])
-    , main_sel_op_xor(il[249])
-    , main_sel_q_kernel_lookup(il[250])
-    , main_sel_q_kernel_output_lookup(il[251])
-    , main_sel_resolve_ind_addr_a(il[252])
-    , main_sel_resolve_ind_addr_b(il[253])
-    , main_sel_resolve_ind_addr_c(il[254])
-    , main_sel_resolve_ind_addr_d(il[255])
-    , main_sel_returndata(il[256])
-    , main_sel_rng_16(il[257])
-    , main_sel_rng_8(il[258])
-    , main_sel_slice_gadget(il[259])
-    , main_space_id(il[260])
+    , main_abs_da_rem_gas_hi(il[127])
+    , main_abs_da_rem_gas_lo(il[128])
+    , main_abs_l2_rem_gas_hi(il[129])
+    , main_abs_l2_rem_gas_lo(il[130])
+    , main_alu_in_tag(il[131])
+    , main_base_da_gas_op_cost(il[132])
+    , main_base_l2_gas_op_cost(il[133])
+    , main_bin_op_id(il[134])
+    , main_call_ptr(il[135])
+    , main_da_gas_remaining(il[136])
+    , main_da_out_of_gas(il[137])
+    , main_dyn_da_gas_op_cost(il[138])
+    , main_dyn_gas_multiplier(il[139])
+    , main_dyn_l2_gas_op_cost(il[140])
+    , main_emit_l2_to_l1_msg_write_offset(il[141])
+    , main_emit_note_hash_write_offset(il[142])
+    , main_emit_nullifier_write_offset(il[143])
+    , main_emit_unencrypted_log_write_offset(il[144])
+    , main_ia(il[145])
+    , main_ib(il[146])
+    , main_ic(il[147])
+    , main_id(il[148])
+    , main_id_zero(il[149])
+    , main_ind_addr_a(il[150])
+    , main_ind_addr_b(il[151])
+    , main_ind_addr_c(il[152])
+    , main_ind_addr_d(il[153])
+    , main_internal_return_ptr(il[154])
+    , main_inv(il[155])
+    , main_kernel_in_offset(il[156])
+    , main_kernel_out_offset(il[157])
+    , main_l1_to_l2_msg_exists_write_offset(il[158])
+    , main_l2_gas_remaining(il[159])
+    , main_l2_out_of_gas(il[160])
+    , main_mem_addr_a(il[161])
+    , main_mem_addr_b(il[162])
+    , main_mem_addr_c(il[163])
+    , main_mem_addr_d(il[164])
+    , main_note_hash_exist_write_offset(il[165])
+    , main_nullifier_exists_write_offset(il[166])
+    , main_nullifier_non_exists_write_offset(il[167])
+    , main_op_err(il[168])
+    , main_opcode_val(il[169])
+    , main_pc(il[170])
+    , main_r_in_tag(il[171])
+    , main_rwa(il[172])
+    , main_rwb(il[173])
+    , main_rwc(il[174])
+    , main_rwd(il[175])
+    , main_sel_alu(il[176])
+    , main_sel_bin(il[177])
+    , main_sel_calldata(il[178])
+    , main_sel_execution_row(il[179])
+    , main_sel_kernel_inputs(il[180])
+    , main_sel_kernel_out(il[181])
+    , main_sel_last(il[182])
+    , main_sel_mem_op_a(il[183])
+    , main_sel_mem_op_b(il[184])
+    , main_sel_mem_op_c(il[185])
+    , main_sel_mem_op_d(il[186])
+    , main_sel_mov_ia_to_ic(il[187])
+    , main_sel_mov_ib_to_ic(il[188])
+    , main_sel_op_add(il[189])
+    , main_sel_op_address(il[190])
+    , main_sel_op_and(il[191])
+    , main_sel_op_block_number(il[192])
+    , main_sel_op_calldata_copy(il[193])
+    , main_sel_op_cast(il[194])
+    , main_sel_op_chain_id(il[195])
+    , main_sel_op_cmov(il[196])
+    , main_sel_op_coinbase(il[197])
+    , main_sel_op_dagasleft(il[198])
+    , main_sel_op_div(il[199])
+    , main_sel_op_ecadd(il[200])
+    , main_sel_op_emit_l2_to_l1_msg(il[201])
+    , main_sel_op_emit_note_hash(il[202])
+    , main_sel_op_emit_nullifier(il[203])
+    , main_sel_op_emit_unencrypted_log(il[204])
+    , main_sel_op_eq(il[205])
+    , main_sel_op_external_call(il[206])
+    , main_sel_op_external_return(il[207])
+    , main_sel_op_external_revert(il[208])
+    , main_sel_op_fdiv(il[209])
+    , main_sel_op_fee_per_da_gas(il[210])
+    , main_sel_op_fee_per_l2_gas(il[211])
+    , main_sel_op_function_selector(il[212])
+    , main_sel_op_get_contract_instance(il[213])
+    , main_sel_op_internal_call(il[214])
+    , main_sel_op_internal_return(il[215])
+    , main_sel_op_jump(il[216])
+    , main_sel_op_jumpi(il[217])
+    , main_sel_op_keccak(il[218])
+    , main_sel_op_l1_to_l2_msg_exists(il[219])
+    , main_sel_op_l2gasleft(il[220])
+    , main_sel_op_lt(il[221])
+    , main_sel_op_lte(il[222])
+    , main_sel_op_mov(il[223])
+    , main_sel_op_msm(il[224])
+    , main_sel_op_mul(il[225])
+    , main_sel_op_not(il[226])
+    , main_sel_op_note_hash_exists(il[227])
+    , main_sel_op_nullifier_exists(il[228])
+    , main_sel_op_or(il[229])
+    , main_sel_op_pedersen(il[230])
+    , main_sel_op_pedersen_commit(il[231])
+    , main_sel_op_poseidon2(il[232])
+    , main_sel_op_radix_le(il[233])
+    , main_sel_op_sender(il[234])
+    , main_sel_op_set(il[235])
+    , main_sel_op_sha256(il[236])
+    , main_sel_op_shl(il[237])
+    , main_sel_op_shr(il[238])
+    , main_sel_op_sload(il[239])
+    , main_sel_op_sstore(il[240])
+    , main_sel_op_storage_address(il[241])
+    , main_sel_op_sub(il[242])
+    , main_sel_op_timestamp(il[243])
+    , main_sel_op_transaction_fee(il[244])
+    , main_sel_op_version(il[245])
+    , main_sel_op_xor(il[246])
+    , main_sel_q_kernel_lookup(il[247])
+    , main_sel_q_kernel_output_lookup(il[248])
+    , main_sel_resolve_ind_addr_a(il[249])
+    , main_sel_resolve_ind_addr_b(il[250])
+    , main_sel_resolve_ind_addr_c(il[251])
+    , main_sel_resolve_ind_addr_d(il[252])
+    , main_sel_returndata(il[253])
+    , main_sel_rng_16(il[254])
+    , main_sel_rng_8(il[255])
+    , main_sel_slice_gadget(il[256])
+    , main_side_effect_counter(il[257])
+    , main_sload_write_offset(il[258])
+    , main_space_id(il[259])
+    , main_sstore_write_offset(il[260])
     , main_tag_err(il[261])
     , main_w_in_tag(il[262])
     , mem_addr(il[263])
@@ -615,10 +615,10 @@ AvmFlavor::AllConstRefValues::AllConstRefValues(
     , range_check_l2_gas_lo_counts(il[607])
     , range_check_da_gas_hi_counts(il[608])
     , range_check_da_gas_lo_counts(il[609])
-    , lookup_cd_value_counts(il[610])
-    , lookup_ret_value_counts(il[611])
-    , kernel_output_lookup_counts(il[612])
-    , lookup_into_kernel_counts(il[613])
+    , kernel_output_lookup_counts(il[610])
+    , lookup_into_kernel_counts(il[611])
+    , lookup_cd_value_counts(il[612])
+    , lookup_ret_value_counts(il[613])
     , incl_main_tag_err_counts(il[614])
     , incl_mem_tag_err_counts(il[615])
     , lookup_mem_rng_chk_lo_counts(il[616])
@@ -681,10 +681,10 @@ AvmFlavor::AllConstRefValues::AllConstRefValues(
     , range_check_l2_gas_lo_inv(il[673])
     , range_check_da_gas_hi_inv(il[674])
     , range_check_da_gas_lo_inv(il[675])
-    , lookup_cd_value_inv(il[676])
-    , lookup_ret_value_inv(il[677])
-    , kernel_output_lookup_inv(il[678])
-    , lookup_into_kernel_inv(il[679])
+    , kernel_output_lookup_inv(il[676])
+    , lookup_into_kernel_inv(il[677])
+    , lookup_cd_value_inv(il[678])
+    , lookup_ret_value_inv(il[679])
     , incl_main_tag_err_inv(il[680])
     , incl_mem_tag_err_inv(il[681])
     , lookup_mem_rng_chk_lo_inv(il[682])
@@ -717,81 +717,81 @@ AvmFlavor::AllConstRefValues::AllConstRefValues(
     , lookup_div_u16_5_inv(il[709])
     , lookup_div_u16_6_inv(il[710])
     , lookup_div_u16_7_inv(il[711])
-    , alu_div_u16_r1_shift(il[712])
-    , slice_clk_shift(il[713])
-    , alu_div_u16_r6_shift(il[714])
-    , kernel_nullifier_exists_write_offset_shift(il[715])
-    , mem_tsp_shift(il[716])
-    , main_internal_return_ptr_shift(il[717])
-    , main_sel_execution_row_shift(il[718])
-    , alu_sel_rng_chk_shift(il[719])
+    , alu_a_hi_shift(il[712])
+    , alu_a_lo_shift(il[713])
+    , alu_b_hi_shift(il[714])
+    , alu_b_lo_shift(il[715])
+    , alu_cmp_rng_ctr_shift(il[716])
+    , alu_div_u16_r0_shift(il[717])
+    , alu_div_u16_r1_shift(il[718])
+    , alu_div_u16_r2_shift(il[719])
     , alu_div_u16_r3_shift(il[720])
-    , kernel_emit_note_hash_write_offset_shift(il[721])
-    , alu_p_sub_b_hi_shift(il[722])
-    , slice_sel_return_shift(il[723])
-    , kernel_side_effect_counter_shift(il[724])
+    , alu_div_u16_r4_shift(il[721])
+    , alu_div_u16_r5_shift(il[722])
+    , alu_div_u16_r6_shift(il[723])
+    , alu_div_u16_r7_shift(il[724])
     , alu_op_add_shift(il[725])
     , alu_op_cast_shift(il[726])
-    , kernel_emit_nullifier_write_offset_shift(il[727])
-    , slice_cnt_shift(il[728])
-    , alu_sel_cmp_shift(il[729])
-    , alu_u16_r1_shift(il[730])
-    , binary_acc_ia_shift(il[731])
-    , alu_div_u16_r0_shift(il[732])
-    , kernel_l1_to_l2_msg_exists_write_offset_shift(il[733])
-    , alu_a_hi_shift(il[734])
-    , alu_div_u16_r5_shift(il[735])
-    , kernel_emit_unencrypted_log_write_offset_shift(il[736])
-    , mem_val_shift(il[737])
-    , slice_sel_start_shift(il[738])
-    , binary_acc_ic_shift(il[739])
-    , alu_sel_div_rng_chk_shift(il[740])
-    , alu_u16_r6_shift(il[741])
-    , alu_op_shr_shift(il[742])
-    , slice_space_id_shift(il[743])
-    , mem_tag_shift(il[744])
-    , alu_op_mul_shift(il[745])
-    , binary_mem_tag_ctr_shift(il[746])
-    , kernel_emit_l2_to_l1_msg_write_offset_shift(il[747])
-    , alu_sel_alu_shift(il[748])
-    , mem_rw_shift(il[749])
-    , mem_glob_addr_shift(il[750])
-    , alu_u16_r3_shift(il[751])
-    , kernel_sstore_write_offset_shift(il[752])
-    , mem_sel_mem_shift(il[753])
-    , slice_sel_mem_active_shift(il[754])
-    , alu_op_shl_shift(il[755])
-    , alu_b_hi_shift(il[756])
-    , alu_cmp_rng_ctr_shift(il[757])
-    , alu_op_cast_prev_shift(il[758])
-    , alu_sel_rng_chk_lookup_shift(il[759])
-    , slice_sel_cd_cpy_shift(il[760])
-    , main_pc_shift(il[761])
-    , alu_u8_r1_shift(il[762])
-    , alu_p_sub_a_lo_shift(il[763])
-    , main_da_gas_remaining_shift(il[764])
-    , alu_b_lo_shift(il[765])
-    , alu_u8_r0_shift(il[766])
-    , alu_p_sub_b_lo_shift(il[767])
-    , kernel_nullifier_non_exists_write_offset_shift(il[768])
-    , alu_u16_r4_shift(il[769])
-    , binary_acc_ib_shift(il[770])
-    , alu_u16_r0_shift(il[771])
-    , alu_div_u16_r2_shift(il[772])
-    , alu_op_div_shift(il[773])
-    , alu_a_lo_shift(il[774])
-    , alu_op_sub_shift(il[775])
-    , alu_div_u16_r7_shift(il[776])
-    , alu_u16_r5_shift(il[777])
-    , alu_u16_r2_shift(il[778])
-    , kernel_note_hash_exist_write_offset_shift(il[779])
-    , main_l2_gas_remaining_shift(il[780])
-    , kernel_sload_write_offset_shift(il[781])
-    , slice_addr_shift(il[782])
-    , binary_op_id_shift(il[783])
-    , alu_p_sub_a_hi_shift(il[784])
-    , slice_col_offset_shift(il[785])
-    , alu_div_u16_r4_shift(il[786])
+    , alu_op_cast_prev_shift(il[727])
+    , alu_op_div_shift(il[728])
+    , alu_op_mul_shift(il[729])
+    , alu_op_shl_shift(il[730])
+    , alu_op_shr_shift(il[731])
+    , alu_op_sub_shift(il[732])
+    , alu_p_sub_a_hi_shift(il[733])
+    , alu_p_sub_a_lo_shift(il[734])
+    , alu_p_sub_b_hi_shift(il[735])
+    , alu_p_sub_b_lo_shift(il[736])
+    , alu_sel_alu_shift(il[737])
+    , alu_sel_cmp_shift(il[738])
+    , alu_sel_div_rng_chk_shift(il[739])
+    , alu_sel_rng_chk_shift(il[740])
+    , alu_sel_rng_chk_lookup_shift(il[741])
+    , alu_u16_r0_shift(il[742])
+    , alu_u16_r1_shift(il[743])
+    , alu_u16_r2_shift(il[744])
+    , alu_u16_r3_shift(il[745])
+    , alu_u16_r4_shift(il[746])
+    , alu_u16_r5_shift(il[747])
+    , alu_u16_r6_shift(il[748])
+    , alu_u8_r0_shift(il[749])
+    , alu_u8_r1_shift(il[750])
+    , binary_acc_ia_shift(il[751])
+    , binary_acc_ib_shift(il[752])
+    , binary_acc_ic_shift(il[753])
+    , binary_mem_tag_ctr_shift(il[754])
+    , binary_op_id_shift(il[755])
+    , main_da_gas_remaining_shift(il[756])
+    , main_emit_l2_to_l1_msg_write_offset_shift(il[757])
+    , main_emit_note_hash_write_offset_shift(il[758])
+    , main_emit_nullifier_write_offset_shift(il[759])
+    , main_emit_unencrypted_log_write_offset_shift(il[760])
+    , main_internal_return_ptr_shift(il[761])
+    , main_l1_to_l2_msg_exists_write_offset_shift(il[762])
+    , main_l2_gas_remaining_shift(il[763])
+    , main_note_hash_exist_write_offset_shift(il[764])
+    , main_nullifier_exists_write_offset_shift(il[765])
+    , main_nullifier_non_exists_write_offset_shift(il[766])
+    , main_pc_shift(il[767])
+    , main_sel_execution_row_shift(il[768])
+    , main_side_effect_counter_shift(il[769])
+    , main_sload_write_offset_shift(il[770])
+    , main_sstore_write_offset_shift(il[771])
+    , mem_glob_addr_shift(il[772])
+    , mem_rw_shift(il[773])
+    , mem_sel_mem_shift(il[774])
+    , mem_tag_shift(il[775])
+    , mem_tsp_shift(il[776])
+    , mem_val_shift(il[777])
+    , slice_addr_shift(il[778])
+    , slice_clk_shift(il[779])
+    , slice_cnt_shift(il[780])
+    , slice_col_offset_shift(il[781])
+    , slice_sel_cd_cpy_shift(il[782])
+    , slice_sel_mem_active_shift(il[783])
+    , slice_sel_return_shift(il[784])
+    , slice_sel_start_shift(il[785])
+    , slice_space_id_shift(il[786])
 {}
 
 AvmFlavor::ProverPolynomials::ProverPolynomials(ProvingKey& proving_key)
@@ -824,10 +824,10 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      main_sel_first[row_idx],
                      main_zeroes[row_idx],
                      powers_power_of_2[row_idx],
-                     kernel_kernel_inputs[row_idx],
-                     kernel_kernel_value_out[row_idx],
-                     kernel_kernel_side_effect_out[row_idx],
-                     kernel_kernel_metadata_out[row_idx],
+                     main_kernel_inputs[row_idx],
+                     main_kernel_value_out[row_idx],
+                     main_kernel_side_effect_out[row_idx],
+                     main_kernel_metadata_out[row_idx],
                      main_calldata[row_idx],
                      main_returndata[row_idx],
                      alu_a_hi[row_idx],
@@ -935,21 +935,6 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      keccakf1600_input[row_idx],
                      keccakf1600_output[row_idx],
                      keccakf1600_sel_keccakf1600[row_idx],
-                     kernel_emit_l2_to_l1_msg_write_offset[row_idx],
-                     kernel_emit_note_hash_write_offset[row_idx],
-                     kernel_emit_nullifier_write_offset[row_idx],
-                     kernel_emit_unencrypted_log_write_offset[row_idx],
-                     kernel_kernel_in_offset[row_idx],
-                     kernel_kernel_out_offset[row_idx],
-                     kernel_l1_to_l2_msg_exists_write_offset[row_idx],
-                     kernel_note_hash_exist_write_offset[row_idx],
-                     kernel_nullifier_exists_write_offset[row_idx],
-                     kernel_nullifier_non_exists_write_offset[row_idx],
-                     kernel_q_public_input_kernel_add_to_table[row_idx],
-                     kernel_q_public_input_kernel_out_add_to_table[row_idx],
-                     kernel_side_effect_counter[row_idx],
-                     kernel_sload_write_offset[row_idx],
-                     kernel_sstore_write_offset[row_idx],
                      main_abs_da_rem_gas_hi[row_idx],
                      main_abs_da_rem_gas_lo[row_idx],
                      main_abs_l2_rem_gas_hi[row_idx],
@@ -964,6 +949,10 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      main_dyn_da_gas_op_cost[row_idx],
                      main_dyn_gas_multiplier[row_idx],
                      main_dyn_l2_gas_op_cost[row_idx],
+                     main_emit_l2_to_l1_msg_write_offset[row_idx],
+                     main_emit_note_hash_write_offset[row_idx],
+                     main_emit_nullifier_write_offset[row_idx],
+                     main_emit_unencrypted_log_write_offset[row_idx],
                      main_ia[row_idx],
                      main_ib[row_idx],
                      main_ic[row_idx],
@@ -975,12 +964,18 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      main_ind_addr_d[row_idx],
                      main_internal_return_ptr[row_idx],
                      main_inv[row_idx],
+                     main_kernel_in_offset[row_idx],
+                     main_kernel_out_offset[row_idx],
+                     main_l1_to_l2_msg_exists_write_offset[row_idx],
                      main_l2_gas_remaining[row_idx],
                      main_l2_out_of_gas[row_idx],
                      main_mem_addr_a[row_idx],
                      main_mem_addr_b[row_idx],
                      main_mem_addr_c[row_idx],
                      main_mem_addr_d[row_idx],
+                     main_note_hash_exist_write_offset[row_idx],
+                     main_nullifier_exists_write_offset[row_idx],
+                     main_nullifier_non_exists_write_offset[row_idx],
                      main_op_err[row_idx],
                      main_opcode_val[row_idx],
                      main_pc[row_idx],
@@ -993,6 +988,8 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      main_sel_bin[row_idx],
                      main_sel_calldata[row_idx],
                      main_sel_execution_row[row_idx],
+                     main_sel_kernel_inputs[row_idx],
+                     main_sel_kernel_out[row_idx],
                      main_sel_last[row_idx],
                      main_sel_mem_op_a[row_idx],
                      main_sel_mem_op_b[row_idx],
@@ -1068,7 +1065,10 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      main_sel_rng_16[row_idx],
                      main_sel_rng_8[row_idx],
                      main_sel_slice_gadget[row_idx],
+                     main_side_effect_counter[row_idx],
+                     main_sload_write_offset[row_idx],
                      main_space_id[row_idx],
+                     main_sstore_write_offset[row_idx],
                      main_tag_err[row_idx],
                      main_w_in_tag[row_idx],
                      mem_addr[row_idx],
@@ -1418,10 +1418,10 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      range_check_l2_gas_lo_counts[row_idx],
                      range_check_da_gas_hi_counts[row_idx],
                      range_check_da_gas_lo_counts[row_idx],
-                     lookup_cd_value_counts[row_idx],
-                     lookup_ret_value_counts[row_idx],
                      kernel_output_lookup_counts[row_idx],
                      lookup_into_kernel_counts[row_idx],
+                     lookup_cd_value_counts[row_idx],
+                     lookup_ret_value_counts[row_idx],
                      incl_main_tag_err_counts[row_idx],
                      incl_mem_tag_err_counts[row_idx],
                      lookup_mem_rng_chk_lo_counts[row_idx],
@@ -1484,10 +1484,10 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      range_check_l2_gas_lo_inv[row_idx],
                      range_check_da_gas_hi_inv[row_idx],
                      range_check_da_gas_lo_inv[row_idx],
-                     lookup_cd_value_inv[row_idx],
-                     lookup_ret_value_inv[row_idx],
                      kernel_output_lookup_inv[row_idx],
                      lookup_into_kernel_inv[row_idx],
+                     lookup_cd_value_inv[row_idx],
+                     lookup_ret_value_inv[row_idx],
                      incl_main_tag_err_inv[row_idx],
                      incl_mem_tag_err_inv[row_idx],
                      lookup_mem_rng_chk_lo_inv[row_idx],
@@ -1520,81 +1520,81 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      lookup_div_u16_5_inv[row_idx],
                      lookup_div_u16_6_inv[row_idx],
                      lookup_div_u16_7_inv[row_idx],
+                     alu_a_hi_shift[row_idx],
+                     alu_a_lo_shift[row_idx],
+                     alu_b_hi_shift[row_idx],
+                     alu_b_lo_shift[row_idx],
+                     alu_cmp_rng_ctr_shift[row_idx],
+                     alu_div_u16_r0_shift[row_idx],
                      alu_div_u16_r1_shift[row_idx],
-                     slice_clk_shift[row_idx],
-                     alu_div_u16_r6_shift[row_idx],
-                     kernel_nullifier_exists_write_offset_shift[row_idx],
-                     mem_tsp_shift[row_idx],
-                     main_internal_return_ptr_shift[row_idx],
-                     main_sel_execution_row_shift[row_idx],
-                     alu_sel_rng_chk_shift[row_idx],
+                     alu_div_u16_r2_shift[row_idx],
                      alu_div_u16_r3_shift[row_idx],
-                     kernel_emit_note_hash_write_offset_shift[row_idx],
-                     alu_p_sub_b_hi_shift[row_idx],
-                     slice_sel_return_shift[row_idx],
-                     kernel_side_effect_counter_shift[row_idx],
+                     alu_div_u16_r4_shift[row_idx],
+                     alu_div_u16_r5_shift[row_idx],
+                     alu_div_u16_r6_shift[row_idx],
+                     alu_div_u16_r7_shift[row_idx],
                      alu_op_add_shift[row_idx],
                      alu_op_cast_shift[row_idx],
-                     kernel_emit_nullifier_write_offset_shift[row_idx],
-                     slice_cnt_shift[row_idx],
-                     alu_sel_cmp_shift[row_idx],
-                     alu_u16_r1_shift[row_idx],
-                     binary_acc_ia_shift[row_idx],
-                     alu_div_u16_r0_shift[row_idx],
-                     kernel_l1_to_l2_msg_exists_write_offset_shift[row_idx],
-                     alu_a_hi_shift[row_idx],
-                     alu_div_u16_r5_shift[row_idx],
-                     kernel_emit_unencrypted_log_write_offset_shift[row_idx],
-                     mem_val_shift[row_idx],
-                     slice_sel_start_shift[row_idx],
-                     binary_acc_ic_shift[row_idx],
-                     alu_sel_div_rng_chk_shift[row_idx],
-                     alu_u16_r6_shift[row_idx],
-                     alu_op_shr_shift[row_idx],
-                     slice_space_id_shift[row_idx],
-                     mem_tag_shift[row_idx],
-                     alu_op_mul_shift[row_idx],
-                     binary_mem_tag_ctr_shift[row_idx],
-                     kernel_emit_l2_to_l1_msg_write_offset_shift[row_idx],
-                     alu_sel_alu_shift[row_idx],
-                     mem_rw_shift[row_idx],
-                     mem_glob_addr_shift[row_idx],
-                     alu_u16_r3_shift[row_idx],
-                     kernel_sstore_write_offset_shift[row_idx],
-                     mem_sel_mem_shift[row_idx],
-                     slice_sel_mem_active_shift[row_idx],
-                     alu_op_shl_shift[row_idx],
-                     alu_b_hi_shift[row_idx],
-                     alu_cmp_rng_ctr_shift[row_idx],
                      alu_op_cast_prev_shift[row_idx],
-                     alu_sel_rng_chk_lookup_shift[row_idx],
-                     slice_sel_cd_cpy_shift[row_idx],
-                     main_pc_shift[row_idx],
-                     alu_u8_r1_shift[row_idx],
-                     alu_p_sub_a_lo_shift[row_idx],
-                     main_da_gas_remaining_shift[row_idx],
-                     alu_b_lo_shift[row_idx],
-                     alu_u8_r0_shift[row_idx],
-                     alu_p_sub_b_lo_shift[row_idx],
-                     kernel_nullifier_non_exists_write_offset_shift[row_idx],
-                     alu_u16_r4_shift[row_idx],
-                     binary_acc_ib_shift[row_idx],
-                     alu_u16_r0_shift[row_idx],
-                     alu_div_u16_r2_shift[row_idx],
                      alu_op_div_shift[row_idx],
-                     alu_a_lo_shift[row_idx],
+                     alu_op_mul_shift[row_idx],
+                     alu_op_shl_shift[row_idx],
+                     alu_op_shr_shift[row_idx],
                      alu_op_sub_shift[row_idx],
-                     alu_div_u16_r7_shift[row_idx],
-                     alu_u16_r5_shift[row_idx],
-                     alu_u16_r2_shift[row_idx],
-                     kernel_note_hash_exist_write_offset_shift[row_idx],
-                     main_l2_gas_remaining_shift[row_idx],
-                     kernel_sload_write_offset_shift[row_idx],
-                     slice_addr_shift[row_idx],
-                     binary_op_id_shift[row_idx],
                      alu_p_sub_a_hi_shift[row_idx],
+                     alu_p_sub_a_lo_shift[row_idx],
+                     alu_p_sub_b_hi_shift[row_idx],
+                     alu_p_sub_b_lo_shift[row_idx],
+                     alu_sel_alu_shift[row_idx],
+                     alu_sel_cmp_shift[row_idx],
+                     alu_sel_div_rng_chk_shift[row_idx],
+                     alu_sel_rng_chk_shift[row_idx],
+                     alu_sel_rng_chk_lookup_shift[row_idx],
+                     alu_u16_r0_shift[row_idx],
+                     alu_u16_r1_shift[row_idx],
+                     alu_u16_r2_shift[row_idx],
+                     alu_u16_r3_shift[row_idx],
+                     alu_u16_r4_shift[row_idx],
+                     alu_u16_r5_shift[row_idx],
+                     alu_u16_r6_shift[row_idx],
+                     alu_u8_r0_shift[row_idx],
+                     alu_u8_r1_shift[row_idx],
+                     binary_acc_ia_shift[row_idx],
+                     binary_acc_ib_shift[row_idx],
+                     binary_acc_ic_shift[row_idx],
+                     binary_mem_tag_ctr_shift[row_idx],
+                     binary_op_id_shift[row_idx],
+                     main_da_gas_remaining_shift[row_idx],
+                     main_emit_l2_to_l1_msg_write_offset_shift[row_idx],
+                     main_emit_note_hash_write_offset_shift[row_idx],
+                     main_emit_nullifier_write_offset_shift[row_idx],
+                     main_emit_unencrypted_log_write_offset_shift[row_idx],
+                     main_internal_return_ptr_shift[row_idx],
+                     main_l1_to_l2_msg_exists_write_offset_shift[row_idx],
+                     main_l2_gas_remaining_shift[row_idx],
+                     main_note_hash_exist_write_offset_shift[row_idx],
+                     main_nullifier_exists_write_offset_shift[row_idx],
+                     main_nullifier_non_exists_write_offset_shift[row_idx],
+                     main_pc_shift[row_idx],
+                     main_sel_execution_row_shift[row_idx],
+                     main_side_effect_counter_shift[row_idx],
+                     main_sload_write_offset_shift[row_idx],
+                     main_sstore_write_offset_shift[row_idx],
+                     mem_glob_addr_shift[row_idx],
+                     mem_rw_shift[row_idx],
+                     mem_sel_mem_shift[row_idx],
+                     mem_tag_shift[row_idx],
+                     mem_tsp_shift[row_idx],
+                     mem_val_shift[row_idx],
+                     slice_addr_shift[row_idx],
+                     slice_clk_shift[row_idx],
+                     slice_cnt_shift[row_idx],
                      slice_col_offset_shift[row_idx],
-                     alu_div_u16_r4_shift[row_idx] };
+                     slice_sel_cd_cpy_shift[row_idx],
+                     slice_sel_mem_active_shift[row_idx],
+                     slice_sel_return_shift[row_idx],
+                     slice_sel_start_shift[row_idx],
+                     slice_space_id_shift[row_idx] };
 }
 
 AvmFlavor::CommitmentLabels::CommitmentLabels()
@@ -1615,10 +1615,10 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::main_sel_first = "MAIN_SEL_FIRST";
     Base::main_zeroes = "MAIN_ZEROES";
     Base::powers_power_of_2 = "POWERS_POWER_OF_2";
-    Base::kernel_kernel_inputs = "KERNEL_KERNEL_INPUTS";
-    Base::kernel_kernel_value_out = "KERNEL_KERNEL_VALUE_OUT";
-    Base::kernel_kernel_side_effect_out = "KERNEL_KERNEL_SIDE_EFFECT_OUT";
-    Base::kernel_kernel_metadata_out = "KERNEL_KERNEL_METADATA_OUT";
+    Base::main_kernel_inputs = "MAIN_KERNEL_INPUTS";
+    Base::main_kernel_value_out = "MAIN_KERNEL_VALUE_OUT";
+    Base::main_kernel_side_effect_out = "MAIN_KERNEL_SIDE_EFFECT_OUT";
+    Base::main_kernel_metadata_out = "MAIN_KERNEL_METADATA_OUT";
     Base::main_calldata = "MAIN_CALLDATA";
     Base::main_returndata = "MAIN_RETURNDATA";
     Base::alu_a_hi = "ALU_A_HI";
@@ -1726,21 +1726,6 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::keccakf1600_input = "KECCAKF1600_INPUT";
     Base::keccakf1600_output = "KECCAKF1600_OUTPUT";
     Base::keccakf1600_sel_keccakf1600 = "KECCAKF1600_SEL_KECCAKF1600";
-    Base::kernel_emit_l2_to_l1_msg_write_offset = "KERNEL_EMIT_L2_TO_L1_MSG_WRITE_OFFSET";
-    Base::kernel_emit_note_hash_write_offset = "KERNEL_EMIT_NOTE_HASH_WRITE_OFFSET";
-    Base::kernel_emit_nullifier_write_offset = "KERNEL_EMIT_NULLIFIER_WRITE_OFFSET";
-    Base::kernel_emit_unencrypted_log_write_offset = "KERNEL_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET";
-    Base::kernel_kernel_in_offset = "KERNEL_KERNEL_IN_OFFSET";
-    Base::kernel_kernel_out_offset = "KERNEL_KERNEL_OUT_OFFSET";
-    Base::kernel_l1_to_l2_msg_exists_write_offset = "KERNEL_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET";
-    Base::kernel_note_hash_exist_write_offset = "KERNEL_NOTE_HASH_EXIST_WRITE_OFFSET";
-    Base::kernel_nullifier_exists_write_offset = "KERNEL_NULLIFIER_EXISTS_WRITE_OFFSET";
-    Base::kernel_nullifier_non_exists_write_offset = "KERNEL_NULLIFIER_NON_EXISTS_WRITE_OFFSET";
-    Base::kernel_q_public_input_kernel_add_to_table = "KERNEL_Q_PUBLIC_INPUT_KERNEL_ADD_TO_TABLE";
-    Base::kernel_q_public_input_kernel_out_add_to_table = "KERNEL_Q_PUBLIC_INPUT_KERNEL_OUT_ADD_TO_TABLE";
-    Base::kernel_side_effect_counter = "KERNEL_SIDE_EFFECT_COUNTER";
-    Base::kernel_sload_write_offset = "KERNEL_SLOAD_WRITE_OFFSET";
-    Base::kernel_sstore_write_offset = "KERNEL_SSTORE_WRITE_OFFSET";
     Base::main_abs_da_rem_gas_hi = "MAIN_ABS_DA_REM_GAS_HI";
     Base::main_abs_da_rem_gas_lo = "MAIN_ABS_DA_REM_GAS_LO";
     Base::main_abs_l2_rem_gas_hi = "MAIN_ABS_L2_REM_GAS_HI";
@@ -1755,6 +1740,10 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::main_dyn_da_gas_op_cost = "MAIN_DYN_DA_GAS_OP_COST";
     Base::main_dyn_gas_multiplier = "MAIN_DYN_GAS_MULTIPLIER";
     Base::main_dyn_l2_gas_op_cost = "MAIN_DYN_L2_GAS_OP_COST";
+    Base::main_emit_l2_to_l1_msg_write_offset = "MAIN_EMIT_L2_TO_L1_MSG_WRITE_OFFSET";
+    Base::main_emit_note_hash_write_offset = "MAIN_EMIT_NOTE_HASH_WRITE_OFFSET";
+    Base::main_emit_nullifier_write_offset = "MAIN_EMIT_NULLIFIER_WRITE_OFFSET";
+    Base::main_emit_unencrypted_log_write_offset = "MAIN_EMIT_UNENCRYPTED_LOG_WRITE_OFFSET";
     Base::main_ia = "MAIN_IA";
     Base::main_ib = "MAIN_IB";
     Base::main_ic = "MAIN_IC";
@@ -1766,12 +1755,18 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::main_ind_addr_d = "MAIN_IND_ADDR_D";
     Base::main_internal_return_ptr = "MAIN_INTERNAL_RETURN_PTR";
     Base::main_inv = "MAIN_INV";
+    Base::main_kernel_in_offset = "MAIN_KERNEL_IN_OFFSET";
+    Base::main_kernel_out_offset = "MAIN_KERNEL_OUT_OFFSET";
+    Base::main_l1_to_l2_msg_exists_write_offset = "MAIN_L1_TO_L2_MSG_EXISTS_WRITE_OFFSET";
     Base::main_l2_gas_remaining = "MAIN_L2_GAS_REMAINING";
     Base::main_l2_out_of_gas = "MAIN_L2_OUT_OF_GAS";
     Base::main_mem_addr_a = "MAIN_MEM_ADDR_A";
     Base::main_mem_addr_b = "MAIN_MEM_ADDR_B";
     Base::main_mem_addr_c = "MAIN_MEM_ADDR_C";
     Base::main_mem_addr_d = "MAIN_MEM_ADDR_D";
+    Base::main_note_hash_exist_write_offset = "MAIN_NOTE_HASH_EXIST_WRITE_OFFSET";
+    Base::main_nullifier_exists_write_offset = "MAIN_NULLIFIER_EXISTS_WRITE_OFFSET";
+    Base::main_nullifier_non_exists_write_offset = "MAIN_NULLIFIER_NON_EXISTS_WRITE_OFFSET";
     Base::main_op_err = "MAIN_OP_ERR";
     Base::main_opcode_val = "MAIN_OPCODE_VAL";
     Base::main_pc = "MAIN_PC";
@@ -1784,6 +1779,8 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::main_sel_bin = "MAIN_SEL_BIN";
     Base::main_sel_calldata = "MAIN_SEL_CALLDATA";
     Base::main_sel_execution_row = "MAIN_SEL_EXECUTION_ROW";
+    Base::main_sel_kernel_inputs = "MAIN_SEL_KERNEL_INPUTS";
+    Base::main_sel_kernel_out = "MAIN_SEL_KERNEL_OUT";
     Base::main_sel_last = "MAIN_SEL_LAST";
     Base::main_sel_mem_op_a = "MAIN_SEL_MEM_OP_A";
     Base::main_sel_mem_op_b = "MAIN_SEL_MEM_OP_B";
@@ -1859,7 +1856,10 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::main_sel_rng_16 = "MAIN_SEL_RNG_16";
     Base::main_sel_rng_8 = "MAIN_SEL_RNG_8";
     Base::main_sel_slice_gadget = "MAIN_SEL_SLICE_GADGET";
+    Base::main_side_effect_counter = "MAIN_SIDE_EFFECT_COUNTER";
+    Base::main_sload_write_offset = "MAIN_SLOAD_WRITE_OFFSET";
     Base::main_space_id = "MAIN_SPACE_ID";
+    Base::main_sstore_write_offset = "MAIN_SSTORE_WRITE_OFFSET";
     Base::main_tag_err = "MAIN_TAG_ERR";
     Base::main_w_in_tag = "MAIN_W_IN_TAG";
     Base::mem_addr = "MEM_ADDR";
@@ -2232,10 +2232,10 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::range_check_l2_gas_lo_inv = "RANGE_CHECK_L2_GAS_LO_INV";
     Base::range_check_da_gas_hi_inv = "RANGE_CHECK_DA_GAS_HI_INV";
     Base::range_check_da_gas_lo_inv = "RANGE_CHECK_DA_GAS_LO_INV";
-    Base::lookup_cd_value_inv = "LOOKUP_CD_VALUE_INV";
-    Base::lookup_ret_value_inv = "LOOKUP_RET_VALUE_INV";
     Base::kernel_output_lookup_inv = "KERNEL_OUTPUT_LOOKUP_INV";
     Base::lookup_into_kernel_inv = "LOOKUP_INTO_KERNEL_INV";
+    Base::lookup_cd_value_inv = "LOOKUP_CD_VALUE_INV";
+    Base::lookup_ret_value_inv = "LOOKUP_RET_VALUE_INV";
     Base::incl_main_tag_err_inv = "INCL_MAIN_TAG_ERR_INV";
     Base::incl_mem_tag_err_inv = "INCL_MEM_TAG_ERR_INV";
     Base::lookup_mem_rng_chk_lo_inv = "LOOKUP_MEM_RNG_CHK_LO_INV";
@@ -2275,10 +2275,10 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::range_check_l2_gas_lo_counts = "RANGE_CHECK_L2_GAS_LO_COUNTS";
     Base::range_check_da_gas_hi_counts = "RANGE_CHECK_DA_GAS_HI_COUNTS";
     Base::range_check_da_gas_lo_counts = "RANGE_CHECK_DA_GAS_LO_COUNTS";
-    Base::lookup_cd_value_counts = "LOOKUP_CD_VALUE_COUNTS";
-    Base::lookup_ret_value_counts = "LOOKUP_RET_VALUE_COUNTS";
     Base::kernel_output_lookup_counts = "KERNEL_OUTPUT_LOOKUP_COUNTS";
     Base::lookup_into_kernel_counts = "LOOKUP_INTO_KERNEL_COUNTS";
+    Base::lookup_cd_value_counts = "LOOKUP_CD_VALUE_COUNTS";
+    Base::lookup_ret_value_counts = "LOOKUP_RET_VALUE_COUNTS";
     Base::incl_main_tag_err_counts = "INCL_MAIN_TAG_ERR_COUNTS";
     Base::incl_mem_tag_err_counts = "INCL_MEM_TAG_ERR_COUNTS";
     Base::lookup_mem_rng_chk_lo_counts = "LOOKUP_MEM_RNG_CHK_LO_COUNTS";

@@ -40,10 +40,10 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_sel_first[i] = rows[i].main_sel_first;
         polys.main_zeroes[i] = rows[i].main_zeroes;
         polys.powers_power_of_2[i] = rows[i].powers_power_of_2;
-        polys.kernel_kernel_inputs[i] = rows[i].kernel_kernel_inputs;
-        polys.kernel_kernel_value_out[i] = rows[i].kernel_kernel_value_out;
-        polys.kernel_kernel_side_effect_out[i] = rows[i].kernel_kernel_side_effect_out;
-        polys.kernel_kernel_metadata_out[i] = rows[i].kernel_kernel_metadata_out;
+        polys.main_kernel_inputs[i] = rows[i].main_kernel_inputs;
+        polys.main_kernel_value_out[i] = rows[i].main_kernel_value_out;
+        polys.main_kernel_side_effect_out[i] = rows[i].main_kernel_side_effect_out;
+        polys.main_kernel_metadata_out[i] = rows[i].main_kernel_metadata_out;
         polys.main_calldata[i] = rows[i].main_calldata;
         polys.main_returndata[i] = rows[i].main_returndata;
         polys.alu_a_hi[i] = rows[i].alu_a_hi;
@@ -151,21 +151,6 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.keccakf1600_input[i] = rows[i].keccakf1600_input;
         polys.keccakf1600_output[i] = rows[i].keccakf1600_output;
         polys.keccakf1600_sel_keccakf1600[i] = rows[i].keccakf1600_sel_keccakf1600;
-        polys.kernel_emit_l2_to_l1_msg_write_offset[i] = rows[i].kernel_emit_l2_to_l1_msg_write_offset;
-        polys.kernel_emit_note_hash_write_offset[i] = rows[i].kernel_emit_note_hash_write_offset;
-        polys.kernel_emit_nullifier_write_offset[i] = rows[i].kernel_emit_nullifier_write_offset;
-        polys.kernel_emit_unencrypted_log_write_offset[i] = rows[i].kernel_emit_unencrypted_log_write_offset;
-        polys.kernel_kernel_in_offset[i] = rows[i].kernel_kernel_in_offset;
-        polys.kernel_kernel_out_offset[i] = rows[i].kernel_kernel_out_offset;
-        polys.kernel_l1_to_l2_msg_exists_write_offset[i] = rows[i].kernel_l1_to_l2_msg_exists_write_offset;
-        polys.kernel_note_hash_exist_write_offset[i] = rows[i].kernel_note_hash_exist_write_offset;
-        polys.kernel_nullifier_exists_write_offset[i] = rows[i].kernel_nullifier_exists_write_offset;
-        polys.kernel_nullifier_non_exists_write_offset[i] = rows[i].kernel_nullifier_non_exists_write_offset;
-        polys.kernel_q_public_input_kernel_add_to_table[i] = rows[i].kernel_q_public_input_kernel_add_to_table;
-        polys.kernel_q_public_input_kernel_out_add_to_table[i] = rows[i].kernel_q_public_input_kernel_out_add_to_table;
-        polys.kernel_side_effect_counter[i] = rows[i].kernel_side_effect_counter;
-        polys.kernel_sload_write_offset[i] = rows[i].kernel_sload_write_offset;
-        polys.kernel_sstore_write_offset[i] = rows[i].kernel_sstore_write_offset;
         polys.main_abs_da_rem_gas_hi[i] = rows[i].main_abs_da_rem_gas_hi;
         polys.main_abs_da_rem_gas_lo[i] = rows[i].main_abs_da_rem_gas_lo;
         polys.main_abs_l2_rem_gas_hi[i] = rows[i].main_abs_l2_rem_gas_hi;
@@ -180,6 +165,10 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_dyn_da_gas_op_cost[i] = rows[i].main_dyn_da_gas_op_cost;
         polys.main_dyn_gas_multiplier[i] = rows[i].main_dyn_gas_multiplier;
         polys.main_dyn_l2_gas_op_cost[i] = rows[i].main_dyn_l2_gas_op_cost;
+        polys.main_emit_l2_to_l1_msg_write_offset[i] = rows[i].main_emit_l2_to_l1_msg_write_offset;
+        polys.main_emit_note_hash_write_offset[i] = rows[i].main_emit_note_hash_write_offset;
+        polys.main_emit_nullifier_write_offset[i] = rows[i].main_emit_nullifier_write_offset;
+        polys.main_emit_unencrypted_log_write_offset[i] = rows[i].main_emit_unencrypted_log_write_offset;
         polys.main_ia[i] = rows[i].main_ia;
         polys.main_ib[i] = rows[i].main_ib;
         polys.main_ic[i] = rows[i].main_ic;
@@ -191,12 +180,18 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_ind_addr_d[i] = rows[i].main_ind_addr_d;
         polys.main_internal_return_ptr[i] = rows[i].main_internal_return_ptr;
         polys.main_inv[i] = rows[i].main_inv;
+        polys.main_kernel_in_offset[i] = rows[i].main_kernel_in_offset;
+        polys.main_kernel_out_offset[i] = rows[i].main_kernel_out_offset;
+        polys.main_l1_to_l2_msg_exists_write_offset[i] = rows[i].main_l1_to_l2_msg_exists_write_offset;
         polys.main_l2_gas_remaining[i] = rows[i].main_l2_gas_remaining;
         polys.main_l2_out_of_gas[i] = rows[i].main_l2_out_of_gas;
         polys.main_mem_addr_a[i] = rows[i].main_mem_addr_a;
         polys.main_mem_addr_b[i] = rows[i].main_mem_addr_b;
         polys.main_mem_addr_c[i] = rows[i].main_mem_addr_c;
         polys.main_mem_addr_d[i] = rows[i].main_mem_addr_d;
+        polys.main_note_hash_exist_write_offset[i] = rows[i].main_note_hash_exist_write_offset;
+        polys.main_nullifier_exists_write_offset[i] = rows[i].main_nullifier_exists_write_offset;
+        polys.main_nullifier_non_exists_write_offset[i] = rows[i].main_nullifier_non_exists_write_offset;
         polys.main_op_err[i] = rows[i].main_op_err;
         polys.main_opcode_val[i] = rows[i].main_opcode_val;
         polys.main_pc[i] = rows[i].main_pc;
@@ -209,6 +204,8 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_sel_bin[i] = rows[i].main_sel_bin;
         polys.main_sel_calldata[i] = rows[i].main_sel_calldata;
         polys.main_sel_execution_row[i] = rows[i].main_sel_execution_row;
+        polys.main_sel_kernel_inputs[i] = rows[i].main_sel_kernel_inputs;
+        polys.main_sel_kernel_out[i] = rows[i].main_sel_kernel_out;
         polys.main_sel_last[i] = rows[i].main_sel_last;
         polys.main_sel_mem_op_a[i] = rows[i].main_sel_mem_op_a;
         polys.main_sel_mem_op_b[i] = rows[i].main_sel_mem_op_b;
@@ -284,7 +281,10 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_sel_rng_16[i] = rows[i].main_sel_rng_16;
         polys.main_sel_rng_8[i] = rows[i].main_sel_rng_8;
         polys.main_sel_slice_gadget[i] = rows[i].main_sel_slice_gadget;
+        polys.main_side_effect_counter[i] = rows[i].main_side_effect_counter;
+        polys.main_sload_write_offset[i] = rows[i].main_sload_write_offset;
         polys.main_space_id[i] = rows[i].main_space_id;
+        polys.main_sstore_write_offset[i] = rows[i].main_sstore_write_offset;
         polys.main_tag_err[i] = rows[i].main_tag_err;
         polys.main_w_in_tag[i] = rows[i].main_w_in_tag;
         polys.mem_addr[i] = rows[i].mem_addr;
@@ -634,10 +634,10 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.range_check_l2_gas_lo_counts[i] = rows[i].range_check_l2_gas_lo_counts;
         polys.range_check_da_gas_hi_counts[i] = rows[i].range_check_da_gas_hi_counts;
         polys.range_check_da_gas_lo_counts[i] = rows[i].range_check_da_gas_lo_counts;
-        polys.lookup_cd_value_counts[i] = rows[i].lookup_cd_value_counts;
-        polys.lookup_ret_value_counts[i] = rows[i].lookup_ret_value_counts;
         polys.kernel_output_lookup_counts[i] = rows[i].kernel_output_lookup_counts;
         polys.lookup_into_kernel_counts[i] = rows[i].lookup_into_kernel_counts;
+        polys.lookup_cd_value_counts[i] = rows[i].lookup_cd_value_counts;
+        polys.lookup_ret_value_counts[i] = rows[i].lookup_ret_value_counts;
         polys.incl_main_tag_err_counts[i] = rows[i].incl_main_tag_err_counts;
         polys.incl_mem_tag_err_counts[i] = rows[i].incl_mem_tag_err_counts;
         polys.lookup_mem_rng_chk_lo_counts[i] = rows[i].lookup_mem_rng_chk_lo_counts;
@@ -710,16 +710,20 @@ bool AvmCircuitBuilder::check_circuit() const
                 r = 0;
             }
 
+            std::array<bool, result.size()> subrelation_failed = { false };
             for (size_t r = 0; r < num_rows; ++r) {
                 Relation::accumulate(result, polys.get_row(r), {}, 1);
                 for (size_t j = 0; j < result.size(); ++j) {
-                    if (result[j] != 0) {
+                    if (!subrelation_failed[j] && result[j] != 0) {
                         signal_error(format("Relation ",
                                             Relation::NAME,
                                             ", subrelation ",
                                             Relation::get_subrelation_label(j),
                                             " failed at row ",
                                             r));
+                        // We will not check this subrelation for any other rows.
+                        // Since the accumulation will keep being != 0.
+                        subrelation_failed[j] = true;
                     }
                 }
             }

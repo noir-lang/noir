@@ -83,7 +83,7 @@ void test_kernel_lookup(bool indirect,
 void expect_row(auto row, FF selector, FF ia, FF ind_a, FF mem_addr_a, AvmMemoryTag w_in_tag)
 {
     // Checks dependent on the opcode
-    EXPECT_EQ(row->kernel_kernel_in_offset, selector);
+    EXPECT_EQ(row->main_kernel_in_offset, selector);
     EXPECT_EQ(row->main_ia, ia);
     EXPECT_EQ(row->main_mem_addr_a, mem_addr_a);
 
@@ -106,7 +106,7 @@ void expect_output_table_row(auto row,
                              uint32_t rwa = 0)
 {
     // Checks dependent on the opcode
-    EXPECT_EQ(row->kernel_kernel_out_offset, selector);
+    EXPECT_EQ(row->main_kernel_out_offset, selector);
     EXPECT_EQ(row->main_ia, ia);
     EXPECT_EQ(row->main_mem_addr_a, mem_addr_a);
 
@@ -118,7 +118,7 @@ void expect_output_table_row(auto row,
     EXPECT_EQ(row->main_r_in_tag, static_cast<uint32_t>(r_in_tag));
     EXPECT_EQ(row->main_sel_q_kernel_output_lookup, FF(1));
 
-    EXPECT_EQ(row->kernel_side_effect_counter, FF(side_effect_counter));
+    EXPECT_EQ(row->main_side_effect_counter, FF(side_effect_counter));
 }
 
 void expect_output_table_row_with_metadata(auto row,
@@ -174,9 +174,9 @@ void expect_output_table_row_with_exists_metadata(auto row,
 
 void check_kernel_outputs(const Row& row, FF value, FF side_effect_counter, FF metadata)
 {
-    EXPECT_EQ(row.kernel_kernel_value_out, value);
-    EXPECT_EQ(row.kernel_kernel_side_effect_out, side_effect_counter);
-    EXPECT_EQ(row.kernel_kernel_metadata_out, metadata);
+    EXPECT_EQ(row.main_kernel_value_out, value);
+    EXPECT_EQ(row.main_kernel_side_effect_out, side_effect_counter);
+    EXPECT_EQ(row.main_kernel_metadata_out, metadata);
 }
 
 TEST_F(AvmKernelPositiveTests, kernelSender)
@@ -951,12 +951,12 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitNoteHash)
     // We write the note hash into memory
     auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, 1234, direct_offset, AvmMemoryTag::FF);
-        trace_builder.op_emit_note_hash(/*indirect=*/false, direct_offset);
+        trace_builder.op_emit_note_hash(/*indirect=*/0, direct_offset);
     };
     auto indirect_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, 1234, direct_offset, AvmMemoryTag::FF);
         trace_builder.op_set(0, direct_offset, indirect_offset, AvmMemoryTag::U32);
-        trace_builder.op_emit_note_hash(/*indirect=*/true, indirect_offset);
+        trace_builder.op_emit_note_hash(/*indirect=*/1, indirect_offset);
     };
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
@@ -993,12 +993,12 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitNullifier)
     // We write the note hash into memory
     auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, 1234, direct_offset, AvmMemoryTag::FF);
-        trace_builder.op_emit_nullifier(/*indirect=*/false, direct_offset);
+        trace_builder.op_emit_nullifier(/*indirect=*/0, direct_offset);
     };
     auto indirect_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, 1234, direct_offset, AvmMemoryTag::FF);
         trace_builder.op_set(0, direct_offset, indirect_offset, AvmMemoryTag::U32);
-        trace_builder.op_emit_nullifier(/*indirect=*/true, indirect_offset);
+        trace_builder.op_emit_nullifier(/*indirect=*/1, indirect_offset);
     };
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
@@ -1038,11 +1038,11 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitL2ToL1Msg)
     uint32_t recipient = 420;
     uint32_t output_offset = START_EMIT_L2_TO_L1_MSG_WRITE_OFFSET;
 
-    // auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
-    //     trace_builder.op_set(0, 1234, msg_offset, AvmMemoryTag::FF);
-    //     trace_builder.op_set(0, 420, recipient_offset, AvmMemoryTag::FF);
-    //     trace_builder.op_emit_l2_to_l1_msg(false, recipient_offset, msg_offset);
-    // };
+    auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
+        trace_builder.op_set(0, 1234, msg_offset, AvmMemoryTag::FF);
+        trace_builder.op_set(0, 420, recipient_offset, AvmMemoryTag::FF);
+        trace_builder.op_emit_l2_to_l1_msg(0, recipient_offset, msg_offset);
+    };
     auto indirect_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, 1234, msg_offset, AvmMemoryTag::FF);
         trace_builder.op_set(0, msg_offset, indirect_msg_offset, AvmMemoryTag::U32);
@@ -1071,9 +1071,9 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitL2ToL1Msg)
         check_kernel_outputs(trace.at(output_offset), value, /*side_effect_counter=*/0, /*metadata=*/recipient);
     };
 
-    // test_kernel_lookup(false, direct_apply_opcodes, checks);
     VmPublicInputs public_inputs =
         get_public_inputs_with_output(output_offset, value, /*side_effect_counter=*/0, recipient);
+    test_kernel_lookup(false, direct_apply_opcodes, checks, std::move(public_inputs));
     test_kernel_lookup(true, indirect_apply_opcodes, checks, std::move(public_inputs));
 }
 
@@ -1088,12 +1088,12 @@ TEST_F(AvmKernelOutputPositiveTests, kernelEmitUnencryptedLog)
     // We write the note hash into memory
     auto direct_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, 1234, direct_offset, AvmMemoryTag::FF);
-        trace_builder.op_emit_unencrypted_log(/*indirect=*/false, direct_offset, /*log_size_offset=*/0);
+        trace_builder.op_emit_unencrypted_log(/*indirect=*/0, direct_offset, /*log_size_offset=*/0);
     };
     auto indirect_apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, 1234, direct_offset, AvmMemoryTag::FF);
         trace_builder.op_set(0, direct_offset, indirect_offset, AvmMemoryTag::U32);
-        trace_builder.op_emit_unencrypted_log(/*indirect=*/true, indirect_offset, /*log_size_offset=*/0);
+        trace_builder.op_emit_unencrypted_log(/*indirect=*/1, indirect_offset, /*log_size_offset=*/0);
     };
 
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
@@ -1264,7 +1264,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierExists)
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
-        trace_builder.op_nullifier_exists(/*indirect=*/false, value_offset, metadata_offset);
+        trace_builder.op_nullifier_exists(/*indirect=*/0, value_offset, metadata_offset);
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(
@@ -1303,7 +1303,7 @@ TEST_F(AvmKernelOutputPositiveTests, kernelNullifierNonExists)
 
     auto apply_opcodes = [=](AvmTraceBuilder& trace_builder) {
         trace_builder.op_set(0, static_cast<uint128_t>(value), value_offset, AvmMemoryTag::FF);
-        trace_builder.op_nullifier_exists(/*indirect=*/false, value_offset, metadata_offset);
+        trace_builder.op_nullifier_exists(/*indirect=*/0, value_offset, metadata_offset);
     };
     auto checks = [=](bool indirect, const std::vector<Row>& trace) {
         auto row = std::ranges::find_if(

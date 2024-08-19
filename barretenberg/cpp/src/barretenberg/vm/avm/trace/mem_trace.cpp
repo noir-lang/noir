@@ -7,15 +7,6 @@
 namespace bb::avm_trace {
 
 /**
- * @brief Constructor of a memory trace builder of AVM. Only serves to set the capacity of the
- *        underlying traces.
- */
-AvmMemTraceBuilder::AvmMemTraceBuilder()
-{
-    mem_trace.reserve(AVM_TRACE_SIZE);
-}
-
-/**
  * @brief Resetting the internal state so that a new memory trace can be rebuilt using the same object.
  *
  */

@@ -5,7 +5,6 @@
 
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb {
@@ -110,22 +109,22 @@ bool AvmVerifier::verify_proof(const HonkProof& proof,
     std::vector<FF> mle_challenge(multivariate_challenge.begin(),
                                   multivariate_challenge.begin() + static_cast<int>(log_circuit_size));
 
-    FF kernel_kernel_inputs_evaluation = evaluate_public_input_column(public_inputs[0], circuit_size, mle_challenge);
-    if (kernel_kernel_inputs_evaluation != claimed_evaluations.kernel_kernel_inputs) {
+    FF main_kernel_inputs_evaluation = evaluate_public_input_column(public_inputs[0], circuit_size, mle_challenge);
+    if (main_kernel_inputs_evaluation != claimed_evaluations.main_kernel_inputs) {
         return false;
     }
-    FF kernel_kernel_value_out_evaluation = evaluate_public_input_column(public_inputs[1], circuit_size, mle_challenge);
-    if (kernel_kernel_value_out_evaluation != claimed_evaluations.kernel_kernel_value_out) {
+    FF main_kernel_value_out_evaluation = evaluate_public_input_column(public_inputs[1], circuit_size, mle_challenge);
+    if (main_kernel_value_out_evaluation != claimed_evaluations.main_kernel_value_out) {
         return false;
     }
-    FF kernel_kernel_side_effect_out_evaluation =
+    FF main_kernel_side_effect_out_evaluation =
         evaluate_public_input_column(public_inputs[2], circuit_size, mle_challenge);
-    if (kernel_kernel_side_effect_out_evaluation != claimed_evaluations.kernel_kernel_side_effect_out) {
+    if (main_kernel_side_effect_out_evaluation != claimed_evaluations.main_kernel_side_effect_out) {
         return false;
     }
-    FF kernel_kernel_metadata_out_evaluation =
+    FF main_kernel_metadata_out_evaluation =
         evaluate_public_input_column(public_inputs[3], circuit_size, mle_challenge);
-    if (kernel_kernel_metadata_out_evaluation != claimed_evaluations.kernel_kernel_metadata_out) {
+    if (main_kernel_metadata_out_evaluation != claimed_evaluations.main_kernel_metadata_out) {
         return false;
     }
     FF main_calldata_evaluation = evaluate_public_input_column(public_inputs[4], circuit_size, mle_challenge);

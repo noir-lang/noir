@@ -1,6 +1,7 @@
 include "fixed/gas.pil";
 
-// Gas is a "virtual" trace. Things are only in a separate file for modularity.
+// This is a "virtual" trace. Things are only in a separate file for modularity.
+// That is, this trace is expected to be in 1-1 relation with the main trace.
 // However, the columns and relations are set on the "main" namespace.
 namespace main(256);
     //===== GAS ACCOUNTING ========================================================

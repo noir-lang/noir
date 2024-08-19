@@ -41,7 +41,6 @@ void validate_trace(std::vector<Row>&& trace,
                     bool with_proof,
                     bool expect_proof_failure)
 {
-    setenv("AVM_VERBOSE_ERRORS", "1", 1);
     const std::string avm_dump_trace_path =
         std::getenv("AVM_DUMP_TRACE_PATH") != nullptr ? std::getenv("AVM_DUMP_TRACE_PATH") : "";
     if (!avm_dump_trace_path.empty()) {

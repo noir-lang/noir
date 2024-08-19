@@ -2,6 +2,7 @@
 
 #include "barretenberg/numeric/uint128/uint128.hpp"
 #include "barretenberg/vm/avm/trace/common.hpp"
+#include "barretenberg/vm/avm/trace/execution_hints.hpp"
 
 #include "barretenberg/vm/constants.hpp"
 
@@ -13,27 +14,41 @@ namespace bb::avm_trace {
 
 class AvmKernelTraceBuilder {
   public:
-    struct KernelTraceEntry {
-        // Clk - to join black onto the main trace
-        uint32_t clk = 0;
-        uint32_t kernel_in_offset = 0;
-        uint32_t kernel_out_offset = 0;
-        bool q_kernel_lookup = false;
-        bool q_kernel_output_lookup = false;
-
-        // In finalise, the main trace writes the correct write_offset for each operation based appearing selectors
-        bool op_note_hash_exists = false;
-        bool op_emit_note_hash = false;
-        bool op_nullifier_exists = false;
-        bool op_emit_nullifier = false;
-        bool op_l1_to_l2_msg_exists = false;
-        bool op_emit_unencrypted_log = false;
-        bool op_emit_l2_to_l1_msg = false;
-        bool op_sload = false;
-        bool op_sstore = false;
+    enum class KernelTraceOpType {
+        // IN
+        ADDRESS,
+        STORAGE_ADDRESS,
+        SENDER,
+        FUNCTION_SELECTOR,
+        TRANSACTION_FEE,
+        CHAIN_ID,
+        VERSION,
+        BLOCK_NUMBER,
+        COINBASE,
+        TIMESTAMP,
+        FEE_PER_DA_GAS,
+        FEE_PER_L2_GAS,
+        // OUT
+        SLOAD,
+        SSTORE,
+        NOTE_HASH_EXISTS,
+        EMIT_NOTE_HASH,
+        NULLIFIER_EXISTS,
+        EMIT_NULLIFIER,
+        L1_TO_L2_MSG_EXISTS,
+        EMIT_UNENCRYPTED_LOG,
+        EMIT_L2_TO_L1_MSG
     };
 
-    VmPublicInputs public_inputs;
+    // While the kernel trace is expected to be 1-1 with the main trace,
+    // we store it in "compressed form". That is, only actual operations are stored.
+    // Then, in finalize things are padded for in between clks.
+    struct KernelTraceEntry {
+        uint32_t clk = 0;
+        uint32_t kernel_out_offset = 0;
+        // In finalise, the main trace writes the correct write_offset for each operation based appearing selectors
+        KernelTraceOpType operation;
+    };
 
     // Counts the number of accesses into each SELECTOR for the environment selector lookups;
     std::unordered_map<uint32_t, uint32_t> kernel_input_selector_counter;
@@ -42,28 +57,32 @@ class AvmKernelTraceBuilder {
     // optimise this to just hardcode the counter to be the same as the lookup selector value!!!
     std::unordered_map<uint32_t, uint32_t> kernel_output_selector_counter;
 
-    // Constructor receives copy of kernel_inputs from the main trace builder
-    AvmKernelTraceBuilder(VmPublicInputs public_inputs);
+    AvmKernelTraceBuilder(uint32_t initial_side_effect_counter, VmPublicInputs public_inputs, ExecutionHints hints)
+        : initial_side_effect_counter(initial_side_effect_counter)
+        , public_inputs(std::move(public_inputs))
+        , hints(std::move(hints))
+    {}
 
     void reset();
-    std::vector<KernelTraceEntry> finalize();
+    void finalize(std::vector<AvmFullRow<FF>>& main_trace);
+    void finalize_columns(std::vector<AvmFullRow<FF>>& main_trace) const;
 
     // Context
-    FF op_address();
-    FF op_storage_address();
-    FF op_sender();
-    FF op_function_selector();
-    FF op_transaction_fee();
+    FF op_address(uint32_t clk);
+    FF op_storage_address(uint32_t clk);
+    FF op_sender(uint32_t clk);
+    FF op_function_selector(uint32_t clk);
+    FF op_transaction_fee(uint32_t clk);
 
     // Globals
-    FF op_chain_id();
-    FF op_version();
-    FF op_block_number();
-    FF op_coinbase();
-    FF op_timestamp();
+    FF op_chain_id(uint32_t clk);
+    FF op_version(uint32_t clk);
+    FF op_block_number(uint32_t clk);
+    FF op_coinbase(uint32_t clk);
+    FF op_timestamp(uint32_t clk);
     // Globals - Gas
-    FF op_fee_per_da_gas();
-    FF op_fee_per_l2_gas();
+    FF op_fee_per_da_gas(uint32_t clk);
+    FF op_fee_per_l2_gas(uint32_t clk);
 
     // Outputs
     // Each returns the selector that was used
@@ -80,6 +99,10 @@ class AvmKernelTraceBuilder {
   private:
     std::vector<KernelTraceEntry> kernel_trace;
 
+    uint32_t initial_side_effect_counter;
+    VmPublicInputs public_inputs;
+    ExecutionHints hints;
+
     // Output index counters
     uint32_t note_hash_exists_offset = 0;
     uint32_t emit_note_hash_offset = 0;
@@ -89,7 +112,6 @@ class AvmKernelTraceBuilder {
     uint32_t l1_to_l2_msg_exists_offset = 0;
     uint32_t emit_unencrypted_log_offset = 0;
     uint32_t emit_l2_to_l1_msg_offset = 0;
-
     uint32_t sload_write_offset = 0;
     uint32_t sstore_write_offset = 0;
 
