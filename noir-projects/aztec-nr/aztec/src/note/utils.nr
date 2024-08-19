@@ -1,16 +1,12 @@
-use crate::{
-    context::PrivateContext, generators::G_slot,
-    note::{note_header::NoteHeader, note_interface::NoteInterface}
-};
+use crate::{context::PrivateContext, note::{note_header::NoteHeader, note_interface::NoteInterface}};
 
 use dep::protocol_types::{
     hash::{
     compute_unique_note_hash, compute_siloed_note_hash as compute_siloed_note_hash,
     compute_siloed_nullifier as compute_siloed_nullifier_from_preimage
 },
-    point::Point, utils::arr_copy_slice
+    utils::arr_copy_slice
 };
-use dep::std::{embedded_curve_ops::multi_scalar_mul, hash::from_field_unsafe};
 
 pub fn compute_siloed_nullifier<Note, let N: u32, let M: u32>(
     note_with_header: Note,

@@ -1,6 +1,10 @@
-use crate::{context::PrivateContext, note::{note_header::NoteHeader, note_interface::NoteInterface}};
+use crate::{
+    context::PrivateContext, generators::Ga1 as G_val, hash::poseidon2_hash_with_separator,
+    note::{note_header::NoteHeader, note_interface::NoteInterface, utils::compute_note_hash_for_nullify}
+};
 
-use dep::protocol_types::{address::AztecAddress, point::Point, traits::Eq};
+use dep::protocol_types::{address::AztecAddress, constants::GENERATOR_INDEX__NOTE_NULLIFIER, point::Point, traits::Eq};
+use dep::std::{embedded_curve_ops::multi_scalar_mul, hash::from_field_unsafe};
 
 global MOCK_NOTE_LENGTH = 1;
 // MOCK_NOTE_LENGTH * 32 + 32(storage_slot as bytes) + 32(note_type_id as bytes)
@@ -23,9 +27,11 @@ impl NoteInterface<MOCK_NOTE_LENGTH, MOCK_NOTE_BYTES_LENGTH> for MockNote {
       }
     }
 
-    fn compute_note_hiding_point(_self: Self) -> Point {
-      // TODO(#7636): Properly implement these functions.
-      crate::generators::Ga1
+    fn compute_note_hiding_point(self: Self) -> Point {
+        assert(self.header.storage_slot != 0, "Storage slot must be set before computing note hiding point");
+        // We use the unsafe version because the multi_scalar_mul will constrain the scalars.
+        let value_scalar = from_field_unsafe(self.value);
+        multi_scalar_mul([G_val], [value_scalar])
     }
 
     fn get_header(self) -> NoteHeader {
@@ -37,15 +43,21 @@ impl NoteInterface<MOCK_NOTE_LENGTH, MOCK_NOTE_BYTES_LENGTH> for MockNote {
     }
 
     fn get_note_type_id() -> Field {
-      0
+      // randomly chose note type id
+      4135
     }
 
-    fn compute_nullifier(_self: Self, _context: &mut PrivateContext, _note_hash_for_nullify: Field) -> Field {
-      0
+    fn compute_nullifier(self, context: &mut PrivateContext, note_hash_for_nullify: Field) -> Field {
+        // We don't use any kind of secret here since this is only a mock note and having it here would make tests
+        // more cumbersome
+        poseidon2_hash_with_separator([note_hash_for_nullify], GENERATOR_INDEX__NOTE_NULLIFIER as Field)
     }
 
-    fn compute_nullifier_without_context(_self: Self) -> Field {
-      0
+    fn compute_nullifier_without_context(self) -> Field {
+        // We don't use any kind of secret here since this is only a mock note and having it here would make tests
+        // more cumbersome
+        let note_hash_for_nullify = compute_note_hash_for_nullify(self);
+        poseidon2_hash_with_separator([note_hash_for_nullify], GENERATOR_INDEX__NOTE_NULLIFIER as Field)
     }
 
     fn to_be_bytes(self, storage_slot: Field) -> [u8; MOCK_NOTE_BYTES_LENGTH] {
