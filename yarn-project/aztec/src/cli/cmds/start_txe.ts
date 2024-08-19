@@ -9,7 +9,6 @@ export const startTXE = (options: any, debugLogger: DebugLogger) => {
   const app = txeServer.getApp();
   const httpServer = http.createServer(app.callback());
   httpServer.timeout = 1e3 * 60 * 5; // 5 minutes
-  const port = parseInt(options.txePort);
-  httpServer.listen(port);
-  debugLogger.info(`TXE listening on port ${port}`);
+  httpServer.listen(options.port);
+  debugLogger.info(`TXE listening on port ${options.port}`);
 };

@@ -7,7 +7,7 @@ services:
     volumes:
       - ./log:/usr/src/yarn-project/aztec/log:rw
       - ${HOME}:${HOME}
-    command: start --txe
+    command: start --txe --port 8081
       
   aztec-nargo:
     image: "aztecprotocol/aztec-nargo"
