@@ -243,7 +243,6 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .map(|args| {
             let ((other_args, where_clause), methods) = args;
             let (generics, (object_type, type_span)) = other_args;
-
             TopLevelStatement::Impl(TypeImpl {
                 generics,
                 object_type,

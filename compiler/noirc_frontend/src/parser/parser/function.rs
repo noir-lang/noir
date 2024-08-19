@@ -55,7 +55,6 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
 
             // Validate collected attributes, filtering them into function and secondary variants
             let attributes = validate_attributes(attributes, span, emit);
-
             FunctionDefinition {
                 span: body_span,
                 name,

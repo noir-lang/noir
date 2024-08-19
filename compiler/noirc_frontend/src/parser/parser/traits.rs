@@ -47,7 +47,6 @@ pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(trait_body_or_error)
         .validate(|((((attributes, name), generics), where_clause), items), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
-
             TopLevelStatement::Trait(NoirTrait {
                 name,
                 generics,
@@ -158,7 +157,6 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .map(|args| {
             let (((other_args, object_type), where_clause), items) = args;
             let ((impl_generics, trait_name), trait_generics) = other_args;
-
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
                 trait_name,
