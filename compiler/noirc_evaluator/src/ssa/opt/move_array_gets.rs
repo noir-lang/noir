@@ -18,7 +18,7 @@
 //!    of an array_get have been inserted we can insert the corresponding array_get itself.
 //!    Since it can be expensive checking this for every instruction, this pass makes
 //!    the assumption that the last dependency will always have the highest ValueId.
-use fxhash::FxHashMap;
+use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
@@ -48,7 +48,7 @@ struct State {
     /// Every array_get in the current function, keyed by its last dependency in terms of
     /// which was created latest. We can re-insert the array_get back into the program
     /// after this dependency.
-    array_gets: FxHashMap<ValueId, Vec<ArrayGet>>,
+    array_gets: HashMap<ValueId, Vec<ArrayGet>>,
 
     /// These array gets only depend on constant values or function inputs so they'd
     /// never be inserted if we're going through each instruction's outputs only.
