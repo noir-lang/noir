@@ -611,13 +611,12 @@ mod tests {
         // acir fn main f0 {
         //   b0():
         //     v7 = allocate
-        //     store Field 5 at v7
         //     jmp b1(Field 5)
         //   b1(v3: Field):
-        //     store Field 6 at v7
         //     return v3, Field 5, Field 6
         // }
         let ssa = ssa.mem2reg();
+        println!("{}", ssa);
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);
@@ -626,9 +625,9 @@ mod tests {
         assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
         assert_eq!(count_loads(b1, &main.dfg), 0);
 
-        // Neither store is removed since they are each the last in the block and there are multiple blocks
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 1);
-        assert_eq!(count_stores(b1, &main.dfg), 1);
+        // All stores are removed as there are no loads to the values being stored anywhere in the function.
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_stores(b1, &main.dfg), 0);
 
         // The jmp to b1 should also be a constant 5 now
         match main.dfg[main.entry_block()].terminator() {
