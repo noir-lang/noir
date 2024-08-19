@@ -85,7 +85,7 @@ describe('e2e_fees account_init', () => {
 
   describe('account pays its own fee', () => {
     it('pays natively in the Fee Juice after Alice bridges funds', async () => {
-      await t.feeJuiceContract.methods.mint_public(bobsAddress, t.INITIAL_GAS_BALANCE).send().wait();
+      await t.mintFeeJuice(bobsAddress, t.INITIAL_GAS_BALANCE);
       const [bobsInitialGas] = await t.getGasBalanceFn(bobsAddress);
       expect(bobsInitialGas).toEqual(t.INITIAL_GAS_BALANCE);
 
@@ -179,7 +179,7 @@ describe('e2e_fees account_init', () => {
   describe('another account pays the fee', () => {
     it('pays natively in the Fee Juice', async () => {
       // mint Fee Juice to alice
-      await t.feeJuiceContract.methods.mint_public(aliceAddress, t.INITIAL_GAS_BALANCE).send().wait();
+      await t.mintFeeJuice(aliceAddress, t.INITIAL_GAS_BALANCE);
       const [alicesInitialGas] = await t.getGasBalanceFn(aliceAddress);
 
       // bob generates the private keys for his account on his own

@@ -133,6 +133,9 @@ global INITIAL_L2_BLOCK_NUM: Field = 1;
 global BLOB_SIZE_IN_BYTES: Field = 31 * 4096;
 global ETHEREUM_SLOT_DURATION: u32 = 12;
 global IS_DEV_NET: bool = true;
+// The following and the value in `deploy_l1_contracts´ must match. We should not have the code both places, but 
+// we are running into circular dependency issues. #3342
+global FEE_JUICE_INITIAL_MINT: Field = 20000000000;
 
 // CONTRACT CLASS CONSTANTS
 global MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS: u32 = 20000;

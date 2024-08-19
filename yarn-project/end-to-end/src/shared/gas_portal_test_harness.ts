@@ -10,7 +10,7 @@ import {
 } from '@aztec/aztec.js';
 import { FeeJuicePortalAbi, OutboxAbi, PortalERC20Abi } from '@aztec/l1-artifacts';
 import { FeeJuiceContract } from '@aztec/noir-contracts.js';
-import { FeeJuiceAddress, getCanonicalFeeJuice } from '@aztec/protocol-contracts/fee-juice';
+import { FeeJuiceAddress } from '@aztec/protocol-contracts/fee-juice';
 
 import {
   type Account,
@@ -46,16 +46,6 @@ export interface FeeJuicePortalTestingHarnessFactoryConfig {
 
 export class FeeJuicePortalTestingHarnessFactory {
   private constructor(private config: FeeJuicePortalTestingHarnessFactoryConfig) {}
-
-  private async createMock() {
-    const wallet = this.config.wallet;
-
-    // In this case we are not using a portal we just yolo it.
-    const gasL2 = await FeeJuiceContract.deploy(wallet)
-      .send({ contractAddressSalt: getCanonicalFeeJuice().instance.salt })
-      .deployed();
-    return Promise.resolve(new MockGasBridgingTestHarness(gasL2, EthAddress.ZERO));
-  }
 
   private async createReal() {
     const { aztecNode, pxeService, publicClient, walletClient, wallet, logger } = this.config;
@@ -105,30 +95,9 @@ export class FeeJuicePortalTestingHarnessFactory {
     );
   }
 
-  static create(config: FeeJuicePortalTestingHarnessFactoryConfig): Promise<IGasBridgingTestHarness> {
+  static create(config: FeeJuicePortalTestingHarnessFactoryConfig): Promise<GasBridgingTestHarness> {
     const factory = new FeeJuicePortalTestingHarnessFactory(config);
-    if (config.mockL1) {
-      return factory.createMock();
-    } else {
-      return factory.createReal();
-    }
-  }
-}
-
-class MockGasBridgingTestHarness implements IGasBridgingTestHarness {
-  constructor(public l2Token: FeeJuiceContract, public l1FeeJuiceAddress: EthAddress) {}
-  prepareTokensOnL1(
-    _l1TokenBalance: bigint,
-    _bridgeAmount: bigint,
-    _owner: AztecAddress,
-  ): Promise<{ secret: Fr; secretHash: Fr; msgHash: Fr }> {
-    throw new Error('Cannot prepare tokens on mocked L1.');
-  }
-  async bridgeFromL1ToL2(_l1TokenBalance: bigint, bridgeAmount: bigint, owner: AztecAddress): Promise<void> {
-    await this.l2Token.methods.mint_public(owner, bridgeAmount).send().wait();
-  }
-  getL1FeeJuiceBalance(_address: EthAddress): Promise<bigint> {
-    throw new Error('Cannot get Fee Juice balance on mocked L1.');
+    return factory.createReal();
   }
 }
 
@@ -136,7 +105,7 @@ class MockGasBridgingTestHarness implements IGasBridgingTestHarness {
  * A Class for testing cross chain interactions, contains common interactions
  * shared between cross chain tests.
  */
-class GasBridgingTestHarness implements IGasBridgingTestHarness {
+export class GasBridgingTestHarness implements IGasBridgingTestHarness {
   constructor(
     /** Aztec node */
     public aztecNode: AztecNode,
@@ -177,12 +146,13 @@ class GasBridgingTestHarness implements IGasBridgingTestHarness {
     return [secret, secretHash];
   }
 
-  async mintTokensOnL1(amount: bigint) {
+  async mintTokensOnL1(amount: bigint, to: EthAddress = this.ethAccount) {
     this.logger.info('Minting tokens on L1');
+    const balanceBefore = await this.underlyingERC20.read.balanceOf([to.toString()]);
     await this.publicClient.waitForTransactionReceipt({
-      hash: await this.underlyingERC20.write.mint([this.ethAccount.toString(), amount]),
+      hash: await this.underlyingERC20.write.mint([to.toString(), amount]),
     });
-    expect(await this.underlyingERC20.read.balanceOf([this.ethAccount.toString()])).toBe(amount);
+    expect(await this.underlyingERC20.read.balanceOf([to.toString()])).toBe(balanceBefore + amount);
   }
 
   async getL1FeeJuiceBalance(address: EthAddress) {

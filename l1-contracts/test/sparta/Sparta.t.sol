@@ -2,8 +2,6 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
-import {IERC20} from "@oz/token/ERC20/IERC20.sol";
-
 import {DecoderBase} from "../decoders/Base.sol";
 
 import {DataStructures} from "../../src/core/libraries/DataStructures.sol";
@@ -22,13 +20,14 @@ import {NaiveMerkle} from "../merkle/Naive.sol";
 import {MerkleTestUtil} from "../merkle/TestUtil.sol";
 import {PortalERC20} from "../portals/PortalERC20.sol";
 import {TxsDecoderHelper} from "../decoders/helpers/TxsDecoderHelper.sol";
-
+import {IFeeJuicePortal} from "../../src/core/interfaces/IFeeJuicePortal.sol";
 /**
  * We are using the same blocks as from Rollup.t.sol.
  * The tests in this file is testing the sequencer selection
  *
  * We will skip these test if we are running with IS_DEV_NET = true
  */
+
 contract SpartaTest is DecoderBase {
   using MessageHashUtils for bytes32;
 
@@ -64,15 +63,12 @@ contract SpartaTest is DecoderBase {
     availabilityOracle = new AvailabilityOracle();
     portalERC20 = new PortalERC20();
     rollup = new Rollup(
-      registry, availabilityOracle, IERC20(address(portalERC20)), bytes32(0), address(this)
+      registry, availabilityOracle, IFeeJuicePortal(address(0)), bytes32(0), address(this)
     );
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));
 
     registry.upgrade(address(rollup));
-
-    // mint some tokens to the rollup
-    portalERC20.mint(address(rollup), 1000000);
 
     merkleTestUtil = new MerkleTestUtil();
     txsHelper = new TxsDecoderHelper();

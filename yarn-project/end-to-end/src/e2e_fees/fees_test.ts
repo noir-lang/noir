@@ -33,10 +33,7 @@ import { getContract } from 'viem';
 import { MNEMONIC } from '../fixtures/fixtures.js';
 import { type ISnapshotManager, addAccounts, createSnapshotManager } from '../fixtures/snapshot_manager.js';
 import { type BalancesFn, deployCanonicalFeeJuice, getBalancesFn, publicDeployAccounts } from '../fixtures/utils.js';
-import {
-  FeeJuicePortalTestingHarnessFactory,
-  type IGasBridgingTestHarness,
-} from '../shared/gas_portal_test_harness.js';
+import { FeeJuicePortalTestingHarnessFactory, type GasBridgingTestHarness } from '../shared/gas_portal_test_harness.js';
 
 const { E2E_DATA_PATH: dataPath } = process.env;
 
@@ -74,7 +71,7 @@ export class FeesTest {
   public privateFPC!: PrivateFPCContract;
   public counterContract!: CounterContract;
   public subscriptionContract!: AppSubscriptionContract;
-  public feeJuiceBridgeTestHarness!: IGasBridgingTestHarness;
+  public feeJuiceBridgeTestHarness!: GasBridgingTestHarness;
 
   public getCoinbaseBalance!: () => Promise<bigint>;
   public getGasBalanceFn!: BalancesFn;
@@ -108,6 +105,14 @@ export class FeesTest {
     await this.token.methods.privately_mint_private_note(amount).send().wait();
     const balanceAfter = await this.token.methods.balance_of_private(this.aliceAddress).simulate();
     expect(balanceAfter).toEqual(balanceBefore + amount);
+  }
+
+  // Mint fee juice AND mint funds to the portal to emulate the L1 -> L2 bridge
+  async mintFeeJuice(address: AztecAddress, amount: bigint) {
+    await this.feeJuiceContract.methods.mint_public(address, amount).send().wait();
+    // Need to also mint funds to the portal
+    const portalAddress = EthAddress.fromString(this.feeJuiceBridgeTestHarness.tokenPortal.address);
+    await this.feeJuiceBridgeTestHarness.mintTokensOnL1(amount, portalAddress);
   }
 
   /** Alice mints bananaCoin tokens privately to the target address and redeems them. */
@@ -187,7 +192,6 @@ export class FeesTest {
           walletClient: walletClient,
           wallet: this.aliceWallet,
           logger: this.logger,
-          mockL1: false,
         });
       },
     );
@@ -223,7 +227,6 @@ export class FeesTest {
           walletClient: walletClient,
           wallet: this.aliceWallet,
           logger: this.logger,
-          mockL1: false,
         });
       },
     );
@@ -362,7 +365,7 @@ export class FeesTest {
     await this.snapshotManager.snapshot(
       'fund_alice_with_fee_juice',
       async () => {
-        await this.feeJuiceContract.methods.mint_public(this.aliceAddress, this.INITIAL_GAS_BALANCE).send().wait();
+        await this.mintFeeJuice(this.aliceAddress, this.INITIAL_GAS_BALANCE);
       },
       () => Promise.resolve(),
     );
@@ -392,11 +395,7 @@ export class FeesTest {
 
         // Mint some Fee Juice to the subscription contract
         // Could also use bridgeFromL1ToL2 from the harness, but this is more direct
-        await this.feeJuiceContract.methods
-          .mint_public(subscriptionContract.address, this.INITIAL_GAS_BALANCE)
-          .send()
-          .wait();
-
+        await this.mintFeeJuice(subscriptionContract.address, this.INITIAL_GAS_BALANCE);
         return {
           counterContractAddress: counterContract.address,
           subscriptionContractAddress: subscriptionContract.address,

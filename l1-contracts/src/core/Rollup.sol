@@ -9,7 +9,7 @@ import {IInbox} from "./interfaces/messagebridge/IInbox.sol";
 import {IOutbox} from "./interfaces/messagebridge/IOutbox.sol";
 import {IRegistry} from "./interfaces/messagebridge/IRegistry.sol";
 import {IVerifier} from "./interfaces/IVerifier.sol";
-import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+import {IFeeJuicePortal} from "./interfaces/IFeeJuicePortal.sol";
 
 // Libraries
 import {HeaderLib} from "./libraries/HeaderLib.sol";
@@ -47,7 +47,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   IInbox public immutable INBOX;
   IOutbox public immutable OUTBOX;
   uint256 public immutable VERSION;
-  IERC20 public immutable FEE_JUICE;
+  IFeeJuicePortal public immutable FEE_JUICE_PORTAL;
 
   IVerifier public verifier;
 
@@ -74,14 +74,14 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   constructor(
     IRegistry _registry,
     IAvailabilityOracle _availabilityOracle,
-    IERC20 _fpcJuice,
+    IFeeJuicePortal _fpcJuicePortal,
     bytes32 _vkTreeRoot,
     address _ares
   ) Leonidas(_ares) {
     verifier = new MockVerifier();
     REGISTRY = _registry;
     AVAILABILITY_ORACLE = _availabilityOracle;
-    FEE_JUICE = _fpcJuice;
+    FEE_JUICE_PORTAL = _fpcJuicePortal;
     INBOX = new Inbox(address(this), Constants.L1_TO_L2_MSG_SUBTREE_HEIGHT);
     OUTBOX = new Outbox(address(this));
     vkTreeRoot = _vkTreeRoot;
@@ -361,10 +361,13 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeMinHeight
     );
 
-    // @todo This should be address at time of proving. Also, this contract should NOT have funds!!!
-    // pay the coinbase 1 Fee Juice if it is not empty and header.totalFees is not zero
+    // @note  This should be addressed at the time of proving if sequential proving or at the time of
+    //        inclusion into the proven chain otherwise. See #7622.
     if (header.globalVariables.coinbase != address(0) && header.totalFees > 0) {
-      FEE_JUICE.transfer(address(header.globalVariables.coinbase), header.totalFees);
+      // @note  This will currently fail if there are insufficient funds in the bridge
+      //        which WILL happen for the old version after an upgrade where the bridge follow.
+      //        Consider allowing a failure. See #7938.
+      FEE_JUICE_PORTAL.distributeFees(header.globalVariables.coinbase, header.totalFees);
     }
 
     emit L2BlockProcessed(header.globalVariables.blockNumber);

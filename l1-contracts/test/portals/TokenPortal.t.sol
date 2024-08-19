@@ -14,7 +14,7 @@ import {Errors} from "../../src/core/libraries/Errors.sol";
 // Interfaces
 import {IInbox} from "../../src/core/interfaces/messagebridge/IInbox.sol";
 import {IOutbox} from "../../src/core/interfaces/messagebridge/IOutbox.sol";
-import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+import {IFeeJuicePortal} from "../../src/core/interfaces/IFeeJuicePortal.sol";
 
 // Portal tokens
 import {TokenPortal} from "./TokenPortal.sol";
@@ -25,9 +25,9 @@ import {NaiveMerkle} from "../merkle/Naive.sol";
 contract TokenPortalTest is Test {
   using Hash for DataStructures.L1ToL2Msg;
 
-  uint256 internal constant FIRST_REAL_TREE_NUM = Constants.INITIAL_L2_BLOCK_NUM + 1;
-
   event MessageConsumed(bytes32 indexed messageHash, address indexed recipient);
+
+  uint256 internal constant FIRST_REAL_TREE_NUM = Constants.INITIAL_L2_BLOCK_NUM + 1;
 
   Registry internal registry;
 
@@ -62,16 +62,14 @@ contract TokenPortalTest is Test {
     registry = new Registry(address(this));
     portalERC20 = new PortalERC20();
     rollup = new Rollup(
-      registry, new AvailabilityOracle(), IERC20(address(portalERC20)), bytes32(0), address(this)
+      registry, new AvailabilityOracle(), IFeeJuicePortal(address(0)), bytes32(0), address(this)
     );
     inbox = rollup.INBOX();
     outbox = rollup.OUTBOX();
 
     registry.upgrade(address(rollup));
 
-    portalERC20.mint(address(rollup), 1000000);
     tokenPortal = new TokenPortal();
-
     tokenPortal.initialize(address(registry), address(portalERC20), l2TokenAddress);
 
     // Modify the proven block count

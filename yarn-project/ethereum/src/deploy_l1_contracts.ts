@@ -183,13 +183,60 @@ export const deployL1Contracts = async (
 
   logger.info(`Deployed Fee Juice at ${feeJuiceAddress}`);
 
-  const rollupAddress = await deployer.deploy(contractsToDeploy.rollup, [
-    getAddress(registryAddress.toString()),
-    getAddress(availabilityOracleAddress.toString()),
-    getAddress(feeJuiceAddress.toString()),
-    args.vkTreeRoot.toString(),
-    account.address.toString(),
-  ]);
+  const feeJuicePortalAddress = await deployL1Contract(
+    walletClient,
+    publicClient,
+    contractsToDeploy.feeJuicePortal.contractAbi,
+    contractsToDeploy.feeJuicePortal.contractBytecode,
+  );
+
+  logger.info(`Deployed Gas Portal at ${feeJuicePortalAddress}`);
+
+  const feeJuicePortal = getContract({
+    address: feeJuicePortalAddress.toString(),
+    abi: contractsToDeploy.feeJuicePortal.contractAbi,
+    client: walletClient,
+  });
+
+  // fund the portal contract with Fee Juice
+  const feeJuice = getContract({
+    address: feeJuiceAddress.toString(),
+    abi: contractsToDeploy.feeJuice.contractAbi,
+    client: walletClient,
+  });
+
+  // @note  This value MUST match what is in `constants.nr`. It is currently specified here instead of just importing
+  //        because there is circular dependency hell. This is a temporary solution. #3342
+  const FEE_JUICE_INITIAL_MINT = 20000000000;
+  const receipt = await feeJuice.write.mint([feeJuicePortalAddress.toString(), FEE_JUICE_INITIAL_MINT], {} as any);
+  await publicClient.waitForTransactionReceipt({ hash: receipt });
+  logger.info(`Funded fee juice portal contract with Fee Juice`);
+
+  await publicClient.waitForTransactionReceipt({
+    hash: await feeJuicePortal.write.initialize([
+      registryAddress.toString(),
+      feeJuiceAddress.toString(),
+      args.l2FeeJuiceAddress.toString(),
+    ]),
+  });
+
+  logger.info(
+    `Initialized Gas Portal at ${feeJuicePortalAddress} to bridge between L1 ${feeJuiceAddress} to L2 ${args.l2FeeJuiceAddress}`,
+  );
+
+  const rollupAddress = await deployL1Contract(
+    walletClient,
+    publicClient,
+    contractsToDeploy.rollup.contractAbi,
+    contractsToDeploy.rollup.contractBytecode,
+    [
+      getAddress(registryAddress.toString()),
+      getAddress(availabilityOracleAddress.toString()),
+      getAddress(feeJuicePortalAddress.toString()),
+      args.vkTreeRoot.toString(),
+      account.address.toString(),
+    ],
+  );
   logger.info(`Deployed Rollup at ${rollupAddress}`);
 
   // Set initial blocks as proven if requested
@@ -238,39 +285,6 @@ export const deployL1Contracts = async (
   } else {
     logger.verbose(`Registry ${registryAddress} has already registered rollup ${rollupAddress}`);
   }
-
-  // this contract remains uninitialized because at this point we don't know the address of the Fee Juice on L2
-  const feeJuicePortalAddress = await deployer.deploy(contractsToDeploy.feeJuicePortal);
-
-  logger.info(`Deployed Gas Portal at ${feeJuicePortalAddress}`);
-
-  const feeJuicePortal = getContract({
-    address: feeJuicePortalAddress.toString(),
-    abi: contractsToDeploy.feeJuicePortal.contractAbi,
-    client: walletClient,
-  });
-
-  await publicClient.waitForTransactionReceipt({
-    hash: await feeJuicePortal.write.initialize([
-      registryAddress.toString(),
-      feeJuiceAddress.toString(),
-      args.l2FeeJuiceAddress.toString(),
-    ]),
-  });
-
-  logger.info(
-    `Initialized Gas Portal at ${feeJuicePortalAddress} to bridge between L1 ${feeJuiceAddress} to L2 ${args.l2FeeJuiceAddress}`,
-  );
-
-  // fund the rollup contract with Fee Juice
-  const feeJuice = getContract({
-    address: feeJuiceAddress.toString(),
-    abi: contractsToDeploy.feeJuice.contractAbi,
-    client: walletClient,
-  });
-  const receipt = await feeJuice.write.mint([rollupAddress.toString(), 100000000000000000000n], {} as any);
-  await publicClient.waitForTransactionReceipt({ hash: receipt });
-  logger.info(`Funded rollup contract with Fee Juice`);
 
   const l1Contracts: L1ContractAddresses = {
     availabilityOracleAddress,

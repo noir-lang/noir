@@ -84,4 +84,9 @@ library Errors {
   error Leonidas__InvalidProposer(address expected, address actual); // 0xd02d278e
   error Leonidas__InsufficientAttestations(uint256 minimumNeeded, uint256 provided); // 0xbf1ca4cb
   error Leonidas__InsufficientAttestationsProvided(uint256 minimumNeeded, uint256 provided); // 0x2e7debe9
+
+  // Fee Juice Portal
+  error FeeJuicePortal__AlreadyInitialized(); // 0xc7a172fe
+  error FeeJuicePortal__InvalidInitialization(); // 0xfd9b3208
+  error FeeJuicePortal__Unauthorized(); // 0x67e3691e
 }

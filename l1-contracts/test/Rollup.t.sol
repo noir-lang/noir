@@ -2,8 +2,6 @@
 // Copyright 2023 Aztec Labs.
 pragma solidity >=0.8.18;
 
-import {IERC20} from "@oz/token/ERC20/IERC20.sol";
-
 import {DecoderBase} from "./decoders/Base.sol";
 
 import {DataStructures} from "../src/core/libraries/DataStructures.sol";
@@ -14,6 +12,8 @@ import {Inbox} from "../src/core/messagebridge/Inbox.sol";
 import {Outbox} from "../src/core/messagebridge/Outbox.sol";
 import {Errors} from "../src/core/libraries/Errors.sol";
 import {Rollup} from "../src/core/Rollup.sol";
+import {IFeeJuicePortal} from "../src/core/interfaces/IFeeJuicePortal.sol";
+import {FeeJuicePortal} from "../src/core/FeeJuicePortal.sol";
 import {Leonidas} from "../src/core/sequencer_selection/Leonidas.sol";
 import {AvailabilityOracle} from "../src/core/availability_oracle/AvailabilityOracle.sol";
 import {FrontierMerkle} from "../src/core/messagebridge/frontier_tree/Frontier.sol";
@@ -22,6 +22,7 @@ import {MerkleTestUtil} from "./merkle/TestUtil.sol";
 import {PortalERC20} from "./portals/PortalERC20.sol";
 
 import {TxsDecoderHelper} from "./decoders/helpers/TxsDecoderHelper.sol";
+import {IERC20Errors} from "@oz/interfaces/draft-IERC6093.sol";
 
 /**
  * Blocks are generated using the `integration_l1_publisher.test.ts` tests.
@@ -35,6 +36,7 @@ contract RollupTest is DecoderBase {
   MerkleTestUtil internal merkleTestUtil;
   TxsDecoderHelper internal txsHelper;
   PortalERC20 internal portalERC20;
+  FeeJuicePortal internal feeJuicePortal;
 
   AvailabilityOracle internal availabilityOracle;
 
@@ -54,16 +56,22 @@ contract RollupTest is DecoderBase {
     registry = new Registry(address(this));
     availabilityOracle = new AvailabilityOracle();
     portalERC20 = new PortalERC20();
+    feeJuicePortal = new FeeJuicePortal();
+    portalERC20.mint(address(feeJuicePortal), Constants.FEE_JUICE_INITIAL_MINT);
+    feeJuicePortal.initialize(
+      address(registry), address(portalERC20), bytes32(Constants.FEE_JUICE_ADDRESS)
+    );
     rollup = new Rollup(
-      registry, availabilityOracle, IERC20(address(portalERC20)), bytes32(0), address(this)
+      registry,
+      availabilityOracle,
+      IFeeJuicePortal(address(feeJuicePortal)),
+      bytes32(0),
+      address(this)
     );
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));
 
     registry.upgrade(address(rollup));
-
-    // mint some tokens to the rollup
-    portalERC20.mint(address(rollup), 1000000);
 
     merkleTestUtil = new MerkleTestUtil();
     txsHelper = new TxsDecoderHelper();
@@ -141,6 +149,43 @@ contract RollupTest is DecoderBase {
     assertNotEq(minHeightEmpty, 0, "Invalid min height");
     assertNotEq(rootEmpty, rootMixed, "Invalid root");
     assertNotEq(minHeightEmpty, minHeightMixed, "Invalid min height");
+  }
+
+  function testBlockFee() public setUpFor("mixed_block_1") {
+    uint256 feeAmount = 2e18;
+
+    DecoderBase.Data memory data = load("mixed_block_1").block;
+    bytes memory header = data.header;
+    bytes32 archive = data.archive;
+    bytes memory body = data.body;
+
+    assembly {
+      mstore(add(header, add(0x20, 0x0248)), feeAmount)
+    }
+    availabilityOracle.publish(body);
+
+    assertEq(portalERC20.balanceOf(address(rollup)), 0, "invalid rollup balance");
+
+    uint256 portalBalance = portalERC20.balanceOf(address(feeJuicePortal));
+
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IERC20Errors.ERC20InsufficientBalance.selector,
+        address(feeJuicePortal),
+        portalBalance,
+        feeAmount
+      )
+    );
+    rollup.process(header, archive);
+
+    address coinbase = data.decodedHeader.globalVariables.coinbase;
+    uint256 coinbaseBalance = portalERC20.balanceOf(coinbase);
+    assertEq(coinbaseBalance, 0, "invalid initial coinbase balance");
+
+    portalERC20.mint(address(feeJuicePortal), feeAmount - portalBalance);
+
+    rollup.process(header, archive);
+    assertEq(portalERC20.balanceOf(coinbase), feeAmount, "invalid coinbase balance");
   }
 
   function testMixedBlock(bool _toProve) public setUpFor("mixed_block_1") {
