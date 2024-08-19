@@ -154,7 +154,6 @@ impl<'f> PerFunctionContext<'f> {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             for (value, store_instruction) in block.last_stores.iter() {
                 let is_reference_param = block_params.contains(value)
-                    && self.inserter.function.dfg.value_is_reference(*value);
                 if self.last_loads.get(value).is_none() && !is_reference_param {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
