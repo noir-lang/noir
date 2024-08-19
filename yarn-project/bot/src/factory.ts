@@ -1,6 +1,6 @@
 import { getSchnorrAccount } from '@aztec/accounts/schnorr';
 import { type AccountWallet, BatchCall, createDebugLogger, createPXEClient } from '@aztec/aztec.js';
-import { type FunctionCall, type PXE } from '@aztec/circuit-types';
+import { type AztecNode, type FunctionCall, type PXE } from '@aztec/circuit-types';
 import { Fr, deriveSigningKey } from '@aztec/circuits.js';
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
@@ -12,9 +12,13 @@ const MIN_BALANCE = 1e3;
 
 export class BotFactory {
   private pxe: PXE;
+  private node?: AztecNode;
   private log = createDebugLogger('aztec:bot');
 
-  constructor(private readonly config: BotConfig, dependencies: { pxe?: PXE } = {}) {
+  constructor(private readonly config: BotConfig, dependencies: { pxe?: PXE; node?: AztecNode } = {}) {
+    if (config.flushSetupTransactions && !dependencies.node) {
+      throw new Error(`Either a node client or node url must be provided if transaction flushing is requested`);
+    }
     if (!dependencies.pxe && !config.pxeUrl) {
       throw new Error(`Either a PXE client or a PXE URL must be provided`);
     }
@@ -26,6 +30,7 @@ export class BotFactory {
     }
     this.log.info(`Using remote PXE at ${config.pxeUrl!}`);
     this.pxe = createPXEClient(config.pxeUrl!);
+    this.node = dependencies.node;
   }
 
   /**
@@ -54,7 +59,14 @@ export class BotFactory {
       return account.register();
     } else {
       this.log.info(`Initializing account at ${account.getAddress().toString()}`);
-      return account.waitSetup({ timeout: this.config.txMinedWaitSeconds });
+      const sentTx = account.deploy();
+      if (this.config.flushSetupTransactions) {
+        this.log.verbose('Flushing transactions');
+        await this.node!.flushTxs();
+      }
+      this.log.verbose('Waiting for account deployment to settle');
+      await sentTx.wait({ timeout: this.config.txMinedWaitSeconds });
+      return account.getWallet();
     }
   }
 
@@ -80,7 +92,13 @@ export class BotFactory {
       return deploy.register();
     } else {
       this.log.info(`Deploying token contract at ${address.toString()}`);
-      return deploy.send(deployOpts).deployed({ timeout: this.config.txMinedWaitSeconds });
+      const sentTx = deploy.send(deployOpts);
+      if (this.config.flushSetupTransactions) {
+        this.log.verbose('Flushing transactions');
+        await this.node!.flushTxs();
+      }
+      this.log.verbose('Waiting for token setup to settle');
+      return sentTx.deployed({ timeout: this.config.txMinedWaitSeconds });
     }
   }
 
@@ -104,6 +122,12 @@ export class BotFactory {
       this.log.info(`Skipping minting as ${sender.toString()} has enough tokens`);
       return;
     }
-    await new BatchCall(token.wallet, calls).send().wait({ timeout: this.config.txMinedWaitSeconds });
+    const sentTx = new BatchCall(token.wallet, calls).send();
+    if (this.config.flushSetupTransactions) {
+      this.log.verbose('Flushing transactions');
+      await this.node!.flushTxs();
+    }
+    this.log.verbose('Waiting for token mint to settle');
+    await sentTx.wait({ timeout: this.config.txMinedWaitSeconds });
   }
 }

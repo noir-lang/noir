@@ -109,7 +109,7 @@ export class BotRunner {
 
   async #createBot() {
     try {
-      this.bot = Bot.create(this.config, { pxe: this.pxe });
+      this.bot = Bot.create(this.config, { pxe: this.pxe, node: this.node });
       await this.bot;
     } catch (err) {
       this.log.error(`Error setting up bot: ${err}`);

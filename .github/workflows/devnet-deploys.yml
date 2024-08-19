@@ -78,6 +78,8 @@ env:
   TF_VAR_BOT_FOLLOW_CHAIN: "PROVEN"
   TF_VAR_BOT_TX_INTERVAL_SECONDS: 180
   TF_VAR_BOT_COUNT: 1
+  TF_VAR_BOT_FLUSH_SETUP_TRANSACTIONS: false
+  TF_VAR_BOT_MAX_PENDING_TXS: 1
 
   # PXE
   TF_VAR_PXE_LB_RULE_PRIORITY: 4000
@@ -110,6 +112,9 @@ jobs:
       faucet_lb_priority: ${{ steps.set_network_vars.outputs.faucet_lb_priority }}
       bot_no_wait: ${{ steps.set_network_vars.outputs.bot_no_wait }}
       max_txs_per_block: ${{ steps.set_network_vars.outputs.max_txs_per_block }}
+      min_txs_per_block: ${{ steps.set_network_vars.outputs.min_txs_per_block }}
+      bot_flush_setup_txs: ${{ steps.set_network_vars.outputs.bot_flush_setup_txs }}
+      bot_max_pending_txs: ${{ steps.set_network_vars.outputs.bot_max_pending_txs }}
     steps:
       - name: Set network vars
         shell: bash
@@ -132,7 +137,10 @@ jobs:
               echo "prover_node_lb_priority_range_start=6100" >> $GITHUB_OUTPUT
               echo "faucet_lb_priority=601" >> $GITHUB_OUTPUT
               echo "bot_no_wait=false" >> $GITHUB_OUTPUT
+              echo "min_txs_per_block=1" >> $GITHUB_OUTPUT
               echo "max_txs_per_block=64" >> $GITHUB_OUTPUT
+              echo "bot_flush_setup_txs=false" >> $GITHUB_OUTPUT
+              echo "bot_max_pending_txs=1" >> $GITHUB_OUTPUT
           elif [ "$BRANCH_NAME" = "provernet" ]
           then
               echo "deploy_tag=provernet" >> $GITHUB_OUTPUT
@@ -149,7 +157,10 @@ jobs:
               echo "prover_node_lb_priority_range_start=6200" >> $GITHUB_OUTPUT
               echo "faucet_lb_priority=602" >> $GITHUB_OUTPUT
               echo "bot_no_wait=true" >> $GITHUB_OUTPUT
+              echo "min_txs_per_block=4" >> $GITHUB_OUTPUT
               echo "max_txs_per_block=4" >> $GITHUB_OUTPUT
+              echo "bot_flush_setup_txs=true" >> $GITHUB_OUTPUT
+              echo "bot_max_pending_txs=20" >> $GITHUB_OUTPUT
           elif [ "$BRANCH_NAME" = "alphanet" ]
           then
               echo "deploy_tag=alphanet" >> $GITHUB_OUTPUT
@@ -166,7 +177,10 @@ jobs:
               echo "prover_node_lb_priority_range_start=6000" >> $GITHUB_OUTPUT
               echo "faucet_lb_priority=600" >> $GITHUB_OUTPUT
               echo "bot_no_wait=false" >> $GITHUB_OUTPUT
+              echo "min_txs_per_block=1" >> $GITHUB_OUTPUT
               echo "max_txs_per_block=64" >> $GITHUB_OUTPUT
+              echo "bot_flush_setup_txs=false" >> $GITHUB_OUTPUT
+              echo "bot_max_pending_txs=1" >> $GITHUB_OUTPUT
           else
               echo "Unrecognized Branch!!"
               exit 1
@@ -363,6 +377,7 @@ jobs:
       TF_VAR_PXE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.pxe_lb_priority_range_start }}
       TF_VAR_PROVER_NODE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.prover_node_lb_priority_range_start }}
       TF_VAR_BOT_NO_WAIT_FOR_TRANSFERS: ${{ needs.set-network.outputs.bot_no_wait }}
+      TF_VAR_SEQ_MIN_TX_PER_BLOCK: 1
       TF_VAR_SEQ_MAX_TX_PER_BLOCK: ${{ needs.set-network.outputs.max_txs_per_block }}
     steps:
       - uses: actions/checkout@v4
@@ -566,6 +581,9 @@ jobs:
       TF_VAR_PXE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.pxe_lb_priority_range_start }}
       TF_VAR_PROVER_NODE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.prover_node_lb_priority_range_start }}
       TF_VAR_BOT_NO_WAIT_FOR_TRANSFERS: ${{ needs.set-network.outputs.bot_no_wait }}
+      TF_VAR_BOT_FLUSH_SETUP_TRANSACTIONS: ${{ needs.set-network.outputs.bot_flush_setup_txs }}
+      TF_VAR_BOT_MAX_PENDING_TXS: ${{ needs.set-network.outputs.bot_max_pending_txs }}
+      TF_VAR_SEQ_MIN_TX_PER_BLOCK: ${{ needs.set-network.outputs.min_txs_per_block }}
       TF_VAR_SEQ_MAX_TX_PER_BLOCK: ${{ needs.set-network.outputs.max_txs_per_block }}
       TF_VAR_PROVING_ENABLED: true
       TF_VAR_BOT_NO_START: false

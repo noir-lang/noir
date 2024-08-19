@@ -170,7 +170,9 @@ resource "aws_ecs_task_definition" "aztec-bot" {
         { name = "BOT_FOLLOW_CHAIN", value = var.BOT_FOLLOW_CHAIN },
         { name = "AZTEC_NODE_URL", value = "http://${var.DEPLOY_TAG}-aztec-node-1.local/${var.DEPLOY_TAG}/aztec-node-1/${var.API_KEY}" },
         { name = "PXE_PROVER_ENABLED", value = tostring(var.PROVING_ENABLED) },
-        { name = "NETWORK", value = var.DEPLOY_TAG }
+        { name = "NETWORK", value = var.DEPLOY_TAG },
+        { name = "BOT_FLUSH_SETUP_TRANSACTIONS", value = tostring(var.BOT_FLUSH_SETUP_TRANSACTIONS) },
+        { name = "BOT_MAX_PENDING_TXS", value = tostring(var.BOT_MAX_PENDING_TXS) }
       ]
       logConfiguration = {
         logDriver = "awslogs"

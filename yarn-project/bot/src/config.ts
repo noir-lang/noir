@@ -37,6 +37,8 @@ export type BotConfig = {
   followChain: BotFollowChain;
   /** Do not send a tx if the node's tx pool already has this many pending txs. */
   maxPendingTxs: number;
+  /** Whether to flush after sending each 'setup' transaction */
+  flushSetupTransactions: boolean;
 };
 
 export const botConfigMappings: ConfigMappingsType<BotConfig> = {
@@ -112,6 +114,11 @@ export const botConfigMappings: ConfigMappingsType<BotConfig> = {
     env: 'BOT_MAX_PENDING_TXS',
     description: "Do not send a tx if the node's tx pool already has this many pending txs.",
     ...numberConfigHelper(128),
+  },
+  flushSetupTransactions: {
+    env: 'BOT_FLUSH_SETUP_TRANSACTIONS',
+    description: 'Make a request for the sequencer to build a block after each setup transaction.',
+    ...booleanConfigHelper(false),
   },
 };
 

@@ -56,3 +56,13 @@ variable "BOT_COUNT" {
   type    = string
   default = "1"
 }
+
+variable "BOT_FLUSH_SETUP_TRANSACTIONS" {
+  type    = bool
+  default = false
+}
+
+variable "BOT_MAX_PENDING_TXS" {
+  type    = number
+  default = 1
+}

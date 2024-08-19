@@ -7,7 +7,7 @@ import {
   type Wallet,
   createDebugLogger,
 } from '@aztec/aztec.js';
-import { type FunctionCall, type PXE } from '@aztec/circuit-types';
+import { type AztecNode, type FunctionCall, type PXE } from '@aztec/circuit-types';
 import { GasSettings } from '@aztec/circuits.js';
 import { times } from '@aztec/foundation/collection';
 import { type TokenContract } from '@aztec/noir-contracts.js';
@@ -28,7 +28,7 @@ export class Bot {
     public readonly config: BotConfig,
   ) {}
 
-  static async create(config: BotConfig, dependencies: { pxe?: PXE } = {}): Promise<Bot> {
+  static async create(config: BotConfig, dependencies: { pxe?: PXE; node?: AztecNode } = {}): Promise<Bot> {
     const { wallet, token, recipient } = await new BotFactory(config, dependencies).setup();
     return new Bot(wallet, token, recipient, config);
   }
