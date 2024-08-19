@@ -48,14 +48,8 @@ impl NoteInterface<TOKEN_NOTE_LEN, TOKEN_NOTE_BYTES_LEN> for TokenNote {
     }
 
     fn compute_note_hiding_point(self) -> Point {
-        assert(self.header.storage_slot != 0, "Storage slot must be set before computing note hiding point");
-
-        // TODO(#7772): decompose amount with from_field_unsafe or constrain it fits into 1 limb
-        let amount_scalar = Scalar {
-            lo: self.amount.to_integer(),
-            hi: 0
-        };
         // We use the unsafe version because the multi_scalar_mul will constrain the scalars.
+        let amount_scalar = from_field_unsafe(self.amount.to_integer());
         let npk_m_hash_scalar = from_field_unsafe(self.npk_m_hash);
         let randomness_scalar = from_field_unsafe(self.randomness);
         let slot_scalar = from_field_unsafe(self.header.storage_slot);
@@ -88,9 +82,7 @@ impl TokenNoteHidingPoint {
     }
 
     fn add_amount(&mut self, amount: U128) {
-        // TODO(#7772): decompose amount with from_field_unsafe or constrain it fits into 1 limb
-        let amount_scalar = Scalar { lo: amount.to_integer(), hi: 0 };
-        self.inner = multi_scalar_mul([G_amt], [amount_scalar]) + self.inner;
+        self.inner = multi_scalar_mul([G_amt], [from_field_unsafe(amount.to_integer())]) + self.inner;
     }
 
     fn add_npk_m_hash(&mut self, npk_m_hash: Field) {
