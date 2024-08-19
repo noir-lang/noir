@@ -577,6 +577,7 @@ jobs:
       # https://aztecprotocol.github.io/aztec-packages/dev/bench/ with new benchmark data.
       # This also creates an alert if benchmarks exceed the threshold specified below.
       - name: Store benchmark result
+        if: ${{ github.ref == 'refs/heads/master' }}
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: C++ Benchmark
@@ -591,6 +592,7 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@ludamad @codygunton"
+          max-items-in-chart: 50
 
   boxes:
     needs: build
