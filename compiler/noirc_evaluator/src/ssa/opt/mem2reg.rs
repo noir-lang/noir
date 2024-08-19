@@ -115,7 +115,7 @@ struct PerFunctionContext<'f> {
     instructions_to_remove: BTreeSet<InstructionId>,
 
     /// Track across all blocks the last load of a value.
-    /// If that value is not used in anymore loads we can remove the last store to that value.
+    /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, InstructionId>,
 }
 
