@@ -1,0 +1,16 @@
+v0 = add_virtual_target
+v1 = add_virtual_target
+v2 = add_virtual_target
+# divmod begin (numerator = v0, denominator = v1)
+v3 = add_virtual_target
+v4 = add_virtual_target
+r0c3 = mul v3,v1
+r1c3 = add r0c3,v4
+v7 = is_equal v0,r1c3
+assert_bool v7
+v5 = zero
+v9 = is_equal v1,v5
+r2c19 = not v9
+assert_bool r2c19
+# divmod end (quotient = v3, remainder = v4)
+connect v3,v2
