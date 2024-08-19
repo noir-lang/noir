@@ -66,10 +66,12 @@ fn find_array_gets(dfg: &mut DataFlowGraph, block: BasicBlockId) -> (State, Vec<
     for instruction in &instructions {
         match &dfg[*instruction] {
             Instruction::ArrayGet { array, index } => {
-                let dependencies = [*array, *index, side_effects].into_iter();
-                let dependencies = dependencies.filter(|value| is_instruction_result(dfg, *value));
+                let mut last_dependency = None;
+                find_last_dependency(dfg, *array, &mut last_dependency);
+                find_last_dependency(dfg, *index, &mut last_dependency);
+                find_last_dependency(dfg, side_effects, &mut last_dependency);
 
-                if let Some(last_dependency) = dependencies.max() {
+                if let Some(last_dependency) = last_dependency {
                     // Assume largest non-constant ValueId came last in the program
                     state
                         .array_gets
@@ -88,6 +90,30 @@ fn find_array_gets(dfg: &mut DataFlowGraph, block: BasicBlockId) -> (State, Vec<
     }
 
     (state, instructions)
+}
+
+fn find_last_dependency(dfg: &DataFlowGraph, value: ValueId, current_last: &mut Option<ValueId>) {
+    let value = dfg.resolve(value);
+    match &dfg[value] {
+        Value::Instruction { .. } => {
+            if let Some(last) = *current_last {
+                *current_last = Some(last.max(value));
+            } else {
+                *current_last = Some(value);
+            }
+        }
+        Value::Param { .. }
+        | Value::NumericConstant { .. }
+        | Value::Function(_)
+        | Value::Intrinsic(_)
+        | Value::ForeignFunction(_) => (),
+        // Need to recursively search through arrays since they contain other ValueIds
+        Value::Array { array, .. } => {
+            for elem in array {
+                find_last_dependency(dfg, *elem, current_last);
+            }
+        }
+    }
 }
 
 fn is_instruction_result(dfg: &DataFlowGraph, value: ValueId) -> bool {
