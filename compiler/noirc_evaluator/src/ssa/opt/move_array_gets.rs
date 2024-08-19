@@ -18,7 +18,7 @@
 //!    of an array_get have been inserted we can insert the corresponding array_get itself.
 //!    Since it can be expensive checking this for every instruction, this pass makes
 //!    the assumption that the last dependency will always have the highest ValueId.
-use fxhash::FxHashMap;
+use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::dfg::DataFlowGraph;
