@@ -150,9 +150,11 @@ impl<'f> PerFunctionContext<'f> {
 
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
-        for (_, block) in self.blocks.iter() {
+        for (block_id, block) in self.blocks.iter() {
+            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             for (value, store_instruction) in block.last_stores.iter() {
-                if self.last_loads.get(value).is_none() {
+                let is_reference_param = block_params.contains(&value) && self.inserter.function.dfg.value_is_reference(*value);
+                if self.last_loads.get(value).is_none() && !is_reference_param {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
             }
