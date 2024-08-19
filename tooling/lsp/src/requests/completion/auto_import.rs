@@ -18,7 +18,7 @@ use super::{
 
 impl<'a> NodeFinder<'a> {
     pub(super) fn complete_auto_imports(&mut self, prefix: &str, requested_items: RequestedItems) {
-        let current_module_parent_id = get_parent_module_id(&self.def_maps, self.module_id);
+        let current_module_parent_id = get_parent_module_id(self.def_maps, self.module_id);
 
         for (name, entries) in self.interner.get_auto_import_names() {
             if !name_matches(name, prefix) {
@@ -127,7 +127,7 @@ fn get_parent_module(
         get_parent_module_id(def_maps, module_id)
     } else {
         let reference_id = module_def_id_to_reference_id(module_def_id);
-        interner.reference_module(reference_id).map(|id| *id)
+        interner.reference_module(reference_id).copied()
     }
 }
 
@@ -137,11 +137,7 @@ fn get_parent_module_id(
 ) -> Option<ModuleId> {
     let crate_def_map = &def_maps[&module_id.krate];
     let module_data = &crate_def_map.modules()[module_id.local_id.0];
-    if let Some(parent) = module_data.parent {
-        Some(ModuleId { krate: module_id.krate, local_id: parent })
-    } else {
-        None
-    }
+    module_data.parent.map(|parent| ModuleId { krate: module_id.krate, local_id: parent })
 }
 
 fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
