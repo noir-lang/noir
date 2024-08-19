@@ -54,7 +54,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         if i == 64 {
             // Enough to hash block
             h = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), h);
-            
+
             i = 0;
         }
     }
