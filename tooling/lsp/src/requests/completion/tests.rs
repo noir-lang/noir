@@ -735,7 +735,7 @@ mod completion_tests {
         "#;
 
         let items = get_completions(src).await;
-        let items = items.into_iter().filter(|item| item.label.starts_with("i")).collect();
+        let items = items.into_iter().filter(|item| item.label.starts_with('i')).collect();
 
         assert_items_match(
             items,
