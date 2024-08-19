@@ -8,6 +8,7 @@ use completion_items::{
     crate_completion_item, field_completion_item, simple_completion_item,
     struct_field_completion_item,
 };
+use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
 use kinds::{FunctionCompletionKind, FunctionKind, ModuleCompletionKind, RequestedItems};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
@@ -568,7 +569,7 @@ impl<'a> NodeFinder<'a> {
             let location = Location::new(member_access_expression.lhs.span, self.file);
             if let Some(typ) = self.interner.type_at_location(location) {
                 let typ = typ.follow_bindings();
-                let prefix = ident.to_string();
+                let prefix = ident.to_string().to_case(Case::Snake);
                 self.complete_type_fields_and_methods(&typ, &prefix);
                 return;
             }
@@ -683,6 +684,8 @@ impl<'a> NodeFinder<'a> {
             prefix = idents.pop().unwrap().to_string();
             at_root = idents.is_empty();
         }
+
+        let prefix = prefix.to_case(Case::Snake);
 
         let is_single_segment = !after_colons && idents.is_empty() && path.kind == PathKind::Plain;
         let module_id;
@@ -846,11 +849,11 @@ impl<'a> NodeFinder<'a> {
             segments.push(ident.clone());
 
             if let Some(module_id) = self.resolve_module(segments) {
-                let prefix = String::new();
+                let prefix = "";
                 let at_root = false;
                 self.complete_in_module(
                     module_id,
-                    &prefix,
+                    prefix,
                     path_kind,
                     at_root,
                     module_completion_kind,
@@ -860,7 +863,7 @@ impl<'a> NodeFinder<'a> {
             };
         } else {
             // We are right after the last segment
-            let prefix = ident.to_string();
+            let prefix = ident.to_string().to_case(Case::Snake);
             if segments.is_empty() {
                 let at_root = true;
                 self.complete_in_module(
@@ -1160,8 +1163,41 @@ impl<'a> NodeFinder<'a> {
     }
 }
 
+/// Returns true if name matches a prefix written in code.
+/// `prefix` must already be in snake case.
+/// This method splits both name and prefix by underscore,
+/// then checks that every part of name starts with a part of
+/// prefix, in order.
+///
+/// For example:
+///
+/// // "merk" and "ro" match "merkle" and "root" and are in order
+/// name_matches("compute_merkle_root", "merk_ro") == true
+///
+/// // "ro" matches "root", but "merkle" comes before it, so no match
+/// name_matches("compute_merkle_root", "ro_mer") == false
+///
+/// // neither "compute" nor "merkle" nor "root" start with "oot"
+/// name_matches("compute_merkle_root", "oot") == false
 fn name_matches(name: &str, prefix: &str) -> bool {
-    name.starts_with(prefix)
+    let name = name.to_case(Case::Snake);
+    let name_parts: Vec<&str> = name.split('_').collect();
+
+    let mut last_index: i32 = -1;
+    for prefix_part in prefix.split('_') {
+        if let Some(name_part_index) =
+            name_parts.iter().position(|name_part| name_part.starts_with(prefix_part))
+        {
+            if last_index >= name_part_index as i32 {
+                return false;
+            }
+            last_index = name_part_index as i32;
+        } else {
+            return false;
+        }
+    }
+
+    true
 }
 
 fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDefId> {
@@ -1175,5 +1211,21 @@ fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDe
         | ReferenceId::Global(_)
         | ReferenceId::Local(_)
         | ReferenceId::Reference(_, _) => None,
+    }
+}
+
+#[cfg(test)]
+mod completion_name_matches_tests {
+    use crate::requests::completion::name_matches;
+
+    #[test]
+    fn test_name_matches() {
+        assert!(name_matches("foo", "foo"));
+        assert!(name_matches("foo_bar", "bar"));
+        assert!(name_matches("FooBar", "foo"));
+        assert!(name_matches("FooBar", "bar"));
+        assert!(name_matches("FooBar", "foo_bar"));
+
+        assert!(!name_matches("foo_bar", "o_b"));
     }
 }
