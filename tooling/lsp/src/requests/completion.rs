@@ -1185,18 +1185,14 @@ fn name_matches(name: &str, prefix: &str) -> bool {
 
     let mut last_index: i32 = -1;
     for prefix_part in prefix.split('_') {
-        if let Some(mut name_part_index) = name_parts
-            .iter()
-            .skip(
-                // Look past parts we already matched
-                if last_index >= 0 { last_index as usize + 1 } else { 0 },
-            )
-            .position(|name_part| name_part.starts_with(prefix_part))
+        // Look past parts we already matched
+        let offset = if last_index >= 0 { last_index as usize + 1 } else { 0 };
+
+        if let Some(mut name_part_index) =
+            name_parts.iter().skip(offset).position(|name_part| name_part.starts_with(prefix_part))
         {
-            if last_index >= 0 {
-                // Need to adjust the index if we skipped some segments
-                name_part_index += last_index as usize + 1;
-            }
+            // Need to adjust the index if we skipped some segments
+            name_part_index += offset;
 
             if last_index >= name_part_index as i32 {
                 return false;
