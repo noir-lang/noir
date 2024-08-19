@@ -341,4 +341,7 @@ export interface AztecNode {
    * @param address - Address of the deployed contract.
    */
   getContract(address: AztecAddress): Promise<ContractInstanceWithAddress | undefined>;
+
+  /** Forces the next block to be built bypassing all time and pending checks. Useful for testing. */
+  flushTxs(): Promise<void>;
 }

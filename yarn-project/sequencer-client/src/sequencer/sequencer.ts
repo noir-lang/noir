@@ -53,6 +53,7 @@ export class Sequencer {
   private allowedInTeardown: AllowedElement[] = [];
   private maxBlockSizeInBytes: number = 1024 * 1024;
   private metrics: SequencerMetrics;
+  private isFlushing: boolean = false;
 
   constructor(
     private publisher: L1Publisher,
@@ -194,6 +195,10 @@ export class Sequencer {
         return;
       }
 
+      if (this.isFlushing) {
+        this.log.verbose(`Flushing all pending txs in new block`);
+      }
+
       // Compute time elapsed since the previous block
       const lastBlockTime = historicalHeader?.globalVariables.timestamp.toNumber() || 0;
       const currentTime = Math.floor(Date.now() / 1000);
@@ -203,7 +208,11 @@ export class Sequencer {
       );
 
       // Do not go forward with new block if not enough time has passed since last block
-      if (this.minSecondsBetweenBlocks > 0 && elapsedSinceLastBlock < this.minSecondsBetweenBlocks) {
+      if (
+        !this.isFlushing &&
+        this.minSecondsBetweenBlocks > 0 &&
+        elapsedSinceLastBlock < this.minSecondsBetweenBlocks
+      ) {
         this.log.debug(
           `Not creating block because not enough time ${this.minSecondsBetweenBlocks} has passed since last block`,
         );
@@ -216,7 +225,7 @@ export class Sequencer {
       const pendingTxs = this.p2pClient.getTxs('pending');
 
       // If we haven't hit the maxSecondsBetweenBlocks, we need to have at least minTxsPerBLock txs.
-      if (pendingTxs.length < this.minTxsPerBLock) {
+      if (!this.isFlushing && pendingTxs.length < this.minTxsPerBLock) {
         if (this.skipMinTxsPerBlockCheck(elapsedSinceLastBlock)) {
           this.log.debug(
             `Creating block with only ${pendingTxs.length} txs as more than ${this.maxSecondsBetweenBlocks}s have passed since last block`,
@@ -252,7 +261,11 @@ export class Sequencer {
       const validTxs = this.takeTxsWithinMaxSize(allValidTxs);
 
       // Bail if we don't have enough valid txs
-      if (!this.skipMinTxsPerBlockCheck(elapsedSinceLastBlock) && validTxs.length < this.minTxsPerBLock) {
+      if (
+        !this.isFlushing &&
+        !this.skipMinTxsPerBlockCheck(elapsedSinceLastBlock) &&
+        validTxs.length < this.minTxsPerBLock
+      ) {
         this.log.debug(
           `Not creating block because not enough valid txs loaded from the pool (got ${validTxs.length} min ${this.minTxsPerBLock})`,
         );
@@ -334,7 +347,12 @@ export class Sequencer {
     // less txs than the minimum. But that'd cause the entire block to be aborted and retried. Instead, we should
     // go back to the p2p pool and load more txs until we hit our minTxsPerBLock target. Only if there are no txs
     // we should bail.
-    if (processedTxs.length === 0 && !this.skipMinTxsPerBlockCheck(elapsedSinceLastBlock) && this.minTxsPerBLock > 0) {
+    if (
+      !this.isFlushing &&
+      processedTxs.length === 0 &&
+      !this.skipMinTxsPerBlockCheck(elapsedSinceLastBlock) &&
+      this.minTxsPerBLock > 0
+    ) {
       this.log.verbose('No txs processed correctly to build block. Exiting');
       blockBuilder.cancelBlock();
       return;
@@ -374,6 +392,11 @@ export class Sequencer {
       } satisfies L2BlockBuiltStats,
     );
 
+    if (this.isFlushing) {
+      this.log.verbose(`Flushing completed`);
+    }
+    this.isFlushing = false;
+
     try {
       const attestations = await this.collectAttestations(block);
       await this.publishL2Block(block, attestations);
@@ -387,6 +410,11 @@ export class Sequencer {
       this.metrics.recordFailedBlock();
       throw err;
     }
+  }
+
+  /** Forces the sequencer to bypass all time and tx count checks for the next block and build anyway. */
+  public flush() {
+    this.isFlushing = true;
   }
 
   protected async collectAttestations(block: L2Block): Promise<Signature[] | undefined> {

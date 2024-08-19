@@ -88,6 +88,11 @@ export class SequencerClient {
     await this.sequencer.stop();
   }
 
+  /** Forces the sequencer to bypass all time and tx count checks for the next block and build anyway. */
+  public flush() {
+    this.sequencer.flush();
+  }
+
   /**
    * Restarts the sequencer after being stopped.
    */

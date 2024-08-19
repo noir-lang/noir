@@ -801,6 +801,14 @@ export class AztecNodeService implements AztecNode {
     return this.contractDataSource.addContractArtifact(address, artifact);
   }
 
+  public flushTxs(): Promise<void> {
+    if (!this.sequencer) {
+      throw new Error(`Sequencer is not initialized`);
+    }
+    this.sequencer.flush();
+    return Promise.resolve();
+  }
+
   /**
    * Returns an instance of MerkleTreeOperations having first ensured the world state is fully synched
    * @param blockNumber - The block number at which to get the data.
