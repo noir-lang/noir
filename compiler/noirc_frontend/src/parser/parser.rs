@@ -219,21 +219,12 @@ fn top_level_statement<'a>(
 ///
 /// implementation: 'impl' generics type '{' function_definition ... '}'
 fn implementation() -> impl NoirParser<TopLevelStatement> {
-    keyword(Keyword::Impl)
-        .ignore_then(function::generics())
-        .then(parse_type().map_with_span(|typ, span| (typ, span)))
-        .then(where_clause())
-        .then(
-            just(Token::LeftBrace)
-                .ignore_then(spanned(function::function_definition(true)).repeated())
-                .then_ignore(just(Token::RightBrace))
-                .or_not(),
-        )
-        .validate(|args, span, emit| {
-            let ((other_args, where_clause), methods) = args;
-            let (generics, (object_type, type_span)) = other_args;
-
-            let methods = if let Some(methods) = methods {
+    let methods_or_error = just(Token::LeftBrace)
+        .ignore_then(spanned(function::function_definition(true)).repeated())
+        .then_ignore(just(Token::RightBrace))
+        .or_not()
+        .validate(|methods, span, emit| {
+            if let Some(methods) = methods {
                 methods
             } else {
                 emit(ParserError::with_reason(
@@ -241,7 +232,17 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
                     span,
                 ));
                 vec![]
-            };
+            }
+        });
+
+    keyword(Keyword::Impl)
+        .ignore_then(function::generics())
+        .then(parse_type().map_with_span(|typ, span| (typ, span)))
+        .then(where_clause())
+        .then(methods_or_error)
+        .map(|args| {
+            let ((other_args, where_clause), methods) = args;
+            let (generics, (object_type, type_span)) = other_args;
 
             TopLevelStatement::Impl(TypeImpl {
                 generics,
