@@ -3118,3 +3118,49 @@ fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() 
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn impl_missing_associated_type() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    impl Foo for () {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::TypeError(TypeCheckError::MissingNamedTypeArg { .. })
+    ));
+}
+
+#[test]
+fn as_trait_path_syntax_resolves_outside_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        let _: i64 = 1 as <Bar as Foo>::Assoc;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(dbg!(errors).len(), 2);
+
+    assert!(matches!(
+        dbg!(&errors[0].0),
+        CompilationError::TypeError(TypeCheckError::OpCannotBeUsed { .. })
+    ));
+}

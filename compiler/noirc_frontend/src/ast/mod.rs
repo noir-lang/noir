@@ -236,7 +236,7 @@ impl std::fmt::Display for GenericTypeArg {
 
 impl std::fmt::Display for GenericTypeArgs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.ordered_args.is_empty() && self.named_args.is_empty() {
+        if self.is_empty() {
             Ok(())
         } else {
             let mut args = vecmap(&self.ordered_args, ToString::to_string).join(", ");
