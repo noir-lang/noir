@@ -114,7 +114,7 @@ struct PerFunctionContext<'f> {
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
     instructions_to_remove: BTreeSet<InstructionId>,
 
-    /// Track across all blocks the last load of a value.
+    /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, InstructionId>,
 }
@@ -254,9 +254,9 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(instruction);
                 } else {
                     references.mark_value_used(address, self.inserter.function);
-                }
 
-                self.last_loads.insert(address, instruction);
+                    self.last_loads.insert(address, instruction);
+                }
             }
             Instruction::Store { address, value } => {
                 let address = self.inserter.function.dfg.resolve(*address);
