@@ -74,7 +74,7 @@ jobs:
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
-        uses: noir-lang/noir-gates-diff@cd8721ebe0ad9a67889c601063cccc33a8ca7f32
+        uses: noir-lang/noir-gates-diff@db91f74285a798cbaf538794d25d48c396f25c38
         with:
           report: gates_report_brillig.json
           header: |
@@ -85,6 +85,7 @@ jobs:
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
+          header: brillig
           # delete the comment in case changes no longer impact brillig bytecode sizes
           delete: ${{ !steps.brillig_bytecode_diff.outputs.markdown }}
           message: ${{ steps.brillig_bytecode_diff.outputs.markdown }}
