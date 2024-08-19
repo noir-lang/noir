@@ -250,7 +250,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                         acvm.resolve_pending_foreign_call(result);
                     }
                     ACVMStatus::RequiresAcirCall(call_info) => {
-                        let acir_to_call = &self.functions[call_info.id as usize];
+                        let acir_to_call = &self.functions[call_info.id.as_usize()];
                         let initial_witness = call_info.initial_witness;
                         let call_solved_witness = self
                             .execute_circuit(acir_to_call, initial_witness, witness_stack)
@@ -267,7 +267,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                             }
                         }
                         acvm.resolve_pending_acir_call(call_resolved_outputs);
-                        witness_stack.push(call_info.id, call_solved_witness.clone());
+                        witness_stack.push(call_info.id.0, call_solved_witness.clone());
                     }
                 }
             }
