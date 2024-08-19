@@ -1,8 +1,5 @@
-// TODO: rename to be precise as to what its common to (the public kernel circuits).
-mod common;
-
-mod utils;
-
+mod components;
+mod public_kernel_phase;
 mod public_kernel_setup;
 mod public_kernel_app_logic;
 mod public_kernel_teardown;

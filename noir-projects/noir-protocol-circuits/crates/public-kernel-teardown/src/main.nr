@@ -3,5 +3,5 @@ use dep::types::PublicKernelCircuitPublicInputs;
 
 #[recursive]
 fn main(input: PublicKernelTeardownCircuitPrivateInputs) -> pub PublicKernelCircuitPublicInputs {
-    input.public_kernel_teardown()
+    input.execute()
 }

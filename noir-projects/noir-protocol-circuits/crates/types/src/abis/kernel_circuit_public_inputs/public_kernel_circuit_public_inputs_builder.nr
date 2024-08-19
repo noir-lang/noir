@@ -5,7 +5,8 @@ use crate::{
     kernel_circuit_public_inputs::{public_kernel_circuit_public_inputs::PublicKernelCircuitPublicInputs},
     public_call_request::PublicCallRequest, validation_requests::PublicValidationRequestsBuilder
 },
-    address::AztecAddress, constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, traits::Empty
+    address::AztecAddress, constants::MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, traits::Empty,
+    utils::arrays::array_to_bounded_vec
 };
 
 struct PublicKernelCircuitPublicInputsBuilder {
@@ -19,6 +20,18 @@ struct PublicKernelCircuitPublicInputsBuilder {
 }
 
 impl PublicKernelCircuitPublicInputsBuilder {
+    pub fn new(data: PublicKernelCircuitPublicInputs) -> Self {
+        PublicKernelCircuitPublicInputsBuilder {
+            validation_requests: PublicValidationRequestsBuilder::new(data.validation_requests),
+            end_non_revertible: PublicAccumulatedDataBuilder::new(data.end_non_revertible),
+            end: PublicAccumulatedDataBuilder::new(data.end),
+            constants: data.constants,
+            revert_code: data.revert_code,
+            public_teardown_call_stack: array_to_bounded_vec(data.public_teardown_call_stack),
+            fee_payer: data.fee_payer
+        }
+    }
+
     pub fn finish(self) -> PublicKernelCircuitPublicInputs {
         PublicKernelCircuitPublicInputs {
             // Note that we're including both the validation_requests AND the rollup_validation requests, because this

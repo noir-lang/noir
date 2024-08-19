@@ -29,6 +29,7 @@ struct PublicValidationRequestProcessor<let NUM_PUBLIC_DATA_HINTS: u32> {
     nullifier_tree_root: Field,
     public_data_read_request_hints: PublicDataReadRequestHints,
     public_data_hints: [PublicDataHint; NUM_PUBLIC_DATA_HINTS],
+    public_data_tree_root: Field,
 }
 
 impl<let NUM_PUBLIC_DATA_HINTS: u32> PublicValidationRequestProcessor<NUM_PUBLIC_DATA_HINTS> {
@@ -38,7 +39,8 @@ impl<let NUM_PUBLIC_DATA_HINTS: u32> PublicValidationRequestProcessor<NUM_PUBLIC
         nullifier_non_existent_read_request_hints: NullifierNonExistentReadRequestHints,
         nullifier_tree_root: Field,
         public_data_read_request_hints: PublicDataReadRequestHints,
-        public_data_hints: [PublicDataHint; NUM_PUBLIC_DATA_HINTS]
+        public_data_hints: [PublicDataHint; NUM_PUBLIC_DATA_HINTS],
+        public_data_tree_root: Field
     ) -> Self {
         let end_non_revertible = public_inputs.end_non_revertible;
         let end = public_inputs.end;
@@ -58,7 +60,8 @@ impl<let NUM_PUBLIC_DATA_HINTS: u32> PublicValidationRequestProcessor<NUM_PUBLIC
             nullifier_non_existent_read_request_hints,
             nullifier_tree_root,
             public_data_read_request_hints,
-            public_data_hints
+            public_data_hints,
+            public_data_tree_root
         }
     }
 
@@ -114,8 +117,9 @@ impl<let NUM_PUBLIC_DATA_HINTS: u32> PublicValidationRequestProcessor<NUM_PUBLIC
     }
 
     fn validate_public_data_read_requests(self) {
-        let hints = self.public_data_read_request_hints;
+        self.validate_public_data_hints();
 
+        let hints = self.public_data_read_request_hints;
         reset_mutable_data_read_requests(
             self.validation_requests.public_data_reads,
             hints.read_request_statuses,
@@ -124,5 +128,11 @@ impl<let NUM_PUBLIC_DATA_HINTS: u32> PublicValidationRequestProcessor<NUM_PUBLIC
             hints.pending_read_hints,
             hints.leaf_data_read_hints
         );
+    }
+
+    fn validate_public_data_hints(self) {
+        for i in 0..self.public_data_hints.len() {
+            self.public_data_hints[i].validate(self.public_data_tree_root);
+        }
     }
 }

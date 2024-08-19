@@ -10,7 +10,7 @@ use crate::{
     MAX_NULLIFIER_READ_REQUESTS_PER_TX, MAX_NULLIFIER_NON_EXISTENT_READ_REQUESTS_PER_TX,
     MAX_PUBLIC_DATA_READS_PER_TX
 },
-    traits::Empty
+    traits::Empty, utils::arrays::array_to_bounded_vec
 };
 
 struct PublicValidationRequestsBuilder {
@@ -21,6 +21,15 @@ struct PublicValidationRequestsBuilder {
 }
 
 impl PublicValidationRequestsBuilder {
+    pub fn new(requests: PublicValidationRequests) -> Self {
+        PublicValidationRequestsBuilder {
+            max_block_number: requests.for_rollup.max_block_number,
+            nullifier_read_requests: array_to_bounded_vec(requests.nullifier_read_requests),
+            nullifier_non_existent_read_requests: array_to_bounded_vec(requests.nullifier_non_existent_read_requests),
+            public_data_reads: array_to_bounded_vec(requests.public_data_reads)
+        }
+    }
+
     pub fn finish(self) -> PublicValidationRequests {
         PublicValidationRequests {
             for_rollup: self.for_rollup(),

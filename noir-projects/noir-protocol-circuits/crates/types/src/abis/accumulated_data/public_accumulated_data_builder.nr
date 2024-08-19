@@ -10,7 +10,7 @@ use crate::{
     MAX_L2_TO_L1_MSGS_PER_TX, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, MAX_ENCRYPTED_LOGS_PER_TX,
     MAX_UNENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX
 },
-    traits::Empty
+    traits::Empty, utils::arrays::array_to_bounded_vec
 };
 
 struct PublicAccumulatedDataBuilder {
@@ -30,6 +30,20 @@ struct PublicAccumulatedDataBuilder {
 }
 
 impl PublicAccumulatedDataBuilder {
+    pub fn new(data: PublicAccumulatedData) -> Self {
+        PublicAccumulatedDataBuilder {
+            note_hashes: array_to_bounded_vec(data.note_hashes),
+            nullifiers: array_to_bounded_vec(data.nullifiers),
+            l2_to_l1_msgs: array_to_bounded_vec(data.l2_to_l1_msgs),
+            note_encrypted_logs_hashes: array_to_bounded_vec(data.note_encrypted_logs_hashes),
+            encrypted_logs_hashes: array_to_bounded_vec(data.encrypted_logs_hashes),
+            unencrypted_logs_hashes: array_to_bounded_vec(data.unencrypted_logs_hashes),
+            public_data_update_requests: array_to_bounded_vec(data.public_data_update_requests),
+            public_call_stack: array_to_bounded_vec(data.public_call_stack),
+            gas_used: data.gas_used
+        }
+    }
+
     pub fn finish(self) -> PublicAccumulatedData {
         PublicAccumulatedData {
             note_hashes: self.note_hashes.storage,

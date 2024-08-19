@@ -1,22 +1,21 @@
-use crate::common;
+use crate::{
+    components::{
+    previous_kernel_validator::PreviousKernelValidator,
+    public_tail_output_composer::{PublicTailOutputComposer, CombineHints}
+},
+    public_kernel_phase::PublicKernelPhase
+};
 use dep::reset_kernel_lib::{
     NullifierReadRequestHints, NullifierNonExistentReadRequestHints, PublicDataReadRequestHints,
     PublicValidationRequestProcessor
 };
 use dep::types::{
-    abis::{
-    accumulated_data::{CombinedAccumulatedData, CombineHints},
-    kernel_circuit_public_inputs::KernelCircuitPublicInputs, public_kernel_data::PublicKernelData,
-    public_data_update_request::PublicDataUpdateRequest, side_effect::Ordered
-},
+    abis::{kernel_circuit_public_inputs::KernelCircuitPublicInputs, public_kernel_data::PublicKernelData},
     constants::{
-    MAX_NOTE_HASHES_PER_TX, MAX_PUBLIC_DATA_HINTS, MAX_NULLIFIER_READ_REQUESTS_PER_TX,
-    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, PUBLIC_KERNEL_SETUP_INDEX, PUBLIC_KERNEL_APP_LOGIC_INDEX,
-    PUBLIC_KERNEL_TEARDOWN_INDEX
+    MAX_PUBLIC_DATA_HINTS, MAX_NULLIFIER_READ_REQUESTS_PER_TX, PUBLIC_KERNEL_SETUP_INDEX,
+    PUBLIC_KERNEL_APP_LOGIC_INDEX, PUBLIC_KERNEL_TEARDOWN_INDEX
 },
-    data::public_data_hint::PublicDataHint,
-    merkle_tree::{conditionally_assert_check_membership, MembershipWitness},
-    partial_state_reference::PartialStateReference, utils::{arrays::array_length}, address::AztecAddress
+    data::public_data_hint::PublicDataHint, partial_state_reference::PartialStateReference
 };
 
 global ALLOWED_PREVIOUS_CIRCUITS = [
@@ -36,72 +35,31 @@ struct PublicKernelTailCircuitPrivateInputs {
 }
 
 impl PublicKernelTailCircuitPrivateInputs {
-    fn validate_inputs(self) {
-        let previous_public_inputs = self.previous_kernel.public_inputs;
-        assert(previous_public_inputs.needs_setup() == false, "Previous kernel needs setup");
-        assert(previous_public_inputs.needs_app_logic() == false, "Previous kernel needs app logic");
-        assert(previous_public_inputs.needs_teardown() == false, "Previous kernel needs teardown");
-        assert_eq(
-            array_length(previous_public_inputs.end.public_call_stack), 0, "Public call stack must be empty when executing the tail circuit"
-        );
-        assert_eq(
-            array_length(previous_public_inputs.end_non_revertible.public_call_stack), 0, "Public call stack must be empty when executing the tail circuit"
-        );
-    }
-
-    fn validate_public_data_hints(self) {
-        let public_data_tree_root = self.start_state.public_data_tree.root;
-        for i in 0..self.public_data_hints.len() {
-            self.public_data_hints[i].validate(public_data_tree_root);
-        }
-    }
-
-    fn propagate_accumulated_data(self) -> CombinedAccumulatedData {
-        let previous_public_inputs = self.previous_kernel.public_inputs;
-        CombinedAccumulatedData::combine(
-            previous_public_inputs.end_non_revertible,
-            previous_public_inputs.end,
-            self.combine_hints
-        )
-    }
-
     pub fn public_kernel_tail(self) -> KernelCircuitPublicInputs {
-        if !dep::std::runtime::is_unconstrained() {
-            // Recursively verify the tube proof or a previous public kernel proof
-            self.previous_kernel.verify();
-            // TODO(#7410) currently stubbed out until tube vk handled
-            // self.previous_kernel.validate_in_vk_tree(ALLOWED_PREVIOUS_CIRCUITS);
-        }
-        self.validate_inputs();
-
-        self.validate_public_data_hints();
+        let previous_kernel_validator = PreviousKernelValidator::new(self.previous_kernel);
+        previous_kernel_validator.validate_phase(PublicKernelPhase.TAIL);
+        previous_kernel_validator.validate_proof(ALLOWED_PREVIOUS_CIRCUITS);
 
         let previous_public_inputs = self.previous_kernel.public_inputs;
-        let request_processor = PublicValidationRequestProcessor::new(
+        PublicValidationRequestProcessor::new(
             previous_public_inputs,
             self.nullifier_read_request_hints,
             self.nullifier_non_existent_read_request_hints,
             self.start_state.nullifier_tree.root,
             self.public_data_read_request_hints,
-            self.public_data_hints
-        );
-        request_processor.validate();
+            self.public_data_hints,
+            self.start_state.public_data_tree.root
+        ).validate();
 
-        let end = self.propagate_accumulated_data();
-
-        KernelCircuitPublicInputs {
-            rollup_validation_requests: previous_public_inputs.validation_requests.for_rollup,
-            end,
-            constants: previous_public_inputs.constants,
-            start_state: self.start_state,
-            revert_code: previous_public_inputs.revert_code,
-            fee_payer: previous_public_inputs.fee_payer
-        }
+        PublicTailOutputComposer::new(previous_public_inputs, self.start_state, self.combine_hints).finish()
     }
 }
 
 mod tests {
-    use crate::public_kernel_tail::{ALLOWED_PREVIOUS_CIRCUITS, PublicKernelTailCircuitPrivateInputs};
+    use crate::{
+        components::public_tail_output_composer::CombineHints,
+        public_kernel_tail::{ALLOWED_PREVIOUS_CIRCUITS, PublicKernelTailCircuitPrivateInputs}
+    };
     use dep::reset_kernel_lib::{
         tests::{
         nullifier_non_existent_read_request_hints_builder::NullifierNonExistentReadRequestHintsBuilder,
@@ -114,9 +72,8 @@ mod tests {
         abis::{
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, public_kernel_data::PublicKernelData,
         nullifier::ScopedNullifier, nullifier_leaf_preimage::NullifierLeafPreimage,
-        accumulated_data::{CombinedAccumulatedData, CombineHints},
-        public_data_update_request::PublicDataUpdateRequest, note_hash::ScopedNoteHash,
-        log_hash::{ScopedLogHash, LogHash}
+        accumulated_data::CombinedAccumulatedData, public_data_update_request::PublicDataUpdateRequest,
+        note_hash::ScopedNoteHash, log_hash::{ScopedLogHash, LogHash}
     },
         address::AztecAddress,
         constants::{
