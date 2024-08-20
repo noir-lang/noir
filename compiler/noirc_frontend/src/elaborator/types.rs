@@ -641,10 +641,18 @@ impl<'context> Elaborator<'context> {
         actual: &Type,
         expected: &Type,
         expression: ExprId,
+        span: Span,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut errors = Vec::new();
-        actual.unify_with_coercions(expected, expression, self.interner, &mut errors, make_error);
+        actual.unify_with_coercions(
+            expected,
+            expression,
+            span,
+            self.interner,
+            &mut errors,
+            make_error,
+        );
         self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
     }
 
@@ -736,10 +744,12 @@ impl<'context> Elaborator<'context> {
         }
 
         for (param, (arg, arg_expr_id, arg_span)) in fn_params.iter().zip(callsite_args) {
-            self.unify_with_coercions(arg, param, *arg_expr_id, || TypeCheckError::TypeMismatch {
-                expected_typ: param.to_string(),
-                expr_typ: arg.to_string(),
-                expr_span: *arg_span,
+            self.unify_with_coercions(arg, param, *arg_expr_id, *arg_span, || {
+                TypeCheckError::TypeMismatch {
+                    expected_typ: param.to_string(),
+                    expr_typ: arg.to_string(),
+                    expr_span: *arg_span,
+                }
             });
         }
 
@@ -1449,7 +1459,7 @@ impl<'context> Elaborator<'context> {
                 });
             }
         } else {
-            self.unify_with_coercions(&body_type, declared_return_type, body_id, || {
+            self.unify_with_coercions(&body_type, declared_return_type, body_id, func_span, || {
                 let mut error = TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: body_type.clone(),

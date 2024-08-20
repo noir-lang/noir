@@ -205,6 +205,12 @@ impl ResolvedGeneric {
     }
 }
 
+enum FunctionCoercionResult {
+    NoCoercion,
+    Coerced(Type),
+    UnconstrainedMismatch(Type),
+}
+
 impl std::hash::Hash for StructType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
@@ -1776,6 +1782,7 @@ impl Type {
         &self,
         expected: &Type,
         expression: ExprId,
+        span: Span,
         interner: &mut NodeInterner,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
@@ -1792,17 +1799,24 @@ impl Type {
         }
 
         // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
-        if let Some(coerced_self) = self.try_fn_to_unconstrained_fn_coercion(expected) {
-            coerced_self.unify_with_coercions(expected, expression, interner, errors, make_error);
-            return;
-        }
+        match self.try_fn_to_unconstrained_fn_coercion(expected) {
+            FunctionCoercionResult::NoCoercion => errors.push(make_error()),
+            FunctionCoercionResult::Coerced(coerced_self) => {
+                coerced_self
+                    .unify_with_coercions(expected, expression, span, interner, errors, make_error);
+            }
+            FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
+                errors.push(TypeCheckError::UnsafeFn { span });
 
-        errors.push(make_error());
+                coerced_self
+                    .unify_with_coercions(expected, expression, span, interner, errors, make_error);
+            }
+        }
     }
 
     // If `self` and `expected` are function types, tries to coerce `self` to `expected`.
     // Returns None if no coercion can be applied, otherwise returns `self` coerced to `expected`.
-    fn try_fn_to_unconstrained_fn_coercion(&self, expected: &Type) -> Option<Type> {
+    fn try_fn_to_unconstrained_fn_coercion(&self, expected: &Type) -> FunctionCoercionResult {
         // If `self` and `expected` are function types, `self` can be coerced to `expected`
         // if `self` is unconstrained and `expected` is not. The other way around is an error, though.
         if let (
@@ -1810,10 +1824,15 @@ impl Type {
             Type::Function(_, _, _, unconstrained_expected),
         ) = (self.follow_bindings(), expected.follow_bindings())
         {
-            (!unconstrained_self && unconstrained_expected)
-                .then(|| Type::Function(params, ret, env, unconstrained_expected))
+            let coerced_type = Type::Function(params, ret, env, unconstrained_expected);
+
+            match (unconstrained_self, unconstrained_expected) {
+                (true, true) | (false, false) => FunctionCoercionResult::NoCoercion,
+                (false, true) => FunctionCoercionResult::Coerced(coerced_type),
+                (true, false) => FunctionCoercionResult::UnconstrainedMismatch(coerced_type),
+            }
         } else {
-            None
+            FunctionCoercionResult::NoCoercion
         }
     }
 
