@@ -5,7 +5,7 @@ use acir::{
     circuit::{
         brillig::{BrilligInputs, BrilligOutputs},
         directives::Directive,
-        opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
+        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput, MemOp},
         Circuit, Opcode,
     },
     native_types::{Expression, Witness},
@@ -149,12 +149,15 @@ impl<F: AcirField> WitnessRebindingOptimizer<F> {
             })
         }
 
-        fn remap_function_input(
+        fn remap_function_input<F>(
             witness_mapping: &HashMap<Witness, Witness>,
-            function_input: FunctionInput,
-        ) -> FunctionInput {
+            function_input: FunctionInput<F>,
+        ) -> FunctionInput<F> {
             FunctionInput {
-                witness: resolve_witness(witness_mapping, function_input.witness),
+                input: match function_input.input {
+                    constant @ ConstantOrWitnessEnum::Constant(_) => constant,
+                    ConstantOrWitnessEnum::Witness(witness) => ConstantOrWitnessEnum::Witness(resolve_witness(witness_mapping, witness))
+                },
                 num_bits: function_input.num_bits,
             }
         }
