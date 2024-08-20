@@ -16,6 +16,7 @@
     "rewrite": "node ./scripts/rewrite_paths.js"
   },
   "dependencies": {
+    "@cookbookdev/docsbot": "^4.21.12",
     "@docusaurus/core": "^3.0.1",
     "@docusaurus/plugin-ideal-image": "^3.0.1",
     "@docusaurus/preset-classic": "^3.0.1",
