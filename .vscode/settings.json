@@ -169,6 +169,7 @@
     "**/dest/**": true,
     "**/noir/noir-repo/docs/versioned_docs/**": true
   },
+  "files.trimTrailingWhitespace": true,
   "cmake.sourceDirectory": "${workspaceFolder}/barretenberg/cpp",
   "typescript.tsserver.maxTsServerMemory": 4096,
 }
