@@ -45,9 +45,7 @@ impl<'context> Elaborator<'context> {
         let span = typ.span;
         let resolved_type = self.resolve_type_inner(typ, &Kind::Normal);
         if resolved_type.is_nested_slice() {
-            self.push_err(ResolverError::NestedSlices {
-                span: span.expect("Type should have span"),
-            });
+            self.push_err(ResolverError::NestedSlices { span });
         }
         resolved_type
     }
@@ -128,12 +126,7 @@ impl<'context> Elaborator<'context> {
             Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, kind));
                 let ret = Box::new(self.resolve_type_inner(*ret, kind));
-
-                // expect() here is valid, because the only places we don't have a span are omitted types
-                // e.g. a function without return type implicitly has a spanless UnresolvedType::Unit return type
-                // To get an invalid env type, the user must explicitly specify the type, which will have a span
-                let env_span =
-                    env.span.expect("Unexpected missing span for closure environment type");
+                let env_span = env.span;
 
                 let env = Box::new(self.resolve_type_inner(*env, kind));
 
@@ -158,27 +151,26 @@ impl<'context> Elaborator<'context> {
             AsTraitPath(_) => todo!("Resolve AsTraitPath"),
         };
 
-        if let Some(unresolved_span) = typ.span {
-            let location = Location::new(named_path_span.unwrap_or(unresolved_span), self.file);
+        let unresolved_span = typ.span;
+        let location = Location::new(named_path_span.unwrap_or(unresolved_span), self.file);
 
-            match resolved_type {
-                Type::Struct(ref struct_type, _) => {
-                    // Record the location of the type reference
-                    self.interner.push_type_ref_location(resolved_type.clone(), location);
+        match resolved_type {
+            Type::Struct(ref struct_type, _) => {
+                // Record the location of the type reference
+                self.interner.push_type_ref_location(resolved_type.clone(), location);
 
-                    if !is_synthetic {
-                        self.interner.add_struct_reference(
-                            struct_type.borrow().id,
-                            location,
-                            is_self_type_name,
-                        );
-                    }
+                if !is_synthetic {
+                    self.interner.add_struct_reference(
+                        struct_type.borrow().id,
+                        location,
+                        is_self_type_name,
+                    );
                 }
-                Type::Alias(ref alias_type, _) => {
-                    self.interner.add_alias_reference(alias_type.borrow().id, location);
-                }
-                _ => (),
             }
+            Type::Alias(ref alias_type, _) => {
+                self.interner.add_alias_reference(alias_type.borrow().id, location);
+            }
+            _ => (),
         }
 
         // Check that any types with a type kind match the expected type kind supplied to this function
@@ -196,10 +188,8 @@ impl<'context> Elaborator<'context> {
         // }
         if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
             if matches!(resolved_kind, Kind::Numeric { .. }) && matches!(kind, Kind::Normal) {
-                let expected_typ_err = ResolverError::NumericGenericUsedForType {
-                    name: name.to_string(),
-                    span: span.expect("Type should have span"),
-                };
+                let expected_typ_err =
+                    ResolverError::NumericGenericUsedForType { name: name.to_string(), span };
                 self.push_err(expected_typ_err);
                 return Type::Error;
             }
