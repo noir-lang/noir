@@ -60,10 +60,11 @@ pub(super) fn as_trait_path<'a>(
         .then_ignore(just(Token::Greater))
         .then_ignore(just(Token::DoubleColon))
         .then(ident())
-        .validate(|(((typ, trait_path), trait_generics), impl_item), span, emit| {
-            let reason = ParserErrorReason::ExperimentalFeature("Fully qualified trait impl paths");
-            emit(ParserError::with_reason(reason, span));
-            AsTraitPath { typ, trait_path, trait_generics, impl_item }
+        .map(|(((typ, trait_path), trait_generics), impl_item)| AsTraitPath {
+            typ,
+            trait_path,
+            trait_generics,
+            impl_item,
         })
 }
 
