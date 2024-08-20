@@ -755,7 +755,7 @@ impl Instruction {
 ///   - If the array value is constant, we use that array.
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
-    dfg: &mut DataFlowGraph,
+    dfg: &DataFlowGraph,
     mut array_id: Id<Value>,
     target_index: FieldElement,
 ) -> SimplifyResult {
