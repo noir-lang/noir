@@ -10,7 +10,6 @@ use acvm::{
     },
     FieldElement,
 };
-use fxhash::FxHashSet as HashSet;
 use fxhash::FxHasher;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -761,10 +760,9 @@ fn try_optimize_array_get_from_previous_set(
     target_index: FieldElement,
 ) -> SimplifyResult {
     let mut elements = None;
-    let mut set_indices = HashSet::default();
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
-    let max_tries = 5;
+    let max_tries = 20;
     for _ in 0..max_tries {
         match &dfg[array_id] {
             Value::Instruction { instruction, .. } => {
@@ -775,7 +773,6 @@ fn try_optimize_array_get_from_previous_set(
                                 return SimplifyResult::SimplifiedTo(*value);
                             }
 
-                            set_indices.insert(constant);
                             array_id = *array; // recur
                         } else {
                             return SimplifyResult::None;
