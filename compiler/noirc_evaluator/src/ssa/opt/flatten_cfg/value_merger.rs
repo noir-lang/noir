@@ -154,13 +154,9 @@ impl<'a> ValueMerger<'a> {
 
         let actual_length = len * element_types.len();
 
-        if let Some(result) = self.try_merge_only_changed_indices(
-            then_condition,
-            else_condition,
-            then_value,
-            else_value,
-            actual_length,
-        ) {
+        if let Some(result) =
+            self.try_merge_only_changed_indices(then_value, else_value, actual_length)
+        {
             return result;
         }
 
@@ -307,8 +303,6 @@ impl<'a> ValueMerger<'a> {
 
     fn try_merge_only_changed_indices(
         &mut self,
-        then_condition: ValueId,
-        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
         array_length: usize,
@@ -323,7 +317,7 @@ impl<'a> ValueMerger<'a> {
         // If there are more than that, we assume 2 completely separate arrays are being merged.
         // TODO: A value of 5 or higher fails the conditional_1 test.
         //       See https://github.com/noir-lang/noir/actions/runs/10473667497/job/29006337618?pr=5762
-        let max_iters = 2;
+        let max_iters = 4;
         let mut seen_then = Vec::with_capacity(max_iters);
         let mut seen_else = Vec::with_capacity(max_iters);
 
@@ -372,39 +366,11 @@ impl<'a> ValueMerger<'a> {
         }
 
         let mut array = then_value;
-        let mut array_sets_to_insert = Vec::new();
 
-        for (index, element_type, condition) in changed_indices {
-            let typevars = Some(vec![element_type.clone()]);
-
+        for (index, set_value, condition) in changed_indices {
             let instruction = Instruction::EnableSideEffects { condition };
             self.insert_instruction(instruction);
-
-            let mut get_element = |array, typevars| {
-                let get = Instruction::ArrayGet { array, index };
-                self.dfg
-                    .insert_instruction_and_results(
-                        get,
-                        self.block,
-                        typevars,
-                        self.call_stack.clone(),
-                    )
-                    .first()
-            };
-
-            let then_element = get_element(then_value, typevars.clone());
-            let else_element = get_element(else_value, typevars);
-
-            let value =
-                self.merge_values(then_condition, else_condition, then_element, else_element);
-
-            array_sets_to_insert.push((index, value, condition));
-        }
-
-        for (index, value, condition) in array_sets_to_insert {
-            let instruction = Instruction::EnableSideEffects { condition };
-            self.insert_instruction(instruction);
-            array = self.insert_array_set(array, index, value, Some(condition)).first();
+            array = self.insert_array_set(array, index, set_value, Some(condition)).first();
         }
 
         let instruction = Instruction::EnableSideEffects { condition: current_condition };
@@ -455,7 +421,7 @@ impl<'a> ValueMerger<'a> {
     fn find_previous_array_set(
         &self,
         result: ValueId,
-        changed_indices: &mut Vec<(ValueId, ValueId, Type, ValueId)>,
+        changed_indices: &mut Vec<(ValueId, ValueId, ValueId, ValueId)>,
     ) -> ValueId {
         match &self.dfg[result] {
             Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
@@ -467,8 +433,7 @@ impl<'a> ValueMerger<'a> {
                                 self.array_set_conditionals
                             )
                         });
-                    let element_type = self.dfg.type_of_value(*value);
-                    changed_indices.push((result, *index, element_type, condition));
+                    changed_indices.push((result, *index, *value, condition));
                     *array
                 }
                 _ => result,
