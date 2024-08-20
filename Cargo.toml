@@ -50,6 +50,12 @@ rust-version = "1.74.1"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
+[workspace.lints.rust]
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unused_import_braces = "warn"
+unused_qualifications = "warn"
+
 [workspace.dependencies]
 
 # ACVM workspace dependencies

@@ -31,12 +31,19 @@ unconstrained fn cipher(plaintext: [u8; 12], iv: [u8; 16], key: [u8; 16]) -> [u8
 
 fn main(inputs: str<12>, iv: str<16>, key: str<16>, output: str<32>) {
     let result = std::aes128::aes128_encrypt(inputs.as_bytes(), iv.as_bytes(), key.as_bytes());
-    let output_bytes: [u8; 16] = decode_hex(output);
-    for i in 0..16 {
-        assert(result[i] == output_bytes[i]);
-    }
-    let unconstrained_result = cipher(inputs.as_bytes(), iv.as_bytes(), key.as_bytes());
-    for i in 0..16 {
-        assert(unconstrained_result[i] == output_bytes[i]);
+
+    let output_bytes: [u8; 16] = unsafe {
+        let output_bytes: [u8; 16] = decode_hex(output);
+        for i in 0..16 {
+            assert(result[i] == output_bytes[i]);
+        }
+        output_bytes
+    };
+
+    unsafe {
+        let unconstrained_result = cipher(inputs.as_bytes(), iv.as_bytes(), key.as_bytes());
+        for i in 0..16 {
+            assert(unconstrained_result[i] == output_bytes[i]);
+        }
     }
 }

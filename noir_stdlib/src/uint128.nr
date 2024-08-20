@@ -103,7 +103,9 @@ impl U128 {
         (if ascii < 58 {
             ascii - 48
         } else {
-            let ascii = ascii + 32 * (U128::uconstrained_check_is_upper_ascii(ascii) as u8);
+            let ascii = ascii + 32 * (unsafe {
+                        U128::uconstrained_check_is_upper_ascii(ascii) as u8
+                    });
             assert(ascii >= 97); // enforce >= 'a'
             assert(ascii <= 102); // enforce <= 'f'
             ascii - 87
@@ -212,21 +214,26 @@ impl Mul for U128 {
 
 impl Div for U128 {
     fn div(self: Self, b: U128) -> U128 {
-        let (q,r) = self.unconstrained_div(b);
-        let a = b * q + r;
-        assert_eq(self, a);
-        assert(r < b);
-        q
+        unsafe {
+            let (q,r) = self.unconstrained_div(b);
+            let a = b * q + r;
+            assert_eq(self, a);
+            assert(r < b);
+            q
+        }
     }
 }
 
 impl Rem for U128 {
     fn rem(self: Self, b: U128) -> U128 {
-        let (q,r) = self.unconstrained_div(b);
-        let a = b * q + r;
-        assert_eq(self, a);
-        assert(r < b);
-        r
+        unsafe {
+            let (q,r) = self.unconstrained_div(b);
+            let a = b * q + r;
+            assert_eq(self, a);
+            assert(r < b);
+            
+            r
+        }
     }
 }
 
@@ -439,31 +446,40 @@ mod tests {
         let b= U128::from_u64s_le(0x0, 0xfffffffffffffffe);
         let c= U128::one();
         let d= U128::from_u64s_le(0x0, 0x1);
-        let (q,r) = a.unconstrained_div(b);
-        assert_eq(q, c);
-        assert_eq(r, d);
+        unsafe {
+            let (q,r) = a.unconstrained_div(b);
+            assert_eq(q, c);
+            assert_eq(r, d);
+        }
 
         let a = U128::from_u64s_le(2, 0);
         let b = U128::one();
         // Check the case where a is a multiple of b
-        let (c,d ) = a.unconstrained_div(b);
-        assert_eq((c, d), (a, U128::zero()));
+        unsafe {
+            let (c, d) = a.unconstrained_div(b);
+            assert_eq((c, d), (a, U128::zero()));
+        }
 
         // Check where b is a multiple of a
-        let (c,d) = b.unconstrained_div(a);
-        assert_eq((c, d), (U128::zero(), b));
+        unsafe {
+            let (c,d) = b.unconstrained_div(a);
+            assert_eq((c, d), (U128::zero(), b));
+        }
 
         // Dividing by zero returns 0,0
         let a = U128::from_u64s_le(0x1, 0x0);
         let b = U128::zero();
-        let (c,d)= a.unconstrained_div(b);
-        assert_eq((c, d), (U128::zero(), U128::zero()));
-
+        unsafe {
+            let (c, d)= a.unconstrained_div(b);
+            assert_eq((c, d), (U128::zero(), U128::zero()));
+        }
         // Dividing 1<<127 by 1<<127 (special case)
         let a = U128::from_u64s_le(0x0, pow63 as u64);
         let b = U128::from_u64s_le(0x0, pow63 as u64);
-        let (c,d )= a.unconstrained_div(b);
-        assert_eq((c, d), (U128::one(), U128::zero()));
+        unsafe {
+            let (c, d) = a.unconstrained_div(b);
+            assert_eq((c, d), (U128::one(), U128::zero()));
+        }
     }
 
     #[test]

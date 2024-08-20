@@ -10,6 +10,9 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 num-bigint.workspace = true
 thiserror.workspace = true

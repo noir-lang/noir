@@ -58,6 +58,9 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.span)
             }
+            ExpressionKind::Unsafe(block_expression, _) => {
+                self.elaborate_unsafe_block(block_expression)
+            }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
@@ -103,6 +106,19 @@ impl<'context> Elaborator<'context> {
 
         self.pop_scope();
         (HirBlockExpression { statements }, block_type)
+    }
+
+    fn elaborate_unsafe_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {
+        // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
+        let old_in_unsafe_block = self.in_unsafe_block;
+        self.in_unsafe_block = true;
+
+        let (hir_block_expression, typ) = self.elaborate_block_expression(block);
+
+        // Finally, we restore the original value of `self.in_unsafe_block`.
+        self.in_unsafe_block = old_in_unsafe_block;
+
+        (HirExpression::Unsafe(hir_block_expression), typ)
     }
 
     fn elaborate_literal(&mut self, literal: Literal, span: Span) -> (HirExpression, Type) {
@@ -369,7 +385,8 @@ impl<'context> Elaborator<'context> {
                     function_args.push((typ, arg, span));
                 }
 
-                let location = Location::new(span, self.file);
+                let call_span = Span::from(object_span.start()..method_name_span.end());
+                let location = Location::new(call_span, self.file);
                 let method = method_call.method_name;
                 let turbofish_generics = generics.clone();
                 let is_macro_call = method_call.is_macro_call;
@@ -489,7 +506,7 @@ impl<'context> Elaborator<'context> {
                 unseen_fields.remove(&field_name);
                 seen_fields.insert(field_name.clone());
 
-                self.unify_with_coercions(&field_type, expected_type, resolved, || {
+                self.unify_with_coercions(&field_type, expected_type, resolved, field_span, || {
                     TypeCheckError::TypeMismatch {
                         expected_typ: expected_type.to_string(),
                         expr_typ: field_type.to_string(),
@@ -710,7 +727,7 @@ impl<'context> Elaborator<'context> {
 
         let captures = lambda_context.captures;
         let expr = HirExpression::Lambda(HirLambda { parameters, return_type, body, captures });
-        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type)))
+        (expr, Type::Function(arg_types, Box::new(body_type), Box::new(env_type), false))
     }
 
     fn elaborate_quote(&mut self, mut tokens: Tokens) -> (HirExpression, Type) {

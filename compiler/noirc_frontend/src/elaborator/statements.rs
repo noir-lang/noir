@@ -78,7 +78,7 @@ impl<'context> Elaborator<'context> {
         let r#type = if annotated_type != Type::Error {
             // Now check if LHS is the same type as the RHS
             // Importantly, we do not coerce any types implicitly
-            self.unify_with_coercions(&expr_type, &annotated_type, expression, || {
+            self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_span, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: annotated_type.to_string(),
                     expr_typ: expr_type.to_string(),
@@ -136,7 +136,7 @@ impl<'context> Elaborator<'context> {
             self.push_err(TypeCheckError::VariableMustBeMutable { name, span });
         }
 
-        self.unify_with_coercions(&expr_type, &lvalue_type, expression, || {
+        self.unify_with_coercions(&expr_type, &lvalue_type, expression, span, || {
             TypeCheckError::TypeMismatchWithSource {
                 actual: expr_type.clone(),
                 expected: lvalue_type.clone(),
