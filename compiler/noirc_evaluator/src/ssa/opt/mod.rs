@@ -13,7 +13,6 @@ mod die;
 pub(crate) mod flatten_cfg;
 mod inlining;
 mod mem2reg;
-mod move_array_gets;
 mod rc;
 mod remove_bit_shifts;
 mod remove_enable_side_effects;

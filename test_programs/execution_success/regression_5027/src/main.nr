@@ -11,6 +11,9 @@ global SIZE = 500;
 fn main(mut fields: [Field; SIZE], enables: [bool; SIZE], indices: [u64; SIZE]) -> pub [Field; SIZE] {
     for i in 0..SIZE {
         if enables[i] {
+            // Expect two optimizations:
+            // 1: Shortcut array merge to only merge 1 changed index each time
+            // 2: Each array_set created by the above should be mutable
             fields[indices[i]] = i as Field;
         }
     }
