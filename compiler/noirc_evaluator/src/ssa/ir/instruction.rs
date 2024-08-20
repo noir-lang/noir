@@ -755,17 +755,21 @@ impl Instruction {
 /// - Otherwise, we check the array value of the array set.
 ///   - If the array value is constant, we use that array.
 ///   - If the array value is from a previous array-set, we recur.
-fn try_optimize_array_get_from_previous_set(dfg: &mut DataFlowGraph, mut array_id: Id<Value>, target_index: FieldElement) -> SimplifyResult {
+fn try_optimize_array_get_from_previous_set(
+    dfg: &mut DataFlowGraph,
+    mut array_id: Id<Value>,
+    target_index: FieldElement,
+) -> SimplifyResult {
     let mut elements = None;
     let mut set_indices = HashSet::default();
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
-    for _ in 0 .. max_tries {
+    for _ in 0..max_tries {
         match &dfg[array_id] {
             Value::Instruction { instruction, .. } => {
                 match &dfg[*instruction] {
-                    Instruction::ArraySet { array, index, value, .. } => {
+                    Instruction::ArraySet { array, index, .. } => {
                         if let Some(constant) = dfg.get_numeric_constant(*index) {
                             if constant == target_index {
                                 return SimplifyResult::None;
@@ -776,14 +780,14 @@ fn try_optimize_array_get_from_previous_set(dfg: &mut DataFlowGraph, mut array_i
                         } else {
                             return SimplifyResult::None;
                         }
-                    },
+                    }
                     _ => return SimplifyResult::None,
                 }
-            },
+            }
             Value::Array { array, typ: _ } => {
                 elements = Some(array.clone());
                 break;
-            },
+            }
             _ => return SimplifyResult::None,
         }
     }
