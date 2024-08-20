@@ -115,11 +115,7 @@ impl<'context> Elaborator<'context> {
             }
             Quoted(quoted) => Type::Quoted(quoted),
             Unit => Type::Unit,
-            Unspecified => {
-                let span = typ.span;
-                self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
-                Type::Error
-            }
+            Unspecified => Type::Error,
             Error => Type::Error,
             Named(path, args, _) => self.resolve_named_type(path, args),
             TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
