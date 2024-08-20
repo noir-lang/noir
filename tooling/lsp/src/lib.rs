@@ -387,11 +387,19 @@ pub fn insert_all_files_for_workspace_into_file_manager(
     workspace: &Workspace,
     file_manager: &mut FileManager,
 ) {
+    let root_dir: String = workspace.root_dir.as_os_str().to_string_lossy().into();
+
     // First add files we cached: these have the source code of files that are modified
     // but not saved to disk yet, and we want to make sure all LSP features work well
     // according to these unsaved buffers, not what's saved on disk.
     for (path, source) in &state.input_files {
         let path = path.strip_prefix("file://").unwrap();
+
+        // Only add files relevant to the workspace
+        if !path.starts_with(&root_dir) {
+            continue;
+        }
+
         file_manager.add_file_with_source_canonical_path(Path::new(path), source.clone());
     }
 
