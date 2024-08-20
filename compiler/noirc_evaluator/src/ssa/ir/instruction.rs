@@ -608,16 +608,11 @@ impl Instruction {
                 }
             }
             Instruction::ArrayGet { array, index } => {
-                let array = dfg.get_array_constant(*array);
-                let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, _)), Some(index)) = (array, index) {
-                    let index =
-                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
-                    if index < array.len() {
-                        return SimplifiedTo(array[index]);
-                    }
+                if let Some(index) = dfg.get_numeric_constant(*index) {
+                    try_optimize_array_get_from_previous_set(dfg, *array, index)
+                } else {
+                    None
                 }
-                None
             }
             Instruction::ArraySet { array, index, value, .. } => {
                 let array = dfg.get_array_constant(*array);
@@ -742,6 +737,65 @@ impl Instruction {
             }
         }
     }
+}
+
+/// Given a chain of operations like:
+/// v1 = array_set [10, 11, 12], index 1, value: 5
+/// v2 = array_set v1, index 2, value: 6
+/// v3 = array_set v2, index 2, value: 7
+/// v4 = array_get v3, index 1
+///
+/// We want to optimize `v4` to `10`. To do this we need to follow the array value
+/// through several array sets. For each array set:
+/// - If the index is non-constant we fail the optimization since any index may be changed
+/// - If the index is constant and is our target index, we conservatively fail the optimization
+///   in case the array_set is disabled from a previous `enable_side_effects_if` and the array get
+///   was not.
+/// - Otherwise, we check the array value of the array set.
+///   - If the array value is constant, we use that array.
+///   - If the array value is from a previous array-set, we recur.
+fn try_optimize_array_get_from_previous_set(
+    dfg: &DataFlowGraph,
+    mut array_id: Id<Value>,
+    target_index: FieldElement,
+) -> SimplifyResult {
+    let mut elements = None;
+
+    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
+    let max_tries = 5;
+    for _ in 0..max_tries {
+        match &dfg[array_id] {
+            Value::Instruction { instruction, .. } => {
+                match &dfg[*instruction] {
+                    Instruction::ArraySet { array, index, value, .. } => {
+                        if let Some(constant) = dfg.get_numeric_constant(*index) {
+                            if constant == target_index {
+                                return SimplifyResult::SimplifiedTo(*value);
+                            }
+
+                            array_id = *array; // recur
+                        } else {
+                            return SimplifyResult::None;
+                        }
+                    }
+                    _ => return SimplifyResult::None,
+                }
+            }
+            Value::Array { array, typ: _ } => {
+                elements = Some(array.clone());
+                break;
+            }
+            _ => return SimplifyResult::None,
+        }
+    }
+
+    if let (Some(array), Some(index)) = (elements, target_index.try_to_u64()) {
+        let index = index as usize;
+        if index < array.len() {
+            return SimplifyResult::SimplifiedTo(array[index]);
+        }
+    }
+    SimplifyResult::None
 }
 
 pub(crate) type ErrorType = HirType;
