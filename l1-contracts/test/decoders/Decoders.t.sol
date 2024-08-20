@@ -319,6 +319,21 @@ contract DecodersTest is DecoderBase {
     assertEq(logsHash, referenceLogsHashFromIteration3, "Incorrect logs hash");
   }
 
+  function testComputeTxOutHash() public {
+    // A tx with no msgs should give an out hash of 0
+    bytes memory encodedMsgs = abi.encodePacked(hex"00");
+    bytes32 outHash = txsHelper.computeTxOutHash(encodedMsgs);
+    assertEq(outHash, 0, "Incorrect tx empty out hash");
+    // Mimics test_3_elems test in .nr, with msg hashes of value 10, 11, and 12
+    bytes32[3] memory msgs = [bytes32(hex"0a"), bytes32(hex"0b"), bytes32(hex"0c")];
+    encodedMsgs = abi.encodePacked(hex"03", msgs);
+    outHash = txsHelper.computeTxOutHash(encodedMsgs);
+    bytes32 firstNode = Hash.sha256ToField(bytes.concat(msgs[0], msgs[1]));
+    bytes32 secondNode = Hash.sha256ToField(bytes.concat(msgs[2], bytes32(0)));
+    bytes32 expectedOutHash = Hash.sha256ToField(bytes.concat(firstNode, secondNode));
+    assertEq(outHash, expectedOutHash, "Incorrect tx out hash");
+  }
+
   function testTxsDecoderCorrectlyComputesNumTxEffectsToPad() public {
     // Minimum num txs is 2 so when there are no real txs we need to pad to 2
     uint32 numTxEffects = 0;
@@ -336,5 +351,43 @@ contract DecodersTest is DecoderBase {
     numTxEffects = 17;
     paddedNumTxEffects = txsHelper.computeNumTxEffectsToPad(numTxEffects);
     assertEq(paddedNumTxEffects, 0, "Incorrect number of tx effects to pad");
+  }
+
+  function testTxsDecoderCorrectlyComputesNumMsgsToPad() public {
+    uint32 numMsgs = 0;
+    uint32 numMsgsToPad = txsHelper.computeNumMsgsToPad(numMsgs);
+    assertEq(numMsgsToPad, 1, "Incorrect number of msgs to pad");
+
+    numMsgs = 1;
+    numMsgsToPad = txsHelper.computeNumMsgsToPad(numMsgs);
+    assertEq(numMsgsToPad, 2 ** 1 - numMsgs, "Incorrect number of msgs to pad");
+
+    numMsgs = 2;
+    numMsgsToPad = txsHelper.computeNumMsgsToPad(numMsgs);
+    assertEq(numMsgsToPad, 0, "Incorrect number of msgs to pad");
+
+    numMsgs = 3;
+    numMsgsToPad = txsHelper.computeNumMsgsToPad(numMsgs);
+    assertEq(numMsgsToPad, 2 ** 2 - numMsgs, "Incorrect number of msgs to pad");
+
+    numMsgs = 4;
+    numMsgsToPad = txsHelper.computeNumMsgsToPad(numMsgs);
+    assertEq(numMsgsToPad, 0, "Incorrect number of msgs to pad");
+
+    numMsgs = 5;
+    numMsgsToPad = txsHelper.computeNumMsgsToPad(numMsgs);
+    assertEq(numMsgsToPad, 2 ** 3 - numMsgs, "Incorrect number of msgs to pad");
+
+    numMsgs = 6;
+    numMsgsToPad = txsHelper.computeNumMsgsToPad(numMsgs);
+    assertEq(numMsgsToPad, 2 ** 3 - numMsgs, "Incorrect number of msgs to pad");
+
+    numMsgs = 7;
+    numMsgsToPad = txsHelper.computeNumMsgsToPad(numMsgs);
+    assertEq(numMsgsToPad, 2 ** 3 - numMsgs, "Incorrect number of msgs to pad");
+
+    numMsgs = 7;
+    numMsgsToPad = txsHelper.computeNumMsgsToPad(numMsgs);
+    assertEq(numMsgsToPad, 2 ** 3 - numMsgs, "Incorrect number of msgs to pad");
   }
 }

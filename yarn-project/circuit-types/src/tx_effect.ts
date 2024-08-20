@@ -14,6 +14,7 @@ import {
   RevertCode,
 } from '@aztec/circuits.js';
 import { makeTuple } from '@aztec/foundation/array';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256Trunc } from '@aztec/foundation/crypto';
 import { BufferReader, serializeArrayOfBufferableToVector, serializeToBuffer } from '@aztec/foundation/serialize';
 
@@ -145,10 +146,33 @@ export class TxEffect {
    */
   hash() {
     const padBuffer = (buf: Buffer, length: number) => Buffer.concat([buf, Buffer.alloc(length - buf.length)]);
+    // Below follows computeTxOutHash in TxsDecoder.sol and new_sha in variable_merkle_tree.nr
+    // TODO(#7218): Revert to fixed height tree for outbox
+    const computeTxOutHash = (l2ToL1Msgs: Fr[]) => {
+      if (l2ToL1Msgs.length == 0) {
+        return Buffer.alloc(32);
+      }
+      const depth = l2ToL1Msgs.length == 1 ? 1 : Math.ceil(Math.log2(l2ToL1Msgs.length));
+      let thisLayer = padArrayEnd(
+        l2ToL1Msgs.map(msg => msg.toBuffer()),
+        Buffer.alloc(32),
+        2 ** depth,
+      );
+      let nextLayer = [];
+      for (let i = 0; i < depth; i++) {
+        for (let j = 0; j < thisLayer.length; j += 2) {
+          // Store the hash of each pair one layer up
+          nextLayer[j / 2] = sha256Trunc(Buffer.concat([thisLayer[j], thisLayer[j + 1]]));
+        }
+        thisLayer = nextLayer;
+        nextLayer = [];
+      }
+      return thisLayer[0];
+    };
 
     const noteHashesBuffer = padBuffer(serializeToBuffer(this.noteHashes), Fr.SIZE_IN_BYTES * MAX_NOTE_HASHES_PER_TX);
     const nullifiersBuffer = padBuffer(serializeToBuffer(this.nullifiers), Fr.SIZE_IN_BYTES * MAX_NULLIFIERS_PER_TX);
-    const l2ToL1MsgsBuffer = padBuffer(serializeToBuffer(this.l2ToL1Msgs), Fr.SIZE_IN_BYTES * MAX_L2_TO_L1_MSGS_PER_TX);
+    const outHashBuffer = computeTxOutHash(this.l2ToL1Msgs);
     const publicDataWritesBuffer = padBuffer(
       serializeToBuffer(this.publicDataWrites),
       PublicDataWrite.SIZE_IN_BYTES * MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
@@ -163,7 +187,7 @@ export class TxEffect {
       this.transactionFee.toBuffer(),
       noteHashesBuffer,
       nullifiersBuffer,
-      l2ToL1MsgsBuffer,
+      outHashBuffer,
       publicDataWritesBuffer,
       this.noteEncryptedLogsLength.toBuffer(),
       this.encryptedLogsLength.toBuffer(),

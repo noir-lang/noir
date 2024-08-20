@@ -414,9 +414,9 @@ contract RollupTest is DecoderBase {
       // The below is a little janky - we know that this test deals with full txs with equal numbers
       // of msgs or txs with no messages, so the division works
       // TODO edit full.messages to include information about msgs per tx?
-      uint256 subTreeHeight = merkleTestUtil.calculateTreeHeightFromSize(
-        full.messages.l2ToL1Messages.length == 0 ? 0 : full.messages.l2ToL1Messages.length / numTxs
-      );
+      uint256 subTreeHeight = full.messages.l2ToL1Messages.length == 0
+        ? 0
+        : merkleTestUtil.calculateTreeHeightFromSize(full.messages.l2ToL1Messages.length / numTxs);
       uint256 outHashTreeHeight = merkleTestUtil.calculateTreeHeightFromSize(numTxs);
       uint256 numMessagesWithPadding = numTxs * Constants.MAX_L2_TO_L1_MSGS_PER_TX;
 

@@ -46,7 +46,6 @@ import { type L1ContractAddresses, createEthereumChain } from '@aztec/ethereum';
 import { type ContractArtifact } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { sha256Trunc } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Timer } from '@aztec/foundation/timer';
 import { type AztecKVStore } from '@aztec/kv-store';
@@ -533,7 +532,7 @@ export class AztecNodeService implements AztecNode {
 
     let l2toL1SubtreeRoots = l2toL1Subtrees.map(t => Fr.fromBuffer(t.getRoot(true)));
     if (l2toL1SubtreeRoots.length < 2) {
-      l2toL1SubtreeRoots = padArrayEnd(l2toL1SubtreeRoots, Fr.fromBuffer(sha256Trunc(Buffer.alloc(64))), 2);
+      l2toL1SubtreeRoots = padArrayEnd(l2toL1SubtreeRoots, Fr.ZERO, 2);
     }
     const maxTreeHeight = Math.ceil(Math.log2(l2toL1SubtreeRoots.length));
     // The root of this tree is the out_hash calculated in Noir => we truncate to match Noir's SHA

@@ -146,7 +146,7 @@ fn silo_and_hash_encrypted_logs(encrypted_logs_hashes: [ScopedLogHash; MAX_UNENC
 // 1 field for transaction fee
 // MAX_NOTE_HASHES_PER_TX fields for note hashes
 // MAX_NULLIFIERS_PER_TX fields for nullifiers
-// MAX_L2_TO_L1_MSGS_PER_TX fields for L2 to L1 messages
+// 1 field for L2 to L1 messages (represented by the out_hash)
 // MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX public data update requests -> MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2 fields
 //                                          __
 // 1 note encrypted logs length --> 1 field   |
@@ -156,7 +156,7 @@ fn silo_and_hash_encrypted_logs(encrypted_logs_hashes: [ScopedLogHash; MAX_UNENC
 // 1 note encrypted logs hash --> 1 sha256 hash -> 31 bytes -> 1 fields | Beware when populating bytes that we fill (prepend) to 32!   |
 // 1 encrypted logs hash --> 1 sha256 hash -> 31 bytes -> 1 fields | Beware when populating bytes that we fill (prepend) to 32!        | -> 3 types of logs - 3 fields for its hashes
 // 1 unencrypted logs hash --> 1 sha256 hash -> 31 bytes  -> 1 fields | Beware when populating bytes that we fill (prepend) to 32!   __|
-global TX_EFFECTS_HASH_INPUT_FIELDS = 1 + 1 + MAX_NOTE_HASHES_PER_TX + MAX_NULLIFIERS_PER_TX + MAX_L2_TO_L1_MSGS_PER_TX + MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2 + 3 + 3;
+global TX_EFFECTS_HASH_INPUT_FIELDS = 1 + 1 + MAX_NOTE_HASHES_PER_TX + MAX_NULLIFIERS_PER_TX + 1 + MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2 + 3 + 3;
 
 // Computes the tx effects hash for a base rollup (a single transaction)
 pub fn compute_tx_effects_hash(
@@ -164,7 +164,7 @@ pub fn compute_tx_effects_hash(
     revert_code: u8,
     transaction_fee: Field,
     all_public_data_update_requests: [PublicDataUpdateRequest; MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX],
-    l2_to_l1_msgs: [Field; MAX_L2_TO_L1_MSGS_PER_TX]
+    out_hash: Field
 ) -> Field {
     let mut tx_effects_hash_input = [0; TX_EFFECTS_HASH_INPUT_FIELDS];
 
@@ -205,10 +205,8 @@ pub fn compute_tx_effects_hash(
     offset += MAX_NULLIFIERS_PER_TX ;
 
     // L2 TO L1 MESSAGES
-    for j in 0..MAX_L2_TO_L1_MSGS_PER_TX {
-        tx_effects_hash_input[offset + j] = l2_to_l1_msgs[j];
-    }
-    offset += MAX_L2_TO_L1_MSGS_PER_TX;
+    tx_effects_hash_input[offset] = out_hash;
+    offset += 1;
 
     // PUBLIC DATA UPDATE REQUESTS
     for j in 0..MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
@@ -274,7 +272,7 @@ fn consistent_TX_EFFECTS_HASH_INPUT_FIELDS() {
         + MAX_NOTE_HASHES_PER_TX
         + MAX_NULLIFIERS_PER_TX
         + MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2
-        + MAX_L2_TO_L1_MSGS_PER_TX
+        + 1 // out hash
         + 3 // logs lengths
         + 3; // logs hashes
     assert(TX_EFFECTS_HASH_INPUT_FIELDS == expected_size, "tx effects hash input size is incorrect");

@@ -19,8 +19,16 @@ contract TxsDecoderHelper {
     return TxsDecoder.computeKernelEncryptedLogsHash(0, _kernelLogs);
   }
 
+  function computeTxOutHash(bytes calldata _kernelMsgs) external pure returns (bytes32) {
+    return TxsDecoder.computeTxOutHash(1, _kernelMsgs);
+  }
+
   function computeNumTxEffectsToPad(uint32 _numTxEffects) external pure returns (uint32) {
     return TxsDecoder.computeNumTxEffectsToPad(_numTxEffects);
+  }
+
+  function computeNumMsgsToPad(uint32 _numL2toL1Msgs) external pure returns (uint32) {
+    return TxsDecoder.computeNumMsgsToPad(_numL2toL1Msgs);
   }
 
   function computeUnbalancedRoot(bytes32[] memory _leaves) external pure returns (bytes32) {

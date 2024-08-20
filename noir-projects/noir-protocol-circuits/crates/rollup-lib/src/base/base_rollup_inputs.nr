@@ -132,14 +132,14 @@ impl BaseRollupInputs {
         let siloed_l2_to_l1_msgs = self.kernel_data.public_inputs.end.l2_to_l1_msgs.map(
             |message: ScopedL2ToL1Message| silo_l2_to_l1_message(message, self.kernel_data.public_inputs.constants.tx_context.version, self.kernel_data.public_inputs.constants.tx_context.chain_id)
         );
+        let out_hash = compute_kernel_out_hash(siloed_l2_to_l1_msgs);
         let tx_effects_hash = compute_tx_effects_hash(
             self.kernel_data.public_inputs.end,
             self.kernel_data.public_inputs.revert_code,
             transaction_fee,
             all_public_data_update_requests,
-            siloed_l2_to_l1_msgs
+            out_hash
         );
-        let out_hash = compute_kernel_out_hash(siloed_l2_to_l1_msgs);
 
         // Perform membership checks that the notes provided exist within the historical trees data
         self.perform_archive_membership_checks();
@@ -1084,12 +1084,7 @@ mod tests {
     #[test]
     unconstrained fn empty_block_out_hash() {
         let outputs = BaseRollupInputsBuilder::new().execute();
-        // For now setting an empty out hash to be H(0,0) to keep consistent
-        // with prev work.
-        let hash_input_flattened = [0; 64];
-        let sha_digest = std::hash::sha256(hash_input_flattened);
-        let expected_out_hash = field_from_bytes_32_trunc(sha_digest);
-        assert_eq(outputs.out_hash, expected_out_hash);
+        assert_eq(outputs.out_hash, 0);
     }
 
     #[test]

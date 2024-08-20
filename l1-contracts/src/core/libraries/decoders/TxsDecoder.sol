@@ -76,6 +76,7 @@ library TxsDecoder {
     bytes32 noteEncryptedLogsHash;
     bytes32 encryptedLogsHash;
     bytes32 unencryptedLogsHash;
+    bytes32 txOutHash;
   }
 
   /**
@@ -105,7 +106,7 @@ library TxsDecoder {
          *    transactionFee,
          *    noteHashesKernel,
          *    nullifiersKernel,
-         *    l2ToL1MsgsKernel,
+         *    txOutHash,                                           |=> Computed below from l2tol1msgs
          *    publicDataUpdateRequestsKernel,
          *    noteEncryptedLogsLength,
          *    encryptedLogsLength,
@@ -179,6 +180,8 @@ library TxsDecoder {
         // UNENCRYPTED LOGS HASH
         (vars.unencryptedLogsHash, offset, vars.kernelUnencryptedLogsLength) =
           computeKernelUnencryptedLogsHash(offset, _body);
+        // TX LEVEL OUT HASH
+        (vars.txOutHash) = computeTxOutHash(offsets.l2ToL1Msgs, _body);
 
         // We throw to ensure that the byte len we charge for DA gas in the kernels matches the actual chargable log byte len
         // Without this check, the user may provide the kernels with a lower log len than reality
@@ -230,12 +233,7 @@ library TxsDecoder {
               counts.nullifier * 0x20,
               Constants.NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP
             ),
-            sliceAndPadRight(
-              _body,
-              offsets.l2ToL1Msgs,
-              counts.l2ToL1Msgs * 0x20,
-              Constants.L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP
-            ),
+            vars.txOutHash,
             sliceAndPadRight(
               _body,
               offsets.publicData,
@@ -257,7 +255,7 @@ library TxsDecoder {
       // We pad base leaves with hashes of empty tx effect.
       for (uint256 i = numTxEffects; i < vars.baseLeaves.length; i++) {
         // Value taken from tx_effect.test.ts "hash of empty tx effect matches snapshot" test case
-        vars.baseLeaves[i] = hex"00e8b31e302d11fbf7da124b537ba2d44f88e165da03c6557e2b0f6dc486e025";
+        vars.baseLeaves[i] = hex"00f0aa51fc81f8242316fcf2cb3b28196241ed3fa26dd320a959bce6c529b270";
       }
     }
 
@@ -518,7 +516,7 @@ library TxsDecoder {
 
   /**
    * @notice Computes the root for a binary unbalanced Merkle-tree given the leaves.
-   * @dev Filled in greedily with subtrees. Useful for txsEffectHash and outHash tree.
+   * @dev Filled in greedily with subtrees. Useful for txsEffectsHash and outHash tree.
    * @param _leaves - The 32 bytes leafs to build the tree of.
    * @return The root of the Merkle tree.
    */
@@ -548,6 +546,27 @@ library TxsDecoder {
       currentSubtreeSize <<= 1;
     }
     return root;
+  }
+
+  /**
+   * @notice Computes the root for the binary variable height Merkle-tree made of one tx's L2 to L1 msgs.
+   * @dev Mimics compute_kernel_out_hash in base_rollup.
+   * TODO(#7218): Revert to fixed height tree for outbox
+   * @param _data - The blob of data containing l2 to l1 msgs.
+   * @return The root of the Merkle tree.
+   */
+  function computeTxOutHash(uint256 _start, bytes calldata _data) internal pure returns (bytes32) {
+    uint256 offset = _start;
+    // The stored offsets.l2ToL1Msgs does not include the single byte storing the num of msgs, hence -1
+    uint32 numMsgs = uint32(read1(_data, _start - 1));
+    uint256 numMsgsToPad = computeNumMsgsToPad(uint32(numMsgs));
+    bytes32[] memory leavesInMsgTree = new bytes32[](numMsgs + numMsgsToPad);
+    for (uint256 i = 0; i < numMsgs; i++) {
+      leavesInMsgTree[i] = bytes32(slice(_data, offset, 0x20));
+      offset += 0x20;
+    }
+    bytes32 outHash = computeRoot(leavesInMsgTree);
+    return outHash;
   }
 
   /**
@@ -617,6 +636,32 @@ library TxsDecoder {
    */
   function read4(bytes calldata _data, uint256 _offset) internal pure returns (uint256) {
     return uint256(uint32(bytes4(slice(_data, _offset, 4))));
+  }
+
+  /**
+   * @notice Pads L2 to L1 messages to the next power of 2 - simple algo as we only have a max of 8 msgs
+   * @param _numL2toL1Msgs - num of msgs (currently between 0 and MAX_L2_TO_L1_MSGS_PER_TX = 8)
+   * @return Num msgs to pad
+   */
+  function computeNumMsgsToPad(uint32 _numL2toL1Msgs) internal pure returns (uint32) {
+    // We handle the edge case of 0 msgs by padding by 1 - this ensures computeRoot() gives a result of 0
+    if (_numL2toL1Msgs == 0 || _numL2toL1Msgs == 1) {
+      return 1;
+    }
+
+    uint32 v = _numL2toL1Msgs;
+
+    // the following rounds _numL2toL1Msgs up to the next power of 2 (works only for 4 bytes value!)
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    // We dont expect to have MAX_L2_TO_L1_MSGS_PER_TX greater than 8 bits, so commented out the below to save gas
+    // v |= v >> 8;
+    // v |= v >> 16;
+    v++;
+
+    return v - _numL2toL1Msgs;
   }
 
   function computeNumTxEffectsToPad(uint32 _numTxEffects) internal pure returns (uint32) {
