@@ -110,7 +110,6 @@ jobs:
       pxe_lb_priority_range_start: ${{ steps.set_network_vars.outputs.pxe_lb_priority_range_start }}
       prover_node_lb_priority_range_start: ${{ steps.set_network_vars.outputs.prover_node_lb_priority_range_start }}
       faucet_lb_priority: ${{ steps.set_network_vars.outputs.faucet_lb_priority }}
-      bot_no_wait: ${{ steps.set_network_vars.outputs.bot_no_wait }}
       max_txs_per_block: ${{ steps.set_network_vars.outputs.max_txs_per_block }}
       bot_follow_chain: ${{ steps.set_network_vars.outputs.bot_follow_chain }}
       min_txs_per_block: ${{ steps.set_network_vars.outputs.min_txs_per_block }}
@@ -128,7 +127,7 @@ jobs:
               echo "branch_name=devnet" >> $GITHUB_OUTPUT
               echo "network_api_key=DEVNET_API_KEY" >> $GITHUB_OUTPUT
               echo "agents_per_prover=4" >> $GITHUB_OUTPUT
-              echo "bot_interval=30" >> $GITHUB_OUTPUT
+              echo "bot_interval=180" >> $GITHUB_OUTPUT
               echo "node_tcp_range_start=40100" >> $GITHUB_OUTPUT
               echo "node_udp_range_start=45100" >> $GITHUB_OUTPUT
               echo "prover_node_tcp_range_start=41100" >> $GITHUB_OUTPUT
@@ -137,10 +136,9 @@ jobs:
               echo "pxe_lb_priority_range_start=5100" >> $GITHUB_OUTPUT
               echo "prover_node_lb_priority_range_start=6100" >> $GITHUB_OUTPUT
               echo "faucet_lb_priority=601" >> $GITHUB_OUTPUT
-              echo "bot_no_wait=false" >> $GITHUB_OUTPUT
               echo "min_txs_per_block=1" >> $GITHUB_OUTPUT
               echo "max_txs_per_block=64" >> $GITHUB_OUTPUT
-              echo "bot_follow_chain=PROVEN" >> $GITHUB_OUTPUT
+              echo "bot_follow_chain=NONE" >> $GITHUB_OUTPUT
               echo "bot_flush_setup_txs=false" >> $GITHUB_OUTPUT
               echo "bot_max_pending_txs=1" >> $GITHUB_OUTPUT
           elif [ "$BRANCH_NAME" = "provernet" ]
@@ -158,7 +156,6 @@ jobs:
               echo "pxe_lb_priority_range_start=5200" >> $GITHUB_OUTPUT
               echo "prover_node_lb_priority_range_start=6200" >> $GITHUB_OUTPUT
               echo "faucet_lb_priority=602" >> $GITHUB_OUTPUT
-              echo "bot_no_wait=true" >> $GITHUB_OUTPUT
               echo "min_txs_per_block=4" >> $GITHUB_OUTPUT
               echo "max_txs_per_block=4" >> $GITHUB_OUTPUT
               echo "bot_follow_chain=NONE" >> $GITHUB_OUTPUT
@@ -179,7 +176,6 @@ jobs:
               echo "pxe_lb_priority_range_start=5000" >> $GITHUB_OUTPUT
               echo "prover_node_lb_priority_range_start=6000" >> $GITHUB_OUTPUT
               echo "faucet_lb_priority=600" >> $GITHUB_OUTPUT
-              echo "bot_no_wait=false" >> $GITHUB_OUTPUT
               echo "min_txs_per_block=1" >> $GITHUB_OUTPUT
               echo "max_txs_per_block=64" >> $GITHUB_OUTPUT
               echo "bot_follow_chain=PROVEN" >> $GITHUB_OUTPUT
@@ -380,7 +376,6 @@ jobs:
       TF_VAR_NODE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.node_lb_priority_range_start }}
       TF_VAR_PXE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.pxe_lb_priority_range_start }}
       TF_VAR_PROVER_NODE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.prover_node_lb_priority_range_start }}
-      TF_VAR_BOT_NO_WAIT_FOR_TRANSFERS: ${{ needs.set-network.outputs.bot_no_wait }}
       TF_VAR_SEQ_MIN_TX_PER_BLOCK: 1
       TF_VAR_SEQ_MAX_TX_PER_BLOCK: ${{ needs.set-network.outputs.max_txs_per_block }}
     steps:
@@ -584,7 +579,6 @@ jobs:
       TF_VAR_NODE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.node_lb_priority_range_start }}
       TF_VAR_PXE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.pxe_lb_priority_range_start }}
       TF_VAR_PROVER_NODE_LB_RULE_PRIORITY: ${{ needs.set-network.outputs.prover_node_lb_priority_range_start }}
-      TF_VAR_BOT_NO_WAIT_FOR_TRANSFERS: ${{ needs.set-network.outputs.bot_no_wait }}
       TF_VAR_BOT_FLUSH_SETUP_TRANSACTIONS: ${{ needs.set-network.outputs.bot_flush_setup_txs }}
       TF_VAR_BOT_MAX_PENDING_TXS: ${{ needs.set-network.outputs.bot_max_pending_txs }}
       TF_VAR_SEQ_MIN_TX_PER_BLOCK: ${{ needs.set-network.outputs.min_txs_per_block }}
