@@ -762,7 +762,7 @@ fn try_optimize_array_get_from_previous_set(
     let mut elements = None;
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
-    let max_tries = 20;
+    let max_tries = 5;
     for _ in 0..max_tries {
         match &dfg[array_id] {
             Value::Instruction { instruction, .. } => {
