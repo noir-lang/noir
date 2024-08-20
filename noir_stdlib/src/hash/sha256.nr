@@ -1,6 +1,16 @@
 // Implementation of SHA-256 mapping a byte array of variable length to
 // 32 bytes.
 
+// Deprecated in favour of `sha256_var`
+#[foreign(sha256)]
+// docs:start:sha256
+pub fn sha256<let N: u32>(input: [u8; N]) -> [u8; 32]
+// docs:end:sha256
+{}
+
+#[foreign(sha256_compression)]
+pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
+
 // SHA-256 hash function
 #[no_predicates]
 pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 32] {
