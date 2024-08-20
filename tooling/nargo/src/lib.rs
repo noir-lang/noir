@@ -13,10 +13,7 @@ pub mod ops;
 pub mod package;
 pub mod workspace;
 
-use std::{
-    collections::{BTreeMap, HashMap},
-    path::Path,
-};
+use std::collections::{BTreeMap, HashMap};
 
 use fm::{FileManager, FILE_EXTENSION};
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
@@ -53,13 +50,13 @@ pub fn insert_all_files_for_workspace_into_file_manager(
         workspace,
         file_manager,
         &HashMap::new(),
-    )
+    );
 }
 
 pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
     workspace: &workspace::Workspace,
     file_manager: &mut FileManager,
-    overrides: &HashMap<&Path, &str>,
+    overrides: &HashMap<&std::path::Path, &str>,
 ) {
     for package in workspace.clone().into_iter() {
         insert_all_files_for_package_into_file_manager(package, file_manager, overrides);
@@ -74,7 +71,7 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
 fn insert_all_files_for_package_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
-    overrides: &HashMap<&Path, &str>,
+    overrides: &HashMap<&std::path::Path, &str>,
 ) {
     // Start off at the entry path and read all files in the parent directory.
     let entry_path_parent = package
