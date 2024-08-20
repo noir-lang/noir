@@ -1,4 +1,4 @@
-name: Report gates diff
+name: Report Brillig bytecode size diff
 
 on:
   push:
@@ -42,8 +42,7 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-
-  compare_gates_reports:
+  compare_brillig_bytecode_size_reports:
     needs: [build-nargo]
     runs-on: ubuntu-latest
     permissions:
@@ -51,11 +50,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install `bb`
-        run: |
-          ./scripts/install_bb.sh
-          echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
         uses: actions/download-artifact@v4
@@ -71,24 +65,28 @@ jobs:
           export PATH="$PATH:$(dirname $nargo_binary)"
           nargo -V
 
-      - name: Generate gates report
+      - name: Generate Brillig bytecode size report
         working-directory: ./test_programs
         run: |
-          ./rebuild.sh
-          ./gates_report.sh
-          mv gates_report.json ../gates_report.json
-      
-      - name: Compare gates reports
-        id: gates_diff
-        uses: noir-lang/noir-gates-diff@1931aaaa848a1a009363d6115293f7b7fc72bb87
-        with:
-          report: gates_report.json
-          summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
+          chmod +x gates_report_brillig.sh
+          ./gates_report_brillig.sh
+          mv gates_report_brillig.json ../gates_report_brillig.json
 
-      - name: Add gates diff to sticky comment
+      - name: Compare Brillig bytecode size reports
+        id: brillig_bytecode_diff
+        uses: noir-lang/noir-gates-diff@3fb844067b25d1b59727ea600b614503b33503f4
+        with:
+          report: gates_report_brillig.json
+          header: |
+            # Changes to Brillig bytecode sizes
+          brillig_report: true
+          summaryQuantile: 0.9 # only display the 10% most significant bytecode size diffs in the summary (defaults to 20%)
+
+      - name: Add bytecode size diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          # delete the comment in case changes no longer impact circuit sizes
-          delete: ${{ !steps.gates_diff.outputs.markdown }}
-          message: ${{ steps.gates_diff.outputs.markdown }}
+          header: brillig
+          # delete the comment in case changes no longer impact brillig bytecode sizes
+          delete: ${{ !steps.brillig_bytecode_diff.outputs.markdown }}
+          message: ${{ steps.brillig_bytecode_diff.outputs.markdown }}
