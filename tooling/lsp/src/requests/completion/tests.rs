@@ -1446,7 +1446,7 @@ mod completion_tests {
         assert_eq!(
             item.label_details,
             Some(CompletionItemLabelDetails {
-                detail: Some("(use crate::foo::bar::hello_world)".to_string()),
+                detail: Some("(use super::bar::hello_world)".to_string()),
                 description: Some("fn()".to_string())
             })
         );
@@ -1458,7 +1458,7 @@ mod completion_tests {
                     start: Position { line: 7, character: 8 },
                     end: Position { line: 7, character: 8 },
                 },
-                new_text: "use crate::foo::bar::hello_world;\n\n        ".to_string(),
+                new_text: "use super::bar::hello_world;\n\n        ".to_string(),
             }])
         );
     }
@@ -1612,5 +1612,30 @@ mod completion_tests {
             )],
         )
         .await;
+    }
+
+    #[test]
+    async fn test_auto_import_with_super() {
+        let src = r#"
+            pub fn bar_baz() {}
+
+            mod tests {
+                fn foo() {
+                    bar_b>|<
+                }
+            }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.label, "bar_baz()");
+        assert_eq!(
+            item.label_details,
+            Some(CompletionItemLabelDetails {
+                detail: Some("(use super::bar_baz)".to_string()),
+                description: Some("fn()".to_string())
+            })
+        );
     }
 }
