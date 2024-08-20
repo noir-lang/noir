@@ -29,7 +29,7 @@ use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
-use acvm::acir::circuit::opcodes::BlockType;
+use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockType};
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
@@ -775,7 +775,7 @@ impl<'a> Context<'a> {
                                     .get(id)
                                     .expect("ICE: should have an associated final index");
                                 let output_vars = self.acir_context.call_acir_function(
-                                    *acir_function_id,
+                                    AcirFunctionId(*acir_function_id),
                                     inputs,
                                     output_count,
                                     self.current_side_effects_enabled_var,
@@ -2867,9 +2867,13 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 
 #[cfg(test)]
 mod test {
+
     use acvm::{
         acir::{
-            circuit::{brillig::BrilligFunctionId, ExpressionWidth, Opcode, OpcodeLocation},
+            circuit::{
+                brillig::BrilligFunctionId, opcodes::AcirFunctionId, ExpressionWidth, Opcode,
+                OpcodeLocation,
+            },
             native_types::Witness,
         },
         FieldElement,
@@ -3020,8 +3024,18 @@ mod test {
         let main_opcodes = main_acir.opcodes();
         assert_eq!(main_opcodes.len(), 3, "Should have two calls to `foo`");
 
-        check_call_opcode(&main_opcodes[0], 1, vec![Witness(0), Witness(1)], vec![Witness(2)]);
-        check_call_opcode(&main_opcodes[1], 1, vec![Witness(0), Witness(1)], vec![Witness(3)]);
+        check_call_opcode(
+            &main_opcodes[0],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(2)],
+        );
+        check_call_opcode(
+            &main_opcodes[1],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(3)],
+        );
 
         if let Opcode::AssertZero(expr) = &main_opcodes[2] {
             assert_eq!(expr.linear_combinations[0].0, FieldElement::from(1u128));
@@ -3076,9 +3090,19 @@ mod test {
         let main_opcodes = main_acir.opcodes();
         assert_eq!(main_opcodes.len(), 3, "Should have two calls to `foo` and an assert");
 
-        check_call_opcode(&main_opcodes[0], 1, vec![Witness(0), Witness(1)], vec![Witness(2)]);
+        check_call_opcode(
+            &main_opcodes[0],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(2)],
+        );
         // The output of the first call should be the input of the second call
-        check_call_opcode(&main_opcodes[1], 1, vec![Witness(2), Witness(1)], vec![Witness(3)]);
+        check_call_opcode(
+            &main_opcodes[1],
+            AcirFunctionId(1),
+            vec![Witness(2), Witness(1)],
+            vec![Witness(3)],
+        );
     }
 
     fn basic_nested_call(inline_type: InlineType) {
@@ -3167,9 +3191,19 @@ mod test {
         assert_eq!(main_opcodes.len(), 3, "Should have two calls to `foo` and an assert");
 
         // Both of these should call func_with_nested_foo_call f1
-        check_call_opcode(&main_opcodes[0], 1, vec![Witness(0), Witness(1)], vec![Witness(2)]);
+        check_call_opcode(
+            &main_opcodes[0],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(2)],
+        );
         // The output of the first call should be the input of the second call
-        check_call_opcode(&main_opcodes[1], 1, vec![Witness(0), Witness(1)], vec![Witness(3)]);
+        check_call_opcode(
+            &main_opcodes[1],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(3)],
+        );
 
         let func_with_nested_call_acir = &acir_functions[1];
         let func_with_nested_call_opcodes = func_with_nested_call_acir.opcodes();
@@ -3182,7 +3216,7 @@ mod test {
         // Should call foo f2
         check_call_opcode(
             &func_with_nested_call_opcodes[1],
-            2,
+            AcirFunctionId(2),
             vec![Witness(3), Witness(1)],
             vec![Witness(4)],
         );
@@ -3190,7 +3224,7 @@ mod test {
 
     fn check_call_opcode(
         opcode: &Opcode<FieldElement>,
-        expected_id: u32,
+        expected_id: AcirFunctionId,
         expected_inputs: Vec<Witness>,
         expected_outputs: Vec<Witness>,
     ) {

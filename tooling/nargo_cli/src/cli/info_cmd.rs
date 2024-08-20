@@ -175,6 +175,7 @@ struct ProgramInfo {
     #[serde(skip)]
     expression_width: ExpressionWidth,
     functions: Vec<FunctionInfo>,
+    #[serde(skip)]
     unconstrained_functions_opcodes: usize,
     unconstrained_functions: Vec<FunctionInfo>,
 }
@@ -186,7 +187,7 @@ impl From<ProgramInfo> for Vec<Row> {
                 Fm->format!("{}", program_info.package_name),
                 Fc->format!("{}", function.name),
                 format!("{:?}", program_info.expression_width),
-                Fc->format!("{}", function.acir_opcodes),
+                Fc->format!("{}", function.opcodes),
                 Fc->format!("{}", program_info.unconstrained_functions_opcodes),
             ]
         });
@@ -196,7 +197,7 @@ impl From<ProgramInfo> for Vec<Row> {
                 Fc->format!("{}", function.name),
                 format!("N/A", ),
                 Fc->format!("N/A"),
-                Fc->format!("{}", function.acir_opcodes),
+                Fc->format!("{}", function.opcodes),
             ]
         }));
         main
@@ -215,7 +216,7 @@ struct ContractInfo {
 #[derive(Debug, Serialize)]
 struct FunctionInfo {
     name: String,
-    acir_opcodes: usize,
+    opcodes: usize,
 }
 
 impl From<ContractInfo> for Vec<Row> {
@@ -225,7 +226,7 @@ impl From<ContractInfo> for Vec<Row> {
                 Fm->format!("{}", contract_info.name),
                 Fc->format!("{}", function.name),
                 format!("{:?}", contract_info.expression_width),
-                Fc->format!("{}", function.acir_opcodes),
+                Fc->format!("{}", function.opcodes),
             ]
         })
     }
@@ -243,7 +244,7 @@ fn count_opcodes_and_gates_in_program(
         .enumerate()
         .map(|(i, function)| FunctionInfo {
             name: compiled_program.names[i].clone(),
-            acir_opcodes: function.opcodes.len(),
+            opcodes: function.opcodes.len(),
         })
         .collect();
 
@@ -264,7 +265,7 @@ fn count_opcodes_and_gates_in_program(
         .clone()
         .iter()
         .zip(opcodes_len)
-        .map(|(name, len)| FunctionInfo { name: name.clone(), acir_opcodes: len })
+        .map(|(name, len)| FunctionInfo { name: name.clone(), opcodes: len })
         .collect();
 
     ProgramInfo {
