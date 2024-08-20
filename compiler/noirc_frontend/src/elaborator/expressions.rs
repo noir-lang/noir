@@ -11,7 +11,7 @@ use crate::{
     hir::{
         comptime::{self, InterpreterError},
         resolution::errors::ResolverError,
-        type_check::TypeCheckError,
+        type_check::{generics::TraitGenerics, TypeCheckError},
     },
     hir_def::{
         expr::{
@@ -620,8 +620,7 @@ impl<'context> Elaborator<'context> {
                     let constraint = TraitConstraint {
                         typ: operand_type.clone(),
                         trait_id: trait_id.trait_id,
-                        trait_generics: Vec::new(),
-                        associated_types: Vec::new(),
+                        trait_generics: TraitGenerics::default(),
                         span,
                     };
                     self.push_trait_constraint(constraint, expr_id);

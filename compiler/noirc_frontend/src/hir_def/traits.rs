@@ -2,6 +2,7 @@ use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{Ident, NoirFunction};
+use crate::hir::type_check::generics::TraitGenerics;
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
@@ -101,30 +102,19 @@ pub struct TraitImpl {
 pub struct TraitConstraint {
     pub typ: Type,
     pub trait_id: TraitId,
-    pub trait_generics: Vec<Type>,
-    pub associated_types: Vec<NamedType>,
+    pub trait_generics: TraitGenerics,
     pub span: Span,
 }
 
 impl TraitConstraint {
-    pub fn new(
-        typ: Type,
-        trait_id: TraitId,
-        trait_generics: Vec<Type>,
-        associated_types: Vec<NamedType>,
-        span: Span,
-    ) -> Self {
-        Self { typ, trait_id, trait_generics, associated_types, span }
-    }
-
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
 
-        for typ in &mut self.trait_generics {
+        for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
         }
 
-        for named in &mut self.associated_types {
+        for named in &mut self.trait_generics.named {
             named.typ = named.typ.substitute(type_bindings);
         }
     }
@@ -171,15 +161,17 @@ impl Trait {
     /// Returns a TraitConstraint for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     pub fn as_constraint(&self, span: Span) -> TraitConstraint {
+        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
+        let named = vecmap(&self.associated_types, |generic| {
+            let name = Ident::new(generic.name.to_string(), span);
+            NamedType { name, typ: generic.clone().as_named_generic() }
+        });
+
         TraitConstraint {
             typ: Type::TypeVariable(self.self_type_typevar.clone(), TypeVariableKind::Normal),
-            trait_generics: vecmap(&self.generics, |generic| generic.clone().as_named_generic()),
+            trait_generics: TraitGenerics { ordered, named },
             trait_id: self.id,
             span,
-            associated_types: vecmap(&self.associated_types, |generic| {
-                let name = Ident::new(generic.name.to_string(), span);
-                NamedType { name, typ: generic.clone().as_named_generic() }
-            }),
         }
     }
 }

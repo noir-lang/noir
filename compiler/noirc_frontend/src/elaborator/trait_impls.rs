@@ -164,11 +164,9 @@ impl<'context> Elaborator<'context> {
         let mut substituted_method_ids = HashSet::default();
         for method_constraint in method.trait_constraints.iter() {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
-            let substituted_trait_generics = method_constraint
-                .trait_generics
-                .iter()
-                .map(|generic| generic.substitute(&bindings))
-                .collect::<Vec<_>>();
+            let substituted_trait_generics =
+                method_constraint.trait_generics.map(|generic| generic.substitute(&bindings));
+
             substituted_method_ids.insert((
                 substituted_constraint_type,
                 method_constraint.trait_id,

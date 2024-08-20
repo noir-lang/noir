@@ -222,13 +222,12 @@ impl HirMethodCallExpression {
             HirMethodReference::FuncId(func_id) => {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitMethodId(method_id, generics) => {
+            HirMethodReference::TraitMethodId(method_id, trait_generics) => {
                 let id = interner.trait_method_id(method_id);
                 let constraint = TraitConstraint {
                     typ: object_type,
                     trait_id: method_id.trait_id,
-                    trait_generics: generics.ordered,
-                    associated_types: generics.named,
+                    trait_generics,
                     span: location.span,
                 };
                 (id, ImplKind::TraitMethod(method_id, constraint, false))

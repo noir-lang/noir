@@ -1453,13 +1453,14 @@ impl NodeInterner {
         recursion_limit: u32,
     ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
         let make_constraint = || {
-            TraitConstraint::new(
-                object_type.clone(),
+            let ordered = trait_generics.to_vec();
+            let named = trait_associated_types.to_vec();
+            TraitConstraint {
+                typ: object_type.clone(),
                 trait_id,
-                trait_generics.to_vec(),
-                trait_associated_types.to_vec(),
-                Span::default(),
-            )
+                trait_generics: TraitGenerics { ordered, named },
+                span: Span::default(),
+            }
         };
 
         // Prevent infinite recursion when looking for impls
@@ -1570,11 +1571,11 @@ impl NodeInterner {
             let constraint_type =
                 constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
 
-            let trait_generics = vecmap(&constraint.trait_generics, |generic| {
+            let trait_generics = vecmap(&constraint.trait_generics.ordered, |generic| {
                 generic.force_substitute(instantiation_bindings).substitute(type_bindings)
             });
 
-            let trait_associated_types = vecmap(&constraint.associated_types, |generic| {
+            let trait_associated_types = vecmap(&constraint.trait_generics.named, |generic| {
                 let typ = generic.typ.force_substitute(instantiation_bindings);
                 NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
             });
@@ -1608,23 +1609,20 @@ impl NodeInterner {
         &mut self,
         object_type: Type,
         trait_id: TraitId,
-        trait_generics: Vec<Type>,
-        trait_associated_types: Vec<NamedType>,
+        trait_generics: TraitGenerics,
     ) -> bool {
         // Make sure there are no overlapping impls
         let existing = self.try_lookup_trait_implementation(
             &object_type,
             trait_id,
-            &trait_generics,
-            &trait_associated_types,
+            &trait_generics.ordered,
+            &trait_generics.named,
         );
         if existing.is_ok() {
             return false;
         }
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        let trait_generics =
-            TraitGenerics { ordered: trait_generics, named: trait_associated_types };
         entries.push((object_type.clone(), TraitImplKind::Assumed { object_type, trait_generics }));
         true
     }

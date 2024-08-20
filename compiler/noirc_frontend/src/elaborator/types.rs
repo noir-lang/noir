@@ -35,7 +35,8 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TraitImplKind,
         TraitMethodId,
     },
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
+    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
+    TypeVariableKind,
 };
 
 use super::{lints, Elaborator};
@@ -1368,11 +1369,7 @@ impl<'context> Elaborator<'context> {
                             let trait_method =
                                 TraitMethodId { trait_id: constraint.trait_id, method_index };
 
-                            let generics = TraitGenerics {
-                                ordered: constraint.trait_generics.clone(),
-                                named: constraint.associated_types.clone(),
-                            };
-
+                            let generics = constraint.trait_generics.clone();
                             return Some(HirMethodReference::TraitMethodId(trait_method, generics));
                         }
                     }
@@ -1769,6 +1766,50 @@ impl<'context> Elaborator<'context> {
                 let span = segment.turbofish_span();
                 self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
             }
+        }
+    }
+
+    pub fn bind_generics_from_trait_constraint(
+        &mut self,
+        constraint: &TraitConstraint,
+        assumed: bool,
+        bindings: &mut TypeBindings,
+    ) {
+        let the_trait = self.interner.get_trait(constraint.trait_id);
+        assert_eq!(the_trait.generics.len(), constraint.trait_generics.ordered.len());
+
+        for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics.ordered) {
+            // Avoid binding t = t
+            if !arg.occurs(param.type_var.id()) {
+                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
+            }
+        }
+
+        let mut associated_types = the_trait.associated_types.clone();
+        assert_eq!(associated_types.len(), constraint.trait_generics.named.len());
+
+        for arg in &constraint.trait_generics.named {
+            let i = associated_types
+                .iter()
+                .position(|typ| *typ.name == arg.name.0.contents)
+                .unwrap_or_else(|| {
+                    unreachable!("Expected to find associated type named {}", arg.name)
+                });
+
+            let param = associated_types.swap_remove(i);
+
+            // Avoid binding t = t
+            if !arg.typ.occurs(param.type_var.id()) {
+                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.typ.clone()));
+            }
+        }
+
+        // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
+        // Otherwise `self` will be replaced with a fresh type variable, which will require the user
+        // to specify a redundant type annotation.
+        if assumed {
+            let self_type = the_trait.self_type_typevar.clone();
+            bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
         }
     }
 }

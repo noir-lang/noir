@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use acvm::FieldElement;
-use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
@@ -427,11 +426,7 @@ impl NoMatchingImplFoundError {
             .into_iter()
             .map(|constraint| {
                 let r#trait = interner.try_get_trait(constraint.trait_id)?;
-                let mut name = r#trait.name.to_string();
-                if !constraint.trait_generics.is_empty() {
-                    let generics = vecmap(&constraint.trait_generics, ToString::to_string);
-                    name += &format!("<{}>", generics.join(", "));
-                }
+                let name = format!("{}{}", r#trait.name, constraint.trait_generics);
                 Some((constraint.typ, name))
             })
             .collect::<Option<Vec<_>>>()?;

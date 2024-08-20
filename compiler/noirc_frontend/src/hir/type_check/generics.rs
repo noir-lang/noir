@@ -1,5 +1,7 @@
 use std::cell::Ref;
 
+use iter_extended::vecmap;
+
 use crate::{
     hir_def::traits::NamedType,
     macros_api::NodeInterner,
@@ -97,10 +99,19 @@ impl Generic for Ref<'_, StructType> {
 
 /// TraitGenerics are different from regular generics in that they can
 /// also contain associated type arguments.
-#[derive(PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
+#[derive(Default, PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
 pub struct TraitGenerics {
     pub ordered: Vec<Type>,
     pub named: Vec<NamedType>,
+}
+
+impl TraitGenerics {
+    pub fn map(&self, mut f: impl FnMut(&Type) -> Type) -> TraitGenerics {
+        let ordered = vecmap(&self.ordered, &mut f);
+        let named =
+            vecmap(&self.named, |named| NamedType { name: named.name.clone(), typ: f(&named.typ) });
+        TraitGenerics { ordered, named }
+    }
 }
 
 impl std::fmt::Display for TraitGenerics {

@@ -13,7 +13,7 @@ use crate::{
         def_map::DefMaps,
         resolution::{errors::ResolverError, path_resolver::PathResolver},
         scope::ScopeForest as GenericScopeForest,
-        type_check::TypeCheckError,
+        type_check::{generics::TraitGenerics, TypeCheckError},
     },
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
@@ -490,8 +490,8 @@ impl<'context> Elaborator<'context> {
             self.verify_trait_constraint(
                 &constraint.typ,
                 constraint.trait_id,
-                &constraint.trait_generics,
-                &constraint.associated_types,
+                &constraint.trait_generics.ordered,
+                &constraint.trait_generics.named,
                 expr_id,
                 span,
             );
@@ -691,10 +691,10 @@ impl<'context> Elaborator<'context> {
         let trait_id = the_trait.id;
         let span = bound.trait_path.span;
 
-        let (trait_generics, associated_types) =
-            self.resolve_type_args(bound.trait_generics.clone(), trait_id, span);
+        let (ordered, named) = self.resolve_type_args(bound.trait_generics.clone(), trait_id, span);
 
-        Some(TraitConstraint { typ, trait_id, trait_generics, span, associated_types })
+        let trait_generics = TraitGenerics { ordered, named };
+        Some(TraitConstraint { typ, trait_id, trait_generics, span })
     }
 
     /// Extract metadata from a NoirFunction
@@ -934,14 +934,8 @@ impl<'context> Elaborator<'context> {
             let object = constraint.typ.clone();
             let trait_id = constraint.trait_id;
             let generics = constraint.trait_generics.clone();
-            let associated_types = constraint.associated_types.clone();
 
-            if !self.interner.add_assumed_trait_implementation(
-                object,
-                trait_id,
-                generics,
-                associated_types,
-            ) {
+            if !self.interner.add_assumed_trait_implementation(object, trait_id, generics) {
                 if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                     let trait_name = the_trait.name.to_string();
                     let typ = constraint.typ.clone();

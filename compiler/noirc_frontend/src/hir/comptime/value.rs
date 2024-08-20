@@ -571,25 +571,5 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
 
 fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitConstraint) -> String {
     let trait_ = interner.get_trait(trait_constraint.trait_id);
-    let mut result = format!("{}: {}", trait_constraint.typ, trait_.name);
-
-    if !trait_constraint.trait_generics.is_empty() || !trait_constraint.associated_types.is_empty()
-    {
-        result += "<";
-        result += &vecmap(&trait_constraint.trait_generics, ToString::to_string).join(", ");
-
-        if !trait_constraint.trait_generics.is_empty()
-            && !trait_constraint.associated_types.is_empty()
-        {
-            result += ", ";
-        }
-
-        result += &vecmap(&trait_constraint.associated_types, |named| {
-            format!("{} = {}", named.name, named.typ)
-        })
-        .join(", ");
-        result += ">";
-    }
-
-    result
+    format!("{}: {}{}", trait_constraint.typ, trait_.name, trait_constraint.trait_generics)
 }

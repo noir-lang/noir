@@ -7,7 +7,7 @@ use crate::{
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
-        type_check::{generics::TraitGenerics, Source, TypeCheckError},
+        type_check::{Source, TypeCheckError},
     },
     hir_def::{
         expr::{HirIdent, ImplKind},
@@ -585,23 +585,7 @@ impl<'context> Elaborator<'context> {
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
         if let ImplKind::TraitMethod(_, constraint, assumed) = &ident.impl_kind {
-            let the_trait = self.interner.get_trait(constraint.trait_id);
-            assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
-
-            for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
-                // Avoid binding t = t
-                if !arg.occurs(param.type_var.id()) {
-                    bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
-                }
-            }
-
-            // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
-            // Otherwise `self` will be replaced with a fresh type variable, which will require the user
-            // to specify a redundant type annotation.
-            if *assumed {
-                let self_type = the_trait.self_type_typevar.clone();
-                bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
-            }
+            self.bind_generics_from_trait_constraint(constraint, *assumed, &mut bindings);
         }
 
         // An identifiers type may be forall-quantified in the case of generic functions.
@@ -642,10 +626,7 @@ impl<'context> Elaborator<'context> {
         if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
             constraint.apply_bindings(&bindings);
             if assumed {
-                let trait_generics = TraitGenerics {
-                    ordered: constraint.trait_generics,
-                    named: constraint.associated_types,
-                };
+                let trait_generics = constraint.trait_generics.clone();
                 let object_type = constraint.typ;
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(expr_id, trait_impl);

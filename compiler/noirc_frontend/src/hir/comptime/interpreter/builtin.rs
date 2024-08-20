@@ -20,10 +20,7 @@ use crate::{
         ArrayLiteral, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal,
         UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::{
-        comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
-        type_check::generics::TraitGenerics,
-    },
+    hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
     hir_def::function::FunctionBody,
     macros_api::{ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
@@ -388,9 +385,7 @@ fn quoted_as_trait_constraint(
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
-    let ordered = bound.trait_generics;
-    let named = bound.associated_types;
-    Ok(Value::TraitConstraint(bound.trait_id, TraitGenerics { ordered, named }))
+    Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
 }
 
 // fn as_type(quoted: Quoted) -> Type
@@ -1371,10 +1366,8 @@ fn trait_def_as_trait_constraint(
 
     let trait_id = get_trait_def(argument)?;
     let constraint = interner.get_trait(trait_id).as_constraint(location.span);
-    let ordered = constraint.trait_generics;
-    let named = constraint.associated_types;
 
-    Ok(Value::TraitConstraint(trait_id, TraitGenerics { ordered, named }))
+    Ok(Value::TraitConstraint(trait_id, constraint.trait_generics))
 }
 
 /// Creates a value that holds an `Option`.
