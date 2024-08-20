@@ -1826,12 +1826,10 @@ impl Type {
         {
             let coerced_type = Type::Function(params, ret, env, unconstrained_expected);
 
-            if !unconstrained_self && unconstrained_expected {
-                FunctionCoercionResult::Coerced(coerced_type)
-            } else if unconstrained_self != unconstrained_expected {
-                FunctionCoercionResult::UnconstrainedMismatch(coerced_type)
-            } else {
-                FunctionCoercionResult::NoCoercion
+            match (unconstrained_self, unconstrained_expected) {
+                (true, true) | (false, false) => FunctionCoercionResult::NoCoercion,
+                (false, true) => FunctionCoercionResult::Coerced(coerced_type),
+                (true, false) => FunctionCoercionResult::UnconstrainedMismatch(coerced_type),
             }
         } else {
             FunctionCoercionResult::NoCoercion
