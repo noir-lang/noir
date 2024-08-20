@@ -197,7 +197,7 @@ fn module_id_path(
                 .iter()
                 .find(|dep| dep.crate_id == crate_id)
                 .map(|dep| format!("{}", dep.name)),
-            CrateId::Dummy => None,
+            CrateId::Dummy => unreachable!("ICE: A dummy CrateId should not be accessible"),
         }
     };
 

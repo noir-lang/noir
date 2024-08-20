@@ -343,7 +343,7 @@ fn format_parent_module_from_module_id(
             .find(|dep| dep.crate_id == crate_id)
             .map(|dep| format!("{}", dep.name)),
         CrateId::Stdlib(_) => Some("std".to_string()),
-        CrateId::Dummy => None,
+        CrateId::Dummy => unreachable!("ICE: A dummy CrateId should not be accessible"),
     };
 
     if let Some(crate_name) = &crate_name {
