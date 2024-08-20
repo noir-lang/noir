@@ -7,7 +7,7 @@ BENCHMARK = "fold_k<MegaFlavor, 3>/16"
 
 # Single out an independent set of functions accounting for most of BENCHMARK's real_time
 to_keep = [
-    "ProtogalaxyProver::fold_instances(t)",
+    "ProtogalaxyProver::prove(t)",
 ]
 with open(PREFIX/PROTOGALAXY_BENCH_JSON, "r") as read_file:
     read_result = json.load(read_file)
@@ -45,7 +45,7 @@ for key in ['commit(t)', 'compute_combiner(t)', 'compute_perturbator(t)', 'compu
         time_ms = bench[key]/1e6
     print(f"{key:<{max_label_length}}{time_ms:>8.0f} {time_ms/sum_of_kept_times_ms:>8.2%}")
 
-print('\nBreakdown of ProtogalaxyProver::fold_instances:')
+print('\nBreakdown of ProtogalaxyProver::prove:')
 protogalaxy_round_labels = [
     "ProtoGalaxyProver_::preparation_round(t)", 
     "ProtoGalaxyProver_::perturbator_round(t)", 
@@ -55,7 +55,7 @@ protogalaxy_round_labels = [
 max_label_length = max(len(label) for label in protogalaxy_round_labels)
 for key in protogalaxy_round_labels:
     time_ms = bench[key]/1e6
-    total_time_ms = bench["ProtogalaxyProver::fold_instances(t)"]/1e6
+    total_time_ms = bench["ProtogalaxyProver::prove(t)"]/1e6
     print(f"{key:<{max_label_length}}{time_ms:>8.0f}  {time_ms/total_time_ms:>8.2%}")
 
 

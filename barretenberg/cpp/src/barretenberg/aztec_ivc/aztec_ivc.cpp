@@ -66,7 +66,7 @@ void AztecIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verifica
         initialized = true;
     } else { // Otherwise, fold the new instance into the accumulator
         FoldingProver folding_prover({ fold_output.accumulator, prover_instance });
-        fold_output = folding_prover.fold_instances();
+        fold_output = folding_prover.prove();
 
         // Add fold proof and corresponding verification key to the verification queue
         verification_queue.emplace_back(fold_output.proof, instance_vk);

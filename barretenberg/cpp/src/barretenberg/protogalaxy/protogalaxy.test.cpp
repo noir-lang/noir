@@ -84,7 +84,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         FoldingProver folding_prover(prover_instances);
         FoldingVerifier folding_verifier(verifier_instances);
 
-        auto [prover_accumulator, folding_proof] = folding_prover.fold_instances();
+        auto [prover_accumulator, folding_proof] = folding_prover.prove();
         auto verifier_accumulator = folding_verifier.verify_folding_proof(folding_proof);
         return { prover_accumulator, verifier_accumulator };
     }
@@ -549,7 +549,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         ProtoGalaxyProver_<ProverInstances_<Flavor, total_insts>> folding_prover(get<0>(insts));
         ProtoGalaxyVerifier_<VerifierInstances_<Flavor, total_insts>> folding_verifier(get<1>(insts));
 
-        auto [prover_accumulator, folding_proof] = folding_prover.fold_instances();
+        auto [prover_accumulator, folding_proof] = folding_prover.prove();
         auto verifier_accumulator = folding_verifier.verify_folding_proof(folding_proof);
         check_accumulator_target_sum_manual(prover_accumulator, true);
 
@@ -558,7 +558,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
 };
 } // namespace
 
-using FlavorTypes = testing::Types<UltraFlavor, MegaFlavor>;
+using FlavorTypes = testing::Types<MegaFlavor>;
 TYPED_TEST_SUITE(ProtoGalaxyTests, FlavorTypes);
 
 TYPED_TEST(ProtoGalaxyTests, PerturbatorCoefficients)

@@ -11,7 +11,7 @@ set(DSL_DEPENDENCIES
     stdlib_poseidon2
     crypto_merkle_tree
     stdlib_schnorr
-    stdlib_honk_recursion)
+    stdlib_honk_verifier)
 
 if (NOT WASM)
     list(APPEND DSL_DEPENDENCIES libdeflate::libdeflate_static)

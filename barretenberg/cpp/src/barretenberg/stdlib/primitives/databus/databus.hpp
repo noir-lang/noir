@@ -1,8 +1,8 @@
 #pragma once
 #include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../field/field.hpp"
-#include "barretenberg/stdlib/honk_recursion/verifier/recursive_instances.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
+#include "barretenberg/stdlib/protogalaxy_verifier/recursive_instances.hpp"
 #include "barretenberg/stdlib_circuit_builders/databus.hpp"
 
 namespace bb::stdlib {

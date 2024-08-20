@@ -63,7 +63,6 @@ add_subdirectory(barretenberg/crypto)
 add_subdirectory(barretenberg/dsl)
 add_subdirectory(barretenberg/ecc)
 add_subdirectory(barretenberg/eccvm)
-add_subdirectory(barretenberg/eccvm_recursion)
 add_subdirectory(barretenberg/env)
 add_subdirectory(barretenberg/execution_trace)
 add_subdirectory(barretenberg/examples)
@@ -84,7 +83,6 @@ add_subdirectory(barretenberg/stdlib_circuit_builders)
 add_subdirectory(barretenberg/sumcheck)
 add_subdirectory(barretenberg/transcript)
 add_subdirectory(barretenberg/translator_vm)
-add_subdirectory(barretenberg/translator_vm_recursion)
 add_subdirectory(barretenberg/ultra_honk)
 add_subdirectory(barretenberg/vm)
 add_subdirectory(barretenberg/wasi)
@@ -122,7 +120,6 @@ set(BARRETENBERG_TARGET_OBJECTS
     $<TARGET_OBJECTS:dsl_objects>
     $<TARGET_OBJECTS:ecc_objects>
     $<TARGET_OBJECTS:eccvm_objects>
-     $<TARGET_OBJECTS:eccvm_recursion_objects>
     $<TARGET_OBJECTS:execution_trace_objects>
     $<TARGET_OBJECTS:simple_example_objects>
     $<TARGET_OBJECTS:flavor_objects>
@@ -138,20 +135,24 @@ set(BARRETENBERG_TARGET_OBJECTS
     $<TARGET_OBJECTS:stdlib_blake2s_objects>
     $<TARGET_OBJECTS:stdlib_blake3s_objects>
     $<TARGET_OBJECTS:stdlib_circuit_builders_objects>
+    $<TARGET_OBJECTS:stdlib_client_ivc_verifier_objects>
+    $<TARGET_OBJECTS:stdlib_eccvm_verifier_objects>
+    $<TARGET_OBJECTS:stdlib_honk_verifier_objects>
+    $<TARGET_OBJECTS:stdlib_goblin_verifier_objects>
     $<TARGET_OBJECTS:stdlib_keccak_objects>
     $<TARGET_OBJECTS:crypto_merkle_tree_objects>
     $<TARGET_OBJECTS:stdlib_pedersen_commitment_objects>
     $<TARGET_OBJECTS:stdlib_pedersen_hash_objects>
+    $<TARGET_OBJECTS:stdlib_plonk_recursion_objects>
     $<TARGET_OBJECTS:stdlib_poseidon2_objects>
     $<TARGET_OBJECTS:stdlib_primitives_objects>
-    $<TARGET_OBJECTS:stdlib_honk_recursion_objects>
-    $<TARGET_OBJECTS:stdlib_plonk_recursion_objects>
+    $<TARGET_OBJECTS:stdlib_protogalaxy_verifier_objects>
     $<TARGET_OBJECTS:stdlib_schnorr_objects>
     $<TARGET_OBJECTS:stdlib_sha256_objects>
+    $<TARGET_OBJECTS:stdlib_translator_vm_verifier_objects>
     $<TARGET_OBJECTS:sumcheck_objects>
     $<TARGET_OBJECTS:transcript_objects>
     $<TARGET_OBJECTS:translator_vm_objects>
-    $<TARGET_OBJECTS:translator_vm_recursion_objects>
     $<TARGET_OBJECTS:ultra_honk_objects>)
 
 if(NOT DISABLE_AZTEC_VM)

@@ -102,12 +102,13 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     void finalise_and_send_instance(std::shared_ptr<Instance>, const std::string& domain_separator);
 
     /**
-     * @brief Run the folding prover protocol to produce a new accumulator and a folding proof to be verified by the
-     * folding verifier.
+     * @brief Execute the folding prover.
      *
-     * TODO(https://github.com/AztecProtocol/barretenberg/issues/753): fold goblin polynomials
+     * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/753): fold goblin polynomials
+     * @return FoldingResult is a pair consisting of an accumulator and a folding proof, which is a proof that the
+     * accumulator was computed correctly.
      */
-    BB_PROFILE FoldingResult<Flavor> fold_instances();
+    BB_PROFILE FoldingResult<Flavor> prove();
 
     /**
      * @brief For a new round challenge δ at each iteration of the ProtoGalaxy protocol, compute the vector

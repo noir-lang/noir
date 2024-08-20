@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "ecc_msm_relation.hpp"
 
 namespace bb {

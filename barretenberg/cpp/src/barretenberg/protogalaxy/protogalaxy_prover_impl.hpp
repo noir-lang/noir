@@ -413,9 +413,9 @@ template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::accum
 };
 
 template <class ProverInstances>
-FoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstances>::fold_instances()
+FoldingResult<typename ProverInstances::Flavor> ProtoGalaxyProver_<ProverInstances>::prove()
 {
-    BB_OP_COUNT_TIME_NAME("ProtogalaxyProver::fold_instances");
+    BB_OP_COUNT_TIME_NAME("ProtogalaxyProver::prove");
     // Ensure instances are all of the same size
     for (size_t idx = 0; idx < ProverInstances::NUM - 1; ++idx) {
         if (instances[idx]->proving_key.circuit_size != instances[idx + 1]->proving_key.circuit_size) {

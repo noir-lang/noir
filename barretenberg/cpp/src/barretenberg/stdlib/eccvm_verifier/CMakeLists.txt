@@ -1,0 +1,1 @@
+barretenberg_module(stdlib_eccvm_verifier eccvm stdlib_transcript)
