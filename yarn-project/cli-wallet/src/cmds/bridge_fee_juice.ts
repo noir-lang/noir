@@ -25,23 +25,23 @@ export async function bridgeL1FeeJuice(
   const client = await createCompatibleClient(rpcUrl, debugLogger);
 
   // Setup portal manager
-  const portal = await FeeJuicePortalManager.create(client, publicClient, walletClient, debugLogger);
-  const { secret } = await portal.prepareTokensOnL1(amount, amount, recipient, mint);
+  const portal = await FeeJuicePortalManager.new(client, publicClient, walletClient, debugLogger);
+  const { claimAmount, claimSecret } = await portal.bridgeTokensPublic(recipient, amount, mint);
 
   if (json) {
     const out = {
-      claimAmount: amount,
-      claimSecret: secret,
+      claimAmount,
+      claimSecret,
     };
     log(prettyPrintJSON(out));
   } else {
     if (mint) {
-      log(`Minted ${amount} fee juice on L1 and pushed to L2 portal`);
+      log(`Minted ${claimAmount} fee juice on L1 and pushed to L2 portal`);
     } else {
-      log(`Bridged ${amount} fee juice to L2 portal`);
+      log(`Bridged ${claimAmount} fee juice to L2 portal`);
     }
-    log(`claimAmount=${amount},claimSecret=${secret}\n`);
+    log(`claimAmount=${claimAmount},claimSecret=${claimSecret}\n`);
     log(`Note: You need to wait for two L2 blocks before pulling them from the L2 side`);
   }
-  return secret;
+  return claimSecret;
 }

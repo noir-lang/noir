@@ -108,6 +108,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       'test test test test test test test test test test test junk',
     )
     .option('--mint', 'Mint the tokens on L1', false)
+    .option('--private', 'If the bridge should use the private flow', false)
     .addOption(l1ChainIdOption)
     .requiredOption('-t, --token <string>', 'The address of the token to bridge', parseEthereumAddress)
     .requiredOption('-p, --portal <string>', 'The address of the portal contract', parseEthereumAddress)
@@ -124,6 +125,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         options.mnemonic,
         options.token,
         options.portal,
+        options.private,
         options.mint,
         options.json,
         log,

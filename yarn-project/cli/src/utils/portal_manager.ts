@@ -14,106 +14,102 @@ import {
   getContract,
 } from 'viem';
 
-/**
- * A Class for testing cross chain interactions, contains common interactions
- * shared between cross chain tests.
- */
-abstract class PortalManager {
-  protected constructor(
-    /** Underlying token for portal tests. */
-    public underlyingERC20Address: EthAddress,
-    /** Portal address. */
-    public tokenPortalAddress: EthAddress,
-    public publicClient: PublicClient<HttpTransport, Chain>,
-    public walletClient: WalletClient<HttpTransport, Chain, Account>,
-    /** Logger. */
-    public logger: DebugLogger,
-  ) {}
+export interface L2Claim {
+  claimSecret: Fr;
+  claimAmount: Fr;
+}
 
-  generateClaimSecret(): [Fr, Fr] {
-    this.logger.debug("Generating a claim secret using pedersen's hash function");
-    const secret = Fr.random();
-    const secretHash = computeSecretHash(secret);
-    this.logger.info('Generated claim secret: ' + secretHash.toString());
-    return [secret, secretHash];
-  }
+function stringifyEthAddress(address: EthAddress | Hex, name?: string) {
+  return name ? `${name} (${address.toString()})` : address.toString();
+}
 
-  getERC20Contract(): GetContractReturnType<typeof PortalERC20Abi, WalletClient<HttpTransport, Chain, Account>> {
-    return getContract({
-      address: this.underlyingERC20Address.toString(),
+function generateClaimSecret(): [Fr, Fr] {
+  const secret = Fr.random();
+  const secretHash = computeSecretHash(secret);
+  return [secret, secretHash];
+}
+
+class L1TokenManager {
+  private contract: GetContractReturnType<typeof PortalERC20Abi, WalletClient<HttpTransport, Chain, Account>>;
+
+  public constructor(
+    public readonly address: EthAddress,
+    private publicClient: PublicClient<HttpTransport, Chain>,
+    private walletClient: WalletClient<HttpTransport, Chain, Account>,
+    private logger: DebugLogger,
+  ) {
+    this.contract = getContract({
+      address: this.address.toString(),
       abi: PortalERC20Abi,
       client: this.walletClient,
     });
   }
 
-  async mintTokensOnL1(amount: bigint) {
-    this.logger.info(
-      `Minting tokens on L1 for ${this.walletClient.account.address} in contract ${this.underlyingERC20Address}`,
-    );
+  public async getL1TokenBalance(address: Hex) {
+    return await this.contract.read.balanceOf([address]);
+  }
+
+  public async mint(amount: bigint, address: Hex, addressName = '') {
+    this.logger.info(`Minting ${amount} tokens for ${stringifyEthAddress(address, addressName)}`);
     await this.publicClient.waitForTransactionReceipt({
-      hash: await this.getERC20Contract().write.mint([this.walletClient.account.address, amount]),
+      hash: await this.contract.write.mint([address, amount]),
     });
   }
 
-  async getL1TokenBalance(address: EthAddress) {
-    return await this.getERC20Contract().read.balanceOf([address.toString()]);
-  }
-
-  protected async sendTokensToPortalPublic(bridgeAmount: bigint, l2Address: AztecAddress, secretHash: Fr) {
-    this.logger.info(`Approving erc20 tokens for the TokenPortal at ${this.tokenPortalAddress.toString()}`);
+  public async approve(amount: bigint, address: Hex, addressName = '') {
+    this.logger.info(`Approving ${amount} tokens for ${stringifyEthAddress(address, addressName)}`);
     await this.publicClient.waitForTransactionReceipt({
-      hash: await this.getERC20Contract().write.approve([this.tokenPortalAddress.toString(), bridgeAmount]),
+      hash: await this.contract.write.approve([address, amount]),
     });
-
-    const messageHash = await this.bridgeTokens(l2Address, bridgeAmount, secretHash);
-    return Fr.fromString(messageHash);
-  }
-
-  protected abstract bridgeTokens(to: AztecAddress, amount: bigint, secretHash: Fr): Promise<Hex>;
-
-  async prepareTokensOnL1(l1TokenBalance: bigint, bridgeAmount: bigint, owner: AztecAddress, mint = true) {
-    const [secret, secretHash] = this.generateClaimSecret();
-
-    // Mint tokens on L1
-    if (mint) {
-      await this.mintTokensOnL1(l1TokenBalance);
-    }
-
-    // Deposit tokens to the TokenPortal
-    const msgHash = await this.sendTokensToPortalPublic(bridgeAmount, owner, secretHash);
-
-    return { secret, msgHash, secretHash };
   }
 }
 
-export class FeeJuicePortalManager extends PortalManager {
-  async bridgeTokens(to: AztecAddress, amount: bigint, secretHash: Fr): Promise<Hex> {
-    const portal = getContract({
-      address: this.tokenPortalAddress.toString(),
+export class FeeJuicePortalManager {
+  tokenManager: L1TokenManager;
+  contract: GetContractReturnType<typeof FeeJuicePortalAbi, WalletClient<HttpTransport, Chain, Account>>;
+
+  constructor(
+    portalAddress: EthAddress,
+    tokenAddress: EthAddress,
+    private publicClient: PublicClient<HttpTransport, Chain>,
+    private walletClient: WalletClient<HttpTransport, Chain, Account>,
+    /** Logger. */
+    private logger: DebugLogger,
+  ) {
+    this.tokenManager = new L1TokenManager(tokenAddress, publicClient, walletClient, logger);
+    this.contract = getContract({
+      address: portalAddress.toString(),
       abi: FeeJuicePortalAbi,
       client: this.walletClient,
     });
-
-    this.logger.info(
-      `Simulating token portal deposit configured for token ${await portal.read.l2TokenAddress()} with registry ${await portal.read.registry()} to retrieve message hash`,
-    );
-
-    const args = [to.toString(), amount, secretHash.toString()] as const;
-    const { result: messageHash } = await portal.simulate.depositToAztecPublic(args);
-    this.logger.info('Sending messages to L1 portal to be consumed publicly');
-
-    await this.publicClient.waitForTransactionReceipt({
-      hash: await portal.write.depositToAztecPublic(args),
-    });
-    return messageHash;
   }
 
-  public static async create(
+  public async bridgeTokensPublic(to: AztecAddress, amount: bigint, mint = false): Promise<L2Claim> {
+    const [claimSecret, claimSecretHash] = generateClaimSecret();
+    if (mint) {
+      await this.tokenManager.mint(amount, this.walletClient.account.address);
+    }
+
+    await this.tokenManager.approve(amount, this.contract.address, 'FeeJuice Portal');
+
+    this.logger.info('Sending L1 Fee Juice to L2 to be claimed publicly');
+    const args = [to.toString(), amount, claimSecretHash.toString()] as const;
+    await this.publicClient.waitForTransactionReceipt({
+      hash: await this.contract.write.depositToAztecPublic(args),
+    });
+
+    return {
+      claimAmount: new Fr(amount),
+      claimSecret,
+    };
+  }
+
+  public static async new(
     pxe: PXE,
     publicClient: PublicClient<HttpTransport, Chain>,
     walletClient: WalletClient<HttpTransport, Chain, Account>,
     logger: DebugLogger,
-  ): Promise<PortalManager> {
+  ): Promise<FeeJuicePortalManager> {
     const {
       l1ContractAddresses: { feeJuiceAddress, feeJuicePortalAddress },
     } = await pxe.getNodeInfo();
@@ -122,39 +118,66 @@ export class FeeJuicePortalManager extends PortalManager {
       throw new Error('Portal or token not deployed on L1');
     }
 
-    return new FeeJuicePortalManager(feeJuiceAddress, feeJuicePortalAddress, publicClient, walletClient, logger);
+    return new FeeJuicePortalManager(feeJuicePortalAddress, feeJuiceAddress, publicClient, walletClient, logger);
   }
 }
 
-export class ERC20PortalManager extends PortalManager {
-  async bridgeTokens(to: AztecAddress, amount: bigint, secretHash: Fr): Promise<Hex> {
-    const portal = getContract({
-      address: this.tokenPortalAddress.toString(),
+export class L1PortalManager {
+  contract: GetContractReturnType<typeof TokenPortalAbi, WalletClient<HttpTransport, Chain, Account>>;
+  private tokenManager: L1TokenManager;
+
+  constructor(
+    portalAddress: EthAddress,
+    tokenAddress: EthAddress,
+    private publicClient: PublicClient<HttpTransport, Chain>,
+    private walletClient: WalletClient<HttpTransport, Chain, Account>,
+    private logger: DebugLogger,
+  ) {
+    this.tokenManager = new L1TokenManager(tokenAddress, publicClient, walletClient, logger);
+    this.contract = getContract({
+      address: portalAddress.toString(),
       abi: TokenPortalAbi,
       client: this.walletClient,
     });
-
-    this.logger.info(
-      `Simulating token portal deposit configured for token ${await portal.read.l2Bridge()} with registry ${await portal.read.registry()} to retrieve message hash`,
-    );
-
-    const args = [to.toString(), amount, secretHash.toString()] as const;
-    const { result: messageHash } = await portal.simulate.depositToAztecPublic(args);
-    this.logger.info('Sending messages to L1 portal to be consumed publicly');
-
-    await this.publicClient.waitForTransactionReceipt({
-      hash: await portal.write.depositToAztecPublic(args),
-    });
-    return messageHash;
   }
 
-  public static create(
-    tokenAddress: EthAddress,
-    portalAddress: EthAddress,
-    publicClient: PublicClient<HttpTransport, Chain>,
-    walletClient: WalletClient<HttpTransport, Chain, Account>,
-    logger: DebugLogger,
-  ): Promise<ERC20PortalManager> {
-    return Promise.resolve(new ERC20PortalManager(tokenAddress, portalAddress, publicClient, walletClient, logger));
+  public bridgeTokensPublic(to: AztecAddress, amount: bigint, mint = false): Promise<L2Claim> {
+    return this.bridgeTokens(to, amount, mint, /* privateTransfer */ false);
+  }
+
+  public bridgeTokensPrivate(to: AztecAddress, amount: bigint, mint = false): Promise<L2Claim> {
+    return this.bridgeTokens(to, amount, mint, /* privateTransfer */ true);
+  }
+
+  private async bridgeTokens(
+    to: AztecAddress,
+    amount: bigint,
+    mint: boolean,
+    privateTransfer: boolean,
+  ): Promise<L2Claim> {
+    const [claimSecret, claimSecretHash] = generateClaimSecret();
+
+    if (mint) {
+      await this.tokenManager.mint(amount, this.walletClient.account.address);
+    }
+
+    await this.tokenManager.approve(amount, this.contract.address, 'TokenPortal');
+
+    if (privateTransfer) {
+      this.logger.info('Sending L1 tokens to L2 to be claimed privately');
+      await this.publicClient.waitForTransactionReceipt({
+        hash: await this.contract.write.depositToAztecPrivate([Fr.ZERO.toString(), amount, claimSecretHash.toString()]),
+      });
+    } else {
+      this.logger.info('Sending L1 tokens to L2 to be claimed publicly');
+      await this.publicClient.waitForTransactionReceipt({
+        hash: await this.contract.write.depositToAztecPublic([to.toString(), amount, claimSecretHash.toString()]),
+      });
+    }
+
+    return {
+      claimAmount: new Fr(amount),
+      claimSecret,
+    };
   }
 }

@@ -231,7 +231,7 @@ async function fundFPC(
 
   const feeJuiceContract = await FeeJuiceContract.at(feeJuice, wallet);
 
-  const feeJuicePortal = await FeeJuicePortalManager.create(
+  const feeJuicePortal = await FeeJuicePortalManager.new(
     wallet,
     l1Clients.publicClient,
     l1Clients.walletClient,
@@ -239,7 +239,7 @@ async function fundFPC(
   );
 
   const amount = 10n ** 21n;
-  const { secret } = await feeJuicePortal.prepareTokensOnL1(amount, amount, fpcAddress, true);
+  const { claimAmount, claimSecret } = await feeJuicePortal.bridgeTokensPublic(fpcAddress, amount, true);
 
   const counter = await CounterContract.at(counterAddress, wallet);
 
@@ -254,5 +254,8 @@ async function fundFPC(
     .send()
     .wait({ proven: true, provenTimeout: 600 });
 
-  await feeJuiceContract.methods.claim(fpcAddress, amount, secret).send().wait({ proven: true, provenTimeout: 600 });
+  await feeJuiceContract.methods
+    .claim(fpcAddress, claimAmount, claimSecret)
+    .send()
+    .wait({ proven: true, provenTimeout: 600 });
 }
