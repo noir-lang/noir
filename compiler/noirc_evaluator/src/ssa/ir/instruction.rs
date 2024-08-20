@@ -789,12 +789,10 @@ fn try_optimize_array_get_from_previous_set(
         }
     }
 
-    if let Some(array) = elements {
-        if let Some(index) = target_index.try_to_u64() {
-            let index = index as usize;
-            if index < array.len() {
-                return SimplifyResult::SimplifiedTo(array[index]);
-            }
+    if let (Some(array), Some(index)) = (elements, target_index.try_to_u64()) {
+        let index = index as usize;
+        if index < array.len() {
+            return SimplifyResult::SimplifiedTo(array[index]);
         }
     }
     SimplifyResult::None
