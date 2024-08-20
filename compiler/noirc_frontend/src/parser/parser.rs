@@ -422,9 +422,9 @@ fn check_statements_require_semicolon(
 
 /// Parse an optional ': type'
 fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
-    ignore_then_commit(just(Token::Colon), parse_type())
-        .or_not()
-        .map(|r#type| r#type.unwrap_or_else(UnresolvedType::unspecified))
+    ignore_then_commit(just(Token::Colon), parse_type()).or_not().map_with_span(|r#type, span| {
+        r#type.unwrap_or(UnresolvedTypeData::Unspecified.with_span(span))
+    })
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {

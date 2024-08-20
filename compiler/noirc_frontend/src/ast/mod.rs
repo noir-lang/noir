@@ -148,11 +148,7 @@ pub enum UnresolvedTypeData {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct UnresolvedType {
     pub typ: UnresolvedTypeData,
-
-    // The span is None in the cases where the User omitted a type:
-    //  fn Foo() {}  --- return type is UnresolvedType::Unit without a span
-    //  let x = 100; --- type is UnresolvedType::Unspecified without a span
-    pub span: Option<Span>,
+    pub span: Span,
 }
 
 /// Type wrapper for a member access
@@ -184,7 +180,7 @@ pub enum UnresolvedTypeExpression {
 
 impl Recoverable for UnresolvedType {
     fn error(span: Span) -> Self {
-        UnresolvedType { typ: UnresolvedTypeData::Error, span: Some(span) }
+        UnresolvedType { typ: UnresolvedTypeData::Error, span }
     }
 }
 
@@ -280,14 +276,6 @@ impl UnresolvedType {
         }
     }
 
-    pub fn without_span(typ: UnresolvedTypeData) -> UnresolvedType {
-        UnresolvedType { typ, span: None }
-    }
-
-    pub fn unspecified() -> UnresolvedType {
-        UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None }
-    }
-
     pub(crate) fn is_type_expression(&self) -> bool {
         matches!(&self.typ, UnresolvedTypeData::Expression(_))
     }
@@ -309,7 +297,7 @@ impl UnresolvedTypeData {
     }
 
     pub fn with_span(&self, span: Span) -> UnresolvedType {
-        UnresolvedType { typ: self.clone(), span: Some(span) }
+        UnresolvedType { typ: self.clone(), span }
     }
 }
 
