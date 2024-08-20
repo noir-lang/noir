@@ -1573,4 +1573,44 @@ mod completion_tests {
         "#;
         assert_completion(src, vec![field_completion_item("some_property", "i32")]).await;
     }
+
+    #[test]
+    async fn test_completes_in_impl_type() {
+        let src = r#"
+            struct FooBar {
+            }
+
+            impl FooB>|<
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "FooBar",
+                CompletionItemKind::STRUCT,
+                Some("FooBar".to_string()),
+            )],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_completes_in_impl_for_type() {
+        let src = r#"
+            struct FooBar {
+            }
+
+            impl Default for FooB>|<
+        "#;
+
+        assert_completion(
+            src,
+            vec![simple_completion_item(
+                "FooBar",
+                CompletionItemKind::STRUCT,
+                Some("FooBar".to_string()),
+            )],
+        )
+        .await;
+    }
 }

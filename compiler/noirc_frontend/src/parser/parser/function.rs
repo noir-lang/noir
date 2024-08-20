@@ -6,7 +6,10 @@ use super::{
     self_parameter, where_clause, NoirParser,
 };
 use crate::token::{Keyword, Token, TokenKind};
-use crate::{ast::IntegerBitSize, parser::spanned};
+use crate::{
+    ast::{BlockExpression, IntegerBitSize},
+    parser::spanned,
+};
 use crate::{
     ast::{
         FunctionDefinition, FunctionReturnType, ItemVisibility, NoirFunction, Param, Visibility,
@@ -20,10 +23,24 @@ use crate::{
 };
 
 use chumsky::prelude::*;
+use noirc_errors::Span;
 
 /// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 ///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
+    let body_or_error =
+        spanned(block(fresh_statement()).or_not()).validate(|(body, body_span), span, emit| {
+            if let Some(body) = body {
+                (body, body_span)
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
+                    span,
+                ));
+                (BlockExpression { statements: vec![] }, Span::from(span.end()..span.end()))
+            }
+        });
+
     attributes()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
@@ -32,7 +49,7 @@ pub(super) fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunct
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(where_clause())
-        .then(spanned(block(fresh_statement())))
+        .then(body_or_error)
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
             let ((((attributes, modifiers), name), generics), parameters) = args;
 
@@ -267,5 +284,19 @@ mod test {
                 "fn func_name<let N: u64>(x: [Field; N]) {}",
             ],
         );
+    }
+
+    #[test]
+    fn parse_recover_function_without_body() {
+        let src = "fn foo(x: i32)";
+
+        let (noir_function, errors) = parse_recover(function_definition(false), src);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected { or -> after function parameters");
+
+        let noir_function = noir_function.unwrap();
+        assert_eq!(noir_function.name(), "foo");
+        assert_eq!(noir_function.parameters().len(), 1);
+        assert!(noir_function.def.body.statements.is_empty());
     }
 }
