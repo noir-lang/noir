@@ -1,4 +1,5 @@
 import debug from 'debug';
+import { inspect } from 'util';
 
 import { type LogData, type LogFn } from './log_fn.js';
 
@@ -88,8 +89,7 @@ function logWithDebug(debug: debug.Debugger, level: LogLevel, msg: string, data?
  * @returns A string with both the log message and the error message.
  */
 function fmtErr(msg: string, err?: Error | unknown): string {
-  const errStr = err && [(err as Error).name, (err as Error).message].filter(x => !!x).join(' ');
-  return err ? `${msg}: ${errStr || err}` : msg;
+  return err ? `${msg}: ${inspect(err)}` : msg;
 }
 
 /**

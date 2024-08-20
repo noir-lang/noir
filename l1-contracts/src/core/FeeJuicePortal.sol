@@ -22,7 +22,7 @@ contract FeeJuicePortal is IFeeJuicePortal, Ownable {
   IERC20 public underlying;
   bytes32 public l2TokenAddress;
 
-  constructor() Ownable(msg.sender) {}
+  constructor(address owner) Ownable(owner) {}
 
   /**
    * @notice  Initialize the FeeJuicePortal

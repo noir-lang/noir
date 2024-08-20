@@ -183,12 +183,7 @@ export const deployL1Contracts = async (
 
   logger.info(`Deployed Fee Juice at ${feeJuiceAddress}`);
 
-  const feeJuicePortalAddress = await deployL1Contract(
-    walletClient,
-    publicClient,
-    contractsToDeploy.feeJuicePortal.contractAbi,
-    contractsToDeploy.feeJuicePortal.contractBytecode,
-  );
+  const feeJuicePortalAddress = await deployer.deploy(contractsToDeploy.feeJuicePortal, [account.address.toString()]);
 
   logger.info(`Deployed Gas Portal at ${feeJuicePortalAddress}`);
 
@@ -224,19 +219,13 @@ export const deployL1Contracts = async (
     `Initialized Gas Portal at ${feeJuicePortalAddress} to bridge between L1 ${feeJuiceAddress} to L2 ${args.l2FeeJuiceAddress}`,
   );
 
-  const rollupAddress = await deployL1Contract(
-    walletClient,
-    publicClient,
-    contractsToDeploy.rollup.contractAbi,
-    contractsToDeploy.rollup.contractBytecode,
-    [
-      getAddress(registryAddress.toString()),
-      getAddress(availabilityOracleAddress.toString()),
-      getAddress(feeJuicePortalAddress.toString()),
-      args.vkTreeRoot.toString(),
-      account.address.toString(),
-    ],
-  );
+  const rollupAddress = await deployer.deploy(contractsToDeploy.rollup, [
+    getAddress(registryAddress.toString()),
+    getAddress(availabilityOracleAddress.toString()),
+    getAddress(feeJuicePortalAddress.toString()),
+    args.vkTreeRoot.toString(),
+    account.address.toString(),
+  ]);
   logger.info(`Deployed Rollup at ${rollupAddress}`);
 
   // Set initial blocks as proven if requested

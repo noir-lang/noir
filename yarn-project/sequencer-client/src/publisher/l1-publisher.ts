@@ -308,7 +308,7 @@ export class L1Publisher {
           ...pick(tx!, 'calldataGas', 'calldataSize'),
           eventName: 'proof-published-to-l1',
         };
-        this.log.info(`Published L2 block to L1 rollup contract`, { ...stats, ...ctx });
+        this.log.info(`Published proof to L1 rollup contract`, { ...stats, ...ctx });
         this.metrics.recordSubmitProof(timer.ms(), stats);
         return true;
       }

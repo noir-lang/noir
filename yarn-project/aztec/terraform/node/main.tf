@@ -359,7 +359,11 @@ resource "aws_ecs_task_definition" "aztec-node" {
         {
           name  = "NETWORK_NAME",
           value = "${var.DEPLOY_TAG}"
-        }
+        },
+        {
+          name  = "VALIDATOR_DISABLED",
+          value = "1"
+        },
       ]
       mountPoints = [
         {

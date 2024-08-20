@@ -74,7 +74,7 @@ env:
   TF_VAR_BOT_NO_START: true
   TF_VAR_BOT_PRIVATE_TRANSFERS_PER_TX: 0 # no private transfers
   TF_VAR_BOT_PUBLIC_TRANSFERS_PER_TX: 1
-  TF_VAR_BOT_TX_MINED_WAIT_SECONDS: 2400
+  TF_VAR_BOT_TX_MINED_WAIT_SECONDS: 4800
   TF_VAR_BOT_FOLLOW_CHAIN: "PROVEN"
   TF_VAR_BOT_TX_INTERVAL_SECONDS: 180
   TF_VAR_BOT_COUNT: 1
@@ -112,6 +112,7 @@ jobs:
       faucet_lb_priority: ${{ steps.set_network_vars.outputs.faucet_lb_priority }}
       bot_no_wait: ${{ steps.set_network_vars.outputs.bot_no_wait }}
       max_txs_per_block: ${{ steps.set_network_vars.outputs.max_txs_per_block }}
+      bot_follow_chain: ${{ steps.set_network_vars.outputs.bot_follow_chain }}
       min_txs_per_block: ${{ steps.set_network_vars.outputs.min_txs_per_block }}
       bot_flush_setup_txs: ${{ steps.set_network_vars.outputs.bot_flush_setup_txs }}
       bot_max_pending_txs: ${{ steps.set_network_vars.outputs.bot_max_pending_txs }}
@@ -139,6 +140,7 @@ jobs:
               echo "bot_no_wait=false" >> $GITHUB_OUTPUT
               echo "min_txs_per_block=1" >> $GITHUB_OUTPUT
               echo "max_txs_per_block=64" >> $GITHUB_OUTPUT
+              echo "bot_follow_chain=PROVEN" >> $GITHUB_OUTPUT
               echo "bot_flush_setup_txs=false" >> $GITHUB_OUTPUT
               echo "bot_max_pending_txs=1" >> $GITHUB_OUTPUT
           elif [ "$BRANCH_NAME" = "provernet" ]
@@ -159,6 +161,7 @@ jobs:
               echo "bot_no_wait=true" >> $GITHUB_OUTPUT
               echo "min_txs_per_block=4" >> $GITHUB_OUTPUT
               echo "max_txs_per_block=4" >> $GITHUB_OUTPUT
+              echo "bot_follow_chain=NONE" >> $GITHUB_OUTPUT
               echo "bot_flush_setup_txs=true" >> $GITHUB_OUTPUT
               echo "bot_max_pending_txs=20" >> $GITHUB_OUTPUT
           elif [ "$BRANCH_NAME" = "alphanet" ]
@@ -179,6 +182,7 @@ jobs:
               echo "bot_no_wait=false" >> $GITHUB_OUTPUT
               echo "min_txs_per_block=1" >> $GITHUB_OUTPUT
               echo "max_txs_per_block=64" >> $GITHUB_OUTPUT
+              echo "bot_follow_chain=PROVEN" >> $GITHUB_OUTPUT
               echo "bot_flush_setup_txs=false" >> $GITHUB_OUTPUT
               echo "bot_max_pending_txs=1" >> $GITHUB_OUTPUT
           else
@@ -452,13 +456,13 @@ jobs:
         working-directory: ./yarn-project/aztec/terraform/node
         run: |
           terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/aztec-node"
-          terraform apply -input=false -auto-approve -var="NODE_P2P_TCP_PORT=${{ needs.set-network.outputs.node_tcp_range_start }}" -var="NODE_P2P_UDP_PORT=${{ needs.set-network.outputs.node_udp_range_start }}"
+          terraform apply -input=false -auto-approve -replace="aws_efs_file_system.node_data_store" -var="NODE_P2P_TCP_PORT=${{ needs.set-network.outputs.node_tcp_range_start }}" -var="NODE_P2P_UDP_PORT=${{ needs.set-network.outputs.node_udp_range_start }}"
 
       - name: Deploy Aztec Prover Nodes
         working-directory: ./yarn-project/aztec/terraform/prover-node
         run: |
           terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/aztec-prover-node"
-          terraform apply -input=false -auto-approve -var="NODE_P2P_TCP_PORT=${{ needs.set-network.outputs.prover_node_tcp_range_start }}" -var="NODE_P2P_UDP_PORT=${{ needs.set-network.outputs.prover_node_udp_range_start }}"
+          terraform apply -input=false -auto-approve -replace="aws_efs_file_system.prover_node_data_store" -var="NODE_P2P_TCP_PORT=${{ needs.set-network.outputs.prover_node_tcp_range_start }}" -var="NODE_P2P_UDP_PORT=${{ needs.set-network.outputs.prover_node_udp_range_start }}"
 
       - name: Deploy Provers
         working-directory: ./yarn-project/aztec/terraform/prover
@@ -470,7 +474,7 @@ jobs:
         working-directory: ./yarn-project/aztec/terraform/pxe
         run: |
           terraform init -input=false -backend-config="key=${{ env.DEPLOY_TAG }}/pxe"
-          terraform apply -input=false -auto-approve
+          terraform apply -input=false -auto-approve -replace="aws_efs_file_system.pxe_data_store"
 
   bootstrap:
     runs-on: ubuntu-latest
@@ -585,6 +589,7 @@ jobs:
       TF_VAR_BOT_MAX_PENDING_TXS: ${{ needs.set-network.outputs.bot_max_pending_txs }}
       TF_VAR_SEQ_MIN_TX_PER_BLOCK: ${{ needs.set-network.outputs.min_txs_per_block }}
       TF_VAR_SEQ_MAX_TX_PER_BLOCK: ${{ needs.set-network.outputs.max_txs_per_block }}
+      TF_VAR_BOT_FOLLOW_CHAIN: ${{ needs.set-network.outputs.bot_follow_chain }}
       TF_VAR_PROVING_ENABLED: true
       TF_VAR_BOT_NO_START: false
     steps:
@@ -643,7 +648,8 @@ jobs:
         run: |
           ./.github/scripts/wait_for_infra.sh pxe ${{ env.DEPLOY_TAG }} ${{ env.API_KEY }}
 
-      - name: Deploy verifier
+      - name: Deploy verifier (allow failure)
+        continue-on-error: true
         working-directory: ./yarn-project/aztec/terraform/pxe
         run: |
           set -eo pipefail

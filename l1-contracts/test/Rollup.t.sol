@@ -56,7 +56,7 @@ contract RollupTest is DecoderBase {
     registry = new Registry(address(this));
     availabilityOracle = new AvailabilityOracle();
     portalERC20 = new PortalERC20();
-    feeJuicePortal = new FeeJuicePortal();
+    feeJuicePortal = new FeeJuicePortal(address(this));
     portalERC20.mint(address(feeJuicePortal), Constants.FEE_JUICE_INITIAL_MINT);
     feeJuicePortal.initialize(
       address(registry), address(portalERC20), bytes32(Constants.FEE_JUICE_ADDRESS)

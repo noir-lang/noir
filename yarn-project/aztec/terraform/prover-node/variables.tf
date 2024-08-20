@@ -60,6 +60,11 @@ variable "PROVING_ENABLED" {
   default = false
 }
 
+variable "PROVER_NODE_MAX_PENDING_JOBS" {
+  type    = number
+  default = 16
+}
+
 variable "BOOTSTRAP_NODES" {
   type    = string
   default = ""
