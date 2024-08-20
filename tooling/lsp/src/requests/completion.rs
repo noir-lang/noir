@@ -1226,13 +1226,13 @@ mod completion_name_matches_tests {
 
     #[test]
     fn test_name_matches() {
-        // assert!(name_matches("foo", "foo"));
-        // assert!(name_matches("foo_bar", "bar"));
-        // assert!(name_matches("FooBar", "foo"));
-        // assert!(name_matches("FooBar", "bar"));
-        // assert!(name_matches("FooBar", "foo_bar"));
+        assert!(name_matches("foo", "foo"));
+        assert!(name_matches("foo_bar", "bar"));
+        assert!(name_matches("FooBar", "foo"));
+        assert!(name_matches("FooBar", "bar"));
+        assert!(name_matches("FooBar", "foo_bar"));
         assert!(name_matches("bar_baz", "bar_b"));
 
-        // assert!(!name_matches("foo_bar", "o_b"));
+        assert!(!name_matches("foo_bar", "o_b"));
     }
 }
