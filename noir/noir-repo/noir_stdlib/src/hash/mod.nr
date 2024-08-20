@@ -108,7 +108,9 @@ fn __derive_generators<let N: u32, let M: u32>(
     // does not assert the limbs are 128 bits
     // does not assert the decomposition does not overflow the EmbeddedCurveScalar
     fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
-    let (xlo, xhi) = crate::field::bn254::decompose_hint(scalar);
+    let (xlo, xhi) = unsafe {
+        crate::field::bn254::decompose_hint(scalar)
+    };
     // Check that the decomposition is correct
     assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
     EmbeddedCurveScalar { lo: xlo, hi: xhi }
@@ -193,7 +195,19 @@ impl Hash for Field {
     }
 }
 
+impl Hash for u1 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, self as Field);
+    }
+}
+
 impl Hash for u8 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, self as Field);
+    }
+}
+
+impl Hash for u16 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
         H::write(state, self as Field);
     }
@@ -212,6 +226,12 @@ impl Hash for u64 {
 }
 
 impl Hash for i8 {
+    fn hash<H>(self, state: &mut H) where H: Hasher{
+        H::write(state, self as Field);
+    }
+}
+
+impl Hash for i16 {
     fn hash<H>(self, state: &mut H) where H: Hasher{
         H::write(state, self as Field);
     }

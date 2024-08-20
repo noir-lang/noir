@@ -88,7 +88,12 @@ pub enum Type {
     /// the environment should be `Unit` by default,
     /// for closures it should contain a `Tuple` type with the captured
     /// variable types.
-    Function(Vec<Type>, /*return_type:*/ Box<Type>, /*environment:*/ Box<Type>),
+    Function(
+        Vec<Type>,
+        /*return_type:*/ Box<Type>,
+        /*environment:*/ Box<Type>,
+        /*unconstrained*/ bool,
+    ),
 
     /// &mut T
     MutableReference(Box<Type>),
@@ -198,6 +203,12 @@ impl ResolvedGeneric {
     pub fn as_named_generic(self) -> Type {
         Type::NamedGeneric(self.type_var, self.name, self.kind)
     }
+}
+
+enum FunctionCoercionResult {
+    NoCoercion,
+    Coerced(Type),
+    UnconstrainedMismatch(Type),
 }
 
 impl std::hash::Hash for StructType {
@@ -663,7 +674,11 @@ impl std::fmt::Display for Type {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    write!(f, "unconstrained ")?;
+                }
+
                 let closure_env_text = match **env {
                     Type::Unit => "".to_string(),
                     _ => format!("[{env}]"),
@@ -855,7 +870,7 @@ impl Type {
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
-            Type::Function(parameters, return_type, env) => {
+            Type::Function(parameters, return_type, env, _unconstrained) => {
                 parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
                     || return_type.contains_numeric_typevar(target_id)
                     || env.contains_numeric_typevar(target_id)
@@ -935,7 +950,7 @@ impl Type {
                     field.find_numeric_type_vars(found_names);
                 }
             }
-            Type::Function(parameters, return_type, env) => {
+            Type::Function(parameters, return_type, env, _unconstrained) => {
                 for parameter in parameters.iter() {
                     parameter.find_numeric_type_vars(found_names);
                 }
@@ -992,7 +1007,7 @@ impl Type {
             Type::FmtString(_, _)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _, _)
-            | Type::Function(_, _, _)
+            | Type::Function(_, _, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Quoted(_)
@@ -1041,7 +1056,7 @@ impl Type {
             Type::FmtString(_, _)
             // To enable this we would need to determine the size of the closure outputs at compile-time.
             // This is possible as long as the output size is not dependent upon a witness condition.
-            | Type::Function(_, _, _)
+            | Type::Function(_, _, _, _)
             | Type::Slice(_)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
@@ -1079,7 +1094,7 @@ impl Type {
             | Type::Slice(_)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _, _)
-            | Type::Function(_, _, _)
+            | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
             | Type::InfixExpr(..)
             | Type::Error => true,
@@ -1210,7 +1225,7 @@ impl Type {
             | Type::TypeVariable(_, _)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(_, _, _)
-            | Type::Function(_, _, _)
+            | Type::Function(_, _, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
@@ -1578,8 +1593,11 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
-                if params_a.len() == params_b.len() {
+            (
+                Function(params_a, ret_a, env_a, unconstrained_a),
+                Function(params_b, ret_b, env_b, unconstrained_b),
+            ) => {
+                if unconstrained_a == unconstrained_b && params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b.iter()) {
                         a.try_unify(b, bindings)?;
                     }
@@ -1764,18 +1782,57 @@ impl Type {
         &self,
         expected: &Type,
         expression: ExprId,
+        span: Span,
         interner: &mut NodeInterner,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut bindings = TypeBindings::new();
 
-        if let Err(UnificationError) = self.try_unify(expected, &mut bindings) {
-            if !self.try_array_to_slice_coercion(expected, expression, interner) {
-                errors.push(make_error());
+        if let Ok(()) = self.try_unify(expected, &mut bindings) {
+            Type::apply_type_bindings(bindings);
+            return;
+        }
+
+        if self.try_array_to_slice_coercion(expected, expression, interner) {
+            return;
+        }
+
+        // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
+        match self.try_fn_to_unconstrained_fn_coercion(expected) {
+            FunctionCoercionResult::NoCoercion => errors.push(make_error()),
+            FunctionCoercionResult::Coerced(coerced_self) => {
+                coerced_self
+                    .unify_with_coercions(expected, expression, span, interner, errors, make_error);
+            }
+            FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
+                errors.push(TypeCheckError::UnsafeFn { span });
+
+                coerced_self
+                    .unify_with_coercions(expected, expression, span, interner, errors, make_error);
+            }
+        }
+    }
+
+    // If `self` and `expected` are function types, tries to coerce `self` to `expected`.
+    // Returns None if no coercion can be applied, otherwise returns `self` coerced to `expected`.
+    fn try_fn_to_unconstrained_fn_coercion(&self, expected: &Type) -> FunctionCoercionResult {
+        // If `self` and `expected` are function types, `self` can be coerced to `expected`
+        // if `self` is unconstrained and `expected` is not. The other way around is an error, though.
+        if let (
+            Type::Function(params, ret, env, unconstrained_self),
+            Type::Function(_, _, _, unconstrained_expected),
+        ) = (self.follow_bindings(), expected.follow_bindings())
+        {
+            let coerced_type = Type::Function(params, ret, env, unconstrained_expected);
+
+            match (unconstrained_self, unconstrained_expected) {
+                (true, true) | (false, false) => FunctionCoercionResult::NoCoercion,
+                (false, true) => FunctionCoercionResult::Coerced(coerced_type),
+                (true, false) => FunctionCoercionResult::UnconstrainedMismatch(coerced_type),
             }
         } else {
-            Type::apply_type_bindings(bindings);
+            FunctionCoercionResult::NoCoercion
         }
     }
 
@@ -1791,13 +1848,17 @@ impl Type {
         let target = target.follow_bindings();
 
         if let (Type::Array(_size, element1), Type::Slice(element2)) = (&this, &target) {
-            // Still have to ensure the element types match.
-            // Don't need to issue an error here if not, it will be done in unify_with_coercions
-            let mut bindings = TypeBindings::new();
-            if element1.try_unify(element2, &mut bindings).is_ok() {
-                convert_array_expression_to_slice(expression, this, target, interner);
-                Self::apply_type_bindings(bindings);
-                return true;
+            // We can only do the coercion if the `as_slice` method exists.
+            // This is usually true, but some tests don't have access to the standard library.
+            if let Some(as_slice) = interner.lookup_primitive_method(&this, "as_slice") {
+                // Still have to ensure the element types match.
+                // Don't need to issue an error here if not, it will be done in unify_with_coercions
+                let mut bindings = TypeBindings::new();
+                if element1.try_unify(element2, &mut bindings).is_ok() {
+                    convert_array_expression_to_slice(expression, this, target, as_slice, interner);
+                    Self::apply_type_bindings(bindings);
+                    return true;
+                }
             }
         }
         false
@@ -2072,13 +2133,13 @@ impl Type {
                 let typ = Box::new(typ.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Forall(typevars.clone(), typ)
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| {
                     arg.substitute_helper(type_bindings, substitute_bound_typevars)
                 });
                 let ret = Box::new(ret.substitute_helper(type_bindings, substitute_bound_typevars));
                 let env = Box::new(env.substitute_helper(type_bindings, substitute_bound_typevars));
-                Type::Function(args, ret, env)
+                Type::Function(args, ret, env, *unconstrained)
             }
             Type::MutableReference(element) => Type::MutableReference(Box::new(
                 element.substitute_helper(type_bindings, substitute_bound_typevars),
@@ -2134,7 +2195,7 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, _unconstrained) => {
                 args.iter().any(|arg| arg.occurs(target_id))
                     || ret.occurs(target_id)
                     || env.occurs(target_id)
@@ -2188,11 +2249,11 @@ impl Type {
                 self.clone()
             }
 
-            Function(args, ret, env) => {
+            Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 let ret = Box::new(ret.follow_bindings());
                 let env = Box::new(env.follow_bindings());
-                Function(args, ret, env)
+                Function(args, ret, env, *unconstrained)
             }
 
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
@@ -2284,7 +2345,7 @@ impl Type {
                     *self = Type::TypeVariable(var.clone(), TypeVariableKind::Normal);
                 }
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, _unconstrained) => {
                 for arg in args {
                     arg.replace_named_generics_with_type_variables();
                 }
@@ -2313,12 +2374,9 @@ fn convert_array_expression_to_slice(
     expression: ExprId,
     array_type: Type,
     target_type: Type,
+    as_slice_method: crate::node_interner::FuncId,
     interner: &mut NodeInterner,
 ) {
-    let as_slice_method = interner
-        .lookup_primitive_method(&array_type, "as_slice")
-        .expect("Expected 'as_slice' method to be present in Noir's stdlib");
-
     let as_slice_id = interner.function_definition_id(as_slice_method);
     let location = interner.expr_location(&expression);
     let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location), None);
@@ -2339,7 +2397,8 @@ fn convert_array_expression_to_slice(
     interner.push_expr_location(func, location.span, location.file);
     interner.push_expr_type(expression, target_type.clone());
 
-    let func_type = Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit));
+    let func_type =
+        Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit), false);
     interner.push_expr_type(func, func_type);
 }
 
@@ -2431,10 +2490,11 @@ impl From<&Type> for PrintableType {
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(arguments, return_type, env) => PrintableType::Function {
+            Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
                 arguments: arguments.iter().map(|arg| arg.into()).collect(),
                 return_type: Box::new(return_type.as_ref().into()),
                 env: Box::new(env.as_ref().into()),
+                unconstrained: *unconstrained,
             },
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
@@ -2519,7 +2579,11 @@ impl std::fmt::Debug for Type {
                 let typevars = vecmap(typevars, |var| format!("{:?}", var));
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    write!(f, "unconstrained ")?;
+                }
+
                 let closure_env_text = match **env {
                     Type::Unit => "".to_string(),
                     _ => format!(" with env {env:?}"),

@@ -10,6 +10,7 @@ impl Add for u64 { fn add(self, other: u64) -> u64 { self + other } }
 impl Add for u32 { fn add(self, other: u32) -> u32 { self + other } }
 impl Add for u16 { fn add(self, other: u16) -> u16 { self + other } }
 impl Add for u8 { fn add(self, other: u8) -> u8 { self + other } }
+impl Add for u1 { fn add(self, other: u1) -> u1 { self + other } }
 
 impl Add for i8 { fn add(self, other: i8) -> i8 { self + other } }
 impl Add for i16 { fn add(self, other: i16) -> i16 { self + other } }
@@ -28,6 +29,7 @@ impl Sub for u64 { fn sub(self, other: u64) -> u64 { self - other } }
 impl Sub for u32 { fn sub(self, other: u32) -> u32 { self - other } }
 impl Sub for u16 { fn sub(self, other: u16) -> u16 { self - other } }
 impl Sub for u8 { fn sub(self, other: u8) -> u8 { self - other } }
+impl Sub for u1 { fn sub(self, other: u1) -> u1 { self - other } }
 
 impl Sub for i8 { fn sub(self, other: i8) -> i8 { self - other } }
 impl Sub for i16 { fn sub(self, other: i16) -> i16 { self - other } }
@@ -46,6 +48,7 @@ impl Mul for u64 { fn mul(self, other: u64) -> u64 { self * other } }
 impl Mul for u32 { fn mul(self, other: u32) -> u32 { self * other } }
 impl Mul for u16 { fn mul(self, other: u16) -> u16 { self * other } }
 impl Mul for u8 { fn mul(self, other: u8) -> u8 { self * other } }
+impl Mul for u1 { fn mul(self, other: u1) -> u1 { self * other } }
 
 impl Mul for i8 { fn mul(self, other: i8) -> i8 { self * other } }
 impl Mul for i16 { fn mul(self, other: i16) -> i16 { self * other } }
@@ -64,6 +67,7 @@ impl Div for u64 { fn div(self, other: u64) -> u64 { self / other } }
 impl Div for u32 { fn div(self, other: u32) -> u32 { self / other } }
 impl Div for u16 { fn div(self, other: u16) -> u16 { self / other } }
 impl Div for u8 { fn div(self, other: u8) -> u8 { self / other } }
+impl Div for u1 { fn div(self, other: u1) -> u1 { self / other } }
 
 impl Div for i8 { fn div(self, other: i8) -> i8 { self / other } }
 impl Div for i16 { fn div(self, other: i16) -> i16 { self / other } }
@@ -80,6 +84,7 @@ impl Rem for u64 { fn rem(self, other: u64) -> u64 { self % other } }
 impl Rem for u32 { fn rem(self, other: u32) -> u32 { self % other } }
 impl Rem for u16 { fn rem(self, other: u16) -> u16 { self % other } }
 impl Rem for u8 { fn rem(self, other: u8) -> u8 { self % other } }
+impl Rem for u1 { fn rem(self, other: u1) -> u1 { self % other } }
 
 impl Rem for i8 { fn rem(self, other: i8) -> i8 { self % other } }
 impl Rem for i16 { fn rem(self, other: i16) -> i16 { self % other } }

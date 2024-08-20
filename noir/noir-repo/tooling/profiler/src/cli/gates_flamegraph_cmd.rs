@@ -128,7 +128,7 @@ mod tests {
     }
 
     impl GatesProvider for TestGateProvider {
-        fn get_gates(&self, artifact_path: &std::path::Path) -> eyre::Result<BackendGatesResponse> {
+        fn get_gates(&self, artifact_path: &Path) -> eyre::Result<BackendGatesResponse> {
             let response = self
                 .mock_responses
                 .get(artifact_path)
@@ -173,6 +173,7 @@ mod tests {
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
             names: vec!["main".to_string()],
+            brillig_names: Vec::new(),
         };
 
         // Write the artifact to a file

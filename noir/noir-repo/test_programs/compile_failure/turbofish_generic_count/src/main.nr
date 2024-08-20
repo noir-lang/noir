@@ -6,7 +6,7 @@ struct Bar<T> {
 
 impl<T> Bar<T> {
     fn zeroed<A>(_self: Self) -> A {
-        std::unsafe::zeroed()
+        std::mem::zeroed()
     }
 }
 

@@ -8,7 +8,7 @@ use crate::{
 };
 
 use dep::protocol_types::address::AztecAddress;
-use dep::std::{test::OracleMock, unsafe::zeroed};
+use dep::std::{test::OracleMock, mem::zeroed};
 
 global new_value = 17;
 

@@ -30,5 +30,7 @@ pub(crate) fn convert_ssa_function(
         BrilligBlock::compile(&mut function_context, &mut brillig_context, block, &func.dfg);
     }
 
-    brillig_context.artifact()
+    let mut artifact = brillig_context.artifact();
+    artifact.name = func.name().to_string();
+    artifact
 }

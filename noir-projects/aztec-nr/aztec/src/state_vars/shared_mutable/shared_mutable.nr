@@ -9,7 +9,7 @@ use crate::state_vars::{
     shared_mutable::{scheduled_value_change::ScheduledValueChange, scheduled_delay_change::ScheduledDelayChange}
 };
 use crate::oracle::storage::storage_read;
-use dep::std::unsafe::zeroed;
+use dep::std::mem::zeroed;
 
 mod test;
 

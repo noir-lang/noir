@@ -136,6 +136,10 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error("Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block")]
+    Unsafe { span: Span },
+    #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
+    UnsafeFn { span: Span },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -356,6 +360,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
             },
+            TypeCheckError::Unsafe { span } => {
+                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::UnsafeFn { span } => {
+                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
         }
     }
 }

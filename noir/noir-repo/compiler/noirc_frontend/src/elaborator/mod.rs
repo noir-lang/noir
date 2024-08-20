@@ -97,6 +97,7 @@ pub struct Elaborator<'context> {
 
     file: FileId,
 
+    in_unsafe_block: bool,
     nested_loops: usize,
 
     /// Contains a mapping of the current struct or functions's generics to
@@ -194,6 +195,7 @@ impl<'context> Elaborator<'context> {
             interner,
             def_maps,
             file: FileId::dummy(),
+            in_unsafe_block: false,
             nested_loops: 0,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
@@ -802,7 +804,12 @@ impl<'context> Elaborator<'context> {
 
         let return_type = Box::new(self.resolve_type(func.return_type()));
 
-        let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
+        let mut typ = Type::Function(
+            parameter_types,
+            return_type,
+            Box::new(Type::Unit),
+            func.def.is_unconstrained,
+        );
 
         if !generics.is_empty() {
             typ = Type::Forall(generics, Box::new(typ));
@@ -1290,6 +1297,12 @@ impl<'context> Elaborator<'context> {
         self.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
 
+        let name = if self.interner.is_in_lsp_mode() {
+            Some(let_stmt.pattern.name_ident().to_string())
+        } else {
+            None
+        };
+
         if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
@@ -1312,8 +1325,9 @@ impl<'context> Elaborator<'context> {
             self.elaborate_comptime_global(global_id);
         }
 
-        self.interner
-            .add_definition_location(ReferenceId::Global(global_id), Some(self.module_id()));
+        if let Some(name) = name {
+            self.interner.register_global(global_id, name, self.module_id());
+        }
 
         self.local_module = old_module;
         self.file = old_file;
@@ -1451,9 +1465,12 @@ impl<'context> Elaborator<'context> {
     /// True if we're currently within a constrained function.
     /// Defaults to `true` if the current function is unknown.
     fn in_constrained_function(&self) -> bool {
-        self.current_item.map_or(true, |id| match id {
-            DependencyId::Function(id) => !self.interner.function_modifiers(&id).is_unconstrained,
-            _ => true,
-        })
+        !self.in_comptime_context()
+            && self.current_item.map_or(true, |id| match id {
+                DependencyId::Function(id) => {
+                    !self.interner.function_modifiers(&id).is_unconstrained
+                }
+                _ => true,
+            })
     }
 }

@@ -59,7 +59,7 @@ fn verify_collapse_hints<T, let N: u32>(
         } else {
             // BoundedVec assumes that the unused parts of the storage are zeroed out (e.g. in the Eq impl), so we make
             // sure that this property holds.
-            assert_eq(collapsed.get_unchecked(i), std::unsafe::zeroed(), "Dirty collapsed vec storage");
+            assert_eq(collapsed.get_unchecked(i), std::mem::zeroed(), "Dirty collapsed vec storage");
         }
     }
     // We now know that:
