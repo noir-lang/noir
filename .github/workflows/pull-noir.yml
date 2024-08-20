@@ -119,7 +119,11 @@ jobs:
             # Fix PR branch
             git fetch # see recent change
             git checkout $BRANCH || git checkout -b $BRANCH
-            git merge -Xtheirs origin/$STAGING_BRANCH -m "$COMMIT_MESSAGE"
+            if ! git merge -Xtheirs origin/$STAGING_BRANCH -m "$COMMIT_MESSAGE" ; then
+              # resolve modify/delete conflicts
+              git diff --name-only --diff-filter=U | xargs git rm
+              git commit -m "$COMMIT_MESSAGE"
+            fi
             git push origin $BRANCH
           }
           force_sync_staging
