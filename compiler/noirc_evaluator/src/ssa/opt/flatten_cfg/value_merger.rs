@@ -370,6 +370,7 @@ impl<'a> ValueMerger<'a> {
         }
 
         let mut array = then_value;
+        let mut array_sets_to_insert = Vec::new();
 
         for (index, element_type, condition) in changed_indices {
             let typevars = Some(vec![element_type.clone()]);
@@ -395,6 +396,10 @@ impl<'a> ValueMerger<'a> {
             let value =
                 self.merge_values(then_condition, else_condition, then_element, else_element);
 
+            array_sets_to_insert.push((index, value, condition));
+        }
+
+        for (index, value, condition) in array_sets_to_insert {
             array = self.insert_array_set(array, index, value, Some(condition)).first();
         }
 
