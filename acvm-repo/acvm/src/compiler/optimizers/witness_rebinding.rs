@@ -156,7 +156,9 @@ impl<F: AcirField> WitnessRebindingOptimizer<F> {
             FunctionInput {
                 input: match function_input.input {
                     constant @ ConstantOrWitnessEnum::Constant(_) => constant,
-                    ConstantOrWitnessEnum::Witness(witness) => ConstantOrWitnessEnum::Witness(resolve_witness(witness_mapping, witness))
+                    ConstantOrWitnessEnum::Witness(witness) => {
+                        ConstantOrWitnessEnum::Witness(resolve_witness(witness_mapping, witness))
+                    }
                 },
                 num_bits: function_input.num_bits,
             }
