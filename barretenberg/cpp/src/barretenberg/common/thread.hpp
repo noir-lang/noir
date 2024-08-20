@@ -60,6 +60,32 @@ void parallel_for_heuristic(size_t num_points, const Func& func, size_t heuristi
         heuristic_cost);
 }
 
+/**
+ * @brief parallel_for_heuristic variant that takes an accumulator initializer
+ * that is allocated in a vector, one accumulator per thread/chunk.
+ * This allows for thread-safe accumulation, see sum() or sum_pairs() in container.hpp
+ * for an easy way to combine the thread/chunk contributions into a final result.
+ */
+template <typename Func, typename Accum>
+    requires std::invocable<Func, std::size_t, Accum&>
+std::vector<Accum> parallel_for_heuristic(size_t num_points,
+                                          const Accum& initial_accum,
+                                          const Func& func,
+                                          size_t heuristic_cost)
+{
+    // thread-safe accumulators
+    std::vector<Accum> accumulators(get_num_cpus(), initial_accum);
+    parallel_for_heuristic(
+        num_points,
+        [&](size_t start_idx, size_t end_idx, size_t chunk_index) {
+            for (size_t i = start_idx; i < end_idx; i++) {
+                func(i, accumulators[chunk_index]);
+            }
+        },
+        heuristic_cost);
+    return accumulators;
+}
+
 const size_t DEFAULT_MIN_ITERS_PER_THREAD = 1 << 4;
 
 /**
@@ -100,6 +126,8 @@ constexpr size_t GE_DOUBLING_COST = 194;
 constexpr size_t SM_COST = 50000;
 // Field element (16 byte) sequential copy number
 constexpr size_t FF_COPY_COST = 3;
+// Fine default if something looks 'chunky enough that I don't want to calculate'
+constexpr size_t ALWAYS_MULTITHREAD = 100000;
 } // namespace thread_heuristics
 
 } // namespace bb

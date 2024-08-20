@@ -25,4 +25,6 @@
 #define BB_UNLIKELY(x) x
 #endif
 
+// Opinionated feature: functionally equivalent to [[maybe_unused]] but clearly
+// marks things DEFINITELY unused. Aims to be more readable, at the tradeoff of being a custom thingy.
 #define BB_UNUSED [[maybe_unused]]

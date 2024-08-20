@@ -2,12 +2,14 @@
 #include "barretenberg/commitment_schemes/claim.hpp"
 #include "barretenberg/commitment_schemes/verification_key.hpp"
 #include "barretenberg/common/assert.hpp"
+#include "barretenberg/common/container.hpp"
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 #include <cstddef>
 #include <numeric>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace bb {
@@ -168,10 +170,8 @@ template <typename Curve_> class IPA {
         // G_vec_local should use only the original SRS thus we extract only the even indices.
         parallel_for_heuristic(
             poly_length,
-            [&](size_t start, size_t end, BB_UNUSED size_t chunk_index) {
-                for (size_t i = start * 2; i < end * 2; i += 2) {
-                    G_vec_local[i >> 1] = srs_elements[i];
-                }
+            [&](size_t i) {
+                G_vec_local[i] = srs_elements[i * 2];
             }, thread_heuristics::FF_COPY_COST);
 
         // Step 5.
@@ -196,38 +196,22 @@ template <typename Curve_> class IPA {
         GroupElement R_i;
         std::size_t round_size = poly_length;
 
-#ifndef NO_MULTITHREADING
-        //  The inner products we'll be computing in parallel need a mutex to be thread-safe during the last
-        //  accumulation
-        std::mutex inner_product_accumulation_mutex;
-#endif
         // Step 6.
         // Perform IPA reduction rounds
         for (size_t i = 0; i < log_poly_degree; i++) {
-            round_size >>= 1;
-            // Compute inner_prod_L := < a_vec_lo, b_vec_hi > and inner_prod_R := < a_vec_hi, b_vec_lo >
-            Fr inner_prod_L = Fr::zero();
-            Fr inner_prod_R = Fr::zero();
+            round_size /= 2;
             // Run scalar products in parallel
-            parallel_for_heuristic(
+            auto inner_prods = parallel_for_heuristic(
                 round_size,
-                [&](size_t start, size_t end, BB_UNUSED size_t chunk_index) {
-                    Fr current_inner_prod_L = Fr::zero();
-                    Fr current_inner_prod_R = Fr::zero();
-                    for (size_t j = start; j < end; j++) {
-                        current_inner_prod_L += a_vec[j] * b_vec[round_size + j];
-                        current_inner_prod_R += a_vec[round_size + j] * b_vec[j];
-                    }
-                    // Update the accumulated results thread-safely
-                    {
-#ifndef NO_MULTITHREADING
-                        std::unique_lock<std::mutex> lock(inner_product_accumulation_mutex);
-#endif
-                        inner_prod_L += current_inner_prod_L;
-                        inner_prod_R += current_inner_prod_R;
-                    }
+                std::pair{Fr::zero(), Fr::zero()},
+                [&](size_t j, std::pair<Fr, Fr>& inner_prod_left_right) {
+                    // Compute inner_prod_L := < a_vec_lo, b_vec_hi >
+                    inner_prod_left_right.first += a_vec[j] * b_vec[round_size + j];
+                    // Compute inner_prod_R := < a_vec_hi, b_vec_lo >
+                    inner_prod_left_right.second += a_vec[round_size + j] * b_vec[j];
                 }, thread_heuristics::FF_ADDITION_COST * 2 + thread_heuristics::FF_MULTIPLICATION_COST * 2);
-
+            // Sum inner product contributions computed in parallel and unpack the std::pair
+            auto [inner_prod_L, inner_prod_R] = sum_pairs(inner_prods);
             // Step 6.a (using letters, because doxygen automaticall converts the sublist counters to letters :( )
             // L_i = < a_vec_lo, G_vec_hi > + inner_prod_L * aux_generator
             L_i = bb::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
@@ -376,7 +360,7 @@ template <typename Curve_> class IPA {
 
         // Step 7.
         // Construct vector s
-        std::vector<Fr> s_vec(poly_length);
+        std::vector<Fr> s_vec(poly_length, Fr::one());
 
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/857): This code is not efficient as its
         // O(nlogn). This can be optimized to be linear by computing a tree of products. Its very readable, so we're
@@ -384,15 +368,13 @@ template <typename Curve_> class IPA {
         parallel_for_heuristic(
             poly_length,
             [&](size_t i) {
-                Fr s_vec_scalar = Fr::one();
                 for (size_t j = (log_poly_degree - 1); j != static_cast<size_t>(-1); j--) {
                     auto bit = (i >> j) & 1;
                     bool b = static_cast<bool>(bit);
                     if (b) {
-                        s_vec_scalar *= round_challenges_inv[log_poly_degree - 1 - j];
+                        s_vec[i] *= round_challenges_inv[log_poly_degree - 1 - j];
                     }
                 }
-                s_vec[i] = s_vec_scalar;
             }, thread_heuristics::FF_MULTIPLICATION_COST * log_poly_degree);
 
         auto* srs_elements = vk->get_monomial_points();
@@ -405,10 +387,8 @@ template <typename Curve_> class IPA {
         // G_vec_local should use only the original SRS thus we extract only the even indices.
         parallel_for_heuristic(
             poly_length,
-            [&](size_t start, size_t end, BB_UNUSED size_t chunk_index) {
-                for (size_t i = start * 2; i < end * 2; i += 2) {
-                    G_vec_local[i >> 1] = srs_elements[i];
-                }
+            [&](size_t i) {
+                G_vec_local[i] = srs_elements[i * 2];
             }, thread_heuristics::FF_COPY_COST * 2);
 
         // Step 8.
