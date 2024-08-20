@@ -22,10 +22,7 @@ contract Token {
         FunctionSelector, NoteHeader, Point
     },
         encrypted_logs::{
-        encrypted_note_emission::{
-        encode_and_encrypt_note, encode_and_encrypt_note_with_keys,
-        encode_and_encrypt_note_with_keys_unconstrained
-    },
+        encrypted_note_emission::{encode_and_encrypt_note_with_keys, encode_and_encrypt_note_with_keys_unconstrained},
         encrypted_event_emission::{encode_and_encrypt_event, encode_and_encrypt_event_with_keys_unconstrained}
     },
         keys::getters::get_current_public_keys
@@ -225,7 +222,10 @@ contract Token {
     #[aztec(private)]
     fn privately_mint_private_note(amount: Field) {
         let caller = context.msg_sender();
-        storage.balances.add(caller, U128::from_integer(amount)).emit(encode_and_encrypt_note(&mut context, caller, caller));
+        let caller_keys = get_current_public_keys(&mut context, caller);
+        storage.balances.add(caller, caller_keys.npk_m, U128::from_integer(amount)).emit(
+            encode_and_encrypt_note_with_keys(&mut context, caller_keys.ovpk_m, caller_keys.ivpk_m, caller)
+        );
 
         Token::at(context.this_address()).assert_minter_and_mint(context.msg_sender(), amount).enqueue(&mut context);
     }
@@ -318,7 +318,9 @@ contract Token {
         // Note: Using context.msg_sender() as a sender below makes this incompatible with escrows because we send
         // outgoing logs to that address and to send outgoing logs you need to get a hold of ovsk_m.
         let from = context.msg_sender();
-        storage.balances.add(to, U128::from_integer(amount)).emit(encode_and_encrypt_note(&mut context, from, to));
+        let from_keys = get_current_public_keys(&mut context, from);
+        let to_keys = get_current_public_keys(&mut context, to);
+        storage.balances.add(to, to_keys.npk_m, U128::from_integer(amount)).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to));
     }
     // docs:end:redeem_shield
 
@@ -331,7 +333,8 @@ contract Token {
             assert(nonce == 0, "invalid nonce");
         }
 
-        storage.balances.sub(from, U128::from_integer(amount)).emit(encode_and_encrypt_note(&mut context, from, from));
+        let from_keys = get_current_public_keys(&mut context, from);
+        storage.balances.sub(from, from_keys.npk_m, U128::from_integer(amount)).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, from_keys.ivpk_m, from));
 
         Token::at(context.this_address())._increase_public_balance(to, amount).enqueue(&mut context);
     }
@@ -361,11 +364,11 @@ contract Token {
             INITIAL_TRANSFER_CALL_MAX_NOTES
         );
 
-        storage.balances.add(from, change).emit(
+        storage.balances.add(from, from_keys.npk_m, change).emit(
             encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_keys.ovpk_m, from_keys.ivpk_m, from)
         );
 
-        storage.balances.add(to, amount).emit(
+        storage.balances.add(to, to_keys.npk_m, amount).emit(
             encode_and_encrypt_note_with_keys_unconstrained(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to)
         );
 
@@ -462,10 +465,10 @@ contract Token {
         let amount = U128::from_integer(amount);
         // docs:start:increase_private_balance
         // docs:start:encrypted
-        storage.balances.sub(from, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, from_keys.ivpk_m, from));
+        storage.balances.sub(from, from_keys.npk_m, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, from_keys.ivpk_m, from));
         // docs:end:encrypted
         // docs:end:increase_private_balance
-        storage.balances.add(to, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to));
+        storage.balances.add(to, to_keys.npk_m, amount).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, to_keys.ivpk_m, to));
     }
     // docs:end:transfer_from
 
@@ -478,7 +481,8 @@ contract Token {
             assert(nonce == 0, "invalid nonce");
         }
 
-        storage.balances.sub(from, U128::from_integer(amount)).emit(encode_and_encrypt_note(&mut context, from, from));
+        let from_keys = get_current_public_keys(&mut context, from);
+        storage.balances.sub(from, from_keys.npk_m, U128::from_integer(amount)).emit(encode_and_encrypt_note_with_keys(&mut context, from_keys.ovpk_m, from_keys.ivpk_m, from));
 
         Token::at(context.this_address())._reduce_total_supply(amount).enqueue(&mut context);
     }
@@ -512,8 +516,6 @@ contract Token {
         assert_current_call_valid_authwit(&mut context, user);
 
         // 2. Get all the relevant keys
-        let header = context.get_header();
-
         let fee_payer_npk_m_hash = get_current_public_keys(&mut context, fee_payer).npk_m.hash();
         let user_keys = get_current_public_keys(&mut context, user);
         let user_npk_m_hash = user_keys.npk_m.hash();
@@ -528,7 +530,7 @@ contract Token {
             U128::from_integer(funded_amount),
             INITIAL_TRANSFER_CALL_MAX_NOTES
         );
-        storage.balances.add(user, change).emit(
+        storage.balances.add(user, user_keys.npk_m, change).emit(
             encode_and_encrypt_note_with_keys_unconstrained(&mut context, user_keys.ovpk_m, user_keys.ivpk_m, user)
         );
 

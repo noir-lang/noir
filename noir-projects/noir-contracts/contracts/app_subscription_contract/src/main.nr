@@ -9,7 +9,7 @@ contract AppSubscription {
         AztecAddress, FunctionSelector, PrivateContext, NoteHeader, Map, PrivateMutable, PublicMutable,
         SharedImmutable
     },
-        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
+        encrypted_logs::encrypted_note_emission::{encode_and_encrypt_note, encode_and_encrypt_note_with_keys},
         keys::getters::get_current_public_keys, protocol_types::constants::MAX_FIELD_VALUE
     };
     use authwit::{auth_witness::get_auth_witness, auth::assert_current_call_valid_authwit};
@@ -92,12 +92,7 @@ contract AppSubscription {
     }
 
     #[aztec(private)]
-    fn subscribe(
-        subscriber_address: AztecAddress,
-        nonce: Field,
-        expiry_block_number: Field,
-        tx_count: Field
-    ) {
+    fn subscribe(subscriber: AztecAddress, nonce: Field, expiry_block_number: Field, tx_count: Field) {
         assert(tx_count as u64 <= SUBSCRIPTION_TXS as u64);
 
         Token::at(storage.subscription_token_address.read_private()).transfer_from(
@@ -109,13 +104,21 @@ contract AppSubscription {
 
         // Assert that the given expiry_block_number < current_block_number + SUBSCRIPTION_DURATION_IN_BLOCKS.
         AppSubscription::at(context.this_address()).assert_block_number(expiry_block_number).enqueue_view(&mut context);
-        let subscriber_npk_m_hash = get_current_public_keys(&mut context, subscriber_address).npk_m.hash();
+        let subscriber_keys = get_current_public_keys(&mut context, subscriber);
+        let msg_sender_ovpk_m = get_current_public_keys(&mut context, context.msg_sender()).ovpk_m;
 
-        let mut subscription_note = SubscriptionNote::new(subscriber_npk_m_hash, expiry_block_number, tx_count);
-        storage.subscriptions.at(subscriber_address).initialize_or_replace(&mut subscription_note).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), subscriber_address));
+        let mut subscription_note = SubscriptionNote::new(subscriber_keys.npk_m.hash(), expiry_block_number, tx_count);
+        storage.subscriptions.at(subscriber).initialize_or_replace(&mut subscription_note).emit(
+            encode_and_encrypt_note_with_keys(
+                &mut context,
+                msg_sender_ovpk_m,
+                subscriber_keys.ivpk_m,
+                subscriber
+            )
+        );
     }
 
-    unconstrained fn is_initialized(subscriber_address: AztecAddress) -> pub bool {
-        storage.subscriptions.at(subscriber_address).is_initialized()
+    unconstrained fn is_initialized(subscriber: AztecAddress) -> pub bool {
+        storage.subscriptions.at(subscriber).is_initialized()
     }
 }

@@ -2,7 +2,7 @@
 contract Escrow {
     use dep::aztec::prelude::{AztecAddress, EthAddress, FunctionSelector, NoteHeader, PrivateContext, PrivateImmutable};
     use dep::aztec::{
-        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
+        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys,
         keys::getters::get_current_public_keys
     };
 
@@ -20,11 +20,14 @@ contract Escrow {
     #[aztec(private)]
     #[aztec(initializer)]
     fn constructor(owner: AztecAddress) {
-        let owner_npk_m_hash = get_current_public_keys(&mut context, owner).npk_m.hash();
+        let owner_keys = get_current_public_keys(&mut context, owner);
+        let msg_sender_keys = get_current_public_keys(&mut context, context.msg_sender());
         // docs:start:addressnote_new
-        let mut note = AddressNote::new(owner, owner_npk_m_hash);
+        let mut note = AddressNote::new(owner, owner_keys.npk_m.hash());
         // docs:end:addressnote_new
-        storage.owner.initialize(&mut note).emit(encode_and_encrypt_note(&mut context, context.msg_sender(), owner));
+        storage.owner.initialize(&mut note).emit(
+            encode_and_encrypt_note_with_keys(&mut context, msg_sender_keys.ovpk_m, owner_keys.ivpk_m, owner)
+        );
     }
 
     // Withdraws balance. Requires that msg.sender is the owner.

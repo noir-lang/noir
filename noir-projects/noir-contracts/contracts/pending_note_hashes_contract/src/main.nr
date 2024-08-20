@@ -59,7 +59,6 @@ contract PendingNoteHashes {
 
         assert(notes.len() == 0);
 
-        let header = context.get_header();
         let owner_npk_m_hash = get_current_public_keys(&mut context, owner).npk_m.hash();
 
         // Insert note

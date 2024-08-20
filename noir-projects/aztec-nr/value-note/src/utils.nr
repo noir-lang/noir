@@ -1,6 +1,6 @@
 use dep::aztec::prelude::{AztecAddress, PrivateContext, PrivateSet, NoteGetterOptions};
 use dep::aztec::note::note_getter_options::SortOrder;
-use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note;
+use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys;
 use dep::aztec::keys::getters::get_current_public_keys;
 use crate::{filter::filter_notes_min_sum, value_note::{ValueNote, VALUE_NOTE_LEN, VALUE_NOTE_BYTES_LEN}};
 
@@ -19,11 +19,19 @@ pub fn increment(
     recipient: AztecAddress,
     outgoing_viewer: AztecAddress // docs:end:increment_args
 ) {
-    let recipient_npk_m_hash = get_current_public_keys(balance.context, recipient).npk_m.hash();
+    let recipient_keys = get_current_public_keys(balance.context, recipient);
+    let outgoing_viewer_ovpk_m = get_current_public_keys(balance.context, outgoing_viewer).ovpk_m;
 
-    let mut note = ValueNote::new(amount, recipient_npk_m_hash);
+    let mut note = ValueNote::new(amount, recipient_keys.npk_m.hash());
     // Insert the new note to the owner's set of notes and emit the log if value is non-zero.
-    balance.insert(&mut note).emit(encode_and_encrypt_note(balance.context, outgoing_viewer, recipient));
+    balance.insert(&mut note).emit(
+        encode_and_encrypt_note_with_keys(
+            balance.context,
+            outgoing_viewer_ovpk_m,
+            recipient_keys.ivpk_m,
+            recipient
+        )
+    );
 }
 
 // Find some of the `owner`'s notes whose values add up to the `amount`.
