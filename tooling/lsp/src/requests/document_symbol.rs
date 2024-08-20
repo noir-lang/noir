@@ -318,8 +318,8 @@ impl<'a> DocumentSymbolCollector<'a> {
             return;
         };
 
-        let span = if let Some(type_span) = typ.map(|typ| typ.span) {
-            Span::from(name.span().start()..type_span.end())
+        let span = if let Some(typ) = typ {
+            Span::from(name.span().start()..typ.span.end())
         } else {
             name.span()
         };
