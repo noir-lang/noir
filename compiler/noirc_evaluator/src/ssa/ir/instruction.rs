@@ -769,10 +769,10 @@ fn try_optimize_array_get_from_previous_set(
         match &dfg[array_id] {
             Value::Instruction { instruction, .. } => {
                 match &dfg[*instruction] {
-                    Instruction::ArraySet { array, index, .. } => {
+                    Instruction::ArraySet { array, index, value, .. } => {
                         if let Some(constant) = dfg.get_numeric_constant(*index) {
                             if constant == target_index {
-                                return SimplifyResult::None;
+                                return SimplifyResult::SimplifiedTo(*value);
                             }
 
                             set_indices.insert(constant);
