@@ -728,20 +728,8 @@ void element<Fq, Fr, T>::batch_affine_add(const std::span<affine_element<Fq, Fr,
     // Space for temporary values
     std::vector<Fq> scratch_space(num_points);
 
-    run_loop_in_parallel_if_effective(
-        num_points,
-        [&results, &first_group](size_t start, size_t end) {
-            for (size_t i = start; i < end; i++) {
-                results[i] = first_group[i];
-            }
-        },
-        /*finite_field_additions_per_iteration=*/0,
-        /*finite_field_multiplications_per_iteration=*/0,
-        /*finite_field_inversions_per_iteration=*/0,
-        /*group_element_additions_per_iteration=*/0,
-        /*group_element_doublings_per_iteration=*/0,
-        /*scalar_multiplications_per_iteration=*/0,
-        /*sequential_copy_ops_per_iteration=*/2);
+    parallel_for_heuristic(
+        num_points, [&](size_t i) { results[i] = first_group[i]; }, thread_heuristics::FF_COPY_COST * 2);
 
     // TODO(#826): Same code as in batch mul
     //  we can mutate rhs but NOT lhs!
@@ -779,16 +767,14 @@ void element<Fq, Fr, T>::batch_affine_add(const std::span<affine_element<Fq, Fr,
      * @brief Perform batch affine addition in parallel
      *
      */
-    const auto batch_affine_add_internal =
-        [num_points, &scratch_space, &batch_affine_add_chunked](const affine_element* lhs, affine_element* rhs) {
-            run_loop_in_parallel_if_effective(
-                num_points,
-                [lhs, &rhs, &scratch_space, &batch_affine_add_chunked](size_t start, size_t end) {
-                    batch_affine_add_chunked(lhs + start, rhs + start, end - start, &scratch_space[0] + start);
-                },
-                /*finite_field_additions_per_iteration=*/6,
-                /*finite_field_multiplications_per_iteration=*/6);
-        };
+    const auto batch_affine_add_internal = [&](const affine_element* lhs, affine_element* rhs) {
+        parallel_for_heuristic(
+            num_points,
+            [&](size_t start, size_t end, BB_UNUSED size_t chunk_index) {
+                batch_affine_add_chunked(lhs + start, rhs + start, end - start, &scratch_space[0] + start);
+            },
+            thread_heuristics::FF_ADDITION_COST * 6 + thread_heuristics::FF_MULTIPLICATION_COST * 6);
+    };
     batch_affine_add_internal(&second_group[0], &results[0]);
 }
 
@@ -851,13 +837,12 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
      */
     const auto batch_affine_add_internal =
         [num_points, &scratch_space, &batch_affine_add_chunked](const affine_element* lhs, affine_element* rhs) {
-            run_loop_in_parallel_if_effective(
+            parallel_for_heuristic(
                 num_points,
-                [lhs, &rhs, &scratch_space, &batch_affine_add_chunked](size_t start, size_t end) {
+                [&](size_t start, size_t end, BB_UNUSED size_t chunk_index) {
                     batch_affine_add_chunked(lhs + start, rhs + start, end - start, &scratch_space[0] + start);
                 },
-                /*finite_field_additions_per_iteration=*/6,
-                /*finite_field_multiplications_per_iteration=*/6);
+                thread_heuristics::FF_ADDITION_COST * 6 + thread_heuristics::FF_MULTIPLICATION_COST * 6);
         };
 
     /**
@@ -896,13 +881,12 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
      *
      */
     const auto batch_affine_double = [num_points, &scratch_space, &batch_affine_double_chunked](affine_element* lhs) {
-        run_loop_in_parallel_if_effective(
+        parallel_for_heuristic(
             num_points,
-            [&lhs, &scratch_space, &batch_affine_double_chunked](size_t start, size_t end) {
+            [&](size_t start, size_t end, BB_UNUSED size_t chunk_index) {
                 batch_affine_double_chunked(lhs + start, end - start, &scratch_space[0] + start);
             },
-            /*finite_field_additions_per_iteration=*/7,
-            /*finite_field_multiplications_per_iteration=*/6);
+            thread_heuristics::FF_ADDITION_COST * 7 + thread_heuristics::FF_MULTIPLICATION_COST * 6);
     };
 
     // We compute the resulting point through WNAF by evaluating (the (\sum_i (16ⁱ⋅
@@ -912,22 +896,9 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
     // computing p⋅Point, we get a point at infinity, which is an edgecase, and we don't want to handle edgecases in the
     // hot loop since the slow the computation down. So it's better to just handle it here.
     if (scalar == -Fr::one()) {
-
         std::vector<affine_element> results(num_points);
-        run_loop_in_parallel_if_effective(
-            num_points,
-            [&results, &points](size_t start, size_t end) {
-                for (size_t i = start; i < end; ++i) {
-                    results[i] = -points[i];
-                }
-            },
-            /*finite_field_additions_per_iteration=*/0,
-            /*finite_field_multiplications_per_iteration=*/0,
-            /*finite_field_inversions_per_iteration=*/0,
-            /*group_element_additions_per_iteration=*/0,
-            /*group_element_doublings_per_iteration=*/0,
-            /*scalar_multiplications_per_iteration=*/0,
-            /*sequential_copy_ops_per_iteration=*/1);
+        parallel_for_heuristic(
+            num_points, [&](size_t i) { results[i] = -points[i]; }, thread_heuristics::FF_COPY_COST);
         return results;
     }
     // Compute wnaf for scalar
@@ -938,20 +909,8 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
         affine_element result{ Fq::zero(), Fq::zero() };
         result.self_set_infinity();
         std::vector<affine_element> results(num_points);
-        run_loop_in_parallel_if_effective(
-            num_points,
-            [&results, result](size_t start, size_t end) {
-                for (size_t i = start; i < end; ++i) {
-                    results[i] = result;
-                }
-            },
-            /*finite_field_additions_per_iteration=*/0,
-            /*finite_field_multiplications_per_iteration=*/0,
-            /*finite_field_inversions_per_iteration=*/0,
-            /*group_element_additions_per_iteration=*/0,
-            /*group_element_doublings_per_iteration=*/0,
-            /*scalar_multiplications_per_iteration=*/0,
-            /*sequential_copy_ops_per_iteration=*/1);
+        parallel_for_heuristic(
+            num_points, [&](size_t i) { results[i] = result; }, thread_heuristics::FF_COPY_COST);
         return results;
     }
 
@@ -963,41 +922,23 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
     }
     // Initialize first etnries in lookup table
     std::vector<affine_element> temp_point_vector(num_points);
-    run_loop_in_parallel_if_effective(
+    parallel_for_heuristic(
         num_points,
-        [&temp_point_vector, &lookup_table, &points](size_t start, size_t end) {
-            for (size_t i = start; i < end; ++i) {
-                // If the point is at infinity we fix-up the result later
-                // To avoid 'trying to invert zero in the field' we set the point to 'one' here
-                temp_point_vector[i] = points[i].is_point_at_infinity() ? affine_element::one() : points[i];
-                lookup_table[0][i] = points[i].is_point_at_infinity() ? affine_element::one() : points[i];
-            }
+        [&](size_t i) {
+            // If the point is at infinity we fix-up the result later
+            // To avoid 'trying to invert zero in the field' we set the point to 'one' here
+            temp_point_vector[i] = points[i].is_point_at_infinity() ? affine_element::one() : points[i];
+            lookup_table[0][i] = points[i].is_point_at_infinity() ? affine_element::one() : points[i];
         },
-        /*finite_field_additions_per_iteration=*/0,
-        /*finite_field_multiplications_per_iteration=*/0,
-        /*finite_field_inversions_per_iteration=*/0,
-        /*group_element_additions_per_iteration=*/0,
-        /*group_element_doublings_per_iteration=*/0,
-        /*scalar_multiplications_per_iteration=*/0,
-        /*sequential_copy_ops_per_iteration=*/2);
+        thread_heuristics::FF_COPY_COST * 2);
 
     // Construct lookup table
     batch_affine_double(&temp_point_vector[0]);
     for (size_t j = 1; j < LOOKUP_SIZE; ++j) {
-        run_loop_in_parallel_if_effective(
+        parallel_for_heuristic(
             num_points,
-            [j, &lookup_table](size_t start, size_t end) {
-                for (size_t i = start; i < end; ++i) {
-                    lookup_table[j][i] = lookup_table[j - 1][i];
-                }
-            },
-            /*finite_field_additions_per_iteration=*/0,
-            /*finite_field_multiplications_per_iteration=*/0,
-            /*finite_field_inversions_per_iteration=*/0,
-            /*group_element_additions_per_iteration=*/0,
-            /*group_element_doublings_per_iteration=*/0,
-            /*scalar_multiplications_per_iteration=*/0,
-            /*sequential_copy_ops_per_iteration=*/1);
+            [&](size_t i) { lookup_table[j][i] = lookup_table[j - 1][i]; },
+            thread_heuristics::FF_COPY_COST);
         batch_affine_add_internal(&temp_point_vector[0], &lookup_table[j][0]);
     }
 
@@ -1016,31 +957,22 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
         index = wnaf_entry & 0x0fffffffU;
         sign = static_cast<bool>((wnaf_entry >> 31) & 1);
         const bool is_odd = ((j & 1) == 1);
-        run_loop_in_parallel_if_effective(
+        parallel_for_heuristic(
             num_points,
-            [j, index, is_odd, sign, beta, &lookup_table, &work_elements, &temp_point_vector](size_t start,
-                                                                                              size_t end) {
-                for (size_t i = start; i < end; ++i) {
-
-                    auto to_add = lookup_table[static_cast<size_t>(index)][i];
-                    to_add.y.self_conditional_negate(sign ^ is_odd);
-                    if (is_odd) {
-                        to_add.x *= beta;
-                    }
-                    if (j == 0) {
-                        work_elements[i] = to_add;
-                    } else {
-                        temp_point_vector[i] = to_add;
-                    }
+            [&](size_t i) {
+                auto to_add = lookup_table[static_cast<size_t>(index)][i];
+                to_add.y.self_conditional_negate(sign ^ is_odd);
+                if (is_odd) {
+                    to_add.x *= beta;
+                }
+                if (j == 0) {
+                    work_elements[i] = to_add;
+                } else {
+                    temp_point_vector[i] = to_add;
                 }
             },
-            /*finite_field_additions_per_iteration=*/1,
-            /*finite_field_multiplications_per_iteration=*/is_odd ? 1 : 0,
-            /*finite_field_inversions_per_iteration=*/0,
-            /*group_element_additions_per_iteration=*/0,
-            /*group_element_doublings_per_iteration=*/0,
-            /*scalar_multiplications_per_iteration=*/0,
-            /*sequential_copy_ops_per_iteration=*/1);
+            (is_odd ? thread_heuristics::FF_MULTIPLICATION_COST : 0) + thread_heuristics::FF_COPY_COST +
+                thread_heuristics::FF_ADDITION_COST);
     }
     // First cycle of addition
     batch_affine_add_internal(&temp_point_vector[0], &work_elements[0]);
@@ -1055,83 +987,47 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
                 batch_affine_double(&work_elements[0]);
             }
         }
-        run_loop_in_parallel_if_effective(
+        parallel_for_heuristic(
             num_points,
-            [index, is_odd, sign, beta, &lookup_table, &temp_point_vector](size_t start, size_t end) {
-                for (size_t i = start; i < end; ++i) {
-
-                    auto to_add = lookup_table[static_cast<size_t>(index)][i];
-                    to_add.y.self_conditional_negate(sign ^ is_odd);
-                    if (is_odd) {
-                        to_add.x *= beta;
-                    }
-                    temp_point_vector[i] = to_add;
+            [&](size_t i) {
+                auto to_add = lookup_table[static_cast<size_t>(index)][i];
+                to_add.y.self_conditional_negate(sign ^ is_odd);
+                if (is_odd) {
+                    to_add.x *= beta;
                 }
+                temp_point_vector[i] = to_add;
             },
-            /*finite_field_additions_per_iteration=*/1,
-            /*finite_field_multiplications_per_iteration=*/is_odd ? 1 : 0,
-            /*finite_field_inversions_per_iteration=*/0,
-            /*group_element_additions_per_iteration=*/0,
-            /*group_element_doublings_per_iteration=*/0,
-            /*scalar_multiplications_per_iteration=*/0,
-            /*sequential_copy_ops_per_iteration=*/1);
+            (is_odd ? thread_heuristics::FF_MULTIPLICATION_COST : 0) + thread_heuristics::FF_COPY_COST +
+                thread_heuristics::FF_ADDITION_COST);
         batch_affine_add_internal(&temp_point_vector[0], &work_elements[0]);
     }
 
     // Apply skew for the first endo scalar
     if (wnaf.skew) {
-        run_loop_in_parallel_if_effective(
+        parallel_for_heuristic(
             num_points,
-            [&lookup_table, &temp_point_vector](size_t start, size_t end) {
-                for (size_t i = start; i < end; ++i) {
-
-                    temp_point_vector[i] = -lookup_table[0][i];
-                }
-            },
-            /*finite_field_additions_per_iteration=*/0,
-            /*finite_field_multiplications_per_iteration=*/0,
-            /*finite_field_inversions_per_iteration=*/0,
-            /*group_element_additions_per_iteration=*/0,
-            /*group_element_doublings_per_iteration=*/0,
-            /*scalar_multiplications_per_iteration=*/0,
-            /*sequential_copy_ops_per_iteration=*/1);
+            [&](size_t i) { temp_point_vector[i] = -lookup_table[0][i]; },
+            thread_heuristics::FF_ADDITION_COST + thread_heuristics::FF_COPY_COST);
         batch_affine_add_internal(&temp_point_vector[0], &work_elements[0]);
     }
     // Apply skew for the second endo scalar
     if (wnaf.endo_skew) {
-        run_loop_in_parallel_if_effective(
+        parallel_for_heuristic(
             num_points,
-            [beta, &lookup_table, &temp_point_vector](size_t start, size_t end) {
-                for (size_t i = start; i < end; ++i) {
-                    temp_point_vector[i] = lookup_table[0][i];
-                    temp_point_vector[i].x *= beta;
-                }
+            [&](size_t i) {
+                temp_point_vector[i] = lookup_table[0][i];
+                temp_point_vector[i].x *= beta;
             },
-            /*finite_field_additions_per_iteration=*/0,
-            /*finite_field_multiplications_per_iteration=*/1,
-            /*finite_field_inversions_per_iteration=*/0,
-            /*group_element_additions_per_iteration=*/0,
-            /*group_element_doublings_per_iteration=*/0,
-            /*scalar_multiplications_per_iteration=*/0,
-            /*sequential_copy_ops_per_iteration=*/1);
+            thread_heuristics::FF_MULTIPLICATION_COST + thread_heuristics::FF_COPY_COST);
         batch_affine_add_internal(&temp_point_vector[0], &work_elements[0]);
     }
     // handle points at infinity explicitly
-    run_loop_in_parallel_if_effective(
+    parallel_for_heuristic(
         num_points,
-        [&](size_t start, size_t end) {
-            for (size_t i = start; i < end; ++i) {
-                work_elements[i] =
-                    points[i].is_point_at_infinity() ? work_elements[i].set_infinity() : work_elements[i];
-            }
+        [&](size_t i) {
+            work_elements[i] = points[i].is_point_at_infinity() ? work_elements[i].set_infinity() : work_elements[i];
         },
-        /*finite_field_additions_per_iteration=*/0,
-        /*finite_field_multiplications_per_iteration=*/1,
-        /*finite_field_inversions_per_iteration=*/0,
-        /*group_element_additions_per_iteration=*/0,
-        /*group_element_doublings_per_iteration=*/0,
-        /*scalar_multiplications_per_iteration=*/0,
-        /*sequential_copy_ops_per_iteration=*/1);
+        thread_heuristics::FF_COPY_COST);
 
     return work_elements;
 }

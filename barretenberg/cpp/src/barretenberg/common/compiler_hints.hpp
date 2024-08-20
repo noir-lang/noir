@@ -24,3 +24,5 @@
 #define BB_LIKELY(x) x
 #define BB_UNLIKELY(x) x
 #endif
+
+#define BB_UNUSED [[maybe_unused]]

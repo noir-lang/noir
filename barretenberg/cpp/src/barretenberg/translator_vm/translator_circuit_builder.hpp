@@ -322,7 +322,7 @@ class TranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
     // The input we evaluate polynomials on
     Fq evaluation_input_x;
 
-    std::array<std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>, NUM_WIRES> wires;
+    std::array<SlabVector<uint32_t>, NUM_WIRES> wires;
 
     /**
      * @brief Construct a new Translator Circuit Builder object

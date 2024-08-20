@@ -1,5 +1,6 @@
 #pragma once
 #include "barretenberg/common/ref_array.hpp"
+#include "barretenberg/common/slab_allocator.hpp"
 #include <cstddef>
 
 #ifdef CHECK_CIRCUIT_STACKTRACES
@@ -39,8 +40,8 @@ enum class TraceStructure { NONE, SMALL_TEST, CLIENT_IVC_BENCH, AZTEC_IVC_BENCH,
  */
 template <typename FF, size_t NUM_WIRES, size_t NUM_SELECTORS> class ExecutionTraceBlock {
   public:
-    using SelectorType = std::vector<FF, bb::ContainerSlabAllocator<FF>>;
-    using WireType = std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>;
+    using SelectorType = SlabVector<FF>;
+    using WireType = SlabVector<uint32_t>;
     using Selectors = std::array<SelectorType, NUM_SELECTORS>;
     using Wires = std::array<WireType, NUM_WIRES>;
 

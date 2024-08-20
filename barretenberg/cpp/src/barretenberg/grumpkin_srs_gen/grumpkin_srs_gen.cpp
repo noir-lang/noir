@@ -40,7 +40,7 @@ int main(int argc, char** argv)
 #ifndef NO_MULTITHREADING
     std::mutex vector_access_mutex;
 #endif
-    run_loop_in_parallel(subgroup_size, [&](size_t start, size_t end) {
+    parallel_for_range(subgroup_size, [&](size_t start, size_t end) {
         std::vector<uint8_t> hash_input;
         for (size_t point_idx = start; point_idx < end; ++point_idx) {
             bool rational_point_found = false;

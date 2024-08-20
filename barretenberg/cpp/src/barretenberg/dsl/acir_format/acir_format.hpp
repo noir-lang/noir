@@ -102,12 +102,8 @@ struct AcirFormat {
     // A standard plonk arithmetic constraint, as defined in the poly_triple struct, consists of selector values
     // for q_M,q_L,q_R,q_O,q_C and indices of three variables taking the role of left, right and output wire
     // This could be a large vector so use slab allocator, we don't expect the blackbox implementations to be so large.
-    std::vector<bb::poly_triple_<bb::curve::BN254::ScalarField>,
-                bb::ContainerSlabAllocator<bb::poly_triple_<bb::curve::BN254::ScalarField>>>
-        poly_triple_constraints;
-    std::vector<bb::mul_quad_<bb::curve::BN254::ScalarField>,
-                bb::ContainerSlabAllocator<bb::mul_quad_<bb::curve::BN254::ScalarField>>>
-        quad_constraints;
+    bb::SlabVector<bb::poly_triple_<bb::curve::BN254::ScalarField>> poly_triple_constraints;
+    bb::SlabVector<bb::mul_quad_<bb::curve::BN254::ScalarField>> quad_constraints;
     std::vector<BlockConstraint> block_constraints;
 
     // Number of gates added to the circuit per original opcode.
@@ -148,7 +144,7 @@ struct AcirFormat {
     friend bool operator==(AcirFormat const& lhs, AcirFormat const& rhs) = default;
 };
 
-using WitnessVector = std::vector<bb::fr, bb::ContainerSlabAllocator<bb::fr>>;
+using WitnessVector = bb::SlabVector<bb::fr>;
 using WitnessVectorStack = std::vector<std::pair<uint32_t, WitnessVector>>;
 
 struct AcirProgram {

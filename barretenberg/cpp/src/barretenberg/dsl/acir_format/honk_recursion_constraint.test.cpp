@@ -141,7 +141,7 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
         std::vector<RecursionConstraint> honk_recursion_constraints;
 
         size_t witness_offset = 0;
-        std::vector<fr, ContainerSlabAllocator<fr>> witness;
+        SlabVector<fr> witness;
 
         for (auto& inner_circuit : inner_circuits) {
 

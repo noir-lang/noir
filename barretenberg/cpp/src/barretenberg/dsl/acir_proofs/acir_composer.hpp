@@ -11,7 +11,7 @@ namespace acir_proofs {
  */
 class AcirComposer {
 
-    using WitnessVector = std::vector<bb::fr, bb::ContainerSlabAllocator<bb::fr>>;
+    using WitnessVector = bb::SlabVector<bb::fr>;
 
   public:
     AcirComposer(size_t size_hint = 0, bool verbose = true);

@@ -10,7 +10,7 @@ template <class Flavor> class ExecutionTrace_ {
     using Polynomial = typename Flavor::Polynomial;
     using FF = typename Flavor::FF;
     using TrackBlocks = typename Builder::Arithmetization::TraceBlocks;
-    using Wires = std::array<std::vector<uint32_t, bb::ContainerSlabAllocator<uint32_t>>, Builder::NUM_WIRES>;
+    using Wires = std::array<SlabVector<uint32_t>, Builder::NUM_WIRES>;
     using ProvingKey = typename Flavor::ProvingKey;
 
   public:

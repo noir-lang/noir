@@ -341,13 +341,13 @@ class ECCVMMSMMBuilder {
         }
 
         // Normalize the points in the point trace
-        run_loop_in_parallel(points_to_normalize.size(), [&](size_t start, size_t end) {
+        parallel_for_range(points_to_normalize.size(), [&](size_t start, size_t end) {
             Element::batch_normalize(&points_to_normalize[start], end - start);
         });
 
         // inverse_trace is used to compute the value of the `collision_inverse` column in the ECCVM.
         std::vector<FF> inverse_trace(num_point_adds_and_doubles);
-        run_loop_in_parallel(num_point_adds_and_doubles, [&](size_t start, size_t end) {
+        parallel_for_range(num_point_adds_and_doubles, [&](size_t start, size_t end) {
             for (size_t operation_idx = start; operation_idx < end; ++operation_idx) {
                 if (operation_trace[operation_idx]) {
                     inverse_trace[operation_idx] = (p1_trace[operation_idx].y + p1_trace[operation_idx].y);

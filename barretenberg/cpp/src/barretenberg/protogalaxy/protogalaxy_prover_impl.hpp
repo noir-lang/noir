@@ -17,7 +17,7 @@ std::vector<typename ProtoGalaxyProver_<ProverInstances_>::FF> ProtoGalaxyProver
     std::mutex evaluation_mutex;
 #endif
     auto linearly_dependent_contribution_accumulator = FF(0);
-    run_loop_in_parallel(instance_size, [&](size_t start_row, size_t end_row) {
+    parallel_for_range(instance_size, [&](size_t start_row, size_t end_row) {
         auto thread_accumulator = FF(0);
         for (size_t row = start_row; row < end_row; row++) {
             auto row_evaluations = instance_polynomials.get_row(row);
@@ -60,7 +60,7 @@ std::vector<typename ProtoGalaxyProver_<ProverInstances_>::FF> ProtoGalaxyProver
     auto degree = level + 1;
     auto prev_level_width = prev_level_coeffs.size();
     std::vector<std::vector<FF>> level_coeffs(prev_level_width >> 1, std::vector<FF>(degree + 1, 0));
-    run_loop_in_parallel(
+    parallel_for_range(
         prev_level_width >> 1,
         [&](size_t start, size_t end) {
             for (size_t node = start << 1; node < end << 1; node += 2) {
@@ -85,7 +85,7 @@ std::vector<typename ProtoGalaxyProver_<ProverInstances_>::FF> ProtoGalaxyProver
 {
     auto width = full_honk_evaluations.size();
     std::vector<std::vector<FF>> first_level_coeffs(width >> 1, std::vector<FF>(2, 0));
-    run_loop_in_parallel(width >> 1, [&](size_t start, size_t end) {
+    parallel_for_range(width >> 1, [&](size_t start, size_t end) {
         for (size_t node = start << 1; node < end << 1; node += 2) {
             auto parent = node >> 1;
             first_level_coeffs[parent][0] = full_honk_evaluations[node] + full_honk_evaluations[node + 1] * betas[0];

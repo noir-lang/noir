@@ -144,7 +144,7 @@ class ECCVMCircuitBuilder {
             msm.resize(msm_sizes[i]);
         }
 
-        run_loop_in_parallel(msm_opqueue_index.size(), [&](size_t start, size_t end) {
+        parallel_for_range(msm_opqueue_index.size(), [&](size_t start, size_t end) {
             for (size_t i = start; i < end; i++) {
                 const auto& op = raw_ops[msm_opqueue_index[i]];
                 auto [msm_index, mul_index] = msm_mul_index[i];

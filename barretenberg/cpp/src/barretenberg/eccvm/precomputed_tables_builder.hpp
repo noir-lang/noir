@@ -46,7 +46,7 @@ class ECCVMPointTablePrecomputationBuilder {
         // current impl doesn't work if not 4
         static_assert(WNAF_DIGITS_PER_ROW == 4);
 
-        run_loop_in_parallel(ecc_muls.size(), [&](size_t start, size_t end) {
+        parallel_for_range(ecc_muls.size(), [&](size_t start, size_t end) {
             for (size_t j = start; j < end; j++) {
                 const auto& entry = ecc_muls[j];
                 const auto& slices = entry.wnaf_digits;

@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 #ifndef NO_MULTITHREADING
 #include <mutex>
 #endif
@@ -74,5 +75,10 @@ template <typename T> class ContainerSlabAllocator {
         return false;
     }
 };
+
+/**
+ * @brief A vector that uses the slab allocator.
+ */
+template <typename T> using SlabVector = std::vector<T, bb::ContainerSlabAllocator<T>>;
 
 } // namespace bb
