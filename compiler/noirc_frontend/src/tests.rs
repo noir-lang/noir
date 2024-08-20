@@ -2227,7 +2227,7 @@ fn impl_stricter_than_trait_different_trait_generics() {
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "A"));
         assert!(matches!(constraint_name.as_str(), "T2"));
-        assert!(matches!(constraint_generics[0].to_string().as_str(), "B"));
+        assert!(matches!(constraint_generics.ordered[0].to_string().as_str(), "B"));
     } else {
         panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
     }
@@ -3144,15 +3144,46 @@ fn as_trait_path_syntax_resolves_outside_impl() {
     }
 
     fn main() {
-        let _: i64 = 1 as <Bar as Foo>::Assoc;
+        // AsTraitPath syntax is a bit silly when associated types
+        // are explicitly specified
+        let _: i64 = 1 as <Bar as Foo<Assoc = i32>>::Assoc;
     }
     "#;
 
     let errors = get_program_errors(src);
-    assert_eq!(dbg!(errors).len(), 2);
+    assert_eq!(errors.len(), 1);
 
-    assert!(matches!(
-        dbg!(&errors[0].0),
-        CompilationError::TypeError(TypeCheckError::OpCannotBeUsed { .. })
-    ));
+    use CompilationError::TypeError;
+    use TypeCheckError::TypeMismatch;
+    let TypeError(TypeMismatch { expected_typ, expr_typ, .. }) = errors[0].0.clone() else {
+        panic!("Expected TypeMismatch error, found {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "i64".to_string());
+    assert_eq!(expr_typ, "i32".to_string());
+}
+
+#[test]
+fn as_trait_path_syntax_no_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        let _: i64 = 1 as <Bar as Foo<Assoc = i8>>::Assoc;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    use CompilationError::TypeError;
+    assert!(matches!(&errors[0].0, TypeError(TypeCheckError::NoMatchingImplFound { .. })));
 }
