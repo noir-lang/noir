@@ -387,15 +387,18 @@ pub fn insert_all_files_for_workspace_into_file_manager(
     workspace: &Workspace,
     file_manager: &mut FileManager,
 ) {
-    // First add files we cached: these have the source code of files that are modified
-    // but not saved to disk yet, and we want to make sure all LSP features work well
-    // according to these unsaved buffers, not what's saved on disk.
+    // Source code for files we cached override those that are read from disk.
+    let mut overrides: HashMap<&Path, &str> = HashMap::new();
     for (path, source) in &state.input_files {
         let path = path.strip_prefix("file://").unwrap();
-        file_manager.add_file_with_source_canonical_path(Path::new(path), source.clone());
+        overrides.insert(Path::new(path), source);
     }
 
-    nargo::insert_all_files_for_workspace_into_file_manager(workspace, file_manager);
+    nargo::insert_all_files_for_workspace_into_file_manager_with_overrides(
+        workspace,
+        file_manager,
+        &overrides,
+    );
 }
 
 #[test]
