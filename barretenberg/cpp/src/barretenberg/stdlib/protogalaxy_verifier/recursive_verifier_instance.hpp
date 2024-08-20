@@ -40,9 +40,15 @@ template <IsRecursiveFlavor Flavor> class RecursiveVerifierInstance_ {
 
     RecursiveVerifierInstance_(Builder* builder)
         : builder(builder){};
+
     RecursiveVerifierInstance_(Builder* builder, std::shared_ptr<NativeVerificationKey> vk)
         : builder(builder)
-        , verification_key(std::make_shared<VerificationKey>(builder, vk))
+        , verification_key(std::make_shared<VerificationKey>(builder, vk)){};
+
+    // Constructor from stdlib vkey
+    RecursiveVerifierInstance_(Builder* builder, std::shared_ptr<VerificationKey> vk)
+        : builder(builder)
+        , verification_key(vk)
     {}
 
     RecursiveVerifierInstance_(Builder* builder, const std::shared_ptr<VerifierInstance>& instance)

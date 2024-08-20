@@ -10,9 +10,16 @@ namespace bb::stdlib::recursion::honk {
  */
 void ClientIVCRecursiveVerifier::verify(const ClientIVC::Proof& proof)
 {
+    // Construct stdlib accumulator, vkey and proof
+    auto stdlib_verifier_accum =
+        std::make_shared<RecursiveVerifierInstance>(builder.get(), verifier_input.fold_input.accumulator);
+    auto stdlib_instance_vk =
+        std::make_shared<RecursiveVerificationKey>(builder.get(), verifier_input.fold_input.instance_vks[0]);
+    auto stdlib_proof = bb::convert_proof_to_witness(builder.get(), proof.folding_proof);
+
     // Perform recursive folding verification
-    FoldingVerifier folding_verifier{ builder.get(), verifier_input.fold_input };
-    auto recursive_verifier_accumulator = folding_verifier.verify_folding_proof(proof.folding_proof);
+    FoldingVerifier folding_verifier{ builder.get(), stdlib_verifier_accum, { stdlib_instance_vk } };
+    auto recursive_verifier_accumulator = folding_verifier.verify_folding_proof(stdlib_proof);
     auto native_verifier_acc =
         std::make_shared<FoldVerifierInput::Instance>(recursive_verifier_accumulator->get_value());
 

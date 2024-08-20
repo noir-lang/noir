@@ -78,6 +78,7 @@ jobs:
               - barretenberg/cpp/pil/**
               - barretenberg/cpp/src/barretenberg/vm/**
               - barretenberg/cpp/src/barretenberg/**/generated/*
+              - barretenberg/cpp/src/barretenberg/client_ivc.{hpp,cpp}
             non-docs:
               - '!(docs/**)'
             non-misc-ci:

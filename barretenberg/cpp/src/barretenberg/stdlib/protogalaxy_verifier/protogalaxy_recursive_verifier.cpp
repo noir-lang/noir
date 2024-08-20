@@ -116,12 +116,11 @@ template <class VerifierInstances> void ProtoGalaxyRecursiveVerifier_<VerifierIn
 
 template <class VerifierInstances>
 std::shared_ptr<typename VerifierInstances::Instance> ProtoGalaxyRecursiveVerifier_<
-    VerifierInstances>::verify_folding_proof(const HonkProof& proof)
+    VerifierInstances>::verify_folding_proof(const StdlibProof<Builder>& proof)
 {
     using Transcript = typename Flavor::Transcript;
 
-    StdlibProof<Builder> stdlib_proof = bb::convert_proof_to_witness(builder, proof);
-    transcript = std::make_shared<Transcript>(stdlib_proof);
+    transcript = std::make_shared<Transcript>(proof);
     prepare_for_folding();
 
     auto delta = transcript->template get_challenge<FF>("delta");
