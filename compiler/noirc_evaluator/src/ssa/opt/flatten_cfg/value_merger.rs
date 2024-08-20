@@ -323,7 +323,7 @@ impl<'a> ValueMerger<'a> {
         // If there are more than that, we assume 2 completely separate arrays are being merged.
         // TODO: A value of 5 or higher fails the conditional_1 test.
         //       See https://github.com/noir-lang/noir/actions/runs/10473667497/job/29006337618?pr=5762
-        let max_iters = 4;
+        let max_iters = 2;
         let mut seen_then = Vec::with_capacity(max_iters);
         let mut seen_else = Vec::with_capacity(max_iters);
 
