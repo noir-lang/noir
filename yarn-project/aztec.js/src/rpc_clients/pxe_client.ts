@@ -8,6 +8,7 @@ import {
   Note,
   NullifierMembershipWitness,
   type PXE,
+  SiblingPath,
   SimulatedTx,
   Tx,
   TxEffect,
@@ -58,6 +59,7 @@ export const createPXEClient = (url: string, fetch = makeFetch([1, 2, 3], false)
       TxExecutionRequest,
       TxHash,
       Buffer32,
+      SiblingPath,
     },
     {
       EncryptedNoteL2BlockL2Logs,

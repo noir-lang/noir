@@ -27,10 +27,11 @@ export async function bridgeERC20(
   // Setup portal manager
   const manager = new L1PortalManager(portalAddress, tokenAddress, publicClient, walletClient, debugLogger);
   let claimSecret: Fr;
+  let messageHash: `0x${string}`;
   if (privateTransfer) {
-    ({ claimSecret } = await manager.bridgeTokensPrivate(recipient, amount, mint));
+    ({ claimSecret, messageHash } = await manager.bridgeTokensPrivate(recipient, amount, mint));
   } else {
-    ({ claimSecret } = await manager.bridgeTokensPublic(recipient, amount, mint));
+    ({ claimSecret, messageHash } = await manager.bridgeTokensPublic(recipient, amount, mint));
   }
 
   if (json) {
@@ -46,7 +47,7 @@ export async function bridgeERC20(
     } else {
       log(`Bridged ${amount} tokens to L2 portal`);
     }
-    log(`claimAmount=${amount},claimSecret=${claimSecret}\n`);
+    log(`claimAmount=${amount},claimSecret=${claimSecret}\n,messageHash=${messageHash}`);
     log(`Note: You need to wait for two L2 blocks before pulling them from the L2 side`);
   }
 }

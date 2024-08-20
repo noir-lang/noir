@@ -17,6 +17,7 @@ import {
   type PXE,
   type PXEInfo,
   type PrivateKernelProver,
+  type SiblingPath,
   SimulatedTx,
   SimulationError,
   TaggedLog,
@@ -27,11 +28,13 @@ import {
   type TxReceipt,
   UnencryptedTxL2Logs,
   UniqueNote,
+  getNonNullifiedL1ToL2MessageWitness,
   isNoirCallStackUnresolved,
 } from '@aztec/circuit-types';
 import {
   AztecAddress,
   type CompleteAddress,
+  type L1_TO_L2_MSG_TREE_HEIGHT,
   type PartialAddress,
   computeContractClassId,
   getContractClassFromArtifact,
@@ -353,6 +356,14 @@ export class PXEService implements PXE {
       );
     });
     return Promise.all(extendedNotes);
+  }
+
+  public async getL1ToL2MembershipWitness(
+    contractAddress: AztecAddress,
+    messageHash: Fr,
+    secret: Fr,
+  ): Promise<[bigint, SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>]> {
+    return await getNonNullifiedL1ToL2MessageWitness(this.node, contractAddress, messageHash, secret);
   }
 
   public async addNote(note: ExtendedNote, scope?: AztecAddress) {

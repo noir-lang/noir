@@ -17,6 +17,7 @@ import {
 export interface L2Claim {
   claimSecret: Fr;
   claimAmount: Fr;
+  messageHash: `0x${string}`;
 }
 
 function stringifyEthAddress(address: EthAddress | Hex, name?: string) {
@@ -94,6 +95,9 @@ export class FeeJuicePortalManager {
 
     this.logger.info('Sending L1 Fee Juice to L2 to be claimed publicly');
     const args = [to.toString(), amount, claimSecretHash.toString()] as const;
+
+    const { result: messageHash } = await this.contract.simulate.depositToAztecPublic(args);
+
     await this.publicClient.waitForTransactionReceipt({
       hash: await this.contract.write.depositToAztecPublic(args),
     });
@@ -101,6 +105,7 @@ export class FeeJuicePortalManager {
     return {
       claimAmount: new Fr(amount),
       claimSecret,
+      messageHash,
     };
   }
 
@@ -163,13 +168,34 @@ export class L1PortalManager {
 
     await this.tokenManager.approve(amount, this.contract.address, 'TokenPortal');
 
+    let messageHash: `0x${string}`;
+
     if (privateTransfer) {
+      const secret = Fr.random();
+      const secretHash = computeSecretHash(secret);
       this.logger.info('Sending L1 tokens to L2 to be claimed privately');
+      ({ result: messageHash } = await this.contract.simulate.depositToAztecPrivate([
+        secretHash.toString(),
+        amount,
+        claimSecretHash.toString(),
+      ]));
+
       await this.publicClient.waitForTransactionReceipt({
-        hash: await this.contract.write.depositToAztecPrivate([Fr.ZERO.toString(), amount, claimSecretHash.toString()]),
+        hash: await this.contract.write.depositToAztecPrivate([
+          secretHash.toString(),
+          amount,
+          claimSecretHash.toString(),
+        ]),
       });
+      this.logger.info(`Redeem shield secret: ${secret.toString()}, secret hash: ${secretHash.toString()}`);
     } else {
       this.logger.info('Sending L1 tokens to L2 to be claimed publicly');
+      ({ result: messageHash } = await this.contract.simulate.depositToAztecPublic([
+        to.toString(),
+        amount,
+        claimSecretHash.toString(),
+      ]));
+
       await this.publicClient.waitForTransactionReceipt({
         hash: await this.contract.write.depositToAztecPublic([to.toString(), amount, claimSecretHash.toString()]),
       });
@@ -178,6 +204,7 @@ export class L1PortalManager {
     return {
       claimAmount: new Fr(amount),
       claimSecret,
+      messageHash,
     };
   }
 }

@@ -1,7 +1,13 @@
+import { type L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
+import { computeL1ToL2MessageNullifier } from '@aztec/circuits.js/hash';
+import { type AztecAddress } from '@aztec/foundation/aztec-address';
 import { sha256ToField } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
+import { type AztecNode } from '../interfaces/aztec-node.js';
+import { MerkleTreeId } from '../merkle_tree_id.js';
+import { type SiblingPath } from '../sibling_path/index.js';
 import { L1Actor } from './l1_actor.js';
 import { L2Actor } from './l2_actor.js';
 
@@ -69,4 +75,35 @@ export class L1ToL2Message {
   static random(): L1ToL2Message {
     return new L1ToL2Message(L1Actor.random(), L2Actor.random(), Fr.random(), Fr.random());
   }
+}
+
+// This functionality is not on the node because we do not want to pass the node the secret, and give the node the ability to derive a valid nullifer for an L1 to L2 message.
+export async function getNonNullifiedL1ToL2MessageWitness(
+  node: AztecNode,
+  contractAddress: AztecAddress,
+  messageHash: Fr,
+  secret: Fr,
+): Promise<[bigint, SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>]> {
+  let nullifierIndex: bigint | undefined;
+  let messageIndex = 0n;
+  let startIndex = 0n;
+  let siblingPath: SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>;
+
+  // We iterate over messages until we find one whose nullifier is not in the nullifier tree --> we need to check
+  // for nullifiers because messages can have duplicates.
+  do {
+    const response = await node.getL1ToL2MessageMembershipWitness('latest', messageHash, startIndex);
+    if (!response) {
+      throw new Error(`No non-nullified L1 to L2 message found for message hash ${messageHash.toString()}`);
+    }
+    [messageIndex, siblingPath] = response;
+
+    const messageNullifier = computeL1ToL2MessageNullifier(contractAddress, messageHash, secret, messageIndex);
+
+    nullifierIndex = await node.findLeafIndex('latest', MerkleTreeId.NULLIFIER_TREE, messageNullifier);
+
+    startIndex = messageIndex + 1n;
+  } while (nullifierIndex !== undefined);
+
+  return [messageIndex, siblingPath];
 }

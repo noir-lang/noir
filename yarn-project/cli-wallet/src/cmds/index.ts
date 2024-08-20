@@ -379,7 +379,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         address,
         secretKey,
         rpcUrl,
-        fields,
+        body: noteFields,
         hash,
       } = options;
       const artifactPath = await artifactPathFromPromiseOrAlias(artifactPathPromise, contractAddress, db);
@@ -387,7 +387,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       const account = await createOrRetrieveAccount(client, address, db, undefined, secretKey);
       const wallet = await account.getWallet();
 
-      await addNote(wallet, address, contractAddress, noteName, storageFieldName, artifactPath, hash, fields, log);
+      await addNote(wallet, address, contractAddress, noteName, storageFieldName, artifactPath, hash, noteFields, log);
     });
 
   return program;
