@@ -215,7 +215,7 @@ build-acir-tests:
     COPY .earthly-staging/noir-repo/test_programs /usr/src/noir-repo/test_programs/
     RUN /usr/src/noir-repo/target/release/nargo --version
     # TODO(#6225): We have trouble with concurrency and pass 'true' to build in serial, see #6225 for details
-    RUN ./rebuild.sh true
+    RUN ./rebuild.sh
     SAVE ARTIFACT /usr/src/noir-repo/test_programs/acir_artifacts/*
 
 barretenberg-acir-benches-bb:

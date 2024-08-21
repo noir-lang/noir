@@ -18,7 +18,7 @@ fi
 
 export BRANCH
 
-./clone_test_vectors.sh
+./reset_acir_tests.sh --rebuild-nargo --programs assert_statement_recursive
 
 cd acir_tests/assert_statement_recursive
 
@@ -40,3 +40,9 @@ $BIN prove_ultra_honk $VFLAG -c $CRS_PATH -b ./target/program.json -o "./proofs/
 
 echo "Write proof as fields for recursion..."
 $BIN proof_as_fields_honk $VFLAG -c $CRS_PATH -p "./proofs/honk_$PROOF_NAME" -o "./proofs/honk_${PROOF_NAME}_fields.json"
+
+# cd back to barretenberg/acir_tests
+cd ../..
+python3 update_verify_honk_proof_inputs.py
+
+./reset_acir_tests.sh --programs verify_honk_proof
