@@ -17,7 +17,6 @@ pub fn digest<let N: u32>(msg: [u8; N]) -> [u8; 32] {
     sha256_var(msg, N as u64)
 }
 
-
 // Variable size SHA-256 hash
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     let mut msg_block: [u8; 64] = [0; 64];
