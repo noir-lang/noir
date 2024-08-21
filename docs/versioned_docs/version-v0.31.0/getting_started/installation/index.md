@@ -37,7 +37,11 @@ Close the terminal, open another one, and run
 noirup
 ```
 
-Done. That's it. You should have the latest version working. You can check with `nargo --version`.
+Done. That's it. You should have the latest version working. You can check with `nargo --version`, and default backend `bb --version`.
+
+:::note
+The default backend (`bb`) uses `jq`. If you don't already have it, get it from [here](https://jqlang.github.io/jq/download/).
+:::
 
 You can also install nightlies, specific versions
 or branches. Check out the [noirup repository](https://github.com/noir-lang/noirup) for more
