@@ -357,7 +357,7 @@ fn resolve_external_dep(
 
     // Given that we skipped the first segment, record that it doesn't refer to any module or type.
     if let Some(path_references) = path_references {
-        path_references.push(None);
+        path_references.push(Some(ReferenceId::Module(*dep_module)));
     }
 
     let path = Path {

@@ -58,6 +58,11 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
     }
 }
 fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<String> {
+    if id.local_id == args.def_maps[&id.krate].root() {
+        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate);
+        return dep.map(|dep| format!("    crate {}", dep.name));
+    }
+
     // Note: it's not clear why `try_module_attributes` might return None here, but it happens.
     // This is a workaround to avoid panicking in that case (which brings the LSP server down).
     // Cases where this happens are related to generated code, so once that stops happening
@@ -801,6 +806,17 @@ mod hover_tests {
         some_field: i32,
         some_other_field: Field,
     }"#,
+        )
+        .await;
+    }
+
+    #[test]
+    async fn hover_on_crate_segment() {
+        assert_hover(
+            "workspace",
+            "two/src/lib.nr",
+            Position { line: 0, character: 5 },
+            "    crate one",
         )
         .await;
     }
