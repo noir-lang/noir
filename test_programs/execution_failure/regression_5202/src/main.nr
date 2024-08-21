@@ -13,11 +13,15 @@ unconstrained fn should_i_assert() -> bool {
 }
 
 fn get_magical_boolean() -> bool {
-    let option = get_unconstrained_option();
+    let option = unsafe {
+        get_unconstrained_option()
+    };
 
     let pre_assert = option.is_some().to_field();
 
-    if should_i_assert() {
+    if unsafe {
+        should_i_assert()
+    } {
         // Note that `should_i_assert` is unconstrained, so Noir should not be able to infer
         // any behavior from the contents of this block. In this case it is actually false, so the
         // assertion below is not even executed (if it did it'd fail since the values are not equal).

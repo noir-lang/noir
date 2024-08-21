@@ -50,7 +50,7 @@ impl<T> Id<T> {
 // Need to manually implement most impls on Id.
 // Otherwise rust assumes that Id<T>: Hash only if T: Hash,
 // which isn't true since the T is not used internally.
-impl<T> std::hash::Hash for Id<T> {
+impl<T> Hash for Id<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.index.hash(state);
     }

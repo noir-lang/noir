@@ -23,14 +23,28 @@ use crate::{
 use super::{generic_type_args, parse_type, primitives::ident};
 
 pub(super) fn trait_definition() -> impl NoirParser<TopLevelStatement> {
+    let trait_body_or_error = just(Token::LeftBrace)
+        .ignore_then(trait_body())
+        .then_ignore(just(Token::RightBrace))
+        .or_not()
+        .validate(|items, span, emit| {
+            if let Some(items) = items {
+                items
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitName,
+                    span,
+                ));
+                vec![]
+            }
+        });
+
     attributes()
         .then_ignore(keyword(Keyword::Trait))
         .then(ident())
         .then(function::generics())
         .then(where_clause())
-        .then_ignore(just(Token::LeftBrace))
-        .then(trait_body())
-        .then_ignore(just(Token::RightBrace))
+        .then(trait_body_or_error)
         .validate(|((((attributes, name), generics), where_clause), items), span, emit| {
             let attributes = validate_secondary_attributes(attributes, span, emit);
             TopLevelStatement::Trait(NoirTrait {
@@ -70,13 +84,26 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
     let trait_function_body_or_semicolon =
         block(fresh_statement()).map(Option::from).or(just(Token::Semicolon).to(Option::None));
 
+    let trait_function_body_or_semicolon_or_error =
+        trait_function_body_or_semicolon.or_not().validate(|body, span, emit| {
+            if let Some(body) = body {
+                body
+            } else {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::ExpectedLeftBraceOrArrowAfterFunctionParameters,
+                    span,
+                ));
+                None
+            }
+        });
+
     keyword(Keyword::Fn)
         .ignore_then(ident())
         .then(function::generics())
         .then(parenthesized(function_declaration_parameters()))
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
-        .then(trait_function_body_or_semicolon)
+        .then(trait_function_body_or_semicolon_or_error)
         .map(|(((((name, generics), parameters), return_type), where_clause), body)| {
             TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
         })
@@ -101,6 +128,24 @@ fn trait_type_declaration() -> impl NoirParser<TraitItem> {
 ///
 /// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
 pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
+    let body_or_error =
+        just(Token::LeftBrace)
+            .ignore_then(trait_implementation_body())
+            .then_ignore(just(Token::RightBrace))
+            .or_not()
+            .validate(|items, span, emit| {
+                if let Some(items) = items {
+                    items
+                } else {
+                    emit(ParserError::with_reason(
+                        ParserErrorReason::ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
+                        span,
+                    ));
+
+                    vec![]
+                }
+            });
+
     keyword(Keyword::Impl)
         .ignore_then(function::generics())
         .then(path_no_turbofish())
@@ -108,13 +153,10 @@ pub(super) fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(keyword(Keyword::For))
         .then(parse_type())
         .then(where_clause())
-        .then_ignore(just(Token::LeftBrace))
-        .then(trait_implementation_body())
-        .then_ignore(just(Token::RightBrace))
+        .then(body_or_error)
         .map(|args| {
             let (((other_args, object_type), where_clause), items) = args;
             let ((impl_generics, trait_name), trait_generics) = other_args;
-
             TopLevelStatement::TraitImpl(NoirTraitImpl {
                 impl_generics,
                 trait_name,
@@ -226,5 +268,55 @@ mod test {
             trait_definition(),
             vec!["trait MissingBody", "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }"],
         );
+    }
+
+    #[test]
+    fn parse_recover_function_without_left_brace_or_semicolon() {
+        let src = "fn foo(x: i32)";
+
+        let (trait_item, errors) = parse_recover(trait_function_declaration(), src);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected { or -> after function parameters");
+
+        let Some(TraitItem::Function { name, parameters, body, .. }) = trait_item else {
+            panic!("Expected to parser trait item as function");
+        };
+
+        assert_eq!(name.to_string(), "foo");
+        assert_eq!(parameters.len(), 1);
+        assert!(body.is_none());
+    }
+
+    #[test]
+    fn parse_recover_trait_without_body() {
+        let src = "trait Foo";
+
+        let (top_level_statement, errors) = parse_recover(trait_definition(), src);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected <, where or { after trait name");
+
+        let top_level_statement = top_level_statement.unwrap();
+        let TopLevelStatement::Trait(trait_) = top_level_statement else {
+            panic!("Expected to parse a trait");
+        };
+
+        assert_eq!(trait_.name.to_string(), "Foo");
+        assert!(trait_.items.is_empty());
+    }
+
+    #[test]
+    fn parse_recover_trait_impl_without_body() {
+        let src = "impl Foo for Bar";
+
+        let (top_level_statement, errors) = parse_recover(trait_implementation(), src);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "expected <, where or { after trait impl for type");
+
+        let top_level_statement = top_level_statement.unwrap();
+        let TopLevelStatement::TraitImpl(trait_impl) = top_level_statement else {
+            panic!("Expected to parse a trait impl");
+        };
+
+        assert!(trait_impl.items.is_empty());
     }
 }

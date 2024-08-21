@@ -121,8 +121,7 @@ pub fn abi_decode(abi: JsAbi, witness_map: JsWitnessMap) -> Result<JsValue, JsAb
     }
 
     let return_struct = InputsAndReturn { inputs: inputs_map, return_value };
-    <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&return_struct)
-        .map_err(|err| err.to_string().into())
+    <JsValue as JsValueSerdeExt>::from_serde(&return_struct).map_err(|err| err.to_string().into())
 }
 
 #[wasm_bindgen(js_name = serializeWitness)]
@@ -155,7 +154,7 @@ pub fn abi_decode_error(
         AbiErrorType::Custom(typ) => {
             let input_value = decode_value(&mut raw_error.data.into_iter(), &typ)?;
             let json_types = JsonTypes::try_from_input_value(&input_value, &typ)?;
-            <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&json_types)
+            <JsValue as JsValueSerdeExt>::from_serde(&json_types)
                 .map_err(|err| err.to_string().into())
         }
     }

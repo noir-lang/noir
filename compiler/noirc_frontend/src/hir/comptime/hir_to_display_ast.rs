@@ -202,6 +202,9 @@ impl HirExpression {
             HirExpression::Comptime(block) => {
                 ExpressionKind::Comptime(block.to_display_ast(interner), span)
             }
+            HirExpression::Unsafe(block) => {
+                ExpressionKind::Unsafe(block.to_display_ast(interner), span)
+            }
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),
 
             // A macro was evaluated here: return the quoted result
@@ -340,11 +343,11 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, Vec::new())
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| arg.to_display_ast());
                 let ret = Box::new(ret.to_display_ast());
                 let env = Box::new(env.to_display_ast());
-                UnresolvedTypeData::Function(args, ret, env)
+                UnresolvedTypeData::Function(args, ret, env, *unconstrained)
             }
             Type::MutableReference(element) => {
                 let element = Box::new(element.to_display_ast());
@@ -367,7 +370,7 @@ impl Type {
             }
         };
 
-        UnresolvedType { typ, span: None }
+        UnresolvedType { typ, span: Span::default() }
     }
 
     /// Convert to AST for display (some details lost)

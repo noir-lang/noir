@@ -6,7 +6,7 @@ use acir::{
     brillig::ForeignCallResult,
     circuit::{
         brillig::{BrilligBytecode, BrilligFunctionId},
-        opcodes::{BlockId, ConstantOrWitnessEnum, FunctionInput},
+        opcodes::{AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput},
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         RawAssertionPayload, ResolvedAssertionPayload, STRING_ERROR_SELECTOR,
     },
@@ -575,7 +575,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         else {
             unreachable!("Not executing a Call opcode");
         };
-        if *id == 0 {
+        if *id == AcirFunctionId(0) {
             return Err(OpcodeResolutionError::AcirMainCallAttempted {
                 opcode_location: ErrorLocation::Resolved(OpcodeLocation::Acir(
                     self.instruction_pointer(),
@@ -716,7 +716,7 @@ pub(crate) fn is_predicate_false<F: AcirField>(
 #[derive(Debug, Clone, PartialEq)]
 pub struct AcirCallWaitInfo<F> {
     /// Index in the list of ACIR function's that should be called
-    pub id: u32,
+    pub id: AcirFunctionId,
     /// Initial witness for the given circuit to be called
     pub initial_witness: WitnessMap<F>,
 }

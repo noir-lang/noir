@@ -31,6 +31,7 @@ pub(super) fn parse_type_inner<'a>(
         struct_definition_type(),
         trait_constraint_type(),
         trait_definition_type(),
+        trait_impl_type(),
         function_definition_type(),
         module_type(),
         top_level_item_type(),
@@ -64,7 +65,7 @@ pub(super) fn parenthesized_type(
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .map_with_span(|typ, span| UnresolvedType {
             typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
-            span: span.into(),
+            span,
         })
 }
 
@@ -105,6 +106,11 @@ pub(super) fn trait_definition_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::TraitDefinition).map_with_span(|_, span| {
         UnresolvedTypeData::Quoted(QuotedType::TraitDefinition).with_span(span)
     })
+}
+
+pub(super) fn trait_impl_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TraitImpl)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TraitImpl).with_span(span))
 }
 
 pub(super) fn function_definition_type() -> impl NoirParser<UnresolvedType> {
@@ -312,13 +318,17 @@ where
             t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
         });
 
-    keyword(Keyword::Fn)
-        .ignore_then(env)
+    keyword(Keyword::Unconstrained)
+        .or_not()
+        .then(keyword(Keyword::Fn))
+        .map(|(unconstrained_token, _fn_token)| unconstrained_token.is_some())
+        .then(env)
         .then(args)
         .then_ignore(just(Token::Arrow))
         .then(type_parser)
-        .map_with_span(|((env, args), ret), span| {
-            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env)).with_span(span)
+        .map_with_span(|(((unconstrained, env), args), ret), span| {
+            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained)
+                .with_span(span)
         })
 }
 

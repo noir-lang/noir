@@ -8,7 +8,7 @@ use crate::ast::{
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::macros_api::StructId;
 use crate::node_interner::{ExprId, QuotedTypeId};
-use crate::token::{Attributes, Token, Tokens};
+use crate::token::{Attributes, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -36,6 +36,7 @@ pub enum ExpressionKind {
     Quote(Tokens),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Span),
+    Unsafe(BlockExpression, Span),
     AsTraitPath(AsTraitPath),
 
     // This variant is only emitted when inlining the result of comptime
@@ -68,9 +69,7 @@ impl UnresolvedGeneric {
     pub fn span(&self) -> Span {
         match self {
             UnresolvedGeneric::Variable(ident) => ident.0.span(),
-            UnresolvedGeneric::Numeric { ident, typ } => {
-                ident.0.span().merge(typ.span.unwrap_or_default())
-            }
+            UnresolvedGeneric::Numeric { ident, typ } => ident.0.span().merge(typ.span),
             UnresolvedGeneric::Resolved(_, span) => *span,
         }
     }
@@ -477,6 +476,20 @@ pub struct FunctionDefinition {
     pub return_visibility: Visibility,
 }
 
+impl FunctionDefinition {
+    pub fn is_private(&self) -> bool {
+        self.visibility == ItemVisibility::Private
+    }
+
+    pub fn is_test(&self) -> bool {
+        if let Some(attribute) = &self.attributes.function {
+            matches!(attribute, FunctionAttribute::Test(..))
+        } else {
+            false
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Param {
     pub visibility: Visibility,
@@ -587,6 +600,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Comptime(block, _) => write!(f, "comptime {block}"),
+            Unsafe(block, _) => write!(f, "unsafe {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Unquote(expr) => write!(f, "$({expr})"),
@@ -775,7 +789,7 @@ impl FunctionDefinition {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(ident.clone()),
                 typ: unresolved_type.clone(),
-                span: ident.span().merge(unresolved_type.span.unwrap()),
+                span: ident.span().merge(unresolved_type.span),
             })
             .collect();
 
@@ -832,7 +846,7 @@ impl FunctionReturnType {
     pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
             FunctionReturnType::Default(span) => {
-                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) })
+                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: *span })
             }
             FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
         }

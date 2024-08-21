@@ -64,31 +64,25 @@ impl<F: AcirField> NargoError<F> {
         &self,
         error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
     ) -> Option<String> {
-        let execution_error = match self {
-            NargoError::ExecutionError(error) => error,
-            _ => return None,
-        };
-
-        match execution_error {
-            ExecutionError::AssertionFailed(payload, _) => match payload {
-                ResolvedAssertionPayload::String(message) => Some(message.to_string()),
-                ResolvedAssertionPayload::Raw(raw) => {
-                    let abi_type = error_types.get(&raw.selector)?;
-                    let decoded = display_abi_error(&raw.data, abi_type.clone());
-                    Some(decoded.to_string())
-                }
+        match self {
+            NargoError::ExecutionError(error) => match error {
+                ExecutionError::AssertionFailed(payload, _) => match payload {
+                    ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                    ResolvedAssertionPayload::Raw(raw) => {
+                        let abi_type = error_types.get(&raw.selector)?;
+                        let decoded = display_abi_error(&raw.data, abi_type.clone());
+                        Some(decoded.to_string())
+                    }
+                },
+                ExecutionError::SolvingError(error, _) => match error {
+                    OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
+                        Some(reason.to_string())
+                    }
+                    _ => None,
+                },
             },
-            ExecutionError::SolvingError(error, _) => match error {
-                OpcodeResolutionError::IndexOutOfBounds { .. }
-                | OpcodeResolutionError::OpcodeNotSolvable(_)
-                | OpcodeResolutionError::UnsatisfiedConstrain { .. }
-                | OpcodeResolutionError::AcirMainCallAttempted { .. }
-                | OpcodeResolutionError::BrilligFunctionFailed { .. }
-                | OpcodeResolutionError::AcirCallOutputsMismatch { .. } => None,
-                OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
-                    Some(reason.to_string())
-                }
-            },
+            NargoError::ForeignCallError(error) => Some(error.to_string()),
+            _ => None,
         }
     }
 }
