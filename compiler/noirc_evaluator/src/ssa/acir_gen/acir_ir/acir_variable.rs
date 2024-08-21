@@ -1428,12 +1428,13 @@ impl<F: AcirField> AcirContext<F> {
             }
             _ => (vec![], vec![]),
         };
-        // Allow constant inputs only for MSM for now
+        // Allow constant inputs for most blackbox
+        // EmbeddedCurveAdd needs to be fixed first in bb
+        // Poseidon2Permutation requires witness input
         let allow_constant_inputs = matches!(
             name,
             BlackBoxFunc::MultiScalarMul
                 | BlackBoxFunc::Keccakf1600
-                | BlackBoxFunc::EmbeddedCurveAdd
                 | BlackBoxFunc::Sha256Compression
                 | BlackBoxFunc::Blake2s
                 | BlackBoxFunc::Blake3
