@@ -24,9 +24,22 @@ void create_ec_add_constraint(Builder& builder, const EcAdd& input, bool has_val
     auto x_normalized = standard_result.x.normalize();
     auto y_normalized = standard_result.y.normalize();
     auto infinite = standard_result.is_point_at_infinity().normalize();
-    builder.assert_equal(x_normalized.witness_index, input.result_x);
-    builder.assert_equal(y_normalized.witness_index, input.result_y);
-    builder.assert_equal(infinite.witness_index, input.result_infinite);
+
+    if (x_normalized.is_constant()) {
+        builder.fix_witness(input.result_x, x_normalized.get_value());
+    } else {
+        builder.assert_equal(x_normalized.witness_index, input.result_x);
+    }
+    if (y_normalized.is_constant()) {
+        builder.fix_witness(input.result_y, y_normalized.get_value());
+    } else {
+        builder.assert_equal(y_normalized.witness_index, input.result_y);
+    }
+    if (infinite.is_constant()) {
+        builder.fix_witness(input.result_infinite, infinite.get_value());
+    } else {
+        builder.assert_equal(infinite.witness_index, input.result_infinite);
+    }
 }
 
 template void create_ec_add_constraint<bb::UltraCircuitBuilder>(bb::UltraCircuitBuilder& builder,
