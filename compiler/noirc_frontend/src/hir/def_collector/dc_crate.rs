@@ -280,7 +280,7 @@ impl DefCollector {
 
             let location = dep_def_map[dep_def_root].location;
             let attriutes = ModuleAttributes { name: dep.as_name(), location, parent: None };
-            context.def_interner.add_module_attributes(module_id, attriutes)
+            context.def_interner.add_module_attributes(module_id, attriutes);
         }
 
         // At this point, all dependencies are resolved and type checked.
