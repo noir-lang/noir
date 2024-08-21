@@ -173,7 +173,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 
 unconstrained fn pad_msg_block<let N: u32>(
     mut msg_block: [u8; 64],
-    mut msg_byte_ptr: u64,
+    mut msg_byte_ptr: u64
 ) -> ([u8; 64], u64) {
     // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
     // the 1 and 0s fill up the current block, which we then compress accordingly.
