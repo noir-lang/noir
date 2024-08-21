@@ -154,9 +154,7 @@ impl<'a> ValueMerger<'a> {
 
         let actual_length = len * element_types.len();
 
-        if let Some(result) =
-            self.try_merge_only_changed_indices(then_value, else_value, actual_length)
-        {
+        if let Some(result) = self.try_merge_only_changed_indices(then_value, else_value) {
             return result;
         }
 
@@ -305,7 +303,6 @@ impl<'a> ValueMerger<'a> {
         &mut self,
         then_value: ValueId,
         else_value: ValueId,
-        array_length: usize,
     ) -> Option<ValueId> {
         let mut found_ancestor = None;
         let current_condition = self.current_condition?;
@@ -324,7 +321,7 @@ impl<'a> ValueMerger<'a> {
         // We essentially have a tree of ArraySets and want to find a common
         // ancestor if it exists, alone with the path to it from each starting node.
         // This path will be the indices that were changed to create each result array.
-        for i in 0..max_iters {
+        for _ in 0..max_iters {
             if current_then == current_else {
                 found_ancestor = Some(current_then);
                 break;
@@ -359,7 +356,27 @@ impl<'a> ValueMerger<'a> {
         for (index, set_value, condition) in changed_indices {
             let instruction = Instruction::EnableSideEffects { condition };
             self.insert_instruction(instruction);
-            array = self.insert_array_set(array, index, set_value, Some(condition)).first();
+            let element_type = self.dfg.type_of_value(set_value);
+
+            let mut get_element = |array, typevars| {
+                let get = Instruction::ArrayGet { array, index };
+                self.dfg
+                    .insert_instruction_and_results(
+                        get,
+                        self.block,
+                        typevars,
+                        self.call_stack.clone(),
+                    )
+                    .first()
+            };
+
+            let typevars = Some(vec![element_type]);
+            let old_value = get_element(array, typevars);
+
+            let not_condition = self.insert_instruction(Instruction::Not(condition)).first();
+
+            let value = self.merge_values(condition, not_condition, set_value, old_value);
+            array = self.insert_array_set(array, index, value, Some(condition)).first();
         }
 
         let instruction = Instruction::EnableSideEffects { condition: current_condition };
