@@ -8,7 +8,10 @@ use noirc_errors::{Location, Span};
 use strum_macros::Display;
 
 use crate::{
-    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness, StatementKind},
+    ast::{
+        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
+        Statement, StatementKind,
+    },
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
@@ -246,8 +249,12 @@ impl Value {
                 };
             }
             Value::Expr(ExprValue::Expression(expr)) => expr,
-            Value::Expr(_)
-            | Value::Pointer(..)
+            Value::Expr(ExprValue::Statement(statement)) => {
+                ExpressionKind::Block(BlockExpression {
+                    statements: vec![Statement { kind: statement, span: location.span }],
+                })
+            }
+            Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
