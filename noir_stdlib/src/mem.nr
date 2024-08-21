@@ -3,3 +3,4 @@
 /// is no guarantee that all zeroes is a valid bit pattern for every type.
 #[builtin(zeroed)]
 pub fn zeroed<T>() -> T {}
+

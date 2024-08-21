@@ -86,7 +86,7 @@ A Noir program makes a statement that can be verified.
 It compiles to a structure that represents the calculation, and can assert results within the calculation at any stage (via the `constrain` keyword).
 
 A Noir program compiles to an Abstract Circuit Intermediate Representation which is:
- - A tree structure
+ - Conceptually a tree structure
  - Leaves (inputs) are the `Field` type
  - Nodes contain arithmetic operations to combine them (gates)
  - The root is the final result (return value)
@@ -99,12 +99,16 @@ You can dig deeper and use the `--print-acir` param to take a closer look at ind
 ### Use the `Field` type
 
 Since the native type of values in circuits are `Field`s, using them for variables in Noir means less gates converting them under the hood.
+Some things to be mindful of when using a Field type for a regular integer value:
+- A variable of type `Field` can be cast `as` an integer type (eg `u8`, `u64`)
+  - Note: this retains only the bits of the integer type. Eg a Field value of 260 as a `u8` becomes 4
+- For Field types arithmetic operations meaningfully overflow/underflow, yet for integer types they are checked according to their size
+- Comparisons and bitwise operations do not exist for `Field`s, cast to an appropriately sized integer type when you need to
 
 :::tip
 Where possible, use `Field` type for values. Using smaller value types, and bit-packing strategies, will result in MORE gates
 :::
 
-**Note:** Need to remain mindful of overflow. Types with less bits may be used to limit the range of possible values prior to a calculation.
 
 ### Use Arithmetic over non-arithmetic operations
 

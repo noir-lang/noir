@@ -7,6 +7,9 @@ edition.workspace = true#
 rust-version.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -22,6 +25,7 @@ noirc_frontend.workspace = true
 noirc_artifacts.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+strum = "0.24"
 tower.workspace = true
 async-lsp = { workspace = true, features = ["omni-trait"] }
 serde_with = "3.2.0"
@@ -29,6 +33,7 @@ thiserror.workspace = true
 fm.workspace = true
 rayon = "1.8.0"
 fxhash.workspace = true
+convert_case = "0.6.0"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 wasm-bindgen.workspace = true

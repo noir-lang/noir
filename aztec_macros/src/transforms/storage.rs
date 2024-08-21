@@ -238,7 +238,7 @@ pub fn generate_storage_implementation(
                 vec![generic_context_type.clone()],
                 true,
             ),
-            span: Some(Span::default()),
+            span: Span::default(),
         },
         type_span: Span::default(),
         generics: vec![generic_context_ident.into()],
