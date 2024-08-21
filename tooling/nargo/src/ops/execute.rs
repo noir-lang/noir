@@ -167,6 +167,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                 }
             }
         }
+        // Clear the call stack if we have succeeded in executing the circuit.
+        // This needs to be done or else all successful ACIR call stacks will also be
+        // included in a failure case.
+        self.call_stack.clear();
 
         Ok(acvm.finalize())
     }
