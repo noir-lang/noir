@@ -608,8 +608,8 @@ impl Instruction {
                 }
             }
             Instruction::ArrayGet { array, index } => {
-                if let Some(index) = dfg.get_numeric_constant(*index) {
-                    try_optimize_array_get_from_previous_set(dfg, *array, index)
+                if let Some(index_value) = dfg.get_numeric_constant(*index) {
+                    try_optimize_array_get_from_previous_set(dfg, *array, index_value, *index)
                 } else {
                     None
                 }
@@ -756,8 +756,9 @@ impl Instruction {
 ///   - If the array value is from a previous array-set, we recur.
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
-    mut array_id: Id<Value>,
+    mut array_id: ValueId,
     target_index: FieldElement,
+    index_id: ValueId,
 ) -> SimplifyResult {
     let mut elements = None;
 
@@ -784,6 +785,12 @@ fn try_optimize_array_get_from_previous_set(
             Value::Array { array, typ: _ } => {
                 elements = Some(array.clone());
                 break;
+            }
+            // None of the past array sets changed this index so redirect this array get
+            // to the original param. This lets it potentially be de-duplicated later.
+            Value::Param { .. } => {
+                let new_get = Instruction::ArrayGet { array: array_id, index: index_id };
+                return SimplifyResult::SimplifiedToInstruction(new_get);
             }
             _ => return SimplifyResult::None,
         }
