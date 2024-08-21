@@ -105,7 +105,8 @@ done
 
 DOCKER_ENV="-e HOME=$HOME"
 for env in ${ENV_VARS_TO_INJECT:-}; do
-  if [ -n "${!env:-}" ]; then
+  # SSH_AUTH_SOCK must be handled separately
+  if [[ $env != "SSH_AUTH_SOCK" ]] && [[ -n "${!env:-}" ]]; then
     # First substitute any reference to localhost with our host gateway.
     env=${env//localhost/host.docker.internal}
     # Inject into container.
@@ -119,9 +120,12 @@ if [[ -z "${SKIP_PORT_ASSIGNMENT:-}" ]]; then
   port_assignment="-p $AZTEC_PORT:$AZTEC_PORT"
 fi
 
-ssh_agent_forwarding=""
-if [ -n "${SSH_AUTH_SOCK:-}" ] && [ "$(uname)" != "Darwin" ]; then
-  ssh_agent_forwarding="-v $(realpath $SSH_AUTH_SOCK):$SSH_AUTH_SOCK"
+if [[ "$ENV_VARS_TO_INJECT" == *"SSH_AUTH_SOCK"* && -n "${SSH_AUTH_SOCK:-}" ]]; then
+  warn "SSH_AUTH_SOCK is set to ${SSH_AUTH_SOCK:-}. Enabling SSH agent forwarding via socat"
+  socat TCP-LISTEN:${SSH_AUTH_SOCK_SOCAT_PORT:-12345},reuseaddr,fork UNIX-CLIENT:$SSH_AUTH_SOCK &
+  SOCAT_PID=$!
+  trap "kill -9 $SOCAT_PID" SIGINT SIGTERM EXIT
+  DOCKER_ENV+=" -e SSH_AUTH_SOCK_SOCAT_PORT=${SSH_AUTH_SOCK_SOCAT_PORT:-12345}"
 fi
 
 docker run \
@@ -129,7 +133,6 @@ docker run \
   --rm \
   --workdir "$PWD" \
   -v $HOME:$HOME -v cache:/cache \
-  $ssh_agent_forwarding \
   $port_assignment \
   ${DOCKER_ENV:-} \
   ${DOCKER_HOST_BINDS:-} \

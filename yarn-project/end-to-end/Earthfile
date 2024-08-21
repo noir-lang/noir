@@ -253,3 +253,6 @@ bench-prover:
 
 e2e-devnet-smoke:
   DO +E2E_COMPOSE_TEST --test=devnet/e2e_smoke.test.ts --compose_file=scripts/docker-compose-devnet.yml
+
+e2e-cli-wallet:
+  DO +E2E_COMPOSE_TEST --test=e2e_cli_wallet --compose_file=scripts/docker-compose-wallet.yml

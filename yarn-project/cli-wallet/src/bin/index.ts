@@ -28,7 +28,23 @@ function injectInternalCommands(program: Command, log: LogFn, db: WalletDB) {
     });
 
   program
-    .command('add-secret')
+    .command('get-alias')
+    .description('Shows stored aliases')
+    .addArgument(new Argument('[alias]', 'Alias to retrieve'))
+    .action(alias => {
+      if (alias?.includes(':')) {
+        const value = db.retrieveAlias(alias);
+        log(value);
+      } else {
+        const aliases = db.listAliases(alias);
+        for (const { key, value } of aliases) {
+          log(`${key} -> ${value}`);
+        }
+      }
+    });
+
+  program
+    .command('create-secret')
     .description('Creates an aliased secret to use in other commands')
     .addOption(createAliasOption('Key to alias the secret with', false).makeOptionMandatory(true))
     .action(async (_options, command) => {

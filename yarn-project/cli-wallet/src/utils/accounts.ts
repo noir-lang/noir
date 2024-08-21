@@ -52,7 +52,7 @@ export async function createOrRetrieveAccount(
         if (!foundIdentity) {
           throw new Error(`Identity for public key ${publicKey} not found in the SSH agent`);
         }
-        publicSigningKey = extractECDSAPublicKeyFromBase64String(publicKey);
+        publicSigningKey = extractECDSAPublicKeyFromBase64String(foundIdentity.publicKey);
       } else {
         throw new Error('Public key must be provided for ECDSA SSH account');
       }

@@ -11,10 +11,10 @@ export async function addNote(
   storageFieldName: string,
   artifactPath: string,
   txHash: TxHash,
-  noteFields: string[],
+  noteBody: string[],
   log: LogFn,
 ) {
-  const fields = parseFields(noteFields);
+  const fields = parseFields(noteBody);
   const note = new Note(fields);
   const contractArtifact = await getContractArtifact(artifactPath, log);
 

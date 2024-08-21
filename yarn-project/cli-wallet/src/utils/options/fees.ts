@@ -156,7 +156,7 @@ function parsePaymentMethod(
           } else {
             ({ claimAmount, claimSecret } = parsed);
           }
-          log(`Using Fee Juice for fee payments with claim for ${parsed.claimAmount} tokens`);
+          log(`Using Fee Juice for fee payments with claim for ${claimAmount} tokens`);
           return new FeeJuicePaymentMethodWithClaim(
             sender.getAddress(),
             BigInt(claimAmount),

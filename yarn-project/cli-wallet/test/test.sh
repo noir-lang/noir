@@ -1,10 +1,15 @@
 #!/bin/bash
 set -e
 
+LOCATION=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 NOIR_CONTRACTS_PATH=$(realpath ../../../noir-projects/noir-contracts)
 USE_DOCKER=$1
-export WALLET_DATA_DIRECTORY=$(realpath ./data)
+
+export WALLET_DATA_DIRECTORY="${LOCATION}/data"
+
 rm -rf $WALLET_DATA_DIRECTORY
+mkdir -p $WALLET_DATA_DIRECTORY
 
 COMMAND="node --no-warnings $(realpath ../dest/bin/index.js)"
 
