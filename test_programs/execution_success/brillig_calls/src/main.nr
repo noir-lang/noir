@@ -7,6 +7,9 @@ fn main(x: u32) {
         swap_entry_point(x, x + 1);
         assert(deep_entry_point(x) == 4);
         multiple_values_entry_point(x);
+
+        assert(entry_point(x) != 10);
+        assert(entry_point(x) != 11);
     }
 }
 

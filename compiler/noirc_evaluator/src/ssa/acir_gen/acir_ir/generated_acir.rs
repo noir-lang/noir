@@ -1,6 +1,6 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, u32};
 
 use crate::{
     brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
@@ -27,7 +27,7 @@ use num_bigint::BigUint;
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the
 /// correct function index after code generation.
-pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
+pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(u32::MAX);
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
@@ -593,7 +593,8 @@ impl<F: AcirField> GeneratedAcir<F> {
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
             self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
-                    acir_index: self.opcodes.len() - 1,
+                    acir_index: Some(self.opcodes.len() - 1),
+                    // acir_index: None,
                     brillig_index: *brillig_index,
                 },
                 AssertionPayload::StaticString(message.clone()),
@@ -607,12 +608,17 @@ impl<F: AcirField> GeneratedAcir<F> {
         for (brillig_index, call_stack) in generated_brillig.locations.iter() {
             self.brillig_locations.entry(brillig_function_index).or_default().insert(
                 OpcodeLocation::Brillig {
-                    acir_index: self.opcodes.len() - 1,
+                    // acir_index: self.opcodes.len() - 1,
+                    acir_index: None,
                     brillig_index: *brillig_index,
                 },
                 call_stack.clone(),
             );
         }
+
+        // if generated_brillig.locations.is_empty() {
+        //     self.brillig_locations.insert(brillig_function_index, Default::default());
+        // }
     }
 
     // We can only resolve the Brillig stdlib after having processed the entire ACIR
@@ -625,6 +631,9 @@ impl<F: AcirField> GeneratedAcir<F> {
             OpcodeLocation::Acir(index) => index,
             _ => panic!("should not have brillig index"),
         };
+
+        self.brillig_locations.insert(brillig_function_index, Default::default());
+
         match &mut self.opcodes[acir_index] {
             AcirOpcode::BrilligCall { id, .. } => *id = brillig_function_index,
             _ => panic!("expected brillig call opcode"),

@@ -130,9 +130,11 @@ fn extract_locations_from_error<F: AcirField>(
             opcode_location: OpcodeLocation::Brillig { acir_index, .. },
         } = resolved_location
         {
+            let acir_index = acir_index
+                .expect("Resolved Brillig opcode locations are expected to have an ACIR index");
             let acir_location = ResolvedOpcodeLocation {
                 acir_function_index: *acir_function_index,
-                opcode_location: OpcodeLocation::Acir(*acir_index),
+                opcode_location: OpcodeLocation::Acir(acir_index),
             };
 
             opcode_locations.insert(i, acir_location);
@@ -164,7 +166,7 @@ fn extract_locations_from_error<F: AcirField>(
                                 .get(&brillig_function_id);
                             brillig_locations
                                 .unwrap()
-                                .get(&resolved_location.opcode_location)
+                                .get(&resolved_location.opcode_location.reset_brillig_acir_index())
                                 .cloned()
                                 .unwrap_or_default()
                         } else {

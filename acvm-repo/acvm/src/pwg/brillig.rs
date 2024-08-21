@@ -170,7 +170,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                 let call_stack = call_stack
                     .iter()
                     .map(|brillig_index| OpcodeLocation::Brillig {
-                        acir_index: self.acir_index,
+                        acir_index: Some(self.acir_index),
                         brillig_index: *brillig_index,
                     })
                     .collect();

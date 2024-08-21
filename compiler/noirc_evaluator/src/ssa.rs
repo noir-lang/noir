@@ -275,6 +275,7 @@ fn convert_generated_acir_into_circuit(
         ..
     } = generated_acir;
 
+    dbg!(brillig_locations.keys().collect::<Vec<_>>());
     let (public_parameter_witnesses, private_parameters) =
         split_public_and_private_inputs(&func_sig, &input_witnesses);
 

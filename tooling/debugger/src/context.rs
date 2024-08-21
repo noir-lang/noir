@@ -124,7 +124,9 @@ impl AddressMap {
         match &location.opcode_location {
             OpcodeLocation::Acir(acir_index) => circuit_addresses[*acir_index],
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                circuit_addresses[*acir_index] + *brillig_index
+                let acir_index =
+                    acir_index.expect("Debug locations should have a resolved acir index");
+                circuit_addresses[acir_index] + *brillig_index
             }
         }
     }
@@ -162,7 +164,10 @@ impl AddressMap {
                                 && address <= brillig_address_space.end_address
                         })
                         .map(|brillig_address_space| brillig_address_space.brillig_function_id);
-                    (OpcodeLocation::Brillig { acir_index, brillig_index }, brillig_function_id)
+                    (
+                        OpcodeLocation::Brillig { acir_index: Some(acir_index), brillig_index },
+                        brillig_function_id,
+                    )
                 }
             };
 
@@ -183,6 +188,8 @@ impl std::fmt::Display for DebugLocation {
         match self.opcode_location {
             OpcodeLocation::Acir(index) => write!(f, "{circuit_id}:{index}"),
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                let acir_index =
+                    acir_index.expect("Debug locations should have a resolved acir index");
                 write!(f, "{circuit_id}:{acir_index}.{brillig_index}")
             }
         }
@@ -319,7 +326,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                     let function_id = solver.function_id;
                     (
                         OpcodeLocation::Brillig {
-                            acir_index: ip,
+                            acir_index: Some(ip),
                             brillig_index: solver.program_counter(),
                         },
                         Some(function_id),
@@ -354,7 +361,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             frames.extend(solver.get_call_stack().iter().map(|program_counter| DebugLocation {
                 circuit_id,
                 opcode_location: OpcodeLocation::Brillig {
-                    acir_index: instruction_pointer,
+                    acir_index: Some(instruction_pointer),
                     brillig_index: *program_counter,
                 },
                 brillig_function_id: Some(solver.function_id),
@@ -499,14 +506,18 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
                     _ => format!("{opcode:?}"),
                 }
             }
-            OpcodeLocation::Brillig { acir_index, brillig_index } => match &opcodes[*acir_index] {
-                Opcode::BrilligCall { id, .. } => {
-                    let bytecode = &self.unconstrained_functions[id.as_usize()].bytecode;
-                    let opcode = &bytecode[*brillig_index];
-                    format!("      | {opcode:?}")
+            OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                let acir_index =
+                    acir_index.expect("Debug locations should have a resolved acir index");
+                match &opcodes[acir_index] {
+                    Opcode::BrilligCall { id, .. } => {
+                        let bytecode = &self.unconstrained_functions[id.as_usize()].bytecode;
+                        let opcode = &bytecode[*brillig_index];
+                        format!("      | {opcode:?}")
+                    }
+                    _ => String::from("      | invalid"),
                 }
-                _ => String::from("      | invalid"),
-            },
+            }
         }
     }
 
@@ -661,7 +672,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         self.get_current_debug_location().map(|debug_location| {
             match debug_location.opcode_location {
                 OpcodeLocation::Acir(acir_index) => acir_index,
-                OpcodeLocation::Brillig { acir_index, .. } => acir_index,
+                OpcodeLocation::Brillig { acir_index, .. } => {
+                    acir_index.expect("Debug locations should have a resolved acir index")
+                }
             }
         })
     }
@@ -811,6 +824,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         match location.opcode_location {
             OpcodeLocation::Acir(acir_index) => acir_index < opcodes.len(),
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
+                let acir_index =
+                    acir_index.expect("Debug locations should have a resolved acir index");
                 if acir_index < opcodes.len() {
                     match &opcodes[acir_index] {
                         Opcode::BrilligCall { id, .. } => {
@@ -1032,7 +1047,7 @@ mod tests {
             context.get_current_debug_location(),
             Some(DebugLocation {
                 circuit_id: 0,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 },
+                opcode_location: OpcodeLocation::Brillig { acir_index: Some(0), brillig_index: 1 },
                 brillig_function_id: Some(BrilligFunctionId(0)),
             })
         );
@@ -1044,7 +1059,7 @@ mod tests {
             context.get_current_debug_location(),
             Some(DebugLocation {
                 circuit_id: 0,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 },
+                opcode_location: OpcodeLocation::Brillig { acir_index: Some(0), brillig_index: 2 },
                 brillig_function_id: Some(BrilligFunctionId(0)),
             })
         );
@@ -1056,7 +1071,7 @@ mod tests {
             context.get_current_debug_location(),
             Some(DebugLocation {
                 circuit_id: 0,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 },
+                opcode_location: OpcodeLocation::Brillig { acir_index: Some(0), brillig_index: 2 },
                 brillig_function_id: Some(BrilligFunctionId(0)),
             })
         );
@@ -1068,7 +1083,7 @@ mod tests {
             context.get_current_debug_location(),
             Some(DebugLocation {
                 circuit_id: 0,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 3 },
+                opcode_location: OpcodeLocation::Brillig { acir_index: Some(0), brillig_index: 3 },
                 brillig_function_id: Some(BrilligFunctionId(0)),
             })
         );
@@ -1153,7 +1168,7 @@ mod tests {
         // set breakpoint
         let breakpoint_location = DebugLocation {
             circuit_id: 0,
-            opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 },
+            opcode_location: OpcodeLocation::Brillig { acir_index: Some(0), brillig_index: 1 },
             brillig_function_id: Some(BrilligFunctionId(0)),
         };
         assert!(context.add_breakpoint(breakpoint_location));
@@ -1264,7 +1279,10 @@ mod tests {
                 }),
                 Some(DebugLocation {
                     circuit_id: 0,
-                    opcode_location: OpcodeLocation::Brillig { acir_index: 1, brillig_index: 1 },
+                    opcode_location: OpcodeLocation::Brillig {
+                        acir_index: Some(1),
+                        brillig_index: 1
+                    },
                     brillig_function_id: Some(BrilligFunctionId(0)),
                 }),
                 Some(DebugLocation {
@@ -1284,12 +1302,18 @@ mod tests {
                 }),
                 Some(DebugLocation {
                     circuit_id: 1,
-                    opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 1 },
+                    opcode_location: OpcodeLocation::Brillig {
+                        acir_index: Some(0),
+                        brillig_index: 1
+                    },
                     brillig_function_id: Some(BrilligFunctionId(1)),
                 }),
                 Some(DebugLocation {
                     circuit_id: 1,
-                    opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 2 },
+                    opcode_location: OpcodeLocation::Brillig {
+                        acir_index: Some(0),
+                        brillig_index: 2
+                    },
                     brillig_function_id: Some(BrilligFunctionId(1)),
                 }),
                 Some(DebugLocation {
@@ -1315,7 +1339,7 @@ mod tests {
             1,
             context.debug_location_to_address(&DebugLocation {
                 circuit_id: 0,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 1, brillig_index: 0 },
+                opcode_location: OpcodeLocation::Brillig { acir_index: Some(1), brillig_index: 0 },
                 brillig_function_id: Some(BrilligFunctionId(0)),
             })
         );
@@ -1323,7 +1347,7 @@ mod tests {
             5,
             context.debug_location_to_address(&DebugLocation {
                 circuit_id: 1,
-                opcode_location: OpcodeLocation::Brillig { acir_index: 0, brillig_index: 0 },
+                opcode_location: OpcodeLocation::Brillig { acir_index: Some(0), brillig_index: 0 },
                 brillig_function_id: Some(BrilligFunctionId(1)),
             })
         );

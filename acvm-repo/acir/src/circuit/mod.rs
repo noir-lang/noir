@@ -153,7 +153,19 @@ pub struct ResolvedOpcodeLocation {
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
     Acir(usize),
-    Brillig { acir_index: usize, brillig_index: usize },
+    Brillig { acir_index: Option<usize>, brillig_index: usize },
+    // BrilligUnresolved { brillig_index: usize },
+}
+
+impl OpcodeLocation {
+    pub fn reset_brillig_acir_index(self) -> Self {
+        match self {
+            OpcodeLocation::Brillig { brillig_index, .. } => {
+                OpcodeLocation::Brillig { acir_index: None, brillig_index }
+            }
+            _ => self,
+        }
+    }
 }
 
 impl std::fmt::Display for OpcodeLocation {
@@ -161,7 +173,11 @@ impl std::fmt::Display for OpcodeLocation {
         match self {
             OpcodeLocation::Acir(index) => write!(f, "{index}"),
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                write!(f, "{acir_index}.{brillig_index}")
+                if let Some(acir_index) = acir_index {
+                    write!(f, "{acir_index}.{brillig_index}")
+                } else {
+                    write!(f, "unknown_acir_index.{brillig_index}")
+                }
             }
         }
     }
@@ -191,7 +207,12 @@ impl FromStr for OpcodeLocation {
                     Ok(OpcodeLocation::Acir(index))
                 }
                 2 => {
-                    let acir_index = parts[0].parse()?;
+                    // let acir_index = parts[0].parse()?;
+                    let acir_index = if let Ok(acir_index) = parts[0].parse::<usize>() {
+                        Some(acir_index)
+                    } else {
+                        None
+                    };
                     let brillig_index = parts[1].parse()?;
                     Ok(OpcodeLocation::Brillig { acir_index, brillig_index })
                 }
