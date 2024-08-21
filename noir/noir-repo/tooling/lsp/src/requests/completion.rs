@@ -612,10 +612,8 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_unresolved_type(&mut self, unresolved_type: &UnresolvedType) {
-        if let Some(span) = unresolved_type.span {
-            if !self.includes_span(span) {
-                return;
-            }
+        if !self.includes_span(unresolved_type.span) {
+            return;
         }
 
         match &unresolved_type.typ {

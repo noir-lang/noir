@@ -370,7 +370,7 @@ impl Type {
             }
         };
 
-        UnresolvedType { typ, span: None }
+        UnresolvedType { typ, span: Span::default() }
     }
 
     /// Convert to AST for display (some details lost)
