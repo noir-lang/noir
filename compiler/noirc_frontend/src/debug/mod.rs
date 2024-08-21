@@ -144,7 +144,7 @@ impl DebugInstrumenter {
                 let save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::Let(ast::LetStatement {
                         pattern: ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
-                        r#type: ast::UnresolvedType::unspecified(),
+                        r#type: ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         expression: ret_expr.clone(),
                         comptime: false,
                         attributes: vec![],
@@ -244,7 +244,7 @@ impl DebugInstrumenter {
         ast::Statement {
             kind: ast::StatementKind::Let(ast::LetStatement {
                 pattern: ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
-                r#type: ast::UnresolvedType::unspecified(),
+                r#type: ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
                 comptime: false,
                 expression: ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
@@ -276,7 +276,7 @@ impl DebugInstrumenter {
 
         let let_kind = ast::StatementKind::Let(ast::LetStatement {
             pattern: ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.span)),
-            r#type: ast::UnresolvedType::unspecified(),
+            r#type: ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
             expression: assign_stmt.expression.clone(),
             comptime: false,
             attributes: vec![],

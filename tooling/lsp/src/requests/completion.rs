@@ -612,10 +612,8 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_unresolved_type(&mut self, unresolved_type: &UnresolvedType) {
-        if let Some(span) = unresolved_type.span {
-            if !self.includes_span(span) {
-                return;
-            }
+        if !self.includes_span(unresolved_type.span) {
+            return;
         }
 
         match &unresolved_type.typ {
@@ -1185,9 +1183,15 @@ fn name_matches(name: &str, prefix: &str) -> bool {
 
     let mut last_index: i32 = -1;
     for prefix_part in prefix.split('_') {
-        if let Some(name_part_index) =
-            name_parts.iter().position(|name_part| name_part.starts_with(prefix_part))
+        // Look past parts we already matched
+        let offset = if last_index >= 0 { last_index as usize + 1 } else { 0 };
+
+        if let Some(mut name_part_index) =
+            name_parts.iter().skip(offset).position(|name_part| name_part.starts_with(prefix_part))
         {
+            // Need to adjust the index if we skipped some segments
+            name_part_index += offset;
+
             if last_index >= name_part_index as i32 {
                 return false;
             }
@@ -1225,6 +1229,7 @@ mod completion_name_matches_tests {
         assert!(name_matches("FooBar", "foo"));
         assert!(name_matches("FooBar", "bar"));
         assert!(name_matches("FooBar", "foo_bar"));
+        assert!(name_matches("bar_baz", "bar_b"));
 
         assert!(!name_matches("foo_bar", "o_b"));
     }

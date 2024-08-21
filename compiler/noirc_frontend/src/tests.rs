@@ -2562,16 +2562,8 @@ fn cannot_pass_unconstrained_function_to_regular_function() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    if let CompilationError::TypeError(TypeCheckError::TypeMismatch {
-        expected_typ,
-        expr_typ,
-        ..
-    }) = &errors[0].0
-    {
-        assert_eq!(expected_typ, "fn() -> ()");
-        assert_eq!(expr_typ, "unconstrained fn() -> ()");
-    } else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    let CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }) = &errors[0].0 else {
+        panic!("Expected an UnsafeFn error, got {:?}", errors[0].0);
     };
 }
 
@@ -2630,8 +2622,8 @@ fn cannot_pass_unconstrained_function_to_constrained_function() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    let CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }) = &errors[0].0 else {
+        panic!("Expected an UnsafeFn error, got {:?}", errors[0].0);
     };
 }
 
