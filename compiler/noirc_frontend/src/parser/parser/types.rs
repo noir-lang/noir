@@ -1,4 +1,4 @@
-use super::path::path_no_turbofish;
+use super::path::{as_trait_path, path_no_turbofish};
 use super::primitives::token_kind;
 use super::{
     expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
@@ -31,6 +31,7 @@ pub(super) fn parse_type_inner<'a>(
         struct_definition_type(),
         trait_constraint_type(),
         trait_definition_type(),
+        trait_impl_type(),
         function_definition_type(),
         module_type(),
         top_level_item_type(),
@@ -45,8 +46,16 @@ pub(super) fn parse_type_inner<'a>(
         parenthesized_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
-        mutable_reference_type(recursive_type_parser),
+        mutable_reference_type(recursive_type_parser.clone()),
+        as_trait_path_type(recursive_type_parser),
     ))
+}
+
+fn as_trait_path_type<'a>(
+    type_parser: impl NoirParser<UnresolvedType> + 'a,
+) -> impl NoirParser<UnresolvedType> + 'a {
+    as_trait_path(type_parser)
+        .map_with_span(|path, span| UnresolvedTypeData::AsTraitPath(Box::new(path)).with_span(span))
 }
 
 pub(super) fn parenthesized_type(
@@ -56,7 +65,7 @@ pub(super) fn parenthesized_type(
         .delimited_by(just(Token::LeftParen), just(Token::RightParen))
         .map_with_span(|typ, span| UnresolvedType {
             typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
-            span: span.into(),
+            span,
         })
 }
 
@@ -99,6 +108,11 @@ pub(super) fn trait_definition_type() -> impl NoirParser<UnresolvedType> {
     })
 }
 
+pub(super) fn trait_impl_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TraitImpl)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TraitImpl).with_span(span))
+}
+
 pub(super) fn function_definition_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::FunctionDefinition).map_with_span(|_, span| {
         UnresolvedTypeData::Quoted(QuotedType::FunctionDefinition).with_span(span)
@@ -133,7 +147,7 @@ fn quoted_type() -> impl NoirParser<UnresolvedType> {
 /// This is the type of an already resolved type.
 /// The only way this can appear in the token input is if an already resolved `Type` object
 /// was spliced into a macro's token stream via the `$` operator.
-fn resolved_type() -> impl NoirParser<UnresolvedType> {
+pub(super) fn resolved_type() -> impl NoirParser<UnresolvedType> {
     token_kind(TokenKind::QuotedType).map_with_span(|token, span| match token {
         Token::QuotedType(id) => UnresolvedTypeData::Resolved(id).with_span(span),
         _ => unreachable!("token_kind(QuotedType) guarantees we parse a quoted type"),
@@ -304,13 +318,17 @@ where
             t.unwrap_or_else(|| UnresolvedTypeData::Unit.with_span(Span::empty(span.end())))
         });
 
-    keyword(Keyword::Fn)
-        .ignore_then(env)
+    keyword(Keyword::Unconstrained)
+        .or_not()
+        .then(keyword(Keyword::Fn))
+        .map(|(unconstrained_token, _fn_token)| unconstrained_token.is_some())
+        .then(env)
         .then(args)
         .then_ignore(just(Token::Arrow))
         .then(type_parser)
-        .map_with_span(|((env, args), ret), span| {
-            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env)).with_span(span)
+        .map_with_span(|(((unconstrained, env), args), ret), span| {
+            UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained)
+                .with_span(span)
         })
 }
 

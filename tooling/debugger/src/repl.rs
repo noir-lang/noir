@@ -1,7 +1,7 @@
 use crate::context::{DebugCommandResult, DebugContext, DebugLocation};
 
 use acvm::acir::brillig::{BitSize, IntegerBitSize};
-use acvm::acir::circuit::brillig::BrilligBytecode;
+use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
@@ -83,7 +83,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
                         let brillig_bytecode =
                             if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index] {
-                                &self.unconstrained_functions[id as usize].bytecode
+                                &self.unconstrained_functions[id.as_usize()].bytecode
                             } else {
                                 unreachable!("Brillig location does not contain Brillig opcodes");
                             };
@@ -111,7 +111,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
                 let brillig_bytecode = if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index]
                 {
-                    &self.unconstrained_functions[id as usize].bytecode
+                    &self.unconstrained_functions[id.as_usize()].bytecode
                 } else {
                     unreachable!("Brillig location does not contain Brillig opcodes");
                 };
@@ -168,36 +168,41 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             } else if self.context.is_breakpoint_set(&DebugLocation {
                 circuit_id,
                 opcode_location: OpcodeLocation::Acir(acir_index),
+                brillig_function_id: None,
             }) {
                 " *"
             } else {
                 ""
             }
         };
-        let brillig_marker = |acir_index, brillig_index| {
+        let brillig_marker = |acir_index, brillig_index, brillig_function_id| {
             if current_acir_index == Some(acir_index) && brillig_index == current_brillig_index {
                 "->"
             } else if self.context.is_breakpoint_set(&DebugLocation {
                 circuit_id,
                 opcode_location: OpcodeLocation::Brillig { acir_index, brillig_index },
+                brillig_function_id: Some(brillig_function_id),
             }) {
                 " *"
             } else {
                 ""
             }
         };
-        let print_brillig_bytecode = |acir_index, bytecode: &[BrilligOpcode<FieldElement>]| {
-            for (brillig_index, brillig_opcode) in bytecode.iter().enumerate() {
-                println!(
-                    "{:>2}:{:>3}.{:<2} |{:2} {:?}",
-                    circuit_id,
-                    acir_index,
-                    brillig_index,
-                    brillig_marker(acir_index, brillig_index),
-                    brillig_opcode
-                );
-            }
-        };
+        let print_brillig_bytecode =
+            |acir_index,
+             bytecode: &[BrilligOpcode<FieldElement>],
+             brillig_function_id: BrilligFunctionId| {
+                for (brillig_index, brillig_opcode) in bytecode.iter().enumerate() {
+                    println!(
+                        "{:>2}:{:>3}.{:<2} |{:2} {:?}",
+                        circuit_id,
+                        acir_index,
+                        brillig_index,
+                        brillig_marker(acir_index, brillig_index, brillig_function_id),
+                        brillig_opcode
+                    );
+                }
+            };
         for (acir_index, opcode) in opcodes.iter().enumerate() {
             let marker = outer_marker(acir_index);
             match &opcode {
@@ -207,8 +212,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                         circuit_id, acir_index, marker, id, inputs
                     );
                     println!("          |       outputs={:?}", outputs);
-                    let bytecode = &self.unconstrained_functions[*id as usize].bytecode;
-                    print_brillig_bytecode(acir_index, bytecode);
+                    let bytecode = &self.unconstrained_functions[id.as_usize()].bytecode;
+                    print_brillig_bytecode(acir_index, bytecode, *id);
                 }
                 _ => println!("{:>2}:{:>3} {:2} {:?}", circuit_id, acir_index, marker, opcode),
             }

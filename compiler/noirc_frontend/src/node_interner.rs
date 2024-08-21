@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
@@ -12,6 +11,7 @@ use noirc_errors::{Location, Span, Spanned};
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
@@ -19,6 +19,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::macros_api::ModuleDefId;
 use crate::macros_api::UnaryOp;
 use crate::QuotedType;
 
@@ -179,10 +180,10 @@ pub struct NodeInterner {
     /// may have both `impl Struct<u32> { fn foo(){} }` and `impl Struct<u8> { fn foo(){} }`.
     /// If this happens, the returned Vec will have 2 entries and we'll need to further
     /// disambiguate them by checking the type of each function.
-    struct_methods: HashMap<(StructId, String), Methods>,
+    struct_methods: HashMap<StructId, HashMap<String, Methods>>,
 
     /// Methods on primitive types defined in the stdlib.
-    primitive_methods: HashMap<(TypeMethodKey, String), Methods>,
+    primitive_methods: HashMap<TypeMethodKey, HashMap<String, Methods>>,
 
     // For trait implementation functions, this is their self type and trait they belong to
     func_id_to_trait: HashMap<FuncId, (Type, TraitId)>,
@@ -200,8 +201,8 @@ pub struct NodeInterner {
     /// the actual type since types do not implement Send or Sync.
     quoted_types: noirc_arena::Arena<Type>,
 
-    /// Whether to track references. In regular compilations this is false, but tools set it to true.
-    pub(crate) track_references: bool,
+    /// Determins whether to run in LSP mode. In LSP mode references are tracked.
+    pub(crate) lsp_mode: bool,
 
     /// Store the location of the references in the graph.
     /// Edges are directed from reference nodes to referenced nodes.
@@ -230,6 +231,19 @@ pub struct NodeInterner {
     // The module where each reference is
     // (ReferenceId::Reference and ReferenceId::Local aren't included here)
     pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
+
+    // All names (and their definitions) that can be offered for auto_import.
+    // These include top-level functions, global variables and types, but excludes
+    // impl and trait-impl methods.
+    pub(crate) auto_import_names: HashMap<String, Vec<(ModuleDefId, ItemVisibility)>>,
+
+    /// Each value currently in scope in the comptime interpreter.
+    /// Each element of the Vec represents a scope with every scope together making
+    /// up all currently visible definitions. The first scope is always the global scope.
+    ///
+    /// This is stored in the NodeInterner so that the Elaborator from each crate can
+    /// share the same global values.
+    pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -556,44 +570,46 @@ impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
             nodes: Arena::default(),
-            func_meta: HashMap::new(),
-            function_definition_ids: HashMap::new(),
-            function_modifiers: HashMap::new(),
-            function_modules: HashMap::new(),
-            module_attributes: HashMap::new(),
-            func_id_to_trait: HashMap::new(),
+            func_meta: HashMap::default(),
+            function_definition_ids: HashMap::default(),
+            function_modifiers: HashMap::default(),
+            function_modules: HashMap::default(),
+            module_attributes: HashMap::default(),
+            func_id_to_trait: HashMap::default(),
             dependency_graph: petgraph::graph::DiGraph::new(),
-            dependency_graph_indices: HashMap::new(),
-            id_to_location: HashMap::new(),
+            dependency_graph_indices: HashMap::default(),
+            id_to_location: HashMap::default(),
             definitions: vec![],
-            id_to_type: HashMap::new(),
-            definition_to_type: HashMap::new(),
-            structs: HashMap::new(),
-            struct_attributes: HashMap::new(),
+            id_to_type: HashMap::default(),
+            definition_to_type: HashMap::default(),
+            structs: HashMap::default(),
+            struct_attributes: HashMap::default(),
             type_aliases: Vec::new(),
-            traits: HashMap::new(),
-            trait_implementations: HashMap::new(),
+            traits: HashMap::default(),
+            trait_implementations: HashMap::default(),
             next_trait_implementation_id: 0,
-            trait_implementation_map: HashMap::new(),
-            selected_trait_implementations: HashMap::new(),
-            infix_operator_traits: HashMap::new(),
-            prefix_operator_traits: HashMap::new(),
+            trait_implementation_map: HashMap::default(),
+            selected_trait_implementations: HashMap::default(),
+            infix_operator_traits: HashMap::default(),
+            prefix_operator_traits: HashMap::default(),
             ordering_type: None,
-            instantiation_bindings: HashMap::new(),
-            field_indices: HashMap::new(),
+            instantiation_bindings: HashMap::default(),
+            field_indices: HashMap::default(),
             next_type_variable_id: std::cell::Cell::new(0),
             globals: Vec::new(),
-            global_attributes: HashMap::new(),
-            struct_methods: HashMap::new(),
-            primitive_methods: HashMap::new(),
+            global_attributes: HashMap::default(),
+            struct_methods: HashMap::default(),
+            primitive_methods: HashMap::default(),
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
-            track_references: false,
+            lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
-            reference_graph_indices: HashMap::new(),
-            reference_modules: HashMap::new(),
+            reference_graph_indices: HashMap::default(),
+            reference_modules: HashMap::default(),
+            auto_import_names: HashMap::default(),
+            comptime_scopes: vec![HashMap::default()],
         }
     }
 }
@@ -901,6 +917,7 @@ impl NodeInterner {
         // This needs to be done after pushing the definition since it will reference the
         // location that was stored
         self.add_definition_location(ReferenceId::Function(id), Some(module));
+
         definition_id
     }
 
@@ -942,12 +959,12 @@ impl NodeInterner {
     /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
     pub fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
-            if let Some(DefinitionKind::Function(func_id)) =
-                self.try_definition(id).map(|def| &def.kind)
-            {
-                Some(*func_id)
-            } else {
-                None
+            match self.try_definition(id).map(|def| &def.kind) {
+                Some(DefinitionKind::Function(func_id)) => Some(*func_id),
+                Some(DefinitionKind::Local(Some(expr_id))) => {
+                    self.lookup_function_from_expr(expr_id)
+                }
+                _ => None,
             }
         } else {
             None
@@ -969,6 +986,10 @@ impl NodeInterner {
     /// Returns the interned meta data corresponding to `func_id`
     pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
         self.func_meta.get(func_id).expect("ice: all function ids should have metadata")
+    }
+
+    pub fn function_meta_mut(&mut self, func_id: &FuncId) -> &mut FuncMeta {
+        self.func_meta.get_mut(func_id).expect("ice: all function ids should have metadata")
     }
 
     pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {
@@ -1118,22 +1139,27 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_struct_methods(&self, id: StructId) -> Vec<Methods> {
-        self.struct_methods
-            .keys()
-            .filter_map(|(key_id, name)| {
-                if key_id == &id {
-                    Some(
-                        self.struct_methods
-                            .get(&(*key_id, name.clone()))
-                            .expect("get_struct_methods given invalid StructId")
-                            .clone(),
-                    )
-                } else {
-                    None
-                }
-            })
-            .collect()
+    pub fn get_struct_methods(&self, id: StructId) -> Option<&HashMap<String, Methods>> {
+        self.struct_methods.get(&id)
+    }
+
+    fn get_primitive_methods(&self, key: TypeMethodKey) -> Option<&HashMap<String, Methods>> {
+        self.primitive_methods.get(&key)
+    }
+
+    pub fn get_type_methods(&self, typ: &Type) -> Option<&HashMap<String, Methods>> {
+        match typ {
+            Type::Struct(struct_type, _) => {
+                let struct_type = struct_type.borrow();
+                self.get_struct_methods(struct_type.id)
+            }
+            Type::Alias(type_alias, generics) => {
+                let type_alias = type_alias.borrow();
+                let typ = type_alias.get_type(generics);
+                self.get_type_methods(&typ)
+            }
+            _ => get_type_method_key(typ).and_then(|key| self.get_primitive_methods(key)),
+        }
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -1186,14 +1212,19 @@ impl NodeInterner {
 
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
         let typ = self.definition_type(def_id);
-        if let Type::Function(args, ret, env) = &typ {
+        if let Type::Function(args, ret, env, unconstrained) = &typ {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref() {
                 if let DefinitionKind::Function(func_id) = def.kind {
                     let f = self.function(&func_id);
                     let func_body = f.as_expr();
                     let ret_type = self.id_type(func_body);
-                    let new_type = Type::Function(args.clone(), Box::new(ret_type), env.clone());
+                    let new_type = Type::Function(
+                        args.clone(),
+                        Box::new(ret_type),
+                        env.clone(),
+                        *unconstrained,
+                    );
                     return new_type;
                 }
             }
@@ -1287,8 +1318,12 @@ impl NodeInterner {
                     return Some(existing);
                 }
 
-                let key = (id, method_name);
-                self.struct_methods.entry(key).or_default().add_method(method_id, is_trait_method);
+                self.struct_methods
+                    .entry(id)
+                    .or_default()
+                    .entry(method_name)
+                    .or_default()
+                    .add_method(method_id, is_trait_method);
                 None
             }
             Type::Error => None,
@@ -1301,7 +1336,9 @@ impl NodeInterner {
                     unreachable!("Cannot add a method to the unsupported type '{}'", other)
                 });
                 self.primitive_methods
-                    .entry((key, method_name))
+                    .entry(key)
+                    .or_default()
+                    .entry(method_name)
                     .or_default()
                     .add_method(method_id, is_trait_method);
                 None
@@ -1437,6 +1474,8 @@ impl NodeInterner {
 
         let mut matching_impls = Vec::new();
 
+        let mut where_clause_errors = Vec::new();
+
         for (existing_object_type2, impl_kind) in impls {
             // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
@@ -1471,14 +1510,17 @@ impl NodeInterner {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
 
-                    if let Err(mut errors) = self.validate_where_clause(
+                    if let Err(errors) = self.validate_where_clause(
                         &trait_impl.where_clause,
                         &mut fresh_bindings,
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
-                        errors.push(make_constraint());
-                        return Err(errors);
+                        // Only keep the first errors we get from a failing where clause
+                        if where_clause_errors.is_empty() {
+                            where_clause_errors.extend(errors);
+                        }
+                        continue;
                     }
                 }
 
@@ -1491,7 +1533,8 @@ impl NodeInterner {
             *type_bindings = fresh_bindings;
             Ok(impl_)
         } else if matching_impls.is_empty() {
-            Err(vec![make_constraint()])
+            where_clause_errors.push(make_constraint());
+            Err(where_clause_errors)
         } else {
             // multiple matching impls, type annotations needed
             Err(vec![])
@@ -1629,7 +1672,7 @@ impl NodeInterner {
         method_name: &str,
         force_type_check: bool,
     ) -> Option<FuncId> {
-        let methods = self.struct_methods.get(&(id, method_name.to_owned()));
+        let methods = self.struct_methods.get(&id).and_then(|h| h.get(method_name));
 
         // If there is only one method, just return it immediately.
         // It will still be typechecked later.
@@ -1654,8 +1697,8 @@ impl NodeInterner {
         } else {
             // Failed to find a match for the type in question, switch to looking at impls
             // for all types `T`, e.g. `impl<T> Foo for T`
-            let key = &(TypeMethodKey::Generic, method_name.to_owned());
-            let global_methods = self.primitive_methods.get(key)?;
+            let global_methods =
+                self.primitive_methods.get(&TypeMethodKey::Generic)?.get(method_name)?;
             global_methods.find_matching_method(typ, self)
         }
     }
@@ -1663,7 +1706,7 @@ impl NodeInterner {
     /// Looks up a given method name on the given primitive type.
     pub fn lookup_primitive_method(&self, typ: &Type, method_name: &str) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
-        let methods = self.primitive_methods.get(&(key, method_name.to_owned()))?;
+        let methods = self.primitive_methods.get(&key)?.get(method_name)?;
         self.find_matching_method(typ, Some(methods), method_name)
     }
 
@@ -1760,7 +1803,7 @@ impl NodeInterner {
                 let the_trait = self.get_trait(trait_id);
                 self.ordering_type = match &the_trait.methods[0].typ {
                     Type::Forall(_, typ) => match typ.as_ref() {
-                        Type::Function(_, return_type, _) => Some(return_type.as_ref().clone()),
+                        Type::Function(_, return_type, _, _) => Some(return_type.as_ref().clone()),
                         other => unreachable!("Expected function type for `cmp`, found {}", other),
                     },
                     other => unreachable!("Expected Forall type for `cmp`, found {}", other),
@@ -1782,6 +1825,11 @@ impl NodeInterner {
         };
 
         self.prefix_operator_traits.insert(operator, trait_id);
+    }
+
+    pub fn is_operator_trait(&self, trait_id: TraitId) -> bool {
+        self.infix_operator_traits.values().any(|id| *id == trait_id)
+            || self.prefix_operator_traits.values().any(|id| *id == trait_id)
     }
 
     /// This function is needed when creating a NodeInterner for testing so that calls
@@ -1958,7 +2006,7 @@ impl NodeInterner {
         };
 
         let env = Box::new(Type::Unit);
-        (Type::Function(args, Box::new(ret.clone()), env), ret)
+        (Type::Function(args, Box::new(ret.clone()), env, false), ret)
     }
 
     /// Returns the type of a prefix operator (which is always a function), along with its return type.
@@ -1967,7 +2015,11 @@ impl NodeInterner {
         let args = vec![rhs_type];
         let ret = self.id_type(operator_expr);
         let env = Box::new(Type::Unit);
-        (Type::Function(args, Box::new(ret.clone()), env), ret)
+        (Type::Function(args, Box::new(ret.clone()), env, false), ret)
+    }
+
+    pub fn is_in_lsp_mode(&self) -> bool {
+        self.lsp_mode
     }
 }
 
@@ -1994,7 +2046,7 @@ impl Methods {
     }
 
     /// Iterate through each method, starting with the direct methods
-    fn iter(&self) -> impl Iterator<Item = FuncId> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = FuncId> + '_ {
         self.direct.iter().copied().chain(self.trait_impl_methods.iter().copied())
     }
 
@@ -2004,7 +2056,7 @@ impl Methods {
         // at most 1 matching method in this list.
         for method in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
-                Type::Function(args, _, _) => {
+                Type::Function(args, _, _, _) => {
                     if let Some(object) = args.first() {
                         let mut bindings = TypeBindings::new();
 
@@ -2055,7 +2107,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::FmtString(_, _) => Some(FmtString),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
-        Type::Function(_, _, _) => Some(Function),
+        Type::Function(_, _, _, _) => Some(Function),
         Type::NamedGeneric(_, _, _) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
@@ -2067,6 +2119,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Constant(_)
         | Type::Error
         | Type::Struct(_, _)
+        | Type::InfixExpr(..)
         | Type::TraitAsType(..) => None,
     }
 }

@@ -30,22 +30,16 @@ pub(super) fn on_did_change_configuration(
     ControlFlow::Continue(())
 }
 
-pub(super) fn on_did_open_text_document(
+pub(crate) fn on_did_open_text_document(
     state: &mut LspState,
     params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     let document_uri = params.text_document.uri;
-    let only_process_document_uri_package = false;
     let output_diagnostics = true;
 
-    match process_workspace_for_noir_document(
-        state,
-        document_uri,
-        only_process_document_uri_package,
-        output_diagnostics,
-    ) {
+    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
         Ok(_) => {
             state.open_documents_count += 1;
             ControlFlow::Continue(())
@@ -62,15 +56,9 @@ pub(super) fn on_did_change_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
 
     let document_uri = params.text_document.uri;
-    let only_process_document_uri_package = true;
-    let output_diagnotics = false;
+    let output_diagnostics = false;
 
-    match process_workspace_for_noir_document(
-        state,
-        document_uri,
-        only_process_document_uri_package,
-        output_diagnotics,
-    ) {
+    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -90,15 +78,9 @@ pub(super) fn on_did_close_text_document(
     }
 
     let document_uri = params.text_document.uri;
-    let only_process_document_uri_package = true;
-    let output_diagnotics = false;
+    let output_diagnostics = false;
 
-    match process_workspace_for_noir_document(
-        state,
-        document_uri,
-        only_process_document_uri_package,
-        output_diagnotics,
-    ) {
+    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -109,15 +91,9 @@ pub(super) fn on_did_save_text_document(
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let document_uri = params.text_document.uri;
-    let only_process_document_uri_package = false;
-    let output_diagnotics = true;
+    let output_diagnostics = true;
 
-    match process_workspace_for_noir_document(
-        state,
-        document_uri,
-        only_process_document_uri_package,
-        output_diagnotics,
-    ) {
+    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -129,17 +105,15 @@ pub(super) fn on_did_save_text_document(
 pub(crate) fn process_workspace_for_noir_document(
     state: &mut LspState,
     document_uri: lsp_types::Url,
-    only_process_document_uri_package: bool,
     output_diagnostics: bool,
 ) -> Result<(), async_lsp::Error> {
     let file_path = document_uri.to_file_path().map_err(|_| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
     })?;
 
-    let workspace =
-        resolve_workspace_for_source_path(&file_path, &state.root_path).map_err(|lsp_error| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
-        })?;
+    let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
+    })?;
 
     let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
     insert_all_files_for_workspace_into_file_manager(
@@ -155,14 +129,10 @@ pub(crate) fn process_workspace_for_noir_document(
         .flat_map(|package| -> Vec<Diagnostic> {
             let package_root_dir: String = package.root_dir.as_os_str().to_string_lossy().into();
 
-            if only_process_document_uri_package && !file_path.starts_with(&package.root_dir) {
-                return vec![];
-            }
-
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, false, false, None) {
+            let file_diagnostics = match check_crate(&mut context, crate_id, &Default::default()) {
                 Ok(((), warnings)) => warnings,
                 Err(errors_and_warnings) => errors_and_warnings,
             };
@@ -183,8 +153,8 @@ pub(crate) fn process_workspace_for_noir_document(
                 Some(&file_path),
             );
             state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
-
-            state.cached_definitions.insert(package_root_dir, context.def_interner);
+            state.cached_definitions.insert(package_root_dir.clone(), context.def_interner);
+            state.cached_def_maps.insert(package_root_dir.clone(), context.def_maps);
 
             let fm = &context.file_manager;
             let files = fm.as_file_map();
@@ -253,7 +223,7 @@ mod notification_tests {
 
     use super::*;
     use lsp_types::{
-        InlayHintLabel, InlayHintParams, Position, TextDocumentContentChangeEvent,
+        InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
         TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
         WorkDoneProgressParams,
     };
@@ -300,9 +270,9 @@ mod notification_tests {
             InlayHintParams {
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 text_document: TextDocumentIdentifier { uri: noir_text_document },
-                range: lsp_types::Range {
-                    start: lsp_types::Position { line: 0, character: 0 },
-                    end: lsp_types::Position { line: 1, character: 0 },
+                range: Range {
+                    start: Position { line: 0, character: 0 },
+                    end: Position { line: 1, character: 0 },
                 },
             },
         )

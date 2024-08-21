@@ -635,6 +635,10 @@ impl Attributes {
     pub fn is_no_predicates(&self) -> bool {
         self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
     }
+
+    pub fn is_varargs(&self) -> bool {
+        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -728,6 +732,7 @@ impl Attribute {
                     name.trim_matches('"').to_string().into(),
                 ))
             }
+            ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
                 Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
@@ -825,6 +830,9 @@ pub enum SecondaryAttribute {
     Field(String),
     Custom(String),
     Abi(String),
+
+    /// A variable-argument comptime function.
+    Varargs,
 }
 
 impl fmt::Display for SecondaryAttribute {
@@ -839,6 +847,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
             SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
+            SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
         }
     }
 }
@@ -867,14 +876,14 @@ impl AsRef<str> for SecondaryAttribute {
             | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
+            SecondaryAttribute::Varargs => "",
         }
     }
 }
 
 /// Note that `self` is not present - it is a contextual keyword rather than a true one as it is
 /// only special within `impl`s. Otherwise `self` functions as a normal identifier.
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord, strum_macros::EnumIter)]
 pub enum Keyword {
     As,
     Assert,
@@ -916,10 +925,12 @@ pub enum Keyword {
     Trait,
     TraitConstraint,
     TraitDefinition,
+    TraitImpl,
     Type,
     TypeType,
     Unchecked,
     Unconstrained,
+    Unsafe,
     Use,
     Where,
     While,
@@ -968,10 +979,12 @@ impl fmt::Display for Keyword {
             Keyword::Trait => write!(f, "trait"),
             Keyword::TraitConstraint => write!(f, "TraitConstraint"),
             Keyword::TraitDefinition => write!(f, "TraitDefinition"),
+            Keyword::TraitImpl => write!(f, "TraitImpl"),
             Keyword::Type => write!(f, "type"),
             Keyword::TypeType => write!(f, "Type"),
             Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
+            Keyword::Unsafe => write!(f, "unsafe"),
             Keyword::Use => write!(f, "use"),
             Keyword::Where => write!(f, "where"),
             Keyword::While => write!(f, "while"),
@@ -1022,11 +1035,13 @@ impl Keyword {
             "trait" => Keyword::Trait,
             "TraitConstraint" => Keyword::TraitConstraint,
             "TraitDefinition" => Keyword::TraitDefinition,
+            "TraitImpl" => Keyword::TraitImpl,
             "type" => Keyword::Type,
             "Type" => Keyword::TypeType,
             "StructDefinition" => Keyword::StructDefinition,
             "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,
+            "unsafe" => Keyword::Unsafe,
             "use" => Keyword::Use,
             "where" => Keyword::Where,
             "while" => Keyword::While,

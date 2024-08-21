@@ -13,8 +13,8 @@ use std::collections::BTreeSet;
 
 use acir::{
     circuit::{
-        brillig::{BrilligBytecode, BrilligInputs, BrilligOutputs},
-        opcodes::{BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
+        brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
+        opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
         Circuit, Opcode, Program, PublicInputs,
     },
     native_types::{Expression, Witness},
@@ -181,7 +181,7 @@ fn simple_brillig_foreign_call() {
     };
 
     let opcodes = vec![Opcode::BrilligCall {
-        id: 0,
+        id: BrilligFunctionId(0),
         inputs: vec![
             BrilligInputs::Single(w_input.into()), // Input Register 0,
         ],
@@ -272,7 +272,7 @@ fn complex_brillig_foreign_call() {
     };
 
     let opcodes = vec![Opcode::BrilligCall {
-        id: 0,
+        id: BrilligFunctionId(0),
         inputs: vec![
             // Input 0,1,2
             BrilligInputs::Array(vec![
@@ -381,13 +381,13 @@ fn nested_acir_call_circuit() {
     //     x
     // }
     let nested_call = Opcode::Call {
-        id: 1,
+        id: AcirFunctionId(1),
         inputs: vec![Witness(0), Witness(1)],
         outputs: vec![Witness(2)],
         predicate: None,
     };
     let nested_call_two = Opcode::Call {
-        id: 1,
+        id: AcirFunctionId(1),
         inputs: vec![Witness(0), Witness(1)],
         outputs: vec![Witness(3)],
         predicate: None,
@@ -419,7 +419,7 @@ fn nested_acir_call_circuit() {
         q_c: FieldElement::one() + FieldElement::one(),
     });
     let call = Opcode::Call {
-        id: 2,
+        id: AcirFunctionId(2),
         inputs: vec![Witness(2), Witness(1)],
         outputs: vec![Witness(3)],
         predicate: None,

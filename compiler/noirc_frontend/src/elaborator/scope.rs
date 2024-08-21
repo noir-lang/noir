@@ -73,7 +73,7 @@ impl<'context> Elaborator<'context> {
         let resolver = StandardPathResolver::new(module_id);
         let path_resolution;
 
-        if self.interner.track_references {
+        if self.interner.lsp_mode {
             let last_segment = path.last_ident();
             let location = Location::new(last_segment.span(), self.file);
             let is_self_type_name = last_segment.is_self_type_name();
@@ -171,12 +171,12 @@ impl<'context> Elaborator<'context> {
 
     pub fn push_scope(&mut self) {
         self.scopes.start_scope();
-        self.comptime_scopes.push(Default::default());
+        self.interner.comptime_scopes.push(Default::default());
     }
 
     pub fn pop_scope(&mut self) {
         let scope = self.scopes.end_scope();
-        self.comptime_scopes.pop();
+        self.interner.comptime_scopes.pop();
         self.check_for_unused_variables_in_scope_tree(scope.into());
     }
 

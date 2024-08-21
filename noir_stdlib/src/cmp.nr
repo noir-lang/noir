@@ -1,17 +1,29 @@
+use crate::meta::derive_via;
+
+#[derive_via(derive_eq)]
 // docs:start:eq-trait
 trait Eq {
     fn eq(self, other: Self) -> bool;
 }
 // docs:end:eq-trait
 
+comptime fn derive_eq(s: StructDefinition) -> Quoted {
+    let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
+    let for_each_field = |name| quote { (_self.$name == _other.$name) };
+    let body = |fields| fields;
+    crate::meta::make_trait_impl(s, quote { Eq }, signature, for_each_field, quote { & }, body)
+}
+
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
 impl Eq for u64 { fn eq(self, other: u64) -> bool { self == other } }
 impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
+impl Eq for u16 { fn eq(self, other: u16) -> bool { self == other } }
 impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
 impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
 
 impl Eq for i8 { fn eq(self, other: i8) -> bool { self == other } }
+impl Eq for i16 { fn eq(self, other: i16) -> bool { self == other } }
 impl Eq for i32 { fn eq(self, other: i32) -> bool { self == other } }
 impl Eq for i64 { fn eq(self, other: i64) -> bool { self == other } }
 
@@ -99,11 +111,27 @@ impl Ordering {
     }
 }
 
+#[derive_via(derive_ord)]
 // docs:start:ord-trait
 trait Ord {
     fn cmp(self, other: Self) -> Ordering;
 }
 // docs:end:ord-trait
+
+comptime fn derive_ord(s: StructDefinition) -> Quoted {
+    let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };
+    let for_each_field = |name| quote {
+        if result == std::cmp::Ordering::equal() {
+            result = _self.$name.cmp(_other.$name);
+        }
+    };
+    let body = |fields| quote {
+        let mut result = std::cmp::Ordering::equal();
+        $fields
+        result
+    };
+    crate::meta::make_trait_impl(s, quote { Ord }, signature, for_each_field, quote {}, body)
+}
 
 // Note: Field deliberately does not implement Ord
 
@@ -131,6 +159,18 @@ impl Ord for u32 {
     }
 }
 
+impl Ord for u16 {
+    fn cmp(self, other: u16) -> Ordering {
+        if self < other {
+            Ordering::less()
+        } else if self > other {
+            Ordering::greater()
+        } else {
+            Ordering::equal()
+        }
+    }
+}
+
 impl Ord for u8 {
     fn cmp(self, other: u8) -> Ordering {
         if self < other {
@@ -145,6 +185,18 @@ impl Ord for u8 {
 
 impl Ord for i8 {
     fn cmp(self, other: i8) -> Ordering {
+        if self < other {
+            Ordering::less()
+        } else if self > other {
+            Ordering::greater()
+        } else {
+            Ordering::equal()
+        }
+    }
+}
+
+impl Ord for i16 {
+    fn cmp(self, other: i16) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {

@@ -14,7 +14,7 @@ use crate::ast::{
     TypeImpl,
 };
 use crate::macros_api::NodeInterner;
-use crate::node_interner::{ModuleAttributes, ReferenceId};
+use crate::node_interner::ModuleAttributes;
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
@@ -173,8 +173,6 @@ impl<'a> ModCollector<'a> {
             let module = ModuleId { krate, local_id: self.module_id };
 
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
-                // Attach any trait constraints on the impl to the function
-                noir_function.def.where_clause.append(&mut trait_impl.where_clause.clone());
                 let location = Location::new(noir_function.def.span, self.file_id);
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
@@ -233,6 +231,13 @@ impl<'a> ModCollector<'a> {
             // So that we can get a FuncId
             let location = Location::new(function.span(), self.file_id);
             context.def_interner.push_function(func_id, &function.def, module, location);
+
+            if context.def_interner.is_in_lsp_mode()
+                && !function.def.is_test()
+                && !function.def.is_private()
+            {
+                context.def_interner.register_function(func_id, &function.def);
+            }
 
             // Now link this func_id to a crate level map with the noir function and the module id
             // Encountering a NoirFunction, we retrieve it's module_data to get the namespace
@@ -309,8 +314,8 @@ impl<'a> ModCollector<'a> {
             };
 
             // Add the struct to scope so its path can be looked up later
-            let result =
-                self.def_collector.def_map.modules[self.module_id.0].declare_struct(name, id);
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .declare_struct(name.clone(), id);
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -324,10 +329,10 @@ impl<'a> ModCollector<'a> {
             // And store the TypeId -> StructType mapping somewhere it is reachable
             self.def_collector.items.types.insert(id, unresolved);
 
-            context.def_interner.add_definition_location(
-                ReferenceId::Struct(id),
-                Some(ModuleId { krate, local_id: self.module_id }),
-            );
+            if context.def_interner.is_in_lsp_mode() {
+                let parent_module_id = ModuleId { krate, local_id: self.module_id };
+                context.def_interner.register_struct(id, name.to_string(), parent_module_id);
+            }
         }
         definition_errors
     }
@@ -385,7 +390,7 @@ impl<'a> ModCollector<'a> {
 
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_type_alias(name, type_alias_id);
+                .declare_type_alias(name.clone(), type_alias_id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
@@ -398,10 +403,11 @@ impl<'a> ModCollector<'a> {
 
             self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
 
-            context.def_interner.add_definition_location(
-                ReferenceId::Alias(type_alias_id),
-                Some(ModuleId { krate, local_id: self.module_id }),
-            );
+            if context.def_interner.is_in_lsp_mode() {
+                let parent_module_id = ModuleId { krate, local_id: self.module_id };
+                let name = name.to_string();
+                context.def_interner.register_type_alias(type_alias_id, name, parent_module_id);
+            }
         }
         errors
     }
@@ -434,8 +440,8 @@ impl<'a> ModCollector<'a> {
             };
 
             // Add the trait to scope so its path can be looked up later
-            let result =
-                self.def_collector.def_map.modules[self.module_id.0].declare_trait(name, trait_id);
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .declare_trait(name.clone(), trait_id);
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
@@ -569,10 +575,10 @@ impl<'a> ModCollector<'a> {
             };
             context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
 
-            context.def_interner.add_definition_location(
-                ReferenceId::Trait(trait_id),
-                Some(ModuleId { krate, local_id: self.module_id }),
-            );
+            if context.def_interner.is_in_lsp_mode() {
+                let parent_module_id = ModuleId { krate, local_id: self.module_id };
+                context.def_interner.register_trait(trait_id, name.to_string(), parent_module_id);
+            }
 
             self.def_collector.items.traits.insert(trait_id, unresolved);
         }
@@ -768,6 +774,10 @@ impl<'a> ModCollector<'a> {
                     parent: self.module_id,
                 },
             );
+
+            if context.def_interner.is_in_lsp_mode() {
+                context.def_interner.register_module(mod_id, mod_name.0.contents.clone());
+            }
         }
 
         Ok(mod_id)

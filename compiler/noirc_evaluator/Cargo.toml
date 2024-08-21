@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -19,6 +22,8 @@ thiserror.workspace = true
 num-bigint = "0.4"
 im.workspace = true
 serde.workspace = true
+serde_json.workspace = true
+serde_with = "3.2.0"
 tracing.workspace = true
 chrono = "0.4.37"
 
