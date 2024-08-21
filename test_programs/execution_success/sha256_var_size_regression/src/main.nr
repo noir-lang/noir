@@ -17,14 +17,10 @@ fn main(foo: [u8; 95], toggle: bool) {
     let new_hash = std::hash::sha256_var(foo, size as u64);
     println(f"new_hash: {new_hash}");
 
-    let hash = old_sha256_var(foo, size as u64);
-    println(f"hash: {hash}");
-
     let const_hash = std::hash::sha256_var(foo, 93);
     println(f"const_hash: {const_hash}");
 
     assert_eq(new_hash, const_hash);
-    assert_eq(new_hash, hash);
 }
 
 unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u64, mut msg_block: [u8; 64]) -> [u8; 64] {

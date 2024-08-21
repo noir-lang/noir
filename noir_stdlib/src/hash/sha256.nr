@@ -87,7 +87,9 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
             msg_block = new_msg_block;
         }
 
-        msg_byte_ptr = verify_msg_block(msg, message_size, msg_block);
+        if !crate::runtime::is_unconstrained() {
+            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block);
+        }
     }
 
     for _ in 0..num_blocks {
@@ -95,8 +97,10 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
             let new_msg_block  = build_msg_block_iter(msg, message_size, msg_block);
             msg_block = new_msg_block;
         }
-        // Verify the block we are compressing was appropriately constructed
-        msg_byte_ptr = verify_msg_block(msg, message_size, msg_block);
+        if !crate::runtime::is_unconstrained() {
+            // Verify the block we are compressing was appropriately constructed
+            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block);
+        }
 
         // Hash the block
         h = sha256_compression(msg_u8_to_u32(msg_block), h);
@@ -112,13 +116,15 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         msg_block = new_msg_block;
     }
 
-    // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
-    // the 1 and 0s fill up the current block, which we then compress accordingly.
-    // Not enough bits (64) to store length. Fill up with zeros.
-    for _i in 57..64 {
-        if msg_byte_ptr <= 63 & msg_byte_ptr >= 57 {
-            assert_eq(msg_block[msg_byte_ptr], 0);
-            msg_byte_ptr += 1;
+    if !crate::runtime::is_unconstrained() {
+        // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
+        // the 1 and 0s fill up the current block, which we then compress accordingly.
+        // Not enough bits (64) to store length. Fill up with zeros.
+        for _i in 57..64 {
+            if msg_byte_ptr <= 63 & msg_byte_ptr >= 57 {
+                assert_eq(msg_block[msg_byte_ptr], 0);
+                msg_byte_ptr += 1;
+            }
         }
     }
 
@@ -132,27 +138,29 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         msg_block = attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size);
     }
 
-    for i in 0..64 {
-        if i as u64 < msg_byte_ptr - 1 {
-            assert_eq(msg_block[i], last_block[i]);
+    if !crate::runtime::is_unconstrained() {
+        for i in 0..64 {
+            if i as u64 < msg_byte_ptr - 1 {
+                assert_eq(msg_block[i], last_block[i]);
+            }
         }
-    }
-    assert_eq(msg_block[msg_byte_ptr - 1], 1 << 7);
+        assert_eq(msg_block[msg_byte_ptr - 1], 1 << 7);
 
-    let len = 8 * message_size;
-    let len_bytes = (len as Field).to_le_bytes(8);
-    // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
-    for _ in 0..64 {
-        if msg_byte_ptr < 56 {
-            assert_eq(msg_block[msg_byte_ptr], 0);
-            msg_byte_ptr = msg_byte_ptr + 1;
+        let len = 8 * message_size;
+        let len_bytes = (len as Field).to_le_bytes(8);
+        // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
+        for _ in 0..64 {
+            if msg_byte_ptr < 56 {
+                assert_eq(msg_block[msg_byte_ptr], 0);
+                msg_byte_ptr = msg_byte_ptr + 1;
+            }
         }
-    }
 
-    let mut block_idx = 0;
-    for i in 56..64 {
-        assert_eq(msg_block[63 - block_idx], len_bytes[i - 56]);
-        block_idx = block_idx + 1;
+        let mut block_idx = 0;
+        for i in 56..64 {
+            assert_eq(msg_block[63 - block_idx], len_bytes[i - 56]);
+            block_idx = block_idx + 1;
+        }
     }
 
     hash_final_block(msg_block, h)
