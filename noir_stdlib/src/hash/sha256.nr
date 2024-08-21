@@ -99,7 +99,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         msg_byte_ptr = verify_msg_block(msg, message_size, msg_block);
 
         // Hash the block
-        h = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), h);
+        h = sha256_compression(msg_u8_to_u32(msg_block), h);
     }
 
     let last_block = msg_block;
@@ -108,7 +108,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     msg_block[msg_byte_ptr] = 1 << 7;
     msg_byte_ptr = msg_byte_ptr + 1;
     unsafe {
-        let (new_msg_block, _) = pad_msg_block(msg_block, msg_byte_ptr, h);
+        let new_msg_block= pad_msg_block(msg_block, msg_byte_ptr, h);
         msg_block = new_msg_block;
     }
 
@@ -123,7 +123,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     }
 
     if msg_byte_ptr >= 57 {
-        h = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), h);
+        h = sha256_compression(msg_u8_to_u32(msg_block), h);
 
         msg_byte_ptr = 0;
     }
@@ -161,7 +161,7 @@ unconstrained fn pad_msg_block<let N: u32>(
     mut msg_block: [u8; 64],
     mut msg_byte_ptr: u64,
     mut h: [u32; 8]
-) -> ([u8; 64], [u32; 8]) {
+) -> [u8; 64] {
     // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
     // the 1 and 0s fill up the current block, which we then compress accordingly.
     if msg_byte_ptr >= 57 {
@@ -174,9 +174,8 @@ unconstrained fn pad_msg_block<let N: u32>(
                 }
             }
         }
-        h = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), h);
     }
-    (msg_block, h)
+    msg_block
 }
 
 unconstrained fn attach_len_to_msg_block<let N: u32>(
@@ -205,7 +204,7 @@ fn hash_final_block(msg_block: [u8; 64], mut state: [u32; 8]) -> [u8; 32] {
     let mut out_h: [u8; 32] = [0; 32]; // Digest as sequence of bytes
 
     // Hash final padded block
-    state = crate::hash::sha256_compression(msg_u8_to_u32(msg_block), state);
+    state = sha256_compression(msg_u8_to_u32(msg_block), state);
 
     // Return final hash as byte array
     for j in 0..8 {
