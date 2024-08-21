@@ -31,7 +31,7 @@ preset-release:
 
 preset-release-assert:
     FROM +source
-    RUN cmake --preset clang16 -Bbuild && cmake --build build --target bb && rm -rf build/{deps,lib,src}
+    RUN cmake --preset clang16-assert -Bbuild && cmake --build build --target bb && rm -rf build/{deps,lib,src}
     SAVE ARTIFACT build/bin
 
 preset-debug:

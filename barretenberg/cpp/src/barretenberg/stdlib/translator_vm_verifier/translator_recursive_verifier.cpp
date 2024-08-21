@@ -1,5 +1,6 @@
 #include "./translator_recursive_verifier.hpp"
 #include "barretenberg/commitment_schemes/zeromorph/zeromorph.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/relations/translator_vm/translator_decomposition_relation_impl.hpp"
 #include "barretenberg/relations/translator_vm/translator_delta_range_constraint_relation_impl.hpp"
 #include "barretenberg/relations/translator_vm/translator_extra_relations_impl.hpp"
@@ -74,7 +75,10 @@ std::array<typename Flavor::GroupElement, 2> TranslatorRecursiveVerifier_<Flavor
     CommitmentLabels commitment_labels;
 
     const FF circuit_size = transcript->template receive_from_prover<FF>("circuit_size");
-    ASSERT(static_cast<uint32_t>(circuit_size.get_value()) == key->circuit_size);
+    if (static_cast<uint32_t>(circuit_size.get_value()) != key->circuit_size) {
+        throw_or_abort(
+            "TranslatorRecursiveVerifier::verify_proof: proof circuit size does not match verification key!");
+    }
     evaluation_input_x = transcript->template receive_from_prover<BF>("evaluation_input_x");
 
     const BF accumulated_result = transcript->template receive_from_prover<BF>("accumulated_result");

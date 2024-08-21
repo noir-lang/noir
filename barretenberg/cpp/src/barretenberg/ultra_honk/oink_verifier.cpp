@@ -1,4 +1,5 @@
 #include "barretenberg/ultra_honk/oink_verifier.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 
 namespace bb {
 
@@ -37,9 +38,15 @@ template <IsUltraFlavor Flavor> void OinkVerifier<Flavor>::execute_preamble_roun
     const auto pub_inputs_offset =
         transcript->template receive_from_prover<uint32_t>(domain_separator + "pub_inputs_offset");
 
-    ASSERT(circuit_size == key->circuit_size);
-    ASSERT(public_input_size == key->num_public_inputs);
-    ASSERT(pub_inputs_offset == key->pub_inputs_offset);
+    if (circuit_size != key->circuit_size) {
+        throw_or_abort("OinkVerifier::execute_preamble_round: proof circuit size does not match verification key!");
+    }
+    if (public_input_size != key->num_public_inputs) {
+        throw_or_abort("OinkVerifier::execute_preamble_round: public inputs size does not match verification key!");
+    }
+    if (pub_inputs_offset != key->pub_inputs_offset) {
+        throw_or_abort("OinkVerifier::execute_preamble_round: public inputs offset does not match verification key!");
+    }
 
     for (size_t i = 0; i < public_input_size; ++i) {
         auto public_input_i =

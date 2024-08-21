@@ -133,20 +133,38 @@ TEST_F(GoblinRecursiveVerifierTests, ECCVMFailure)
 TEST_F(GoblinRecursiveVerifierTests, TranslatorFailure)
 {
     auto [proof, verifier_input] = create_goblin_prover_output();
-
-    // Tamper with the Translator proof
-    for (auto& val : proof.translator_proof) {
-        if (val > 0) { // tamper by finding the first non-zero value and incrementing it by 1
-            val += 1;
-            break;
+    // Tamper with the Translator proof preamble
+    {
+        auto tampered_proof = proof;
+        for (auto& val : tampered_proof.translator_proof) {
+            if (val > 0) { // tamper by finding the first non-zero value and incrementing it by 1
+                val += 1;
+                break;
+            }
         }
+
+        Builder builder;
+        GoblinRecursiveVerifier verifier{ &builder, verifier_input };
+        EXPECT_ANY_THROW(verifier.verify(tampered_proof));
     }
+    // Tamper with the Translator proof non-preamble values
+    {
+        auto tampered_proof = proof;
+        int seek = 10;
+        for (auto& val : tampered_proof.translator_proof) {
+            if (val > 0) { // tamper by finding the tenth non-zero value and incrementing it by 1
+                if (--seek == 0) {
+                    val += 1;
+                    break;
+                }
+            }
+        }
 
-    Builder builder;
-    GoblinRecursiveVerifier verifier{ &builder, verifier_input };
-    verifier.verify(proof);
-
-    EXPECT_FALSE(CircuitChecker::check(builder));
+        Builder builder;
+        GoblinRecursiveVerifier verifier{ &builder, verifier_input };
+        verifier.verify(tampered_proof);
+        EXPECT_FALSE(CircuitChecker::check(builder));
+    }
 }
 
 /**

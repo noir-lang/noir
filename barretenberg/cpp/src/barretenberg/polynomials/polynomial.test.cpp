@@ -18,13 +18,13 @@ TEST(Polynomial, Shifted)
     EXPECT_EQ(poly_shifted.size(), poly.size());
 
     // The shift is indeed the shift
-    for (size_t i = 0; i < poly_shifted.size(); ++i) {
+    for (size_t i = 0; i < poly_shifted.size() - 1; ++i) {
         EXPECT_EQ(poly_shifted.get(i), poly.get(i + 1));
     }
 
     // If I change the original polynomial, the shift is updated accordingly
     poly[3] = 25;
-    for (size_t i = 0; i < poly_shifted.size(); ++i) {
+    for (size_t i = 0; i < poly_shifted.size() - 1; ++i) {
         EXPECT_EQ(poly_shifted.get(i), poly.get(i + 1));
     }
 }

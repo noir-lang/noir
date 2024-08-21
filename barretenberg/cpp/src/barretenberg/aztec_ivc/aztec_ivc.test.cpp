@@ -219,7 +219,7 @@ TEST_F(AztecIVCTests, BadProofFailure)
         EXPECT_EQ(ivc.verification_queue.size(), 1);
         tamper_with_proof(ivc.verification_queue[0].proof); // tamper with the final fold proof
 
-        EXPECT_FALSE(ivc.prove_and_verify());
+        EXPECT_ANY_THROW(ivc.prove_and_verify());
     }
 
     EXPECT_TRUE(true);

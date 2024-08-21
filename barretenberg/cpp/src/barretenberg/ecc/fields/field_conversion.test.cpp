@@ -1,4 +1,5 @@
 #include "barretenberg/ecc/fields/field_conversion.hpp"
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <gtest/gtest.h>
 
 namespace bb::field_conversion_tests {
@@ -46,28 +47,46 @@ TEST_F(FieldConversionTest, FieldConversionGrumpkinFr)
     check_conversion(x1);
 }
 
+namespace {
+bb::fq derive_bn254_y(bb::fq x)
+{
+    auto [found, y] = (x.sqr() * x + Bn254G1Params::b).sqrt();
+    EXPECT_TRUE(found);
+    return y;
+}
+} // namespace
+
 /**
  * @brief Field conversion test for curve::BN254::AffineElement
  *
  */
 TEST_F(FieldConversionTest, FieldConversionBN254AffineElement)
 {
-    curve::BN254::AffineElement x1(1, 2);
+    curve::BN254::AffineElement x1(1, derive_bn254_y(1));
     check_conversion(x1);
 
-    curve::BN254::AffineElement x2(grumpkin::fr::modulus_minus_two, grumpkin::fr::modulus_minus_two);
+    curve::BN254::AffineElement x2(grumpkin::fr::modulus_minus_two, derive_bn254_y(grumpkin::fr::modulus_minus_two));
     check_conversion(x2);
 }
+
+namespace {
+bb::grumpkin::fq derive_grumpkin_y(bb::grumpkin::fq x)
+{
+    auto [found, y] = (x.sqr() * x + grumpkin::G1Params::b + x * grumpkin::G1Params::a).sqrt();
+    EXPECT_TRUE(found);
+    return y;
+}
+} // namespace
 
 /**
  * @brief Field conversion test for curve::Grumpkin::AffineElement
  */
 TEST_F(FieldConversionTest, FieldConversionGrumpkinAffineElement)
 {
-    curve::Grumpkin::AffineElement x1(1, 2);
+    curve::Grumpkin::AffineElement x1(1, derive_grumpkin_y(1));
     check_conversion(x1);
 
-    curve::Grumpkin::AffineElement x2(bb::fr::modulus_minus_two, bb::fr::modulus_minus_two);
+    curve::Grumpkin::AffineElement x2(bb::fr::modulus_minus_two, derive_grumpkin_y(bb::fr::modulus_minus_two));
     check_conversion(x2);
 }
 

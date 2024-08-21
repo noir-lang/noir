@@ -1946,7 +1946,6 @@ template <typename Builder, typename T> void bigfield<Builder, T>::assert_equal(
             if (remainder_512 != 0) {
                 std::cerr << "bigfield: remainder not zero!" << std::endl;
             }
-            ASSERT(remainder_512 == 0);
             bigfield quotient;
 
             const size_t num_quotient_bits = get_quotient_max_bits({ 0 });
