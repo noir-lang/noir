@@ -21,6 +21,7 @@ import {
   http,
   numberToHex,
   padHex,
+  zeroAddress,
 } from 'viem';
 import { type HDAccount, type PrivateKeyAccount, mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
@@ -207,13 +208,18 @@ export const deployL1Contracts = async (
   await publicClient.waitForTransactionReceipt({ hash: receipt });
   logger.info(`Funded fee juice portal contract with Fee Juice`);
 
-  await publicClient.waitForTransactionReceipt({
-    hash: await feeJuicePortal.write.initialize([
-      registryAddress.toString(),
-      feeJuiceAddress.toString(),
-      args.l2FeeJuiceAddress.toString(),
-    ]),
-  });
+  if ((await feeJuicePortal.read.registry([])) === zeroAddress) {
+    await publicClient.waitForTransactionReceipt({
+      hash: await feeJuicePortal.write.initialize([
+        registryAddress.toString(),
+        feeJuiceAddress.toString(),
+        args.l2FeeJuiceAddress.toString(),
+      ]),
+    });
+    logger.verbose(`Fee juice portal initialized with registry ${registryAddress.toString()}`);
+  } else {
+    logger.verbose(`Fee juice portal is already initialized`);
+  }
 
   logger.info(
     `Initialized Gas Portal at ${feeJuicePortalAddress} to bridge between L1 ${feeJuiceAddress} to L2 ${args.l2FeeJuiceAddress}`,
