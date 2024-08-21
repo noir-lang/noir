@@ -7,7 +7,6 @@ mod sha512;
 
 use crate::default::Default;
 use crate::uint128::U128;
-use crate::sha256::{digest, sha256_var};
 use crate::collections::vec::Vec;
 use crate::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_slice};
 use crate::meta::derive_via;

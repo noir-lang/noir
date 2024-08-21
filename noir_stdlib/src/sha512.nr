@@ -1,2 +1,2 @@
 // This file is kept for backwards compatibility.
-use crate::hash::sha256::sha512;
+use crate::hash::sha512::digest;
