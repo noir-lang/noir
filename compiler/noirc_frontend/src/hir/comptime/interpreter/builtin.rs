@@ -1084,24 +1084,8 @@ fn expr_as_unary_op(
 // fn as_has_semicolon(self) -> bool
 fn expr_has_semicolon(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let mut expr_value = get_expr(self_argument)?;
-
-    loop {
-        match expr_value {
-            ExprValue::Expression(ExpressionKind::Parenthesized(expression)) => {
-                expr_value = ExprValue::Expression(expression.kind);
-            }
-            ExprValue::Statement(StatementKind::Expression(expression)) => {
-                expr_value = ExprValue::Expression(expression.kind);
-            }
-            ExprValue::Statement(StatementKind::Semi(..)) => {
-                return Ok(Value::Bool(true));
-            }
-            _ => break,
-        }
-    }
-
-    Ok(Value::Bool(false))
+    let expr_value = get_expr(self_argument)?;
+    Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
 }
 
 // Helper function for implementing the `expr_as_...` functions.
