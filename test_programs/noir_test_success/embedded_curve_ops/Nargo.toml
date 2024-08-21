@@ -1,7 +1,0 @@
-[package]
-name = "embedded_curve_ops"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.23.0"
-
-[dependencies]

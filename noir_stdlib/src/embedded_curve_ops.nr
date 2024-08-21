@@ -130,3 +130,41 @@ fn embedded_curve_add(
 
 #[foreign(embedded_curve_add)]
 fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> [Field; 3] {}
+
+mod embedded_curve_tests {
+    global G1 = EmbeddedCurvePoint { x: 1, y: 17631683881184975370165255887551781615748388533673675138860, is_infinite: false };
+
+    #[test]
+    fn embedded_curve_arithmetic() {
+        let zero = EmbeddedCurvePoint::point_at_infinity();
+        assert(g1 + zero == g1);
+        assert(g1 - g1 == zero);
+        assert(g1 - zero == g1);
+        assert(zero + zero == zero);
+    }
+
+    #[test]
+    fn msm_identity() {
+        let s1 = EmbeddedCurveScalar { lo: 1, hi: 0 };
+        assert_eq(multi_scalar_mul([G1], [s1]), G1);
+    }
+
+    #[test]
+    fn msm_doubling() {
+        let g2 = G1 + G1;
+        let s1 = EmbeddedCurveScalar { lo: 1, hi: 0 };
+        let s2 = EmbeddedCurveScalar { lo: 2, hi: 0 };
+        assert_eq(multi_scalar_mul([G1, G1], [s1, s1]), g2);
+        assert_eq(multi_scalar_mul([G1], [s2]), g2);
+    }
+
+    #[test]
+    fn msm_zero_scalar() {
+        let g2 = G1 + G1;
+        let s1 = EmbeddedCurveScalar { lo: 1, hi: 0 };
+        let s2 = EmbeddedCurveScalar { lo: 2, hi: 0 };
+        let junk_scalar = EmbeddedCurveScalar { lo: 42, hi: 25 };
+        assert_eq(multi_scalar_mul([G1, zero], [s2, junk_scalar]), g2);
+        assert_eq(multi_scalar_mul([G1, G1, zero], [s1, s1, junk_scalar]), g2);
+    }
+}
