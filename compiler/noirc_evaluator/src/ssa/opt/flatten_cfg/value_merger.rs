@@ -307,7 +307,7 @@ impl<'a> ValueMerger<'a> {
         else_value: ValueId,
         array_length: usize,
     ) -> Option<ValueId> {
-        let mut found = false;
+        let mut found_ancestor = None;
         let current_condition = self.current_condition?;
 
         let mut current_then = then_value;
@@ -324,30 +324,23 @@ impl<'a> ValueMerger<'a> {
         // We essentially have a tree of ArraySets and want to find a common
         // ancestor if it exists, alone with the path to it from each starting node.
         // This path will be the indices that were changed to create each result array.
-        for _ in 0..max_iters {
-            if current_then == else_value {
-                seen_else.clear();
-                found = true;
-                break;
-            }
-
-            if current_else == then_value {
-                seen_then.clear();
-                found = true;
+        for i in 0..max_iters {
+            if current_then == current_else {
+                found_ancestor = Some(current_then);
                 break;
             }
 
             if let Some(index) = seen_then.iter().position(|(elem, _, _, _)| *elem == current_else)
             {
                 seen_else.truncate(index);
-                found = true;
+                found_ancestor = Some(current_else);
                 break;
             }
 
             if let Some(index) = seen_else.iter().position(|(elem, _, _, _)| *elem == current_then)
             {
                 seen_then.truncate(index);
-                found = true;
+                found_ancestor = Some(current_then);
                 break;
             }
 
@@ -361,11 +354,7 @@ impl<'a> ValueMerger<'a> {
             .chain(seen_else.into_iter().map(|(_, index, typ, condition)| (index, typ, condition)))
             .collect();
 
-        if !found || changed_indices.len() >= array_length {
-            return None;
-        }
-
-        let mut array = then_value;
+        let mut array = found_ancestor?;
 
         for (index, set_value, condition) in changed_indices {
             let instruction = Instruction::EnableSideEffects { condition };
