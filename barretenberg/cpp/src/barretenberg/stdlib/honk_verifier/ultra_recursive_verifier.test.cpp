@@ -92,7 +92,7 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
 
     /**
      * @brief Instantiate a recursive verification key from the native verification key produced by the inner cicuit
-     * builder. Check consistency beteen the native and stdlib types.
+     * builder. Check consistency between the native and stdlib types.
      *
      */
     static void test_recursive_verification_key_creation()
@@ -117,9 +117,18 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
         }
     }
 
+    /**
+     * @brief  Ensures that the recursive verifier circuit for two inner circuits of different size is the same as the
+     * proofs are currently constant. This is done by taking each trace block in part and checking all it's selector
+     * values.
+     *
+     */
     static void test_independent_vk_hash()
     {
-        auto get_blocks = [](size_t inner_size) { // Create an arbitrary inner circuit
+        // Retrieves the trace blocks (each consisting of a specific gate) from the recursive verifier circuit
+        auto get_blocks = [](size_t inner_size)
+            -> std::tuple<typename OuterBuilder::GateBlocks, std::shared_ptr<typename OuterFlavor::VerificationKey>> {
+            // Create an arbitrary inner circuit
             auto inner_circuit = create_inner_circuit(inner_size);
 
             // Generate a proof over the inner circuit
@@ -135,33 +144,55 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
             [[maybe_unused]] auto pairing_points = verifier.verify_proof(
                 inner_proof,
                 init_default_aggregation_state<OuterBuilder, typename RecursiveFlavor::Curve>(outer_circuit));
-            return outer_circuit.blocks;
+
+            auto outer_instance = std::make_shared<OuterProverInstance>(outer_circuit);
+            auto outer_verification_key =
+                std::make_shared<typename OuterFlavor::VerificationKey>(outer_instance->proving_key);
+
+            return { outer_circuit.blocks, outer_verification_key };
         };
 
         bool broke(false);
         auto check_eq = [&broke](auto& p1, auto& p2) {
+            EXPECT_TRUE(p1.size() == p2.size());
             for (size_t idx = 0; idx < p1.size(); idx++) {
                 if (p1[idx] != p2[idx]) {
                     broke = true;
-                    info("discrepancy at value index: ", idx);
                     break;
                 }
             }
         };
 
-        auto blocks_10 = get_blocks(10);
-        auto blocks_11 = get_blocks(11);
+        auto [blocks_10, verification_key_10] = get_blocks(10);
+        auto [blocks_11, verification_key_11] = get_blocks(11);
+
         size_t block_idx = 0;
         for (auto [b_10, b_11] : zip_view(blocks_10.get(), blocks_11.get())) {
             info("block index: ", block_idx);
             size_t sel_idx = 0;
+            EXPECT_TRUE(b_10.selectors.size() == 13);
+            EXPECT_TRUE(b_11.selectors.size() == 13);
             for (auto [p_10, p_11] : zip_view(b_10.selectors, b_11.selectors)) {
+
                 info("sel index: ", sel_idx);
                 check_eq(p_10, p_11);
                 sel_idx++;
             }
             block_idx++;
         }
+
+        typename OuterFlavor::CommitmentLabels labels;
+        for (auto [vk_10, vk_11, label] :
+             zip_view(verification_key_10->get_all(), verification_key_11->get_all(), labels.get_precomputed())) {
+            if (vk_10 != vk_11) {
+                broke = true;
+                info("Mismatch verification key label: ", label, " left: ", vk_10, " right: ", vk_11);
+            }
+        }
+
+        EXPECT_TRUE(verification_key_10->circuit_size == verification_key_11->circuit_size);
+        EXPECT_TRUE(verification_key_10->num_public_inputs == verification_key_11->num_public_inputs);
+
         EXPECT_FALSE(broke);
     }
 
@@ -183,6 +214,10 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
         // Create a recursive verification circuit for the proof of the inner circuit
         OuterBuilder outer_circuit;
         RecursiveVerifier verifier{ &outer_circuit, verification_key };
+        typename RecursiveFlavor::CommitmentLabels commitment_labels;
+        for (auto [label, key] : zip_view(commitment_labels.get_precomputed(), verifier.key->get_all())) {
+            info("label: ", label, " value: ", key.get_value());
+        }
         aggregation_state<typename RecursiveFlavor::Curve> agg_obj =
             init_default_aggregation_state<OuterBuilder, typename RecursiveFlavor::Curve>(outer_circuit);
         auto pairing_points = verifier.verify_proof(inner_proof, agg_obj);

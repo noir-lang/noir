@@ -48,6 +48,8 @@ void ensure_non_zero(auto& polynomial)
     ASSERT_TRUE(has_non_zero_coefficient);
 }
 
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/1075): Make the tests run on UltraKeccakFlavor as well so
+// we have a means of checking issues without having to run the Solidity verifier contract.
 class UltraHonkTests : public ::testing::Test {
   protected:
     static void SetUpTestSuite() { bb::srs::init_crs_factory("../srs_db/ignition"); }
@@ -97,7 +99,6 @@ TEST_F(UltraHonkTests, StructuredTrace)
     // Construct an instance with a structured execution trace
     TraceStructure trace_structure = TraceStructure::SMALL_TEST;
     auto instance = std::make_shared<ProverInstance>(builder, trace_structure);
-    info(instance->proving_key.circuit_size);
     UltraProver prover(instance);
     auto verification_key = std::make_shared<VerificationKey>(instance->proving_key);
     UltraVerifier verifier(verification_key);

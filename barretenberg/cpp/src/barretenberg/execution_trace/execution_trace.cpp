@@ -57,7 +57,18 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
 
     uint32_t offset = Flavor::has_zero_row ? 1 : 0; // Offset at which to place each block in the trace polynomials
     // For each block in the trace, populate wire polys, copy cycles and selector polys
-    for (auto& block : builder.blocks.get()) {
+
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1078): remove when Keccak flavor works with Poseidon
+    // gate
+    auto get_blocks = [&]() {
+        if constexpr (!HasKeccak<Flavor>) {
+            return builder.blocks.get();
+        } else {
+            return builder.blocks.get_for_ultra_keccak();
+        }
+    };
+
+    for (auto& block : get_blocks()) {
         auto block_size = static_cast<uint32_t>(block.size());
 
         // Update wire polynomials and copy cycles
@@ -76,10 +87,12 @@ typename ExecutionTrace_<Flavor>::TraceData ExecutionTrace_<Flavor>::construct_t
 
         // Insert the selector values for this block into the selector polynomials at the correct offset
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/398): implicit arithmetization/flavor consistency
-        for (auto [selector_poly, selector] : zip_view(trace_data.selectors, block.selectors)) {
+        for (size_t selector_idx = 0; selector_idx < NUM_USED_SELECTORS; selector_idx++) {
+            auto selector_poly = trace_data.selectors[selector_idx];
+            auto selector = block.selectors[selector_idx];
             for (size_t row_idx = 0; row_idx < block_size; ++row_idx) {
                 size_t trace_row_idx = row_idx + offset;
-                selector_poly[trace_row_idx] = selector[row_idx];
+                trace_data.selectors[selector_idx][trace_row_idx] = selector[row_idx];
             }
         }
 

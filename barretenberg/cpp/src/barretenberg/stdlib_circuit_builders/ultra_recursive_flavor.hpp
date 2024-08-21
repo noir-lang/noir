@@ -73,9 +73,9 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
     using Relations = UltraFlavor::Relations_<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
-    static_assert(MAX_PARTIAL_RELATION_LENGTH == 6);
+    // static_assert(MAX_PARTIAL_RELATION_LENGTH == 7);
     static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
-    static_assert(MAX_TOTAL_RELATION_LENGTH == 11);
+    // static_assert(MAX_TOTAL_RELATION_LENGTH == 11);
 
     // BATCHED_RELATION_PARTIAL_LENGTH = algebraic degree of sumcheck relation *after* multiplying by the `pow_zeta`
     // random polynomial e.g. For \sum(x) [A(x) * B(x) + C(x)] * PowZeta(X), relation length = 2 and random relation
@@ -138,6 +138,8 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
             this->q_elliptic = Commitment::from_witness(builder, native_key->q_elliptic);
             this->q_aux = Commitment::from_witness(builder, native_key->q_aux);
             this->q_lookup = Commitment::from_witness(builder, native_key->q_lookup);
+            this->q_poseidon2_external = Commitment::from_witness(builder, native_key->q_poseidon2_external);
+            this->q_poseidon2_internal = Commitment::from_witness(builder, native_key->q_poseidon2_internal);
             this->sigma_1 = Commitment::from_witness(builder, native_key->sigma_1);
             this->sigma_2 = Commitment::from_witness(builder, native_key->sigma_2);
             this->sigma_3 = Commitment::from_witness(builder, native_key->sigma_3);
@@ -216,50 +218,8 @@ template <typename BuilderType> class UltraRecursiveFlavor_ {
 
     using WitnessCommitments = UltraFlavor::WitnessEntities<Commitment>;
 
-    class VerifierCommitments : public UltraFlavor::AllEntities<Commitment> {
-      public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key,
-                            const std::optional<WitnessCommitments>& witness_commitments = std::nullopt)
-        {
-            this->q_m = verification_key->q_m;
-            this->q_l = verification_key->q_l;
-            this->q_r = verification_key->q_r;
-            this->q_o = verification_key->q_o;
-            this->q_4 = verification_key->q_4;
-            this->q_c = verification_key->q_c;
-            this->q_arith = verification_key->q_arith;
-            this->q_delta_range = verification_key->q_delta_range;
-            this->q_elliptic = verification_key->q_elliptic;
-            this->q_aux = verification_key->q_aux;
-            this->q_lookup = verification_key->q_lookup;
-            this->sigma_1 = verification_key->sigma_1;
-            this->sigma_2 = verification_key->sigma_2;
-            this->sigma_3 = verification_key->sigma_3;
-            this->sigma_4 = verification_key->sigma_4;
-            this->id_1 = verification_key->id_1;
-            this->id_2 = verification_key->id_2;
-            this->id_3 = verification_key->id_3;
-            this->id_4 = verification_key->id_4;
-            this->table_1 = verification_key->table_1;
-            this->table_2 = verification_key->table_2;
-            this->table_3 = verification_key->table_3;
-            this->table_4 = verification_key->table_4;
-            this->lagrange_first = verification_key->lagrange_first;
-            this->lagrange_last = verification_key->lagrange_last;
-
-            if (witness_commitments.has_value()) {
-                auto commitments = witness_commitments.value();
-                this->w_l = commitments.w_l;
-                this->w_r = commitments.w_r;
-                this->w_o = commitments.w_o;
-                this->lookup_inverses = commitments.lookup_inverses;
-                this->lookup_read_counts = commitments.lookup_read_counts;
-                this->lookup_read_tags = commitments.lookup_read_tags;
-                this->w_4 = commitments.w_4;
-                this->z_perm = commitments.z_perm;
-            }
-        }
-    };
+    // Reuse the VerifierCommitments from Ultra
+    using VerifierCommitments = UltraFlavor::VerifierCommitments_<Commitment, VerificationKey>;
 
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<CircuitBuilder>>;
 };

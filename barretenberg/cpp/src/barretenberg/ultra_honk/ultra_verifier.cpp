@@ -61,8 +61,8 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
     const size_t log_circuit_size = static_cast<size_t>(numeric::get_msb(key->circuit_size));
     auto sumcheck = SumcheckVerifier<Flavor>(log_circuit_size, transcript);
 
-    auto gate_challenges = std::vector<FF>(log_circuit_size);
-    for (size_t idx = 0; idx < log_circuit_size; idx++) {
+    auto gate_challenges = std::vector<FF>(CONST_PROOF_SIZE_LOG_N);
+    for (size_t idx = 0; idx < gate_challenges.size(); idx++) {
         gate_challenges[idx] = transcript->template get_challenge<FF>("Sumcheck:gate_challenge_" + std::to_string(idx));
     }
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
@@ -70,7 +70,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
 
     // If Sumcheck did not verify, return false
     if (sumcheck_verified.has_value() && !sumcheck_verified.value()) {
-        info("Sumcheck verification failed.");
+        info("Ultra Verifier: Sumcheck verification failed.");
         return false;
     }
 

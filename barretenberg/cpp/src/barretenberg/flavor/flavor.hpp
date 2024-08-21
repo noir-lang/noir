@@ -412,6 +412,9 @@ template <typename T>
 concept IsUltraFlavor = IsAnyOf<T, UltraFlavor, UltraKeccakFlavor, UltraFlavorWithZK, MegaFlavor>;
 
 template <typename T>
+concept HasKeccak = IsAnyOf<T, UltraKeccakFlavor>;
+
+template <typename T>
 concept IsGoblinFlavor = IsAnyOf<T, MegaFlavor,
                                     MegaRecursiveFlavor_<UltraCircuitBuilder>,
                                     MegaRecursiveFlavor_<MegaCircuitBuilder>, MegaRecursiveFlavor_<CircuitSimulatorBN254>>;

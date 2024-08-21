@@ -89,6 +89,9 @@ class CircuitSimulatorBN254 {
     void create_fixed_group_add_gate_final([[maybe_unused]] const add_quad_<FF>& in){};
     void create_ecc_add_gate([[maybe_unused]] const ecc_add_gate_<FF>& in){};
 
+    void create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in);
+    void create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in);
+
     plookup::ReadData<uint32_t> create_gates_from_plookup_accumulators(
         [[maybe_unused]] const plookup::MultiTableId& id,
         [[maybe_unused]] const plookup::ReadData<FF>& read_values,

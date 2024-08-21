@@ -45,18 +45,18 @@ template <typename Params, typename Builder> class Poseidon2Permutation {
      * @return State
      */
     static State permutation(Builder* builder, const State& input)
-        requires IsMegaBuilder<Builder>;
+        requires(!IsSimulator<Builder>);
     static State permutation(Builder* builder, const State& input)
-        requires IsNotMegaBuilder<Builder>;
+        requires IsSimulator<Builder>;
 
     static void add_round_constants(State& input, const RoundConstants& rc)
-        requires IsNotMegaBuilder<Builder>;
+        requires IsSimulator<Builder>;
     static void apply_sbox(State& input)
-        requires IsNotMegaBuilder<Builder>;
+        requires IsSimulator<Builder>;
     static void apply_single_sbox(field_t<Builder>& input)
-        requires IsNotMegaBuilder<Builder>;
+        requires IsSimulator<Builder>;
     static void matrix_multiplication_internal(State& input)
-        requires IsNotMegaBuilder<Builder>;
+        requires IsSimulator<Builder>;
 
     /**
      * @brief Separate function to do just the first linear layer (equivalent to external matrix mul).

@@ -188,7 +188,7 @@ template <typename BuilderType> class MegaRecursiveFlavor_ {
     using CommitmentLabels = MegaFlavor::CommitmentLabels;
     // Reuse the VerifierCommitments from Mega
     using VerifierCommitments = MegaFlavor::VerifierCommitments_<Commitment, VerificationKey>;
-    // Reuse the transcript from Mega
+
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<CircuitBuilder>>;
 };
 

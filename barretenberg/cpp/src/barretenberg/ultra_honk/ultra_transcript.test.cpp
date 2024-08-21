@@ -32,11 +32,9 @@ class UltraTranscriptTests : public ::testing::Test {
      *
      * @return TranscriptManifest
      */
-    TranscriptManifest construct_ultra_honk_manifest(size_t circuit_size)
+    TranscriptManifest construct_ultra_honk_manifest()
     {
         TranscriptManifest manifest_expected;
-
-        auto log_n = numeric::get_msb(circuit_size);
 
         size_t MAX_PARTIAL_RELATION_LENGTH = Flavor::BATCHED_RELATION_PARTIAL_LENGTH;
         size_t NUM_SUBRELATIONS = Flavor::NUM_SUBRELATIONS;
@@ -73,7 +71,7 @@ class UltraTranscriptTests : public ::testing::Test {
             round++;
         }
 
-        for (size_t i = 0; i < log_n; i++) {
+        for (size_t i = 0; i < CONST_PROOF_SIZE_LOG_N; i++) {
             std::string label = "Sumcheck:gate_challenge_" + std::to_string(i);
             manifest_expected.add_challenge(round, label);
             round++;
@@ -141,7 +139,7 @@ TEST_F(UltraTranscriptTests, ProverManifestConsistency)
     auto proof = prover.construct_proof();
 
     // Check that the prover generated manifest agrees with the manifest hard coded in this suite
-    auto manifest_expected = construct_ultra_honk_manifest(instance->proving_key.circuit_size);
+    auto manifest_expected = construct_ultra_honk_manifest();
     auto prover_manifest = prover.transcript->get_manifest();
     // Note: a manifest can be printed using manifest.print()
     for (size_t round = 0; round < manifest_expected.size(); ++round) {

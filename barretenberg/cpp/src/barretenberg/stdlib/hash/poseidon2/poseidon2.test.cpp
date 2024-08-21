@@ -147,7 +147,7 @@ template <typename Builder> class StdlibPoseidon2 : public testing::Test {
     }
 };
 
-using CircuitTypes = testing::Types<bb::MegaCircuitBuilder>;
+using CircuitTypes = testing::Types<bb::MegaCircuitBuilder, bb::UltraCircuitBuilder, bb::CircuitSimulatorBN254>;
 
 TYPED_TEST_SUITE(StdlibPoseidon2, CircuitTypes);
 

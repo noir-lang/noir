@@ -78,10 +78,4 @@ template <typename FF, size_t NUM_WIRES, size_t NUM_SELECTORS> class ExecutionTr
     void set_fixed_size(uint32_t size_in) { fixed_size = size_in; }
 };
 
-class TranslatorArith {
-  public:
-    static constexpr size_t NUM_WIRES = 81;
-    static constexpr size_t NUM_SELECTORS = 0;
-};
-
 } // namespace bb

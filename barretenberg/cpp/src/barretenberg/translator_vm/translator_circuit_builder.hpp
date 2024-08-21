@@ -73,10 +73,10 @@ class TranslatorCircuitBuilder : public CircuitBuilderBase<bb::fr> {
     // We don't need templating for Goblin
     using Fr = bb::fr;
     using Fq = bb::fq;
-    using Arithmetization = TranslatorArith;
 
   public:
-    static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
+    static constexpr size_t NUM_WIRES = 81;
+    static constexpr size_t NUM_SELECTORS = 0;
 
     /**
      * We won't need these standard gates that are defined as virtual in circuit builder base

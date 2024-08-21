@@ -96,7 +96,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
             accumulator->proving_key.polynomials, accumulator->alphas, accumulator->relation_parameters);
         // Construct pow(\vec{betas*}) as in the paper
         auto expected_pows = PowPolynomial(accumulator->gate_challenges);
-        expected_pows.compute_values();
+        expected_pows.compute_values(accumulator->gate_challenges.size());
 
         // Compute the corresponding target sum and create a dummy accumulator
         auto expected_target_sum = FF(0);
@@ -203,7 +203,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
 
         // Construct pow(\vec{betas}) as in the paper
         auto pow_beta = bb::PowPolynomial(betas);
-        pow_beta.compute_values();
+        pow_beta.compute_values(log_instance_size);
 
         // Compute the corresponding target sum and create a dummy accumulator
         auto target_sum = FF(0);

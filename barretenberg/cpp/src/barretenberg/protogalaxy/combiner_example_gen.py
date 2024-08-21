@@ -3,7 +3,7 @@ import numpy as np
 
 # np.set_printoptions(formatter={'int': hex})
 
-EXTENDED_RELATION_LENGTH = 13
+EXTENDED_RELATION_LENGTH = 12
 
 class Row:
     # Construct a set of 'all' polynomials with a very simple structure
@@ -20,38 +20,40 @@ class Row:
         self.q_elliptic = base_poly + 2 * 8
         self.q_aux = base_poly + 2 * 9
         self.q_lookup = base_poly + 2 * 10
-        self.sigma_1 = base_poly + 2 * 11
-        self.sigma_2 = base_poly + 2 * 12
-        self.sigma_3 = base_poly + 2 * 13
-        self.sigma_4 = base_poly + 2 * 14
-        self.id_1 = base_poly + 2 * 15
-        self.id_2 = base_poly + 2 * 16
-        self.id_3 = base_poly + 2 * 17
-        self.id_4 = base_poly + 2 * 18
-        self.table_1 = base_poly + 2 * 19
-        self.table_2 = base_poly + 2 * 20
-        self.table_3 = base_poly + 2 * 21
-        self.table_4 = base_poly + 2 * 22
-        self.lagrange_first = base_poly + 2 * 23
-        self.lagrange_last = base_poly + 2 * 24
-        self.w_l = base_poly + 2 * 25
-        self.w_r = base_poly + 2 * 26
-        self.w_o = base_poly + 2 * 27
-        self.w_4 = base_poly + 2 * 28
-        self.sorted_accum = base_poly + 2 * 29
-        self.z_perm = base_poly + 2 * 30
-        self.z_lookup = base_poly + 2 * 31
-        self.table_1_shift = base_poly + 2 * 32
-        self.table_2_shift = base_poly + 2 * 33
-        self.table_3_shift = base_poly + 2 * 34
-        self.table_4_shift = base_poly + 2 * 35
-        self.w_l_shift = base_poly + 2 * 36
-        self.w_r_shift = base_poly + 2 * 37
-        self.w_o_shift = base_poly + 2 * 38
-        self.w_4_shift = base_poly + 2 * 39
-        self.sorted_accum_shift = base_poly + 2 * 40
-        self.z_perm_shift = base_poly + 2 * 41
-        self.z_lookup_shift = base_poly + 2 * 42
+        self.q_poseidon2_external_1 = base_poly + 2 * 11
+        self.q_poseidon2_external_2 = base_poly + 2 * 12
+        self.sigma_1 = base_poly + 2 * 13
+        self.sigma_2 = base_poly + 2 * 14
+        self.sigma_3 = base_poly + 2 * 15
+        self.sigma_4 = base_poly + 2 * 16
+        self.id_1 = base_poly + 2 * 17
+        self.id_2 = base_poly + 2 * 18
+        self.id_3 = base_poly + 2 * 19
+        self.id_4 = base_poly + 2 * 20
+        self.table_1 = base_poly + 2 * 21
+        self.table_2 = base_poly + 2 * 22
+        self.table_3 = base_poly + 2 * 23
+        self.table_4 = base_poly + 2 * 24
+        self.lagrange_first = base_poly + 2 * 25
+        self.lagrange_last = base_poly + 2 * 26
+        self.w_l = base_poly + 2 * 27
+        self.w_r = base_poly + 2 * 28
+        self.w_o = base_poly + 2 * 29
+        self.w_4 = base_poly + 2 * 30
+        self.sorted_accum = base_poly + 2 * 31
+        self.z_perm = base_poly + 2 * 32
+        self.z_lookup = base_poly + 2 * 33
+        self.table_1_shift = base_poly + 2 * 34
+        self.table_2_shift = base_poly + 2 * 35
+        self.table_3_shift = base_poly + 2 * 36
+        self.table_4_shift = base_poly + 2 * 37
+        self.w_l_shift = base_poly + 2 * 38
+        self.w_r_shift = base_poly + 2 * 39
+        self.w_o_shift = base_poly + 2 * 40
+        self.w_4_shift = base_poly + 2 * 41
+        self.sorted_accum_shift = base_poly + 2 * 42
+        self.z_perm_shift = base_poly + 2 * 43
+        self.z_lookup_shift = base_poly + 2 * 44
 
     def arith_relation(self):
         return self.q_m * self.w_l * self.w_r + self.q_l * self.w_l + self.q_r * self.w_r + self.q_o * self.w_o + self.q_c

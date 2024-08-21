@@ -21,6 +21,7 @@
 
 namespace bb {
 
+// TODO(https://github.com/AztecProtocol/barretenberg/issues/1078): Update flavor to support Poseidon relation.
 class UltraKeccakFlavor {
   public:
     using CircuitBuilder = UltraCircuitBuilder;

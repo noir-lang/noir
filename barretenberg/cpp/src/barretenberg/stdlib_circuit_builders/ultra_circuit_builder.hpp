@@ -588,6 +588,8 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization_
      * 3) Number of Rom array-associated gates
      * 4) Number of range-list associated gates
      * 5) Number of non-native field multiplication gates.
+     * !!! WARNING: This function is predictive and might report an incorrect number. Make sure to finalise the circuit
+     * and then check the number of gates for a precise result. Kesha: it's basically voodoo
      *
      * @return size_t
      * TODO(https://github.com/AztecProtocol/barretenberg/issues/875): This method may return an incorrect value before
@@ -814,6 +816,9 @@ class UltraCircuitBuilder_ : public CircuitBuilderBase<typename Arithmetization_
     void write_RAM_array(const size_t ram_id, const uint32_t index_witness, const uint32_t value_witness);
     void process_RAM_array(const size_t ram_id);
     void process_RAM_arrays();
+
+    void create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in);
+    void create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in);
 
     uint256_t hash_circuit();
 

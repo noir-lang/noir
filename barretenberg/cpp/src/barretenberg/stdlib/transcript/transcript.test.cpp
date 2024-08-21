@@ -6,7 +6,10 @@
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_recursive_flavor.hpp"
+#include "barretenberg/sumcheck/instance/prover_instance.hpp"
 #include "barretenberg/transcript/transcript.hpp"
+#include "barretenberg/ultra_honk/ultra_prover.hpp"
+#include "barretenberg/ultra_honk/ultra_verifier.hpp"
 
 namespace bb::stdlib::recursion::honk {
 

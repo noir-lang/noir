@@ -19,11 +19,12 @@ cd ../../sol
 echo "Building c++ binaries..."
 cd ../cpp
 cmake --preset clang16
-cmake --build --preset clang16 --target solidity_key_gen solidity_proof_gen
+cmake --build --preset clang16 --target solidity_key_gen solidity_proof_gen honk_solidity_proof_gen honk_solidity_key_gen
 cd ../sol
 
 echo "Generating keys..."
 ./scripts/init.sh
+./scripts/init_honk.sh
 
 echo "Formatting code..."
 forge fmt

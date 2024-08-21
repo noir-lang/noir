@@ -1,4 +1,5 @@
 #include "barretenberg/stdlib/eccvm_verifier/eccvm_recursive_verifier.hpp"
+#include "barretenberg/circuit_checker/circuit_checker.hpp"
 #include "barretenberg/eccvm/eccvm_prover.hpp"
 #include "barretenberg/eccvm/eccvm_verifier.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
@@ -79,6 +80,7 @@ template <typename RecursiveFlavor> class ECCVMRecursiveTests : public ::testing
         auto proof = prover.construct_proof();
         auto verification_key = std::make_shared<typename InnerFlavor::VerificationKey>(prover.key);
 
+        info("ECCVM Recursive Verifier");
         OuterBuilder outer_circuit;
         RecursiveVerifier verifier{ &outer_circuit, verification_key };
         verifier.verify_proof(proof);
@@ -86,6 +88,9 @@ template <typename RecursiveFlavor> class ECCVMRecursiveTests : public ::testing
 
         // Check for a failure flag in the recursive verifier circuit
         EXPECT_EQ(outer_circuit.failed(), false) << outer_circuit.err();
+
+        bool result = CircuitChecker::check(outer_circuit);
+        EXPECT_TRUE(result);
 
         InnerVerifier native_verifier(prover.key);
         bool native_result = native_verifier.verify_proof(proof);

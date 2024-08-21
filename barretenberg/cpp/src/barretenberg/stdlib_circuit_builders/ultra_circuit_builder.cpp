@@ -6,6 +6,7 @@
  *
  */
 #include "ultra_circuit_builder.hpp"
+#include "barretenberg/crypto/poseidon2/poseidon2_params.hpp"
 #include <barretenberg/plonk/proof_system/constants.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -75,6 +76,8 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_external().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.arithmetic.pad_additional();
     }
@@ -94,6 +97,9 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     blocks.delta_range.q_lookup_type().emplace_back(0);
     blocks.delta_range.q_elliptic().emplace_back(0);
     blocks.delta_range.q_aux().emplace_back(0);
+    blocks.delta_range.q_poseidon2_external().emplace_back(0);
+    blocks.delta_range.q_poseidon2_internal().emplace_back(0);
+
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.delta_range.pad_additional();
     }
@@ -114,6 +120,8 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     blocks.elliptic.q_lookup_type().emplace_back(0);
     blocks.elliptic.q_elliptic().emplace_back(1);
     blocks.elliptic.q_aux().emplace_back(0);
+    blocks.elliptic.q_poseidon2_external().emplace_back(0);
+    blocks.elliptic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.elliptic.pad_additional();
     }
@@ -134,6 +142,8 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
     blocks.aux.q_lookup_type().emplace_back(0);
     blocks.aux.q_elliptic().emplace_back(0);
     blocks.aux.q_aux().emplace_back(1);
+    blocks.aux.q_poseidon2_external().emplace_back(0);
+    blocks.aux.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.aux.pad_additional();
     }
@@ -164,6 +174,54 @@ void UltraCircuitBuilder_<Arithmetization>::add_gates_to_ensure_all_polys_are_no
         plookup::MultiTableId::HONK_DUMMY_MULTI, left_witness_value, right_witness_value, true);
     create_gates_from_plookup_accumulators(
         plookup::MultiTableId::HONK_DUMMY_MULTI, dummy_accumulators, left_witness_index, right_witness_index);
+
+    // mock a poseidon external gate, with all zeros as input
+    blocks.poseidon_external.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+    blocks.poseidon_external.q_m().emplace_back(0);
+    blocks.poseidon_external.q_1().emplace_back(0);
+    blocks.poseidon_external.q_2().emplace_back(0);
+    blocks.poseidon_external.q_3().emplace_back(0);
+    blocks.poseidon_external.q_c().emplace_back(0);
+    blocks.poseidon_external.q_arith().emplace_back(0);
+    blocks.poseidon_external.q_4().emplace_back(0);
+    blocks.poseidon_external.q_delta_range().emplace_back(0);
+    blocks.poseidon_external.q_lookup_type().emplace_back(0);
+    blocks.poseidon_external.q_elliptic().emplace_back(0);
+    blocks.poseidon_external.q_aux().emplace_back(0);
+    blocks.poseidon_external.q_poseidon2_external().emplace_back(1);
+    blocks.poseidon_external.q_poseidon2_internal().emplace_back(0);
+    if constexpr (HasAdditionalSelectors<Arithmetization>) {
+        blocks.poseidon_external.pad_additional();
+    }
+    check_selector_length_consistency();
+    ++this->num_gates;
+
+    // dummy gate to be read into by previous poseidon external gate via shifts
+    this->create_dummy_gate(blocks.poseidon_external, this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+
+    // mock a poseidon internal gate, with all zeros as input
+    blocks.poseidon_internal.populate_wires(this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
+    blocks.poseidon_internal.q_m().emplace_back(0);
+    blocks.poseidon_internal.q_1().emplace_back(0);
+    blocks.poseidon_internal.q_2().emplace_back(0);
+    blocks.poseidon_internal.q_3().emplace_back(0);
+    blocks.poseidon_internal.q_c().emplace_back(0);
+    blocks.poseidon_internal.q_arith().emplace_back(0);
+    blocks.poseidon_internal.q_4().emplace_back(0);
+    blocks.poseidon_internal.q_delta_range().emplace_back(0);
+    blocks.poseidon_internal.q_lookup_type().emplace_back(0);
+    blocks.poseidon_internal.q_elliptic().emplace_back(0);
+    blocks.poseidon_internal.q_aux().emplace_back(0);
+    blocks.poseidon_internal.q_poseidon2_external().emplace_back(0);
+    blocks.poseidon_internal.q_poseidon2_internal().emplace_back(1);
+    if constexpr (HasAdditionalSelectors<Arithmetization>) {
+        blocks.poseidon_internal.pad_additional();
+    }
+    check_selector_length_consistency();
+    ++this->num_gates;
+
+    // dummy gate to be read into by previous poseidon internal gate via shifts
+    create_dummy_gate(blocks.poseidon_internal, this->zero_idx, this->zero_idx, this->zero_idx, this->zero_idx);
 }
 
 /**
@@ -191,6 +249,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_add_gate(const add_triple_<FF
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_external().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.arithmetic.pad_additional();
     }
@@ -223,6 +283,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_big_add_gate(const add_quad_<
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_external().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.arithmetic.pad_additional();
     }
@@ -317,6 +379,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_big_mul_gate(const mul_quad_<
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_external().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.arithmetic.pad_additional();
     }
@@ -343,6 +407,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_balanced_add_gate(const add_q
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_external().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.arithmetic.pad_additional();
     }
@@ -385,6 +451,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_mul_gate(const mul_triple_<FF
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_external().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.arithmetic.pad_additional();
     }
@@ -414,6 +482,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_bool_gate(const uint32_t vari
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_external().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.arithmetic.pad_additional();
     }
@@ -445,6 +515,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_poly_gate(const poly_triple_<
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_external().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.arithmetic.pad_additional();
     }
@@ -504,6 +576,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_add_gate(const ecc_add_ga
         block.q_lookup_type().emplace_back(0);
         block.q_elliptic().emplace_back(1);
         block.q_aux().emplace_back(0);
+        block.q_poseidon2_external().emplace_back(0);
+        block.q_poseidon2_internal().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
             block.pad_additional();
         }
@@ -557,6 +631,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_ecc_dbl_gate(const ecc_dbl_ga
         block.q_delta_range().emplace_back(0);
         block.q_lookup_type().emplace_back(0);
         block.q_aux().emplace_back(0);
+        block.q_poseidon2_external().emplace_back(0);
+        block.q_poseidon2_internal().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
             block.pad_additional();
         }
@@ -589,6 +665,8 @@ void UltraCircuitBuilder_<Arithmetization>::fix_witness(const uint32_t witness_i
     blocks.arithmetic.q_lookup_type().emplace_back(0);
     blocks.arithmetic.q_elliptic().emplace_back(0);
     blocks.arithmetic.q_aux().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_external().emplace_back(0);
+    blocks.arithmetic.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.arithmetic.pad_additional();
     }
@@ -673,6 +751,8 @@ plookup::ReadData<uint32_t> UltraCircuitBuilder_<Arithmetization>::create_gates_
         blocks.lookup.q_delta_range().emplace_back(0);
         blocks.lookup.q_elliptic().emplace_back(0);
         blocks.lookup.q_aux().emplace_back(0);
+        blocks.lookup.q_poseidon2_external().emplace_back(0);
+        blocks.lookup.q_poseidon2_internal().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
             blocks.lookup.pad_additional();
         }
@@ -983,6 +1063,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint(const std::ve
         blocks.delta_range.q_elliptic().emplace_back(0);
         blocks.delta_range.q_lookup_type().emplace_back(0);
         blocks.delta_range.q_aux().emplace_back(0);
+        blocks.delta_range.q_poseidon2_external().emplace_back(0);
+        blocks.delta_range.q_poseidon2_internal().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
             blocks.delta_range.pad_additional();
         }
@@ -1017,6 +1099,9 @@ void UltraCircuitBuilder_<Arithmetization>::create_dummy_gate(
     block.q_elliptic().emplace_back(0);
     block.q_lookup_type().emplace_back(0);
     block.q_aux().emplace_back(0);
+    block.q_poseidon2_external().emplace_back(0);
+    block.q_poseidon2_internal().emplace_back(0);
+
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         block.pad_additional();
     }
@@ -1075,6 +1160,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
         block.q_elliptic().emplace_back(0);
         block.q_lookup_type().emplace_back(0);
         block.q_aux().emplace_back(0);
+        block.q_poseidon2_external().emplace_back(0);
+        block.q_poseidon2_internal().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
             block.pad_additional();
         }
@@ -1098,6 +1185,8 @@ void UltraCircuitBuilder_<Arithmetization>::create_sort_constraint_with_edges(
         block.q_elliptic().emplace_back(0);
         block.q_lookup_type().emplace_back(0);
         block.q_aux().emplace_back(0);
+        block.q_poseidon2_external().emplace_back(0);
+        block.q_poseidon2_internal().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
             block.pad_additional();
         }
@@ -1215,9 +1304,12 @@ void UltraCircuitBuilder_<Arithmetization>::apply_aux_selectors(const AUX_SELECT
 {
     auto& block = blocks.aux;
     block.q_aux().emplace_back(type == AUX_SELECTORS::NONE ? 0 : 1);
+    // Set to zero the selectors that are not enabled for this gate
     block.q_delta_range().emplace_back(0);
     block.q_lookup_type().emplace_back(0);
     block.q_elliptic().emplace_back(0);
+    block.q_poseidon2_external().emplace_back(0);
+    block.q_poseidon2_internal().emplace_back(0);
     switch (type) {
     case AUX_SELECTORS::LIMB_ACCUMULATE_1: {
         block.q_1().emplace_back(0);
@@ -1636,6 +1728,8 @@ std::array<uint32_t, 2> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
     blocks.aux.q_lookup_type().emplace_back(0);
     blocks.aux.q_elliptic().emplace_back(0);
     blocks.aux.q_aux().emplace_back(0);
+    blocks.aux.q_poseidon2_external().emplace_back(0);
+    blocks.aux.q_poseidon2_internal().emplace_back(0);
     if constexpr (HasAdditionalSelectors<Arithmetization>) {
         blocks.aux.pad_additional();
     }
@@ -1920,6 +2014,8 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
         block.q_lookup_type().emplace_back(0);
         block.q_elliptic().emplace_back(0);
         block.q_aux().emplace_back(0);
+        block.q_poseidon2_external().emplace_back(0);
+        block.q_poseidon2_internal().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
             block.pad_additional();
         }
@@ -2040,6 +2136,8 @@ std::array<uint32_t, 5> UltraCircuitBuilder_<Arithmetization>::evaluate_non_nati
         block.q_lookup_type().emplace_back(0);
         block.q_elliptic().emplace_back(0);
         block.q_aux().emplace_back(0);
+        block.q_poseidon2_external().emplace_back(0);
+        block.q_poseidon2_internal().emplace_back(0);
         if constexpr (HasAdditionalSelectors<Arithmetization>) {
             block.pad_additional();
         }
@@ -2693,6 +2791,62 @@ template <typename Arithmetization> void UltraCircuitBuilder_<Arithmetization>::
     for (size_t i = 0; i < ram_arrays.size(); ++i) {
         process_RAM_array(i);
     }
+}
+
+/**
+ * @brief Poseidon2 external round gate, activates the q_poseidon2_external selector and relation
+ */
+template <typename FF>
+void UltraCircuitBuilder_<FF>::create_poseidon2_external_gate(const poseidon2_external_gate_<FF>& in)
+{
+    auto& block = this->blocks.poseidon_external;
+    block.populate_wires(in.a, in.b, in.c, in.d);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(crypto::Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
+    block.q_2().emplace_back(crypto::Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][1]);
+    block.q_3().emplace_back(crypto::Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][2]);
+    block.q_c().emplace_back(0);
+    block.q_arith().emplace_back(0);
+    block.q_4().emplace_back(crypto::Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][3]);
+    block.q_delta_range().emplace_back(0);
+    block.q_lookup_type().emplace_back(0);
+    block.q_elliptic().emplace_back(0);
+    block.q_aux().emplace_back(0);
+    block.q_poseidon2_external().emplace_back(1);
+    block.q_poseidon2_internal().emplace_back(0);
+    if constexpr (HasAdditionalSelectors<Arithmetization>) {
+        block.pad_additional();
+    }
+    this->check_selector_length_consistency();
+    ++this->num_gates;
+}
+
+/**
+ * @brief Poseidon2 internal round gate, activates the q_poseidon2_internal selector and relation
+ */
+template <typename FF>
+void UltraCircuitBuilder_<FF>::create_poseidon2_internal_gate(const poseidon2_internal_gate_<FF>& in)
+{
+    auto& block = this->blocks.poseidon_internal;
+    block.populate_wires(in.a, in.b, in.c, in.d);
+    block.q_m().emplace_back(0);
+    block.q_1().emplace_back(crypto::Poseidon2Bn254ScalarFieldParams::round_constants[in.round_idx][0]);
+    block.q_2().emplace_back(0);
+    block.q_3().emplace_back(0);
+    block.q_c().emplace_back(0);
+    block.q_arith().emplace_back(0);
+    block.q_4().emplace_back(0);
+    block.q_delta_range().emplace_back(0);
+    block.q_lookup_type().emplace_back(0);
+    block.q_elliptic().emplace_back(0);
+    block.q_aux().emplace_back(0);
+    block.q_poseidon2_external().emplace_back(0);
+    block.q_poseidon2_internal().emplace_back(1);
+    if constexpr (HasAdditionalSelectors<Arithmetization>) {
+        block.pad_additional();
+    }
+    this->check_selector_length_consistency();
+    ++this->num_gates;
 }
 
 template <typename Arithmetization> uint256_t UltraCircuitBuilder_<Arithmetization>::hash_circuit()

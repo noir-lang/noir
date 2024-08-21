@@ -210,8 +210,10 @@ template <typename Flavor> class SumcheckProver {
         if constexpr (Flavor::HasZK) {
             setup_zk_sumcheck_data(zk_sumcheck_data);
         };
+
         bb::PowPolynomial<FF> pow_univariate(gate_challenges);
-        pow_univariate.compute_values();
+        pow_univariate.compute_values(multivariate_d);
+
         std::vector<FF> multivariate_challenge;
         multivariate_challenge.reserve(multivariate_d);
         size_t round_idx = 0;
@@ -607,7 +609,6 @@ polynomials that are sent in clear.
     P_{N_w} \f$, the prover sends the evaluations of the witness polynomials masked by the terms \f$ \rho_j
     \sum_{i=0}^{d-1} u_i(1-u_i) \f$ for \f$ j= 1, \ldots N_w\f$. If the challenges satisfy the equation
     \f$\sum_{i=0}^{d-1} u_i(1-u_i) = 0\f$, each masking term is \f$0 \f$, which could lead to the leakage of witness
-    information. The challenges satisfy this equation with probability \f$ \sim 1/|\mathbb{F}|\f$.
      *
      * @param multivariate_challenge
      */

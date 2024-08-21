@@ -33,7 +33,7 @@ TEST(PowPolynomial, PowPolynomialsOnPowers)
 {
     auto betas = std::vector<fr>{ 2, 4, 16 };
     auto pow = PowPolynomial(betas);
-    pow.compute_values();
+    pow.compute_values(betas.size());
     auto expected_values = std::vector<fr>{ 1, 2, 4, 8, 16, 32, 64, 128 };
     EXPECT_EQ(expected_values, pow.pow_betas);
 }

@@ -9,7 +9,6 @@
 namespace bb {
 
 template <typename FF> struct PowPolynomial {
-
     /**
      * @brief The challenges \f$(\beta_0,\ldots, \beta_{d-1}) \f$
      *
@@ -70,7 +69,11 @@ template <typename FF> struct PowPolynomial {
     template <typename Bool> FF univariate_eval(const FF& challenge, const Bool& dummy_round) const
     {
         FF beta_or_dummy;
-        if (!dummy_round.get_value()) {
+        // For the Ultra Recursive flavor to ensure constant size proofs, we perform constant amount of hashing
+        // producing 28 gate betas and we need to use the betas in the dummy rounds to ensure the permutation related
+        // selectors stay the same regardless of real circuit size.  The other recursive verifiers aren't constant for
+        // the dummy sumcheck rounds we just use 1 as we only generated real log_n betas
+        if (current_element_idx < betas.size()) {
             beta_or_dummy = betas[current_element_idx];
         } else {
             beta_or_dummy = FF::from_witness(challenge.get_context(), 1);
@@ -113,10 +116,14 @@ template <typename FF> struct PowPolynomial {
      * @brief Given \f$ \vec\beta = (\beta_0,...,\beta_{d-1})\f$ compute \f$ pow_{\ell}(\vec \beta) = pow_{\beta}(\vec
      * \ell)\f$ for \f$ \ell =0,\ldots,2^{d}-1\f$.
      *
+     * @param log_circuit_size Determines the number of beta challenges used to compute pow_betas (required because when
+     * we generate CONST_SIZE_PROOF_LOG_N, currently 28, challenges but the real circuit size is less than 1 <<
+     * CONST_SIZE_PROOF_LOG_N, we should compute unnecessarily a vector of pow_betas of length 1 << 28 )
      */
-    BB_PROFILE void compute_values()
+    BB_PROFILE void compute_values(size_t log_circuit_size)
     {
-        size_t pow_size = 1 << betas.size();
+
+        size_t pow_size = 1 << log_circuit_size;
         pow_betas = std::vector<FF>(pow_size);
 
         // Determine number of threads for multithreading.

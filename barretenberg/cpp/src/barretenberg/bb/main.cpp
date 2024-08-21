@@ -197,6 +197,7 @@ bool proveAndVerifyHonkAcirFormat(acir_format::AcirFormat constraint_system, aci
 
     // Verify Honk proof
     auto verification_key = std::make_shared<VerificationKey>(prover.instance->proving_key);
+
     Verifier verifier{ verification_key };
 
     return verifier.verify_proof(proof);
@@ -589,7 +590,6 @@ void prove_tube(const std::string& output_path)
 
     builder->add_recursive_proof(current_aggregation_object);
 
-    info("num gates in tube circuit: ", builder->get_num_gates());
     using Prover = UltraProver_<UltraFlavor>;
     using Verifier = UltraVerifier_<UltraFlavor>;
     Prover tube_prover{ *builder };
@@ -819,7 +819,7 @@ void contract(const std::string& output_path, const std::string& vk_path)
  */
 void contract_honk(const std::string& output_path, const std::string& vk_path)
 {
-    using VerificationKey = UltraFlavor::VerificationKey;
+    using VerificationKey = UltraKeccakFlavor::VerificationKey;
     using VerifierCommitmentKey = bb::VerifierCommitmentKey<curve::BN254>;
 
     auto g2_data = get_bn254_g2_data(CRS_PATH);
@@ -1457,6 +1457,9 @@ int main(int argc, char* argv[])
         } else if (command == "write_vk_ultra_honk") {
             std::string output_path = get_option(args, "-o", "./target/vk");
             write_vk_honk<UltraFlavor>(bytecode_path, output_path);
+        } else if (command == "write_vk_ultra_keccak_honk") {
+            std::string output_path = get_option(args, "-o", "./target/vk");
+            write_vk_honk<UltraKeccakFlavor>(bytecode_path, output_path);
         } else if (command == "prove_mega_honk") {
             std::string output_path = get_option(args, "-o", "./proofs/proof");
             prove_honk<MegaFlavor>(bytecode_path, witness_path, output_path);

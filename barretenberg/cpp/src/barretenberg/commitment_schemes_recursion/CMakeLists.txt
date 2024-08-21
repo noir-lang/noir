@@ -1,1 +1,1 @@
-barretenberg_module(commitment_schemes_recursion commitment_schemes stdlib_primitives)
+barretenberg_module(commitment_schemes_recursion commitment_schemes stdlib_poseidon2)

@@ -30,7 +30,7 @@ struct Transcript {
     Fr beta;
     Fr gamma;
     Fr[NUMBER_OF_ALPHAS] alphas;
-    Fr[LOG_N] gateChallenges;
+    Fr[CONST_PROOF_SIZE_LOG_N] gateChallenges;
     Fr[CONST_PROOF_SIZE_LOG_N] sumCheckUChallenges;
     Fr rho;
     // Zero morph
@@ -57,7 +57,7 @@ library TranscriptLib {
 
         t.gateChallenges = generateGateChallenges(t.alphas[NUMBER_OF_ALPHAS - 1]);
 
-        t.sumCheckUChallenges = generateSumcheckChallenges(proof, t.gateChallenges[LOG_N - 1]);
+        t.sumCheckUChallenges = generateSumcheckChallenges(proof, t.gateChallenges[CONST_PROOF_SIZE_LOG_N - 1]);
         t.rho = generateRhoChallenge(proof, t.sumCheckUChallenges[CONST_PROOF_SIZE_LOG_N - 1]);
 
         t.zmY = generateZMYChallenge(t.rho, proof);
@@ -151,8 +151,12 @@ library TranscriptLib {
         }
     }
 
-    function generateGateChallenges(Fr previousChallenge) internal view returns (Fr[LOG_N] memory gateChallenges) {
-        for (uint256 i = 0; i < LOG_N; i++) {
+    function generateGateChallenges(Fr previousChallenge)
+        internal
+        view
+        returns (Fr[CONST_PROOF_SIZE_LOG_N] memory gateChallenges)
+    {
+        for (uint256 i = 0; i < CONST_PROOF_SIZE_LOG_N; i++) {
             previousChallenge = FrLib.fromBytes32(keccak256(abi.encodePacked(Fr.unwrap(previousChallenge))));
             gateChallenges[i] = previousChallenge;
         }

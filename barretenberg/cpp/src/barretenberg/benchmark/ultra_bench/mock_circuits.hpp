@@ -23,7 +23,8 @@ template <typename Builder> void generate_basic_arithmetic_circuit(Builder& buil
     stdlib::field_t a(stdlib::witness_t(&builder, fr::random_element()));
     stdlib::field_t b(stdlib::witness_t(&builder, fr::random_element()));
     stdlib::field_t c(&builder);
-    size_t passes = (1UL << log2_num_gates) / 4 - 4;
+    // Ensure the circuit is filled but finalisation doesn't make the circuit size go to the next power of two
+    size_t passes = (1UL << log2_num_gates) / 4 - 8;
     if (static_cast<int>(passes) <= 0) {
         throw_or_abort("too few gates");
     }

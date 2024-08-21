@@ -14,6 +14,8 @@
 #include "barretenberg/relations/elliptic_relation.hpp"
 #include "barretenberg/relations/logderiv_lookup_relation.hpp"
 #include "barretenberg/relations/permutation_relation.hpp"
+#include "barretenberg/relations/poseidon2_external_relation.hpp"
+#include "barretenberg/relations/poseidon2_internal_relation.hpp"
 #include "barretenberg/relations/relation_parameters.hpp"
 #include "barretenberg/relations/ultra_arithmetic_relation.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
@@ -38,10 +40,10 @@ class UltraFlavor {
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`.
-    static constexpr size_t NUM_ALL_ENTITIES = 42;
+    static constexpr size_t NUM_ALL_ENTITIES = 44;
     // The number of polynomials precomputed to describe a circuit and to aid a prover in constructing a satisfying
     // assignment of witnesses. We again choose a neutral name.
-    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 25;
+    static constexpr size_t NUM_PRECOMPUTED_ENTITIES = 27;
     // The total number of witness entities not including shifts.
     static constexpr size_t NUM_WITNESS_ENTITIES = 8;
     // The total number of witnesses including shifts and derived entities.
@@ -53,16 +55,20 @@ class UltraFlavor {
     // define the tuple of Relations that comprise the Sumcheck relation
     // Note: made generic for use in MegaRecursive.
     template <typename FF>
+
     using Relations_ = std::tuple<bb::UltraArithmeticRelation<FF>,
                                   bb::UltraPermutationRelation<FF>,
-                                  bb::LogDerivLookupRelation<FF>,
                                   bb::DeltaRangeConstraintRelation<FF>,
                                   bb::EllipticRelation<FF>,
-                                  bb::AuxiliaryRelation<FF>>;
+                                  bb::AuxiliaryRelation<FF>,
+                                  bb::LogDerivLookupRelation<FF>,
+                                  bb::Poseidon2ExternalRelation<FF>,
+                                  bb::Poseidon2InternalRelation<FF>>;
+
     using Relations = Relations_<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
-    static_assert(MAX_PARTIAL_RELATION_LENGTH == 6);
+    static_assert(MAX_PARTIAL_RELATION_LENGTH == 7);
     static constexpr size_t MAX_TOTAL_RELATION_LENGTH = compute_max_total_relation_length<Relations>();
     static_assert(MAX_TOTAL_RELATION_LENGTH == 11);
     static constexpr size_t NUM_SUBRELATIONS = compute_number_of_subrelations<Relations>();
@@ -102,37 +108,51 @@ class UltraFlavor {
       public:
         using DataType = DataType_;
         DEFINE_FLAVOR_MEMBERS(DataType,
-                              q_m,            // column 0
-                              q_c,            // column 1
-                              q_l,            // column 2
-                              q_r,            // column 3
-                              q_o,            // column 4
-                              q_4,            // column 5
-                              q_arith,        // column 6
-                              q_delta_range,  // column 7
-                              q_elliptic,     // column 8
-                              q_aux,          // column 9
-                              q_lookup,       // column 10
-                              sigma_1,        // column 11
-                              sigma_2,        // column 12
-                              sigma_3,        // column 13
-                              sigma_4,        // column 14
-                              id_1,           // column 15
-                              id_2,           // column 16
-                              id_3,           // column 17
-                              id_4,           // column 18
-                              table_1,        // column 19
-                              table_2,        // column 20
-                              table_3,        // column 21
-                              table_4,        // column 22
-                              lagrange_first, // column 23
-                              lagrange_last)  // column 24
+                              q_m,                  // column 0
+                              q_c,                  // column 1
+                              q_l,                  // column 2
+                              q_r,                  // column 3
+                              q_o,                  // column 4
+                              q_4,                  // column 5
+                              q_arith,              // column 6
+                              q_delta_range,        // column 7
+                              q_elliptic,           // column 8
+                              q_aux,                // column 9
+                              q_lookup,             // column 10
+                              q_poseidon2_external, // column 11
+                              q_poseidon2_internal, // column 12
+                              sigma_1,              // column 13
+                              sigma_2,              // column 14
+                              sigma_3,              // column 15
+                              sigma_4,              // column 16
+                              id_1,                 // column 17
+                              id_2,                 // column 18
+                              id_3,                 // column 19
+                              id_4,                 // column 20
+                              table_1,              // column 21
+                              table_2,              // column 22
+                              table_3,              // column 23
+                              table_4,              // column 24
+                              lagrange_first,       // column 25
+                              lagrange_last)        // column 26
 
         static constexpr CircuitType CIRCUIT_TYPE = CircuitBuilder::CIRCUIT_TYPE;
 
         auto get_selectors()
         {
-            return RefArray{ q_m, q_c, q_l, q_r, q_o, q_4, q_arith, q_delta_range, q_elliptic, q_aux, q_lookup };
+            return RefArray{ q_m,
+                             q_c,
+                             q_l,
+                             q_r,
+                             q_o,
+                             q_4,
+                             q_arith,
+                             q_delta_range,
+                             q_elliptic,
+                             q_aux,
+                             q_lookup,
+                             q_poseidon2_external,
+                             q_poseidon2_internal };
         };
         auto get_sigma_polynomials() { return RefArray{ sigma_1, sigma_2, sigma_3, sigma_4 }; };
         auto get_id_polynomials() { return RefArray{ id_1, id_2, id_3, id_4 }; };
@@ -434,6 +454,8 @@ class UltraFlavor {
                         const Commitment& q_elliptic,
                         const Commitment& q_aux,
                         const Commitment& q_lookup,
+                        const Commitment& q_poseidon2_external,
+                        const Commitment& q_poseidon2_internal,
                         const Commitment& sigma_1,
                         const Commitment& sigma_2,
                         const Commitment& sigma_3,
@@ -466,6 +488,8 @@ class UltraFlavor {
             this->q_elliptic = q_elliptic;
             this->q_aux = q_aux;
             this->q_lookup = q_lookup;
+            this->q_poseidon2_external = q_poseidon2_external;
+            this->q_poseidon2_internal = q_poseidon2_internal;
             this->sigma_1 = sigma_1;
             this->sigma_2 = sigma_2;
             this->sigma_3 = sigma_3;
@@ -500,6 +524,8 @@ class UltraFlavor {
                        q_elliptic,
                        q_aux,
                        q_lookup,
+                       q_poseidon2_external,
+                       q_poseidon2_internal,
                        sigma_1,
                        sigma_2,
                        sigma_3,
@@ -585,6 +611,8 @@ class UltraFlavor {
             q_elliptic = "Q_ELLIPTIC";
             q_aux = "Q_AUX";
             q_lookup = "Q_LOOKUP";
+            q_poseidon2_external = "Q_POSEIDON2_EXTERNAL";
+            q_poseidon2_internal = "Q_POSEIDON2_INTERNAL";
             sigma_1 = "SIGMA_1";
             sigma_2 = "SIGMA_2";
             sigma_3 = "SIGMA_3";
@@ -611,7 +639,7 @@ class UltraFlavor {
     class VerifierCommitments_ : public AllEntities<Commitment> {
       public:
         VerifierCommitments_(const std::shared_ptr<VerificationKey>& verification_key,
-                             const std::optional<WitnessCommitments>& witness_commitments = std::nullopt)
+                             const std::optional<WitnessEntities<Commitment>>& witness_commitments = std::nullopt)
         {
             this->q_m = verification_key->q_m;
             this->q_c = verification_key->q_c;
@@ -624,6 +652,8 @@ class UltraFlavor {
             this->q_elliptic = verification_key->q_elliptic;
             this->q_aux = verification_key->q_aux;
             this->q_lookup = verification_key->q_lookup;
+            this->q_poseidon2_external = verification_key->q_poseidon2_external;
+            this->q_poseidon2_internal = verification_key->q_poseidon2_internal;
             this->sigma_1 = verification_key->sigma_1;
             this->sigma_2 = verification_key->sigma_2;
             this->sigma_3 = verification_key->sigma_3;
