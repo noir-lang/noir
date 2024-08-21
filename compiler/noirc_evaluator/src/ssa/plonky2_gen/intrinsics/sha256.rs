@@ -238,6 +238,8 @@ pub(crate) fn make_sha256_circuit(
     asm_writer: &mut AsmWriter,
     msg_len_in_bits: u64,
 ) -> Sha256Targets {
+    asm_writer.comment_sha256_begin(msg_len_in_bits);
+
     let mut message = Vec::new();
     let mut digest = Vec::new();
     let block_count = (msg_len_in_bits + 65 + 511) / 512;
@@ -354,6 +356,7 @@ pub(crate) fn make_sha256_circuit(
         }
     }
 
+    asm_writer.comment_sha256_end(&message, &digest);
     Sha256Targets { message, digest }
 }
 
