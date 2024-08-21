@@ -1,10 +1,11 @@
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{Ident, NoirFunction};
+use crate::TypeVariableId;
 use crate::{
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
-    Generics, Type, TypeBindings, TypeVariable, TypeVariableId,
+    Generics, Type, TypeBindings, TypeVariable,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};

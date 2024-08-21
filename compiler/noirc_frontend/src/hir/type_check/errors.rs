@@ -138,6 +138,8 @@ pub enum TypeCheckError {
     UnconstrainedSliceReturnToConstrained { span: Span },
     #[error("Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block")]
     Unsafe { span: Span },
+    #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
+    UnsafeFn { span: Span },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -296,7 +298,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     Source::Return(ret_ty, expr_span) => {
                         let ret_ty_span = match ret_ty.clone() {
                             FunctionReturnType::Default(span) => span,
-                            FunctionReturnType::Ty(ty) => ty.span.unwrap(),
+                            FunctionReturnType::Ty(ty) => ty.span,
                         };
 
                         let mut diagnostic = Diagnostic::simple_error(format!("expected type {expected}, found type {actual}"), format!("expected {expected} because of return type"), ret_ty_span);
@@ -359,6 +361,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
             },
             TypeCheckError::Unsafe { span } => {
+                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::UnsafeFn { span } => {
                 Diagnostic::simple_warning(error.to_string(), String::new(), *span)
             }
         }
