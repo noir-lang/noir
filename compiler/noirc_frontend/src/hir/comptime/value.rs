@@ -5,9 +5,10 @@ use chumsky::Parser;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::{Location, Span};
+use strum_macros::Display;
 
 use crate::{
-    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness},
+    ast::{ArrayLiteral, ConstructorExpression, Ident, IntegerBitSize, Signedness, StatementKind},
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
@@ -61,10 +62,24 @@ pub enum Value {
     ModuleDefinition(ModuleId),
     Type(Type),
     Zeroed(Type),
-    Expr(ExpressionKind),
+    Expr(ExprValue),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Display)]
+pub enum ExprValue {
+    Expression(ExpressionKind),
+    Statement(StatementKind),
 }
 
 impl Value {
+    pub(crate) fn expression(expr: ExpressionKind) -> Self {
+        Value::Expr(ExprValue::Expression(expr))
+    }
+
+    pub(crate) fn statement(statement: StatementKind) -> Self {
+        Value::Expr(ExprValue::Statement(statement))
+    }
+
     pub(crate) fn get_type(&self) -> Cow<Type> {
         Cow::Owned(match self {
             Value::Unit => Type::Unit,
@@ -230,8 +245,9 @@ impl Value {
                     }
                 };
             }
-            Value::Expr(expr) => expr,
-            Value::Pointer(..)
+            Value::Expr(ExprValue::Expression(expr)) => expr,
+            Value::Expr(_)
+            | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
@@ -563,7 +579,8 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::ModuleDefinition(_) => write!(f, "(module)"),
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
             Value::Type(typ) => write!(f, "{}", typ),
-            Value::Expr(expr) => write!(f, "{}", expr),
+            Value::Expr(ExprValue::Expression(expr)) => write!(f, "{}", expr),
+            Value::Expr(ExprValue::Statement(statement)) => write!(f, "{}", statement),
         }
     }
 }
