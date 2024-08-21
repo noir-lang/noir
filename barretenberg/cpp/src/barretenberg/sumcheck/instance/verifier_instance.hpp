@@ -28,7 +28,7 @@ template <class Flavor, size_t NUM_ = 2> class VerifierInstance_ {
 
     // The folding parameters (\vec{β}, e) which are set for accumulators (i.e. relaxed instances).
     std::vector<FF> gate_challenges;
-    FF target_sum;
+    FF target_sum{ 0 };
 
     WitnessCommitments witness_commitments;
     CommitmentLabels commitment_labels;
