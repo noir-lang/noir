@@ -309,7 +309,7 @@ impl DefCollector {
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let module_id = collected_import.module_id;
             let resolved_import = if context.def_interner.lsp_mode {
-                let mut references: Vec<Option<ReferenceId>> = Vec::new();
+                let mut references: Vec<ReferenceId> = Vec::new();
                 let resolved_import = resolve_import(
                     crate_id,
                     &collected_import,
@@ -322,9 +322,6 @@ impl DefCollector {
 
                 for (referenced, segment) in references.iter().zip(&collected_import.path.segments)
                 {
-                    let Some(referenced) = referenced else {
-                        continue;
-                    };
                     context.def_interner.add_reference(
                         *referenced,
                         Location::new(segment.ident.span(), file_id),
