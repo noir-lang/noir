@@ -152,8 +152,6 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected array type"),
         };
 
-        let actual_length = len * element_types.len();
-
         if let Some(result) = self.try_merge_only_changed_indices(then_value, else_value) {
             return result;
         }
