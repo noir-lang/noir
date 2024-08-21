@@ -58,7 +58,9 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
     }
 }
 fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<String> {
-    if id.local_id == args.def_maps[&id.krate].root() {
+    let crate_root = args.def_maps[&id.krate].root();
+
+    if id.local_id == crate_root {
         let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate);
         return dep.map(|dep| format!("    crate {}", dep.name));
     }
@@ -70,12 +72,14 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     let module_attributes = args.interner.try_module_attributes(&id)?;
 
     let mut string = String::new();
-    if format_parent_module_from_module_id(
-        &ModuleId { krate: id.krate, local_id: module_attributes.parent },
-        args,
-        &mut string,
-    ) {
-        string.push('\n');
+    if let Some(parent_local_id) = module_attributes.parent {
+        if format_parent_module_from_module_id(
+            &ModuleId { krate: id.krate, local_id: parent_local_id },
+            args,
+            &mut string,
+        ) {
+            string.push('\n');
+        }
     }
     string.push_str("    ");
     string.push_str("mod ");
@@ -330,29 +334,27 @@ fn format_parent_module_from_module_id(
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
-        while let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
-            krate: module.krate,
-            local_id: current_attributes.parent,
-        }) {
+        loop {
+            let Some(parent_local_id) = current_attributes.parent else {
+                break;
+            };
+
+            let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
+                krate: module.krate,
+                local_id: parent_local_id,
+            }) else {
+                break;
+            };
+
             segments.push(&parent_attributes.name);
             current_attributes = parent_attributes;
         }
     }
 
-    let crate_id = module.krate;
-    let crate_name = match crate_id {
-        CrateId::Root(_) => Some(args.crate_name.clone()),
-        CrateId::Crate(_) => args
-            .dependencies
-            .iter()
-            .find(|dep| dep.crate_id == crate_id)
-            .map(|dep| format!("{}", dep.name)),
-        CrateId::Stdlib(_) => Some("std".to_string()),
-        CrateId::Dummy => unreachable!("ICE: A dummy CrateId should not be accessible"),
-    };
-
-    if let Some(crate_name) = &crate_name {
-        segments.push(crate_name);
+    // We don't record module attriubtes for the root module,
+    // so we handle that case separately
+    if let CrateId::Root(_) = module.krate {
+        segments.push(&args.crate_name);
     };
 
     if segments.is_empty() {
