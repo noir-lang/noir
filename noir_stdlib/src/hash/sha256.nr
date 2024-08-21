@@ -137,6 +137,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
             assert_eq(msg_block[i], last_block[i]);
         }
     }
+    assert_eq(msg_block[msg_byte_ptr - 1], 1 << 7);
 
     let len = 8 * message_size;
     let len_bytes = (len as Field).to_le_bytes(8);
