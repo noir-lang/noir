@@ -355,7 +355,6 @@ fn resolve_external_dep(
     // See `singleton_import.nr` test case for a check that such cases are handled elsewhere.
     let path_without_crate_name = &path[1..];
 
-    // Given that we skipped the first segment, record that it doesn't refer to any module or type.
     if let Some(path_references) = path_references {
         path_references.push(ReferenceId::Module(*dep_module));
     }
