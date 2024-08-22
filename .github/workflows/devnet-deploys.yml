@@ -92,6 +92,13 @@ jobs:
       runner_type: builder-x86
     secrets: inherit
 
+  setup-arm:
+    uses: ./.github/workflows/setup-runner.yml
+    with:
+      username: ${{ github.actor }}
+      runner_type: builder-arm
+    secrets: inherit
+
   # Set network specific variables as outputs from this job to be referenced in later jobs
   set-network:
     needs: setup
@@ -237,16 +244,51 @@ jobs:
         if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
         run: |
           env
-          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }}
-          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ github.sha }}
+          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ github.sha }} --ARCH=x86_64
+          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }} --ARCH=x86_64
 
       - name: "Re-tag Aztec image"
         if: ${{ github.event.inputs.no_rebuild_images == 'true' }}
         run: |
           env
-          docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}
-          docker tag aztecprotocol/aztec:${{ env.DEPLOY_TAG }} aztecprotocol/aztec:${{ github.sha }}
-          docker push aztecprotocol/aztec:${{ github.sha }}
+          docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}-x86_64
+          docker tag aztecprotocol/aztec:${{ env.DEPLOY_TAG }}-x86_64 aztecprotocol/aztec:${{ github.sha }}-x86_64
+          docker push aztecprotocol/aztec:${{ github.sha }}-x86_64
+
+  build-aztec-arm:
+    needs: [set-network, setup-arm]
+    env:
+      BRANCH_NAME: ${{ needs.set-network.outputs.branch_name }}
+      DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
+      TF_VAR_DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
+      API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      TF_VAR_API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      API_KEY_NAME: ${{ needs.set-network.outputs.network_api_key }}
+    runs-on: ${{ github.actor }}-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: build-aztec-${{ github.actor }}
+          dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
+      - name: "Build & Push aztec images"
+        timeout-minutes: 40
+        if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
+        run: |
+          env
+          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ github.sha }} --ARCH=arm64
+          earthly-ci --no-output --push ./yarn-project+export-aztec-arch --DIST_TAG=${{ env.DEPLOY_TAG }} --ARCH=arm64
+
+      - name: "Re-tag Aztec image"
+        if: ${{ github.event.inputs.no_rebuild_images == 'true' }}
+        run: |
+          env
+          docker pull aztecprotocol/aztec:${{ env.DEPLOY_TAG }}-arm64
+          docker tag aztecprotocol/aztec:${{ env.DEPLOY_TAG }}-arm64 aztecprotocol/aztec:${{ github.sha }}-arm64
+          docker push aztecprotocol/aztec:${{ github.sha }}-arm64
 
   build-aztec-nargo:
     needs: [set-network, build-aztec]
@@ -271,8 +313,79 @@ jobs:
       - name: Build & push aztec nargo image
         if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
         run: |
-          earthly-ci --no-output --push ./aztec-nargo+export-aztec-nargo --DIST_TAG=${{ env.DEPLOY_TAG }}
-          earthly-ci --no-output --push ./aztec-nargo+export-aztec-nargo --DIST_TAG=${{ github.sha }}
+          earthly-ci --no-output --push ./aztec-nargo+export-aztec-nargo --DIST_TAG=${{ github.sha }} --ARCH=x86_64
+          earthly-ci --no-output --push ./aztec-nargo+export-aztec-nargo --DIST_TAG=${{ env.DEPLOY_TAG }} --ARCH=x86_64
+
+  build-aztec-nargo-arm:
+    needs: [set-network, setup-arm, build-aztec-arm]
+    env:
+      BRANCH_NAME: ${{ needs.set-network.outputs.branch_name }}
+      DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
+      TF_VAR_DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
+      API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      TF_VAR_API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      API_KEY_NAME: ${{ needs.set-network.outputs.network_api_key }}
+    runs-on: ${{ github.actor }}-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: build-aztec-nargo-${{ github.actor }}
+          dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
+
+      - name: Build & push aztec nargo image
+        if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
+        run: |
+          earthly-ci --no-output --push ./aztec-nargo+export-aztec-nargo --DIST_TAG=${{ github.sha }} --ARCH=arm64
+          earthly-ci --no-output --push ./aztec-nargo+export-aztec-nargo --DIST_TAG=${{ env.DEPLOY_TAG }} --ARCH=arm64
+
+  publish-aztec-manifests:
+    needs:
+      [build-aztec, build-aztec-arm, build-aztec-nargo, build-aztec-nargo-arm]
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
+
+      - name: "Publish aztec manifests"
+        run: |
+          env
+          docker pull aztecprotocol/aztec:${{ github.sha }}-x86_64
+          docker pull aztecprotocol/aztec:${{ github.sha }}-arm64
+
+          docker manifest create aztecprotocol/aztec:${{ env.DEPLOY_TAG }} \
+            aztecprotocol/aztec:${{ github.sha }}-x86_64 \
+            aztecprotocol/aztec:${{ github.sha }}-arm64
+          docker manifest create aztecprotocol/aztec:${{ github.sha }} \
+            aztecprotocol/aztec:${{ github.sha }}-x86_64 \
+            aztecprotocol/aztec:${{ github.sha }}-arm64
+
+          docker manifest push aztecprotocol/aztec:${{ env.DEPLOY_TAG }}
+          docker manifest push aztecprotocol/aztec:${{ github.sha }}
+
+      - name: "Publish aztec-nargo manifests"
+        if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
+        run: |
+          docker pull aztecprotocol/aztec-nargo:${{ github.sha }}-x86_64
+          docker pull aztecprotocol/aztec-nargo:${{ github.sha }}-arm64
+
+          docker manifest create aztecprotocol/aztec-nargo:${{ env.DEPLOY_TAG }} \
+            aztecprotocol/aztec-nargo:${{ github.sha }}-x86_64 \
+            aztecprotocol/aztec-nargo:${{ github.sha }}-arm64
+          docker manifest create aztecprotocol/aztec-nargo:${{ github.sha }} \
+            aztecprotocol/aztec-nargo:${{ github.sha }}-x86_64 \
+            aztecprotocol/aztec-nargo:${{ github.sha }}-arm64
+
+          docker manifest push aztecprotocol/aztec-nargo:${{ env.DEPLOY_TAG }}
+          docker manifest push aztecprotocol/aztec-nargo:${{ github.sha }}
 
   build-faucet:
     needs: [set-network, build-aztec]
@@ -333,19 +446,74 @@ jobs:
         if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
         run: |
           env
-          earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ env.DEPLOY_TAG }}
-          earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ github.sha }}
+          earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ env.DEPLOY_TAG }} --ARCH=x86_64
+          earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ github.sha }} --ARCH=x86_64
+
+  build-cli-wallet-arm:
+    needs: [set-network, build-aztec-arm]
+    env:
+      BRANCH_NAME: ${{ needs.set-network.outputs.branch_name }}
+      DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
+      TF_VAR_DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
+      API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      TF_VAR_API_KEY: ${{ secrets[needs.set-network.outputs.network_api_key] }}
+      API_KEY_NAME: ${{ needs.set-network.outputs.network_api_key }}
+    runs-on: ${{ github.actor }}-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
+      - uses: ./.github/ci-setup-action
+        with:
+          concurrency_key: build-cli-wallet-${{ github.actor }}
+          dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
+      - name: "Build & Push aztec images"
+        timeout-minutes: 40
+        if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
+        run: |
+          env
+          earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ env.DEPLOY_TAG }} --ARCH=arm64
+          earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ github.sha }} --ARCH=arm64
+
+  publish-cli-wallet-manifest:
+    if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
+    needs: [build-cli-wallet, build-cli-wallet-arm]
+    runs-on: ${{ github.actor }}-x86
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "${{ env.GIT_COMMIT }}"
+          fetch-depth: 0
+      - uses: ./.github/ci-setup-action
+        with:
+          dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
+
+      - name: "Publish aztec CLI wallet manifests"
+        run: |
+          env
+          docker pull aztecprotocol/aztec-cli-wallet:${{ github.sha }}-x86_64
+          docker pull aztecprotocol/aztec-cli-wallet:${{ github.sha }}-arm64
+
+          docker manifest create aztecprotocol/aztec-cli-wallet:${{ env.DEPLOY_TAG }} \
+            aztecprotocol/aztec-cli-wallet:${{ github.sha }}-x86_64 \
+            aztecprotocol/aztec-cli-wallet:${{ github.sha }}-arm64
+          docker manifest create aztecprotocol/aztec-cli-wallet:${{ github.sha }} \
+            aztecprotocol/aztec-cli-wallet:${{ github.sha }}-x86_64 \
+            aztecprotocol/aztec-cli-wallet:${{ github.sha }}-arm64
+
+          docker manifest push aztecprotocol/aztec-cli-wallet:${{ env.DEPLOY_TAG }}
+          docker manifest push aztecprotocol/aztec-cli-wallet:${{ github.sha }}
 
   build-end:
     runs-on: ubuntu-latest
     needs:
       [
-        build-aztec,
-        build-faucet,
-        build-cli-wallet,
-        build-mainnet-fork,
-        build-aztec-nargo,
         set-network,
+        build-faucet,
+        build-mainnet-fork,
+        publish-aztec-manifests,
+        publish-cli-wallet-manifest,
       ]
     env:
       BRANCH_NAME: ${{ needs.set-network.outputs.branch_name }}
