@@ -47,7 +47,7 @@ export async function addPXE(
   userLog: LogFn,
   deps: { node?: AztecNode } = {},
 ) {
-  const pxeConfig = extractRelevantOptions<PXEServiceConfig & CliPXEOptions>(options, allPxeConfigMappings);
+  const pxeConfig = extractRelevantOptions<PXEServiceConfig & CliPXEOptions>(options, allPxeConfigMappings, 'pxe');
 
   let nodeUrl;
   if (pxeConfig.network) {

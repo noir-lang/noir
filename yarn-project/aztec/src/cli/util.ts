@@ -198,17 +198,39 @@ export const extractL1ContractAddresses = (options: Record<string, any>): L1Cont
  * @template T - The type of the relevant options.
  * @param options - Key-value map of options.
  * @param mappings - The mappings to extract.
+ * @param namespace - The namespace to extract for.
  * @returns Key-value map of relevant options.
  */
-export const extractRelevantOptions = <T>(options: Record<string, any>, mappings: ConfigMappingsType<T>): T => {
+export const extractRelevantOptions = <T>(
+  options: Record<string, any>,
+  mappings: ConfigMappingsType<T>,
+  namespace: string,
+): T => {
   const relevantOptions: T = {} as T;
 
-  Object.keys(options).forEach(key => {
-    const keyParts = key.split('.');
+  // Iterate over each key in the options
+  Object.keys(options).forEach(optionKey => {
+    const keyParts = optionKey.split('.');
+    const optionNamespace = keyParts.length > 1 ? keyParts[0] : '';
     const mainKey = keyParts.length > 1 ? keyParts[1] : keyParts[0];
 
+    // Check if the key exists in the mappings
     if (mainKey in mappings) {
-      relevantOptions[mainKey as keyof T] = options[key];
+      // Check for duplicates in the options
+      const duplicates = Object.keys(options).filter(optKey => {
+        const optKeyParts = optKey.split('.');
+        return optKeyParts[1] === mainKey || optKeyParts[0] === mainKey;
+      });
+
+      // If duplicates are found, use the namespace to differentiate
+      if (duplicates.length > 1) {
+        if (namespace === optionNamespace) {
+          relevantOptions[mainKey as keyof T] = options[optionKey];
+        }
+      } else {
+        // If no duplicates, extract the value without considering the namespace
+        relevantOptions[mainKey as keyof T] = options[optionKey];
+      }
     }
   });
 

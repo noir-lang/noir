@@ -18,7 +18,7 @@ import { extractRelevantOptions } from '../util.js';
 export const startArchiver = async (options: any, signalHandlers: (() => Promise<void>)[]) => {
   const services: ServerList = [];
   // Start a standalone archiver.
-  const archiverConfig = extractRelevantOptions<ArchiverConfig>(options, archiverConfigMappings);
+  const archiverConfig = extractRelevantOptions<ArchiverConfig>(options, archiverConfigMappings, 'archiver');
 
   const storeLog = createDebugLogger('aztec:archiver:lmdb');
   const rollupAddress = archiverConfig.l1Contracts.rollupAddress;

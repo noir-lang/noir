@@ -32,7 +32,7 @@ export const startProverNode = async (
   }
 
   const proverConfig = {
-    ...extractRelevantOptions<ProverNodeConfig>(options, proverNodeConfigMappings),
+    ...extractRelevantOptions<ProverNodeConfig>(options, proverNodeConfigMappings, 'proverNode'),
     l1Contracts: extractL1ContractAddresses(options),
   };
 

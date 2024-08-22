@@ -37,7 +37,7 @@ export function addBot(
   signalHandlers: (() => Promise<void>)[],
   deps: { pxe?: PXE; node?: AztecNode } = {},
 ) {
-  const config = extractRelevantOptions<BotConfig>(options, botConfigMappings);
+  const config = extractRelevantOptions<BotConfig>(options, botConfigMappings, 'bot');
 
   const botRunner = new BotRunner(config, deps);
   const botServer = createBotRunnerRpcServer(botRunner);
