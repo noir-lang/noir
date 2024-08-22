@@ -1729,7 +1729,7 @@ mod completion_tests {
             }
 
             fn main() {
-                foo::b>|<()
+                foo::b>|<x()
             }
         "#;
         assert_completion_excluding_auto_import(
