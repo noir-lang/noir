@@ -606,10 +606,7 @@ impl<F: AcirField> GeneratedAcir<F> {
 
         for (brillig_index, call_stack) in generated_brillig.locations.iter() {
             self.brillig_locations.entry(brillig_function_index).or_default().insert(
-                OpcodeLocation::Brillig {
-                    acir_index: None,
-                    brillig_index: *brillig_index,
-                },
+                OpcodeLocation::Brillig { acir_index: None, brillig_index: *brillig_index },
                 call_stack.clone(),
             );
         }
