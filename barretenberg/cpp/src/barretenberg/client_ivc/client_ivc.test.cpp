@@ -90,7 +90,7 @@ TEST_F(ClientIVCTests, Basic)
 };
 
 /**
- * @brief A simple-as-possible test demonstrating IVC for three mock circuits
+ * @brief A simple test demonstrating IVC for three mock circuits which does more logic than just two circuits.
  *
  */
 TEST_F(ClientIVCTests, BasicThree)

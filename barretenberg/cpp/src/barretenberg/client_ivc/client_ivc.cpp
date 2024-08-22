@@ -37,7 +37,13 @@ void ClientIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verific
     circuit.add_recursive_proof(stdlib::recursion::init_default_agg_obj_indices<ClientCircuit>(circuit));
 
     // Construct the prover instance for circuit
-    auto prover_instance = std::make_shared<ProverInstance>(circuit, trace_structure);
+    std::shared_ptr<ProverInstance> prover_instance;
+    if (!initialized) {
+        prover_instance = std::make_shared<ProverInstance>(circuit, trace_structure);
+    } else {
+        prover_instance = std::make_shared<ProverInstance>(
+            circuit, trace_structure, fold_output.accumulator->proving_key.commitment_key);
+    }
 
     // Track the maximum size of each block for all circuits porcessed (for debugging purposes only)
     max_block_size_tracker.update(circuit);

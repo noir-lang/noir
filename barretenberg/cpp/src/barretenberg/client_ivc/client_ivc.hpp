@@ -66,7 +66,6 @@ class ClientIVC {
   public:
     GoblinProver goblin;
     ProverFoldOutput fold_output;
-    std::shared_ptr<ProverInstance> prover_accumulator;
     std::shared_ptr<VerifierInstance> verifier_accumulator;
     std::shared_ptr<VerificationKey> instance_vk;
 

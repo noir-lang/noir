@@ -133,6 +133,24 @@ TEST_F(AztecIVCTests, Basic)
 };
 
 /**
+ * @brief A simple test demonstrating IVC for four mock circuits, which is slightly more than minimal.
+ * @details When accumulating only four circuits, we execute all the functionality of a full AztecIVC run.
+ *
+ */
+TEST_F(AztecIVCTests, BasicFour)
+{
+    AztecIVC ivc;
+
+    MockCircuitProducer circuit_producer;
+    for (size_t idx = 0; idx < 4; ++idx) {
+        Builder circuit = circuit_producer.create_next_circuit(ivc);
+        ivc.accumulate(circuit);
+    }
+
+    EXPECT_TRUE(ivc.prove_and_verify());
+};
+
+/**
  * @brief Check that the IVC fails to verify if an intermediate fold proof is invalid
  * @details When accumulating 4 circuits, there are 3 fold proofs to verify (the first two are recursively verfied and
  * the 3rd is verified as part of the IVC proof). Check that if any of one of these proofs is invalid, the IVC will fail

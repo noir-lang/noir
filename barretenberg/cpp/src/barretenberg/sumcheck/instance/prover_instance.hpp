@@ -44,11 +44,14 @@ template <class Flavor> class ProverInstance_ {
     std::vector<FF> gate_challenges;
     FF target_sum;
 
-    ProverInstance_(Circuit& circuit, TraceStructure trace_structure = TraceStructure::NONE)
+    ProverInstance_(Circuit& circuit,
+                    TraceStructure trace_structure = TraceStructure::NONE,
+                    std::shared_ptr<typename Flavor::CommitmentKey> commitment_key = nullptr)
     {
         BB_OP_COUNT_TIME_NAME("ProverInstance(Circuit&)");
         circuit.add_gates_to_ensure_all_polys_are_non_zero();
         circuit.finalize_circuit();
+        info("finalized gate count: ", circuit.num_gates);
 
         // Set flag indicating whether the polynomials will be constructed with fixed block sizes for each gate type
         const bool is_structured = (trace_structure != TraceStructure::NONE);
@@ -70,7 +73,7 @@ template <class Flavor> class ProverInstance_ {
         }
         {
             ZoneScopedN("constructing proving key");
-            proving_key = ProvingKey(dyadic_circuit_size, circuit.public_inputs.size());
+            proving_key = ProvingKey(dyadic_circuit_size, circuit.public_inputs.size(), commitment_key);
         }
 
         // Construct and add to proving key the wire, selector and copy constraint polynomials
