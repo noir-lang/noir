@@ -210,7 +210,6 @@ impl FromStr for OpcodeLocation {
                     Ok(OpcodeLocation::Acir(index))
                 }
                 2 => {
-                    // let acir_index = parts[0].parse()?;
                     let acir_index = if let Ok(acir_index) = parts[0].parse::<usize>() {
                         Some(acir_index)
                     } else {
