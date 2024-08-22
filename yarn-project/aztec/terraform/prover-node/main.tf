@@ -171,6 +171,7 @@ resource "aws_ecs_task_definition" "aztec-prover-node" {
         // General
         { name = "NODE_ENV", value = "production" },
         { name = "LOG_LEVEL", value = "verbose" },
+        { name = "LOG_JSON", value = "1" },
         { name = "DEBUG", value = "aztec:*,-json-rpc:json_proxy:*,-aztec:avm_simulator:*" },
         { name = "DEPLOY_TAG", value = var.DEPLOY_TAG },
         { name = "NETWORK_NAME", value = "${var.DEPLOY_TAG}" },

@@ -7,6 +7,7 @@ import { createPXERpcServer } from '@aztec/pxe';
 import { Command } from 'commander';
 import http from 'http';
 
+import { setupConsoleJsonLog } from '../logging.js';
 import { createSandbox } from '../sandbox.js';
 import { github, splash } from '../splash.js';
 import { aztecStartOptions } from './aztec_start_options.js';
@@ -36,6 +37,11 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
   startCmd.helpInformation = printAztecStartHelpText;
 
   startCmd.action(async options => {
+    // setup json logging
+    if (['1', 'true', 'TRUE'].includes(process.env.LOG_JSON ?? '')) {
+      setupConsoleJsonLog();
+    }
+
     // list of 'stop' functions to call when process ends
     const signalHandlers: Array<() => Promise<void>> = [];
     let services: ServerList = [];
@@ -112,7 +118,7 @@ export function injectAztecCommands(program: Command, userLog: LogFn, debugLogge
 
       const httpServer = http.createServer(app.callback());
       httpServer.listen(options.port);
-      userLog(`Aztec Server listening on port ${options.port}`);
+      debugLogger.info(`Aztec Server listening on port ${options.port}`);
     }
   });
 

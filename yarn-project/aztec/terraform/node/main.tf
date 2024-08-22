@@ -357,6 +357,10 @@ resource "aws_ecs_task_definition" "aztec-node" {
           value = "info"
         },
         {
+          name  = "LOG_JSON",
+          value = "1"
+        },
+        {
           name  = "NETWORK_NAME",
           value = "${var.DEPLOY_TAG}"
         },

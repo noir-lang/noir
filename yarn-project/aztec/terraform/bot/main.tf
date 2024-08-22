@@ -172,7 +172,8 @@ resource "aws_ecs_task_definition" "aztec-bot" {
         { name = "PXE_PROVER_ENABLED", value = tostring(var.PROVING_ENABLED) },
         { name = "NETWORK", value = var.DEPLOY_TAG },
         { name = "BOT_FLUSH_SETUP_TRANSACTIONS", value = tostring(var.BOT_FLUSH_SETUP_TRANSACTIONS) },
-        { name = "BOT_MAX_PENDING_TXS", value = tostring(var.BOT_MAX_PENDING_TXS) }
+        { name = "BOT_MAX_PENDING_TXS", value = tostring(var.BOT_MAX_PENDING_TXS) },
+        { name = "LOG_JSON", value = "1" }
       ]
       logConfiguration = {
         logDriver = "awslogs"

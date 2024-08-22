@@ -284,6 +284,10 @@ resource "aws_ecs_task_definition" "aztec-proving-agent" {
       {
         "name": "NETWORK_NAME",
         "value": "${var.DEPLOY_TAG}"
+      },
+      { 
+        "name": "LOG_JSON", 
+        "value": "1" 
       }
     ],
     "logConfiguration": {
