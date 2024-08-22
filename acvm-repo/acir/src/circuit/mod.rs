@@ -157,10 +157,16 @@ pub enum OpcodeLocation {
     // Resolved locations are generally specified when returning an error during execution.
     // The acir index is not actually needed to determine a Brillig location
     // as it can be resolved separately.
+    //
+    // We can not get rid of the acir index entirely just yet as this format is still
+    // used for resolving assert messages.
     Brillig { acir_index: Option<usize>, brillig_index: usize },
 }
 
 impl OpcodeLocation {
+    // Utility method to allow easily comparing a resolved Brillig location and unresolved Brillig location.
+    // This method is useful when fetching Brillig debug locations as this does not need an ACIR index,
+    // and just need the Brillig index.
     pub fn reset_acir_index(self) -> Self {
         match self {
             OpcodeLocation::Brillig { brillig_index, .. } => {
