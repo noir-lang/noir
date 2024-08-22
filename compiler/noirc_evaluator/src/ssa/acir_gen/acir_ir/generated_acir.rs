@@ -27,7 +27,7 @@ use num_bigint::BigUint;
 /// This index should be used when adding a Brillig call during code generation.
 /// Code generation should then keep track of that unresolved call opcode which will be resolved with the
 /// correct function index after code generation.
-pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(u32::MAX);
+pub(crate) const PLACEHOLDER_BRILLIG_INDEX: BrilligFunctionId = BrilligFunctionId(0);
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass, which should only be produced for entry point Acir functions
@@ -622,8 +622,6 @@ impl<F: AcirField> GeneratedAcir<F> {
             OpcodeLocation::Acir(index) => index,
             _ => panic!("should not have brillig index"),
         };
-
-        // self.brillig_locations.insert(brillig_function_index, Default::default());
 
         match &mut self.opcodes[acir_index] {
             AcirOpcode::BrilligCall { id, .. } => *id = brillig_function_index,

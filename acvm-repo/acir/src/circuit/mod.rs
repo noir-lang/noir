@@ -153,8 +153,11 @@ pub struct ResolvedOpcodeLocation {
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
     Acir(usize),
+    // A Brillig opcode location can have either a resolved or unresolved acir location.
+    // Resolved locations are generally specified when returning an error during execution.
+    // The acir index is not actually needed to determine a Brillig location
+    // as it can be resolved separately.
     Brillig { acir_index: Option<usize>, brillig_index: usize },
-    // BrilligUnresolved { brillig_index: usize },
 }
 
 impl OpcodeLocation {

@@ -46,8 +46,7 @@ impl AcirTransformationMap {
                 } else {
                     panic!("ICE: Should only be transforming ACIR locations")
                 }
-            } // _ => panic!("ICE: Should only be transforming ACIR locations"),
-              // _ => return
+            }
         };
 
         self.old_indices_to_new_indices.get(&old_acir_index).into_iter().flat_map(
