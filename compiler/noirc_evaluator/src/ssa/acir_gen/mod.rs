@@ -29,7 +29,7 @@ use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
-use acvm::acir::circuit::opcodes::BlockType;
+use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockType};
 use noirc_frontend::monomorphization::ast::InlineType;
 
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
@@ -235,7 +235,7 @@ impl Debug for AcirDynamicArray {
 #[derive(Debug, Clone)]
 pub(crate) enum AcirValue {
     Var(AcirVar, AcirType),
-    Array(im::Vector<AcirValue>),
+    Array(Vector<AcirValue>),
     DynamicArray(AcirDynamicArray),
 }
 
@@ -282,6 +282,7 @@ impl AcirValue {
 pub(crate) type Artifacts = (
     Vec<GeneratedAcir<FieldElement>>,
     Vec<BrilligBytecode<FieldElement>>,
+    Vec<String>,
     BTreeMap<ErrorSelector, ErrorType>,
 );
 
@@ -334,11 +335,13 @@ impl Ssa {
             }
         }
 
-        let brillig = vecmap(shared_context.generated_brillig, |brillig| BrilligBytecode {
-            bytecode: brillig.byte_code,
-        });
+        let (brillig_bytecode, brillig_names) = shared_context
+            .generated_brillig
+            .into_iter()
+            .map(|brillig| (BrilligBytecode { bytecode: brillig.byte_code }, brillig.name))
+            .unzip();
 
-        Ok((acirs, brillig, self.error_selector_to_type))
+        Ok((acirs, brillig_bytecode, brillig_names, self.error_selector_to_type))
     }
 }
 
@@ -772,7 +775,7 @@ impl<'a> Context<'a> {
                                     .get(id)
                                     .expect("ICE: should have an associated final index");
                                 let output_vars = self.acir_context.call_acir_function(
-                                    *acir_function_id,
+                                    AcirFunctionId(*acir_function_id),
                                     inputs,
                                     output_count,
                                     self.current_side_effects_enabled_var,
@@ -953,11 +956,13 @@ impl<'a> Context<'a> {
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             arguments,
             BrilligFunctionContext::return_values(func),
-            BrilligFunctionContext::function_id_to_function_label(func.id()),
+            func.id(),
         );
+        entry_point.name = func.name().to_string();
+
         // Link the entry point with all dependencies
         while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-            let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone());
+            let artifact = &brillig.find_by_label(unresolved_fn_label);
             let artifact = match artifact {
                 Some(artifact) => artifact,
                 None => {
@@ -1645,7 +1650,7 @@ impl<'a> Context<'a> {
             let read = self.acir_context.read_from_memory(source, &index_var)?;
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
         })?;
-        let array: im::Vector<AcirValue> = init_values.into();
+        let array: Vector<AcirValue> = init_values.into();
         self.initialize_array(destination, array_len, Some(AcirValue::Array(array)))?;
         Ok(())
     }
@@ -2862,9 +2867,13 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 
 #[cfg(test)]
 mod test {
+
     use acvm::{
         acir::{
-            circuit::{brillig::BrilligFunctionId, ExpressionWidth, Opcode, OpcodeLocation},
+            circuit::{
+                brillig::BrilligFunctionId, opcodes::AcirFunctionId, ExpressionWidth, Opcode,
+                OpcodeLocation,
+            },
             native_types::Witness,
         },
         FieldElement,
@@ -2966,7 +2975,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _, _) = ssa
+        let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
@@ -3015,8 +3024,18 @@ mod test {
         let main_opcodes = main_acir.opcodes();
         assert_eq!(main_opcodes.len(), 3, "Should have two calls to `foo`");
 
-        check_call_opcode(&main_opcodes[0], 1, vec![Witness(0), Witness(1)], vec![Witness(2)]);
-        check_call_opcode(&main_opcodes[1], 1, vec![Witness(0), Witness(1)], vec![Witness(3)]);
+        check_call_opcode(
+            &main_opcodes[0],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(2)],
+        );
+        check_call_opcode(
+            &main_opcodes[1],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(3)],
+        );
 
         if let Opcode::AssertZero(expr) = &main_opcodes[2] {
             assert_eq!(expr.linear_combinations[0].0, FieldElement::from(1u128));
@@ -3061,7 +3080,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _, _) = ssa
+        let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
@@ -3071,9 +3090,19 @@ mod test {
         let main_opcodes = main_acir.opcodes();
         assert_eq!(main_opcodes.len(), 3, "Should have two calls to `foo` and an assert");
 
-        check_call_opcode(&main_opcodes[0], 1, vec![Witness(0), Witness(1)], vec![Witness(2)]);
+        check_call_opcode(
+            &main_opcodes[0],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(2)],
+        );
         // The output of the first call should be the input of the second call
-        check_call_opcode(&main_opcodes[1], 1, vec![Witness(2), Witness(1)], vec![Witness(3)]);
+        check_call_opcode(
+            &main_opcodes[1],
+            AcirFunctionId(1),
+            vec![Witness(2), Witness(1)],
+            vec![Witness(3)],
+        );
     }
 
     fn basic_nested_call(inline_type: InlineType) {
@@ -3151,7 +3180,7 @@ mod test {
 
         let ssa = builder.finish();
 
-        let (acir_functions, _, _) = ssa
+        let (acir_functions, _, _, _) = ssa
             .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3162,9 +3191,19 @@ mod test {
         assert_eq!(main_opcodes.len(), 3, "Should have two calls to `foo` and an assert");
 
         // Both of these should call func_with_nested_foo_call f1
-        check_call_opcode(&main_opcodes[0], 1, vec![Witness(0), Witness(1)], vec![Witness(2)]);
+        check_call_opcode(
+            &main_opcodes[0],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(2)],
+        );
         // The output of the first call should be the input of the second call
-        check_call_opcode(&main_opcodes[1], 1, vec![Witness(0), Witness(1)], vec![Witness(3)]);
+        check_call_opcode(
+            &main_opcodes[1],
+            AcirFunctionId(1),
+            vec![Witness(0), Witness(1)],
+            vec![Witness(3)],
+        );
 
         let func_with_nested_call_acir = &acir_functions[1];
         let func_with_nested_call_opcodes = func_with_nested_call_acir.opcodes();
@@ -3177,7 +3216,7 @@ mod test {
         // Should call foo f2
         check_call_opcode(
             &func_with_nested_call_opcodes[1],
-            2,
+            AcirFunctionId(2),
             vec![Witness(3), Witness(1)],
             vec![Witness(4)],
         );
@@ -3185,7 +3224,7 @@ mod test {
 
     fn check_call_opcode(
         opcode: &Opcode<FieldElement>,
-        expected_id: u32,
+        expected_id: AcirFunctionId,
         expected_inputs: Vec<Witness>,
         expected_outputs: Vec<Witness>,
     ) {
@@ -3265,7 +3304,7 @@ mod test {
         let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
 
-        let (acir_functions, brillig_functions, _) = ssa
+        let (acir_functions, brillig_functions, _, _) = ssa
             .into_acir(&brillig, ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3329,7 +3368,7 @@ mod test {
 
         // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
         // Brillig artifacts to the ACIR gen pass.
-        let (acir_functions, brillig_functions, _) = ssa
+        let (acir_functions, brillig_functions, _, _) = ssa
             .into_acir(&Brillig::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3403,7 +3442,7 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions, _) = ssa
+        let (acir_functions, brillig_functions, _, _) = ssa
             .into_acir(&brillig, ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
@@ -3491,7 +3530,7 @@ mod test {
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
 
-        let (acir_functions, brillig_functions, _) = ssa
+        let (acir_functions, brillig_functions, _, _) = ssa
             .into_acir(&brillig, ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 

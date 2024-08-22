@@ -5,10 +5,11 @@ use crate::brillig::brillig_ir::BrilligBinaryOp;
 use super::{
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
+    registers::RegisterAllocator,
     BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
-impl<F: AcirField + DebugToString> BrilligContext<F> {
+impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Allocates an array of size `size` and stores the pointer to the array
     /// in `pointer_register`
     pub(crate) fn codegen_allocate_fixed_length_array(
@@ -156,9 +157,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         }
     }
 
-    /// Copies the values of an array pointed by source with length stored in `num_elements_register`
-    /// Into the array pointed by destination
-    pub(crate) fn codegen_copy_array(
+    /// Copies the values of memory pointed by source with length stored in `num_elements_register`
+    /// After the address pointed by destination
+    pub(crate) fn codegen_mem_copy(
         &mut self,
         source_pointer: MemoryAddress,
         destination_pointer: MemoryAddress,
@@ -166,14 +167,22 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
     ) {
         assert!(num_elements_variable.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
 
-        let value_register = self.allocate_register();
+        if self.can_call_procedures {
+            self.call_mem_copy_procedure(
+                source_pointer,
+                destination_pointer,
+                num_elements_variable.address,
+            );
+        } else {
+            let value_register = self.allocate_register();
 
-        self.codegen_loop(num_elements_variable.address, |ctx, iterator| {
-            ctx.codegen_array_get(source_pointer, iterator, value_register);
-            ctx.codegen_array_set(destination_pointer, iterator, value_register);
-        });
+            self.codegen_loop(num_elements_variable.address, |ctx, iterator| {
+                ctx.codegen_array_get(source_pointer, iterator, value_register);
+                ctx.codegen_array_set(destination_pointer, iterator, value_register);
+            });
 
-        self.deallocate_register(value_register);
+            self.deallocate_register(value_register);
+        }
     }
 
     /// Loads a variable stored previously
@@ -254,10 +263,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         }
     }
 
-    /// This instruction will reverse the order of the elements in a vector.
-    pub(crate) fn codegen_reverse_vector_in_place(&mut self, vector: BrilligVector) {
+    /// This instruction will reverse the order of the `size` elements pointed by `pointer`.
+    pub(crate) fn codegen_array_reverse(&mut self, pointer: MemoryAddress, size: MemoryAddress) {
+        if self.can_call_procedures {
+            self.call_array_reverse_procedure(pointer, size);
+            return;
+        }
         let iteration_count = self.allocate_register();
-        self.codegen_usize_op(vector.size, iteration_count, BrilligBinaryOp::UnsignedDiv, 2);
+        self.codegen_usize_op(size, iteration_count, BrilligBinaryOp::UnsignedDiv, 2);
 
         let start_value_register = self.allocate_register();
         let index_at_end_of_array = self.allocate_register();
@@ -265,10 +278,10 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
 
         self.codegen_loop(iteration_count, |ctx, iterator_register| {
             // Load both values
-            ctx.codegen_array_get(vector.pointer, iterator_register, start_value_register);
+            ctx.codegen_array_get(pointer, iterator_register, start_value_register);
 
             // The index at the end of array is size - 1 - iterator
-            ctx.mov_instruction(index_at_end_of_array, vector.size);
+            ctx.mov_instruction(index_at_end_of_array, size);
             ctx.codegen_usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, 1);
             ctx.memory_op_instruction(
                 index_at_end_of_array,
@@ -278,15 +291,15 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
             );
 
             ctx.codegen_array_get(
-                vector.pointer,
+                pointer,
                 SingleAddrVariable::new_usize(index_at_end_of_array),
                 end_value_register,
             );
 
             // Write both values
-            ctx.codegen_array_set(vector.pointer, iterator_register, end_value_register);
+            ctx.codegen_array_set(pointer, iterator_register, end_value_register);
             ctx.codegen_array_set(
-                vector.pointer,
+                pointer,
                 SingleAddrVariable::new_usize(index_at_end_of_array),
                 start_value_register,
             );

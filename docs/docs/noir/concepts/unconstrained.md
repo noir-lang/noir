@@ -62,11 +62,13 @@ Those are some nice savings already but we can do better. This code is all const
 
 It turns out that truncating a u72 into a u8 is hard to do inside a snark, each time we do as u8 we lay down 4 ACIR opcodes which get converted into multiple gates. It's actually much easier to calculate num from out than the other way around. All we need to do is multiply each element of out by a constant and add them all together, both relatively easy operations inside a snark.
 
-We can then run u72_to_u8 as unconstrained brillig code in order to calculate out, then use that result in our constrained function and assert that if we were to do the reverse calculation we'd get back num. This looks a little like the below:
+We can then run `u72_to_u8` as unconstrained brillig code in order to calculate out, then use that result in our constrained function and assert that if we were to do the reverse calculation we'd get back num. This looks a little like the below:
 
 ```rust
 fn main(num: u72) -> pub [u8; 8] {
-    let out = u72_to_u8(num);
+    let out = unsafe { 
+        u72_to_u8(num) 
+    };
 
     let mut reconstructed_num: u72 = 0;
     for i in 0..8 {
@@ -91,6 +93,9 @@ Backend circuit size: 2902
 ```
 
 This ends up taking off another ~250 gates from our circuit! We've ended up with more ACIR opcodes than before but they're easier for the backend to prove (resulting in fewer gates).
+
+Note that in order to invoke unconstrained functions we need to wrap them in an `unsafe` block,
+to make it clear that the call is unconstrained.
 
 Generally we want to use brillig whenever there's something that's easy to verify but hard to compute within the circuit. For example, if you wanted to calculate a square root of a number it'll be a much better idea to calculate this in brillig and then assert that if you square the result you get back your number.
 

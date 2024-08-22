@@ -12,7 +12,6 @@ mod sha256;
 mod sha512;
 mod field;
 mod ec;
-mod unsafe;
 mod collections;
 mod compat;
 mod convert;
@@ -28,26 +27,56 @@ mod bigint;
 mod runtime;
 mod meta;
 mod append;
+mod mem;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
 #[oracle(print)]
 unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
 
-unconstrained pub fn print<T>(input: T) {
-    print_oracle(false, input);
+unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+    print_oracle(with_newline, input);
 }
 
-unconstrained pub fn println<T>(input: T) {
-    print_oracle(true, input);
+pub fn println<T>(input: T) {
+    unsafe {
+        print_unconstrained(true, input);
+    }
 }
 
-#[foreign(recursive_aggregation)]
+pub fn print<T>(input: T) {
+    unsafe {
+        print_unconstrained(false, input);
+    }
+}
+
 pub fn verify_proof<let N: u32, let M: u32, let K: u32>(
     verification_key: [Field; N],
     proof: [Field; M],
     public_inputs: [Field; K],
     key_hash: Field
+) {
+    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);
+}
+
+pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
+    verification_key: [Field; N],
+    proof: [Field; M],
+    public_inputs: [Field; K],
+    key_hash: Field,
+    proof_type: u32
+) {
+    crate::assert_constant(proof_type);
+    verify_proof_internal(verification_key, proof, public_inputs, key_hash, proof_type);
+}
+
+#[foreign(recursive_aggregation)]
+fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
+    verification_key: [Field; N],
+    proof: [Field; M],
+    public_inputs: [Field; K],
+    key_hash: Field,
+    proof_type: u32
 ) {}
 
 // Asserts that the given value is known at compile-time.

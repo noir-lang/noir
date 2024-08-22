@@ -19,6 +19,7 @@ use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
+use crate::macros_api::ModuleDefId;
 use crate::macros_api::UnaryOp;
 use crate::QuotedType;
 
@@ -230,6 +231,11 @@ pub struct NodeInterner {
     // The module where each reference is
     // (ReferenceId::Reference and ReferenceId::Local aren't included here)
     pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
+
+    // All names (and their definitions) that can be offered for auto_import.
+    // These include top-level functions, global variables and types, but excludes
+    // impl and trait-impl methods.
+    pub(crate) auto_import_names: HashMap<String, Vec<(ModuleDefId, ItemVisibility)>>,
 
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making
@@ -602,6 +608,7 @@ impl Default for NodeInterner {
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),
             reference_modules: HashMap::default(),
+            auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
         }
     }
@@ -910,6 +917,7 @@ impl NodeInterner {
         // This needs to be done after pushing the definition since it will reference the
         // location that was stored
         self.add_definition_location(ReferenceId::Function(id), Some(module));
+
         definition_id
     }
 
@@ -951,12 +959,12 @@ impl NodeInterner {
     /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
     pub fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
-            if let Some(DefinitionKind::Function(func_id)) =
-                self.try_definition(id).map(|def| &def.kind)
-            {
-                Some(*func_id)
-            } else {
-                None
+            match self.try_definition(id).map(|def| &def.kind) {
+                Some(DefinitionKind::Function(func_id)) => Some(*func_id),
+                Some(DefinitionKind::Local(Some(expr_id))) => {
+                    self.lookup_function_from_expr(expr_id)
+                }
+                _ => None,
             }
         } else {
             None
@@ -1204,14 +1212,19 @@ impl NodeInterner {
 
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Type {
         let typ = self.definition_type(def_id);
-        if let Type::Function(args, ret, env) = &typ {
+        if let Type::Function(args, ret, env, unconstrained) = &typ {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref() {
                 if let DefinitionKind::Function(func_id) = def.kind {
                     let f = self.function(&func_id);
                     let func_body = f.as_expr();
                     let ret_type = self.id_type(func_body);
-                    let new_type = Type::Function(args.clone(), Box::new(ret_type), env.clone());
+                    let new_type = Type::Function(
+                        args.clone(),
+                        Box::new(ret_type),
+                        env.clone(),
+                        *unconstrained,
+                    );
                     return new_type;
                 }
             }
@@ -1790,7 +1803,7 @@ impl NodeInterner {
                 let the_trait = self.get_trait(trait_id);
                 self.ordering_type = match &the_trait.methods[0].typ {
                     Type::Forall(_, typ) => match typ.as_ref() {
-                        Type::Function(_, return_type, _) => Some(return_type.as_ref().clone()),
+                        Type::Function(_, return_type, _, _) => Some(return_type.as_ref().clone()),
                         other => unreachable!("Expected function type for `cmp`, found {}", other),
                     },
                     other => unreachable!("Expected Forall type for `cmp`, found {}", other),
@@ -1993,7 +2006,7 @@ impl NodeInterner {
         };
 
         let env = Box::new(Type::Unit);
-        (Type::Function(args, Box::new(ret.clone()), env), ret)
+        (Type::Function(args, Box::new(ret.clone()), env, false), ret)
     }
 
     /// Returns the type of a prefix operator (which is always a function), along with its return type.
@@ -2002,7 +2015,7 @@ impl NodeInterner {
         let args = vec![rhs_type];
         let ret = self.id_type(operator_expr);
         let env = Box::new(Type::Unit);
-        (Type::Function(args, Box::new(ret.clone()), env), ret)
+        (Type::Function(args, Box::new(ret.clone()), env, false), ret)
     }
 
     pub fn is_in_lsp_mode(&self) -> bool {
@@ -2043,7 +2056,7 @@ impl Methods {
         // at most 1 matching method in this list.
         for method in self.iter() {
             match interner.function_meta(&method).typ.instantiate(interner).0 {
-                Type::Function(args, _, _) => {
+                Type::Function(args, _, _, _) => {
                     if let Some(object) = args.first() {
                         let mut bindings = TypeBindings::new();
 
@@ -2094,7 +2107,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::FmtString(_, _) => Some(FmtString),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
-        Type::Function(_, _, _) => Some(Function),
+        Type::Function(_, _, _, _) => Some(Function),
         Type::NamedGeneric(_, _, _) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),

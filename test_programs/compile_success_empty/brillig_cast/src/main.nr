@@ -2,11 +2,13 @@
 // 
 // The features being tested are cast operations on brillig
 fn main() {
-    bool_casts();
-    field_casts();
-    uint_casts();
-    int_casts();
-    mixed_casts();
+    unsafe {
+        bool_casts();
+        field_casts();
+        uint_casts();
+        int_casts();
+        mixed_casts();
+    }
 }
 
 unconstrained fn bool_casts() {

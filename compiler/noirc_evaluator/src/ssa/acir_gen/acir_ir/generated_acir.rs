@@ -311,6 +311,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                 proof: inputs[1].clone(),
                 public_inputs: inputs[2].clone(),
                 key_hash: inputs[3][0],
+                proof_type: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::BigIntAdd => BlackBoxFuncCall::BigIntAdd {
                 lhs: constant_inputs[0].to_u128() as u32,

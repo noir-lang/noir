@@ -2,7 +2,9 @@
 // 
 // The features being tested is sha256 in brillig
 fn main(x: Field, result: [u8; 32]) {
-    assert(result == sha256(x));
+    unsafe {
+        assert(result == sha256(x));
+    }
 }
 
 unconstrained fn sha256(x: Field) -> [u8; 32] {
