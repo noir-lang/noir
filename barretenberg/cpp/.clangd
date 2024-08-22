@@ -65,6 +65,8 @@ Diagnostics:
       - cert-dc21-cpp
       # Noisy. As we don't need to return error types or raw allocations, really unlikely we'd cause problems by ignoring a return type.
       - modernize-use-nodiscard
+      # Misleading; linker error fixed by adding const in declaration
+      - readability-avoid-const-params-in-decls
 
 --- # this divider is necessary
 # Disable some checks for Google Test/Bench

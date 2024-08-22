@@ -1,6 +1,8 @@
 #include "protogalaxy_verifier.hpp"
 #include "barretenberg/plonk_honk_shared/library/grand_product_delta.hpp"
+#include "barretenberg/protogalaxy/prover_verifier_shared.hpp"
 #include "barretenberg/ultra_honk/oink_verifier.hpp"
+
 namespace bb {
 
 template <class VerifierInstances>

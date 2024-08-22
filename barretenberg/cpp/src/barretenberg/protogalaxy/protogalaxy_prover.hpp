@@ -1,7 +1,6 @@
 #pragma once
 #include "barretenberg/common/op_count.hpp"
 #include "barretenberg/common/thread.hpp"
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/polynomials/pow.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
@@ -63,7 +62,8 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
                    (Flavor::MAX_TOTAL_RELATION_LENGTH - 1 + ProverInstances::NUM - 1) * (ProverInstances::NUM - 1) + 1>;
     using ExtendedUnivariates = typename Flavor::template ProverUnivariates<ExtendedUnivariate::LENGTH>;
     using OptimisedExtendedUnivariates =
-        typename Flavor::template OptimisedProverUnivariates<ExtendedUnivariate::LENGTH, ProverInstances::NUM - 1>;
+        typename Flavor::template OptimisedProverUnivariates<ExtendedUnivariate::LENGTH,
+                                                             /* SKIP_COUNT= */ ProverInstances::NUM - 1>;
 
     using TupleOfTuplesOfUnivariates =
         typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariates<ProverInstances::NUM>;
@@ -109,24 +109,6 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      * accumulator was computed correctly.
      */
     BB_PROFILE FoldingResult<Flavor> prove();
-
-    /**
-     * @brief For a new round challenge δ at each iteration of the ProtoGalaxy protocol, compute the vector
-     * [δ, δ^2,..., δ^t] where t = logn and n is the size of the instance.
-     */
-    static std::vector<FF> compute_round_challenge_pows(const size_t log_instance_size, const FF& round_challenge)
-    {
-        std::vector<FF> pows(log_instance_size);
-        pows[0] = round_challenge;
-        for (size_t i = 1; i < log_instance_size; i++) {
-            pows[i] = pows[i - 1].sqr();
-        }
-        return pows;
-    }
-
-    static std::vector<FF> update_gate_challenges(FF perturbator_challenge,
-                                                  const std::vector<FF>& gate_challenges,
-                                                  const std::vector<FF>& round_challenges);
 
     // Returns the accumulator, which is the first element in ProverInstances. The accumulator is assumed to have the
     // FoldingParameters set and be the result of a previous round of folding.
@@ -210,12 +192,22 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     /**
      * @brief Add the value of each relation over univariates to an appropriate accumulator
      *
+     * @tparam TupleOfTuplesOfUnivariates_ A tuple of univariate accumulators, where the univariates may be optimized to
+     * avoid computation on some indices.
+     * @tparam ExtendedUnivariates_ T
      * @tparam Parameters relation parameters type
      * @tparam relation_idx The index of the relation
+     * @param univariate_accumulators
+     * @param extended_univariates
+     * @param relation_parameters
+     * @param scaling_factor
      */
-    template <typename Parameters, size_t relation_idx = 0>
-    void accumulate_relation_univariates(TupleOfTuplesOfUnivariates& univariate_accumulators,
-                                         const ExtendedUnivariates& extended_univariates,
+    template <typename TupleOfTuplesOfUnivariates_,
+              typename ExtendedUnivariates_,
+              typename Parameters,
+              size_t relation_idx = 0>
+    void accumulate_relation_univariates(TupleOfTuplesOfUnivariates_& univariate_accumulators,
+                                         const ExtendedUnivariates_& extended_univariates,
                                          const Parameters& relation_parameters,
                                          const FF& scaling_factor)
     {
@@ -240,125 +232,26 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
 
         // Repeat for the next relation.
         if constexpr (relation_idx + 1 < Flavor::NUM_RELATIONS) {
-            accumulate_relation_univariates<
-
-                Parameters,
-                relation_idx + 1>(univariate_accumulators, extended_univariates, relation_parameters, scaling_factor);
+            accumulate_relation_univariates<TupleOfTuplesOfUnivariates_,
+                                            ExtendedUnivariates_,
+                                            Parameters,
+                                            relation_idx + 1>(
+                univariate_accumulators, extended_univariates, relation_parameters, scaling_factor);
         }
     }
 
-    /**
-     * @brief Add the value of each relation over univariates to an appropriate accumulator with index skipping
-     * optimisation
-     *
-     * @tparam Parameters relation parameters type
-     * @tparam relation_idx The index of the relation
-     */
-    template <typename Parameters, size_t relation_idx = 0>
-    void accumulate_relation_univariates(OptimisedTupleOfTuplesOfUnivariates& univariate_accumulators,
-                                         const OptimisedExtendedUnivariates& extended_univariates,
-                                         const Parameters& relation_parameters,
-                                         const FF& scaling_factor)
-    {
-        using Relation = std::tuple_element_t<relation_idx, Relations>;
-        //  Check if the relation is skippable to speed up accumulation
-        if constexpr (!isSkippable<Relation, decltype(extended_univariates)>) {
-            // If not, accumulate normally
-            Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
-                                 extended_univariates,
-                                 relation_parameters,
-                                 scaling_factor);
-        } else {
-            // If so, only compute the contribution if the relation is active
-            if (!Relation::skip(extended_univariates)) {
-                Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
-                                     extended_univariates,
-                                     relation_parameters,
-                                     scaling_factor);
-            }
-        }
-        // Repeat for the next relation.
-        if constexpr (relation_idx + 1 < Flavor::NUM_RELATIONS) {
-            accumulate_relation_univariates<
-
-                Parameters,
-                relation_idx + 1>(univariate_accumulators, extended_univariates, relation_parameters, scaling_factor);
-        }
-    }
     /**
      * @brief Compute the combiner polynomial $G$ in the Protogalaxy paper
-     *
-     */
-    template <bool OptimisationEnabled, std::enable_if_t<!OptimisationEnabled, bool> = true>
-    ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances, PowPolynomial<FF>& pow_betas)
-    {
-        size_t common_instance_size = instances[0]->proving_key.circuit_size;
-        pow_betas.compute_values(instances[0]->proving_key.log_circuit_size);
-        // Determine number of threads for multithreading.
-        // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
-        // on a specified minimum number of iterations per thread. This eventually leads to the use of a
-        // single thread. For now we use a power of 2 number of threads simply to ensure the round size is evenly
-        // divided.
-        size_t max_num_threads = get_num_cpus_pow2(); // number of available threads (power of 2)
-        size_t min_iterations_per_thread = 1 << 6; // min number of iterations for which we'll spin up a unique thread
-        size_t desired_num_threads = common_instance_size / min_iterations_per_thread;
-        size_t num_threads = std::min(desired_num_threads, max_num_threads); // fewer than max if justified
-        num_threads = num_threads > 0 ? num_threads : 1;                     // ensure num threads is >= 1
-        size_t iterations_per_thread = common_instance_size / num_threads;   // actual iterations per thread
-
-        // Univariates are optimised for usual PG, but we need the unoptimised version for tests (it's a version that
-        // doesn't skip computation), so we need to define types depending on the template instantiation
-        using ThreadAccumulators = TupleOfTuplesOfUnivariates;
-        using ExtendedUnivatiatesType = ExtendedUnivariates;
-
-        // Construct univariate accumulator containers; one per thread
-        std::vector<ThreadAccumulators> thread_univariate_accumulators(num_threads);
-        for (auto& accum : thread_univariate_accumulators) {
-            // just normal relation lengths
-            Utils::zero_univariates(accum);
-        }
-
-        // Construct extended univariates containers; one per thread
-        std::vector<ExtendedUnivatiatesType> extended_univariates;
-        extended_univariates.resize(num_threads);
-
-        // Accumulate the contribution from each sub-relation
-        parallel_for(num_threads, [&](size_t thread_idx) {
-            size_t start = thread_idx * iterations_per_thread;
-            size_t end = (thread_idx + 1) * iterations_per_thread;
-
-            for (size_t idx = start; idx < end; idx++) {
-
-                extend_univariates(extended_univariates[thread_idx], instances, idx);
-
-                FF pow_challenge = pow_betas[idx];
-
-                // Accumulate the i-th row's univariate contribution. Note that the relation parameters passed to
-                // this function have already been folded. Moreover, linear-dependent relations that act over the
-                // entire execution trace rather than on rows, will not be multiplied by the pow challenge.
-
-                accumulate_relation_univariates(
-                    thread_univariate_accumulators[thread_idx],
-                    extended_univariates[thread_idx],
-                    instances.relation_parameters, // these parameters have already been folded
-                    pow_challenge);
-            }
-        });
-        Utils::zero_univariates(univariate_accumulators);
-        // Accumulate the per-thread univariate accumulators into a single set of accumulators
-        for (auto& accumulators : thread_univariate_accumulators) {
-            Utils::add_nested_tuples(univariate_accumulators, accumulators);
-        }
-
-        return batch_over_relations(univariate_accumulators, instances.alphas);
-    }
-    /**
-     * @brief Compute the combiner polynomial $G$ in the Protogalaxy paper using indice skippping optimisation
-     *
+     * @details We have implemented an optimization that (eg in the case where we fold one instance-witness pair at a
+     * time) assumes the value G(1) is 0, which is true in the case where the witness to be folded is valid.
      * @todo (https://github.com/AztecProtocol/barretenberg/issues/968) Make combiner tests better
      *
+     * @tparam skip_zero_computations whether to use the the optimization that skips computing zero.
+     * @param instances
+     * @param pow_betas
+     * @return ExtendedUnivariateWithRandomization
      */
-    template <bool OptimisationEnabled = true, std::enable_if_t<OptimisationEnabled, bool> = true>
+    template <bool skip_zero_computations = true>
     ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances, PowPolynomial<FF>& pow_betas)
     {
         BB_OP_COUNT_TIME();
@@ -378,8 +271,10 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
 
         // Univariates are optimised for usual PG, but we need the unoptimised version for tests (it's a version that
         // doesn't skip computation), so we need to define types depending on the template instantiation
-        using ThreadAccumulators = OptimisedTupleOfTuplesOfUnivariates;
-        using ExtendedUnivatiatesType = OptimisedExtendedUnivariates;
+        using ThreadAccumulators =
+            std::conditional_t<skip_zero_computations, OptimisedTupleOfTuplesOfUnivariates, TupleOfTuplesOfUnivariates>;
+        using ExtendedUnivatiatesType =
+            std::conditional_t<skip_zero_computations, OptimisedExtendedUnivariates, ExtendedUnivariates>;
 
         // Construct univariate accumulator containers; one per thread
         std::vector<ThreadAccumulators> thread_univariate_accumulators(num_threads);
@@ -398,34 +293,51 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
             size_t end = (thread_idx + 1) * iterations_per_thread;
 
             for (size_t idx = start; idx < end; idx++) {
-                // No need to initialise extended_univariates to 0, it's assigned to
-                // Instantiate univariates with skipping to ignore computation in those indices (they are still
-                // available for skipping relations, but all derived univariate will ignore those evaluations)
-                extend_univariates</*skip_count=*/ProverInstances::NUM - 1>(
-                    extended_univariates[thread_idx], instances, idx);
+                // Instantiate univariates, possibly with skipping toto ignore computation in those indices (they are
+                // still available for skipping relations, but all derived univariate will ignore those evaluations)
+                // No need to initialise extended_univariates to 0, as it's assigned to.
+                constexpr size_t skip_count = skip_zero_computations ? ProverInstances::NUM - 1 : 0;
+                extend_univariates<skip_count>(extended_univariates[thread_idx], instances, idx);
 
                 FF pow_challenge = pow_betas[idx];
 
                 // Accumulate the i-th row's univariate contribution. Note that the relation parameters passed to
                 // this function have already been folded. Moreover, linear-dependent relations that act over the
                 // entire execution trace rather than on rows, will not be multiplied by the pow challenge.
-                accumulate_relation_univariates(
-                    thread_univariate_accumulators[thread_idx],
-                    extended_univariates[thread_idx],
-                    instances.optimised_relation_parameters, // these parameters have already been folded
-                    pow_challenge);
+                if constexpr (skip_zero_computations) {
+                    accumulate_relation_univariates(
+                        thread_univariate_accumulators[thread_idx],
+                        extended_univariates[thread_idx],
+                        instances.optimised_relation_parameters, // these parameters have already been folded
+                        pow_challenge);
+                } else {
+                    accumulate_relation_univariates(
+                        thread_univariate_accumulators[thread_idx],
+                        extended_univariates[thread_idx],
+                        instances.relation_parameters, // these parameters have already been folded
+                        pow_challenge);
+                }
             }
         });
-        Utils::zero_univariates(optimised_univariate_accumulators);
-        // Accumulate the per-thread univariate accumulators into a single set of accumulators
-        for (auto& accumulators : thread_univariate_accumulators) {
-            Utils::add_nested_tuples(optimised_univariate_accumulators, accumulators);
-        }
+        const auto batch_univariates = [&](auto& possibly_optimised_univariate_accumulators) {
+            Utils::zero_univariates(possibly_optimised_univariate_accumulators);
+            // Accumulate the per-thread univariate accumulators into a single set of accumulators
+            for (auto& accumulators : thread_univariate_accumulators) {
+                Utils::add_nested_tuples(possibly_optimised_univariate_accumulators, accumulators);
+            }
 
-        // Convert from optimised version to non-optimised
-        deoptimise_univariates(optimised_univariate_accumulators, univariate_accumulators);
-        //  Batch the univariate contributions from each sub-relation to obtain the round univariate
-        return batch_over_relations(univariate_accumulators, instances.alphas);
+            if constexpr (skip_zero_computations) { // Convert from optimised version to non-optimised
+                deoptimise_univariates(possibly_optimised_univariate_accumulators, univariate_accumulators);
+            };
+            //  Batch the univariate contributions from each sub-relation to obtain the round univariate
+            return batch_over_relations(univariate_accumulators, instances.alphas);
+        };
+
+        if constexpr (skip_zero_computations) { // Convert from optimised version to non-optimised
+            return batch_univariates(optimised_univariate_accumulators);
+        } else {
+            return batch_univariates(univariate_accumulators);
+        }
     }
 
     /**
