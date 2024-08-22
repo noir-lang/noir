@@ -30,7 +30,10 @@ template <IsUltraFlavor Flavor> void DeciderProver_<Flavor>::execute_relation_ch
     using Sumcheck = SumcheckProver<Flavor>;
     auto instance_size = accumulator->proving_key.circuit_size;
     auto sumcheck = Sumcheck(instance_size, transcript);
-    sumcheck_output = sumcheck.prove(accumulator);
+    {
+        ZoneScopedN("sumcheck.prove");
+        sumcheck_output = sumcheck.prove(accumulator);
+    }
 }
 
 /**

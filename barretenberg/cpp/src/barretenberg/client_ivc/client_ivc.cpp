@@ -37,7 +37,7 @@ void ClientIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verific
     circuit.add_recursive_proof(stdlib::recursion::init_default_agg_obj_indices<ClientCircuit>(circuit));
 
     // Construct the prover instance for circuit
-    prover_instance = std::make_shared<ProverInstance>(circuit, trace_structure);
+    auto prover_instance = std::make_shared<ProverInstance>(circuit, trace_structure);
 
     // Track the maximum size of each block for all circuits porcessed (for debugging purposes only)
     max_block_size_tracker.update(circuit);
@@ -67,7 +67,7 @@ void ClientIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verific
  */
 ClientIVC::Proof ClientIVC::prove()
 {
-    ZoneScoped;
+    ZoneScopedN("ClientIVC::prove");
     max_block_size_tracker.print(); // print minimum structured sizes for each block
     return { fold_output.proof, decider_prove(), goblin.prove() };
 };
@@ -78,6 +78,7 @@ bool ClientIVC::verify(const Proof& proof,
                        const std::shared_ptr<ClientIVC::ECCVMVerificationKey>& eccvm_vk,
                        const std::shared_ptr<ClientIVC::TranslatorVerificationKey>& translator_vk)
 {
+    ZoneScopedN("ClientIVC::verify");
     // Goblin verification (merge, eccvm, translator)
     GoblinVerifier goblin_verifier{ eccvm_vk, translator_vk };
     bool goblin_verified = goblin_verifier.verify(proof.goblin_proof);
@@ -111,6 +112,7 @@ bool ClientIVC::verify(Proof& proof, const std::vector<std::shared_ptr<VerifierI
  */
 HonkProof ClientIVC::decider_prove() const
 {
+    ZoneScopedN("ClientIVC::decider_prove");
     MegaDeciderProver decider_prover(fold_output.accumulator);
     return decider_prover.construct_proof();
 }

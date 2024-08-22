@@ -56,6 +56,7 @@ template <typename Curve>
 std::shared_ptr<bb::srs::factories::ProverCrs<Curve>> FileCrsFactory<Curve>::get_prover_crs(size_t degree)
 {
     if (degree != degree_ || !prover_crs_) {
+        ZoneScopedN("get_prover_crs");
         prover_crs_ = std::make_shared<FileProverCrs<Curve>>(degree, path_);
         degree_ = degree;
     }

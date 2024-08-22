@@ -37,5 +37,5 @@ TEST_F(MockKernelTest, PinFoldingKernelSizes)
     ivc.accumulate(circuit_2);
     ivc.accumulate(kernel_circuit);
 
-    EXPECT_EQ(ivc.prover_instance->proving_key.log_circuit_size, 17);
+    EXPECT_EQ(ivc.fold_output.accumulator->proving_key.log_circuit_size, 17);
 }

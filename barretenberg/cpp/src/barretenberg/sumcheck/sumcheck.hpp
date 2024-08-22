@@ -222,21 +222,26 @@ template <typename Flavor> class SumcheckProver {
         // compute_univariate also takes into account the zk_sumcheck_data.
         auto round_univariate = round.compute_univariate(
             round_idx, full_polynomials, relation_parameters, pow_univariate, alpha, zk_sumcheck_data);
-        // Place the evaluations of the round univariate into transcript.
-        transcript->send_to_verifier("Sumcheck:univariate_0", round_univariate);
-        FF round_challenge = transcript->template get_challenge<FF>("Sumcheck:u_0");
-        multivariate_challenge.emplace_back(round_challenge);
-        // Prepare sumcheck book-keeping table for the next round
-        partially_evaluate(full_polynomials, multivariate_n, round_challenge);
-        // Prepare ZK Sumcheck data for the next round
-        if constexpr (Flavor::HasZK) {
-            update_zk_sumcheck_data(zk_sumcheck_data, round_challenge, round_idx);
-        };
-        pow_univariate.partially_evaluate(round_challenge);
-        round.round_size = round.round_size >> 1; // TODO(#224)(Cody): Maybe partially_evaluate should do this and
-                                                  // release memory?        // All but final round
-                                                  // We operate on partially_evaluated_polynomials in place.
+        {
+            ZoneScopedN("rest of sumcheck round 1");
+
+            // Place the evaluations of the round univariate into transcript.
+            transcript->send_to_verifier("Sumcheck:univariate_0", round_univariate);
+            FF round_challenge = transcript->template get_challenge<FF>("Sumcheck:u_0");
+            multivariate_challenge.emplace_back(round_challenge);
+            // Prepare sumcheck book-keeping table for the next round
+            partially_evaluate(full_polynomials, multivariate_n, round_challenge);
+            // Prepare ZK Sumcheck data for the next round
+            if constexpr (Flavor::HasZK) {
+                update_zk_sumcheck_data(zk_sumcheck_data, round_challenge, round_idx);
+            };
+            pow_univariate.partially_evaluate(round_challenge);
+            round.round_size = round.round_size >> 1; // TODO(#224)(Cody): Maybe partially_evaluate should do this and
+                                                      // release memory?        // All but final round
+                                                      // We operate on partially_evaluated_polynomials in place.
+        }
         for (size_t round_idx = 1; round_idx < multivariate_d; round_idx++) {
+            ZoneScopedN("sumcheck loop");
             // Write the round univariate to the transcript
             round_univariate = round.compute_univariate(round_idx,
                                                         partially_evaluated_polynomials,

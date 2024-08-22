@@ -43,6 +43,7 @@ template <typename Curve> class FileProverCrs : public ProverCrs<Curve> {
     FileProverCrs(const size_t num_points, std::string const& path)
         : num_points(num_points)
     {
+        ZoneScopedN("FileProverCrs constructor");
         monomials_ = scalar_multiplication::point_table_alloc<typename Curve::AffineElement>(num_points);
 
         srs::IO<Curve>::read_transcript_g1(monomials_.get(), num_points, path);

@@ -38,6 +38,7 @@ class ClientIVCTests : public ::testing::Test {
      */
     static bool prove_and_verify(ClientIVC& ivc)
     {
+        ZoneScopedN("ClientIVC::prove_and_verify");
         auto proof = ivc.prove();
 
         auto verifier_inst = std::make_shared<VerifierInstance>(ivc.instance_vk);
@@ -73,13 +74,33 @@ TEST_F(ClientIVCTests, Basic)
 {
     ClientIVC ivc;
 
-    // Initialize the IVC with an arbitrary circuit
-    Builder circuit_0 = create_mock_circuit(ivc);
-    ivc.accumulate(circuit_0);
+    {
+        // Initialize the IVC with an arbitrary circuit
+        Builder circuit_0 = create_mock_circuit(ivc);
+        ivc.accumulate(circuit_0);
+    }
 
-    // Create another circuit and accumulate
-    Builder circuit_1 = create_mock_circuit(ivc);
-    ivc.accumulate(circuit_1);
+    {
+        // Create another circuit and accumulate
+        Builder circuit_1 = create_mock_circuit(ivc);
+        ivc.accumulate(circuit_1);
+    }
+
+    EXPECT_TRUE(prove_and_verify(ivc));
+};
+
+/**
+ * @brief A simple-as-possible test demonstrating IVC for three mock circuits
+ *
+ */
+TEST_F(ClientIVCTests, BasicThree)
+{
+    ClientIVC ivc;
+
+    for (size_t idx = 0; idx < 3; ++idx) {
+        Builder circuit = create_mock_circuit(ivc);
+        ivc.accumulate(circuit);
+    }
 
     EXPECT_TRUE(prove_and_verify(ivc));
 };

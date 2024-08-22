@@ -68,9 +68,6 @@ class ClientIVC {
     ProverFoldOutput fold_output;
     std::shared_ptr<ProverInstance> prover_accumulator;
     std::shared_ptr<VerifierInstance> verifier_accumulator;
-    // Note: We need to save the last instance that was folded in order to compute its verification key, this will not
-    // be needed in the real IVC as they are provided as inputs
-    std::shared_ptr<ProverInstance> prover_instance;
     std::shared_ptr<VerificationKey> instance_vk;
 
     // A flag indicating whether or not to construct a structured trace in the ProverInstance

@@ -31,43 +31,33 @@ template <class Flavor> class ExecutionTrace_ {
 
         TraceData(Builder& builder, ProvingKey& proving_key)
         {
-            ZoneScopedN("TraceData construction");
+            ZoneScopedN("TraceData constructor");
             if constexpr (IsHonkFlavor<Flavor>) {
-                {
-                    ZoneScopedN("wires initialization");
-                    // Initialize and share the wire and selector polynomials
-                    for (auto [wire, other_wire] : zip_view(wires, proving_key.polynomials.get_wires())) {
-                        wire = other_wire.share();
-                    }
+                // Initialize and share the wire and selector polynomials
+                for (auto [wire, other_wire] : zip_view(wires, proving_key.polynomials.get_wires())) {
+                    wire = other_wire.share();
                 }
-                {
-                    ZoneScopedN("selector initialization");
-                    for (auto [selector, other_selector] :
-                         zip_view(selectors, proving_key.polynomials.get_selectors())) {
-                        selector = other_selector.share();
-                    }
+                for (auto [selector, other_selector] : zip_view(selectors, proving_key.polynomials.get_selectors())) {
+                    selector = other_selector.share();
                 }
                 proving_key.polynomials.set_shifted(); // Ensure shifted wires are set correctly
             } else {
-                {
-                    ZoneScopedN("wires initialization");
-                    // Initialize and share the wire and selector polynomials
-                    for (size_t idx = 0; idx < NUM_WIRES; ++idx) {
-                        wires[idx] = Polynomial(proving_key.circuit_size);
-                        std::string wire_tag = "w_" + std::to_string(idx + 1) + "_lagrange";
-                        proving_key.polynomial_store.put(wire_tag, wires[idx].share());
-                    }
+                // Initialize and share the wire and selector polynomials
+                for (size_t idx = 0; idx < NUM_WIRES; ++idx) {
+                    wires[idx] = Polynomial(proving_key.circuit_size);
+                    std::string wire_tag = "w_" + std::to_string(idx + 1) + "_lagrange";
+                    proving_key.polynomial_store.put(wire_tag, wires[idx].share());
                 }
-                {
-                    ZoneScopedN("selector initialization");
-                    for (size_t idx = 0; idx < NUM_USED_SELECTORS; ++idx) {
-                        selectors[idx] = Polynomial(proving_key.circuit_size);
-                        std::string selector_tag = builder.selector_names[idx] + "_lagrange";
-                        proving_key.polynomial_store.put(selector_tag, selectors[idx].share());
-                    }
+                for (size_t idx = 0; idx < Builder::Arithmetization::NUM_SELECTORS; ++idx) {
+                    selectors[idx] = Polynomial(proving_key.circuit_size);
+                    std::string selector_tag = builder.selector_names[idx] + "_lagrange";
+                    proving_key.polynomial_store.put(selector_tag, selectors[idx].share());
                 }
             }
-            copy_cycles.resize(builder.variables.size());
+            {
+                ZoneScopedN("copy cycle initialization");
+                copy_cycles.resize(builder.variables.size());
+            }
         }
     };
 

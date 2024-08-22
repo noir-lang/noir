@@ -551,6 +551,7 @@ class UltraFlavor {
         PartiallyEvaluatedMultivariates() = default;
         PartiallyEvaluatedMultivariates(const size_t circuit_size)
         {
+            ZoneScopedN("PartiallyEvaluatedMultivariates constructor");
             // Storage is only needed after the first partial evaluation, hence polynomials of
             // size (n / 2)
             for (auto& poly : this->get_all()) {
