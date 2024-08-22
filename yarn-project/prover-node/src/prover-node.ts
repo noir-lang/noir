@@ -67,6 +67,7 @@ export class ProverNode {
     await this.l2BlockSource.stop();
     this.publisher.interrupt();
     this.jobs.forEach(job => job.stop());
+    await this.worldState.stop();
     this.log.info('Stopped ProverNode');
   }
 
