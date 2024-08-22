@@ -3,8 +3,8 @@
 use noirc_frontend::{
     ast::{
         ArrayLiteral, AssignStatement, CastExpression, ConstrainStatement, Expression, ForRange,
-        FunctionReturnType, IndexExpression, InfixExpression, Literal, MethodCallExpression,
-        NoirTrait, NoirTypeAlias, TraitImplItem, UnresolvedType,
+        FunctionReturnType, IndexExpression, InfixExpression, Literal, NoirTrait, NoirTypeAlias,
+        TraitImplItem, UnresolvedType,
     },
     ParsedModule,
 };
@@ -87,14 +87,6 @@ impl<'a> NodeFinder<'a> {
     pub(super) fn find_in_index_expression(&mut self, index_expression: &IndexExpression) {
         self.find_in_expression(&index_expression.collection);
         self.find_in_expression(&index_expression.index);
-    }
-
-    pub(super) fn find_in_method_call_expression(
-        &mut self,
-        method_call_expression: &MethodCallExpression,
-    ) {
-        self.find_in_expression(&method_call_expression.object);
-        self.find_in_expressions(&method_call_expression.arguments);
     }
 
     pub(super) fn find_in_cast_expression(&mut self, cast_expression: &CastExpression) {

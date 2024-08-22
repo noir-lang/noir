@@ -17,9 +17,10 @@ use noirc_frontend::{
     ast::{
         AsTraitPath, BlockExpression, CallExpression, ConstructorExpression, Expression,
         ExpressionKind, ForLoopStatement, Ident, IfExpression, LValue, Lambda, LetStatement,
-        MemberAccessExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind,
-        PathSegment, Pattern, Statement, StatementKind, TraitItem, TypeImpl, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind,
+        MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl,
+        Path, PathKind, PathSegment, Pattern, Statement, StatementKind, TraitItem, TypeImpl,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
+        UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -355,6 +356,34 @@ impl<'a> NodeFinder<'a> {
 
         self.find_in_expression(&call_expression.func);
         self.find_in_expressions(&call_expression.arguments);
+    }
+
+    pub(super) fn find_in_method_call_expression(
+        &mut self,
+        method_call_expression: &MethodCallExpression,
+    ) {
+        // Check if it's this case:
+        //
+        // foo.b>|<(...)
+        //
+        // In this case we want to suggest items in foo but if they are functions
+        // we don't want to insert arguments, because they are already there (even if
+        // they could be wrong) just because inserting them would lead to broken code.
+        if self.includes_span(method_call_expression.method_name.span()) {
+            let location = Location::new(method_call_expression.object.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
+                let prefix = method_call_expression.method_name.to_string();
+                let offset =
+                    self.byte_index - method_call_expression.method_name.span().start() as usize;
+                let prefix = prefix[0..offset].to_string();
+                self.complete_type_fields_and_methods(&typ, &prefix);
+                return;
+            }
+        }
+
+        self.find_in_expression(&method_call_expression.object);
+        self.find_in_expressions(&method_call_expression.arguments);
     }
 
     fn find_in_block_expression(&mut self, block_expression: &BlockExpression) {
