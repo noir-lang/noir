@@ -592,6 +592,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             return;
         }
 
+        // TODO(https://github.com/noir-lang/noir/issues/5792)
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
             self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
