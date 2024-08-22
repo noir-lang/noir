@@ -227,7 +227,7 @@ fn main() {
 
 ### Associated Types and Constants
 
-Traits also support associated types and constaints which can be thought of as additional generics that are referred to by name.
+Traits also support associated types and constraints which can be thought of as additional generics that are referred to by name.
 
 Here's an example of a trait with an associated type `Foo` and a constant `Bar`:
 
