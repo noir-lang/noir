@@ -1674,7 +1674,7 @@ mod completion_tests {
                 Some("fn()".to_string()),
             )],
         )
-        .await
+        .await;
     }
 
     #[test]
@@ -1696,7 +1696,7 @@ mod completion_tests {
                 Some("fn()".to_string()),
             )],
         )
-        .await
+        .await;
     }
 
     #[test]
@@ -1718,7 +1718,7 @@ mod completion_tests {
                 Some("fn()".to_string()),
             )],
         )
-        .await
+        .await;
     }
 
     #[test]
@@ -1740,7 +1740,7 @@ mod completion_tests {
                 Some("fn()".to_string()),
             )],
         )
-        .await
+        .await;
     }
 
     #[test]
@@ -1764,7 +1764,7 @@ mod completion_tests {
                 Some("fn(self)".to_string()),
             )],
         )
-        .await
+        .await;
     }
 
     #[test]
@@ -1788,6 +1788,6 @@ mod completion_tests {
                 Some("fn(self)".to_string()),
             )],
         )
-        .await
+        .await;
     }
 }
