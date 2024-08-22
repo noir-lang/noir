@@ -594,7 +594,6 @@ impl<F: AcirField> GeneratedAcir<F> {
             self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
                     acir_index: Some(self.opcodes.len() - 1),
-                    // acir_index: None,
                     brillig_index: *brillig_index,
                 },
                 AssertionPayload::StaticString(message.clone()),
@@ -608,17 +607,12 @@ impl<F: AcirField> GeneratedAcir<F> {
         for (brillig_index, call_stack) in generated_brillig.locations.iter() {
             self.brillig_locations.entry(brillig_function_index).or_default().insert(
                 OpcodeLocation::Brillig {
-                    // acir_index: self.opcodes.len() - 1,
                     acir_index: None,
                     brillig_index: *brillig_index,
                 },
                 call_stack.clone(),
             );
         }
-
-        // if generated_brillig.locations.is_empty() {
-        //     self.brillig_locations.insert(brillig_function_index, Default::default());
-        // }
     }
 
     // We can only resolve the Brillig stdlib after having processed the entire ACIR
@@ -632,7 +626,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             _ => panic!("should not have brillig index"),
         };
 
-        self.brillig_locations.insert(brillig_function_index, Default::default());
+        // self.brillig_locations.insert(brillig_function_index, Default::default());
 
         match &mut self.opcodes[acir_index] {
             AcirOpcode::BrilligCall { id, .. } => *id = brillig_function_index,
