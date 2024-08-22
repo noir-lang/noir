@@ -2,10 +2,9 @@
 /// traversing the AST without any additional logic.
 use noirc_frontend::{
     ast::{
-        ArrayLiteral, AssignStatement, CallExpression, CastExpression, ConstrainStatement,
-        Expression, ForRange, FunctionReturnType, GenericTypeArgs, IndexExpression,
-        InfixExpression, Literal, MethodCallExpression, NoirTrait, NoirTypeAlias, TraitImplItem,
-        UnresolvedType,
+        ArrayLiteral, AssignStatement, CastExpression, ConstrainStatement, Expression, ForRange,
+        FunctionReturnType, GenericTypeArgs, IndexExpression, InfixExpression, Literal, NoirTrait,
+        NoirTypeAlias, TraitImplItem, UnresolvedType,
     },
     ParsedModule,
 };
@@ -88,19 +87,6 @@ impl<'a> NodeFinder<'a> {
     pub(super) fn find_in_index_expression(&mut self, index_expression: &IndexExpression) {
         self.find_in_expression(&index_expression.collection);
         self.find_in_expression(&index_expression.index);
-    }
-
-    pub(super) fn find_in_call_expression(&mut self, call_expression: &CallExpression) {
-        self.find_in_expression(&call_expression.func);
-        self.find_in_expressions(&call_expression.arguments);
-    }
-
-    pub(super) fn find_in_method_call_expression(
-        &mut self,
-        method_call_expression: &MethodCallExpression,
-    ) {
-        self.find_in_expression(&method_call_expression.object);
-        self.find_in_expressions(&method_call_expression.arguments);
     }
 
     pub(super) fn find_in_cast_expression(&mut self, cast_expression: &CastExpression) {
