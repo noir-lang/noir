@@ -9,7 +9,6 @@ import {
   SignerlessWallet,
   computeSecretHash,
   createDebugLogger,
-  retryUntil,
   sleep,
 } from '@aztec/aztec.js';
 import { StatefulTestContract, TestContract } from '@aztec/noir-contracts.js';
@@ -22,6 +21,7 @@ import {
   addAccounts,
   createSnapshotManager,
 } from './fixtures/snapshot_manager.js';
+import { waitForProvenChain } from './fixtures/utils.js';
 
 // Tests simple block building with a sequencer that does not upload proofs to L1,
 // and then follows with a prover node run (with real proofs disabled, but
@@ -85,6 +85,9 @@ describe('e2e_prover_node', () => {
   });
 
   it('submits three blocks, then prover proves the first two', async () => {
+    // wait for the proven chain to catch up with the pending chain before we shut off the prover node
+    await waitForProvenChain(ctx.aztecNode);
+
     // Stop the current prover node
     await ctx.proverNode.stop();
 
@@ -130,7 +133,7 @@ describe('e2e_prover_node', () => {
     await expect(proverNode.startProof(firstBlock, firstBlock)).rejects.toThrow(/behind the current world state/i);
 
     // Await until proofs get submitted
-    await retryUntil(async () => (await ctx.aztecNode.getProvenBlockNumber()) === secondBlock, 'proven', 60, 1);
+    await waitForProvenChain(ctx.aztecNode, secondBlock);
     expect(await ctx.aztecNode.getProvenBlockNumber()).toEqual(secondBlock);
 
     // Check that the prover id made it to the emitted event

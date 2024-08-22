@@ -38,7 +38,7 @@ import {
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
 import { bufferAsFields } from '@aztec/foundation/abi';
-import { makeBackoff, retry } from '@aztec/foundation/retry';
+import { makeBackoff, retry, retryUntil } from '@aztec/foundation/retry';
 import {
   AvailabilityOracleAbi,
   AvailabilityOracleBytecode,
@@ -742,4 +742,15 @@ export async function deployCanonicalAuthRegistry(deployer: Wallet) {
   expect(getContractClassFromArtifact(authRegistry.artifact).id).toEqual(authRegistry.instance.contractClassId);
   await expect(deployer.isContractClassPubliclyRegistered(canonicalAuthRegistry.contractClass.id)).resolves.toBe(true);
   await expect(deployer.getContractInstance(canonicalAuthRegistry.instance.address)).resolves.toBeDefined();
+}
+
+export async function waitForProvenChain(node: AztecNode, targetBlock?: number, timeoutSec = 60, intervalSec = 1) {
+  targetBlock ??= await node.getBlockNumber();
+
+  await retryUntil(
+    async () => (await node.getProvenBlockNumber()) >= targetBlock,
+    'proven chain status',
+    timeoutSec,
+    intervalSec,
+  );
 }
