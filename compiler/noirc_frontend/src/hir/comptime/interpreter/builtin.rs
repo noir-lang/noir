@@ -73,6 +73,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
             "expr_as_unsafe" => expr_as_unsafe(arguments, return_type, location),
             "expr_has_semicolon" => expr_has_semicolon(arguments, location),
+            "expr_is_break" => expr_is_break(arguments, location),
+            "expr_is_continue" => expr_is_continue(arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -1133,6 +1135,20 @@ fn expr_has_semicolon(arguments: Vec<(Value, Location)>, location: Location) -> 
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(self_argument)?;
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
+}
+
+// fn is_break(self) -> bool
+fn expr_is_break(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(self_argument)?;
+    Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Break))))
+}
+
+// fn is_continue(self) -> bool
+fn expr_is_continue(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(self_argument)?;
+    Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Continue))))
 }
 
 // Helper function for implementing the `expr_as_...` functions.

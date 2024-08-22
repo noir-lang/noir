@@ -53,6 +53,12 @@ impl Expr {
 
     #[builtin(expr_has_semicolon)]
     fn has_semicolon(self) -> bool {}
+
+    #[builtin(expr_is_break)]
+    fn is_break(self) -> bool {}
+
+    #[builtin(expr_is_continue)]
+    fn is_continue(self) -> bool {}
 }
 
 mod tests {
@@ -264,6 +270,26 @@ mod tests {
             let expr = quote { unsafe { 1; 4; 23 } }.as_expr().unwrap();
             let exprs = expr.as_unsafe().unwrap();
             assert_eq(exprs.len(), 3);
+        }
+    }
+
+    #[test]
+    fn test_expr_is_break() {
+        comptime
+        {
+            let expr = quote { { break; } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            assert(exprs[0].is_break());
+        }
+    }
+
+    #[test]
+    fn test_expr_is_continue() {
+        comptime
+        {
+            let expr = quote { { continue; } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            assert(exprs[0].is_continue());
         }
     }
 
