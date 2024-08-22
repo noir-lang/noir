@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.50.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.49.2...barretenberg-v0.50.0) (2024-08-22)
+
+
+### Features
+
+* Add a prover-node to the proving e2e tests ([#7952](https://github.com/AztecProtocol/aztec-packages/issues/7952)) ([ec5a5fb](https://github.com/AztecProtocol/aztec-packages/commit/ec5a5fb8fd9c344bcb0d33a4e9f07300d3317bf2))
+* Automate verify_honk_proof input generation ([#8092](https://github.com/AztecProtocol/aztec-packages/issues/8092)) ([bf38d61](https://github.com/AztecProtocol/aztec-packages/commit/bf38d61364a0fb55ae79ef09b05df2533f3a6f17))
+* **avm:** Enable zeromorph in AVM verification ([#8111](https://github.com/AztecProtocol/aztec-packages/issues/8111)) ([b1f9fb6](https://github.com/AztecProtocol/aztec-packages/commit/b1f9fb6a4986fdfa10207ec89f8b23e14d466073)), closes [#4944](https://github.com/AztecProtocol/aztec-packages/issues/4944)
+* Native Merkle Trees ([#7037](https://github.com/AztecProtocol/aztec-packages/issues/7037)) ([8a1032e](https://github.com/AztecProtocol/aztec-packages/commit/8a1032ec4738e9b592b45500c1cf47c0e1820ad3))
+* Oink recursive verifier ([#8121](https://github.com/AztecProtocol/aztec-packages/issues/8121)) ([580708a](https://github.com/AztecProtocol/aztec-packages/commit/580708a1f7c18338888d83e749a0740a322c86e0))
+* Passes copy_cycles by const reference to avoid copying ([#8051](https://github.com/AztecProtocol/aztec-packages/issues/8051)) ([495d363](https://github.com/AztecProtocol/aztec-packages/commit/495d363fdf0b89dfeb228c200824fc5f9af7bb19))
+* PG recursive verifier constructors based on stdlib inputs ([#8052](https://github.com/AztecProtocol/aztec-packages/issues/8052)) ([4c568b0](https://github.com/AztecProtocol/aztec-packages/commit/4c568b0545b022a536a6eb4199be817593e6b317))
+* Poseidon2 gates for Ultra arithmetisation ([#7494](https://github.com/AztecProtocol/aztec-packages/issues/7494)) ([d86577c](https://github.com/AztecProtocol/aztec-packages/commit/d86577c2e36c5a077a859058602f455421ed93e1))
+* Some fixes and cleanup in PG recursive verifier ([#8053](https://github.com/AztecProtocol/aztec-packages/issues/8053)) ([5f2a9bd](https://github.com/AztecProtocol/aztec-packages/commit/5f2a9bd3d968be491a12c63f812aa8d7e3bb585e))
+* Unify all acir recursion constraints based on RecursionConstraint and proof_type ([#7993](https://github.com/AztecProtocol/aztec-packages/issues/7993)) ([7cb39bc](https://github.com/AztecProtocol/aztec-packages/commit/7cb39bceddcb9ec4142b86087a7af58d547ddfaa))
+* Zk sumcheck ([#7517](https://github.com/AztecProtocol/aztec-packages/issues/7517)) ([0e9a530](https://github.com/AztecProtocol/aztec-packages/commit/0e9a530cfd83f375f6b3a1bb9fb67cf562847f9b))
+
+
+### Bug Fixes
+
+* **avm:** Real bytes finalization ([#8041](https://github.com/AztecProtocol/aztec-packages/issues/8041)) ([047461a](https://github.com/AztecProtocol/aztec-packages/commit/047461ae6bc5d6a7a4d05bba18cce0682ee75705))
+* **ci:** Correctly run bb tests with asserts ([#7607](https://github.com/AztecProtocol/aztec-packages/issues/7607)) ([7b73f69](https://github.com/AztecProtocol/aztec-packages/commit/7b73f69126b8ae70aa7ade96e775cabce581358f))
+
+
+### Miscellaneous
+
+* **avm:** Kernel trace and finalization ([#8049](https://github.com/AztecProtocol/aztec-packages/issues/8049)) ([d7edd24](https://github.com/AztecProtocol/aztec-packages/commit/d7edd24e76a2ab87ac490c8c97f0c344190f646b))
+* **avm:** Separate alu finalization ([#8069](https://github.com/AztecProtocol/aztec-packages/issues/8069)) ([e8a9eb4](https://github.com/AztecProtocol/aztec-packages/commit/e8a9eb4b809f582c0fa185a2193e0493fc579d98))
+* **bb:** IPA parallelization cleanup ([#8088](https://github.com/AztecProtocol/aztec-packages/issues/8088)) ([9227fa9](https://github.com/AztecProtocol/aztec-packages/commit/9227fa9f25b1ef8342dbf694c5bb9d37a1b0226d))
+* **bb:** Simplify parallel_for_if_effective ([#8079](https://github.com/AztecProtocol/aztec-packages/issues/8079)) ([5bff26b](https://github.com/AztecProtocol/aztec-packages/commit/5bff26b2f9aecb8298225d5abe72740fedd1f4e8))
+* **bb:** Small cleanup in protogalaxy prover ([#8072](https://github.com/AztecProtocol/aztec-packages/issues/8072)) ([4cb5c83](https://github.com/AztecProtocol/aztec-packages/commit/4cb5c83174f55f046d7d37e4e6a4667556ac5907))
+* Deduplication in Protogalaxy ([#8067](https://github.com/AztecProtocol/aztec-packages/issues/8067)) ([a5cc3ba](https://github.com/AztecProtocol/aztec-packages/commit/a5cc3bab86711062d180993cf4a7412d1013aa48))
+* Handle constant output for ec add opcode ([#8108](https://github.com/AztecProtocol/aztec-packages/issues/8108)) ([2ee79d2](https://github.com/AztecProtocol/aztec-packages/commit/2ee79d28affa66ef3c9f73782182b6221e2e9d98))
+* Merge devnet fixes back to master ([#8149](https://github.com/AztecProtocol/aztec-packages/issues/8149)) ([6be2183](https://github.com/AztecProtocol/aztec-packages/commit/6be21831764243ea42ef932aac3b79f20b483a40))
+* Split up stdlib/recursion ([#8054](https://github.com/AztecProtocol/aztec-packages/issues/8054)) ([ec03e40](https://github.com/AztecProtocol/aztec-packages/commit/ec03e403cc8bfa1f40fb05fe93eadf9ed63b9b2f))
+* Use decider verifier in ultra verifier ([#8115](https://github.com/AztecProtocol/aztec-packages/issues/8115)) ([6c5ab2b](https://github.com/AztecProtocol/aztec-packages/commit/6c5ab2b373086cb2842ee848329e282b463b3272))
+
+
+### Documentation
+
+* Update installation info for bb and noir ([#8119](https://github.com/AztecProtocol/aztec-packages/issues/8119)) ([a744321](https://github.com/AztecProtocol/aztec-packages/commit/a7443216dfaa7b2731911e2320b2c1c1a720e8e8))
+
 ## [0.49.2](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.49.1...barretenberg-v0.49.2) (2024-08-15)
 
 

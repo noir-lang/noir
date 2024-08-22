@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.50.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.49.2...barretenberg.js-v0.50.0) (2024-08-22)
+
+
+### Miscellaneous
+
+* Merge devnet fixes back to master ([#8149](https://github.com/AztecProtocol/aztec-packages/issues/8149)) ([6be2183](https://github.com/AztecProtocol/aztec-packages/commit/6be21831764243ea42ef932aac3b79f20b483a40))
+
 ## [0.49.2](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.49.1...barretenberg.js-v0.49.2) (2024-08-15)
 
 
