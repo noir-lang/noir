@@ -120,12 +120,23 @@ if [[ -z "${SKIP_PORT_ASSIGNMENT:-}" ]]; then
   port_assignment="-p $AZTEC_PORT:$AZTEC_PORT"
 fi
 
-if [[ "$ENV_VARS_TO_INJECT" == *"SSH_AUTH_SOCK"* && -n "${SSH_AUTH_SOCK:-}" ]]; then
-  warn "SSH_AUTH_SOCK is set to ${SSH_AUTH_SOCK:-}. Enabling SSH agent forwarding via socat"
-  socat TCP-LISTEN:${SSH_AUTH_SOCK_SOCAT_PORT:-12345},reuseaddr,fork UNIX-CLIENT:$SSH_AUTH_SOCK &
-  SOCAT_PID=$!
-  trap "kill -9 $SOCAT_PID" SIGINT SIGTERM EXIT
-  DOCKER_ENV+=" -e SSH_AUTH_SOCK_SOCAT_PORT=${SSH_AUTH_SOCK_SOCAT_PORT:-12345}"
+ssh_agent_socket_mount=""
+if [[ "${ENV_VARS_TO_INJECT:-}" == *"SSH_AUTH_SOCK"* && -n "${SSH_AUTH_SOCK:-}" ]]; then
+  warn "SSH_AUTH_SOCK is set to ${SSH_AUTH_SOCK:-}. Attempting to enable SSH agent forwarding"
+
+  if [[ "$UNAME" == "Darwin" ]]; then
+    if ! command -v socat &> /dev/null; then
+      warn "Socat is not installed. To make SSH agent forwarding work in MacOS, please run:\n\nbrew install socat\n"
+    else
+      socat TCP-LISTEN:${SSH_AUTH_SOCK_SOCAT_PORT:-12345},reuseaddr,fork UNIX-CLIENT:$SSH_AUTH_SOCK &
+      SOCAT_PID=$!
+      trap "kill -9 $SOCAT_PID" SIGINT SIGTERM EXIT
+      DOCKER_ENV+=" -e SSH_AUTH_SOCK_SOCAT_PORT=${SSH_AUTH_SOCK_SOCAT_PORT:-12345}"
+    fi
+  else
+    DOCKER_ENV+=" -e SSH_AUTH_SOCK=${SSH_AUTH_SOCK}"
+    ssh_agent_socket_mount="-v $SSH_AUTH_SOCK:$SSH_AUTH_SOCK"
+  fi
 fi
 
 docker run \
@@ -134,6 +145,7 @@ docker run \
   --workdir "$PWD" \
   -v $HOME:$HOME -v cache:/cache \
   $port_assignment \
+  $ssh_agent_socket_mount \
   ${DOCKER_ENV:-} \
   ${DOCKER_HOST_BINDS:-} \
   ${DOCKER_USER:-} \
