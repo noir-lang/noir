@@ -145,6 +145,19 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_as_comptime_as_statement() {
+        comptime
+        {
+            let expr = quote { { comptime { 1; 4; 23 } } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            assert_eq(exprs.len(), 1);
+
+            let exprs = exprs[0].as_comptime().unwrap();
+            assert_eq(exprs.len(), 3);
+        }
+    }
+
+    #[test]
     fn test_expr_as_function_call() {
         comptime
         {

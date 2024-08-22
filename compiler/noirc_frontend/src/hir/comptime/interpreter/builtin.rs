@@ -11,14 +11,15 @@ use builtin_helpers::{
     get_trait_impl, get_tuple, get_type, get_u32, hir_pattern_to_tokens, mutate_func_meta_type,
     parse, parse_tokens, replace_func_meta_parameters, replace_func_meta_return_type,
 };
+use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ArrayLiteral, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal,
-        StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        ArrayLiteral, Expression, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize,
+        Literal, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
     hir::comptime::{
         errors::IResult,
@@ -866,6 +867,24 @@ fn expr_as_comptime(
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Comptime(block_expr, _)) = expr {
             Some(block_expression_to_value(block_expr))
+        } else if let ExprValue::Statement(StatementKind::Comptime(statement)) = expr {
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+
+            // comptime { ... } as a statement wraps a block expression,
+            // and in that case we return the block expression statements
+            // (comptime as a statement can also be comptime for, but in that case we'll
+            // return the for statement as a single expression)
+            if let StatementKind::Expression(Expression {
+                kind: ExpressionKind::Block(block_expr),
+                ..
+            }) = statement.kind
+            {
+                Some(block_expression_to_value(block_expr))
+            } else {
+                let mut elements = Vector::new();
+                elements.push_back(Value::statement(statement.kind));
+                Some(Value::Slice(elements, typ))
+            }
         } else {
             None
         }
