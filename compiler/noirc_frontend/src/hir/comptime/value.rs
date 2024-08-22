@@ -10,7 +10,7 @@ use strum_macros::Display;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
-        Statement, StatementKind,
+        Statement, StatementKind, UnresolvedTypeData,
     },
     hir::def_map::ModuleId,
     hir_def::{
@@ -66,6 +66,7 @@ pub enum Value {
     Type(Type),
     Zeroed(Type),
     Expr(ExprValue),
+    UnresolvedType(UnresolvedTypeData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -128,6 +129,7 @@ impl Value {
             Value::Type(_) => Type::Quoted(QuotedType::Type),
             Value::Zeroed(typ) => return Cow::Borrowed(typ),
             Value::Expr(_) => Type::Quoted(QuotedType::Expr),
+            Value::UnresolvedType(_) => Type::Quoted(QuotedType::UnresolvedType),
         })
     }
 
@@ -262,6 +264,7 @@ impl Value {
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
             | Value::Type(_)
+            | Value::UnresolvedType(_)
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
@@ -386,6 +389,7 @@ impl Value {
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
             | Value::Type(_)
+            | Value::UnresolvedType(_)
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
@@ -588,6 +592,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Type(typ) => write!(f, "{}", typ),
             Value::Expr(ExprValue::Expression(expr)) => write!(f, "{}", expr),
             Value::Expr(ExprValue::Statement(statement)) => write!(f, "{}", statement),
+            Value::UnresolvedType(typ) => write!(f, "{}", typ),
         }
     }
 }

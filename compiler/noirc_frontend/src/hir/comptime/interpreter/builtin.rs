@@ -56,6 +56,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
             "expr_as_block" => expr_as_block(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
+            "expr_as_cast" => expr_as_cast(arguments, return_type, location),
             "expr_as_comptime" => expr_as_comptime(arguments, return_type, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
@@ -854,6 +855,23 @@ fn expr_as_bool(
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Literal(Literal::Bool(bool))) = expr {
             Some(Value::Bool(bool))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_cast(self) -> Option<(Expr, UnresolvedType)>
+fn expr_as_cast(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Cast(cast)) = expr {
+            let lhs = Value::expression(cast.lhs.kind);
+            let typ = Value::UnresolvedType(cast.r#type.typ);
+            Some(Value::Tuple(vec![lhs, typ]))
         } else {
             None
         }

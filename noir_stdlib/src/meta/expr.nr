@@ -18,6 +18,9 @@ impl Expr {
     #[builtin(expr_as_bool)]
     fn as_bool(self) -> Option<bool> {}
 
+    #[builtin(expr_as_cast)]
+    fn as_cast(self) -> Option<(Expr, UnresolvedType)> {}
+
     #[builtin(expr_as_comptime)]
     fn as_comptime(self) -> Option<[Expr]> {}
 
@@ -137,6 +140,16 @@ mod tests {
 
             let expr = quote { true }.as_expr().unwrap();
             assert_eq(expr.as_bool().unwrap(), true);
+        }
+    }
+
+    #[test]
+    fn test_expr_as_cast() {
+        comptime
+        {
+            let expr = quote { 1 as Field }.as_expr().unwrap();
+            let (expr, _typ) = expr.as_cast().unwrap();
+            assert_eq(expr.as_integer().unwrap(), (1, false));
         }
     }
 
