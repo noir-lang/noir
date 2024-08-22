@@ -800,7 +800,7 @@ impl<'a> ModCollector<'a> {
                 ModuleAttributes {
                     name: mod_name.0.contents.clone(),
                     location: mod_location,
-                    parent: self.module_id,
+                    parent: Some(self.module_id),
                 },
             );
 

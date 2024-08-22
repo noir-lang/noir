@@ -4,9 +4,13 @@ use acvm::FieldElement;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{ExpressionKind, IntegerBitSize, Signedness},
+    ast::{IntegerBitSize, Signedness},
     hir::{
-        comptime::{errors::IResult, value::add_token_spans, Interpreter, InterpreterError, Value},
+        comptime::{
+            errors::IResult,
+            value::{add_token_spans, ExprValue},
+            Interpreter, InterpreterError, Value,
+        },
         def_map::ModuleId,
         type_check::generics::TraitGenerics,
     },
@@ -138,7 +142,7 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     }
 }
 
-pub(crate) fn get_expr((value, location): (Value, Location)) -> IResult<ExpressionKind> {
+pub(crate) fn get_expr((value, location): (Value, Location)) -> IResult<ExprValue> {
     match value {
         Value::Expr(expr) => Ok(expr),
         value => type_mismatch(value, Type::Quoted(QuotedType::Expr), location),

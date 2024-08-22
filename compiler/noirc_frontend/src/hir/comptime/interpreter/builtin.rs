@@ -18,9 +18,13 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::{
         ArrayLiteral, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal,
-        UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::comptime::{errors::IResult, value::add_token_spans, InterpreterError, Value},
+    hir::comptime::{
+        errors::IResult,
+        value::{add_token_spans, ExprValue},
+        InterpreterError, Value,
+    },
     hir_def::function::FunctionBody,
     macros_api::{ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
@@ -49,6 +53,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_array" => expr_as_array(arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
+            "expr_as_block" => expr_as_block(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
@@ -64,6 +69,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_slice" => expr_as_slice(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
+            "expr_has_semicolon" => expr_has_semicolon(arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -346,7 +352,7 @@ fn quoted_as_expr(
     let argument = check_one_argument(arguments, location)?;
 
     let expr = parse(argument, parser::expression(), "an expression").ok();
-    let value = expr.map(|expr| Value::Expr(expr.kind));
+    let value = expr.map(|expr| Value::expression(expr.kind));
 
     option(return_type, value)
 }
@@ -781,8 +787,11 @@ fn expr_as_array(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(exprs))) = expr {
-            let exprs = exprs.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
+        if let ExprValue::Expression(ExpressionKind::Literal(Literal::Array(
+            ArrayLiteral::Standard(exprs),
+        ))) = expr
+        {
+            let exprs = exprs.into_iter().map(|expr| Value::expression(expr.kind)).collect();
             let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
             Some(Value::Slice(exprs, typ))
         } else {
@@ -798,7 +807,7 @@ fn expr_as_binary_op(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type.clone(), location, |expr| {
-        if let ExpressionKind::Infix(infix_expr) = expr {
+        if let ExprValue::Expression(ExpressionKind::Infix(infix_expr)) = expr {
             let option_type = extract_option_generic_type(return_type);
             let Type::Tuple(mut tuple_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
@@ -815,9 +824,28 @@ fn expr_as_binary_op(
             fields.insert(Rc::new("op".to_string()), Value::Field(binary_op_value.into()));
 
             let unary_op = Value::Struct(fields, binary_op_type);
-            let lhs = Value::Expr(infix_expr.lhs.kind);
-            let rhs = Value::Expr(infix_expr.rhs.kind);
+            let lhs = Value::expression(infix_expr.lhs.kind);
+            let rhs = Value::expression(infix_expr.rhs.kind);
             Some(Value::Tuple(vec![lhs, unary_op, rhs]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_block(self) -> Option<[Expr]>
+fn expr_as_block(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Block(block_expr)) = expr {
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            let statements = block_expr.statements.into_iter();
+            let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
+
+            Some(Value::Slice(statements, typ))
         } else {
             None
         }
@@ -831,7 +859,7 @@ fn expr_as_bool(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Literal(Literal::Bool(bool)) = expr {
+        if let ExprValue::Expression(ExpressionKind::Literal(Literal::Bool(bool))) = expr {
             Some(Value::Bool(bool))
         } else {
             None
@@ -846,10 +874,10 @@ fn expr_as_function_call(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Call(call_expression) = expr {
-            let function = Value::Expr(call_expression.func.kind);
+        if let ExprValue::Expression(ExpressionKind::Call(call_expression)) = expr {
+            let function = Value::expression(call_expression.func.kind);
             let arguments = call_expression.arguments.into_iter();
-            let arguments = arguments.map(|argument| Value::Expr(argument.kind)).collect();
+            let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
             let arguments =
                 Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
             Some(Value::Tuple(vec![function, arguments]))
@@ -866,7 +894,7 @@ fn expr_as_if(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type.clone(), location, |expr| {
-        if let ExpressionKind::If(if_expr) = expr {
+        if let ExprValue::Expression(ExpressionKind::If(if_expr)) = expr {
             // Get the type of `Option<Expr>`
             let option_type = extract_option_generic_type(return_type.clone());
             let Type::Tuple(option_types) = option_type else {
@@ -875,12 +903,14 @@ fn expr_as_if(
             assert_eq!(option_types.len(), 3);
             let alternative_option_type = option_types[2].clone();
 
-            let alternative =
-                option(alternative_option_type, if_expr.alternative.map(|e| Value::Expr(e.kind)));
+            let alternative = option(
+                alternative_option_type,
+                if_expr.alternative.map(|e| Value::expression(e.kind)),
+            );
 
             Some(Value::Tuple(vec![
-                Value::Expr(if_expr.condition.kind),
-                Value::Expr(if_expr.consequence.kind),
+                Value::expression(if_expr.condition.kind),
+                Value::expression(if_expr.consequence.kind),
                 alternative.ok()?,
             ]))
         } else {
@@ -896,10 +926,10 @@ fn expr_as_index(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Index(index_expr) = expr {
+        if let ExprValue::Expression(ExpressionKind::Index(index_expr)) = expr {
             Some(Value::Tuple(vec![
-                Value::Expr(index_expr.collection.kind),
-                Value::Expr(index_expr.index.kind),
+                Value::expression(index_expr.collection.kind),
+                Value::expression(index_expr.index.kind),
             ]))
         } else {
             None
@@ -914,7 +944,8 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type.clone(), location, |expr| {
-        if let ExpressionKind::Literal(Literal::Integer(field, sign)) = expr {
+        if let ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, sign))) = expr
+        {
             Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
         } else {
             None
@@ -929,9 +960,12 @@ fn expr_as_member_access(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::MemberAccess(member_access) = expr {
+        if let ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) = expr {
             let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
-            Some(Value::Tuple(vec![Value::Expr(member_access.lhs.kind), Value::Quoted(tokens)]))
+            Some(Value::Tuple(vec![
+                Value::expression(member_access.lhs.kind),
+                Value::Quoted(tokens),
+            ]))
         } else {
             None
         }
@@ -945,12 +979,14 @@ fn expr_as_repeated_element_array(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
-            repeated_element,
-            length,
-        })) = expr
+        if let ExprValue::Expression(ExpressionKind::Literal(Literal::Array(
+            ArrayLiteral::Repeated { repeated_element, length },
+        ))) = expr
         {
-            Some(Value::Tuple(vec![Value::Expr(repeated_element.kind), Value::Expr(length.kind)]))
+            Some(Value::Tuple(vec![
+                Value::expression(repeated_element.kind),
+                Value::expression(length.kind),
+            ]))
         } else {
             None
         }
@@ -964,12 +1000,14 @@ fn expr_as_repeated_element_slice(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Repeated {
-            repeated_element,
-            length,
-        })) = expr
+        if let ExprValue::Expression(ExpressionKind::Literal(Literal::Slice(
+            ArrayLiteral::Repeated { repeated_element, length },
+        ))) = expr
         {
-            Some(Value::Tuple(vec![Value::Expr(repeated_element.kind), Value::Expr(length.kind)]))
+            Some(Value::Tuple(vec![
+                Value::expression(repeated_element.kind),
+                Value::expression(length.kind),
+            ]))
         } else {
             None
         }
@@ -983,8 +1021,11 @@ fn expr_as_slice(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(exprs))) = expr {
-            let exprs = exprs.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
+        if let ExprValue::Expression(ExpressionKind::Literal(Literal::Slice(
+            ArrayLiteral::Standard(exprs),
+        ))) = expr
+        {
+            let exprs = exprs.into_iter().map(|expr| Value::expression(expr.kind)).collect();
             let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
             Some(Value::Slice(exprs, typ))
         } else {
@@ -1000,8 +1041,9 @@ fn expr_as_tuple(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
-        if let ExpressionKind::Tuple(expressions) = expr {
-            let expressions = expressions.into_iter().map(|expr| Value::Expr(expr.kind)).collect();
+        if let ExprValue::Expression(ExpressionKind::Tuple(expressions)) = expr {
+            let expressions =
+                expressions.into_iter().map(|expr| Value::expression(expr.kind)).collect();
             let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
             Some(Value::Slice(expressions, typ))
         } else {
@@ -1017,7 +1059,7 @@ fn expr_as_unary_op(
     location: Location,
 ) -> IResult<Value> {
     expr_as(arguments, return_type.clone(), location, |expr| {
-        if let ExpressionKind::Prefix(prefix_expr) = expr {
+        if let ExprValue::Expression(ExpressionKind::Prefix(prefix_expr)) = expr {
             let option_type = extract_option_generic_type(return_type);
             let Type::Tuple(mut tuple_types) = option_type else {
                 panic!("Expected the return type option generic arg to be a tuple");
@@ -1039,12 +1081,19 @@ fn expr_as_unary_op(
             fields.insert(Rc::new("op".to_string()), Value::Field(unary_op_value.into()));
 
             let unary_op = Value::Struct(fields, unary_op_type);
-            let rhs = Value::Expr(prefix_expr.rhs.kind);
+            let rhs = Value::expression(prefix_expr.rhs.kind);
             Some(Value::Tuple(vec![unary_op, rhs]))
         } else {
             None
         }
     })
+}
+
+// fn as_has_semicolon(self) -> bool
+fn expr_has_semicolon(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(self_argument)?;
+    Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
 }
 
 // Helper function for implementing the `expr_as_...` functions.
@@ -1055,15 +1104,24 @@ fn expr_as<F>(
     f: F,
 ) -> IResult<Value>
 where
-    F: FnOnce(ExpressionKind) -> Option<Value>,
+    F: FnOnce(ExprValue) -> Option<Value>,
 {
     let self_argument = check_one_argument(arguments, location)?;
-    let mut expression_kind = get_expr(self_argument)?;
-    while let ExpressionKind::Parenthesized(expression) = expression_kind {
-        expression_kind = expression.kind;
+    let mut expr_value = get_expr(self_argument)?;
+    loop {
+        match expr_value {
+            ExprValue::Expression(ExpressionKind::Parenthesized(expression)) => {
+                expr_value = ExprValue::Expression(expression.kind);
+            }
+            ExprValue::Statement(StatementKind::Expression(expression))
+            | ExprValue::Statement(StatementKind::Semi(expression)) => {
+                expr_value = ExprValue::Expression(expression.kind);
+            }
+            _ => break,
+        }
     }
 
-    let option_value = f(expression_kind);
+    let option_value = f(expr_value);
     option(return_type, option_value)
 }
 

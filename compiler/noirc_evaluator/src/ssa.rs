@@ -64,6 +64,9 @@ pub struct SsaEvaluatorOptions {
 
     /// Dump the unoptimized SSA to the supplied path if it exists
     pub emit_ssa: Option<PathBuf>,
+
+    /// Skip the check for under constrained values
+    pub skip_underconstrained_check: bool,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -117,7 +120,13 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
-    let ssa_level_warnings = ssa.check_for_underconstrained_values();
+    let ssa_level_warnings = if options.skip_underconstrained_check {
+        vec![]
+    } else {
+        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
+            ssa.check_for_underconstrained_values()
+        })
+    };
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });

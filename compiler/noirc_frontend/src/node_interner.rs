@@ -51,7 +51,7 @@ const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 pub struct ModuleAttributes {
     pub name: String,
     pub location: Location,
-    pub parent: LocalModuleId,
+    pub parent: Option<LocalModuleId>,
 }
 
 type StructAttributes = Vec<SecondaryAttribute>;
@@ -1040,7 +1040,7 @@ impl NodeInterner {
     }
 
     pub fn try_module_parent(&self, module_id: &ModuleId) -> Option<LocalModuleId> {
-        self.try_module_attributes(module_id).map(|attrs| attrs.parent)
+        self.try_module_attributes(module_id).and_then(|attrs| attrs.parent)
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
