@@ -235,4 +235,18 @@ mod goto_definition_tests {
         )
         .await;
     }
+
+    #[test]
+    async fn goto_crate() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 29, character: 6 }, // "dependency" in "use dependency::something"
+            "dependency/src/lib.nr",
+            Range {
+                start: Position { line: 0, character: 0 },
+                end: Position { line: 0, character: 0 },
+            },
+        )
+        .await;
+    }
 }
