@@ -866,6 +866,8 @@ fn expr_as_comptime(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
+    use ExpressionKind::Block;
+
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Comptime(block_expr, _)) = expr {
             Some(block_expression_to_value(block_expr))
@@ -876,12 +878,9 @@ fn expr_as_comptime(
             // and in that case we return the block expression statements
             // (comptime as a statement can also be comptime for, but in that case we'll
             // return the for statement as a single expression)
-            if let StatementKind::Expression(Expression {
-                kind: ExpressionKind::Block(block_expr),
-                ..
-            }) = statement.kind
+            if let StatementKind::Expression(Expression { kind: Block(block), .. }) = statement.kind
             {
-                Some(block_expression_to_value(block_expr))
+                Some(block_expression_to_value(block))
             } else {
                 let mut elements = Vector::new();
                 elements.push_back(Value::statement(statement.kind));
