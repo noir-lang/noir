@@ -12,7 +12,7 @@ import { type Wallet } from '../account/wallet.js';
 import { type ExecutionRequestInit } from '../api/entrypoint.js';
 import { Contract } from '../contract/contract.js';
 import { DeployMethod, type DeployOptions } from '../contract/deploy_method.js';
-import { EntrypointPayload } from '../entrypoint/payload.js';
+import { EntrypointPayload, computeCombinedPayloadHash } from '../entrypoint/payload.js';
 
 /**
  * Contract interaction for deploying an account contract. Handles fee preparation and contract initialization.
@@ -70,8 +70,10 @@ export class DeployAccountMethod extends DeployMethod {
       exec.authWitnesses ??= [];
       exec.packedArguments ??= [];
 
-      exec.authWitnesses.push(await this.#authWitnessProvider.createAuthWit(emptyAppPayload.hash()));
-      exec.authWitnesses.push(await this.#authWitnessProvider.createAuthWit(feePayload.hash()));
+      exec.authWitnesses.push(
+        await this.#authWitnessProvider.createAuthWit(computeCombinedPayloadHash(emptyAppPayload, feePayload)),
+      );
+
       exec.packedArguments.push(...emptyAppPayload.packedArguments);
       exec.packedArguments.push(...feePayload.packedArguments);
     }

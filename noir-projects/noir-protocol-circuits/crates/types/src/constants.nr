@@ -133,7 +133,7 @@ global INITIAL_L2_BLOCK_NUM: Field = 1;
 global BLOB_SIZE_IN_BYTES: Field = 31 * 4096;
 global ETHEREUM_SLOT_DURATION: u32 = 12;
 global IS_DEV_NET: bool = true;
-// The following and the value in `deploy_l1_contracts´ must match. We should not have the code both places, but 
+// The following and the value in `deploy_l1_contracts´ must match. We should not have the code both places, but
 // we are running into circular dependency issues. #3342
 global FEE_JUICE_INITIAL_MINT: Field = 20000000000;
 
@@ -325,6 +325,7 @@ global GENERATOR_INDEX__PARTIAL_ADDRESS: u32 = 27;
 global GENERATOR_INDEX__BLOCK_HASH: u32 = 28;
 global GENERATOR_INDEX__SIDE_EFFECT: u32 = 29;
 global GENERATOR_INDEX__FEE_PAYLOAD: u32 = 30;
+global GENERATOR_INDEX__COMBINED_PAYLOAD: u32 = 31;
 // Indices with size ≤ 16
 global GENERATOR_INDEX__TX_REQUEST: u32 = 33;
 global GENERATOR_INDEX__SIGNATURE_PAYLOAD: u32 = 34;

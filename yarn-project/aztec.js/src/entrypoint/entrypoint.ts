@@ -1,8 +1,8 @@
 import { type AuthWitness, type FunctionCall, type PackedValues, type TxExecutionRequest } from '@aztec/circuit-types';
 
-import { EntrypointPayload, type FeeOptions } from './payload.js';
+import { EntrypointPayload, type FeeOptions, computeCombinedPayloadHash } from './payload.js';
 
-export { EntrypointPayload, FeeOptions };
+export { EntrypointPayload, FeeOptions, computeCombinedPayloadHash };
 
 export { DefaultEntrypoint } from './default_entrypoint.js';
 export { DefaultMultiCallEntrypoint } from './default_multi_call_entrypoint.js';
