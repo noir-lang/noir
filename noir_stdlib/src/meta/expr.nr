@@ -148,8 +148,9 @@ mod tests {
         comptime
         {
             let expr = quote { 1 as Field }.as_expr().unwrap();
-            let (expr, _typ) = expr.as_cast().unwrap();
+            let (expr, typ) = expr.as_cast().unwrap();
             assert_eq(expr.as_integer().unwrap(), (1, false));
+            assert(typ.is_field());
         }
     }
 

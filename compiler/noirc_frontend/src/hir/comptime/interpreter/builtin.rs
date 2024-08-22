@@ -8,8 +8,9 @@ use builtin_helpers::{
     block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
     check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_function_def,
     get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
-    get_trait_impl, get_tuple, get_type, get_u32, hir_pattern_to_tokens, mutate_func_meta_type,
-    parse, parse_tokens, replace_func_meta_parameters, replace_func_meta_return_type,
+    get_trait_impl, get_tuple, get_type, get_u32, get_unresolved_type, hir_pattern_to_tokens,
+    mutate_func_meta_type, parse, parse_tokens, replace_func_meta_parameters,
+    replace_func_meta_return_type,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -132,6 +133,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
+            "unresolved_type_is_field" => unresolved_type_is_field(arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
                 let item = format!("Comptime evaluation for builtin function {name}");
@@ -695,6 +697,16 @@ fn trait_impl_trait_generic_args(
     let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::Type)));
 
     Ok(Value::Slice(trait_generics, slice_type))
+}
+
+// fn is_field(self) -> bool
+fn unresolved_type_is_field(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typ = get_unresolved_type(self_argument)?;
+    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::FieldElement)))
 }
 
 // fn zeroed<T>() -> T

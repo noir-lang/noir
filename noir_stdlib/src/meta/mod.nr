@@ -12,6 +12,7 @@ mod trait_def;
 mod trait_impl;
 mod typ;
 mod quoted;
+mod unresolved_type;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
