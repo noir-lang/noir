@@ -16,20 +16,26 @@ mod quoted;
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
 /// itself does not need to do anything besides return its argument.
+// docs:start:unquote
 pub comptime fn unquote(code: Quoted) -> Quoted {
+// docs:end:unquote
     code
 }
 
 /// Returns the type of any value
 #[builtin(type_of)]
+// docs:start:type_of
 pub comptime fn type_of<T>(x: T) -> Type {}
+// docs:end:type_of
 
 type DeriveFunction = fn(StructDefinition) -> Quoted;
 
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
 
+// docs:start:derive
 #[varargs]
 pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted {
+// docs:end:derive
     let mut result = quote {};
 
     for trait_to_derive in traits {
@@ -45,7 +51,9 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
     result
 }
 
+// docs:start:derive_via
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
+// docs:end:derive_via
     HANDLERS.insert(t, f);
 }
 
@@ -61,6 +69,7 @@ pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
 /// any final processing - e.g. wrapping each field in a `StructConstructor { .. }` expression.
 ///
 /// See `derive_eq` and `derive_default` for example usage.
+// docs:start:make_trait_impl
 pub comptime fn make_trait_impl<Env1, Env2>(
     s: StructDefinition,
     trait_name: Quoted,
@@ -69,6 +78,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     join_fields_with: Quoted,
     body: fn[Env2](Quoted) -> Quoted
 ) -> Quoted {
+// docs:end:make_trait_impl
     let typ = s.as_type();
     let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
     let where_clause = s.generics().map(|name| quote { $name: $trait_name }).join(quote {,});
