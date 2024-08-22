@@ -3,8 +3,7 @@
 ### Why is this needed?
 
 Barretenberg is a library that allows one to create and verify proofs. One way to specify the circuit that one will use to create and verify
-proofs over is to use the Barretenberg standard library. Another way, which pertains to this module is to supply the circuit description using 
-an IR called [ACIR](https://github.com/noir-lang/acvm).
+proofs over is to use the Barretenberg standard library. Another way, which pertains to this module is to supply the circuit description using an IR called [ACIR](https://github.com/noir-lang/acvm).
 
 This binary will take as input ACIR and witness values described in the IR to create proofs.
 
@@ -35,7 +34,7 @@ This binary will take as input ACIR and witness values described in the IR to cr
     ```
 
     Check the version compatibility section below for how to identify matching versions.
-    
+
 4. Check if the installation was successful:
 
     ```bash
@@ -43,6 +42,10 @@ This binary will take as input ACIR and witness values described in the IR to cr
     ```
 
 If installation was successful, the command would print the version of `bb` installed.
+
+### Usage prerequisites
+
+Certain `bb` commands will expect the tool `jq` to already be installed. If `jq -V` doesn't return a version number, install it from [here](https://jqlang.github.io/jq/download/).
 
 ### Version compatibility with Noir
 
