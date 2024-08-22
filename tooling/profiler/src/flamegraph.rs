@@ -99,7 +99,7 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
                             debug_symbols.brillig_locations.get(&brillig_function_id);
                         if let Some(brillig_locations) = brillig_locations {
                             brillig_locations
-                                .get(&opcode_location.reset_brillig_acir_index())
+                                .get(&opcode_location.reset_acir_index())
                                 .cloned()
                                 .unwrap_or_default()
                         } else {

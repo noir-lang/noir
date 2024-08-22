@@ -166,7 +166,7 @@ fn extract_locations_from_error<F: AcirField>(
                                 .get(&brillig_function_id);
                             brillig_locations
                                 .unwrap()
-                                .get(&resolved_location.opcode_location.reset_brillig_acir_index())
+                                .get(&resolved_location.opcode_location.reset_acir_index())
                                 .cloned()
                                 .unwrap_or_default()
                         } else {

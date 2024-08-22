@@ -161,7 +161,7 @@ pub enum OpcodeLocation {
 }
 
 impl OpcodeLocation {
-    pub fn reset_brillig_acir_index(self) -> Self {
+    pub fn reset_acir_index(self) -> Self {
         match self {
             OpcodeLocation::Brillig { brillig_index, .. } => {
                 OpcodeLocation::Brillig { acir_index: None, brillig_index }
