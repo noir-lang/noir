@@ -5,20 +5,21 @@ use std::{
 
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
-    check_argument_count, check_function_not_yet_resolved, check_one_argument,
-    check_three_arguments, check_two_arguments, get_expr, get_function_def, get_module, get_quoted,
-    get_slice, get_struct, get_trait_constraint, get_trait_def, get_trait_impl, get_tuple,
-    get_type, get_u32, hir_pattern_to_tokens, mutate_func_meta_type, parse, parse_tokens,
-    replace_func_meta_parameters, replace_func_meta_return_type,
+    block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
+    check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_function_def,
+    get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
+    get_trait_impl, get_tuple, get_type, get_u32, hir_pattern_to_tokens, mutate_func_meta_type,
+    parse, parse_tokens, replace_func_meta_parameters, replace_func_meta_return_type,
 };
+use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ArrayLiteral, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal,
-        StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        ArrayLiteral, Expression, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize,
+        Literal, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
     hir::comptime::{
         errors::IResult,
@@ -55,6 +56,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
             "expr_as_block" => expr_as_block(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
+            "expr_as_comptime" => expr_as_comptime(arguments, return_type, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
             "expr_as_index" => expr_as_index(arguments, return_type, location),
@@ -69,7 +71,10 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_slice" => expr_as_slice(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
+            "expr_as_unsafe" => expr_as_unsafe(arguments, return_type, location),
             "expr_has_semicolon" => expr_has_semicolon(arguments, location),
+            "expr_is_break" => expr_is_break(arguments, location),
+            "expr_is_continue" => expr_is_continue(arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -833,11 +838,7 @@ fn expr_as_block(
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Block(block_expr)) = expr {
-            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            let statements = block_expr.statements.into_iter();
-            let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
-
-            Some(Value::Slice(statements, typ))
+            Some(block_expression_to_value(block_expr))
         } else {
             None
         }
@@ -853,6 +854,38 @@ fn expr_as_bool(
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Literal(Literal::Bool(bool))) = expr {
             Some(Value::Bool(bool))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_comptime(self) -> Option<[Expr]>
+fn expr_as_comptime(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    use ExpressionKind::Block;
+
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Comptime(block_expr, _)) = expr {
+            Some(block_expression_to_value(block_expr))
+        } else if let ExprValue::Statement(StatementKind::Comptime(statement)) = expr {
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+
+            // comptime { ... } as a statement wraps a block expression,
+            // and in that case we return the block expression statements
+            // (comptime as a statement can also be comptime for, but in that case we'll
+            // return the for statement as a single expression)
+            if let StatementKind::Expression(Expression { kind: Block(block), .. }) = statement.kind
+            {
+                Some(block_expression_to_value(block))
+            } else {
+                let mut elements = Vector::new();
+                elements.push_back(Value::statement(statement.kind));
+                Some(Value::Slice(elements, typ))
+            }
         } else {
             None
         }
@@ -1081,11 +1114,40 @@ fn expr_as_unary_op(
     })
 }
 
+// fn as_unsafe(self) -> Option<[Expr]>
+fn expr_as_unsafe(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Unsafe(block_expr, _)) = expr {
+            Some(block_expression_to_value(block_expr))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_has_semicolon(self) -> bool
 fn expr_has_semicolon(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(self_argument)?;
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
+}
+
+// fn is_break(self) -> bool
+fn expr_is_break(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(self_argument)?;
+    Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Break))))
+}
+
+// fn is_continue(self) -> bool
+fn expr_is_continue(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(self_argument)?;
+    Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Continue))))
 }
 
 // Helper function for implementing the `expr_as_...` functions.

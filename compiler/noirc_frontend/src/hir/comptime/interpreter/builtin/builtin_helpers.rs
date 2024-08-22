@@ -4,7 +4,7 @@ use acvm::FieldElement;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{IntegerBitSize, Signedness},
+    ast::{BlockExpression, IntegerBitSize, Signedness},
     hir::{
         comptime::{
             errors::IResult,
@@ -349,4 +349,12 @@ pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
         Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
         _ => {}
     }
+}
+
+pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
+    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+    let statements = block_expr.statements.into_iter();
+    let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
+
+    Value::Slice(statements, typ)
 }
