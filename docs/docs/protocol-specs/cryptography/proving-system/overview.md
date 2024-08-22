@@ -112,7 +112,7 @@ Computing an opening proof of a degree-$n$ polynomial requires $n$ scalar multip
 
 The [IPA](https://eprint.iacr.org/2019/1177.pdf) PCS has worse asymptotics than KZG but can be instantiated over non-pairing friendly curves.
 
-We utilize the Grumpkin elliptic curve as part of the Goblin Plonk protocol, where we utilize the curve cycle formed between BN254 and Grumpkin to translate expensiven on-native BN254 group operations in a BN254 circuit, into native group operations in a Grumpkin circuit.
+We utilize the Grumpkin elliptic curve as part of the Goblin Plonk protocol, where we utilize the curve cycle formed between BN254 and Grumpkin to translate expensive non-native BN254 group operations in a BN254 circuit, into native group operations in a Grumpkin circuit.
 
 Computing an opening proof of a degree-$n$ polynomial requires $2n$ scalar multiplications, with a $O(logn)$ proof size and an $O(n)$ verifier time.
 
