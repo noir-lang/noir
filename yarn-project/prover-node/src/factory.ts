@@ -35,7 +35,7 @@ export async function createProverNode(
   log.verbose(`Created archiver and synced to block ${await archiver.getBlockNumber()}`);
 
   const worldStateConfig = { ...config, worldStateProvenBlocksOnly: true };
-  const worldStateSynchronizer = await createWorldStateSynchronizer(worldStateConfig, store, archiver);
+  const worldStateSynchronizer = await createWorldStateSynchronizer(worldStateConfig, store, archiver, telemetry);
   await worldStateSynchronizer.start();
 
   const simulationProvider = await createSimulationProvider(config, log);

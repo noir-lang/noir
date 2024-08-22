@@ -154,4 +154,16 @@ export class AztecLmdbStore implements AztecKVStore {
   async delete() {
     await this.#rootDb.drop();
   }
+
+  estimateSize(): { bytes: number } {
+    const stats = this.#rootDb.getStats();
+    // `mapSize` represents to total amount of memory currently being used by the database.
+    // since the database is mmap'd, this is a good estimate of the size of the database for now.
+    // http://www.lmdb.tech/doc/group__mdb.html#a4bde3c8b676457342cba2fe27aed5fbd
+    if ('mapSize' in stats && typeof stats.mapSize === 'number') {
+      return { bytes: stats.mapSize };
+    } else {
+      return { bytes: 0 };
+    }
+  }
 }

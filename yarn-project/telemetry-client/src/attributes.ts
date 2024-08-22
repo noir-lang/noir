@@ -60,3 +60,5 @@ export const L1_TX_TYPE = 'aztec.l1.tx_type';
 export const TX_PHASE_NAME = 'aztec.tx.phase_name';
 /** The proving job type */
 export const PROVING_JOB_TYPE = 'aztec.proving.job_type';
+
+export const MERKLE_TREE_NAME = 'aztec.merkle_tree.name';

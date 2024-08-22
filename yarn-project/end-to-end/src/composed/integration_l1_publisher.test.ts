@@ -148,7 +148,7 @@ describe('L1Publisher integration', () => {
     });
 
     const tmpStore = openTmpStore();
-    builderDb = await MerkleTrees.new(tmpStore);
+    builderDb = await MerkleTrees.new(tmpStore, new NoopTelemetryClient());
     blockSource = mock<ArchiveSource>();
     blockSource.getBlocks.mockResolvedValue([]);
     const worldStateConfig: WorldStateConfig = {

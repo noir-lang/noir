@@ -68,8 +68,8 @@ export class TestContext {
     const publicContractsDB = mock<ContractsDataSourcePublicDB>();
     const publicWorldStateDB = mock<WorldStatePublicDB>();
     const publicKernel = new RealPublicKernelCircuitSimulator(new WASMSimulator());
-    const actualDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
     const telemetry = new NoopTelemetryClient();
+    const actualDb = await MerkleTrees.new(openTmpStore(), telemetry).then(t => t.asLatest());
     const processor = new PublicProcessor(
       actualDb,
       publicExecutor,

@@ -5,6 +5,7 @@ import { range } from '@aztec/foundation/array';
 import { times } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { openTmpStore } from '@aztec/kv-store/utils';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { type MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 
 import { makeBloatedProcessedTx, updateExpectedTreesFromTxs } from '../mocks/fixtures.js';
@@ -18,7 +19,7 @@ describe('prover/orchestrator/mixed-blocks', () => {
 
   beforeEach(async () => {
     context = await TestContext.new(logger);
-    expectsDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
+    expectsDb = await MerkleTrees.new(openTmpStore(), new NoopTelemetryClient()).then(t => t.asLatest());
   });
 
   afterEach(async () => {

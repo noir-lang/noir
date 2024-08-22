@@ -22,6 +22,9 @@
       "path": "../merkle-tree"
     },
     {
+      "path": "../telemetry-client"
+    },
+    {
       "path": "../types"
     }
   ],

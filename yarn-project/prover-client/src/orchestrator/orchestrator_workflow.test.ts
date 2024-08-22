@@ -23,9 +23,10 @@ describe('prover/orchestrator', () => {
     let mockProver: MockProxy<ServerCircuitProver>;
     let actualDb: MerkleTreeOperations;
     beforeEach(async () => {
-      actualDb = await MerkleTrees.new(openTmpStore()).then(t => t.asLatest());
+      const telemetryClient = new NoopTelemetryClient();
+      actualDb = await MerkleTrees.new(openTmpStore(), telemetryClient).then(t => t.asLatest());
       mockProver = mock<ServerCircuitProver>();
-      orchestrator = new ProvingOrchestrator(actualDb, mockProver, new NoopTelemetryClient());
+      orchestrator = new ProvingOrchestrator(actualDb, mockProver, telemetryClient);
     });
 
     it('calls root parity circuit only when ready', async () => {

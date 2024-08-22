@@ -68,4 +68,9 @@ export interface AztecKVStore {
    * Deletes the store
    */
   delete(): Promise<void>;
+
+  /**
+   * Estimates the size of the store in bytes.
+   */
+  estimateSize(): { bytes: number };
 }
