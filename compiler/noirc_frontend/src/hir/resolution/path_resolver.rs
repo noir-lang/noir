@@ -15,7 +15,7 @@ pub trait PathResolver {
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-        path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
+        path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult;
 
     fn local_module_id(&self) -> LocalModuleId;
@@ -39,7 +39,7 @@ impl PathResolver for StandardPathResolver {
         &self,
         def_maps: &BTreeMap<CrateId, CrateDefMap>,
         path: Path,
-        path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
+        path_references: &mut Option<&mut Vec<ReferenceId>>,
     ) -> PathResolutionResult {
         resolve_path(def_maps, self.module_id, path, path_references)
     }
@@ -59,7 +59,7 @@ pub fn resolve_path(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     module_id: ModuleId,
     path: Path,
-    path_references: &mut Option<&mut Vec<Option<ReferenceId>>>,
+    path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> PathResolutionResult {
     // lets package up the path into an ImportDirective and resolve it using that
     let import =

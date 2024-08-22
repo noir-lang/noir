@@ -76,6 +76,7 @@
         "devcontainer",
         "direnv",
         "eddsa",
+        "elab",
         "Elligator",
         "endianness",
         "envrc",
@@ -119,6 +120,7 @@
         "keccakf",
         "krate",
         "libc",
+        "Linea",
         "losslessly",
         "lvalue",
         "Maddiaa",
@@ -216,8 +218,7 @@
         "wasi",
         "wasmer",
         "Weierstraß",
-        "zshell",
-        "Linea"
+        "zshell"
     ],
     "ignorePaths": [
         "./**/node_modules/**",
