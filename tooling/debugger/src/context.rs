@@ -162,10 +162,7 @@ impl AddressMap {
                                 && address <= brillig_address_space.end_address
                         })
                         .map(|brillig_address_space| brillig_address_space.brillig_function_id);
-                    (
-                        OpcodeLocation::Brillig { acir_index: acir_index, brillig_index },
-                        brillig_function_id,
-                    )
+                    (OpcodeLocation::Brillig { acir_index, brillig_index }, brillig_function_id)
                 }
             };
 
@@ -897,7 +894,7 @@ fn build_source_to_opcode_debug_mappings(
 
         for (brillig_function_id, brillig_locations_map) in &debug_symbols.brillig_locations {
             let brillig_locations_map = brillig_locations_map
-                .into_iter()
+                .iter()
                 .map(|(key, val)| {
                     (
                         // TODO: this is a temporary placeholder until the debugger is updated to handle the new brillig debug locations.

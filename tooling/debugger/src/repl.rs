@@ -180,7 +180,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                 "->"
             } else if self.context.is_breakpoint_set(&DebugLocation {
                 circuit_id,
-                opcode_location: OpcodeLocation::Brillig { acir_index: acir_index, brillig_index },
+                opcode_location: OpcodeLocation::Brillig { acir_index, brillig_index },
                 brillig_function_id: Some(brillig_function_id),
             }) {
                 " *"
