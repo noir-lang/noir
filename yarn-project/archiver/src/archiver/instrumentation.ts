@@ -37,7 +37,7 @@ export class ArchiverInstrumentation {
   }
 
   public processNewBlocks(syncTimePerBlock: number, blocks: L2Block[]) {
-    this.syncDuration.record(syncTimePerBlock);
+    this.syncDuration.record(Math.ceil(syncTimePerBlock));
     this.blockHeight.record(Math.max(...blocks.map(b => b.number)));
     for (const block of blocks) {
       this.blockSize.record(block.body.txEffects.length);

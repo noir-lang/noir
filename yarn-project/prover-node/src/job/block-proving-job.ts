@@ -11,10 +11,13 @@ import {
   type TxProvider,
 } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { Timer } from '@aztec/foundation/timer';
 import { type L1Publisher } from '@aztec/sequencer-client';
 import { type PublicProcessor, type PublicProcessorFactory } from '@aztec/simulator';
 
 import * as crypto from 'node:crypto';
+
+import { type ProverNodeMetrics } from '../metrics.js';
 
 /**
  * Job that grabs a range of blocks from the unfinalised chain from L1, gets their txs given their hashes,
@@ -33,6 +36,7 @@ export class BlockProvingJob {
     private l2BlockSource: L2BlockSource,
     private l1ToL2MessageSource: L1ToL2MessageSource,
     private txProvider: TxProvider,
+    private metrics: ProverNodeMetrics,
     private cleanUp: (job: BlockProvingJob) => Promise<void> = () => Promise.resolve(),
   ) {
     this.uuid = crypto.randomUUID();
@@ -53,6 +57,7 @@ export class BlockProvingJob {
 
     this.log.info(`Starting block proving job`, { fromBlock, toBlock, uuid: this.uuid });
     this.state = 'processing';
+    const timer = new Timer();
     try {
       let historicalHeader = (await this.l2BlockSource.getBlock(fromBlock - 1))?.header;
       for (let blockNumber = fromBlock; blockNumber <= toBlock; blockNumber++) {
@@ -114,6 +119,7 @@ export class BlockProvingJob {
       this.log.info(`Submitted proof for block range`, { fromBlock, toBlock, uuid: this.uuid });
 
       this.state = 'completed';
+      this.metrics.recordProvingJob(timer);
     } catch (err) {
       this.log.error(`Error running block prover job`, err, { uuid: this.uuid });
       this.state = 'failed';

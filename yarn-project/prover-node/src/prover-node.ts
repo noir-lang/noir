@@ -14,6 +14,7 @@ import { type ContractDataSource } from '@aztec/types/contracts';
 import { type WorldStateSynchronizer } from '@aztec/world-state';
 
 import { BlockProvingJob, type BlockProvingJobState } from './job/block-proving-job.js';
+import { ProverNodeMetrics } from './metrics.js';
 
 /**
  * An Aztec Prover Node is a standalone process that monitors the unfinalised chain on L1 for unproven blocks,
@@ -26,6 +27,7 @@ export class ProverNode {
   private latestBlockWeAreProving: number | undefined;
   private jobs: Map<string, BlockProvingJob> = new Map();
   private options: { pollingIntervalMs: number; disableAutomaticProving: boolean; maxPendingJobs: number };
+  private metrics: ProverNodeMetrics;
 
   constructor(
     private prover: ProverClient,
@@ -45,6 +47,8 @@ export class ProverNode {
       maxPendingJobs: 100,
       ...options,
     };
+
+    this.metrics = new ProverNodeMetrics(telemetryClient, 'ProverNode');
   }
 
   /**
@@ -200,6 +204,7 @@ export class ProverNode {
       this.l2BlockSource,
       this.l1ToL2MessageSource,
       this.txProvider,
+      this.metrics,
       cleanUp,
     );
   }

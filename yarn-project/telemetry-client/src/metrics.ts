@@ -63,6 +63,8 @@ export const PROVING_ORCHESTRATOR_BASE_ROLLUP_INPUTS_DURATION =
 export const PROVING_QUEUE_JOB_SIZE = 'aztec.proving_queue.job_size';
 export const PROVING_QUEUE_SIZE = 'aztec.proving_queue.size';
 
+export const PROVER_NODE_JOB_DURATION = 'aztec.prover_node.job_duration';
+
 export const WORLD_STATE_FORK_DURATION = 'aztec.world_state.fork.duration';
 export const WORLD_STATE_SYNC_DURATION = 'aztec.world_state.sync.duration';
 export const WORLD_STATE_MERKLE_TREE_SIZE = 'aztec.world_state.merkle_tree_size';

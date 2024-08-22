@@ -7,7 +7,7 @@ import {
 } from '@aztec/circuit-types';
 import { type L1Publisher } from '@aztec/sequencer-client';
 import { type PublicProcessorFactory, type SimulationProvider } from '@aztec/simulator';
-import { type TelemetryClient } from '@aztec/telemetry-client';
+import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 import { type ContractDataSource } from '@aztec/types/contracts';
 import { WorldStateRunningState, type WorldStateSynchronizer } from '@aztec/world-state';
 
@@ -25,7 +25,6 @@ describe('prover-node', () => {
   let worldState: MockProxy<WorldStateSynchronizer>;
   let txProvider: MockProxy<TxProvider>;
   let simulator: MockProxy<SimulationProvider>;
-  let telemetryClient: MockProxy<TelemetryClient>;
 
   let proverNode: TestProverNode;
 
@@ -45,7 +44,7 @@ describe('prover-node', () => {
     worldState = mock<WorldStateSynchronizer>();
     txProvider = mock<TxProvider>();
     simulator = mock<SimulationProvider>();
-    telemetryClient = mock<TelemetryClient>();
+    const telemetryClient = new NoopTelemetryClient();
 
     // World state returns a new mock db every time it is asked to fork
     worldState.syncImmediateAndFork.mockImplementation(() => Promise.resolve(mock<MerkleTreeOperations>()));
