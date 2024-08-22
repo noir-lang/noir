@@ -99,7 +99,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                 .map(|(brillig_index, opcode)| Sample {
                     opcode: AcirOrBrilligOpcode::Brillig(opcode),
                     call_stack: vec![OpcodeLocation::Brillig {
-                        acir_index: Some(acir_opcode_index),
+                        acir_index: acir_opcode_index,
                         brillig_index,
                     }],
                     count: 1,

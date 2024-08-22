@@ -40,13 +40,7 @@ impl AcirTransformationMap {
     ) -> impl Iterator<Item = OpcodeLocation> + '_ {
         let old_acir_index = match old_location {
             OpcodeLocation::Acir(index) => index,
-            OpcodeLocation::Brillig { acir_index, .. } => {
-                if let Some(acir_index) = acir_index {
-                    acir_index
-                } else {
-                    panic!("ICE: Should only be transforming ACIR locations")
-                }
-            }
+            OpcodeLocation::Brillig { acir_index, .. } => acir_index,
         };
 
         self.old_indices_to_new_indices.get(&old_acir_index).into_iter().flat_map(
@@ -54,7 +48,7 @@ impl AcirTransformationMap {
                 new_indices.iter().map(move |new_index| match old_location {
                     OpcodeLocation::Acir(_) => OpcodeLocation::Acir(*new_index),
                     OpcodeLocation::Brillig { brillig_index, .. } => {
-                        OpcodeLocation::Brillig { acir_index: Some(*new_index), brillig_index }
+                        OpcodeLocation::Brillig { acir_index: *new_index, brillig_index }
                     }
                 })
             },

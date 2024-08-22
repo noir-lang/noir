@@ -153,26 +153,24 @@ pub struct ResolvedOpcodeLocation {
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
     Acir(usize),
-    // A Brillig opcode location can have either a resolved or unresolved acir location.
-    // Resolved locations are generally specified when returning an error during execution.
-    // The acir index is not actually needed to determine a Brillig location
-    // as it can be resolved separately.
-    //
-    // We can not get rid of the acir index entirely just yet as this format is still
-    // used for resolving assert messages.
-    Brillig { acir_index: Option<usize>, brillig_index: usize },
+    // We can not get rid of this enum field entirely just yet as this format is still
+    // used for resolving assert messages which is breaking serialization change.
+    Brillig { acir_index: usize, brillig_index: usize },
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct BrilligOpcodeLocation(pub usize);
+
 impl OpcodeLocation {
-    // Utility method to allow easily comparing a resolved Brillig location and unresolved Brillig location.
+    // Utility method to allow easily comparing a resolved Brillig location and a debug Brillig location.
     // This method is useful when fetching Brillig debug locations as this does not need an ACIR index,
     // and just need the Brillig index.
-    pub fn reset_acir_index(self) -> Self {
+    pub fn to_brillig_location(self) -> Option<BrilligOpcodeLocation> {
         match self {
             OpcodeLocation::Brillig { brillig_index, .. } => {
-                OpcodeLocation::Brillig { acir_index: None, brillig_index }
+                Some(BrilligOpcodeLocation(brillig_index))
             }
-            _ => self,
+            _ => None,
         }
     }
 }
@@ -182,11 +180,7 @@ impl std::fmt::Display for OpcodeLocation {
         match self {
             OpcodeLocation::Acir(index) => write!(f, "{index}"),
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                if let Some(acir_index) = acir_index {
-                    write!(f, "{acir_index}.{brillig_index}")
-                } else {
-                    write!(f, "unknown_acir_index.{brillig_index}")
-                }
+                write!(f, "{acir_index}.{brillig_index}")
             }
         }
     }
@@ -216,11 +210,7 @@ impl FromStr for OpcodeLocation {
                     Ok(OpcodeLocation::Acir(index))
                 }
                 2 => {
-                    let acir_index = if let Ok(acir_index) = parts[0].parse::<usize>() {
-                        Some(acir_index)
-                    } else {
-                        None
-                    };
+                    let acir_index = parts[0].parse()?;
                     let brillig_index = parts[1].parse()?;
                     Ok(OpcodeLocation::Brillig { acir_index, brillig_index })
                 }
@@ -230,6 +220,23 @@ impl FromStr for OpcodeLocation {
 
         parse_components(parts)
             .map_err(|_| OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()))
+    }
+}
+
+impl FromStr for BrilligOpcodeLocation {
+    type Err = OpcodeLocationFromStrError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let index = s
+            .parse()
+            .map_err(|_| OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()))?;
+        Ok(BrilligOpcodeLocation(index))
+    }
+}
+
+impl std::fmt::Display for BrilligOpcodeLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let index = self.0;
+        write!(f, "{index}")
     }
 }
 

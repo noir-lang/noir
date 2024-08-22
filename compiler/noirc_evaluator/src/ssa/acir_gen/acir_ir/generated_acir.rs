@@ -11,7 +11,7 @@ use acvm::acir::{
     circuit::{
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        AssertionPayload, OpcodeLocation,
+        AssertionPayload, BrilligOpcodeLocation, OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
@@ -53,7 +53,7 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
 
     /// Brillig function id -> Opcodes locations map
     /// This map is used to prevent redundant locations being stored for the same Brillig entry point.
-    pub(crate) brillig_locations: BTreeMap<BrilligFunctionId, OpcodeToLocationsMap>,
+    pub(crate) brillig_locations: BTreeMap<BrilligFunctionId, BrilligOpcodeToLocationsMap>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
@@ -76,6 +76,8 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
 
 /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
 pub(crate) type OpcodeToLocationsMap = BTreeMap<OpcodeLocation, CallStack>;
+
+pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, CallStack>;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum BrilligStdlibFunc {
@@ -593,7 +595,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         for (brillig_index, message) in generated_brillig.assert_messages.iter() {
             self.assertion_payloads.insert(
                 OpcodeLocation::Brillig {
-                    acir_index: Some(self.opcodes.len() - 1),
+                    acir_index: self.opcodes.len() - 1,
                     brillig_index: *brillig_index,
                 },
                 AssertionPayload::StaticString(message.clone()),
@@ -605,10 +607,10 @@ impl<F: AcirField> GeneratedAcir<F> {
         }
 
         for (brillig_index, call_stack) in generated_brillig.locations.iter() {
-            self.brillig_locations.entry(brillig_function_index).or_default().insert(
-                OpcodeLocation::Brillig { acir_index: None, brillig_index: *brillig_index },
-                call_stack.clone(),
-            );
+            self.brillig_locations
+                .entry(brillig_function_index)
+                .or_default()
+                .insert(BrilligOpcodeLocation(*brillig_index), call_stack.clone());
         }
     }
 

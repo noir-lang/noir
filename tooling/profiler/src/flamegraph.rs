@@ -94,14 +94,13 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
             .into_iter()
             .flat_map(|opcode_location| {
                 debug_symbols.opcode_location(&opcode_location).unwrap_or_else(|| {
-                    if let Some(brillig_function_id) = sample.brillig_function_id {
+                    if let (Some(brillig_function_id), Some(brillig_location)) =
+                        (sample.brillig_function_id, opcode_location.to_brillig_location())
+                    {
                         let brillig_locations =
                             debug_symbols.brillig_locations.get(&brillig_function_id);
                         if let Some(brillig_locations) = brillig_locations {
-                            brillig_locations
-                                .get(&opcode_location.reset_acir_index())
-                                .cloned()
-                                .unwrap_or_default()
+                            brillig_locations.get(&brillig_location).cloned().unwrap_or_default()
                         } else {
                             vec![]
                         }

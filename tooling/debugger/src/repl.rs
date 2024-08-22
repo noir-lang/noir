@@ -81,10 +81,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                         println!("At opcode {} :: {}", location, opcodes[*ip]);
                     }
                     OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                        let acir_index =
-                            acir_index.expect("Debug locations should have a resolved acir index");
                         let brillig_bytecode =
-                            if let Opcode::BrilligCall { id, .. } = opcodes[acir_index] {
+                            if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index] {
                                 &self.unconstrained_functions[id.as_usize()].bytecode
                             } else {
                                 unreachable!("Brillig location does not contain Brillig opcodes");
@@ -111,9 +109,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                 )
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                let acir_index =
-                    acir_index.expect("Debug locations should have a resolved acir index");
-                let brillig_bytecode = if let Opcode::BrilligCall { id, .. } = opcodes[acir_index] {
+                let brillig_bytecode = if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index]
+                {
                     &self.unconstrained_functions[id.as_usize()].bytecode
                 } else {
                     unreachable!("Brillig location does not contain Brillig opcodes");
@@ -158,7 +155,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         let opcodes = self.context.get_opcodes_of_circuit(circuit_id);
         let current_acir_index = match current_opcode_location {
             Some(OpcodeLocation::Acir(ip)) => Some(ip),
-            Some(OpcodeLocation::Brillig { acir_index, .. }) => acir_index,
+            Some(OpcodeLocation::Brillig { acir_index, .. }) => Some(acir_index),
             None => None,
         };
         let current_brillig_index = match current_opcode_location {
@@ -183,10 +180,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                 "->"
             } else if self.context.is_breakpoint_set(&DebugLocation {
                 circuit_id,
-                opcode_location: OpcodeLocation::Brillig {
-                    acir_index: Some(acir_index),
-                    brillig_index,
-                },
+                opcode_location: OpcodeLocation::Brillig { acir_index: acir_index, brillig_index },
                 brillig_function_id: Some(brillig_function_id),
             }) {
                 " *"
