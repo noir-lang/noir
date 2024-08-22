@@ -339,6 +339,13 @@ impl<'a> NodeFinder<'a> {
     }
 
     pub(super) fn find_in_call_expression(&mut self, call_expression: &CallExpression) {
+        // Check if it's this case:
+        //
+        // foo::b>|<(...)
+        //
+        // In this case we want to suggest items in foo but if they are functions
+        // we don't want to insert arguments, because they are already there (even if
+        // they could be wrong) just because inserting them would lead to broken code.
         if let ExpressionKind::Variable(path) = &call_expression.func.kind {
             if self.includes_span(path.span) {
                 self.find_in_path_impl(path, RequestedItems::AnyItems, true);
