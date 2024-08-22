@@ -33,16 +33,11 @@ pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint 
 }
 
 pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {
-    __pedersen_hash_with_separator(input, separator)
+    pedersen_hash_with_separator_noir(input, separator)
 }
 
 fn pedersen_commitment_with_separator<let N: u32>(input: [Field; N], separator: u32) -> EmbeddedCurvePoint {
-    let value = __pedersen_commitment_with_separator(input, separator);
-    if (value[0] == 0) & (value[1] == 0) {
-        EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
-    } else {
-        EmbeddedCurvePoint { x: value[0], y: value[1], is_infinite: false }
-    }
+    pedersen_commitment_with_separator_noir(input, separator)
 }
 
 #[no_predicates]
@@ -78,7 +73,7 @@ fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u
 pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 // docs:end:pedersen_hash
 {
-    __pedersen_hash_with_separator(input, 0)
+    pedersen_hash_with_separator_noir(input, 0)
 }
 
 #[foreign(pedersen_hash)]
