@@ -706,11 +706,11 @@ impl<'a> NodeFinder<'a> {
             }
             UnresolvedTypeData::Named(path, unresolved_types, _) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_unresolved_types(unresolved_types);
+                self.find_in_type_args(unresolved_types);
             }
             UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_unresolved_types(unresolved_types);
+                self.find_in_type_args(unresolved_types);
             }
             UnresolvedTypeData::MutableReference(unresolved_type) => {
                 self.find_in_unresolved_type(unresolved_type);

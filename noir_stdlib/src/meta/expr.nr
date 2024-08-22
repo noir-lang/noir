@@ -18,6 +18,12 @@ impl Expr {
     #[builtin(expr_as_bool)]
     fn as_bool(self) -> Option<bool> {}
 
+    #[builtin(expr_as_cast)]
+    fn as_cast(self) -> Option<(Expr, UnresolvedType)> {}
+
+    #[builtin(expr_as_comptime)]
+    fn as_comptime(self) -> Option<[Expr]> {}
+
     #[builtin(expr_as_function_call)]
     fn as_function_call(self) -> Option<(Expr, [Expr])> {}
 
@@ -45,8 +51,17 @@ impl Expr {
     #[builtin(expr_as_unary_op)]
     fn as_unary_op(self) -> Option<(UnaryOp, Expr)> {}
 
+    #[builtin(expr_as_unsafe)]
+    fn as_unsafe(self) -> Option<[Expr]> {}
+
     #[builtin(expr_has_semicolon)]
     fn has_semicolon(self) -> bool {}
+
+    #[builtin(expr_is_break)]
+    fn is_break(self) -> bool {}
+
+    #[builtin(expr_is_continue)]
+    fn is_continue(self) -> bool {}
 }
 
 mod tests {
@@ -125,6 +140,39 @@ mod tests {
 
             let expr = quote { true }.as_expr().unwrap();
             assert_eq(expr.as_bool().unwrap(), true);
+        }
+    }
+
+    #[test]
+    fn test_expr_as_cast() {
+        comptime
+        {
+            let expr = quote { 1 as Field }.as_expr().unwrap();
+            let (expr, _typ) = expr.as_cast().unwrap();
+            assert_eq(expr.as_integer().unwrap(), (1, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_as_comptime() {
+        comptime
+        {
+            let expr = quote { comptime { 1; 4; 23 } }.as_expr().unwrap();
+            let exprs = expr.as_comptime().unwrap();
+            assert_eq(exprs.len(), 3);
+        }
+    }
+
+    #[test]
+    fn test_expr_as_comptime_as_statement() {
+        comptime
+        {
+            let expr = quote { { comptime { 1; 4; 23 } } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            assert_eq(exprs.len(), 1);
+
+            let exprs = exprs[0].as_comptime().unwrap();
+            assert_eq(exprs.len(), 3);
         }
     }
 
@@ -225,6 +273,36 @@ mod tests {
             assert(get_unary_op(quote { !x }).is_not());
             assert(get_unary_op(quote { &mut x }).is_mutable_reference());
             assert(get_unary_op(quote { *x }).is_dereference());
+        }
+    }
+
+    #[test]
+    fn test_expr_as_unsafe() {
+        comptime
+        {
+            let expr = quote { unsafe { 1; 4; 23 } }.as_expr().unwrap();
+            let exprs = expr.as_unsafe().unwrap();
+            assert_eq(exprs.len(), 3);
+        }
+    }
+
+    #[test]
+    fn test_expr_is_break() {
+        comptime
+        {
+            let expr = quote { { break; } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            assert(exprs[0].is_break());
+        }
+    }
+
+    #[test]
+    fn test_expr_is_continue() {
+        comptime
+        {
+            let expr = quote { { continue; } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            assert(exprs[0].is_continue());
         }
     }
 
