@@ -17,7 +17,12 @@ use super::{
 };
 
 impl<'a> NodeFinder<'a> {
-    pub(super) fn complete_auto_imports(&mut self, prefix: &str, requested_items: RequestedItems) {
+    pub(super) fn complete_auto_imports(
+        &mut self,
+        prefix: &str,
+        requested_items: RequestedItems,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
         let current_module_parent_id = get_parent_module_id(self.def_maps, self.module_id);
 
         for (name, entries) in self.interner.get_auto_import_names() {
@@ -33,7 +38,7 @@ impl<'a> NodeFinder<'a> {
                 let Some(mut completion_item) = self.module_def_id_completion_item(
                     *module_def_id,
                     name.clone(),
-                    FunctionCompletionKind::NameAndParameters,
+                    function_completion_kind,
                     FunctionKind::Any,
                     requested_items,
                 ) else {

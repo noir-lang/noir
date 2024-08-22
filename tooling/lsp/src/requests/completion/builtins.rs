@@ -4,19 +4,38 @@ use strum::IntoEnumIterator;
 
 use super::{
     completion_items::{simple_completion_item, snippet_completion_item},
+    kinds::FunctionCompletionKind,
     name_matches, NodeFinder,
 };
 
 impl<'a> NodeFinder<'a> {
-    pub(super) fn builtin_functions_completion(&mut self, prefix: &str) {
+    pub(super) fn builtin_functions_completion(
+        &mut self,
+        prefix: &str,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
         for keyword in Keyword::iter() {
             if let Some(func) = keyword_builtin_function(&keyword) {
                 if name_matches(func.name, prefix) {
+                    let description = Some(func.description.to_string());
+                    let label;
+                    let insert_text;
+                    match function_completion_kind {
+                        FunctionCompletionKind::Name => {
+                            label = func.name.to_string();
+                            insert_text = func.name.to_string();
+                        }
+                        FunctionCompletionKind::NameAndParameters => {
+                            label = format!("{}(…)", func.name);
+                            insert_text = format!("{}({})", func.name, func.parameters);
+                        }
+                    }
+
                     self.completion_items.push(snippet_completion_item(
-                        format!("{}(…)", func.name),
+                        label,
                         CompletionItemKind::FUNCTION,
-                        format!("{}({})", func.name, func.parameters),
-                        Some(func.description.to_string()),
+                        insert_text,
+                        description,
                     ));
                 }
             }

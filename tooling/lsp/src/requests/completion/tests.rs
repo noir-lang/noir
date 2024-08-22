@@ -1656,4 +1656,68 @@ mod completion_tests {
             Some("(use std::merkle::compute_merkle_root)".to_string()),
         );
     }
+
+    #[test]
+    async fn test_completes_after_first_letter_of_path() {
+        let src = r#"
+            fn main() {
+                h>|<ello();
+            }
+
+            fn hello_world() {}
+        "#;
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item(
+                "hello_world",
+                CompletionItemKind::FUNCTION,
+                Some("fn()".to_string()),
+            )],
+        )
+        .await
+    }
+
+    #[test]
+    async fn test_completes_after_colon_in_the_middle_of_an_ident_last_segment() {
+        let src = r#"
+            mod foo {
+                pub fn bar() {}
+            }
+
+            fn main() {
+                foo::>|<b
+            }
+        "#;
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item(
+                "bar",
+                CompletionItemKind::FUNCTION,
+                Some("fn()".to_string()),
+            )],
+        )
+        .await
+    }
+
+    #[test]
+    async fn test_completes_after_colon_in_the_middle_of_an_ident_middle_segment() {
+        let src = r#"
+            mod foo {
+                fn bar() {}
+            }
+
+            fn main() {
+                foo::>|<b::baz
+            }
+        "#;
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item(
+                "bar",
+                CompletionItemKind::FUNCTION,
+                Some("fn()".to_string()),
+            )],
+        )
+        .await
+    }
 }
