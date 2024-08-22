@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use acir::{
     acir_field::GenericFieldElement,
@@ -1198,11 +1198,15 @@ proptest! {
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5578): this test attempts to use a guaranteed-invalid BigInt modulus
     #[should_panic(expected = "attempt to add with overflow")]
-    fn bigint_from_to_le_bytes_disallowed_modulus(modulus in select(allowed_bigint_moduli()), patch_location: usize, patch_amount: u8, zero_or_ones_constant: bool, use_constant: bool) {
-        let patch_location = patch_location % modulus.len();
+    fn bigint_from_to_le_bytes_disallowed_modulus(mut modulus in select(allowed_bigint_moduli()), patch_location: usize, patch_amount: u8, zero_or_ones_constant: bool, use_constant: bool) {
+        let allowed_moduli: HashSet<Vec<u8>> = allowed_bigint_moduli().into_iter().collect();
+        let mut patch_location = patch_location % modulus.len();
         let patch_amount = patch_amount.clamp(1, u8::MAX);
-        let mut modulus = modulus;
-        modulus[patch_location] += patch_amount;
+        while allowed_moduli.contains(&modulus) {
+            modulus[patch_location] += patch_amount;
+            patch_location += 1;
+            patch_location %= modulus.len();
+        }
 
         let zero_function_input = if zero_or_ones_constant {
             FieldElement::zero()
