@@ -6,6 +6,9 @@ impl Expr {
     #[builtin(expr_as_array)]
     fn as_array(self) -> Option<[Expr]> {}
 
+    #[builtin(expr_as_assign)]
+    fn as_assign(self) -> Option<(Expr, Expr)> {}
+
     #[builtin(expr_as_integer)]
     fn as_integer(self) -> Option<(Field, bool)> {}
 
@@ -78,6 +81,17 @@ mod tests {
             assert_eq(elems[0].as_integer().unwrap(), (1, false));
             assert_eq(elems[1].as_integer().unwrap(), (2, false));
             assert_eq(elems[2].as_integer().unwrap(), (4, false));
+        }
+    }
+
+    #[test]
+    fn test_expr_as_assign() {
+        comptime
+        {
+            let expr = quote { { a = 1; } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            let (_lhs, rhs) = exprs[0].as_assign().unwrap();
+            assert_eq(rhs.as_integer().unwrap(), (1, false));
         }
     }
 

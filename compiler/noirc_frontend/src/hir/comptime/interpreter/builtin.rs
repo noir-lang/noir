@@ -54,6 +54,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_array" => expr_as_array(arguments, return_type, location),
+            "expr_as_assign" => expr_as_assign(arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
             "expr_as_block" => expr_as_block(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
@@ -804,6 +805,23 @@ fn expr_as_array(
             let exprs = exprs.into_iter().map(|expr| Value::expression(expr.kind)).collect();
             let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
             Some(Value::Slice(exprs, typ))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_assign(self) -> Option<(Expr, Expr)>
+fn expr_as_assign(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Statement(StatementKind::Assign(assign)) = expr {
+            let lhs = Value::lvalue(assign.lvalue);
+            let rhs = Value::expression(assign.expression.kind);
+            Some(Value::Tuple(vec![lhs, rhs]))
         } else {
             None
         }
