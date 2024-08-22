@@ -154,7 +154,7 @@ pub struct ResolvedOpcodeLocation {
 pub enum OpcodeLocation {
     Acir(usize),
     // We can not get rid of this enum field entirely just yet as this format is still
-    // used for resolving assert messages which is breaking serialization change.
+    // used for resolving assert messages which is a breaking serialization change.
     Brillig { acir_index: usize, brillig_index: usize },
 }
 
