@@ -277,7 +277,7 @@ jobs:
         # limit our parallelism to half our cores
         run: earthly-ci --no-output +preset-gcc
 
-  # barretenberg (prover) native and AVM (public VM) tests
+  # barretenberg (prover) native, AVM (public VM) and Merkle tree (world state) tests
   # only ran on x86 for resource reasons (memory intensive)
   bb-native-tests:
     needs: [build-images, changes]

@@ -3,6 +3,7 @@ barretenberg_module(
   ultra_honk
   stdlib_sha256
   stdlib_keccak
-  crypto_merkle_tree
-  plonk  
+  stdlib_pedersen_hash
+  stdlib_poseidon2
+  plonk
 )

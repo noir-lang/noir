@@ -152,6 +152,7 @@ include(cmake/gtest.cmake)
 include(cmake/benchmark.cmake)
 include(cmake/module.cmake)
 include(cmake/msgpack.cmake)
+include(cmake/lmdb.cmake)
 
 # We do not need to bloat barretenberg.wasm with gzip functionality in a browser context as the browser can do this
 if (NOT WASM)

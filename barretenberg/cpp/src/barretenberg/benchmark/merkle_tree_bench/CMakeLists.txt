@@ -1,1 +1,1 @@
-barretenberg_module(merkle_tree_bench crypto_poseidon2 crypto_merkle_tree)
+barretenberg_module(merkle_tree_bench crypto_poseidon2 crypto_pedersen_hash crypto_merkle_tree)

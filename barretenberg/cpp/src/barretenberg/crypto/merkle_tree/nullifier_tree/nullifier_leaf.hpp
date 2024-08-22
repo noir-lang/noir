@@ -1,20 +1,19 @@
 #pragma once
+#include "barretenberg/crypto/merkle_tree/types.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/stdlib/hash/poseidon2/poseidon2.hpp"
 
 namespace bb::crypto::merkle_tree {
 
-typedef uint256_t index_t;
-
-struct nullifier_leaf {
+struct indexed_nullifier_leaf {
     fr value;
     index_t nextIndex;
     fr nextValue;
 
     // For serialization, update with any new fields
     MSGPACK_FIELDS(value, nextIndex, nextValue);
-    bool operator==(nullifier_leaf const&) const = default;
+    bool operator==(indexed_nullifier_leaf const&) const = default;
 
     std::ostream& operator<<(std::ostream& os)
     {
@@ -22,9 +21,12 @@ struct nullifier_leaf {
         return os;
     }
 
-    std::vector<fr> get_hash_inputs() const { return std::vector<fr>{ value, nextIndex, nextValue }; }
+    std::vector<fr> get_hash_inputs() const { return std::vector<fr>{ value, nextValue, nextIndex }; }
 
-    static nullifier_leaf zero() { return nullifier_leaf{ .value = 0, .nextIndex = 0, .nextValue = 0 }; }
+    static indexed_nullifier_leaf zero()
+    {
+        return indexed_nullifier_leaf{ .value = 0, .nextIndex = 0, .nextValue = 0 };
+    }
 };
 
 /**
@@ -35,7 +37,7 @@ template <typename HashingPolicy> class WrappedNullifierLeaf {
 
   public:
     // Initialize with a nullifier leaf
-    WrappedNullifierLeaf(nullifier_leaf value)
+    WrappedNullifierLeaf(indexed_nullifier_leaf value)
         : data(value)
     {}
     // Initialize an empty leaf
@@ -58,14 +60,14 @@ template <typename HashingPolicy> class WrappedNullifierLeaf {
      *
      * @return nullifier_leaf
      */
-    nullifier_leaf unwrap() const { return data.value(); }
+    indexed_nullifier_leaf unwrap() const { return data.value(); }
 
     /**
      * @brief Set the wrapped nullifier_leaf object value
      *
      * @param value
      */
-    void set(nullifier_leaf value) { data.emplace(value); }
+    void set(indexed_nullifier_leaf value) { data.emplace(value); }
 
     /**
      * @brief Return the hash of the wrapped object, other return the zero hash of 0
@@ -86,7 +88,7 @@ template <typename HashingPolicy> class WrappedNullifierLeaf {
 
   private:
     // Underlying data
-    std::optional<nullifier_leaf> data;
+    std::optional<indexed_nullifier_leaf> data;
 };
 
 template <typename HashingPolicy>

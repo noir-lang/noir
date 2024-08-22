@@ -39,26 +39,27 @@ inline void print_tree(const size_t depth, std::vector<fr> hashes, std::string c
 TEST(stdlib_nullifier_tree, test_kv_memory_vs_memory_consistency)
 {
     constexpr size_t depth = 2;
-    NullifierMemoryTree<Poseidon2HashPolicy> memdb(depth);
+    constexpr size_t prefill = 2;
+    NullifierMemoryTree<Poseidon2HashPolicy> memdb(depth, prefill);
 
     MemoryStore store;
-    NullifierTree<MemoryStore, Poseidon2HashPolicy> db(store, depth);
+    NullifierTree<MemoryStore, Poseidon2HashPolicy> db(store, depth, prefill);
 
     EXPECT_EQ(db.root(), memdb.root());
 
-    std::vector<size_t> indicies(1 << depth);
+    std::vector<size_t> indicies((1 << depth) - prefill);
     std::iota(indicies.begin(), indicies.end(), 0);
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(indicies.begin(), indicies.end(), g);
 
-    for (size_t i = 0; i < indicies.size() - 1; ++i) {
+    for (size_t i = 0; i < indicies.size(); ++i) {
         size_t idx = indicies[i];
         memdb.update_element(VALUES[idx]);
         db.update_element(VALUES[idx]);
     }
 
-    for (size_t i = 0; i < indicies.size() - 1; ++i) {
+    for (size_t i = 0; i < indicies.size(); ++i) {
         size_t idx = indicies[i];
         EXPECT_EQ(db.get_hash_path(idx), memdb.get_hash_path(idx));
     }
@@ -93,10 +94,10 @@ TEST(stdlib_nullifier_tree, test_size)
 
 TEST(stdlib_nullifier_tree, test_get_hash_path)
 {
-    NullifierMemoryTree<Poseidon2HashPolicy> memdb(10);
+    NullifierMemoryTree<Poseidon2HashPolicy> memdb(10, 2);
 
     MemoryStore store;
-    auto db = NullifierTree<MemoryStore, Poseidon2HashPolicy>(store, 10);
+    auto db = NullifierTree<MemoryStore, Poseidon2HashPolicy>(store, 10, 2);
 
     EXPECT_EQ(memdb.get_hash_path(512), db.get_hash_path(512));
 

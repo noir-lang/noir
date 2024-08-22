@@ -32,6 +32,8 @@ template <typename HashingPolicy> class MemoryTree {
 
     fr root() const { return root_; }
 
+    fr get_node(uint32_t level, size_t index) const;
+
   public:
     size_t depth_;
     size_t total_size_;
@@ -59,6 +61,15 @@ MemoryTree<HashingPolicy>::MemoryTree(size_t depth)
     }
 
     root_ = current;
+}
+
+template <typename HashingPolicy> fr MemoryTree<HashingPolicy>::get_node(uint32_t level, size_t index) const
+{
+    auto offset = 0UL;
+    for (size_t i = depth_; i > level; i--) {
+        offset += 1UL << i;
+    }
+    return hashes_[offset + index];
 }
 
 template <typename HashingPolicy> fr_hash_path MemoryTree<HashingPolicy>::get_hash_path(size_t index)

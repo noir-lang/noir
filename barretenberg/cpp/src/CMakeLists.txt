@@ -21,6 +21,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         message(STATUS "Compiling with memory checks.")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
     endif()
+
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18)
         # We target clang18 and need this, eventually warning should be fixed or this will be unconditional.
         add_compile_options(-Wno-vla-cxx-extension)
@@ -41,7 +42,7 @@ if(WASM)
     add_link_options(-Wl,--export-memory,--import-memory,--stack-first,-z,stack-size=1048576,--max-memory=4294967296)
 endif()
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${MSGPACK_INCLUDE} ${TRACY_INCLUDE})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${MSGPACK_INCLUDE} ${TRACY_INCLUDE} ${LMDB_INCLUDE})
 
 # I feel this should be limited to ecc, however it's currently used in headers that go across libraries,
 # and there currently isn't an easy way to inherit the DDISABLE_ASM parameter.
@@ -86,7 +87,6 @@ add_subdirectory(barretenberg/translator_vm)
 add_subdirectory(barretenberg/ultra_honk)
 add_subdirectory(barretenberg/vm)
 add_subdirectory(barretenberg/wasi)
-
 
 if(SMT)
     add_subdirectory(barretenberg/smt_verification)
@@ -140,7 +140,6 @@ set(BARRETENBERG_TARGET_OBJECTS
     $<TARGET_OBJECTS:stdlib_honk_verifier_objects>
     $<TARGET_OBJECTS:stdlib_goblin_verifier_objects>
     $<TARGET_OBJECTS:stdlib_keccak_objects>
-    $<TARGET_OBJECTS:crypto_merkle_tree_objects>
     $<TARGET_OBJECTS:stdlib_pedersen_commitment_objects>
     $<TARGET_OBJECTS:stdlib_pedersen_hash_objects>
     $<TARGET_OBJECTS:stdlib_plonk_recursion_objects>
@@ -158,6 +157,11 @@ set(BARRETENBERG_TARGET_OBJECTS
 if(NOT DISABLE_AZTEC_VM)
     # enable AVM
     list(APPEND BARRETENBERG_TARGET_OBJECTS $<TARGET_OBJECTS:vm_objects>)
+endif()
+
+if(NOT WASM)
+    # enable merkle trees
+    list(APPEND BARRETENBERG_TARGET_OBJECTS $<TARGET_OBJECTS:crypto_merkle_tree_objects>)
 endif()
 
 add_library(

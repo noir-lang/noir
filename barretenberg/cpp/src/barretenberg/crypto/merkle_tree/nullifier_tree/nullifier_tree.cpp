@@ -20,8 +20,7 @@ NullifierTree<Store, HashingPolicy>::NullifierTree(Store& store, size_t depth, s
     zero_hashes_.resize(depth);
 
     // Create the zero hashes for the tree
-    auto current =
-        WrappedNullifierLeaf<HashingPolicy>(nullifier_leaf{ .value = 0, .nextIndex = 0, .nextValue = 0 }).hash();
+    auto current = fr::zero();
     for (size_t i = 0; i < depth; ++i) {
         zero_hashes_[i] = current;
         current = HashingPolicy::hash_pair(current, current);
@@ -29,13 +28,13 @@ NullifierTree<Store, HashingPolicy>::NullifierTree(Store& store, size_t depth, s
 
     // Insert the initial leaves
     for (size_t i = 0; i < initial_size; i++) {
-        auto initial_leaf =
-            WrappedNullifierLeaf<HashingPolicy>(nullifier_leaf{ .value = i, .nextIndex = i + 1, .nextValue = i + 1 });
+        auto initial_leaf = WrappedNullifierLeaf<HashingPolicy>(
+            indexed_nullifier_leaf{ .value = i, .nextIndex = i + 1, .nextValue = i + 1 });
         leaves.push_back(initial_leaf);
     }
 
     leaves[initial_size - 1] = WrappedNullifierLeaf<HashingPolicy>(
-        nullifier_leaf{ .value = leaves[initial_size - 1].unwrap().value, .nextIndex = 0, .nextValue = 0 });
+        indexed_nullifier_leaf{ .value = leaves[initial_size - 1].unwrap().value, .nextIndex = 0, .nextValue = 0 });
 
     for (size_t i = 0; i < initial_size; ++i) {
         update_element(i, leaves[i].hash());
@@ -57,7 +56,7 @@ fr NullifierTree<Store, HashingPolicy>::update_element(fr const& value)
     bool is_already_present;
     std::tie(current, is_already_present) = find_closest_leaf(leaves, value);
 
-    nullifier_leaf current_leaf = leaves[current].unwrap();
+    indexed_nullifier_leaf current_leaf = leaves[current].unwrap();
     WrappedNullifierLeaf<HashingPolicy> new_leaf = WrappedNullifierLeaf<HashingPolicy>(
         { .value = value, .nextIndex = current_leaf.nextIndex, .nextValue = current_leaf.nextValue });
     if (!is_already_present) {
