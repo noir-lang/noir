@@ -13,12 +13,12 @@ using namespace bb::srs::factories;
 
 class MemVerifierCrs : public VerifierCrs<curve::BN254> {
   public:
-    MemVerifierCrs(g2::affine_element const& g2_point)
-        : g2_x(g2_point)
+    MemVerifierCrs(g2::affine_element g2_point, g1::affine_element const& g1_identity)
+        : g1_identityx(g1_identity)
+        , g2_x(std::move(g2_point))
         , precomputed_g2_lines(
               static_cast<pairing::miller_lines*>(aligned_alloc(64, sizeof(bb::pairing::miller_lines) * 2)))
     {
-
         bb::pairing::precompute_miller_lines(bb::g2::one, precomputed_g2_lines[0]);
         bb::pairing::precompute_miller_lines(g2_x, precomputed_g2_lines[1]);
     }
@@ -43,8 +43,14 @@ namespace bb::srs::factories {
 MemBn254CrsFactory::MemBn254CrsFactory(std::vector<g1::affine_element> const& points,
                                        g2::affine_element const& g2_point)
     : prover_crs_(std::make_shared<MemProverCrs<curve::BN254>>(points))
-    , verifier_crs_(std::make_shared<MemVerifierCrs>(g2_point))
-{}
+{
+    auto g1_identity = g1::affine_element();
+    if (!points.empty()) {
+        g1_identity = points[0];
+    }
+
+    verifier_crs_ = std::make_shared<MemVerifierCrs>(g2_point, g1_identity);
+}
 
 std::shared_ptr<bb::srs::factories::ProverCrs<curve::BN254>> MemBn254CrsFactory::get_prover_crs(size_t)
 {

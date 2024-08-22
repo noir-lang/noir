@@ -115,12 +115,13 @@ std::string to_json(std::vector<bb::fr>& data)
     return format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
 }
 
-std::string vk_to_json(std::vector<bb::fr>& data)
+std::string vk_to_json(std::vector<bb::fr> const& data)
 {
     // We need to move vk_hash to the front...
-    std::rotate(data.begin(), data.end() - 1, data.end());
+    std::vector<bb::fr> rotated(data.begin(), data.end() - 1);
+    rotated.insert(rotated.begin(), data.at(data.size() - 1));
 
-    return format("[", join(map(data, [](auto fr) { return format("\"", fr, "\""); })), "]");
+    return format("[", join(map(rotated, [](auto fr) { return format("\"", fr, "\""); })), "]");
 }
 
 std::string honk_vk_to_json(std::vector<bb::fr>& data)
@@ -950,18 +951,25 @@ void avm_prove(const std::filesystem::path& bytecode_path,
     auto const [verification_key, proof] =
         AVM_TRACK_TIME_V("prove/all", avm_trace::Execution::prove(bytecode, calldata, public_inputs_vec, avm_hints));
 
-    // TODO(ilyas): <#4887>: Currently we only need these two parts of the vk, look into pcs_verification key reqs
-    std::vector<uint64_t> vk_vector = { verification_key.circuit_size, verification_key.num_public_inputs };
-    std::vector<fr> vk_as_fields = { verification_key.circuit_size, verification_key.num_public_inputs };
-    std::string vk_json = vk_to_json(vk_as_fields);
+    std::vector<fr> vk_as_fields = { fr(verification_key.circuit_size), fr(verification_key.num_public_inputs) };
 
+    for (auto const& comm : verification_key.get_all()) {
+        std::vector<fr> comm_as_fields = field_conversion::convert_to_bn254_frs(comm);
+        vk_as_fields.insert(vk_as_fields.end(), comm_as_fields.begin(), comm_as_fields.end());
+    }
+
+    vinfo("vk fields size: ", vk_as_fields.size());
+    vinfo("circuit size: ", vk_as_fields[0]);
+    vinfo("num of pub inputs: ", vk_as_fields[1]);
+
+    std::string vk_json = to_json(vk_as_fields);
     const auto proof_path = output_path / "proof";
     const auto vk_path = output_path / "vk";
     const auto vk_fields_path = output_path / "vk_fields.json";
 
     write_file(proof_path, to_buffer(proof));
     vinfo("proof written to: ", proof_path);
-    write_file(vk_path, to_buffer(vk_vector));
+    write_file(vk_path, to_buffer(vk_as_fields));
     vinfo("vk written to: ", vk_path);
     write_file(vk_fields_path, { vk_json.begin(), vk_json.end() });
     vinfo("vk as fields written to: ", vk_fields_path);
@@ -988,11 +996,34 @@ void avm_prove(const std::filesystem::path& bytecode_path,
  */
 bool avm_verify(const std::filesystem::path& proof_path, const std::filesystem::path& vk_path)
 {
+    using Commitment = AvmFlavorSettings::Commitment;
     std::vector<fr> const proof = many_from_buffer<fr>(read_file(proof_path));
     std::vector<uint8_t> vk_bytes = read_file(vk_path);
-    auto circuit_size = from_buffer<size_t>(vk_bytes, 0);
-    auto num_public_inputs = from_buffer<size_t>(vk_bytes, sizeof(size_t));
-    auto vk = AvmFlavor::VerificationKey(circuit_size, num_public_inputs);
+    std::vector<fr> vk_as_fields = many_from_buffer<fr>(vk_bytes);
+
+    vinfo("initializing crs with size: ", 1);
+    init_bn254_crs(1);
+
+    auto circuit_size = uint64_t(vk_as_fields[0]);
+    auto num_public_inputs = uint64_t(vk_as_fields[1]);
+    std::span vk_span(vk_as_fields);
+
+    vinfo("vk fields size: ", vk_as_fields.size());
+    vinfo("circuit size: ", circuit_size);
+    vinfo("num of pub inputs: ", num_public_inputs);
+
+    // Each commitment (precomputed entity) is represented as 2 Fq field elements.
+    // Each Fq element is split into two limbs of Fr elements.
+    // We therefore need 2 (circuit_size, num_public_inputs) + 4 * NUM_PRECOMPUTED_ENTITIES fr elements.
+    ASSERT(vk_as_fields.size() == 4 * AvmFlavor::NUM_PRECOMPUTED_ENTITIES + 2);
+
+    std::array<Commitment, AvmFlavor::NUM_PRECOMPUTED_ENTITIES> precomputed_cmts;
+    for (size_t i = 0; i < AvmFlavor::NUM_PRECOMPUTED_ENTITIES; i++) {
+        // Start at offset 2 and adds 4 fr elements per commitment. Therefore, index = 4 * i + 2.
+        precomputed_cmts[i] = field_conversion::convert_from_bn254_frs<Commitment>(vk_span.subspan(4 * i + 2, 4));
+    }
+
+    auto vk = AvmFlavor::VerificationKey(circuit_size, num_public_inputs, precomputed_cmts);
 
     const bool verified = AVM_TRACK_TIME_V("verify/all", avm_trace::Execution::verify(vk, proof));
     vinfo("verified: ", verified);

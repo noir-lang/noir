@@ -285,7 +285,11 @@ template <typename Curve> class IO {
         size_t num_read = 0;
         std::string path = get_transcript_path(dir, num);
 
-        while (is_file_exist(path) && num_read < degree) {
+        if (!is_file_exist(path)) {
+            throw_or_abort(format("File path for transcript g1 ", path, " is invalid."));
+        }
+
+        while (num_read < degree) {
             Manifest manifest;
             read_manifest(path, manifest);
 

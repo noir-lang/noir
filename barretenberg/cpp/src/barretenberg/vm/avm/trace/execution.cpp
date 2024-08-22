@@ -325,13 +325,7 @@ VmPublicInputs Execution::convert_public_inputs(std::vector<FF> const& public_in
 
 bool Execution::verify(AvmFlavor::VerificationKey vk, HonkProof const& proof)
 {
-    auto verification_key = std::make_shared<AvmFlavor::VerificationKey>(vk);
-    AvmVerifier verifier(verification_key);
-
-    // todo: not needed for now until we verify the PCS/pairing of the proof
-    // auto pcs_verification_key = std::make_unique<VerifierCommitmentKey>(verification_key->circuit_size,
-    // crs_factory_);
-    // output_state.pcs_verification_key = std::move(pcs_verification_key);
+    AvmVerifier verifier(std::make_shared<AvmFlavor::VerificationKey>(vk));
 
     // Proof structure: public_inputs | calldata_size | calldata | returndata_size | returndata | raw proof
     std::vector<FF> public_inputs_vec;

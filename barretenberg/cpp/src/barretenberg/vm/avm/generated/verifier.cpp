@@ -10,7 +10,7 @@
 namespace bb {
 
 AvmVerifier::AvmVerifier(std::shared_ptr<Flavor::VerificationKey> verifier_key)
-    : key(verifier_key)
+    : key(std::move(verifier_key))
 {}
 
 AvmVerifier::AvmVerifier(AvmVerifier&& other) noexcept
@@ -21,7 +21,7 @@ AvmVerifier::AvmVerifier(AvmVerifier&& other) noexcept
 AvmVerifier& AvmVerifier::operator=(AvmVerifier&& other) noexcept
 {
     key = other.key;
-    pcs_verification_key = (std::move(other.pcs_verification_key));
+    pcs_verification_key = other.pcs_verification_key;
     commitments.clear();
     return *this;
 }
@@ -53,9 +53,9 @@ bool AvmVerifier::verify_proof(const HonkProof& proof,
     using Flavor = AvmFlavor;
     using FF = Flavor::FF;
     using Commitment = Flavor::Commitment;
-    // using PCS = Flavor::PCS;
-    // using Curve = Flavor::Curve;
-    // using ZeroMorph = ZeroMorphVerifier_<Curve>;
+    using PCS = Flavor::PCS;
+    using Curve = Flavor::Curve;
+    using ZeroMorph = ZeroMorphVerifier_<Curve>;
     using VerifierCommitments = Flavor::VerifierCommitments;
     using CommitmentLabels = Flavor::CommitmentLabels;
 
@@ -138,20 +138,19 @@ bool AvmVerifier::verify_proof(const HonkProof& proof,
 
     // Execute ZeroMorph rounds. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a complete description of the
     // unrolled protocol.
-    // NOTE: temporarily disabled - facing integration issues
-    // auto opening_claim = ZeroMorph::verify(circuit_size,
-    //                                        commitments.get_unshifted(),
-    //                                        commitments.get_to_be_shifted(),
-    //                                        claimed_evaluations.get_unshifted(),
-    //                                        claimed_evaluations.get_shifted(),
-    //                                        multivariate_challenge,
-    //                                        pcs_verification_key->get_g1_identity(),
-    //                                        transcript);
 
-    // auto pairing_points = PCS::reduce_verify(opening_claim, transcript);
-    // auto verified = pcs_verification_key->pairing_check(pairing_points[0], pairing_points[1]);
-    // return sumcheck_verified.value() && verified;
-    return sumcheck_verified.value();
+    auto opening_claim = ZeroMorph::verify(circuit_size,
+                                           commitments.get_unshifted(),
+                                           commitments.get_to_be_shifted(),
+                                           claimed_evaluations.get_unshifted(),
+                                           claimed_evaluations.get_shifted(),
+                                           multivariate_challenge,
+                                           pcs_verification_key.get_g1_identity(),
+                                           transcript);
+
+    auto pairing_points = PCS::reduce_verify(opening_claim, transcript);
+    auto verified = pcs_verification_key.pairing_check(pairing_points[0], pairing_points[1]);
+    return sumcheck_verified.value() && verified;
 }
 
 } // namespace bb
