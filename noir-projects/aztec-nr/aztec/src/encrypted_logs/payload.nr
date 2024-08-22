@@ -10,15 +10,16 @@ use crate::{
     encrypted_logs::{
     header::EncryptedLogHeader, incoming_body::EncryptedLogIncomingBody,
     outgoing_body::EncryptedLogOutgoingBody
-}
+},
+    keys::public_keys::{OvpkM, IvpkM}
 };
 
 pub fn compute_encrypted_event_log<Event, let NB: u32, let MB: u32, let OB: u32>(
     contract_address: AztecAddress,
     randomness: Field,
     ovsk_app: Field,
-    ovpk: Point,
-    ivpk: Point,
+    ovpk: OvpkM,
+    ivpk: IvpkM,
     recipient: AztecAddress,
     event: Event
 ) -> [u8; OB] where Event: EventInterface<NB, MB> {
@@ -32,7 +33,7 @@ pub fn compute_encrypted_event_log<Event, let NB: u32, let MB: u32, let OB: u32>
     let outgoing_body_ciphertext: [u8; 144] = EncryptedLogOutgoingBody::new(eph_sk, recipient, ivpk).compute_ciphertext(fr_to_fq(ovsk_app), eph_pk);
 
     let mut encrypted_bytes: [u8; OB] = [0; OB];
-    // @todo We ignore the tags for now 
+    // @todo We ignore the tags for now
 
     let eph_pk_bytes = point_to_bytes(eph_pk);
     for i in 0..32 {
@@ -68,8 +69,8 @@ pub fn compute_encrypted_note_log<Note, let N: u32, let NB: u32, let M: u32>(
     contract_address: AztecAddress,
     storage_slot: Field,
     ovsk_app: Field,
-    ovpk: Point,
-    ivpk: Point,
+    ovpk: OvpkM,
+    ivpk: IvpkM,
     recipient: AztecAddress,
     note: Note
 ) -> [u8; M] where Note: NoteInterface<N, NB> {
@@ -83,7 +84,7 @@ pub fn compute_encrypted_note_log<Note, let N: u32, let NB: u32, let M: u32>(
     let outgoing_body_ciphertext: [u8; 144] = EncryptedLogOutgoingBody::new(eph_sk, recipient, ivpk).compute_ciphertext(fr_to_fq(ovsk_app), eph_pk);
 
     let mut encrypted_bytes: [u8; M] = [0; M];
-    // @todo We ignore the tags for now 
+    // @todo We ignore the tags for now
 
     let eph_pk_bytes = point_to_bytes(eph_pk);
     for i in 0..32 {
@@ -134,7 +135,10 @@ fn generate_ephemeral_key_pair() -> (Scalar, Point) {
 }
 
 mod test {
-    use crate::{encrypted_logs::payload::compute_encrypted_note_log, test::mocks::mock_note::MockNoteBuilder};
+    use crate::{
+        encrypted_logs::payload::compute_encrypted_note_log, keys::public_keys::{OvpkM, IvpkM},
+        test::mocks::mock_note::MockNoteBuilder
+    };
     use dep::protocol_types::{address::AztecAddress, point::Point};
     use std::test::OracleMock;
 
@@ -144,15 +148,19 @@ mod test {
         let contract_address = AztecAddress::from_field(0x10f48cd9eff7ae5b209c557c70de2e657ee79166868676b787e9417e19260e04);
         let storage_slot = 0x0fe46be583b71f4ab5b70c2657ff1d05cccf1d292a9369628d1a194f944e6599;
         let ovsk_app = 0x03a6513d6def49f41d20373d2cec894c23e7492794b08fc50c0e8a1bd2512612;
-        let ovpk_m = Point {
-            x: 0x1961448682803198631f299340e4206bb12809d4bebbf012b30f59af73ba1a15,
-            y: 0x133674060c3925142aceb4f1dcd9f9137d0217d37ff8729ee5ceaa6e2790353d,
-            is_infinite: false
+        let ovpk_m = OvpkM {
+            inner: Point {
+                x: 0x1961448682803198631f299340e4206bb12809d4bebbf012b30f59af73ba1a15,
+                y: 0x133674060c3925142aceb4f1dcd9f9137d0217d37ff8729ee5ceaa6e2790353d,
+                is_infinite: false
+            }
         };
-        let ivpk_m = Point {
-            x: 0x260cd3904f6df16e974c29944fdc839e40fb5cf293f03df2eb370851d3a527bc,
-            y: 0x0eef2964fe6640e84c82b5d2915892409b38e9e25d39f68dd79edb725c55387f,
-            is_infinite: false
+        let ivpk_m = IvpkM {
+            inner: Point {
+                x: 0x260cd3904f6df16e974c29944fdc839e40fb5cf293f03df2eb370851d3a527bc,
+                y: 0x0eef2964fe6640e84c82b5d2915892409b38e9e25d39f68dd79edb725c55387f,
+                is_infinite: false
+            }
         };
 
         let note_value = 0x301640ceea758391b2e161c92c0513f129020f4125256afdae2646ce31099f5c;

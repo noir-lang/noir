@@ -1,35 +1,111 @@
 use dep::protocol_types::{
     address::PublicKeysHash, constants::GENERATOR_INDEX__PUBLIC_KEYS_HASH,
-    hash::poseidon2_hash_with_separator, point::Point, traits::{Deserialize, Serialize, Empty, is_empty}
+    hash::poseidon2_hash_with_separator, point::{Point, POINT_LENGTH},
+    traits::{Deserialize, Serialize, Empty, is_empty, Hash}
 };
-use crate::keys::constants::{NUM_KEY_TYPES, NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX};
+use crate::keys::constants::{NULLIFIER_INDEX, INCOMING_INDEX, OUTGOING_INDEX};
 
 global PUBLIC_KEYS_LENGTH: u32 = 12;
 
 struct PublicKeys {
-    npk_m: Point,
-    ivpk_m: Point,
-    ovpk_m: Point,
-    tpk_m: Point,
+    npk_m: NpkM,
+    ivpk_m: IvpkM,
+    ovpk_m: OvpkM,
+    tpk_m: TpkM,
+}
+
+trait ToPoint {
+    fn to_point(self) -> Point;
+}
+
+struct NpkM {
+    inner: Point
+}
+
+impl ToPoint for NpkM {
+    fn to_point(self) -> Point {
+        self.inner
+    }
+}
+
+impl Serialize<POINT_LENGTH> for NpkM {
+    fn serialize(self) -> [Field; POINT_LENGTH] {
+        self.inner.serialize()
+    }
+}
+
+// Note: If we store npk_m_hash directly we can remove this trait implementation. See #8091
+impl Hash for NpkM {
+    fn hash(self) -> Field {
+        self.inner.hash()
+    }
+}
+
+struct IvpkM {
+    inner: Point
+}
+
+impl ToPoint for IvpkM {
+    fn to_point(self) -> Point {
+        self.inner
+    }
+}
+
+impl Serialize<POINT_LENGTH> for IvpkM {
+    fn serialize(self) -> [Field; POINT_LENGTH] {
+        self.inner.serialize()
+    }
+}
+
+struct OvpkM {
+    inner: Point
+}
+
+impl Hash for OvpkM {
+    fn hash(self) -> Field {
+        self.inner.hash()
+    }
+}
+
+impl ToPoint for OvpkM {
+    fn to_point(self) -> Point {
+        self.inner
+    }
+}
+
+impl Serialize<POINT_LENGTH> for OvpkM {
+    fn serialize(self) -> [Field; POINT_LENGTH] {
+        self.inner.serialize()
+    }
+}
+
+struct TpkM {
+    inner: Point
+}
+
+impl ToPoint for TpkM {
+    fn to_point(self) -> Point {
+        self.inner
+    }
 }
 
 impl Empty for PublicKeys {
     fn empty() -> Self {
         PublicKeys {
-            npk_m : Point::empty(),
-            ivpk_m : Point::empty(),
-            ovpk_m : Point::empty(),
-            tpk_m : Point::empty()
+            npk_m : NpkM { inner: Point::empty() },
+            ivpk_m : IvpkM { inner: Point::empty() },
+            ovpk_m : OvpkM { inner: Point::empty() },
+            tpk_m : TpkM { inner: Point::empty() }
         }
     }
 }
 
 impl Eq for PublicKeys {
     fn eq(self, other: PublicKeys) -> bool {
-        ( self.npk_m == other.npk_m ) &
-        ( self.ivpk_m == other.ivpk_m ) &
-        ( self.ovpk_m == other.ovpk_m ) &
-        ( self.tpk_m == other.tpk_m )
+        ( self.npk_m.inner == other.npk_m.inner ) &
+        ( self.ivpk_m.inner == other.ivpk_m.inner ) &
+        ( self.ovpk_m.inner == other.ovpk_m.inner ) &
+        ( self.tpk_m.inner == other.tpk_m.inner )
     }
 }
 
@@ -39,56 +115,27 @@ impl PublicKeys {
             if is_empty(self) {
             0
         } else {
-            poseidon2_hash_with_separator(
-                [
-                self.npk_m.x,
-                self.npk_m.y,
-                self.npk_m.is_infinite as Field,
-                self.ivpk_m.x,
-                self.ivpk_m.y,
-                self.ivpk_m.is_infinite as Field,
-                self.ovpk_m.x,
-                self.ovpk_m.y,
-                self.ovpk_m.is_infinite as Field,
-                self.tpk_m.x,
-                self.tpk_m.y,
-                self.tpk_m.is_infinite as Field
-            ],
-                GENERATOR_INDEX__PUBLIC_KEYS_HASH as Field
-            )
+            poseidon2_hash_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_KEYS_HASH as Field)
         }
         )
-    }
-
-    pub fn get_key_by_index(self, index: Field) -> Point {
-        assert(index as u8 < NUM_KEY_TYPES, "Invalid key index");
-        if index == NULLIFIER_INDEX {
-            self.npk_m
-        } else if index == INCOMING_INDEX {
-            self.ivpk_m
-        } else if index == OUTGOING_INDEX {
-            self.ovpk_m
-        } else {
-            self.tpk_m
-        }
     }
 }
 
 impl Serialize<PUBLIC_KEYS_LENGTH> for PublicKeys {
     fn serialize(self) -> [Field; PUBLIC_KEYS_LENGTH] {
         [
-            self.npk_m.x,
-            self.npk_m.y,
-            self.npk_m.is_infinite as Field,
-            self.ivpk_m.x,
-            self.ivpk_m.y,
-            self.ivpk_m.is_infinite as Field,
-            self.ovpk_m.x,
-            self.ovpk_m.y,
-            self.ovpk_m.is_infinite as Field,
-            self.tpk_m.x,
-            self.tpk_m.y,
-            self.tpk_m.is_infinite as Field
+            self.npk_m.inner.x,
+            self.npk_m.inner.y,
+            self.npk_m.inner.is_infinite as Field,
+            self.ivpk_m.inner.x,
+            self.ivpk_m.inner.y,
+            self.ivpk_m.inner.is_infinite as Field,
+            self.ovpk_m.inner.x,
+            self.ovpk_m.inner.y,
+            self.ovpk_m.inner.is_infinite as Field,
+            self.tpk_m.inner.x,
+            self.tpk_m.inner.y,
+            self.tpk_m.inner.is_infinite as Field
         ]
     }
 }
@@ -96,10 +143,10 @@ impl Serialize<PUBLIC_KEYS_LENGTH> for PublicKeys {
 impl Deserialize<PUBLIC_KEYS_LENGTH> for PublicKeys {
     fn deserialize(serialized: [Field; PUBLIC_KEYS_LENGTH]) -> PublicKeys {
         PublicKeys {
-            npk_m: Point { x:serialized[0], y:serialized[1], is_infinite: serialized[2] as bool },
-            ivpk_m: Point { x:serialized[3], y: serialized[4], is_infinite: serialized[5] as bool },
-            ovpk_m: Point { x:serialized[6], y: serialized[7], is_infinite: serialized[8] as bool },
-            tpk_m: Point { x:serialized[9], y: serialized[10], is_infinite: serialized[11] as bool }
+            npk_m: NpkM { inner: Point { x:serialized[0], y:serialized[1], is_infinite: serialized[2] as bool } },
+            ivpk_m: IvpkM { inner: Point { x:serialized[3], y: serialized[4], is_infinite: serialized[5] as bool } },
+            ovpk_m: OvpkM { inner: Point { x:serialized[6], y: serialized[7], is_infinite: serialized[8] as bool } },
+            tpk_m: TpkM { inner: Point { x:serialized[9], y: serialized[10], is_infinite: serialized[11] as bool } }
         }
     }
 }
@@ -107,10 +154,10 @@ impl Deserialize<PUBLIC_KEYS_LENGTH> for PublicKeys {
 #[test]
 fn compute_public_keys_hash() {
     let keys = PublicKeys {
-        npk_m: Point { x: 1, y: 2, is_infinite: false },
-        ivpk_m: Point { x: 3, y: 4, is_infinite: false },
-        ovpk_m: Point { x: 5, y: 6, is_infinite: false },
-        tpk_m: Point { x: 7, y: 8, is_infinite: false }
+        npk_m: NpkM { inner: Point { x: 1, y: 2, is_infinite: false } },
+        ivpk_m: IvpkM { inner: Point { x: 3, y: 4, is_infinite: false } },
+        ovpk_m: OvpkM { inner: Point { x: 5, y: 6, is_infinite: false } },
+        tpk_m: TpkM { inner: Point { x: 7, y: 8, is_infinite: false } }
     };
 
     let actual = keys.hash();
@@ -132,21 +179,21 @@ fn compute_empty_hash() {
 #[test]
 fn test_public_keys_serialization() {
     let keys = PublicKeys {
-        npk_m: Point { x: 1, y: 2, is_infinite: false },
-        ivpk_m: Point { x: 3, y: 4, is_infinite: false },
-        ovpk_m: Point { x: 5, y: 6, is_infinite: false },
-        tpk_m: Point { x: 7, y: 8, is_infinite: false }
+        npk_m: NpkM { inner: Point { x: 1, y: 2, is_infinite: false } },
+        ivpk_m: IvpkM { inner: Point { x: 3, y: 4, is_infinite: false } },
+        ovpk_m: OvpkM { inner: Point { x: 5, y: 6, is_infinite: false } },
+        tpk_m: TpkM { inner: Point { x: 7, y: 8, is_infinite: false } }
     };
 
     let serialized = keys.serialize();
     let deserialized = PublicKeys::deserialize(serialized);
 
-    assert_eq(keys.npk_m.x, deserialized.npk_m.x);
-    assert_eq(keys.npk_m.y, deserialized.npk_m.y);
-    assert_eq(keys.ivpk_m.x, deserialized.ivpk_m.x);
-    assert_eq(keys.ivpk_m.y, deserialized.ivpk_m.y);
-    assert_eq(keys.ovpk_m.x, deserialized.ovpk_m.x);
-    assert_eq(keys.ovpk_m.y, deserialized.ovpk_m.y);
-    assert_eq(keys.tpk_m.x, deserialized.tpk_m.x);
-    assert_eq(keys.tpk_m.y, deserialized.tpk_m.y);
+    assert_eq(keys.npk_m.inner.x, deserialized.npk_m.inner.x);
+    assert_eq(keys.npk_m.inner.y, deserialized.npk_m.inner.y);
+    assert_eq(keys.ivpk_m.inner.x, deserialized.ivpk_m.inner.x);
+    assert_eq(keys.ivpk_m.inner.y, deserialized.ivpk_m.inner.y);
+    assert_eq(keys.ovpk_m.inner.x, deserialized.ovpk_m.inner.x);
+    assert_eq(keys.ovpk_m.inner.y, deserialized.ovpk_m.inner.y);
+    assert_eq(keys.tpk_m.inner.x, deserialized.tpk_m.inner.x);
+    assert_eq(keys.tpk_m.inner.y, deserialized.tpk_m.inner.y);
 }

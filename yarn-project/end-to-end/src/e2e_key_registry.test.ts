@@ -66,7 +66,7 @@ describe('Key Registry', () => {
       await expect(
         keyRegistry
           .withWallet(wallets[0])
-          .methods.rotate_npk_m(wallets[1].getAddress(), Point.random().toNoirStruct(), Fr.ZERO)
+          .methods.rotate_npk_m(wallets[1].getAddress(), Point.random().toWrappedNoirStruct(), Fr.ZERO)
           .simulate(),
       ).rejects.toThrow(/unauthorized/);
     });
@@ -129,7 +129,7 @@ describe('Key Registry', () => {
       // docs:start:key-rotation
       await keyRegistry
         .withWallet(wallets[0])
-        .methods.rotate_npk_m(wallets[0].getAddress(), firstNewMasterNullifierPublicKey.toNoirStruct(), Fr.ZERO)
+        .methods.rotate_npk_m(wallets[0].getAddress(), firstNewMasterNullifierPublicKey.toWrappedNoirStruct(), Fr.ZERO)
         .send()
         .wait();
       // docs:end:key-rotation
@@ -143,7 +143,11 @@ describe('Key Registry', () => {
     it(`rotates npk_m with authwit`, async () => {
       const action = keyRegistry
         .withWallet(wallets[1])
-        .methods.rotate_npk_m(wallets[0].getAddress(), secondNewMasterNullifierPublicKey.toNoirStruct(), Fr.ZERO);
+        .methods.rotate_npk_m(
+          wallets[0].getAddress(),
+          secondNewMasterNullifierPublicKey.toWrappedNoirStruct(),
+          Fr.ZERO,
+        );
 
       await wallets[0]
         .setPublicAuthWit({ caller: wallets[1].getCompleteAddress().address, action }, true)

@@ -73,7 +73,7 @@ describe('e2e_encryption', () => {
     const header = new EncryptedLogHeader(contract.address);
 
     const encrypted = await contract.methods
-      .compute_note_header_ciphertext(ephSecretKey, viewingPubKey.toNoirStruct())
+      .compute_note_header_ciphertext(ephSecretKey, viewingPubKey.toWrappedNoirStruct())
       .simulate();
     expect(Buffer.from(encrypted.map((x: bigint) => Number(x)))).toEqual(
       header.computeCiphertext(ephSecretKey, viewingPubKey),
@@ -99,7 +99,7 @@ describe('e2e_encryption', () => {
     const body = new EncryptedNoteLogIncomingBody(storageSlot, noteTypeId, note);
 
     const encrypted = await contract.methods
-      .compute_incoming_log_body_ciphertext(ephSecretKey, viewingPubKey.toNoirStruct(), storageSlot, value)
+      .compute_incoming_log_body_ciphertext(ephSecretKey, viewingPubKey.toWrappedNoirStruct(), storageSlot, value)
       .simulate();
 
     expect(Buffer.from(encrypted.map((x: bigint) => Number(x)))).toEqual(
@@ -124,7 +124,7 @@ describe('e2e_encryption', () => {
     const body = new EncryptedLogOutgoingBody(ephSk, recipientAddress, recipientIvpk);
 
     const encrypted = await contract.methods
-      .compute_outgoing_log_body_ciphertext(ephSk, recipientAddress, recipientIvpk.toNoirStruct(), senderOvskApp)
+      .compute_outgoing_log_body_ciphertext(ephSk, recipientAddress, recipientIvpk.toWrappedNoirStruct(), senderOvskApp)
       .simulate();
 
     expect(Buffer.from(encrypted.map((x: bigint) => Number(x)))).toEqual(body.computeCiphertext(senderOvskApp, ephPk));

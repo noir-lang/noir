@@ -2,7 +2,8 @@ contract KeyRegistry {
     use dep::authwit::auth::assert_current_call_valid_authwit_public;
 
     use dep::aztec::{
-        keys::{PublicKeys, stored_keys::StoredKeys}, state_vars::{PublicMutable, Map},
+        keys::{PublicKeys, stored_keys::StoredKeys, public_keys::NpkM},
+        state_vars::{PublicMutable, Map},
         protocol_types::{point::Point, address::{AztecAddress, PartialAddress}}
     };
 
@@ -43,7 +44,7 @@ contract KeyRegistry {
     }
 
     #[aztec(public)]
-    fn rotate_npk_m(account: AztecAddress, new_npk_m: Point, nonce: Field) {
+    fn rotate_npk_m(account: AztecAddress, new_npk_m: NpkM, nonce: Field) {
         if (!account.eq(context.msg_sender())) {
             assert_current_call_valid_authwit_public(&mut context, account);
         } else {

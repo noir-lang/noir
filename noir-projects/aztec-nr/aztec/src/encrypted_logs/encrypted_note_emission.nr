@@ -1,7 +1,7 @@
 use crate::{
     context::PrivateContext, note::{note_emission::NoteEmission, note_interface::NoteInterface},
-    keys::getters::get_current_public_keys, encrypted_logs::payload::compute_encrypted_note_log,
-    oracle::logs_traits::LensForEncryptedLog
+    keys::{getters::get_current_public_keys, public_keys::{OvpkM, IvpkM}},
+    encrypted_logs::payload::compute_encrypted_note_log, oracle::logs_traits::LensForEncryptedLog
 };
 use dep::protocol_types::{
     hash::sha256_to_field, address::AztecAddress, point::Point, abis::note_hash::NoteHash,
@@ -12,8 +12,8 @@ unconstrained fn compute_unconstrained<Note, let N: u32, let NB: u32, let M: u32
     contract_address: AztecAddress,
     storage_slot: Field,
     ovsk_app: Field,
-    ovpk: Point,
-    ivpk: Point,
+    ovpk: OvpkM,
+    ivpk: IvpkM,
     recipient: AztecAddress,
     note: Note
 ) -> ([u8; M], Field) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
@@ -32,8 +32,8 @@ fn compute<Note, let N: u32, let NB: u32, let M: u32>(
     contract_address: AztecAddress,
     storage_slot: Field,
     ovsk_app: Field,
-    ovpk: Point,
-    ivpk: Point,
+    ovpk: OvpkM,
+    ivpk: IvpkM,
     recipient: AztecAddress,
     note: Note
 ) -> ([u8; M], Field) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
@@ -53,10 +53,10 @@ fn compute<Note, let N: u32, let NB: u32, let M: u32>(
 fn emit_with_keys<Note, let N: u32, let NB: u32, let M: u32>(
     context: &mut PrivateContext,
     note: Note,
-    ovpk: Point,
-    ivpk: Point,
+    ovpk: OvpkM,
+    ivpk: IvpkM,
     recipient: AztecAddress,
-    inner_compute: fn(AztecAddress, Field, Field, Point, Point, AztecAddress, Note) -> ([u8; M], Field)
+    inner_compute: fn(AztecAddress, Field, Field, OvpkM, IvpkM, AztecAddress, Note) -> ([u8; M], Field)
 ) where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     let note_header = note.get_header();
     let note_hash_counter = note_header.note_hash_counter;
@@ -107,10 +107,10 @@ pub fn encode_and_encrypt_note_unconstrained<Note, let N: u32, let NB: u32, let 
 
 pub fn encode_and_encrypt_note_with_keys<Note, let N: u32, let NB: u32, let M: u32>(
     context: &mut PrivateContext,
-    ovpk: Point,
-    ivpk: Point,
+    ovpk: OvpkM,
+    ivpk: IvpkM,
     recipient: AztecAddress
-) -> fn[(&mut PrivateContext, Point, Point, AztecAddress)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
+) -> fn[(&mut PrivateContext, OvpkM, IvpkM, AztecAddress)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     | e: NoteEmission<Note> | {
         emit_with_keys(context, e.note, ovpk, ivpk, recipient, compute);
     }
@@ -118,10 +118,10 @@ pub fn encode_and_encrypt_note_with_keys<Note, let N: u32, let NB: u32, let M: u
 
 pub fn encode_and_encrypt_note_with_keys_unconstrained<Note, let N: u32, let NB: u32, let M: u32>(
     context: &mut PrivateContext,
-    ovpk: Point,
-    ivpk: Point,
+    ovpk: OvpkM,
+    ivpk: IvpkM,
     recipient: AztecAddress
-) -> fn[(&mut PrivateContext, Point, Point, AztecAddress)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
+) -> fn[(&mut PrivateContext, OvpkM, IvpkM, AztecAddress)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     | e: NoteEmission<Note> | {
         emit_with_keys(context, e.note, ovpk, ivpk, recipient, compute_unconstrained);
     }

@@ -179,7 +179,7 @@ export class AccountWallet extends BaseWallet {
       this,
       AztecAddress.fromBigInt(CANONICAL_KEY_REGISTRY_ADDRESS),
       this.getRotateNpkMAbi(),
-      [this.getAddress(), derivePublicKeyFromSecretKey(newNskM).toNoirStruct(), Fr.ZERO],
+      [this.getAddress(), derivePublicKeyFromSecretKey(newNskM).toWrappedNoirStruct(), Fr.ZERO],
     );
 
     await interaction.send().wait();
@@ -274,12 +274,36 @@ export class AccountWallet extends BaseWallet {
           name: 'new_npk_m',
           type: {
             fields: [
-              { name: 'x', type: { kind: 'field' } },
-              { name: 'y', type: { kind: 'field' } },
-              { name: 'is_infinite', type: { kind: 'boolean' } },
+              {
+                name: 'inner',
+                type: {
+                  fields: [
+                    {
+                      name: 'x',
+                      type: {
+                        kind: 'field',
+                      },
+                    },
+                    {
+                      name: 'y',
+                      type: {
+                        kind: 'field',
+                      },
+                    },
+                    {
+                      name: 'is_infinite',
+                      type: {
+                        kind: 'boolean',
+                      },
+                    },
+                  ],
+                  kind: 'struct',
+                  path: 'std::embedded_curve_ops::EmbeddedCurvePoint',
+                },
+              },
             ],
             kind: 'struct',
-            path: 'std::embedded_curve_ops::EmbeddedCurvePoint',
+            path: 'aztec::keys::public_keys::NpkM',
           },
           visibility: 'private' as ABIParameterVisibility,
         },

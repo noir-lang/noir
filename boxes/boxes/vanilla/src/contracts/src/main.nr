@@ -1,6 +1,9 @@
 contract Vanilla {
-    use dep::aztec::prelude::{AztecAddress, PrivateMutable, Map, NoteInterface, NoteHeader, Point};
-    use dep::aztec::encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys;
+    use dep::aztec::{
+        keys::public_keys::{IvpkM, OvpkM},
+        prelude::{AztecAddress, PrivateMutable, Map, NoteInterface, NoteHeader, Point},
+        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note_with_keys
+    };
     use dep::value_note::value_note::{ValueNote, VALUE_NOTE_LEN};
 
     #[aztec(storage)]
@@ -14,8 +17,8 @@ contract Vanilla {
         number: Field,
         owner: AztecAddress,
         owner_npk_m_hash: Field,
-        owner_ovpk_m: Point,
-        owner_ivpk_m: Point
+        owner_ovpk_m: OvpkM,
+        owner_ivpk_m: IvpkM
     ) {
         let numbers = storage.numbers;
         let mut new_number = ValueNote::new(number, owner_npk_m_hash);
@@ -27,8 +30,8 @@ contract Vanilla {
         number: Field,
         owner: AztecAddress,
         owner_npk_m_hash: Field,
-        owner_ovpk_m: Point,
-        owner_ivpk_m: Point
+        owner_ovpk_m: OvpkM,
+        owner_ivpk_m: IvpkM
     ) {
         let numbers = storage.numbers;
         let mut new_number = ValueNote::new(number, owner_npk_m_hash);

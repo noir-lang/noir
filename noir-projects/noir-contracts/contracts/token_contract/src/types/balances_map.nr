@@ -6,7 +6,7 @@ use dep::aztec::{
     note_getter::view_notes, note_getter_options::SortOrder,
     note_emission::{NoteEmission, OuterNoteEmission}
 },
-    keys::getters::get_current_public_keys
+    keys::{getters::get_current_public_keys, public_keys::NpkM}
 };
 use crate::types::{token_note::{TokenNote, OwnedNote}};
 
@@ -62,7 +62,7 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
     pub fn add<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
         self: Self,
         owner: AztecAddress,
-        owner_npk_m: Point,
+        owner_npk_m: NpkM,
         addend: U128
     ) -> OuterNoteEmission<T> where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote + Eq {
         if addend == U128::from_integer(0) {
@@ -80,7 +80,7 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
     pub fn sub<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
         self: Self,
         owner: AztecAddress,
-        owner_npk_m: Point,
+        owner_npk_m: NpkM,
         amount: U128
     ) -> OuterNoteEmission<T> where T: NoteInterface<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN> + OwnedNote + Eq {
         let subtracted = self.try_sub(owner, amount, MAX_NOTE_HASH_READ_REQUESTS_PER_CALL);
@@ -95,10 +95,10 @@ impl<T> BalancesMap<T, &mut PrivateContext> {
     // (i.e. the sum of the value of nullified notes), but this subtracted amount may be more or less than the target
     // amount.
     // This may seem odd, but is unfortunately unavoidable due to the number of notes available and their amounts being
-    // unknown. What try_sub does is a best-effort attempt to consume as few notes as possible that add up to more than 
+    // unknown. What try_sub does is a best-effort attempt to consume as few notes as possible that add up to more than
     // `target_amount`.
     // The `max_notes` parameter is used to fine-tune the number of constraints created by this function. The gate count
-    // scales relatively linearly with `max_notes`, but a lower `max_notes` parameter increases the likelihood of 
+    // scales relatively linearly with `max_notes`, but a lower `max_notes` parameter increases the likelihood of
     // `try_sub` subtracting an amount smaller than `target_amount`.
     pub fn try_sub<T_SERIALIZED_LEN, T_SERIALIZED_BYTES_LEN>(
         self: Self,

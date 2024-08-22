@@ -28,7 +28,7 @@ contract Test {
 
     use dep::aztec::{
         context::inputs::private_context_inputs::PrivateContextInputs,
-        hash::{pedersen_hash, compute_secret_hash, ArgsHasher},
+        hash::{pedersen_hash, compute_secret_hash, ArgsHasher}, keys::public_keys::IvpkM,
         note::{
         lifecycle::{create_note, destroy_note_unsafe}, note_getter::{get_notes, view_notes},
         note_getter_options::NoteStatus
@@ -66,7 +66,7 @@ contract Test {
     fn get_master_incoming_viewing_public_key(address: AztecAddress) -> [Field; 2] {
         let ivpk_m = get_current_public_keys(&mut context, address).ivpk_m;
 
-        [ivpk_m.x, ivpk_m.y]
+        [ivpk_m.inner.x, ivpk_m.inner.y]
     }
 
     // Get the address of this contract (taken from the input context)
@@ -405,27 +405,27 @@ contract Test {
     }
 
     #[aztec(private)]
-    fn compute_note_header_ciphertext(secret: Scalar, point: Point) -> [u8; 48] {
-        EncryptedLogHeader::new(context.this_address()).compute_ciphertext(secret, point)
+    fn compute_note_header_ciphertext(secret: Scalar, ivpk: IvpkM) -> [u8; 48] {
+        EncryptedLogHeader::new(context.this_address()).compute_ciphertext(secret, ivpk)
     }
 
     // 64 bytes + 32 * #fields + 16 = 112 bytes
     #[aztec(private)]
     fn compute_incoming_log_body_ciphertext(
         secret: Scalar,
-        point: Point,
+        ivpk: IvpkM,
         storage_slot: Field,
         value: Field
     ) -> [u8; 112] {
         let note = TestNote::new(value);
-        EncryptedLogIncomingBody::from_note(note, storage_slot).compute_ciphertext(secret, point).as_array()
+        EncryptedLogIncomingBody::from_note(note, storage_slot).compute_ciphertext(secret, ivpk).as_array()
     }
 
     #[aztec(private)]
     fn compute_outgoing_log_body_ciphertext(
         eph_sk: Scalar,
         recipient: AztecAddress,
-        recipient_ivpk: Point,
+        recipient_ivpk: IvpkM,
         ovsk_app: Scalar
     ) -> [u8; 144] {
         let eph_pk = derive_public_key(eph_sk);
@@ -501,7 +501,7 @@ contract Test {
 
     #[aztec(private)]
     fn test_nullifier_key_freshness(address: AztecAddress, public_nullifying_key: Point) {
-        assert_eq(get_current_public_keys(&mut context, address).npk_m, public_nullifying_key);
+        assert_eq(get_current_public_keys(&mut context, address).npk_m.inner, public_nullifying_key);
     }
 
     // Purely exists for testing
