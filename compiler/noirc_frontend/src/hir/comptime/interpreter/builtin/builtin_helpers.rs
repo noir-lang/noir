@@ -12,6 +12,7 @@ use crate::{
             Interpreter, InterpreterError, Value,
         },
         def_map::ModuleId,
+        type_check::generics::TraitGenerics,
     },
     hir_def::{
         function::{FuncMeta, FunctionBody},
@@ -171,7 +172,7 @@ pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<Struct
 
 pub(crate) fn get_trait_constraint(
     (value, location): (Value, Location),
-) -> IResult<(TraitId, Vec<Type>)> {
+) -> IResult<(TraitId, TraitGenerics)> {
     match value {
         Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
         value => type_mismatch(value, Type::Quoted(QuotedType::TraitConstraint), location),

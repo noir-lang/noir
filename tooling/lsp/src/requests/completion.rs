@@ -15,11 +15,10 @@ use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, Completion
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        AsTraitPath, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
-        ForLoopStatement, Ident, IfExpression, LValue, Lambda, LetStatement,
-        MemberAccessExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind,
-        PathSegment, Pattern, Statement, StatementKind, TraitItem, TypeImpl, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind,
+        AsTraitPath, BlockExpression, ConstructorExpression, Expression, ForLoopStatement, Ident,
+        IfExpression, LValue, Lambda, LetStatement, MemberAccessExpression, NoirFunction,
+        NoirStruct, NoirTraitImpl, Path, PathKind, PathSegment, Pattern, Statement, TraitItem,
+        TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -27,7 +26,7 @@ use noirc_frontend::{
         resolution::path_resolver::{PathResolver, StandardPathResolver},
     },
     hir_def::traits::Trait,
-    macros_api::{ModuleDefId, NodeInterner},
+    macros_api::{ExpressionKind, ModuleDefId, NodeInterner, StatementKind, UnresolvedTypeData},
     node_interner::ReferenceId,
     parser::{Item, ItemKind},
     ParsedModule, StructType, Type,
@@ -628,11 +627,11 @@ impl<'a> NodeFinder<'a> {
             }
             UnresolvedTypeData::Named(path, unresolved_types, _) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_unresolved_types(unresolved_types);
+                self.find_in_type_args(unresolved_types);
             }
             UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_unresolved_types(unresolved_types);
+                self.find_in_type_args(unresolved_types);
             }
             UnresolvedTypeData::MutableReference(unresolved_type) => {
                 self.find_in_unresolved_type(unresolved_type);

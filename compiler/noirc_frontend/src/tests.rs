@@ -2227,7 +2227,7 @@ fn impl_stricter_than_trait_different_trait_generics() {
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "A"));
         assert!(matches!(constraint_name.as_str(), "T2"));
-        assert!(matches!(constraint_generics[0].to_string().as_str(), "B"));
+        assert!(matches!(constraint_generics.ordered[0].to_string().as_str(), "B"));
     } else {
         panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
     }
@@ -2889,16 +2889,14 @@ fn incorrect_generic_count_on_struct_impl() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
-        actual,
-        expected,
-        ..
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        found, expected, ..
     }) = errors[0].0
     else {
         panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
     };
 
-    assert_eq!(actual, 1);
+    assert_eq!(found, 1);
     assert_eq!(expected, 0);
 }
 
@@ -2913,16 +2911,14 @@ fn incorrect_generic_count_on_type_alias() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ResolverError(ResolverError::IncorrectGenericCount {
-        actual,
-        expected,
-        ..
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        found, expected, ..
     }) = errors[0].0
     else {
         panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
     };
 
-    assert_eq!(actual, 1);
+    assert_eq!(found, 1);
     assert_eq!(expected, 0);
 }
 
@@ -3113,4 +3109,81 @@ fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() 
     fn main() {}
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn impl_missing_associated_type() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    impl Foo for () {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::TypeError(TypeCheckError::MissingNamedTypeArg { .. })
+    ));
+}
+
+#[test]
+fn as_trait_path_syntax_resolves_outside_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        // AsTraitPath syntax is a bit silly when associated types
+        // are explicitly specified
+        let _: i64 = 1 as <Bar as Foo<Assoc = i32>>::Assoc;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    use CompilationError::TypeError;
+    use TypeCheckError::TypeMismatch;
+    let TypeError(TypeMismatch { expected_typ, expr_typ, .. }) = errors[0].0.clone() else {
+        panic!("Expected TypeMismatch error, found {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "i64".to_string());
+    assert_eq!(expr_typ, "i32".to_string());
+}
+
+#[test]
+fn as_trait_path_syntax_no_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        let _: i64 = 1 as <Bar as Foo<Assoc = i8>>::Assoc;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    use CompilationError::TypeError;
+    assert!(matches!(&errors[0].0, TypeError(TypeCheckError::NoMatchingImplFound { .. })));
 }

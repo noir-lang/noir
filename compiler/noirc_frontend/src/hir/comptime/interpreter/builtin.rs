@@ -396,6 +396,7 @@ fn quoted_as_trait_constraint(
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
+
     Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
 }
 
@@ -554,7 +555,12 @@ fn type_get_trait_impl(
     let typ = get_type(typ)?;
     let (trait_id, generics) = get_trait_constraint(constraint)?;
 
-    let option_value = match interner.try_lookup_trait_implementation(&typ, trait_id, &generics) {
+    let option_value = match interner.try_lookup_trait_implementation(
+        &typ,
+        trait_id,
+        &generics.ordered,
+        &generics.named,
+    ) {
         Ok((TraitImplKind::Normal(trait_impl_id), _)) => Some(Value::TraitImpl(trait_impl_id)),
         _ => None,
     };
@@ -573,7 +579,9 @@ fn type_implements(
     let typ = get_type(typ)?;
     let (trait_id, generics) = get_trait_constraint(constraint)?;
 
-    let implements = interner.try_lookup_trait_implementation(&typ, trait_id, &generics).is_ok();
+    let implements = interner
+        .try_lookup_trait_implementation(&typ, trait_id, &generics.ordered, &generics.named)
+        .is_ok();
     Ok(Value::Bool(implements))
 }
 
@@ -773,7 +781,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error
-        | Type::TraitAsType(_, _, _)
+        | Type::TraitAsType(..)
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
 }
@@ -1495,12 +1503,9 @@ fn trait_def_as_trait_constraint(
     let argument = check_one_argument(arguments, location)?;
 
     let trait_id = get_trait_def(argument)?;
-    let the_trait = interner.get_trait(trait_id);
-    let trait_generics = vecmap(&the_trait.generics, |generic| {
-        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), generic.kind.clone())
-    });
+    let constraint = interner.get_trait(trait_id).as_constraint(location.span);
 
-    Ok(Value::TraitConstraint(trait_id, trait_generics))
+    Ok(Value::TraitConstraint(trait_id, constraint.trait_generics))
 }
 
 /// Creates a value that holds an `Option`.

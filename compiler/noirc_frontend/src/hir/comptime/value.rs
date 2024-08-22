@@ -12,7 +12,7 @@ use crate::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
         Statement, StatementKind, UnresolvedTypeData,
     },
-    hir::def_map::ModuleId,
+    hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
     hir_def::{
         expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
         traits::TraitConstraint,
@@ -58,7 +58,7 @@ pub enum Value {
     /// be inserted into separate files entirely.
     Quoted(Rc<Vec<Token>>),
     StructDefinition(StructId),
-    TraitConstraint(TraitId, /* trait generics */ Vec<Type>),
+    TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
     TraitImpl(TraitImplId),
     FunctionDefinition(FuncId),
@@ -550,7 +550,8 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 write!(f, "{}", def.name)
             }
             Value::TraitConstraint(trait_id, generics) => {
-                write!(f, "{}", display_trait_id_and_generics(self.interner, trait_id, generics))
+                let trait_ = self.interner.get_trait(*trait_id);
+                write!(f, "{}{generics}", trait_.name)
             }
             Value::TraitDefinition(trait_id) => {
                 let trait_ = self.interner.get_trait(*trait_id);
@@ -597,25 +598,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
     }
 }
 
-fn display_trait_id_and_generics(
-    interner: &NodeInterner,
-    trait_id: &TraitId,
-    generics: &Vec<Type>,
-) -> String {
-    let trait_ = interner.get_trait(*trait_id);
-    let generic_string = vecmap(generics, ToString::to_string).join(", ");
-    if generics.is_empty() {
-        format!("{}", trait_.name)
-    } else {
-        format!("{}<{generic_string}>", trait_.name)
-    }
-}
-
 fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitConstraint) -> String {
-    let trait_constraint_string = display_trait_id_and_generics(
-        interner,
-        &trait_constraint.trait_id,
-        &trait_constraint.trait_generics,
-    );
-    format!("{}: {}", trait_constraint.typ, trait_constraint_string)
+    let trait_ = interner.get_trait(trait_constraint.trait_id);
+    format!("{}: {}{}", trait_constraint.typ, trait_.name, trait_constraint.trait_generics)
 }

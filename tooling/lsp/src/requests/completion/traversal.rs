@@ -3,8 +3,9 @@
 use noirc_frontend::{
     ast::{
         ArrayLiteral, AssignStatement, CallExpression, CastExpression, ConstrainStatement,
-        Expression, ForRange, FunctionReturnType, IndexExpression, InfixExpression, Literal,
-        MethodCallExpression, NoirTrait, NoirTypeAlias, TraitImplItem, UnresolvedType,
+        Expression, ForRange, FunctionReturnType, GenericTypeArgs, IndexExpression,
+        InfixExpression, Literal, MethodCallExpression, NoirTrait, NoirTypeAlias, TraitImplItem,
+        UnresolvedType,
     },
     ParsedModule,
 };
@@ -114,6 +115,13 @@ impl<'a> NodeFinder<'a> {
     pub(super) fn find_in_unresolved_types(&mut self, unresolved_type: &[UnresolvedType]) {
         for unresolved_type in unresolved_type {
             self.find_in_unresolved_type(unresolved_type);
+        }
+    }
+
+    pub(super) fn find_in_type_args(&mut self, generics: &GenericTypeArgs) {
+        self.find_in_unresolved_types(&generics.ordered_args);
+        for (_name, typ) in &generics.named_args {
+            self.find_in_unresolved_type(typ);
         }
     }
 

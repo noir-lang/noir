@@ -1,11 +1,12 @@
 use super::path::{as_trait_path, path_no_turbofish};
-use super::primitives::token_kind;
+use super::primitives::{ident, token_kind};
 use super::{
     expression_with_precedence, keyword, nothing, parenthesized, NoirParser, ParserError,
     ParserErrorReason, Precedence,
 };
 use crate::ast::{
-    Expression, Recoverable, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Expression, GenericTypeArg, GenericTypeArgs, Recoverable, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression,
 };
 use crate::QuotedType;
 
@@ -226,25 +227,37 @@ pub(super) fn named_trait<'a>(
 
 pub(super) fn generic_type_args<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
+) -> impl NoirParser<GenericTypeArgs> + 'a {
     required_generic_type_args(type_parser).or_not().map(Option::unwrap_or_default)
 }
 
 pub(super) fn required_generic_type_args<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<Vec<UnresolvedType>> + 'a {
-    type_parser
+) -> impl NoirParser<GenericTypeArgs> + 'a {
+    let generic_type_arg = type_parser
         .clone()
+        .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
+        .or(type_expression_validated());
+
+    let named_arg = ident()
+        .then_ignore(just(Token::Assign))
+        .then(generic_type_arg.clone())
+        .map(|(name, typ)| GenericTypeArg::Named(name, typ));
+
+    // We need to parse named arguments first since otherwise when we see
+    // `Foo = Bar`, just `Foo` is a valid type, and we'd parse an ordered
+    // generic before erroring that an `=` is invalid after an ordered generic.
+    choice((named_arg, generic_type_arg.map(GenericTypeArg::Ordered)))
+        .boxed()
         // Without checking for a terminating ',' or '>' here we may incorrectly
         // parse a generic `N * 2` as just the type `N` then fail when there is no
         // separator afterward. Failing early here ensures we try the `type_expression`
         // parser afterward.
-        .then_ignore(one_of([Token::Comma, Token::Greater]).rewind())
-        .or(type_expression_validated())
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .at_least(1)
         .delimited_by(just(Token::Less), just(Token::Greater))
+        .map(GenericTypeArgs::from)
 }
 
 pub(super) fn array_type<'a>(
