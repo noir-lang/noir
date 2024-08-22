@@ -396,13 +396,9 @@ impl Instruction {
                 true
             }
 
-            // `ArrayGet`s which read from "known good" indices from an array don't need a predicate.
             Instruction::ArrayGet { array, index } => {
-                #[allow(clippy::match_like_matches_macro)]
-                match (dfg.type_of_value(*array), dfg.get_numeric_constant(*index)) {
-                    (Type::Array(_, len), Some(index)) if index.to_u128() < (len as u128) => false,
-                    _ => true,
-                }
+                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                !dfg.is_safe_index(*index, *array)
             }
 
             Instruction::EnableSideEffects { .. } | Instruction::ArraySet { .. } => true,
