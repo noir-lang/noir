@@ -377,7 +377,7 @@ impl<'a> NodeFinder<'a> {
                 let offset =
                     self.byte_index - method_call_expression.method_name.span().start() as usize;
                 let prefix = prefix[0..offset].to_string();
-                self.complete_type_fields_and_methods(&typ, &prefix);
+                self.complete_type_fields_and_methods(&typ, &prefix, FunctionCompletionKind::Name);
                 return;
             }
         }
@@ -466,7 +466,11 @@ impl<'a> NodeFinder<'a> {
                     {
                         let typ = self.interner.definition_type(definition_id);
                         let prefix = "";
-                        self.complete_type_fields_and_methods(&typ, prefix);
+                        self.complete_type_fields_and_methods(
+                            &typ,
+                            prefix,
+                            FunctionCompletionKind::NameAndParameters,
+                        );
                     }
                 }
             }
@@ -556,7 +560,11 @@ impl<'a> NodeFinder<'a> {
             if let Some(typ) = self.interner.type_at_location(location) {
                 let typ = typ.follow_bindings();
                 let prefix = "";
-                self.complete_type_fields_and_methods(&typ, prefix);
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                );
             }
         }
     }
@@ -618,7 +626,11 @@ impl<'a> NodeFinder<'a> {
             if let Some(typ) = self.interner.type_at_location(location) {
                 let typ = typ.follow_bindings();
                 let prefix = ident.to_string().to_case(Case::Snake);
-                self.complete_type_fields_and_methods(&typ, &prefix);
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    &prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                );
                 return;
             }
         }
@@ -1038,17 +1050,30 @@ impl<'a> NodeFinder<'a> {
         };
     }
 
-    fn complete_type_fields_and_methods(&mut self, typ: &Type, prefix: &str) {
+    fn complete_type_fields_and_methods(
+        &mut self,
+        typ: &Type,
+        prefix: &str,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
         match typ {
             Type::Struct(struct_type, generics) => {
                 self.complete_struct_fields(&struct_type.borrow(), generics, prefix);
             }
             Type::MutableReference(typ) => {
-                return self.complete_type_fields_and_methods(typ, prefix);
+                return self.complete_type_fields_and_methods(
+                    typ,
+                    prefix,
+                    function_completion_kind,
+                );
             }
             Type::Alias(type_alias, _) => {
                 let type_alias = type_alias.borrow();
-                return self.complete_type_fields_and_methods(&type_alias.typ, prefix);
+                return self.complete_type_fields_and_methods(
+                    &type_alias.typ,
+                    prefix,
+                    function_completion_kind,
+                );
             }
             Type::Tuple(types) => {
                 self.complete_tuple_fields(types);
@@ -1076,7 +1101,7 @@ impl<'a> NodeFinder<'a> {
             typ,
             prefix,
             FunctionKind::SelfType(typ),
-            FunctionCompletionKind::NameAndParameters,
+            function_completion_kind,
         );
     }
 

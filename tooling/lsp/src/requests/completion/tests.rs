@@ -1758,7 +1758,11 @@ mod completion_tests {
         "#;
         assert_completion_excluding_auto_import(
             src,
-            vec![function_completion_item("bar()", "bar()", "fn(self)")],
+            vec![simple_completion_item(
+                "bar",
+                CompletionItemKind::FUNCTION,
+                Some("fn(self)".to_string()),
+            )],
         )
         .await
     }
