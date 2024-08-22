@@ -79,14 +79,14 @@ expression and the field. The field will be represented as a quoted value.
 
 #include_code as_repeated_element_array noir_stdlib/src/meta/expr.nr rust
 
-If this expression is a repated element array `[elem; length]`, return
+If this expression is a repeated element array `[elem; length]`, return
 the repeated element and the length expressions.
 
 ### as_repeated_element_slice
 
 #include_code as_repeated_element_slice noir_stdlib/src/meta/expr.nr rust
 
-If this expression is a repated element slice `[elem; length]`, return
+If this expression is a repeated element slice `[elem; length]`, return
 the repeated element and the length expressions.
 
 ### as_slice
