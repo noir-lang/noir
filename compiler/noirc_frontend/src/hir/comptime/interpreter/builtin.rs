@@ -5,11 +5,11 @@ use std::{
 
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
-    check_argument_count, check_function_not_yet_resolved, check_one_argument,
-    check_three_arguments, check_two_arguments, get_expr, get_function_def, get_module, get_quoted,
-    get_slice, get_struct, get_trait_constraint, get_trait_def, get_trait_impl, get_tuple,
-    get_type, get_u32, hir_pattern_to_tokens, mutate_func_meta_type, parse, parse_tokens,
-    replace_func_meta_parameters, replace_func_meta_return_type,
+    block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
+    check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_function_def,
+    get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
+    get_trait_impl, get_tuple, get_type, get_u32, hir_pattern_to_tokens, mutate_func_meta_type,
+    parse, parse_tokens, replace_func_meta_parameters, replace_func_meta_return_type,
 };
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -835,11 +835,7 @@ fn expr_as_block(
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Block(block_expr)) = expr {
-            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            let statements = block_expr.statements.into_iter();
-            let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
-
-            Some(Value::Slice(statements, typ))
+            Some(block_expression_to_value(block_expr))
         } else {
             None
         }
@@ -869,11 +865,7 @@ fn expr_as_comptime(
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Comptime(block_expr, _)) = expr {
-            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            let statements = block_expr.statements.into_iter();
-            let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
-
-            Some(Value::Slice(statements, typ))
+            Some(block_expression_to_value(block_expr))
         } else {
             None
         }
@@ -1110,11 +1102,7 @@ fn expr_as_unsafe(
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Unsafe(block_expr, _)) = expr {
-            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            let statements = block_expr.statements.into_iter();
-            let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
-
-            Some(Value::Slice(statements, typ))
+            Some(block_expression_to_value(block_expr))
         } else {
             None
         }
