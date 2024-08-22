@@ -3413,7 +3413,6 @@ void AvmTraceBuilder::op_keccakf1600(uint8_t indirect,
 std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
 {
     auto mem_trace = mem_trace_builder.finalize();
-    auto alu_trace = alu_trace_builder.finalize();
     auto conv_trace = conversion_trace_builder.finalize();
     auto sha256_trace = sha256_trace_builder.finalize();
     auto poseidon2_trace = poseidon2_trace_builder.finalize();
@@ -3423,7 +3422,7 @@ std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
     const auto& fixed_gas_table = FixedGasTable::get();
     size_t mem_trace_size = mem_trace.size();
     size_t main_trace_size = main_trace.size();
-    size_t alu_trace_size = alu_trace.size();
+    size_t alu_trace_size = alu_trace_builder.size();
     size_t conv_trace_size = conv_trace.size();
     size_t sha256_trace_size = sha256_trace.size();
     size_t poseidon2_trace_size = poseidon2_trace.size();
@@ -3612,151 +3611,7 @@ std::vector<Row> AvmTraceBuilder::finalize(bool range_check_required)
      * ALU TRACE INCLUSION
      **********************************************************************************************/
 
-    for (size_t i = 0; i < alu_trace_size; i++) {
-        auto const& src = alu_trace.at(i);
-        auto& dest = main_trace.at(i);
-
-        dest.alu_clk = FF(static_cast<uint32_t>(src.alu_clk));
-
-        dest.alu_op_add = FF(static_cast<uint32_t>(src.alu_op_add));
-        dest.alu_op_sub = FF(static_cast<uint32_t>(src.alu_op_sub));
-        dest.alu_op_mul = FF(static_cast<uint32_t>(src.alu_op_mul));
-        dest.alu_op_not = FF(static_cast<uint32_t>(src.alu_op_not));
-        dest.alu_op_eq = FF(static_cast<uint32_t>(src.alu_op_eq));
-        dest.alu_op_lt = FF(static_cast<uint32_t>(src.alu_op_lt));
-        dest.alu_op_lte = FF(static_cast<uint32_t>(src.alu_op_lte));
-        dest.alu_op_cast = FF(static_cast<uint32_t>(src.alu_op_cast));
-        dest.alu_op_cast_prev = FF(static_cast<uint32_t>(src.alu_op_cast_prev));
-        dest.alu_sel_cmp = FF(static_cast<uint8_t>(src.alu_op_lt) + static_cast<uint8_t>(src.alu_op_lte));
-        dest.alu_sel_rng_chk = FF(static_cast<uint8_t>(src.rng_chk_sel));
-        dest.alu_op_shr = FF(static_cast<uint8_t>(src.alu_op_shr));
-        dest.alu_op_shl = FF(static_cast<uint8_t>(src.alu_op_shl));
-        dest.alu_op_div = FF(static_cast<uint8_t>(src.alu_op_div));
-
-        dest.alu_ff_tag = FF(static_cast<uint32_t>(src.alu_ff_tag));
-        dest.alu_u8_tag = FF(static_cast<uint32_t>(src.alu_u8_tag));
-        dest.alu_u16_tag = FF(static_cast<uint32_t>(src.alu_u16_tag));
-        dest.alu_u32_tag = FF(static_cast<uint32_t>(src.alu_u32_tag));
-        dest.alu_u64_tag = FF(static_cast<uint32_t>(src.alu_u64_tag));
-        dest.alu_u128_tag = FF(static_cast<uint32_t>(src.alu_u128_tag));
-
-        dest.alu_in_tag = dest.alu_u8_tag + FF(2) * dest.alu_u16_tag + FF(3) * dest.alu_u32_tag +
-                          FF(4) * dest.alu_u64_tag + FF(5) * dest.alu_u128_tag + FF(6) * dest.alu_ff_tag;
-
-        dest.alu_ia = src.alu_ia;
-        dest.alu_ib = src.alu_ib;
-        dest.alu_ic = src.alu_ic;
-
-        dest.alu_cf = FF(static_cast<uint32_t>(src.alu_cf));
-
-        dest.alu_u8_r0 = FF(src.alu_u8_r0);
-        dest.alu_u8_r1 = FF(src.alu_u8_r1);
-
-        dest.alu_u16_r0 = FF(src.alu_u16_reg.at(0));
-        dest.alu_u16_r1 = FF(src.alu_u16_reg.at(1));
-        dest.alu_u16_r2 = FF(src.alu_u16_reg.at(2));
-        dest.alu_u16_r3 = FF(src.alu_u16_reg.at(3));
-        dest.alu_u16_r4 = FF(src.alu_u16_reg.at(4));
-        dest.alu_u16_r5 = FF(src.alu_u16_reg.at(5));
-        dest.alu_u16_r6 = FF(src.alu_u16_reg.at(6));
-        dest.alu_u16_r7 = FF(src.alu_u16_reg.at(7));
-        dest.alu_u16_r8 = FF(src.alu_u16_reg.at(8));
-        dest.alu_u16_r9 = FF(src.alu_u16_reg.at(9));
-        dest.alu_u16_r10 = FF(src.alu_u16_reg.at(10));
-        dest.alu_u16_r11 = FF(src.alu_u16_reg.at(11));
-        dest.alu_u16_r12 = FF(src.alu_u16_reg.at(12));
-        dest.alu_u16_r13 = FF(src.alu_u16_reg.at(13));
-        dest.alu_u16_r14 = FF(src.alu_u16_reg.at(14));
-
-        dest.alu_sel_div_rng_chk = FF(static_cast<uint8_t>(src.div_u64_range_chk_sel));
-        dest.alu_div_u16_r0 = FF(src.div_u64_range_chk.at(0));
-        dest.alu_div_u16_r1 = FF(src.div_u64_range_chk.at(1));
-        dest.alu_div_u16_r2 = FF(src.div_u64_range_chk.at(2));
-        dest.alu_div_u16_r3 = FF(src.div_u64_range_chk.at(3));
-        dest.alu_div_u16_r4 = FF(src.div_u64_range_chk.at(4));
-        dest.alu_div_u16_r5 = FF(src.div_u64_range_chk.at(5));
-        dest.alu_div_u16_r6 = FF(src.div_u64_range_chk.at(6));
-        dest.alu_div_u16_r7 = FF(src.div_u64_range_chk.at(7));
-        dest.alu_op_eq_diff_inv = FF(src.alu_op_eq_diff_inv);
-
-        // Not all rows in ALU are enabled with a selector. For instance,
-        // multiplication over u128 and cast is taking two lines.
-        if (AvmAluTraceBuilder::is_alu_row_enabled(src)) {
-            dest.alu_sel_alu = FF(1);
-        }
-
-        if (dest.alu_sel_cmp == FF(1) || dest.alu_sel_rng_chk == FF(1)) {
-            dest.alu_a_lo = FF(src.hi_lo_limbs.at(0));
-            dest.alu_a_hi = FF(src.hi_lo_limbs.at(1));
-            dest.alu_b_lo = FF(src.hi_lo_limbs.at(2));
-            dest.alu_b_hi = FF(src.hi_lo_limbs.at(3));
-            dest.alu_p_sub_a_lo = FF(src.hi_lo_limbs.at(4));
-            dest.alu_p_sub_a_hi = FF(src.hi_lo_limbs.at(5));
-            dest.alu_p_sub_b_lo = FF(src.hi_lo_limbs.at(6));
-            dest.alu_p_sub_b_hi = FF(src.hi_lo_limbs.at(7));
-            dest.alu_res_lo = FF(src.hi_lo_limbs.at(8));
-            dest.alu_res_hi = FF(src.hi_lo_limbs.at(9));
-            dest.alu_p_a_borrow = FF(static_cast<uint8_t>(src.p_a_borrow));
-            dest.alu_p_b_borrow = FF(static_cast<uint8_t>(src.p_b_borrow));
-            dest.alu_borrow = FF(static_cast<uint8_t>(src.borrow));
-            dest.alu_cmp_rng_ctr = FF(static_cast<uint8_t>(src.cmp_rng_ctr));
-            dest.alu_sel_rng_chk_lookup = FF(1);
-        }
-        if (dest.alu_op_div == FF(1)) {
-            dest.alu_op_div_std = uint256_t(src.alu_ia) >= uint256_t(src.alu_ib);
-            dest.alu_op_div_a_lt_b = uint256_t(src.alu_ia) < uint256_t(src.alu_ib);
-            dest.alu_sel_rng_chk_lookup = FF(1);
-            dest.alu_a_lo = FF(src.hi_lo_limbs.at(0));
-            dest.alu_a_hi = FF(src.hi_lo_limbs.at(1));
-            dest.alu_b_lo = FF(src.hi_lo_limbs.at(2));
-            dest.alu_b_hi = FF(src.hi_lo_limbs.at(3));
-            dest.alu_p_sub_a_lo = FF(src.hi_lo_limbs.at(4));
-            dest.alu_p_sub_a_hi = FF(src.hi_lo_limbs.at(5));
-            dest.alu_remainder = src.remainder;
-            dest.alu_divisor_lo = src.divisor_lo;
-            dest.alu_divisor_hi = src.divisor_hi;
-            dest.alu_quotient_lo = src.quotient_lo;
-            dest.alu_quotient_hi = src.quotient_hi;
-            dest.alu_partial_prod_lo = src.partial_prod_lo;
-            dest.alu_partial_prod_hi = src.partial_prod_hi;
-        }
-
-        if (dest.alu_op_add == FF(1) || dest.alu_op_sub == FF(1) || dest.alu_op_mul == FF(1)) {
-            dest.alu_sel_rng_chk_lookup = FF(1);
-        }
-
-        if (dest.alu_op_cast == FF(1)) {
-            dest.alu_a_lo = FF(src.hi_lo_limbs.at(0));
-            dest.alu_a_hi = FF(src.hi_lo_limbs.at(1));
-            dest.alu_p_sub_a_lo = FF(src.hi_lo_limbs.at(2));
-            dest.alu_p_sub_a_hi = FF(src.hi_lo_limbs.at(3));
-            dest.alu_p_a_borrow = FF(static_cast<uint8_t>(src.p_a_borrow));
-            dest.alu_sel_rng_chk_lookup = FF(1);
-        }
-
-        if (dest.alu_op_cast_prev == FF(1)) {
-            dest.alu_a_lo = FF(src.hi_lo_limbs.at(0));
-            dest.alu_a_hi = FF(src.hi_lo_limbs.at(1));
-            dest.alu_sel_rng_chk_lookup = FF(1);
-        }
-
-        // Multiplication over u128 expands over two rows.
-        if (dest.alu_op_mul == FF(1) && dest.alu_u128_tag) {
-            main_trace.at(i + 1).alu_sel_rng_chk_lookup = FF(1);
-        }
-        if (src.alu_op_shr || src.alu_op_shl) {
-            dest.alu_a_lo = FF(src.hi_lo_limbs[0]);
-            dest.alu_a_hi = FF(src.hi_lo_limbs[1]);
-            dest.alu_b_lo = FF(src.hi_lo_limbs[2]);
-            dest.alu_b_hi = FF(src.hi_lo_limbs[3]);
-            dest.alu_sel_shift_which = FF(1);
-            dest.alu_shift_lt_bit_len = FF(static_cast<uint8_t>(src.shift_lt_bit_len));
-            dest.alu_t_sub_s_bits = FF(src.mem_tag_sub_shift);
-            dest.alu_two_pow_s = FF(uint256_t(1) << dest.alu_ib);
-            dest.alu_two_pow_t_sub_s = FF(uint256_t(1) << uint256_t(dest.alu_t_sub_s_bits));
-            dest.alu_sel_rng_chk_lookup = FF(1);
-        }
-    }
+    alu_trace_builder.finalize(main_trace);
 
     /**********************************************************************************************
      * GADGET TABLES INCLUSION

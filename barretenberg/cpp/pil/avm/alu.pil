@@ -733,3 +733,94 @@ namespace alu(256);
     pol NEXT_SUM_128_HI = u16_r3' + u16_r4' * 2**16 + u16_r5' * 2**32 + u16_r6' * 2**48;
     partial_prod_lo = op_div_std * NEXT_SUM_64_LO;
     partial_prod_hi = op_div_std * NEXT_SUM_128_HI;
+
+    //====== Inter-table Shift Constraints (Lookups) ============================================
+    // Currently only used for shift operations but can be generalised for other uses.
+
+    // Lookup for 2**(ib)
+    #[LOOKUP_POW_2_0]
+    sel_shift_which {ib, two_pow_s} in main.sel_rng_8 {main.clk, powers.power_of_2};
+
+    // Lookup for 2**(t-ib)
+    #[LOOKUP_POW_2_1]
+    sel_shift_which {t_sub_s_bits ,two_pow_t_sub_s} in main.sel_rng_8 {main.clk, powers.power_of_2};
+
+    //====== Inter-table Constraints (Range Checks) ============================================
+    // TODO: Investigate optimising these range checks. Handling non-FF elements should require less range checks.
+    //       One can increase the granularity based on the operation and tag. In the most extreme case,
+    //       a specific selector per register might be introduced.
+    #[LOOKUP_U8_0]
+    sel_rng_chk_lookup { u8_r0 } in main.sel_rng_8 { main.clk };
+
+    #[LOOKUP_U8_1]
+    sel_rng_chk_lookup { u8_r1 } in main.sel_rng_8 { main.clk };
+
+    #[LOOKUP_U16_0]
+    sel_rng_chk_lookup { u16_r0 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_1]
+    sel_rng_chk_lookup { u16_r1 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_2]
+    sel_rng_chk_lookup { u16_r2 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_3]
+    sel_rng_chk_lookup { u16_r3 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_4]
+    sel_rng_chk_lookup { u16_r4 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_5]
+    sel_rng_chk_lookup { u16_r5 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_6]
+    sel_rng_chk_lookup { u16_r6 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_7]
+    sel_rng_chk_lookup { u16_r7 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_8]
+    sel_rng_chk_lookup { u16_r8 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_9]
+    sel_rng_chk_lookup { u16_r9 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_10]
+    sel_rng_chk_lookup { u16_r10 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_11]
+    sel_rng_chk_lookup { u16_r11 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_12]
+    sel_rng_chk_lookup { u16_r12 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_13]
+    sel_rng_chk_lookup { u16_r13 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_U16_14]
+    sel_rng_chk_lookup { u16_r14 } in main.sel_rng_16 { main.clk };
+
+    // ==== Additional row range checks for division
+    #[LOOKUP_DIV_U16_0]
+    sel_div_rng_chk { div_u16_r0 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_DIV_U16_1]
+    sel_div_rng_chk { div_u16_r1 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_DIV_U16_2]
+    sel_div_rng_chk { div_u16_r2 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_DIV_U16_3]
+    sel_div_rng_chk { div_u16_r3 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_DIV_U16_4]
+    sel_div_rng_chk { div_u16_r4 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_DIV_U16_5]
+    sel_div_rng_chk { div_u16_r5 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_DIV_U16_6]
+    sel_div_rng_chk { div_u16_r6 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_DIV_U16_7]
+    sel_div_rng_chk { div_u16_r7 } in main.sel_rng_16 { main.clk };

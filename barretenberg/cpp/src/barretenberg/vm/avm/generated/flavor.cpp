@@ -608,49 +608,49 @@ AvmFlavor::AllConstRefValues::AllConstRefValues(
     , slice_sel_start(il[600])
     , slice_space_id(il[601])
     , slice_val(il[602])
-    , lookup_byte_lengths_counts(il[603])
-    , lookup_byte_operations_counts(il[604])
-    , lookup_opcode_gas_counts(il[605])
-    , range_check_l2_gas_hi_counts(il[606])
-    , range_check_l2_gas_lo_counts(il[607])
-    , range_check_da_gas_hi_counts(il[608])
-    , range_check_da_gas_lo_counts(il[609])
-    , kernel_output_lookup_counts(il[610])
-    , lookup_into_kernel_counts(il[611])
-    , lookup_cd_value_counts(il[612])
-    , lookup_ret_value_counts(il[613])
-    , incl_main_tag_err_counts(il[614])
-    , incl_mem_tag_err_counts(il[615])
-    , lookup_mem_rng_chk_lo_counts(il[616])
-    , lookup_mem_rng_chk_mid_counts(il[617])
-    , lookup_mem_rng_chk_hi_counts(il[618])
-    , lookup_pow_2_0_counts(il[619])
-    , lookup_pow_2_1_counts(il[620])
-    , lookup_u8_0_counts(il[621])
-    , lookup_u8_1_counts(il[622])
-    , lookup_u16_0_counts(il[623])
-    , lookup_u16_1_counts(il[624])
-    , lookup_u16_2_counts(il[625])
-    , lookup_u16_3_counts(il[626])
-    , lookup_u16_4_counts(il[627])
-    , lookup_u16_5_counts(il[628])
-    , lookup_u16_6_counts(il[629])
-    , lookup_u16_7_counts(il[630])
-    , lookup_u16_8_counts(il[631])
-    , lookup_u16_9_counts(il[632])
-    , lookup_u16_10_counts(il[633])
-    , lookup_u16_11_counts(il[634])
-    , lookup_u16_12_counts(il[635])
-    , lookup_u16_13_counts(il[636])
-    , lookup_u16_14_counts(il[637])
-    , lookup_div_u16_0_counts(il[638])
-    , lookup_div_u16_1_counts(il[639])
-    , lookup_div_u16_2_counts(il[640])
-    , lookup_div_u16_3_counts(il[641])
-    , lookup_div_u16_4_counts(il[642])
-    , lookup_div_u16_5_counts(il[643])
-    , lookup_div_u16_6_counts(il[644])
-    , lookup_div_u16_7_counts(il[645])
+    , lookup_pow_2_0_counts(il[603])
+    , lookup_pow_2_1_counts(il[604])
+    , lookup_u8_0_counts(il[605])
+    , lookup_u8_1_counts(il[606])
+    , lookup_u16_0_counts(il[607])
+    , lookup_u16_1_counts(il[608])
+    , lookup_u16_2_counts(il[609])
+    , lookup_u16_3_counts(il[610])
+    , lookup_u16_4_counts(il[611])
+    , lookup_u16_5_counts(il[612])
+    , lookup_u16_6_counts(il[613])
+    , lookup_u16_7_counts(il[614])
+    , lookup_u16_8_counts(il[615])
+    , lookup_u16_9_counts(il[616])
+    , lookup_u16_10_counts(il[617])
+    , lookup_u16_11_counts(il[618])
+    , lookup_u16_12_counts(il[619])
+    , lookup_u16_13_counts(il[620])
+    , lookup_u16_14_counts(il[621])
+    , lookup_div_u16_0_counts(il[622])
+    , lookup_div_u16_1_counts(il[623])
+    , lookup_div_u16_2_counts(il[624])
+    , lookup_div_u16_3_counts(il[625])
+    , lookup_div_u16_4_counts(il[626])
+    , lookup_div_u16_5_counts(il[627])
+    , lookup_div_u16_6_counts(il[628])
+    , lookup_div_u16_7_counts(il[629])
+    , lookup_byte_lengths_counts(il[630])
+    , lookup_byte_operations_counts(il[631])
+    , lookup_opcode_gas_counts(il[632])
+    , range_check_l2_gas_hi_counts(il[633])
+    , range_check_l2_gas_lo_counts(il[634])
+    , range_check_da_gas_hi_counts(il[635])
+    , range_check_da_gas_lo_counts(il[636])
+    , kernel_output_lookup_counts(il[637])
+    , lookup_into_kernel_counts(il[638])
+    , lookup_cd_value_counts(il[639])
+    , lookup_ret_value_counts(il[640])
+    , incl_main_tag_err_counts(il[641])
+    , incl_mem_tag_err_counts(il[642])
+    , lookup_mem_rng_chk_lo_counts(il[643])
+    , lookup_mem_rng_chk_mid_counts(il[644])
+    , lookup_mem_rng_chk_hi_counts(il[645])
     , perm_pos_mem_read_a_inv(il[646])
     , perm_pos_mem_read_b_inv(il[647])
     , perm_pos_mem_read_c_inv(il[648])
@@ -674,49 +674,49 @@ AvmFlavor::AllConstRefValues::AllConstRefValues(
     , perm_main_mem_ind_addr_b_inv(il[666])
     , perm_main_mem_ind_addr_c_inv(il[667])
     , perm_main_mem_ind_addr_d_inv(il[668])
-    , lookup_byte_lengths_inv(il[669])
-    , lookup_byte_operations_inv(il[670])
-    , lookup_opcode_gas_inv(il[671])
-    , range_check_l2_gas_hi_inv(il[672])
-    , range_check_l2_gas_lo_inv(il[673])
-    , range_check_da_gas_hi_inv(il[674])
-    , range_check_da_gas_lo_inv(il[675])
-    , kernel_output_lookup_inv(il[676])
-    , lookup_into_kernel_inv(il[677])
-    , lookup_cd_value_inv(il[678])
-    , lookup_ret_value_inv(il[679])
-    , incl_main_tag_err_inv(il[680])
-    , incl_mem_tag_err_inv(il[681])
-    , lookup_mem_rng_chk_lo_inv(il[682])
-    , lookup_mem_rng_chk_mid_inv(il[683])
-    , lookup_mem_rng_chk_hi_inv(il[684])
-    , lookup_pow_2_0_inv(il[685])
-    , lookup_pow_2_1_inv(il[686])
-    , lookup_u8_0_inv(il[687])
-    , lookup_u8_1_inv(il[688])
-    , lookup_u16_0_inv(il[689])
-    , lookup_u16_1_inv(il[690])
-    , lookup_u16_2_inv(il[691])
-    , lookup_u16_3_inv(il[692])
-    , lookup_u16_4_inv(il[693])
-    , lookup_u16_5_inv(il[694])
-    , lookup_u16_6_inv(il[695])
-    , lookup_u16_7_inv(il[696])
-    , lookup_u16_8_inv(il[697])
-    , lookup_u16_9_inv(il[698])
-    , lookup_u16_10_inv(il[699])
-    , lookup_u16_11_inv(il[700])
-    , lookup_u16_12_inv(il[701])
-    , lookup_u16_13_inv(il[702])
-    , lookup_u16_14_inv(il[703])
-    , lookup_div_u16_0_inv(il[704])
-    , lookup_div_u16_1_inv(il[705])
-    , lookup_div_u16_2_inv(il[706])
-    , lookup_div_u16_3_inv(il[707])
-    , lookup_div_u16_4_inv(il[708])
-    , lookup_div_u16_5_inv(il[709])
-    , lookup_div_u16_6_inv(il[710])
-    , lookup_div_u16_7_inv(il[711])
+    , lookup_pow_2_0_inv(il[669])
+    , lookup_pow_2_1_inv(il[670])
+    , lookup_u8_0_inv(il[671])
+    , lookup_u8_1_inv(il[672])
+    , lookup_u16_0_inv(il[673])
+    , lookup_u16_1_inv(il[674])
+    , lookup_u16_2_inv(il[675])
+    , lookup_u16_3_inv(il[676])
+    , lookup_u16_4_inv(il[677])
+    , lookup_u16_5_inv(il[678])
+    , lookup_u16_6_inv(il[679])
+    , lookup_u16_7_inv(il[680])
+    , lookup_u16_8_inv(il[681])
+    , lookup_u16_9_inv(il[682])
+    , lookup_u16_10_inv(il[683])
+    , lookup_u16_11_inv(il[684])
+    , lookup_u16_12_inv(il[685])
+    , lookup_u16_13_inv(il[686])
+    , lookup_u16_14_inv(il[687])
+    , lookup_div_u16_0_inv(il[688])
+    , lookup_div_u16_1_inv(il[689])
+    , lookup_div_u16_2_inv(il[690])
+    , lookup_div_u16_3_inv(il[691])
+    , lookup_div_u16_4_inv(il[692])
+    , lookup_div_u16_5_inv(il[693])
+    , lookup_div_u16_6_inv(il[694])
+    , lookup_div_u16_7_inv(il[695])
+    , lookup_byte_lengths_inv(il[696])
+    , lookup_byte_operations_inv(il[697])
+    , lookup_opcode_gas_inv(il[698])
+    , range_check_l2_gas_hi_inv(il[699])
+    , range_check_l2_gas_lo_inv(il[700])
+    , range_check_da_gas_hi_inv(il[701])
+    , range_check_da_gas_lo_inv(il[702])
+    , kernel_output_lookup_inv(il[703])
+    , lookup_into_kernel_inv(il[704])
+    , lookup_cd_value_inv(il[705])
+    , lookup_ret_value_inv(il[706])
+    , incl_main_tag_err_inv(il[707])
+    , incl_mem_tag_err_inv(il[708])
+    , lookup_mem_rng_chk_lo_inv(il[709])
+    , lookup_mem_rng_chk_mid_inv(il[710])
+    , lookup_mem_rng_chk_hi_inv(il[711])
     , alu_a_hi_shift(il[712])
     , alu_a_lo_shift(il[713])
     , alu_b_hi_shift(il[714])
@@ -1411,22 +1411,6 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      slice_sel_start[row_idx],
                      slice_space_id[row_idx],
                      slice_val[row_idx],
-                     lookup_byte_lengths_counts[row_idx],
-                     lookup_byte_operations_counts[row_idx],
-                     lookup_opcode_gas_counts[row_idx],
-                     range_check_l2_gas_hi_counts[row_idx],
-                     range_check_l2_gas_lo_counts[row_idx],
-                     range_check_da_gas_hi_counts[row_idx],
-                     range_check_da_gas_lo_counts[row_idx],
-                     kernel_output_lookup_counts[row_idx],
-                     lookup_into_kernel_counts[row_idx],
-                     lookup_cd_value_counts[row_idx],
-                     lookup_ret_value_counts[row_idx],
-                     incl_main_tag_err_counts[row_idx],
-                     incl_mem_tag_err_counts[row_idx],
-                     lookup_mem_rng_chk_lo_counts[row_idx],
-                     lookup_mem_rng_chk_mid_counts[row_idx],
-                     lookup_mem_rng_chk_hi_counts[row_idx],
                      lookup_pow_2_0_counts[row_idx],
                      lookup_pow_2_1_counts[row_idx],
                      lookup_u8_0_counts[row_idx],
@@ -1454,6 +1438,22 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      lookup_div_u16_5_counts[row_idx],
                      lookup_div_u16_6_counts[row_idx],
                      lookup_div_u16_7_counts[row_idx],
+                     lookup_byte_lengths_counts[row_idx],
+                     lookup_byte_operations_counts[row_idx],
+                     lookup_opcode_gas_counts[row_idx],
+                     range_check_l2_gas_hi_counts[row_idx],
+                     range_check_l2_gas_lo_counts[row_idx],
+                     range_check_da_gas_hi_counts[row_idx],
+                     range_check_da_gas_lo_counts[row_idx],
+                     kernel_output_lookup_counts[row_idx],
+                     lookup_into_kernel_counts[row_idx],
+                     lookup_cd_value_counts[row_idx],
+                     lookup_ret_value_counts[row_idx],
+                     incl_main_tag_err_counts[row_idx],
+                     incl_mem_tag_err_counts[row_idx],
+                     lookup_mem_rng_chk_lo_counts[row_idx],
+                     lookup_mem_rng_chk_mid_counts[row_idx],
+                     lookup_mem_rng_chk_hi_counts[row_idx],
                      perm_pos_mem_read_a_inv[row_idx],
                      perm_pos_mem_read_b_inv[row_idx],
                      perm_pos_mem_read_c_inv[row_idx],
@@ -1477,22 +1477,6 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      perm_main_mem_ind_addr_b_inv[row_idx],
                      perm_main_mem_ind_addr_c_inv[row_idx],
                      perm_main_mem_ind_addr_d_inv[row_idx],
-                     lookup_byte_lengths_inv[row_idx],
-                     lookup_byte_operations_inv[row_idx],
-                     lookup_opcode_gas_inv[row_idx],
-                     range_check_l2_gas_hi_inv[row_idx],
-                     range_check_l2_gas_lo_inv[row_idx],
-                     range_check_da_gas_hi_inv[row_idx],
-                     range_check_da_gas_lo_inv[row_idx],
-                     kernel_output_lookup_inv[row_idx],
-                     lookup_into_kernel_inv[row_idx],
-                     lookup_cd_value_inv[row_idx],
-                     lookup_ret_value_inv[row_idx],
-                     incl_main_tag_err_inv[row_idx],
-                     incl_mem_tag_err_inv[row_idx],
-                     lookup_mem_rng_chk_lo_inv[row_idx],
-                     lookup_mem_rng_chk_mid_inv[row_idx],
-                     lookup_mem_rng_chk_hi_inv[row_idx],
                      lookup_pow_2_0_inv[row_idx],
                      lookup_pow_2_1_inv[row_idx],
                      lookup_u8_0_inv[row_idx],
@@ -1520,6 +1504,22 @@ AvmFlavor::AllConstRefValues AvmFlavor::ProverPolynomials::get_row(size_t row_id
                      lookup_div_u16_5_inv[row_idx],
                      lookup_div_u16_6_inv[row_idx],
                      lookup_div_u16_7_inv[row_idx],
+                     lookup_byte_lengths_inv[row_idx],
+                     lookup_byte_operations_inv[row_idx],
+                     lookup_opcode_gas_inv[row_idx],
+                     range_check_l2_gas_hi_inv[row_idx],
+                     range_check_l2_gas_lo_inv[row_idx],
+                     range_check_da_gas_hi_inv[row_idx],
+                     range_check_da_gas_lo_inv[row_idx],
+                     kernel_output_lookup_inv[row_idx],
+                     lookup_into_kernel_inv[row_idx],
+                     lookup_cd_value_inv[row_idx],
+                     lookup_ret_value_inv[row_idx],
+                     incl_main_tag_err_inv[row_idx],
+                     incl_mem_tag_err_inv[row_idx],
+                     lookup_mem_rng_chk_lo_inv[row_idx],
+                     lookup_mem_rng_chk_mid_inv[row_idx],
+                     lookup_mem_rng_chk_hi_inv[row_idx],
                      alu_a_hi_shift[row_idx],
                      alu_a_lo_shift[row_idx],
                      alu_b_hi_shift[row_idx],
@@ -2225,22 +2225,6 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::perm_main_mem_ind_addr_b_inv = "PERM_MAIN_MEM_IND_ADDR_B_INV";
     Base::perm_main_mem_ind_addr_c_inv = "PERM_MAIN_MEM_IND_ADDR_C_INV";
     Base::perm_main_mem_ind_addr_d_inv = "PERM_MAIN_MEM_IND_ADDR_D_INV";
-    Base::lookup_byte_lengths_inv = "LOOKUP_BYTE_LENGTHS_INV";
-    Base::lookup_byte_operations_inv = "LOOKUP_BYTE_OPERATIONS_INV";
-    Base::lookup_opcode_gas_inv = "LOOKUP_OPCODE_GAS_INV";
-    Base::range_check_l2_gas_hi_inv = "RANGE_CHECK_L2_GAS_HI_INV";
-    Base::range_check_l2_gas_lo_inv = "RANGE_CHECK_L2_GAS_LO_INV";
-    Base::range_check_da_gas_hi_inv = "RANGE_CHECK_DA_GAS_HI_INV";
-    Base::range_check_da_gas_lo_inv = "RANGE_CHECK_DA_GAS_LO_INV";
-    Base::kernel_output_lookup_inv = "KERNEL_OUTPUT_LOOKUP_INV";
-    Base::lookup_into_kernel_inv = "LOOKUP_INTO_KERNEL_INV";
-    Base::lookup_cd_value_inv = "LOOKUP_CD_VALUE_INV";
-    Base::lookup_ret_value_inv = "LOOKUP_RET_VALUE_INV";
-    Base::incl_main_tag_err_inv = "INCL_MAIN_TAG_ERR_INV";
-    Base::incl_mem_tag_err_inv = "INCL_MEM_TAG_ERR_INV";
-    Base::lookup_mem_rng_chk_lo_inv = "LOOKUP_MEM_RNG_CHK_LO_INV";
-    Base::lookup_mem_rng_chk_mid_inv = "LOOKUP_MEM_RNG_CHK_MID_INV";
-    Base::lookup_mem_rng_chk_hi_inv = "LOOKUP_MEM_RNG_CHK_HI_INV";
     Base::lookup_pow_2_0_inv = "LOOKUP_POW_2_0_INV";
     Base::lookup_pow_2_1_inv = "LOOKUP_POW_2_1_INV";
     Base::lookup_u8_0_inv = "LOOKUP_U8_0_INV";
@@ -2268,22 +2252,22 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::lookup_div_u16_5_inv = "LOOKUP_DIV_U16_5_INV";
     Base::lookup_div_u16_6_inv = "LOOKUP_DIV_U16_6_INV";
     Base::lookup_div_u16_7_inv = "LOOKUP_DIV_U16_7_INV";
-    Base::lookup_byte_lengths_counts = "LOOKUP_BYTE_LENGTHS_COUNTS";
-    Base::lookup_byte_operations_counts = "LOOKUP_BYTE_OPERATIONS_COUNTS";
-    Base::lookup_opcode_gas_counts = "LOOKUP_OPCODE_GAS_COUNTS";
-    Base::range_check_l2_gas_hi_counts = "RANGE_CHECK_L2_GAS_HI_COUNTS";
-    Base::range_check_l2_gas_lo_counts = "RANGE_CHECK_L2_GAS_LO_COUNTS";
-    Base::range_check_da_gas_hi_counts = "RANGE_CHECK_DA_GAS_HI_COUNTS";
-    Base::range_check_da_gas_lo_counts = "RANGE_CHECK_DA_GAS_LO_COUNTS";
-    Base::kernel_output_lookup_counts = "KERNEL_OUTPUT_LOOKUP_COUNTS";
-    Base::lookup_into_kernel_counts = "LOOKUP_INTO_KERNEL_COUNTS";
-    Base::lookup_cd_value_counts = "LOOKUP_CD_VALUE_COUNTS";
-    Base::lookup_ret_value_counts = "LOOKUP_RET_VALUE_COUNTS";
-    Base::incl_main_tag_err_counts = "INCL_MAIN_TAG_ERR_COUNTS";
-    Base::incl_mem_tag_err_counts = "INCL_MEM_TAG_ERR_COUNTS";
-    Base::lookup_mem_rng_chk_lo_counts = "LOOKUP_MEM_RNG_CHK_LO_COUNTS";
-    Base::lookup_mem_rng_chk_mid_counts = "LOOKUP_MEM_RNG_CHK_MID_COUNTS";
-    Base::lookup_mem_rng_chk_hi_counts = "LOOKUP_MEM_RNG_CHK_HI_COUNTS";
+    Base::lookup_byte_lengths_inv = "LOOKUP_BYTE_LENGTHS_INV";
+    Base::lookup_byte_operations_inv = "LOOKUP_BYTE_OPERATIONS_INV";
+    Base::lookup_opcode_gas_inv = "LOOKUP_OPCODE_GAS_INV";
+    Base::range_check_l2_gas_hi_inv = "RANGE_CHECK_L2_GAS_HI_INV";
+    Base::range_check_l2_gas_lo_inv = "RANGE_CHECK_L2_GAS_LO_INV";
+    Base::range_check_da_gas_hi_inv = "RANGE_CHECK_DA_GAS_HI_INV";
+    Base::range_check_da_gas_lo_inv = "RANGE_CHECK_DA_GAS_LO_INV";
+    Base::kernel_output_lookup_inv = "KERNEL_OUTPUT_LOOKUP_INV";
+    Base::lookup_into_kernel_inv = "LOOKUP_INTO_KERNEL_INV";
+    Base::lookup_cd_value_inv = "LOOKUP_CD_VALUE_INV";
+    Base::lookup_ret_value_inv = "LOOKUP_RET_VALUE_INV";
+    Base::incl_main_tag_err_inv = "INCL_MAIN_TAG_ERR_INV";
+    Base::incl_mem_tag_err_inv = "INCL_MEM_TAG_ERR_INV";
+    Base::lookup_mem_rng_chk_lo_inv = "LOOKUP_MEM_RNG_CHK_LO_INV";
+    Base::lookup_mem_rng_chk_mid_inv = "LOOKUP_MEM_RNG_CHK_MID_INV";
+    Base::lookup_mem_rng_chk_hi_inv = "LOOKUP_MEM_RNG_CHK_HI_INV";
     Base::lookup_pow_2_0_counts = "LOOKUP_POW_2_0_COUNTS";
     Base::lookup_pow_2_1_counts = "LOOKUP_POW_2_1_COUNTS";
     Base::lookup_u8_0_counts = "LOOKUP_U8_0_COUNTS";
@@ -2311,6 +2295,22 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::lookup_div_u16_5_counts = "LOOKUP_DIV_U16_5_COUNTS";
     Base::lookup_div_u16_6_counts = "LOOKUP_DIV_U16_6_COUNTS";
     Base::lookup_div_u16_7_counts = "LOOKUP_DIV_U16_7_COUNTS";
+    Base::lookup_byte_lengths_counts = "LOOKUP_BYTE_LENGTHS_COUNTS";
+    Base::lookup_byte_operations_counts = "LOOKUP_BYTE_OPERATIONS_COUNTS";
+    Base::lookup_opcode_gas_counts = "LOOKUP_OPCODE_GAS_COUNTS";
+    Base::range_check_l2_gas_hi_counts = "RANGE_CHECK_L2_GAS_HI_COUNTS";
+    Base::range_check_l2_gas_lo_counts = "RANGE_CHECK_L2_GAS_LO_COUNTS";
+    Base::range_check_da_gas_hi_counts = "RANGE_CHECK_DA_GAS_HI_COUNTS";
+    Base::range_check_da_gas_lo_counts = "RANGE_CHECK_DA_GAS_LO_COUNTS";
+    Base::kernel_output_lookup_counts = "KERNEL_OUTPUT_LOOKUP_COUNTS";
+    Base::lookup_into_kernel_counts = "LOOKUP_INTO_KERNEL_COUNTS";
+    Base::lookup_cd_value_counts = "LOOKUP_CD_VALUE_COUNTS";
+    Base::lookup_ret_value_counts = "LOOKUP_RET_VALUE_COUNTS";
+    Base::incl_main_tag_err_counts = "INCL_MAIN_TAG_ERR_COUNTS";
+    Base::incl_mem_tag_err_counts = "INCL_MEM_TAG_ERR_COUNTS";
+    Base::lookup_mem_rng_chk_lo_counts = "LOOKUP_MEM_RNG_CHK_LO_COUNTS";
+    Base::lookup_mem_rng_chk_mid_counts = "LOOKUP_MEM_RNG_CHK_MID_COUNTS";
+    Base::lookup_mem_rng_chk_hi_counts = "LOOKUP_MEM_RNG_CHK_HI_COUNTS";
 };
 
 AvmFlavor::VerifierCommitments::VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)

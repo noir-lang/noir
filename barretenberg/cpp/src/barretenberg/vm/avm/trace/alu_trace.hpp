@@ -1,9 +1,13 @@
 #pragma once
 
 #include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/vm/avm/generated/full_row.hpp"
 #include "barretenberg/vm/avm/trace/common.hpp"
+#include "barretenberg/vm/avm/trace/opcode.hpp"
+
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -13,30 +17,11 @@ class AvmAluTraceBuilder {
 
   public:
     struct AluTraceEntry {
-        uint32_t alu_clk{};
+        uint32_t alu_clk = 0;
 
-        bool alu_op_add = false;
-        bool alu_op_sub = false;
-        bool alu_op_mul = false;
-        bool alu_op_div = false;
-
-        bool alu_op_eq = false;
-        bool alu_op_lt = false;
-        bool alu_op_lte = false;
-
-        bool alu_op_not = false;
-        bool alu_op_shl = false;
-        bool alu_op_shr = false;
-
-        bool alu_op_cast = false;
+        std::optional<OpCode> opcode = std::nullopt;
+        std::optional<AvmMemoryTag> tag = std::nullopt;
         bool alu_op_cast_prev = false;
-
-        bool alu_ff_tag = false;
-        bool alu_u8_tag = false;
-        bool alu_u16_tag = false;
-        bool alu_u32_tag = false;
-        bool alu_u64_tag = false;
-        bool alu_u128_tag = false;
 
         FF alu_ia{};
         FF alu_ib{};
@@ -44,8 +29,8 @@ class AvmAluTraceBuilder {
 
         bool alu_cf = false;
 
-        uint8_t alu_u8_r0{};
-        uint8_t alu_u8_r1{};
+        uint8_t alu_u8_r0 = 0;
+        uint8_t alu_u8_r1 = 0;
 
         std::array<uint16_t, 15> alu_u16_reg{};
 
@@ -85,8 +70,9 @@ class AvmAluTraceBuilder {
     std::array<std::unordered_map<uint16_t, uint32_t>, 8> div_u64_range_chk_counters;
 
     AvmAluTraceBuilder() = default;
+    size_t size() const { return alu_trace.size(); }
     void reset();
-    std::vector<AluTraceEntry> finalize();
+    void finalize(std::vector<AvmFullRow<FF>>& main_trace);
 
     // Compute - Arithmetic
     FF op_add(FF const& a, FF const& b, AvmMemoryTag in_tag, uint32_t clk);
@@ -107,15 +93,15 @@ class AvmAluTraceBuilder {
     // Compute - Type Conversions
     FF op_cast(FF const& a, AvmMemoryTag in_tag, uint32_t clk);
 
-    bool is_range_check_required() const;
-    static bool is_alu_row_enabled(AvmAluTraceBuilder::AluTraceEntry const& r);
-
   private:
     std::vector<AluTraceEntry> alu_trace;
     bool range_checked_required = false;
 
     template <typename T> std::tuple<uint8_t, uint8_t, std::array<uint16_t, 15>> to_alu_slice_registers(T a);
     std::vector<AluTraceEntry> cmp_range_check_helper(AluTraceEntry row, std::vector<uint256_t> hi_lo_limbs);
+
+    bool is_range_check_required() const;
+    static bool is_alu_row_enabled(AvmAluTraceBuilder::AluTraceEntry const& r);
 };
 
 } // namespace bb::avm_trace

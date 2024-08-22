@@ -73,7 +73,8 @@ uint8_t mem_tag_bits(AvmMemoryTag in_tag)
     }
     return 0;
 }
-} // Anonymous namespace
+
+} // namespace
 
 /**************************************************************************************************
  *                                 PRIVATE HELPERS
@@ -149,10 +150,6 @@ std::vector<AvmAluTraceBuilder::AluTraceEntry> AvmAluTraceBuilder::cmp_range_che
     return rows;
 }
 
-/**************************************************************************************************
- *                            RESET/FINALIZE
- **************************************************************************************************/
-
 /**
  * @brief Resetting the internal state so that a new Alu trace can be rebuilt using the same object.
  *
@@ -161,16 +158,6 @@ void AvmAluTraceBuilder::reset()
 {
     alu_trace.clear();
     range_checked_required = false;
-}
-
-/**
- * @brief Prepare the Alu trace to be incorporated into the main trace.
- *
- * @return The Alu trace (which is moved).
- */
-std::vector<AvmAluTraceBuilder::AluTraceEntry> AvmAluTraceBuilder::finalize()
-{
-    return std::move(alu_trace);
 }
 
 /**************************************************************************************************
@@ -243,13 +230,8 @@ FF AvmAluTraceBuilder::op_add(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
-        .alu_op_add = true,
-        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::ADD,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ib = b,
         .alu_ic = c,
@@ -327,13 +309,8 @@ FF AvmAluTraceBuilder::op_sub(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
-        .alu_op_sub = true,
-        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::SUB,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ib = b,
         .alu_ic = c,
@@ -427,8 +404,8 @@ FF AvmAluTraceBuilder::op_mul(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
 
         alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
             .alu_clk = clk,
-            .alu_op_mul = true,
-            .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+            .opcode = OpCode::MUL,
+            .tag = in_tag,
             .alu_ia = a,
             .alu_ib = b,
             .alu_ic = c,
@@ -459,14 +436,11 @@ FF AvmAluTraceBuilder::op_mul(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     alu_u16_reg = u16_reg;
 
     // Following code executed for: ff, u8, u16, u32, u64 (u128 returned handled specifically)
+    ASSERT(in_tag != AvmMemoryTag::U128);
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
-        .alu_op_mul = true,
-        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
+        .opcode = OpCode::MUL,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ib = b,
         .alu_ic = c,
@@ -497,12 +471,8 @@ FF AvmAluTraceBuilder::op_div(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
         auto [u8_r0, u8_r1, u16_reg] = to_alu_slice_registers(rng_chk_lo);
         alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry({
             .alu_clk = clk,
-            .alu_op_div = true,
-            .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-            .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-            .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-            .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-            .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+            .opcode = OpCode::DIV,
+            .tag = in_tag,
             .alu_ia = a,
             .alu_ib = b,
             .alu_ic = 0,
@@ -549,12 +519,8 @@ FF AvmAluTraceBuilder::op_div(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     auto hi_lo_limbs = std::vector<uint256_t>{ a_lo, a_hi, partial_prod, b_hi, p_sub_a_lo, p_sub_a_hi };
     AvmAluTraceBuilder::AluTraceEntry row{
         .alu_clk = clk,
-        .alu_op_div = true,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::DIV,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ib = b,
         .alu_ic = FF{ c_u256 },
@@ -601,13 +567,8 @@ FF AvmAluTraceBuilder::op_eq(FF const& a, FF const& b, AvmMemoryTag in_tag, uint
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
-        .alu_op_eq = true,
-        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::EQ,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ib = b,
         .alu_ic = res,
@@ -653,13 +614,8 @@ FF AvmAluTraceBuilder::op_lt(FF const& a, FF const& b, AvmMemoryTag in_tag, uint
 
     AvmAluTraceBuilder::AluTraceEntry row{
         .alu_clk = clk,
-        .alu_op_lt = true,
-        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::LT,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ib = b,
         .alu_ic = FF(static_cast<uint8_t>(c)),
@@ -708,13 +664,8 @@ FF AvmAluTraceBuilder::op_lte(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
     // Construct the row that performs the lte check
     AvmAluTraceBuilder::AluTraceEntry row{
         .alu_clk = clk,
-        .alu_op_lte = true,
-        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::LTE,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ib = b,
         .alu_ic = FF(static_cast<uint8_t>(c)),
@@ -771,12 +722,8 @@ FF AvmAluTraceBuilder::op_not(FF const& a, AvmMemoryTag in_tag, uint32_t const c
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
-        .alu_op_not = true,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::NOT,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ic = c,
     });
@@ -816,13 +763,8 @@ FF AvmAluTraceBuilder::op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
         [[maybe_unused]] auto [alu_u8_r0, alu_u8_r1, alu_u16_reg] = AvmAluTraceBuilder::to_alu_slice_registers(0);
         alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
             .alu_clk = clk,
-            .alu_op_shl = true,
-            .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-            .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-            .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-            .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-            .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-            .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+            .opcode = OpCode::SHL,
+            .tag = in_tag,
             .alu_ia = a,
             .alu_ib = b,
             .alu_ic = 0,
@@ -873,13 +815,8 @@ FF AvmAluTraceBuilder::op_shl(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
-        .alu_op_shl = true,
-        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::SHL,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ib = b,
         .alu_ic = c,
@@ -926,13 +863,8 @@ FF AvmAluTraceBuilder::op_shr(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
         [[maybe_unused]] auto [alu_u8_r0, alu_u8_r1, alu_u16_reg] = AvmAluTraceBuilder::to_alu_slice_registers(0);
         alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
             .alu_clk = clk,
-            .alu_op_shr = true,
-            .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-            .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-            .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-            .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-            .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-            .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+            .opcode = OpCode::SHR,
+            .tag = in_tag,
             .alu_ia = a,
             .alu_ib = b,
             .alu_ic = 0,
@@ -961,12 +893,8 @@ FF AvmAluTraceBuilder::op_shr(FF const& a, FF const& b, AvmMemoryTag in_tag, uin
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
-        .alu_op_shr = true,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::SHR,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ib = b,
         // Could be replaced with x_hi but nice to have 2 ways of calculating the result
@@ -1031,13 +959,8 @@ FF AvmAluTraceBuilder::op_cast(FF const& a, AvmMemoryTag in_tag, uint32_t clk)
 
     alu_trace.push_back(AvmAluTraceBuilder::AluTraceEntry{
         .alu_clk = clk,
-        .alu_op_cast = true,
-        .alu_ff_tag = in_tag == AvmMemoryTag::FF,
-        .alu_u8_tag = in_tag == AvmMemoryTag::U8,
-        .alu_u16_tag = in_tag == AvmMemoryTag::U16,
-        .alu_u32_tag = in_tag == AvmMemoryTag::U32,
-        .alu_u64_tag = in_tag == AvmMemoryTag::U64,
-        .alu_u128_tag = in_tag == AvmMemoryTag::U128,
+        .opcode = OpCode::CAST,
+        .tag = in_tag,
         .alu_ia = a,
         .alu_ic = c,
         .alu_u8_r0 = u8_r0,
@@ -1075,12 +998,171 @@ bool AvmAluTraceBuilder::is_range_check_required() const
  * @brief Helper function that returns a boolean if this entry is an alu operation.
  *        This is helpful to filter out range check rows or the second row in the 128-bit multiply.
  *
- * @return A boolean telling whether range check is required.
+ * @return A boolean telling whether the ALU is enabled for the row.
  */
-bool AvmAluTraceBuilder::is_alu_row_enabled(AvmAluTraceBuilder::AluTraceEntry const& r)
+bool AvmAluTraceBuilder::is_alu_row_enabled(const AvmAluTraceBuilder::AluTraceEntry& r)
 {
-    return (r.alu_op_add || r.alu_op_sub || r.alu_op_mul || r.alu_op_eq || r.alu_op_not || r.alu_op_lt ||
-            r.alu_op_lte || r.alu_op_shr || r.alu_op_shl || r.alu_op_cast || r.alu_op_div);
+    return (r.opcode == OpCode::ADD || r.opcode == OpCode::SUB || r.opcode == OpCode::MUL || r.opcode == OpCode::EQ ||
+            r.opcode == OpCode::NOT || r.opcode == OpCode::LT || r.opcode == OpCode::LTE || r.opcode == OpCode::SHR ||
+            r.opcode == OpCode::SHL || r.opcode == OpCode::CAST || r.opcode == OpCode::DIV);
+}
+
+/**
+ * @brief Incorporates the ALU trace in the main trace.
+ */
+void AvmAluTraceBuilder::finalize(std::vector<AvmFullRow<FF>>& main_trace)
+{
+    // This embeds the ALU information into the main trace.
+    for (size_t i = 0; i < alu_trace.size(); i++) {
+        auto const& src = alu_trace.at(i);
+        auto& dest = main_trace.at(i);
+
+        dest.alu_clk = FF(static_cast<uint32_t>(src.alu_clk));
+
+        if (src.opcode.has_value()) {
+            dest.alu_op_add = FF(src.opcode == OpCode::ADD ? 1 : 0);
+            dest.alu_op_sub = FF(src.opcode == OpCode::SUB ? 1 : 0);
+            dest.alu_op_mul = FF(src.opcode == OpCode::MUL ? 1 : 0);
+            dest.alu_op_not = FF(src.opcode == OpCode::NOT ? 1 : 0);
+            dest.alu_op_eq = FF(src.opcode == OpCode::EQ ? 1 : 0);
+            dest.alu_op_lt = FF(src.opcode == OpCode::LT ? 1 : 0);
+            dest.alu_op_lte = FF(src.opcode == OpCode::LTE ? 1 : 0);
+            dest.alu_op_cast = FF(src.opcode == OpCode::CAST ? 1 : 0);
+            dest.alu_op_shr = FF(src.opcode == OpCode::SHR ? 1 : 0);
+            dest.alu_op_shl = FF(src.opcode == OpCode::SHL ? 1 : 0);
+            dest.alu_op_div = FF(src.opcode == OpCode::DIV ? 1 : 0);
+        }
+
+        dest.alu_sel_rng_chk = FF(src.rng_chk_sel ? 1 : 0);
+        dest.alu_op_cast_prev = FF(src.alu_op_cast_prev ? 1 : 0);
+        dest.alu_sel_cmp = dest.alu_op_lt + dest.alu_op_lte;
+
+        if (src.tag.has_value()) {
+            dest.alu_ff_tag = FF(src.tag == AvmMemoryTag::FF ? 1 : 0);
+            dest.alu_u8_tag = FF(src.tag == AvmMemoryTag::U8 ? 1 : 0);
+            dest.alu_u16_tag = FF(src.tag == AvmMemoryTag::U16 ? 1 : 0);
+            dest.alu_u32_tag = FF(src.tag == AvmMemoryTag::U32 ? 1 : 0);
+            dest.alu_u64_tag = FF(src.tag == AvmMemoryTag::U64 ? 1 : 0);
+            dest.alu_u128_tag = FF(src.tag == AvmMemoryTag::U128 ? 1 : 0);
+            dest.alu_in_tag = FF(static_cast<uint32_t>(src.tag.value()));
+        }
+
+        dest.alu_ia = src.alu_ia;
+        dest.alu_ib = src.alu_ib;
+        dest.alu_ic = src.alu_ic;
+
+        dest.alu_cf = FF(static_cast<uint32_t>(src.alu_cf));
+
+        dest.alu_u8_r0 = FF(src.alu_u8_r0);
+        dest.alu_u8_r1 = FF(src.alu_u8_r1);
+
+        dest.alu_u16_r0 = FF(src.alu_u16_reg.at(0));
+        dest.alu_u16_r1 = FF(src.alu_u16_reg.at(1));
+        dest.alu_u16_r2 = FF(src.alu_u16_reg.at(2));
+        dest.alu_u16_r3 = FF(src.alu_u16_reg.at(3));
+        dest.alu_u16_r4 = FF(src.alu_u16_reg.at(4));
+        dest.alu_u16_r5 = FF(src.alu_u16_reg.at(5));
+        dest.alu_u16_r6 = FF(src.alu_u16_reg.at(6));
+        dest.alu_u16_r7 = FF(src.alu_u16_reg.at(7));
+        dest.alu_u16_r8 = FF(src.alu_u16_reg.at(8));
+        dest.alu_u16_r9 = FF(src.alu_u16_reg.at(9));
+        dest.alu_u16_r10 = FF(src.alu_u16_reg.at(10));
+        dest.alu_u16_r11 = FF(src.alu_u16_reg.at(11));
+        dest.alu_u16_r12 = FF(src.alu_u16_reg.at(12));
+        dest.alu_u16_r13 = FF(src.alu_u16_reg.at(13));
+        dest.alu_u16_r14 = FF(src.alu_u16_reg.at(14));
+
+        dest.alu_sel_div_rng_chk = FF(static_cast<uint8_t>(src.div_u64_range_chk_sel));
+        dest.alu_div_u16_r0 = FF(src.div_u64_range_chk.at(0));
+        dest.alu_div_u16_r1 = FF(src.div_u64_range_chk.at(1));
+        dest.alu_div_u16_r2 = FF(src.div_u64_range_chk.at(2));
+        dest.alu_div_u16_r3 = FF(src.div_u64_range_chk.at(3));
+        dest.alu_div_u16_r4 = FF(src.div_u64_range_chk.at(4));
+        dest.alu_div_u16_r5 = FF(src.div_u64_range_chk.at(5));
+        dest.alu_div_u16_r6 = FF(src.div_u64_range_chk.at(6));
+        dest.alu_div_u16_r7 = FF(src.div_u64_range_chk.at(7));
+        dest.alu_op_eq_diff_inv = FF(src.alu_op_eq_diff_inv);
+
+        // Not all rows in ALU are enabled with a selector. For instance,
+        // multiplication over u128 and cast is taking two lines.
+        if (is_alu_row_enabled(src)) {
+            dest.alu_sel_alu = FF(1);
+        }
+
+        if (dest.alu_sel_cmp == FF(1) || dest.alu_sel_rng_chk == FF(1)) {
+            dest.alu_a_lo = FF(src.hi_lo_limbs.at(0));
+            dest.alu_a_hi = FF(src.hi_lo_limbs.at(1));
+            dest.alu_b_lo = FF(src.hi_lo_limbs.at(2));
+            dest.alu_b_hi = FF(src.hi_lo_limbs.at(3));
+            dest.alu_p_sub_a_lo = FF(src.hi_lo_limbs.at(4));
+            dest.alu_p_sub_a_hi = FF(src.hi_lo_limbs.at(5));
+            dest.alu_p_sub_b_lo = FF(src.hi_lo_limbs.at(6));
+            dest.alu_p_sub_b_hi = FF(src.hi_lo_limbs.at(7));
+            dest.alu_res_lo = FF(src.hi_lo_limbs.at(8));
+            dest.alu_res_hi = FF(src.hi_lo_limbs.at(9));
+            dest.alu_p_a_borrow = FF(static_cast<uint8_t>(src.p_a_borrow));
+            dest.alu_p_b_borrow = FF(static_cast<uint8_t>(src.p_b_borrow));
+            dest.alu_borrow = FF(static_cast<uint8_t>(src.borrow));
+            dest.alu_cmp_rng_ctr = FF(static_cast<uint8_t>(src.cmp_rng_ctr));
+            dest.alu_sel_rng_chk_lookup = FF(1);
+        }
+        if (dest.alu_op_div == FF(1)) {
+            dest.alu_op_div_std = uint256_t(src.alu_ia) >= uint256_t(src.alu_ib);
+            dest.alu_op_div_a_lt_b = uint256_t(src.alu_ia) < uint256_t(src.alu_ib);
+            dest.alu_sel_rng_chk_lookup = FF(1);
+            dest.alu_a_lo = FF(src.hi_lo_limbs.at(0));
+            dest.alu_a_hi = FF(src.hi_lo_limbs.at(1));
+            dest.alu_b_lo = FF(src.hi_lo_limbs.at(2));
+            dest.alu_b_hi = FF(src.hi_lo_limbs.at(3));
+            dest.alu_p_sub_a_lo = FF(src.hi_lo_limbs.at(4));
+            dest.alu_p_sub_a_hi = FF(src.hi_lo_limbs.at(5));
+            dest.alu_remainder = src.remainder;
+            dest.alu_divisor_lo = src.divisor_lo;
+            dest.alu_divisor_hi = src.divisor_hi;
+            dest.alu_quotient_lo = src.quotient_lo;
+            dest.alu_quotient_hi = src.quotient_hi;
+            dest.alu_partial_prod_lo = src.partial_prod_lo;
+            dest.alu_partial_prod_hi = src.partial_prod_hi;
+        }
+
+        if (dest.alu_op_add == FF(1) || dest.alu_op_sub == FF(1) || dest.alu_op_mul == FF(1)) {
+            dest.alu_sel_rng_chk_lookup = FF(1);
+        }
+
+        if (dest.alu_op_cast == FF(1)) {
+            dest.alu_a_lo = FF(src.hi_lo_limbs.at(0));
+            dest.alu_a_hi = FF(src.hi_lo_limbs.at(1));
+            dest.alu_p_sub_a_lo = FF(src.hi_lo_limbs.at(2));
+            dest.alu_p_sub_a_hi = FF(src.hi_lo_limbs.at(3));
+            dest.alu_p_a_borrow = FF(static_cast<uint8_t>(src.p_a_borrow));
+            dest.alu_sel_rng_chk_lookup = FF(1);
+        }
+
+        if (dest.alu_op_cast_prev == FF(1)) {
+            dest.alu_a_lo = FF(src.hi_lo_limbs.at(0));
+            dest.alu_a_hi = FF(src.hi_lo_limbs.at(1));
+            dest.alu_sel_rng_chk_lookup = FF(1);
+        }
+
+        // Multiplication over u128 expands over two rows.
+        if (dest.alu_op_mul == FF(1) && dest.alu_u128_tag) {
+            main_trace.at(i + 1).alu_sel_rng_chk_lookup = FF(1);
+        }
+        if (dest.alu_op_shr || dest.alu_op_shl) {
+            dest.alu_a_lo = FF(src.hi_lo_limbs[0]);
+            dest.alu_a_hi = FF(src.hi_lo_limbs[1]);
+            dest.alu_b_lo = FF(src.hi_lo_limbs[2]);
+            dest.alu_b_hi = FF(src.hi_lo_limbs[3]);
+            dest.alu_sel_shift_which = FF(1);
+            dest.alu_shift_lt_bit_len = FF(static_cast<uint8_t>(src.shift_lt_bit_len));
+            dest.alu_t_sub_s_bits = FF(src.mem_tag_sub_shift);
+            dest.alu_two_pow_s = FF(uint256_t(1) << dest.alu_ib);
+            dest.alu_two_pow_t_sub_s = FF(uint256_t(1) << uint256_t(dest.alu_t_sub_s_bits));
+            dest.alu_sel_rng_chk_lookup = FF(1);
+        }
+    }
+
+    reset();
 }
 
 } // namespace bb::avm_trace

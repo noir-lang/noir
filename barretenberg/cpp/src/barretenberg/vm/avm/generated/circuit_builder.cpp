@@ -627,22 +627,6 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.slice_sel_start[i] = rows[i].slice_sel_start;
         polys.slice_space_id[i] = rows[i].slice_space_id;
         polys.slice_val[i] = rows[i].slice_val;
-        polys.lookup_byte_lengths_counts[i] = rows[i].lookup_byte_lengths_counts;
-        polys.lookup_byte_operations_counts[i] = rows[i].lookup_byte_operations_counts;
-        polys.lookup_opcode_gas_counts[i] = rows[i].lookup_opcode_gas_counts;
-        polys.range_check_l2_gas_hi_counts[i] = rows[i].range_check_l2_gas_hi_counts;
-        polys.range_check_l2_gas_lo_counts[i] = rows[i].range_check_l2_gas_lo_counts;
-        polys.range_check_da_gas_hi_counts[i] = rows[i].range_check_da_gas_hi_counts;
-        polys.range_check_da_gas_lo_counts[i] = rows[i].range_check_da_gas_lo_counts;
-        polys.kernel_output_lookup_counts[i] = rows[i].kernel_output_lookup_counts;
-        polys.lookup_into_kernel_counts[i] = rows[i].lookup_into_kernel_counts;
-        polys.lookup_cd_value_counts[i] = rows[i].lookup_cd_value_counts;
-        polys.lookup_ret_value_counts[i] = rows[i].lookup_ret_value_counts;
-        polys.incl_main_tag_err_counts[i] = rows[i].incl_main_tag_err_counts;
-        polys.incl_mem_tag_err_counts[i] = rows[i].incl_mem_tag_err_counts;
-        polys.lookup_mem_rng_chk_lo_counts[i] = rows[i].lookup_mem_rng_chk_lo_counts;
-        polys.lookup_mem_rng_chk_mid_counts[i] = rows[i].lookup_mem_rng_chk_mid_counts;
-        polys.lookup_mem_rng_chk_hi_counts[i] = rows[i].lookup_mem_rng_chk_hi_counts;
         polys.lookup_pow_2_0_counts[i] = rows[i].lookup_pow_2_0_counts;
         polys.lookup_pow_2_1_counts[i] = rows[i].lookup_pow_2_1_counts;
         polys.lookup_u8_0_counts[i] = rows[i].lookup_u8_0_counts;
@@ -670,6 +654,22 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.lookup_div_u16_5_counts[i] = rows[i].lookup_div_u16_5_counts;
         polys.lookup_div_u16_6_counts[i] = rows[i].lookup_div_u16_6_counts;
         polys.lookup_div_u16_7_counts[i] = rows[i].lookup_div_u16_7_counts;
+        polys.lookup_byte_lengths_counts[i] = rows[i].lookup_byte_lengths_counts;
+        polys.lookup_byte_operations_counts[i] = rows[i].lookup_byte_operations_counts;
+        polys.lookup_opcode_gas_counts[i] = rows[i].lookup_opcode_gas_counts;
+        polys.range_check_l2_gas_hi_counts[i] = rows[i].range_check_l2_gas_hi_counts;
+        polys.range_check_l2_gas_lo_counts[i] = rows[i].range_check_l2_gas_lo_counts;
+        polys.range_check_da_gas_hi_counts[i] = rows[i].range_check_da_gas_hi_counts;
+        polys.range_check_da_gas_lo_counts[i] = rows[i].range_check_da_gas_lo_counts;
+        polys.kernel_output_lookup_counts[i] = rows[i].kernel_output_lookup_counts;
+        polys.lookup_into_kernel_counts[i] = rows[i].lookup_into_kernel_counts;
+        polys.lookup_cd_value_counts[i] = rows[i].lookup_cd_value_counts;
+        polys.lookup_ret_value_counts[i] = rows[i].lookup_ret_value_counts;
+        polys.incl_main_tag_err_counts[i] = rows[i].incl_main_tag_err_counts;
+        polys.incl_mem_tag_err_counts[i] = rows[i].incl_mem_tag_err_counts;
+        polys.lookup_mem_rng_chk_lo_counts[i] = rows[i].lookup_mem_rng_chk_lo_counts;
+        polys.lookup_mem_rng_chk_mid_counts[i] = rows[i].lookup_mem_rng_chk_mid_counts;
+        polys.lookup_mem_rng_chk_hi_counts[i] = rows[i].lookup_mem_rng_chk_hi_counts;
     }
 
     for (auto [shifted, to_be_shifted] : zip_view(polys.get_shifted(), polys.get_to_be_shifted())) {
