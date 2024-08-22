@@ -18,6 +18,9 @@ impl Expr {
     #[builtin(expr_as_bool)]
     fn as_bool(self) -> Option<bool> {}
 
+    #[builtin(expr_as_comptime)]
+    fn as_comptime(self) -> Option<[Expr]> {}
+
     #[builtin(expr_as_function_call)]
     fn as_function_call(self) -> Option<(Expr, [Expr])> {}
 
@@ -44,6 +47,9 @@ impl Expr {
 
     #[builtin(expr_as_unary_op)]
     fn as_unary_op(self) -> Option<(UnaryOp, Expr)> {}
+
+    #[builtin(expr_as_unsafe)]
+    fn as_unsafe(self) -> Option<[Expr]> {}
 
     #[builtin(expr_has_semicolon)]
     fn has_semicolon(self) -> bool {}
@@ -125,6 +131,16 @@ mod tests {
 
             let expr = quote { true }.as_expr().unwrap();
             assert_eq(expr.as_bool().unwrap(), true);
+        }
+    }
+
+    #[test]
+    fn test_expr_as_comptime() {
+        comptime
+        {
+            let expr = quote { comptime { 1; 4; 23 } }.as_expr().unwrap();
+            let exprs = expr.as_comptime().unwrap();
+            assert_eq(exprs.len(), 3);
         }
     }
 
@@ -225,6 +241,16 @@ mod tests {
             assert(get_unary_op(quote { !x }).is_not());
             assert(get_unary_op(quote { &mut x }).is_mutable_reference());
             assert(get_unary_op(quote { *x }).is_dereference());
+        }
+    }
+
+    #[test]
+    fn test_expr_as_unsafe() {
+        comptime
+        {
+            let expr = quote { unsafe { 1; 4; 23 } }.as_expr().unwrap();
+            let exprs = expr.as_unsafe().unwrap();
+            assert_eq(exprs.len(), 3);
         }
     }
 

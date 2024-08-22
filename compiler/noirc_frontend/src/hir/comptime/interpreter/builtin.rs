@@ -55,6 +55,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
             "expr_as_block" => expr_as_block(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
+            "expr_as_comptime" => expr_as_comptime(arguments, return_type, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
             "expr_as_index" => expr_as_index(arguments, return_type, location),
@@ -69,6 +70,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_slice" => expr_as_slice(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
+            "expr_as_unsafe" => expr_as_unsafe(arguments, return_type, location),
             "expr_has_semicolon" => expr_has_semicolon(arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
@@ -859,6 +861,25 @@ fn expr_as_bool(
     })
 }
 
+// fn as_comptime(self) -> Option<[Expr]>
+fn expr_as_comptime(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Comptime(block_expr, _)) = expr {
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            let statements = block_expr.statements.into_iter();
+            let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
+
+            Some(Value::Slice(statements, typ))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_function_call(self) -> Option<(Expr, [Expr])>
 fn expr_as_function_call(
     arguments: Vec<(Value, Location)>,
@@ -1075,6 +1096,25 @@ fn expr_as_unary_op(
             let unary_op = Value::Struct(fields, unary_op_type);
             let rhs = Value::expression(prefix_expr.rhs.kind);
             Some(Value::Tuple(vec![unary_op, rhs]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_unsafe(self) -> Option<[Expr]>
+fn expr_as_unsafe(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Unsafe(block_expr, _)) = expr {
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+            let statements = block_expr.statements.into_iter();
+            let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
+
+            Some(Value::Slice(statements, typ))
         } else {
             None
         }
