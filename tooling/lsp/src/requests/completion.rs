@@ -711,7 +711,7 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_path(&mut self, path: &Path, requested_items: RequestedItems) {
-        self.find_in_path_impl(path, requested_items, false)
+        self.find_in_path_impl(path, requested_items, false);
     }
 
     fn find_in_path_impl(
