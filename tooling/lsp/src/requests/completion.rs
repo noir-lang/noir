@@ -354,6 +354,24 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
+        // Check if it's this case:
+        //
+        // foo.>|<(...)
+        //
+        // "foo." is actually broken, but it's parsed as "foo", so this is seen
+        // as "foo(...)" but if we are at a dot right after "foo" it means it's
+        // the above case and we want to suggest methods of foo's type.
+        let after_dot = self.byte == Some(b'.');
+        if after_dot && call_expression.func.span.end() as usize == self.byte_index - 1 {
+            let location = Location::new(call_expression.func.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
+                let prefix = "";
+                self.complete_type_fields_and_methods(&typ, prefix, FunctionCompletionKind::Name);
+                return;
+            }
+        }
+
         self.find_in_expression(&call_expression.func);
         self.find_in_expressions(&call_expression.arguments);
     }

@@ -1766,4 +1766,28 @@ mod completion_tests {
         )
         .await
     }
+
+    #[test]
+    async fn test_completes_at_method_call_name_after_dot() {
+        let src = r#"
+            struct Foo {}
+
+            impl Foo {
+                pub fn bar(self) {}
+            }
+
+            fn x(f: Foo) {
+                f.>|<()
+            }
+        "#;
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item(
+                "bar",
+                CompletionItemKind::FUNCTION,
+                Some("fn(self)".to_string()),
+            )],
+        )
+        .await
+    }
 }
