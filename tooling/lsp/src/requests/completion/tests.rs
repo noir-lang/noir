@@ -1720,4 +1720,26 @@ mod completion_tests {
         )
         .await
     }
+
+    #[test]
+    async fn test_completes_at_function_call_name() {
+        let src = r#"
+            mod foo {
+                fn bar() {}
+            }
+
+            fn main() {
+                foo::b>|<()
+            }
+        "#;
+        assert_completion_excluding_auto_import(
+            src,
+            vec![simple_completion_item(
+                "bar",
+                CompletionItemKind::FUNCTION,
+                Some("fn()".to_string()),
+            )],
+        )
+        .await
+    }
 }

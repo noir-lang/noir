@@ -15,8 +15,8 @@ use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, Completion
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        AsTraitPath, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
-        ForLoopStatement, Ident, IfExpression, LValue, Lambda, LetStatement,
+        AsTraitPath, BlockExpression, CallExpression, ConstructorExpression, Expression,
+        ExpressionKind, ForLoopStatement, Ident, IfExpression, LValue, Lambda, LetStatement,
         MemberAccessExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind,
         PathSegment, Pattern, Statement, StatementKind, TraitItem, TypeImpl, UnresolvedGeneric,
         UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind,
@@ -336,6 +336,18 @@ impl<'a> NodeFinder<'a> {
             }
             TraitItem::Type { name: _ } => (),
         }
+    }
+
+    pub(super) fn find_in_call_expression(&mut self, call_expression: &CallExpression) {
+        if let ExpressionKind::Variable(path) = &call_expression.func.kind {
+            if self.includes_span(path.span) {
+                self.find_in_path_impl(path, RequestedItems::AnyItems, true);
+                return;
+            }
+        }
+
+        self.find_in_expression(&call_expression.func);
+        self.find_in_expressions(&call_expression.arguments);
     }
 
     fn find_in_block_expression(&mut self, block_expression: &BlockExpression) {
@@ -663,6 +675,15 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_path(&mut self, path: &Path, requested_items: RequestedItems) {
+        self.find_in_path_impl(path, requested_items, false)
+    }
+
+    fn find_in_path_impl(
+        &mut self,
+        path: &Path,
+        requested_items: RequestedItems,
+        mut in_the_middle: bool,
+    ) {
         if !self.includes_span(path.span) {
             return;
         }
@@ -670,9 +691,6 @@ impl<'a> NodeFinder<'a> {
         let after_colons = self.byte == Some(b':');
 
         let mut idents: Vec<Ident> = Vec::new();
-
-        // Are we in the middle of an ident?
-        let mut in_the_middle = false;
 
         // Find in which ident we are in, and in which part of it
         // (it could be that we are completting in the middle of an ident)
@@ -728,7 +746,7 @@ impl<'a> NodeFinder<'a> {
         let is_single_segment = !after_colons && idents.is_empty() && path.kind == PathKind::Plain;
         let module_id;
 
-        let module_completion_kind = if after_colons {
+        let module_completion_kind = if after_colons || !idents.is_empty() {
             ModuleCompletionKind::DirectChildren
         } else {
             ModuleCompletionKind::AllVisibleItems
