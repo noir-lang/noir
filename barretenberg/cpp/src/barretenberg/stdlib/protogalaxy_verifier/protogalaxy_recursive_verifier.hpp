@@ -2,6 +2,7 @@
 #include "barretenberg/flavor/flavor.hpp"
 #include "barretenberg/honk/proof_system/types/proof.hpp"
 #include "barretenberg/protogalaxy/folding_result.hpp"
+#include "barretenberg/stdlib/honk_verifier/oink_recursive_verifier.hpp"
 #include "barretenberg/stdlib/protogalaxy_verifier/recursive_instances.hpp"
 #include "barretenberg/stdlib/transcript/transcript.hpp"
 #include "barretenberg/stdlib_circuit_builders/mega_recursive_flavor.hpp"
@@ -26,7 +27,7 @@ template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
     using PairingPoints = std::array<GroupElement, 2>;
     static constexpr size_t NUM = VerifierInstances::NUM;
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
-
+    using OinkVerifier = OinkRecursiveVerifier_<Flavor>;
     struct VerifierInput {
       public:
         using Instance = NativeInstance;
@@ -94,7 +95,7 @@ template <class VerifierInstances> class ProtoGalaxyRecursiveVerifier_ {
      * @brief Process the public data ϕ for the Instances to be folded.
      *
      */
-    void receive_and_finalise_instance(const std::shared_ptr<Instance>&, const std::string&);
+    void receive_and_finalise_instance(const std::shared_ptr<Instance>&, std::string&);
 
     /**
      * @brief Run the folding protocol on the verifier side to establish whether the public data ϕ of the new

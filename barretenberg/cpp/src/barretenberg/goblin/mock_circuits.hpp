@@ -32,6 +32,7 @@ class GoblinMockCircuits {
     using RecursiveVerifier = bb::stdlib::recursion::honk::UltraRecursiveVerifier_<RecursiveFlavor>;
     using VerifierInstance = bb::VerifierInstance_<Flavor>;
     using RecursiveVerifierInstance = ::bb::stdlib::recursion::honk::RecursiveVerifierInstance_<RecursiveFlavor>;
+    using RecursiveVerificationKey = RecursiveVerifierInstance::VerificationKey;
     using RecursiveVerifierAccumulator = std::shared_ptr<RecursiveVerifierInstance>;
     using VerificationKey = Flavor::VerificationKey;
     static constexpr size_t NUM_OP_QUEUE_COLUMNS = Flavor::NUM_WIRES;
@@ -195,17 +196,20 @@ class GoblinMockCircuits {
                                             const KernelInput& prev_kernel_accum)
     {
         // Execute recursive aggregation of function proof
-        RecursiveVerifier verifier1{ &builder, function_accum.verification_key };
+        auto verification_key = std::make_shared<RecursiveVerificationKey>(&builder, function_accum.verification_key);
+        auto proof = bb::convert_proof_to_witness(&builder, function_accum.proof);
+        RecursiveVerifier verifier1{ &builder, verification_key };
         verifier1.verify_proof(
-            function_accum.proof,
-            stdlib::recursion::init_default_aggregation_state<MegaBuilder, RecursiveFlavor::Curve>(builder));
+            proof, stdlib::recursion::init_default_aggregation_state<MegaBuilder, RecursiveFlavor::Curve>(builder));
 
         // Execute recursive aggregation of previous kernel proof if one exists
         if (!prev_kernel_accum.proof.empty()) {
-            RecursiveVerifier verifier2{ &builder, prev_kernel_accum.verification_key };
+            auto verification_key =
+                std::make_shared<RecursiveVerificationKey>(&builder, prev_kernel_accum.verification_key);
+            auto proof = bb::convert_proof_to_witness(&builder, prev_kernel_accum.proof);
+            RecursiveVerifier verifier2{ &builder, verification_key };
             verifier2.verify_proof(
-                prev_kernel_accum.proof,
-                stdlib::recursion::init_default_aggregation_state<MegaBuilder, RecursiveFlavor::Curve>(builder));
+                proof, stdlib::recursion::init_default_aggregation_state<MegaBuilder, RecursiveFlavor::Curve>(builder));
         }
     }
 };

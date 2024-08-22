@@ -221,7 +221,7 @@ template <typename RecursiveFlavor> class RecursiveVerifierTest : public testing
         aggregation_state<typename RecursiveFlavor::Curve> agg_obj =
             init_default_aggregation_state<OuterBuilder, typename RecursiveFlavor::Curve>(outer_circuit);
         auto pairing_points = verifier.verify_proof(inner_proof, agg_obj);
-        info("Recursive Verifier: num gates = ", outer_circuit.num_gates);
+        info("Recursive Verifier: num gates = ", outer_circuit.get_num_gates());
 
         // Check for a failure flag in the recursive verifier circuit
         EXPECT_EQ(outer_circuit.failed(), false) << outer_circuit.err();
