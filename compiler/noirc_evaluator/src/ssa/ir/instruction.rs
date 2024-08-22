@@ -396,9 +396,9 @@ impl Instruction {
                 true
             }
 
-            Instruction::ArrayGet { .. } => {
-                true
-                // TODO: `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+            Instruction::ArrayGet { array, index } => {
+                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                !dfg.is_safe_index(*index, *array)
             }
 
             Instruction::EnableSideEffects { .. } | Instruction::ArraySet { .. } => true,
