@@ -1032,16 +1032,19 @@ fn expr_as_member_access(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
-        if let ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) = expr {
+    expr_as(arguments, return_type, location, |expr| match expr {
+        ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
             let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
             Some(Value::Tuple(vec![
                 Value::expression(member_access.lhs.kind),
                 Value::Quoted(tokens),
             ]))
-        } else {
-            None
         }
+        ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
+            let tokens = Rc::new(vec![Token::Ident(field_name.0.contents.clone())]);
+            Some(Value::Tuple(vec![Value::lvalue(*object), Value::Quoted(tokens)]))
+        }
+        _ => None,
     })
 }
 

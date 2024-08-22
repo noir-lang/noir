@@ -236,6 +236,18 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_as_member_access_with_an_lvalue() {
+        comptime
+        {
+            let expr = quote { { foo.bar = 1; } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            let (lhs, _rhs) = exprs[0].as_assign().unwrap();
+            let (_, name) = lhs.as_member_access().unwrap();
+            assert_eq(name, quote { bar });
+        }
+    }
+
+    #[test]
     fn test_expr_as_repeated_element_array() {
         comptime
         {
