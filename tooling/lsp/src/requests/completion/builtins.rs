@@ -76,6 +76,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         Keyword::TraitDefinition => Some("TraitDefinition"),
         Keyword::TraitImpl => Some("TraitImpl"),
         Keyword::TypeType => Some("Type"),
+        Keyword::UnresolvedType => Some("UnresolvedType"),
 
         Keyword::As
         | Keyword::Assert
@@ -183,6 +184,7 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::TypeType
         | Keyword::Unchecked
         | Keyword::Unconstrained
+        | Keyword::UnresolvedType
         | Keyword::Unsafe
         | Keyword::Use
         | Keyword::Where

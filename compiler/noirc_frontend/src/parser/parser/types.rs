@@ -27,16 +27,7 @@ pub(super) fn parse_type_inner<'a>(
         int_type(),
         bool_type(),
         string_type(),
-        expr_type(),
-        struct_definition_type(),
-        trait_constraint_type(),
-        trait_definition_type(),
-        trait_impl_type(),
-        function_definition_type(),
-        module_type(),
-        top_level_item_type(),
-        type_of_quoted_types(),
-        quoted_type(),
+        comptime_type(),
         resolved_type(),
         format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
@@ -82,6 +73,22 @@ pub(super) fn bool_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::Bool).map_with_span(|_, span| UnresolvedTypeData::Bool.with_span(span))
 }
 
+pub(super) fn comptime_type() -> impl NoirParser<UnresolvedType> {
+    choice((
+        expr_type(),
+        struct_definition_type(),
+        trait_constraint_type(),
+        trait_definition_type(),
+        trait_impl_type(),
+        unresolved_type_type(),
+        function_definition_type(),
+        module_type(),
+        type_of_quoted_types(),
+        top_level_item_type(),
+        quoted_type(),
+    ))
+}
+
 /// This is the type `Expr` - the type of a quoted, untyped expression object used for macros
 pub(super) fn expr_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::Expr)
@@ -111,6 +118,12 @@ pub(super) fn trait_definition_type() -> impl NoirParser<UnresolvedType> {
 pub(super) fn trait_impl_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::TraitImpl)
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TraitImpl).with_span(span))
+}
+
+pub(super) fn unresolved_type_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::UnresolvedType).map_with_span(|_, span| {
+        UnresolvedTypeData::Quoted(QuotedType::UnresolvedType).with_span(span)
+    })
 }
 
 pub(super) fn function_definition_type() -> impl NoirParser<UnresolvedType> {
