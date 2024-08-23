@@ -103,9 +103,9 @@ return each element of the slice.
 If this expression is a tuple `(field1, ..., fieldN)`,
 return each element of the tuple.
 
-### as_unary
+### as_unary_op
 
-#include_code as_unary noir_stdlib/src/meta/expr.nr rust
+#include_code as_unary_op noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a unary operation `<op> <rhs>`,
 return the unary operator as well as the right-hand side expression.
