@@ -1933,6 +1933,12 @@ impl<F: AcirField> AcirContext<F> {
             }
             Some(optional_value) => {
                 let mut values = Vec::new();
+                match optional_value {
+                    AcirValue::DynamicArray(_) => {
+                        unreachable!("Dynamic array should already be initialized");
+                    }
+                    _ => {},
+                }
                 self.initialize_array_inner(&mut values, optional_value)?;
                 values
             }
@@ -1962,8 +1968,16 @@ impl<F: AcirField> AcirContext<F> {
                     self.initialize_array_inner(witnesses, value)?;
                 }
             }
-            AcirValue::DynamicArray(_) => {
-                unreachable!("Dynamic array should already be initialized");
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, element_type_sizes }) => {
+                let dynamic_array_values = try_vecmap(0..len, |i| {
+                    let index_var = self.add_constant(i);
+        
+                    let read = self.read_from_memory(block_id, &index_var)?;
+                    Ok::<AcirValue, InternalError>(AcirValue::Var(read, AcirType::field()))
+                })?;
+                for value in dynamic_array_values {
+                    self.initialize_array_inner(witnesses, value)?;
+                }
             }
         }
         Ok(())
