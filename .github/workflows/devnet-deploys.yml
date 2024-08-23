@@ -492,18 +492,18 @@ jobs:
       - name: "Publish aztec CLI wallet manifests"
         run: |
           env
-          docker pull aztecprotocol/aztec-cli-wallet:${{ github.sha }}-x86_64
-          docker pull aztecprotocol/aztec-cli-wallet:${{ github.sha }}-arm64
+          docker pull aztecprotocol/cli-wallet:${{ github.sha }}-x86_64
+          docker pull aztecprotocol/cli-wallet:${{ github.sha }}-arm64
 
-          docker manifest create aztecprotocol/aztec-cli-wallet:${{ env.DEPLOY_TAG }} \
-            aztecprotocol/aztec-cli-wallet:${{ github.sha }}-x86_64 \
-            aztecprotocol/aztec-cli-wallet:${{ github.sha }}-arm64
-          docker manifest create aztecprotocol/aztec-cli-wallet:${{ github.sha }} \
-            aztecprotocol/aztec-cli-wallet:${{ github.sha }}-x86_64 \
-            aztecprotocol/aztec-cli-wallet:${{ github.sha }}-arm64
+          docker manifest create aztecprotocol/cli-wallet:${{ env.DEPLOY_TAG }} \
+            aztecprotocol/cli-wallet:${{ github.sha }}-x86_64 \
+            aztecprotocol/cli-wallet:${{ github.sha }}-arm64
+          docker manifest create aztecprotocol/cli-wallet:${{ github.sha }} \
+            aztecprotocol/cli-wallet:${{ github.sha }}-x86_64 \
+            aztecprotocol/cli-wallet:${{ github.sha }}-arm64
 
-          docker manifest push aztecprotocol/aztec-cli-wallet:${{ env.DEPLOY_TAG }}
-          docker manifest push aztecprotocol/aztec-cli-wallet:${{ github.sha }}
+          docker manifest push aztecprotocol/cli-wallet:${{ env.DEPLOY_TAG }}
+          docker manifest push aztecprotocol/cli-wallet:${{ github.sha }}
 
   build-end:
     runs-on: ubuntu-latest
