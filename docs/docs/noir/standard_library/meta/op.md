@@ -105,7 +105,7 @@ Represents a binary operator. One of `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `
 
 #### is_greater_equal
 
-#include_code is_greater_or_equal noir_stdlib/src/meta/expr.nr rust
+#include_code is_greater_equal noir_stdlib/src/meta/expr.nr rust
 
 `true` if this operator is `>=`
 
