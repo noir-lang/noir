@@ -477,7 +477,6 @@ jobs:
           earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ github.sha }} --ARCH=arm64
 
   publish-cli-wallet-manifest:
-    if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
     needs: [build-cli-wallet, build-cli-wallet-arm]
     runs-on: ${{ github.actor }}-x86
     steps:
@@ -490,6 +489,7 @@ jobs:
           dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
 
       - name: "Publish aztec CLI wallet manifests"
+        if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
         run: |
           env
           docker pull aztecprotocol/cli-wallet:${{ github.sha }}-x86_64
