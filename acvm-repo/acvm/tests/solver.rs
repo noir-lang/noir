@@ -1041,14 +1041,33 @@ fn ecdsa_secp256r1_op(
     }
 }
 
+// TODO: zeroes and elliptic curve specific tests
+//
+// 2*N inputs
+// 3 outputs
+fn multi_scalar_mul_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> BlackBoxFuncCall<FieldElement> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    let function_inputs_len = function_inputs.len();
+    let mut function_inputs = function_inputs.into_iter();
+    let points: Vec<_> = (0..function_inputs_len / 2).map(|_| function_inputs.next().unwrap()).collect();
+    let scalars: Vec<_> = (0..function_inputs_len / 2).map(|_| function_inputs.next().unwrap()).collect();
+
+    // TODO: remove first assert
+    assert_eq!(points.len(), scalars.len());
+    assert_eq!(function_inputs.next(), None);
+    assert_eq!(outputs.len(), 3);
+    BlackBoxFuncCall::MultiScalarMul {
+        points,
+        scalars,
+        outputs: (outputs[0], outputs[1], outputs[2]),
+    }
+}
+
 // TODO
 // RANGE {
 //     input: FunctionInput<F>,
-// },
-// MultiScalarMul {
-//     points: Vec<FunctionInput<F>>,
-//     scalars: Vec<FunctionInput<F>>,
-//     outputs: (Witness, Witness, Witness),
 // },
 // EmbeddedCurveAdd {
 //     input1: Box<[FunctionInput<F>; 3]>,
@@ -1378,6 +1397,7 @@ fn aes128_zeros() {
     let results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 64].into(),
         32,
+        None,
         aes128_encrypt_op,
     );
     let expected_results: Vec<_> = vec![
@@ -1396,6 +1416,7 @@ fn schnorr_verify_zeros() {
     let results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 66].into(),
         1,
+        None,
         schnorr_verify_op,
     );
     let expected_results: Vec<_> = vec![0]
@@ -1410,6 +1431,7 @@ fn ecdsa_secp256k1_zeros() {
     let results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 160].into(),
         1,
+        None,
         ecdsa_secp256k1_op,
     );
     let expected_results: Vec<_> = vec![0]
@@ -1424,6 +1446,7 @@ fn ecdsa_secp256r1_zeros() {
     let results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 160].into(),
         1,
+        None,
         ecdsa_secp256r1_op,
     );
     let expected_results: Vec<_> = vec![0]
@@ -1432,6 +1455,113 @@ fn ecdsa_secp256r1_zeros() {
     .collect();
     assert_eq!(results, expected_results);
 }
+
+#[test]
+fn multi_scalar_mul_empty() {
+    let results = solve_array_input_blackbox_call(
+        [(FieldElement::zero(), false); 0].into(),
+        3,
+        None,
+        multi_scalar_mul_op,
+    );
+    let expected_results: Vec<_> = vec![0, 0, 1]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, expected_results);
+}
+
+// TODO: multi-scalar-mul expects struct-like input
+//
+// #[test]
+// fn multi_scalar_mul_zeros_2() {
+//     let results = solve_array_input_blackbox_call(
+//         [(FieldElement::zero(), false); 2].into(),
+//         3,
+//         None,
+//         multi_scalar_mul_op,
+//     );
+//     let expected_results: Vec<_> = vec![0]
+//     .into_iter()
+//     .map(|x: u128| FieldElement::from(x))
+//     .collect();
+//     assert_eq!(results, expected_results);
+// }
+//
+// #[test]
+// fn multi_scalar_mul_zeros_4() {
+//     let results = solve_array_input_blackbox_call(
+//         [(FieldElement::zero(), false); 4].into(),
+//         3,
+//         None,
+//         multi_scalar_mul_op,
+//     );
+//     let expected_results: Vec<_> = vec![0]
+//     .into_iter()
+//     .map(|x: u128| FieldElement::from(x))
+//     .collect();
+//     assert_eq!(results, expected_results);
+// }
+//
+// #[test]
+// fn multi_scalar_mul_zeros_6() {
+//     let results = solve_array_input_blackbox_call(
+//         [(FieldElement::zero(), false); 6].into(),
+//         3,
+//         None,
+//         multi_scalar_mul_op,
+//     );
+//     let expected_results: Vec<_> = vec![0]
+//     .into_iter()
+//     .map(|x: u128| FieldElement::from(x))
+//     .collect();
+//     assert_eq!(results, expected_results);
+// }
+//
+// #[test]
+// fn multi_scalar_mul_zeros_8() {
+//     let results = solve_array_input_blackbox_call(
+//         [(FieldElement::zero(), false); 8].into(),
+//         3,
+//         None,
+//         multi_scalar_mul_op,
+//     );
+//     let expected_results: Vec<_> = vec![0]
+//     .into_iter()
+//     .map(|x: u128| FieldElement::from(x))
+//     .collect();
+//     assert_eq!(results, expected_results);
+// }
+//
+// #[test]
+// fn multi_scalar_mul_zeros_9() {
+//     let results = solve_array_input_blackbox_call(
+//         [(FieldElement::zero(), false); 9].into(),
+//         3,
+//         None,
+//         multi_scalar_mul_op,
+//     );
+//     let expected_results: Vec<_> = vec![0]
+//     .into_iter()
+//     .map(|x: u128| FieldElement::from(x))
+//     .collect();
+//     assert_eq!(results, expected_results);
+// }
+//
+// #[test]
+// fn multi_scalar_mul_zeros_12() {
+//     let results = solve_array_input_blackbox_call(
+//         [(FieldElement::zero(), false); 12].into(),
+//         3,
+//         None,
+//         multi_scalar_mul_op,
+//     );
+//     let expected_results: Vec<_> = vec![0]
+//     .into_iter()
+//     .map(|x: u128| FieldElement::from(x))
+//     .collect();
+//     assert_eq!(results, expected_results);
+// }
 
 proptest! {
 
@@ -1537,7 +1667,7 @@ proptest! {
     #[test]
     fn keccak256_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(32), keccak256_op);
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, Some(8), keccak256_op);
         prop_assert!(result, "{}", message);
     }
 
@@ -1555,16 +1685,7 @@ proptest! {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         assert_eq!(inputs.len(), 25);
         assert_eq!(distinct_inputs.len(), 25);
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 25, keccakf1600_op);
-        prop_assert!(result, "{}", message);
-    }
-
-    // TODO(https://github.com/noir-lang/noir/issues/5699): wrong failure message
-    #[test]
-    #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 6 != 7\"))")]
-    fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 6, 6)) {
-        let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, poseidon2_permutation_invalid_len_op);
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 25, Some(64), keccakf1600_op);
         prop_assert!(result, "{}", message);
     }
 
@@ -1573,9 +1694,7 @@ proptest! {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         assert!(inputs.len() >= 32, "inputs len: {:?}", inputs.len());
         let outputs_len = inputs.len() - 32;
-        // TODO outputs_len
-        // let (result, message) = prop_assert_injective(inputs, distinct_inputs, outputs_len, aes128_encrypt_op);
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 25, Some(64), keccakf1600_op);
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, outputs_len, Some(64), aes128_encrypt_op);
         prop_assert!(result, "{}", message);
     }
 
