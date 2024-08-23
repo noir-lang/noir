@@ -11,7 +11,7 @@ a function definition in the source program.
 
 #include_code name noir_stdlib/src/meta/function_def.nr rust
 
-Returns the name of the function
+Returns the name of the function.
 
 ### parameters
 
