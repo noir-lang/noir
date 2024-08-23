@@ -22,21 +22,24 @@ use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
 use lsp_types::{
     request::{
-        DocumentSymbolRequest, HoverRequest, InlayHintRequest, PrepareRenameRequest, References,
-        Rename,
+        Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest, PrepareRenameRequest,
+        References, Rename, SignatureHelpRequest,
     },
     CodeLens,
 };
 use nargo::{
     package::{Package, PackageType},
     parse_all,
-    workspace::{self, Workspace},
+    workspace::Workspace,
 };
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::{def_map::parse_file, Context, FunctionNameMatch, ParsedFiles},
+    hir::{
+        def_map::{parse_file, CrateDefMap},
+        Context, FunctionNameMatch, ParsedFiles,
+    },
     node_interner::NodeInterner,
     parser::ParserError,
     ParsedModule,
@@ -48,11 +51,11 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_document_symbol_request, on_formatting, on_goto_declaration_request,
-    on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
-    on_inlay_hint_request, on_prepare_rename_request, on_profile_run_request,
-    on_references_request, on_rename_request, on_shutdown, on_test_run_request, on_tests_request,
-    LspInitializationOptions,
+    on_code_lens_request, on_completion_request, on_document_symbol_request, on_formatting,
+    on_goto_declaration_request, on_goto_definition_request, on_goto_type_definition_request,
+    on_hover_request, on_initialize, on_inlay_hint_request, on_prepare_rename_request,
+    on_profile_run_request, on_references_request, on_rename_request, on_shutdown,
+    on_signature_help_request, on_test_run_request, on_tests_request, LspInitializationOptions,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -62,6 +65,7 @@ mod notifications;
 mod requests;
 mod solver;
 mod types;
+mod utils;
 
 #[cfg(test)]
 mod test_utils;
@@ -86,6 +90,7 @@ pub struct LspState {
     cached_lenses: HashMap<String, Vec<CodeLens>>,
     cached_definitions: HashMap<String, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
+    cached_def_maps: HashMap<String, BTreeMap<CrateId, CrateDefMap>>,
     options: LspInitializationOptions,
 }
 
@@ -103,6 +108,7 @@ impl LspState {
             cached_definitions: HashMap::new(),
             open_documents_count: 0,
             cached_parsed_files: HashMap::new(),
+            cached_def_maps: HashMap::new(),
             options: Default::default(),
         }
     }
@@ -136,6 +142,8 @@ impl NargoLspService {
             .request::<Rename, _>(on_rename_request)
             .request::<HoverRequest, _>(on_hover_request)
             .request::<InlayHintRequest, _>(on_inlay_hint_request)
+            .request::<Completion, _>(on_completion_request)
+            .request::<SignatureHelpRequest, _>(on_signature_help_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -376,18 +384,21 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
 
 pub fn insert_all_files_for_workspace_into_file_manager(
     state: &LspState,
-    workspace: &workspace::Workspace,
+    workspace: &Workspace,
     file_manager: &mut FileManager,
 ) {
-    // First add files we cached: these have the source code of files that are modified
-    // but not saved to disk yet, and we want to make sure all LSP features work well
-    // according to these unsaved buffers, not what's saved on disk.
+    // Source code for files we cached override those that are read from disk.
+    let mut overrides: HashMap<&Path, &str> = HashMap::new();
     for (path, source) in &state.input_files {
         let path = path.strip_prefix("file://").unwrap();
-        file_manager.add_file_with_source_canonical_path(Path::new(path), source.clone());
+        overrides.insert(Path::new(path), source);
     }
 
-    nargo::insert_all_files_for_workspace_into_file_manager(workspace, file_manager);
+    nargo::insert_all_files_for_workspace_into_file_manager_with_overrides(
+        workspace,
+        file_manager,
+        &overrides,
+    );
 }
 
 #[test]
@@ -403,7 +414,7 @@ fn prepare_package_from_source_string() {
     let client = ClientSocket::new_closed();
     let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
 
-    let (mut context, crate_id) = crate::prepare_source(source.to_string(), &mut state);
+    let (mut context, crate_id) = prepare_source(source.to_string(), &mut state);
     let _check_result = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
     let main_func_id = context.get_main_function(&crate_id);
     assert!(main_func_id.is_some());

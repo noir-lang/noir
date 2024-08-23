@@ -472,6 +472,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
             HirExpression::Comptime(block) => self.evaluate_block(block),
+            HirExpression::Unsafe(block) => self.evaluate_block(block),
             HirExpression::Unquote(tokens) => {
                 // An Unquote expression being found is indicative of a macro being
                 // expanded within another comptime fn which we don't currently support.
@@ -896,6 +897,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs == rhs)),
+                (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs == rhs)),
                 (lhs, rhs) => make_error(self, lhs, rhs, "=="),
             },
             BinaryOpKind::NotEqual => match (lhs, rhs) {
@@ -908,6 +910,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Value::U16(lhs), Value::U16(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U32(lhs), Value::U32(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (Value::U64(lhs), Value::U64(rhs)) => Ok(Value::Bool(lhs != rhs)),
+                (Value::Bool(lhs), Value::Bool(rhs)) => Ok(Value::Bool(lhs != rhs)),
                 (lhs, rhs) => make_error(self, lhs, rhs, "!="),
             },
             BinaryOpKind::Less => match (lhs, rhs) {

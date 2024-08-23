@@ -88,6 +88,7 @@
         "foralls",
         "formatcp",
         "frontends",
+        "fuzzer",
         "fxhash",
         "getrandom",
         "gloo",
@@ -203,6 +204,7 @@
         "typevar",
         "typevars",
         "udiv",
+        "underconstrained",
         "uninstantiated",
         "unnormalized",
         "unoptimized",
@@ -216,7 +218,8 @@
         "wasmer",
         "Weierstraß",
         "zkhash",
-        "zshell"
+        "zshell",
+        "Linea"
     ],
     "ignorePaths": [
         "./**/node_modules/**",

@@ -327,7 +327,7 @@ fn main() {
 //
 // impl<T, let N: u32> Bvec<T, N> {
 //     fn empty() -> Self {
-//         Self { inner: [std::unsafe::zeroed(); N], offset: 0, len: 0 }
+//         Self { inner: [std::mem::zeroed(); N], offset: 0, len: 0 }
 //     }
 //
 //     fn new(array: [T; N]) -> Self {
@@ -559,7 +559,7 @@ fn main() {
 // }
 //
 // fn reverse_array<T, let N: u32>(input: [T; N]) -> [T; N] {
-//     let mut output = [std::unsafe::zeroed(); N];
+//     let mut output = [std::mem::zeroed(); N];
 //     for i in 0..N {
 //         output[i] = input[N - (i + 1)];
 //     }
@@ -587,7 +587,7 @@ fn main() {
 //     assert_eq(xs, ys);
 //
 //     // test that pop_front gives all contents, in order,
-//     // followed by std::unsafe::zeroed()
+//     // followed by std::mem::zeroed()
 //     println(xs);
 //     let (x, new_xs) = xs.pop_front();
 //     assert_eq(x, 0);
@@ -606,7 +606,7 @@ fn main() {
 //     println(xs);
 //     if xs.len != 0 {
 //         let (x, _new_xs) = xs.pop_front();
-//         assert_eq(x, std::unsafe::zeroed());
+//         assert_eq(x, std::mem::zeroed());
 //     }
 //
 //     assert_eq(new_xs, Bvec { inner: [0, 1, 2], offset: 3, len: 0 });

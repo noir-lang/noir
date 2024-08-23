@@ -1,5 +1,6 @@
+use std::rc::Rc;
+
 use acvm::FieldElement;
-use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
@@ -9,6 +10,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::Type;
+use crate::macros_api::Ident;
 use crate::macros_api::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -136,6 +138,10 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { span: Span },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { span: Span },
+    #[error("Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block")]
+    Unsafe { span: Span },
+    #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
+    UnsafeFn { span: Span },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -154,6 +160,12 @@ pub enum TypeCheckError {
     MacroReturningNonExpr { typ: Type, span: Span },
     #[error("turbofish (`::<_>`) usage at this position isn't supported yet")]
     UnsupportedTurbofishUsage { span: Span },
+    #[error("`{name}` has already been specified")]
+    DuplicateNamedTypeArg { name: Ident, prev_span: Span },
+    #[error("`{item}` has no associated type named `{name}`")]
+    NoSuchNamedTypeArg { name: Ident, item: String },
+    #[error("`{item}` is missing the associated type `{name}`")]
+    MissingNamedTypeArg { name: Rc<String>, item: String, span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -294,7 +306,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     Source::Return(ret_ty, expr_span) => {
                         let ret_ty_span = match ret_ty.clone() {
                             FunctionReturnType::Default(span) => span,
-                            FunctionReturnType::Ty(ty) => ty.span.unwrap(),
+                            FunctionReturnType::Ty(ty) => ty.span,
                         };
 
                         let mut diagnostic = Diagnostic::simple_error(format!("expected type {expected}, found type {actual}"), format!("expected {expected} because of return type"), ret_ty_span);
@@ -356,6 +368,26 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
             },
+            TypeCheckError::DuplicateNamedTypeArg { name, prev_span } => {
+                let msg = format!("`{name}` has already been specified");
+                let mut error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span());
+                error.add_secondary(format!("`{name}` previously specified here"), *prev_span);
+                error
+            },
+            TypeCheckError::NoSuchNamedTypeArg { name, item } => {
+                let msg = format!("`{item}` has no associated type named `{name}`");
+                Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span())
+            },
+            TypeCheckError::MissingNamedTypeArg { name, item, span } => {
+                let msg = format!("`{item}` is missing the associated type `{name}`");
+                Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
+            },
+            TypeCheckError::Unsafe { span } => {
+                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::UnsafeFn { span } => {
+                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
         }
     }
 }
@@ -394,11 +426,7 @@ impl NoMatchingImplFoundError {
             .into_iter()
             .map(|constraint| {
                 let r#trait = interner.try_get_trait(constraint.trait_id)?;
-                let mut name = r#trait.name.to_string();
-                if !constraint.trait_generics.is_empty() {
-                    let generics = vecmap(&constraint.trait_generics, ToString::to_string);
-                    name += &format!("<{}>", generics.join(", "));
-                }
+                let name = format!("{}{}", r#trait.name, constraint.trait_generics);
                 Some((constraint.typ, name))
             })
             .collect::<Option<Vec<_>>>()?;

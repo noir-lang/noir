@@ -2,6 +2,9 @@ use crate::cmp::Eq;
 use crate::option::Option;
 
 impl Quoted {
+    #[builtin(quoted_as_expr)]
+    fn as_expr(self) -> Option<Expr> {}
+
     #[builtin(quoted_as_module)]
     fn as_module(self) -> Option<Module> {}
 

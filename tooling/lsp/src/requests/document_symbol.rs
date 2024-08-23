@@ -140,11 +140,7 @@ impl<'a> DocumentSymbolCollector<'a> {
 
         let mut children = Vec::new();
         for (field_name, typ) in &noir_struct.fields {
-            let span = if let Some(typ) = typ.span {
-                Span::from(field_name.span().start()..typ.end())
-            } else {
-                field_name.span()
-            };
+            let span = Span::from(field_name.span().start()..typ.span.end());
 
             let Some(field_location) = self.to_lsp_location(span) else {
                 continue;
@@ -238,9 +234,7 @@ impl<'a> DocumentSymbolCollector<'a> {
                         span = Span::from(span.start()..return_type_span.end());
                     }
                     FunctionReturnType::Ty(typ) => {
-                        if let Some(type_span) = typ.span {
-                            span = Span::from(span.start()..type_span.end());
-                        }
+                        span = Span::from(span.start()..typ.span.end());
                     }
                 }
 
@@ -290,9 +284,7 @@ impl<'a> DocumentSymbolCollector<'a> {
         let mut span = name.span();
 
         // If there's a type span, extend the span to include it
-        if let Some(type_span) = typ.span {
-            span = Span::from(span.start()..type_span.end());
-        }
+        span = Span::from(span.start()..typ.span.end());
 
         // If there's a default value, extend the span to include it
         if let Some(default_value) = default_value {
@@ -326,8 +318,8 @@ impl<'a> DocumentSymbolCollector<'a> {
             return;
         };
 
-        let span = if let Some(type_span) = typ.and_then(|typ| typ.span) {
-            Span::from(name.span().start()..type_span.end())
+        let span = if let Some(typ) = typ {
+            Span::from(name.span().start()..typ.span.end())
         } else {
             name.span()
         };
@@ -367,10 +359,20 @@ impl<'a> DocumentSymbolCollector<'a> {
         trait_name.push_str(&noir_trait_impl.trait_name.to_string());
         if !noir_trait_impl.trait_generics.is_empty() {
             trait_name.push('<');
-            for (index, generic) in noir_trait_impl.trait_generics.iter().enumerate() {
+            for (index, generic) in noir_trait_impl.trait_generics.ordered_args.iter().enumerate() {
                 if index > 0 {
                     trait_name.push_str(", ");
                 }
+                trait_name.push_str(&generic.to_string());
+            }
+            for (index, (name, generic)) in
+                noir_trait_impl.trait_generics.named_args.iter().enumerate()
+            {
+                if index > 0 {
+                    trait_name.push_str(", ");
+                }
+                trait_name.push_str(&name.0.contents);
+                trait_name.push_str(" = ");
                 trait_name.push_str(&generic.to_string());
             }
             trait_name.push('>');

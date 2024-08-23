@@ -16,6 +16,20 @@ pub enum ParserErrorReason {
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
     ExpectedPatternButFoundType(Token),
+    #[error("expected an identifier after .")]
+    ExpectedIdentifierAfterDot,
+    #[error("expected an identifier after ::")]
+    ExpectedIdentifierAfterColons,
+    #[error("expected {{ or -> after function parameters")]
+    ExpectedLeftBraceOrArrowAfterFunctionParameters,
+    #[error("expected {{ after if condition")]
+    ExpectedLeftBraceAfterIfCondition,
+    #[error("expected <, where or {{ after trait name")]
+    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitName,
+    #[error("expected <, where or {{ after impl type")]
+    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterImplType,
+    #[error("expected <, where or {{ after trait impl for type")]
+    ExpectedLeftBracketOrWhereOrLeftBraceOrArrowAfterTraitImplForType,
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
@@ -26,6 +40,8 @@ pub enum ParserErrorReason {
     EarlyReturn,
     #[error("Patterns aren't allowed in a trait's function declarations")]
     PatternInTraitFunctionParameter,
+    #[error("Patterns aren't allowed in a trait impl's associated constants")]
+    PatternInAssociatedConstant,
     #[error("Modifiers are ignored on a trait impl method")]
     TraitImplFunctionModifiers,
     #[error("comptime keyword is deprecated")]
@@ -48,6 +64,10 @@ pub enum ParserErrorReason {
     ForbiddenNumericGenericType,
     #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
     InvalidCallDataIdentifier,
+    #[error("Associated types are not allowed in paths")]
+    AssociatedTypesNotAllowedInPaths,
+    #[error("Associated types are not allowed on a method call")]
+    AssociatedTypesNotAllowedInMethodCalls,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

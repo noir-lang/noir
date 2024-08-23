@@ -4,14 +4,16 @@ use std::meta::unquote;
 fn main() {
     comptime
     {
-        foo::<3>(5);
+        unsafe {
+            foo::<3>(5)
+        };
         submodule::bar();
     }
 }
 
 // Call a different function from the interpreter, then have the
 // elaborator switch to the middle of foo from its previous scope in main
-unconstrained comptime fn foo<let N: Field>(x: Field) {
+comptime fn foo<let N: Field>(x: Field) {
     assert(modulus_num_bits() != 0);
 
     let cond = quote { modulus_num_bits() != 0 };

@@ -31,6 +31,7 @@ impl BitOr for u64 { fn bitor(self, other: u64) -> u64 { self | other } }
 impl BitOr for u32 { fn bitor(self, other: u32) -> u32 { self | other } }
 impl BitOr for u16 { fn bitor(self, other: u16) -> u16 { self | other } }
 impl BitOr for u8 { fn bitor(self, other: u8) -> u8 { self | other } }
+impl BitOr for u1 { fn bitor(self, other: u1) -> u1 { self | other } }
 
 impl BitOr for i8 { fn bitor(self, other: i8) -> i8 { self | other } }
 impl BitOr for i16 { fn bitor(self, other: i16) -> i16 { self | other } }
@@ -49,6 +50,7 @@ impl BitAnd for u64 { fn bitand(self, other: u64) -> u64 { self & other } }
 impl BitAnd for u32 { fn bitand(self, other: u32) -> u32 { self & other } }
 impl BitAnd for u16 { fn bitand(self, other: u16) -> u16 { self & other } }
 impl BitAnd for u8 { fn bitand(self, other: u8) -> u8 { self & other } }
+impl BitAnd for u1 { fn bitand(self, other: u1) -> u1 { self & other } }
 
 impl BitAnd for i8 { fn bitand(self, other: i8) -> i8 { self & other } }
 impl BitAnd for i16 { fn bitand(self, other: i16) -> i16 { self & other } }
@@ -67,6 +69,7 @@ impl BitXor for u64 { fn bitxor(self, other: u64) -> u64 { self ^ other } }
 impl BitXor for u32 { fn bitxor(self, other: u32) -> u32 { self ^ other } }
 impl BitXor for u16 { fn bitxor(self, other: u16) -> u16 { self ^ other } }
 impl BitXor for u8 { fn bitxor(self, other: u8) -> u8 { self ^ other } }
+impl BitXor for u1 { fn bitxor(self, other: u1) -> u1 { self ^ other } }
 
 impl BitXor for i8 { fn bitxor(self, other: i8) -> i8 { self ^ other } }
 impl BitXor for i16 { fn bitxor(self, other: i16) -> i16 { self ^ other } }
