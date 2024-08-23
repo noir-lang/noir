@@ -18,7 +18,7 @@ Returns the name of the module.
 
 #include_code functions noir_stdlib/src/meta/module.nr rust
 
-Returns each function in the module
+Returns each function in the module.
 
 ### is_contract
 
