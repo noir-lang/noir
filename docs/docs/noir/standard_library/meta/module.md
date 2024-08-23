@@ -1,8 +1,8 @@
 ---
-title: Module Methods
+title: Module
 ---
 
-This module contains methods on the built-in `Module` type which represents a module in the source program.
+`std::meta::module` contains methods on the built-in `Module` type which represents a module in the source program.
 Note that this type represents a module generally, it isn't limited to only `mod my_submodule { ... }`
 declarations in the source program.
 

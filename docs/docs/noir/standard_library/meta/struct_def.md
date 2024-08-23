@@ -1,8 +1,8 @@
 ---
-title: StructDefinition Methods
+title: StructDefinition
 ---
 
-This module contains methods on the built-in `StructDefinition` type.
+`std::meta::struct_def` contains methods on the built-in `StructDefinition` type.
 This type corresponds to `struct Name { field1: Type1, ... }` items in the source program.
 
 ## Methods

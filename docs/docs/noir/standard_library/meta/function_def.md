@@ -1,8 +1,8 @@
 ---
-title: FunctionDefinition Methods
+title: FunctionDefinition
 ---
 
-This module contains methods on the built-in `FunctionDefinition` type representing
+`std::meta::function_def` contains methods on the built-in `FunctionDefinition` type representing
 a function definition in the source program.
 
 ## Methods

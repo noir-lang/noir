@@ -1,8 +1,8 @@
 ---
-title: UnaryOp and BinaryOp Methods
+title: UnaryOp and BinaryOp
 ---
 
-This module contains the `UnaryOp` and `BinaryOp` types as well as methods on them.
+`std::meta::op` contains the `UnaryOp` and `BinaryOp` types as well as methods on them.
 These types are used to represent a unary or binary operator respectively in Noir source code.
 
 ## Types

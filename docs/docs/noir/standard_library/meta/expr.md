@@ -1,8 +1,8 @@
 ---
-title: Expr Methods
+title: Expr
 ---
 
-This module contains methods on the built-in `Expr` type for quoted, syntactically valid expressions.
+`std::meta::expr` contains methods on the built-in `Expr` type for quoted, syntactically valid expressions.
 
 ## Methods
 

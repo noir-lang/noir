@@ -1,8 +1,8 @@
 ---
-title: Quoted Methods
+title: Quoted
 ---
 
-This module contains methods on the built-in `Quoted` type which represents
+`std::meta::quoted` contains methods on the built-in `Quoted` type which represents
 quoted token streams and is the result of the `quote { ... }` expression.
 
 ## Methods

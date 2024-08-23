@@ -1,8 +1,8 @@
 ---
-title: TraitDefinition Methods
+title: TraitDefinition
 ---
 
-This module contains methods on the built-in `TraitDefinition` type. This type
+`std::meta::trait_def` contains methods on the built-in `TraitDefinition` type. This type
 represents trait definitions such as `trait Foo { .. }` at the top-level of a program.
 
 ## Methods

@@ -1,8 +1,8 @@
 ---
-title: Type Methods
+title: Type
 ---
 
-This module contains methods on the built-in `Type` type used for representing
+`std::meta::typ` contains methods on the built-in `Type` type used for representing
 a type in the source program.
 
 ## Methods

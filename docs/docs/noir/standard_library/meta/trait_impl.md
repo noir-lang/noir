@@ -1,8 +1,8 @@
 ---
-title: TraitImpl Methods
+title: TraitImpl
 ---
 
-This module contains methods on the built-in `TraitImpl` type which represents a trait
+`std::meta::trait_impl` contains methods on the built-in `TraitImpl` type which represents a trait
 implementation such as `impl Foo for Bar { ... }`.
 
 ## Methods

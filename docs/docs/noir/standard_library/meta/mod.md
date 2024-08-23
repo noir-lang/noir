@@ -1,6 +1,9 @@
 ---
-title: Metaprogramming Module
+title: Metaprogramming
 ---
+
+`std::meta` is the entry point for Noir's metaprogramming API. This consists of `comptime` functions
+and types used for inspecting and modifying Noir programs.
 
 ## Functions
 
