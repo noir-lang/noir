@@ -40,7 +40,7 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
         UnresolvedTypeData::Function(args, return_type, env, unconstrained) => {
             let unconstrained = if unconstrained { "unconstrained " } else { "" };
 
-            let env = if span_is_empty(env.span.unwrap()) {
+            let env = if span_is_empty(env.span) {
                 "".into()
             } else {
                 let ty = rewrite(visitor, _shape, *env);
@@ -72,7 +72,7 @@ pub(crate) fn rewrite(visitor: &FmtVisitor, _shape: Shape, typ: UnresolvedType) 
         | UnresolvedTypeData::String(_)
         | UnresolvedTypeData::FormatString(_, _)
         | UnresolvedTypeData::Quoted(_)
-        | UnresolvedTypeData::TraitAsType(_, _) => visitor.slice(typ.span.unwrap()).into(),
+        | UnresolvedTypeData::TraitAsType(_, _) => visitor.slice(typ.span).into(),
         UnresolvedTypeData::Error => unreachable!(),
     }
 }

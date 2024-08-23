@@ -7,6 +7,7 @@ use chumsky::prelude::*;
 
 use super::keyword;
 use super::primitives::{ident, path_segment, path_segment_no_turbofish};
+use super::types::generic_type_args;
 
 pub(super) fn path<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
@@ -54,14 +55,16 @@ pub(super) fn as_trait_path<'a>(
     just(Token::Less)
         .ignore_then(type_parser.clone())
         .then_ignore(keyword(Keyword::As))
-        .then(path(type_parser))
+        .then(path(type_parser.clone()))
+        .then(generic_type_args(type_parser))
         .then_ignore(just(Token::Greater))
         .then_ignore(just(Token::DoubleColon))
         .then(ident())
-        .validate(|((typ, trait_path), impl_item), span, emit| {
-            let reason = ParserErrorReason::ExperimentalFeature("Fully qualified trait impl paths");
-            emit(ParserError::with_reason(reason, span));
-            AsTraitPath { typ, trait_path, impl_item }
+        .map(|(((typ, trait_path), trait_generics), impl_item)| AsTraitPath {
+            typ,
+            trait_path,
+            trait_generics,
+            impl_item,
         })
 }
 

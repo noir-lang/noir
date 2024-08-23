@@ -112,10 +112,10 @@ pub enum UnresolvedTypeData {
     Parenthesized(Box<UnresolvedType>),
 
     /// A Named UnresolvedType can be a struct type or a type variable
-    Named(Path, Vec<UnresolvedType>, /*is_synthesized*/ bool),
+    Named(Path, GenericTypeArgs, /*is_synthesized*/ bool),
 
     /// A Trait as return type or parameter of function, including its generics
-    TraitAsType(Path, Vec<UnresolvedType>),
+    TraitAsType(Path, GenericTypeArgs),
 
     /// &mut T
     MutableReference(Box<UnresolvedType>),
@@ -148,11 +148,47 @@ pub enum UnresolvedTypeData {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct UnresolvedType {
     pub typ: UnresolvedTypeData,
+    pub span: Span,
+}
 
-    // The span is None in the cases where the User omitted a type:
-    //  fn Foo() {}  --- return type is UnresolvedType::Unit without a span
-    //  let x = 100; --- type is UnresolvedType::Unspecified without a span
-    pub span: Option<Span>,
+/// An argument to a generic type or trait.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum GenericTypeArg {
+    /// An ordered argument, e.g. `<A, B, C>`
+    Ordered(UnresolvedType),
+
+    /// A named argument, e.g. `<A = B, C = D, E = F>`.
+    /// Used for associated types.
+    Named(Ident, UnresolvedType),
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Clone, Hash)]
+pub struct GenericTypeArgs {
+    /// Each ordered argument, e.g. `<A, B, C>`
+    pub ordered_args: Vec<UnresolvedType>,
+
+    /// All named arguments, e.g. `<A = B, C = D, E = F>`.
+    /// Used for associated types.
+    pub named_args: Vec<(Ident, UnresolvedType)>,
+}
+
+impl GenericTypeArgs {
+    pub fn is_empty(&self) -> bool {
+        self.ordered_args.is_empty() && self.named_args.is_empty()
+    }
+}
+
+impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
+    fn from(args: Vec<GenericTypeArg>) -> Self {
+        let mut this = GenericTypeArgs::default();
+        for arg in args {
+            match arg {
+                GenericTypeArg::Ordered(typ) => this.ordered_args.push(typ),
+                GenericTypeArg::Named(name, typ) => this.named_args.push((name, typ)),
+            }
+        }
+        this
+    }
 }
 
 /// Type wrapper for a member access
@@ -180,11 +216,38 @@ pub enum UnresolvedTypeExpression {
         Box<UnresolvedTypeExpression>,
         Span,
     ),
+    AsTraitPath(Box<AsTraitPath>),
 }
 
 impl Recoverable for UnresolvedType {
     fn error(span: Span) -> Self {
-        UnresolvedType { typ: UnresolvedTypeData::Error, span: Some(span) }
+        UnresolvedType { typ: UnresolvedTypeData::Error, span }
+    }
+}
+
+impl std::fmt::Display for GenericTypeArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GenericTypeArg::Ordered(typ) => typ.fmt(f),
+            GenericTypeArg::Named(name, typ) => write!(f, "{name} = {typ}"),
+        }
+    }
+}
+
+impl std::fmt::Display for GenericTypeArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_empty() {
+            Ok(())
+        } else {
+            let mut args = vecmap(&self.ordered_args, ToString::to_string).join(", ");
+
+            if !self.ordered_args.is_empty() && !self.named_args.is_empty() {
+                args += ", ";
+            }
+
+            args += &vecmap(&self.named_args, |(name, typ)| format!("{name} = {typ}")).join(", ");
+            write!(f, "<{args}>")
+        }
     }
 }
 
@@ -199,22 +262,8 @@ impl std::fmt::Display for UnresolvedTypeData {
                 Signedness::Signed => write!(f, "i{num_bits}"),
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
-            Named(s, args, _) => {
-                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
-                if args.is_empty() {
-                    write!(f, "{s}")
-                } else {
-                    write!(f, "{}<{}>", s, args.join(", "))
-                }
-            }
-            TraitAsType(s, args) => {
-                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
-                if args.is_empty() {
-                    write!(f, "impl {s}")
-                } else {
-                    write!(f, "impl {}<{}>", s, args.join(", "))
-                }
-            }
+            Named(s, args, _) => write!(f, "{s}{args}"),
+            TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
@@ -267,6 +316,7 @@ impl std::fmt::Display for UnresolvedTypeExpression {
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
                 write!(f, "({lhs} {op} {rhs})")
             }
+            UnresolvedTypeExpression::AsTraitPath(path) => write!(f, "{path}"),
         }
     }
 }
@@ -278,14 +328,6 @@ impl UnresolvedType {
             UnresolvedTypeData::Named(_, _, synthesized) => *synthesized,
             _ => false,
         }
-    }
-
-    pub fn without_span(typ: UnresolvedTypeData) -> UnresolvedType {
-        UnresolvedType { typ, span: None }
-    }
-
-    pub fn unspecified() -> UnresolvedType {
-        UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None }
     }
 
     pub(crate) fn is_type_expression(&self) -> bool {
@@ -309,7 +351,7 @@ impl UnresolvedTypeData {
     }
 
     pub fn with_span(&self, span: Span) -> UnresolvedType {
-        UnresolvedType { typ: self.clone(), span: Some(span) }
+        UnresolvedType { typ: self.clone(), span }
     }
 }
 
@@ -346,6 +388,9 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::Variable(path) => path.span(),
             UnresolvedTypeExpression::Constant(_, span) => *span,
             UnresolvedTypeExpression::BinaryOperation(_, _, _, span) => *span,
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                path.trait_path.span.merge(path.impl_item.span())
+            }
         }
     }
 
@@ -387,6 +432,9 @@ impl UnresolvedTypeExpression {
                     }
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))
+            }
+            ExpressionKind::AsTraitPath(path) => {
+                Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
             }
             _ => Err(expr),
         }

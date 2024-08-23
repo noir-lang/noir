@@ -11,7 +11,7 @@ use crate::{
     hir::{
         comptime::{self, InterpreterError},
         resolution::errors::ResolverError,
-        type_check::TypeCheckError,
+        type_check::{generics::TraitGenerics, TypeCheckError},
     },
     hir_def::{
         expr::{
@@ -397,7 +397,7 @@ impl<'context> Elaborator<'context> {
                 // so that the backend doesn't need to worry about methods
                 // TODO: update object_type here?
                 let ((function_id, function_name), function_call) = method_call.into_function_call(
-                    &method_ref,
+                    method_ref,
                     object_type,
                     is_macro_call,
                     location,
@@ -506,7 +506,7 @@ impl<'context> Elaborator<'context> {
                 unseen_fields.remove(&field_name);
                 seen_fields.insert(field_name.clone());
 
-                self.unify_with_coercions(&field_type, expected_type, resolved, || {
+                self.unify_with_coercions(&field_type, expected_type, resolved, field_span, || {
                     TypeCheckError::TypeMismatch {
                         expected_typ: expected_type.to_string(),
                         expr_typ: field_type.to_string(),
@@ -620,7 +620,7 @@ impl<'context> Elaborator<'context> {
                     let constraint = TraitConstraint {
                         typ: operand_type.clone(),
                         trait_id: trait_id.trait_id,
-                        trait_generics: Vec::new(),
+                        trait_generics: TraitGenerics::default(),
                         span,
                     };
                     self.push_trait_constraint(constraint, expr_id);

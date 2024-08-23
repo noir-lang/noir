@@ -108,17 +108,14 @@ pub fn assignment_with_type(
 }
 
 pub fn return_type(path: Path) -> FunctionReturnType {
-    let ty = make_type(UnresolvedTypeData::Named(path, vec![], true));
+    let ty = make_type(UnresolvedTypeData::Named(path, Default::default(), true));
     FunctionReturnType::Ty(ty)
 }
 
 pub fn lambda(parameters: Vec<(Pattern, UnresolvedType)>, body: Expression) -> Expression {
     expression(ExpressionKind::Lambda(Box::new(Lambda {
         parameters,
-        return_type: UnresolvedType {
-            typ: UnresolvedTypeData::Unspecified,
-            span: Some(Span::default()),
-        },
+        return_type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() },
         body,
     })))
 }
@@ -179,7 +176,7 @@ pub fn cast(lhs: Expression, ty: UnresolvedTypeData) -> Expression {
 }
 
 pub fn make_type(typ: UnresolvedTypeData) -> UnresolvedType {
-    UnresolvedType { typ, span: Some(Span::default()) }
+    UnresolvedType { typ, span: Span::default() }
 }
 
 pub fn index_array(array: Ident, index: &str) -> Expression {

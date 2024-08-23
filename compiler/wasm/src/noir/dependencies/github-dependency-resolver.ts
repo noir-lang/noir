@@ -45,7 +45,8 @@ export class GithubDependencyResolver implements DependencyResolver {
   }
 
   async #fetchZipFromGithub(dependency: Pick<GitDependencyConfig, 'git' | 'tag'>): Promise<string> {
-    if (!dependency.git.startsWith('https://github.com')) {
+    const git_host = new URL(dependency.git);
+    if (git_host !== null && git_host.host != 'github.com') {
       throw new Error('Only github dependencies are supported');
     }
 

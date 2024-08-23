@@ -62,8 +62,9 @@ pub fn generate_note_interface_impl(
                     note_struct.name.0.contents
                 )),
             })?;
-        let note_interface_impl_span: Option<Span> =
-            if empty_spans { None } else { trait_impl.object_type.span };
+        let note_interface_impl_span =
+            if empty_spans { Span::default() } else { trait_impl.object_type.span };
+
         // Look for the note struct implementation, generate a default one if it doesn't exist (in order to append methods to it)
         let existing_impl = module.impls.iter_mut().find(|r#impl| match &r#impl.object_type.typ {
             UnresolvedTypeData::Named(path, _, _) => path.last_ident().eq(&note_struct.name),
@@ -87,6 +88,7 @@ pub fn generate_note_interface_impl(
         let mut note_fields = vec![];
         let note_interface_generics = trait_impl
             .trait_generics
+            .ordered_args
             .iter()
             .map(|gen| match gen.typ.clone() {
                 UnresolvedTypeData::Named(path, _, _) => Ok(path.last_name().to_string()),
@@ -94,7 +96,7 @@ pub fn generate_note_interface_impl(
                     Ok(val.to_string())
                 }
                 _ => Err(AztecMacroError::CouldNotImplementNoteInterface {
-                    span: trait_impl.object_type.span,
+                    span: Some(trait_impl.object_type.span),
                     secondary_message: Some(format!(
                         "NoteInterface must be generic over NOTE_LEN and NOTE_BYTES_LEN: {}",
                         note_type
@@ -119,7 +121,7 @@ pub fn generate_note_interface_impl(
                 ident("header"),
                 make_type(UnresolvedTypeData::Named(
                     chained_dep!("aztec", "note", "note_header", "NoteHeader"),
-                    vec![],
+                    Default::default(),
                     false,
                 )),
             );
@@ -231,7 +233,7 @@ fn generate_note_to_be_bytes(
     note_type: &String,
     byte_length: &str,
     serialized_length: &str,
-    impl_span: Option<Span>,
+    impl_span: Span,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
@@ -268,13 +270,13 @@ fn generate_note_to_be_bytes(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
             secondary_message: Some("Failed to parse Noir macro code (fn to_be_bytes). This is either a bug in the compiler or the Noir macro code".to_string()),
-            span: impl_span
+            span: Some(impl_span)
         });
     }
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap_or_default();
+    noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -282,7 +284,7 @@ fn generate_note_to_be_bytes(
 fn generate_note_get_header(
     note_type: &String,
     note_header_field_name: &String,
-    impl_span: Option<Span>,
+    impl_span: Span,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
@@ -300,13 +302,13 @@ fn generate_note_get_header(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
             secondary_message: Some("Failed to parse Noir macro code (fn get_header). This is either a bug in the compiler or the Noir macro code".to_string()),
-            span: impl_span
+            span: Some(impl_span)
         });
     }
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap_or_default();
+    noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -314,7 +316,7 @@ fn generate_note_get_header(
 fn generate_note_set_header(
     note_type: &String,
     note_header_field_name: &String,
-    impl_span: Option<Span>,
+    impl_span: Span,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = format!(
@@ -331,13 +333,13 @@ fn generate_note_set_header(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface  {
             secondary_message: Some("Failed to parse Noir macro code (fn set_header). This is either a bug in the compiler or the Noir macro code".to_string()),
-            span: impl_span
+            span: Some(impl_span)
         });
     }
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap_or_default();
+    noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -346,7 +348,7 @@ fn generate_note_set_header(
 // of the conversion of the characters in the note's struct name to unsigned integers.
 fn generate_get_note_type_id(
     note_type_id: u32,
-    impl_span: Option<Span>,
+    impl_span: Span,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     // TODO(#7165): replace {} with dep::aztec::protocol_types::abis::note_selector::compute_note_selector(\"{}\") in the function source below
@@ -365,13 +367,13 @@ fn generate_get_note_type_id(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
             secondary_message: Some("Failed to parse Noir macro code (fn get_note_type_id). This is either a bug in the compiler or the Noir macro code".to_string()),
-            span: impl_span
+            span: Some(impl_span)
         });
     }
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap_or_default();
+    noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -389,7 +391,7 @@ fn generate_note_properties_struct(
     note_type: &str,
     note_fields: &[(String, String)],
     note_header_field_name: &String,
-    impl_span: Option<Span>,
+    impl_span: Span,
     empty_spans: bool,
 ) -> Result<NoirStruct, AztecMacroError> {
     let struct_source =
@@ -400,7 +402,7 @@ fn generate_note_properties_struct(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
             secondary_message: Some(format!("Failed to parse Noir macro code (struct {}Properties). This is either a bug in the compiler or the Noir macro code", note_type)),
-            span: impl_span
+            span: Some(impl_span)
         });
     }
 
@@ -423,7 +425,7 @@ fn generate_note_deserialize_content(
     note_fields: &[(String, String)],
     note_serialize_len: &String,
     note_header_field_name: &String,
-    impl_span: Option<Span>,
+    impl_span: Span,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = generate_note_deserialize_content_source(
@@ -438,13 +440,13 @@ fn generate_note_deserialize_content(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
             secondary_message: Some("Failed to parse Noir macro code (fn deserialize_content). This is either a bug in the compiler or the Noir macro code".to_string()),
-            span: impl_span
+            span: Some(impl_span)
         });
     }
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap_or_default();
+    noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -461,7 +463,7 @@ fn generate_note_serialize_content(
     note_fields: &[(String, String)],
     note_serialize_len: &String,
     note_header_field_name: &String,
-    impl_span: Option<Span>,
+    impl_span: Span,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source = generate_note_serialize_content_source(
@@ -476,13 +478,13 @@ fn generate_note_serialize_content(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
             secondary_message: Some("Failed to parse Noir macro code (fn serialize_content). This is either a bug in the compiler or the Noir macro code".to_string()),
-            span: impl_span
+            span: Some(impl_span)
         });
     }
 
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap_or_default();
+    noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -492,7 +494,7 @@ fn generate_note_properties_fn(
     note_type: &str,
     note_fields: &[(String, String)],
     note_header_field_name: &String,
-    impl_span: Option<Span>,
+    impl_span: Span,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     let function_source =
@@ -502,12 +504,12 @@ fn generate_note_properties_fn(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
             secondary_message: Some("Failed to parse Noir macro code (fn properties). This is either a bug in the compiler or the Noir macro code".to_string()),
-            span: impl_span
+            span: Some(impl_span)
         });
     }
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap_or_default();
+    noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }
@@ -519,7 +521,7 @@ fn generate_note_properties_fn(
 //
 fn generate_compute_note_hiding_point(
     note_type: &String,
-    impl_span: Option<Span>,
+    impl_span: Span,
     empty_spans: bool,
 ) -> Result<NoirFunction, AztecMacroError> {
     // TODO(#7771): update this to do only 1 MSM call
@@ -541,12 +543,12 @@ fn generate_compute_note_hiding_point(
         dbg!(errors);
         return Err(AztecMacroError::CouldNotImplementNoteInterface {
             secondary_message: Some("Failed to parse Noir macro code (fn compute_note_hiding_point). This is either a bug in the compiler or the Noir macro code".to_string()),
-            span: impl_span
+            span: Some(impl_span)
         });
     }
     let mut function_ast = function_ast.into_sorted();
     let mut noir_fn = function_ast.functions.remove(0);
-    noir_fn.def.span = impl_span.unwrap_or_default();
+    noir_fn.def.span = impl_span;
     noir_fn.def.visibility = ItemVisibility::Public;
     Ok(noir_fn)
 }

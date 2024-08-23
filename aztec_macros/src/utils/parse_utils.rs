@@ -2,12 +2,13 @@ use noirc_frontend::{
     ast::{
         ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression,
         ConstrainStatement, ConstructorExpression, Expression, ExpressionKind, ForLoopStatement,
-        ForRange, FunctionReturnType, Ident, IfExpression, IndexExpression, InfixExpression,
-        LValue, Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
-        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem,
-        TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-        UnresolvedTypeData, UnresolvedTypeExpression, UseTree, UseTreeKind,
+        ForRange, FunctionReturnType, GenericTypeArgs, Ident, IfExpression, IndexExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait,
+        NoirTraitImpl, NoirTypeAlias, Path, PathSegment, Pattern, PrefixExpression, Statement,
+        StatementKind, TraitImplItem, TraitItem, TypeImpl, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+        UseTree, UseTreeKind,
     },
     parser::{Item, ItemKind, ParsedSubModule, ParserError},
     ParsedModule,
@@ -297,6 +298,14 @@ fn empty_unresolved_types(unresolved_types: &mut [UnresolvedType]) {
     }
 }
 
+fn empty_type_args(generics: &mut GenericTypeArgs) {
+    empty_unresolved_types(&mut generics.ordered_args);
+    for (name, typ) in &mut generics.named_args {
+        empty_ident(name);
+        empty_unresolved_type(typ);
+    }
+}
+
 fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
     unresolved_type.span = Default::default();
 
@@ -318,11 +327,11 @@ fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
         }
         UnresolvedTypeData::Named(path, unresolved_types, _) => {
             empty_path(path);
-            empty_unresolved_types(unresolved_types);
+            empty_type_args(unresolved_types);
         }
         UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
             empty_path(path);
-            empty_unresolved_types(unresolved_types);
+            empty_type_args(unresolved_types);
         }
         UnresolvedTypeData::MutableReference(unresolved_type) => {
             empty_unresolved_type(unresolved_type)
@@ -543,5 +552,10 @@ fn empty_unresolved_type_expression(unresolved_type_expression: &mut UnresolvedT
             empty_unresolved_type_expression(rhs);
         }
         UnresolvedTypeExpression::Constant(_, _) => (),
+        UnresolvedTypeExpression::AsTraitPath(path) => {
+            empty_unresolved_type(&mut path.typ);
+            empty_path(&mut path.trait_path);
+            empty_ident(&mut path.impl_item);
+        }
     }
 }

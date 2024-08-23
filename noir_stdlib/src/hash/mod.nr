@@ -2,19 +2,17 @@ mod poseidon;
 mod mimc;
 mod poseidon2;
 mod keccak;
+mod sha256;
+mod sha512;
 
 use crate::default::Default;
 use crate::uint128::U128;
-use crate::sha256::{digest, sha256_var};
 use crate::collections::vec::Vec;
 use crate::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_slice};
 use crate::meta::derive_via;
 
-#[foreign(sha256)]
-// docs:start:sha256
-pub fn sha256<let N: u32>(input: [u8; N]) -> [u8; 32]
-// docs:end:sha256
-{}
+// Kept for backwards compatibility
+use sha256::{digest, sha256, sha256_compression, sha256_var};
 
 #[foreign(blake2s)]
 // docs:start:blake2s
@@ -136,9 +134,6 @@ pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
 
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
-
-#[foreign(sha256_compression)]
-pub fn sha256_compression(_input: [u32; 16], _state: [u32; 8]) -> [u32; 8] {}
 
 // Generic hashing support. 
 // Partially ported and impacted by rust.

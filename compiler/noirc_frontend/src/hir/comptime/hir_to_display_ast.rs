@@ -3,8 +3,8 @@ use noirc_errors::{Span, Spanned};
 
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
-    ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, Ident, IfExpression,
-    IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
+    ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
+    IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
     MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
     UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
@@ -300,7 +300,8 @@ impl Type {
             }
             Type::Struct(def, generics) => {
                 let struct_def = def.borrow();
-                let generics = vecmap(generics, |generic| generic.to_display_ast());
+                let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
+                let generics = GenericTypeArgs { ordered_args, named_args: Vec::new() };
                 let name = Path::from_ident(struct_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
@@ -308,7 +309,8 @@ impl Type {
                 // Keep the alias name instead of expanding this in case the
                 // alias' definition was changed
                 let type_def = type_def.borrow();
-                let generics = vecmap(generics, |generic| generic.to_display_ast());
+                let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
+                let generics = GenericTypeArgs { ordered_args, named_args: Vec::new() };
                 let name = Path::from_ident(type_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
@@ -335,13 +337,17 @@ impl Type {
                 }
             }
             Type::TraitAsType(_, name, generics) => {
-                let generics = vecmap(generics, |generic| generic.to_display_ast());
+                let ordered_args = vecmap(&generics.ordered, |generic| generic.to_display_ast());
+                let named_args = vecmap(&generics.named, |named_type| {
+                    (named_type.name.clone(), named_type.typ.to_display_ast())
+                });
+                let generics = GenericTypeArgs { ordered_args, named_args };
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
             Type::NamedGeneric(_var, name, _kind) => {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
-                UnresolvedTypeData::TraitAsType(name, Vec::new())
+                UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
             Type::Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| arg.to_display_ast());
@@ -370,7 +376,7 @@ impl Type {
             }
         };
 
-        UnresolvedType { typ, span: None }
+        UnresolvedType { typ, span: Span::default() }
     }
 
     /// Convert to AST for display (some details lost)

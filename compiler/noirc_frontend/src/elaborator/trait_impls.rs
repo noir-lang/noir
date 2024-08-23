@@ -1,16 +1,16 @@
 use crate::{
+    ast::UnresolvedTypeExpression,
     graph::CrateId,
     hir::def_collector::{dc_crate::UnresolvedTraitImpl, errors::DefCollectorErrorKind},
+    macros_api::{Ident, UnresolvedType, UnresolvedTypeData},
+    node_interner::TraitImplId,
     ResolvedGeneric,
 };
 use crate::{
     hir::def_collector::errors::DuplicateType,
-    hir_def::{
-        traits::{TraitConstraint, TraitFunction},
-        types::Generics,
-    },
+    hir_def::traits::{TraitConstraint, TraitFunction},
     node_interner::{FuncId, TraitId},
-    Type, TypeBindings,
+    Type,
 };
 
 use noirc_errors::Location;
@@ -28,6 +28,8 @@ impl<'context> Elaborator<'context> {
         self.local_module = trait_impl.module_id;
         self.file = trait_impl.file_id;
 
+        let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
+
         // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
         // for a particular method, the default implementation will be added at that slot.
         let mut ordered_methods = Vec::new();
@@ -38,7 +40,6 @@ impl<'context> Elaborator<'context> {
         // set of function ids that have a corresponding method in the trait
         let mut func_ids_in_trait = HashSet::default();
 
-        let trait_generics = &self.interner.get_trait(trait_id).generics.clone();
         // Temporarily take ownership of the trait's methods so we can iterate over them
         // while also mutating the interner
         let the_trait = self.interner.get_trait_mut(trait_id);
@@ -72,10 +73,7 @@ impl<'context> Elaborator<'context> {
                     self.push_err(DefCollectorErrorKind::TraitMissingMethod {
                         trait_name: self.interner.get_trait(trait_id).name.clone(),
                         method_name: method.name.clone(),
-                        trait_impl_span: trait_impl
-                            .object_type
-                            .span
-                            .expect("type must have a span"),
+                        trait_impl_span: trait_impl.object_type.span,
                     });
                 }
             } else {
@@ -85,7 +83,8 @@ impl<'context> Elaborator<'context> {
                         method,
                         trait_impl_where_clause,
                         &trait_impl.resolved_trait_generics,
-                        trait_generics,
+                        trait_id,
+                        impl_id,
                     );
 
                     func_ids_in_trait.insert(*func_id);
@@ -141,16 +140,15 @@ impl<'context> Elaborator<'context> {
         func_id: &FuncId,
         method: &TraitFunction,
         trait_impl_where_clause: &[TraitConstraint],
-        impl_trait_generics: &[Type],
-        trait_generics: &Generics,
+        trait_impl_generics: &[Type],
+        trait_id: TraitId,
+        impl_id: TraitImplId,
     ) {
-        let mut bindings = TypeBindings::new();
-        for (trait_generic, impl_trait_generic) in trait_generics.iter().zip(impl_trait_generics) {
-            bindings.insert(
-                trait_generic.type_var.id(),
-                (trait_generic.type_var.clone(), impl_trait_generic.clone()),
-            );
-        }
+        // First get the general trait to impl bindings.
+        // Then we'll need to add the bindings for this specific method.
+        let self_type = self.self_type.as_ref().unwrap().clone();
+        let mut bindings =
+            self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
         let override_meta = self.interner.function_meta(func_id);
         // Substitute each generic on the trait function with the corresponding generic on the impl function
@@ -166,11 +164,9 @@ impl<'context> Elaborator<'context> {
         let mut substituted_method_ids = HashSet::default();
         for method_constraint in method.trait_constraints.iter() {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
-            let substituted_trait_generics = method_constraint
-                .trait_generics
-                .iter()
-                .map(|generic| generic.substitute(&bindings))
-                .collect::<Vec<_>>();
+            let substituted_trait_generics =
+                method_constraint.trait_generics.map(|generic| generic.substitute(&bindings));
+
             substituted_method_ids.insert((
                 substituted_constraint_type,
                 method_constraint.trait_id,
@@ -221,8 +217,30 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.interner.get_trait(trait_id);
         if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
             self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
-                span: trait_impl.object_type.span.expect("object type must have a span"),
+                span: trait_impl.object_type.span,
             });
         }
+    }
+
+    pub(super) fn take_unresolved_associated_types(
+        &mut self,
+        trait_impl: &mut UnresolvedTraitImpl,
+    ) -> Vec<(Ident, UnresolvedType)> {
+        let mut associated_types = Vec::new();
+        for (name, _, expr) in trait_impl.associated_constants.drain(..) {
+            let span = expr.span;
+            let typ = match UnresolvedTypeExpression::from_expr(expr, span) {
+                Ok(expr) => UnresolvedTypeData::Expression(expr).with_span(span),
+                Err(error) => {
+                    self.push_err(error);
+                    UnresolvedTypeData::Error.with_span(span)
+                }
+            };
+            associated_types.push((name, typ));
+        }
+        for (name, typ) in trait_impl.associated_types.drain(..) {
+            associated_types.push((name, typ));
+        }
+        associated_types
     }
 }

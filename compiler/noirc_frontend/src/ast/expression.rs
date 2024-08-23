@@ -69,9 +69,7 @@ impl UnresolvedGeneric {
     pub fn span(&self) -> Span {
         match self {
             UnresolvedGeneric::Variable(ident) => ident.0.span(),
-            UnresolvedGeneric::Numeric { ident, typ } => {
-                ident.0.span().merge(typ.span.unwrap_or_default())
-            }
+            UnresolvedGeneric::Numeric { ident, typ } => ident.0.span().merge(typ.span),
             UnresolvedGeneric::Resolved(_, span) => *span,
         }
     }
@@ -791,7 +789,7 @@ impl FunctionDefinition {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(ident.clone()),
                 typ: unresolved_type.clone(),
-                span: ident.span().merge(unresolved_type.span.unwrap()),
+                span: ident.span().merge(unresolved_type.span),
             })
             .collect();
 
@@ -848,7 +846,7 @@ impl FunctionReturnType {
     pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
             FunctionReturnType::Default(span) => {
-                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) })
+                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: *span })
             }
             FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
         }

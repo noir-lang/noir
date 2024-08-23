@@ -7,12 +7,12 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
-    MethodCallExpression, UnresolvedType,
+    BlockExpression, Expression, ExpressionKind, GenericTypeArgs, IndexExpression,
+    MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
-use crate::macros_api::SecondaryAttribute;
+use crate::macros_api::{SecondaryAttribute, UnresolvedTypeData};
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 
@@ -371,6 +371,7 @@ impl UseTree {
 pub struct AsTraitPath {
     pub typ: UnresolvedType,
     pub trait_path: Path,
+    pub trait_generics: GenericTypeArgs,
     pub impl_item: Ident,
 }
 
@@ -672,7 +673,7 @@ impl ForRange {
                 let let_array = Statement {
                     kind: StatementKind::Let(LetStatement {
                         pattern: Pattern::Identifier(array_ident.clone()),
-                        r#type: UnresolvedType::unspecified(),
+                        r#type: UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         expression: array,
                         comptime: false,
                         attributes: vec![],
@@ -718,7 +719,7 @@ impl ForRange {
                 let let_elem = Statement {
                     kind: StatementKind::Let(LetStatement {
                         pattern: Pattern::Identifier(identifier),
-                        r#type: UnresolvedType::unspecified(),
+                        r#type: UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         expression: Expression::new(loop_element, array_span),
                         comptime: false,
                         attributes: vec![],

@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::rc::Rc;
 use std::vec;
 
 use acvm::{AcirField, FieldElement};
@@ -13,7 +14,8 @@ use crate::ast::{
     NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern, TraitImplItem, TraitItem,
     TypeImpl,
 };
-use crate::macros_api::NodeInterner;
+use crate::hir::resolution::errors::ResolverError;
+use crate::macros_api::{Expression, NodeInterner, UnresolvedType, UnresolvedTypeData};
 use crate::node_interner::ModuleAttributes;
 use crate::{
     graph::CrateId,
@@ -22,6 +24,7 @@ use crate::{
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
 };
+use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 
 use super::{
     dc_crate::{
@@ -162,13 +165,14 @@ impl<'a> ModCollector<'a> {
         for mut trait_impl in impls {
             let trait_name = trait_impl.trait_name.clone();
 
-            let mut unresolved_functions = collect_trait_impl_functions(
-                &mut context.def_interner,
-                &mut trait_impl,
-                krate,
-                self.file_id,
-                self.module_id,
-            );
+            let (mut unresolved_functions, associated_types, associated_constants) =
+                collect_trait_impl_items(
+                    &mut context.def_interner,
+                    &mut trait_impl,
+                    krate,
+                    self.file_id,
+                    self.module_id,
+                );
 
             let module = ModuleId { krate, local_id: self.module_id };
 
@@ -186,6 +190,8 @@ impl<'a> ModCollector<'a> {
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
                 trait_generics: trait_impl.trait_generics,
+                associated_constants,
+                associated_types,
 
                 // These last fields are filled later on
                 trait_id: None,
@@ -461,6 +467,8 @@ impl<'a> ModCollector<'a> {
             };
 
             let mut method_ids = HashMap::default();
+            let mut associated_types = Generics::new();
+
             for trait_item in &trait_definition.items {
                 match trait_item {
                     TraitItem::Function {
@@ -521,7 +529,7 @@ impl<'a> ModCollector<'a> {
                             }
                         }
                     }
-                    TraitItem::Constant { name, .. } => {
+                    TraitItem::Constant { name, typ, default_value: _ } => {
                         let global_id = context.def_interner.push_empty_global(
                             name.clone(),
                             trait_id.0.local_id,
@@ -542,10 +550,19 @@ impl<'a> ModCollector<'a> {
                                 second_def,
                             };
                             errors.push((error.into(), self.file_id));
+                        } else {
+                            let type_variable_id = context.def_interner.next_type_variable_id();
+                            let typ = self.resolve_associated_constant_type(typ, &mut errors);
+
+                            associated_types.push(ResolvedGeneric {
+                                name: Rc::new(name.to_string()),
+                                type_var: TypeVariable::unbound(type_variable_id),
+                                kind: Kind::Numeric(Box::new(typ)),
+                                span: name.span(),
+                            });
                         }
                     }
                     TraitItem::Type { name } => {
-                        // TODO(nickysn or alexvitkov): implement context.def_interner.push_empty_type_alias and get an id, instead of using TypeAliasId::dummy_id()
                         if let Err((first_def, second_def)) = self.def_collector.def_map.modules
                             [trait_id.0.local_id.0]
                             .declare_type_alias(name.clone(), TypeAliasId::dummy_id())
@@ -556,6 +573,14 @@ impl<'a> ModCollector<'a> {
                                 second_def,
                             };
                             errors.push((error.into(), self.file_id));
+                        } else {
+                            let type_variable_id = context.def_interner.next_type_variable_id();
+                            associated_types.push(ResolvedGeneric {
+                                name: Rc::new(name.to_string()),
+                                type_var: TypeVariable::unbound(type_variable_id),
+                                kind: Kind::Normal,
+                                span: name.span(),
+                            });
                         }
                     }
                 }
@@ -564,7 +589,6 @@ impl<'a> ModCollector<'a> {
             let resolved_generics =
                 context.resolve_generics(&trait_definition.generics, &mut errors, self.file_id);
 
-            // And store the TraitId -> TraitType mapping somewhere it is reachable
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
                 module_id: self.module_id,
@@ -573,7 +597,12 @@ impl<'a> ModCollector<'a> {
                 method_ids,
                 fns_with_default_impl: unresolved_functions,
             };
-            context.def_interner.push_empty_trait(trait_id, &unresolved, resolved_generics);
+            context.def_interner.push_empty_trait(
+                trait_id,
+                &unresolved,
+                resolved_generics,
+                associated_types,
+            );
 
             if context.def_interner.is_in_lsp_mode() {
                 let parent_module_id = ModuleId { krate, local_id: self.module_id };
@@ -771,7 +800,7 @@ impl<'a> ModCollector<'a> {
                 ModuleAttributes {
                     name: mod_name.0.contents.clone(),
                     location: mod_location,
-                    parent: self.module_id,
+                    parent: Some(self.module_id),
                 },
             );
 
@@ -781,6 +810,23 @@ impl<'a> ModCollector<'a> {
         }
 
         Ok(mod_id)
+    }
+
+    fn resolve_associated_constant_type(
+        &self,
+        typ: &UnresolvedType,
+        errors: &mut Vec<(CompilationError, FileId)>,
+    ) -> Type {
+        match &typ.typ {
+            UnresolvedTypeData::FieldElement => Type::FieldElement,
+            UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
+            _ => {
+                let span = typ.span;
+                let error = ResolverError::AssociatedConstantsMustBeNumeric { span };
+                errors.push((error.into(), self.file_id));
+                Type::Error
+            }
+        }
     }
 }
 
@@ -870,28 +916,43 @@ fn is_native_field(str: &str) -> bool {
     }
 }
 
-pub(crate) fn collect_trait_impl_functions(
+type AssociatedTypes = Vec<(Ident, UnresolvedType)>;
+type AssociatedConstants = Vec<(Ident, UnresolvedType, Expression)>;
+
+/// Returns a tuple of (methods, associated types, associated constants)
+pub(crate) fn collect_trait_impl_items(
     interner: &mut NodeInterner,
     trait_impl: &mut NoirTraitImpl,
     krate: CrateId,
     file_id: FileId,
     local_id: LocalModuleId,
-) -> UnresolvedFunctions {
+) -> (UnresolvedFunctions, AssociatedTypes, AssociatedConstants) {
     let mut unresolved_functions =
         UnresolvedFunctions { file_id, functions: Vec::new(), trait_id: None, self_type: None };
+
+    let mut associated_types = Vec::new();
+    let mut associated_constants = Vec::new();
 
     let module = ModuleId { krate, local_id };
 
     for item in std::mem::take(&mut trait_impl.items) {
-        if let TraitImplItem::Function(impl_method) = item {
-            let func_id = interner.push_empty_fn();
-            let location = Location::new(impl_method.span(), file_id);
-            interner.push_function(func_id, &impl_method.def, module, location);
-            unresolved_functions.push_fn(local_id, func_id, impl_method);
+        match item {
+            TraitImplItem::Function(impl_method) => {
+                let func_id = interner.push_empty_fn();
+                let location = Location::new(impl_method.span(), file_id);
+                interner.push_function(func_id, &impl_method.def, module, location);
+                unresolved_functions.push_fn(local_id, func_id, impl_method);
+            }
+            TraitImplItem::Constant(name, typ, expr) => {
+                associated_constants.push((name, typ, expr));
+            }
+            TraitImplItem::Type { name, alias } => {
+                associated_types.push((name, alias));
+            }
         }
     }
 
-    unresolved_functions
+    (unresolved_functions, associated_types, associated_constants)
 }
 
 pub(crate) fn collect_global(

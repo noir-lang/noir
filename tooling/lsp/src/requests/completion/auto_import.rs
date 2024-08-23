@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
+
 use lsp_types::{Position, Range, TextEdit};
 use noirc_frontend::{
     ast::ItemVisibility,
-    graph::{CrateId, Dependency},
-    hir::def_map::ModuleId,
+    graph::CrateId,
+    hir::def_map::{CrateDefMap, ModuleId},
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
 };
@@ -15,7 +17,14 @@ use super::{
 };
 
 impl<'a> NodeFinder<'a> {
-    pub(super) fn complete_auto_imports(&mut self, prefix: &str, requested_items: RequestedItems) {
+    pub(super) fn complete_auto_imports(
+        &mut self,
+        prefix: &str,
+        requested_items: RequestedItems,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
+        let current_module_parent_id = get_parent_module_id(self.def_maps, self.module_id);
+
         for (name, entries) in self.interner.get_auto_import_names() {
             if !name_matches(name, prefix) {
                 continue;
@@ -29,7 +38,7 @@ impl<'a> NodeFinder<'a> {
                 let Some(mut completion_item) = self.module_def_id_completion_item(
                     *module_def_id,
                     name.clone(),
-                    FunctionCompletionKind::NameAndParameters,
+                    function_completion_kind,
                     FunctionKind::Any,
                     requested_items,
                 ) else {
@@ -39,10 +48,10 @@ impl<'a> NodeFinder<'a> {
                 let module_full_path;
                 if let ModuleDefId::ModuleId(module_id) = module_def_id {
                     module_full_path = module_id_path(
-                        module_id,
+                        *module_id,
                         &self.module_id,
+                        current_module_parent_id,
                         self.interner,
-                        self.dependencies,
                     );
                 } else {
                     let Some(parent_module) = get_parent_module(self.interner, *module_def_id)
@@ -67,8 +76,8 @@ impl<'a> NodeFinder<'a> {
                     module_full_path = module_id_path(
                         parent_module,
                         &self.module_id,
+                        current_module_parent_id,
                         self.interner,
-                        self.dependencies,
                     );
                 }
 
@@ -111,9 +120,18 @@ impl<'a> NodeFinder<'a> {
     }
 }
 
-fn get_parent_module(interner: &NodeInterner, module_def_id: ModuleDefId) -> Option<&ModuleId> {
+fn get_parent_module(interner: &NodeInterner, module_def_id: ModuleDefId) -> Option<ModuleId> {
     let reference_id = module_def_id_to_reference_id(module_def_id);
-    interner.reference_module(reference_id)
+    interner.reference_module(reference_id).copied()
+}
+
+fn get_parent_module_id(
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    module_id: ModuleId,
+) -> Option<ModuleId> {
+    let crate_def_map = &def_maps[&module_id.krate];
+    let module_data = &crate_def_map.modules()[module_id.local_id.0];
+    module_data.parent.map(|parent| ModuleId { krate: module_id.krate, local_id: parent })
 }
 
 fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
@@ -127,69 +145,61 @@ fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
     }
 }
 
-/// Computes the path of `module_id` relative to `current_module_id`.
-/// If it's not relative, the full path is returned.
+/// Returns the path to reach an item inside `target_module_id` from inside `current_module_id`.
+/// Returns a relative path if possible.
 fn module_id_path(
-    module_id: &ModuleId,
+    target_module_id: ModuleId,
     current_module_id: &ModuleId,
+    current_module_parent_id: Option<ModuleId>,
     interner: &NodeInterner,
-    dependencies: &[Dependency],
 ) -> String {
-    let mut string = String::new();
-
-    let crate_id = module_id.krate;
-    let crate_name = match crate_id {
-        CrateId::Root(_) => Some("crate".to_string()),
-        CrateId::Crate(_) => dependencies
-            .iter()
-            .find(|dep| dep.crate_id == crate_id)
-            .map(|dep| format!("{}", dep.name)),
-        CrateId::Stdlib(_) => Some("std".to_string()),
-        CrateId::Dummy => None,
-    };
-
-    let wrote_crate = if let Some(crate_name) = crate_name {
-        string.push_str(&crate_name);
-        true
-    } else {
-        false
-    };
-
-    let Some(module_attributes) = interner.try_module_attributes(module_id) else {
-        return string;
-    };
-
-    if wrote_crate {
-        string.push_str("::");
+    if Some(target_module_id) == current_module_parent_id {
+        return "super".to_string();
     }
 
-    let mut segments = Vec::new();
-    let mut current_attributes = module_attributes;
-    loop {
-        let parent_module_id =
-            &ModuleId { krate: module_id.krate, local_id: current_attributes.parent };
+    let mut segments: Vec<&str> = Vec::new();
+    let mut is_relative = false;
 
-        // If the parent module is the current module we stop because we want a relative path to the module
-        if current_module_id == parent_module_id {
-            // When the path is relative we don't want the "crate::" prefix anymore
-            string = string.strip_prefix("crate::").unwrap_or(&string).to_string();
-            break;
+    if let Some(module_attributes) = interner.try_module_attributes(&target_module_id) {
+        segments.push(&module_attributes.name);
+
+        let mut current_attributes = module_attributes;
+        loop {
+            let Some(parent_local_id) = current_attributes.parent else {
+                break;
+            };
+
+            let parent_module_id =
+                &ModuleId { krate: target_module_id.krate, local_id: parent_local_id };
+
+            if current_module_id == parent_module_id {
+                is_relative = true;
+                break;
+            }
+
+            if current_module_parent_id == Some(*parent_module_id) {
+                segments.push("super");
+                is_relative = true;
+                break;
+            }
+
+            let Some(parent_attributes) = interner.try_module_attributes(parent_module_id) else {
+                break;
+            };
+
+            segments.push(&parent_attributes.name);
+            current_attributes = parent_attributes;
         }
-
-        let Some(parent_attributes) = interner.try_module_attributes(parent_module_id) else {
-            break;
-        };
-
-        segments.push(&parent_attributes.name);
-        current_attributes = parent_attributes;
     }
 
-    for segment in segments.iter().rev() {
-        string.push_str(segment);
-        string.push_str("::");
+    if !is_relative {
+        // We don't record module attriubtes for the root module,
+        // so we handle that case separately
+        if let CrateId::Root(_) = target_module_id.krate {
+            segments.push("crate");
+        }
     }
 
-    string.push_str(&module_attributes.name);
-
-    string
+    segments.reverse();
+    segments.join("::")
 }

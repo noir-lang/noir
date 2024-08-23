@@ -36,9 +36,9 @@ use super::{
 };
 use super::{spanned, Item, ItemKind};
 use crate::ast::{
-    BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, Ident, IfExpression,
-    InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path, Pattern,
-    Recoverable, Statement, TypeImpl, UnaryRhsMemberAccess, UnaryRhsMethodCall, UseTree,
+    BinaryOp, BinaryOpKind, BlockExpression, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
+    IfExpression, InfixExpression, LValue, Literal, ModuleDeclaration, NoirTypeAlias, Param, Path,
+    Pattern, Recoverable, Statement, TypeImpl, UnaryRhsMemberAccess, UnaryRhsMethodCall, UseTree,
     UseTreeKind, Visibility,
 };
 use crate::ast::{
@@ -333,7 +333,9 @@ fn self_parameter() -> impl NoirParser<Param> {
         .map(|(pattern_keyword, ident_span)| {
             let ident = Ident::new("self".to_string(), ident_span);
             let path = Path::from_single("Self".to_owned(), ident_span);
-            let mut self_type = UnresolvedTypeData::Named(path, vec![], true).with_span(ident_span);
+            let no_args = GenericTypeArgs::default();
+            let mut self_type =
+                UnresolvedTypeData::Named(path, no_args, true).with_span(ident_span);
             let mut pattern = Pattern::Identifier(ident);
 
             match pattern_keyword {
@@ -422,9 +424,9 @@ fn check_statements_require_semicolon(
 
 /// Parse an optional ': type'
 fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
-    ignore_then_commit(just(Token::Colon), parse_type())
-        .or_not()
-        .map(|r#type| r#type.unwrap_or_else(UnresolvedType::unspecified))
+    ignore_then_commit(just(Token::Colon), parse_type()).or_not().map_with_span(|r#type, span| {
+        r#type.unwrap_or(UnresolvedTypeData::Unspecified.with_span(span))
+    })
 }
 
 fn module_declaration() -> impl NoirParser<TopLevelStatement> {
@@ -902,10 +904,15 @@ where
     let method_call_rhs = turbofish
         .then(just(Token::Bang).or_not())
         .then(parenthesized(expression_list(expr_parser.clone())))
-        .map(|((turbofish, macro_call), args)| UnaryRhsMethodCall {
-            turbofish,
-            macro_call: macro_call.is_some(),
-            args,
+        .validate(|((turbofish, macro_call), args), span, emit| {
+            if turbofish.as_ref().map_or(false, |generics| !generics.named_args.is_empty()) {
+                let reason = ParserErrorReason::AssociatedTypesNotAllowedInMethodCalls;
+                emit(ParserError::with_reason(reason, span));
+            }
+
+            let macro_call = macro_call.is_some();
+            let turbofish = turbofish.map(|generics| generics.ordered_args);
+            UnaryRhsMethodCall { turbofish, macro_call, args }
         });
 
     // `.foo` or `.foo(args)` in `atom.foo` or `atom.foo(args)`
