@@ -46,6 +46,7 @@ env:
   TF_VAR_SEQUENCER_PRIVATE_KEYS: '["${{ secrets.SEQ_1_PUBLISHER_PRIVATE_KEY }}"]'
   TF_VAR_NODE_P2P_PRIVATE_KEYS: '[""]'
   TF_VAR_SEQ_MAX_SECONDS_BETWEEN_BLOCKS: 0 # disable auto block building
+  TF_VAR_SEQ_MIN_SECONDS_BETWEEN_BLOCKS: 0 # disable auto block building
   TF_VAR_SEQ_MIN_TX_PER_BLOCK: 1
   TF_VAR_SEQ_MAX_TX_PER_BLOCK: 64
   TF_VAR_NODE_P2P_TCP_PORT: 40000
@@ -275,7 +276,7 @@ jobs:
           concurrency_key: build-aztec-${{ github.actor }}
           dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
       - name: "Build & Push aztec images"
-        timeout-minutes: 40
+        timeout-minutes: 60
         if: ${{ github.event.inputs.no_rebuild_images == 'false' }}
         run: |
           env
@@ -353,12 +354,11 @@ jobs:
       ]
     env:
       DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
-    runs-on: ${{ github.actor }}-x86
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: "${{ env.GIT_COMMIT }}"
-          fetch-depth: 0
       - uses: ./.github/ci-setup-action
         with:
           dockerhub_password: "${{ env.DOCKERHUB_PASSWORD }}"
