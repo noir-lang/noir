@@ -117,7 +117,9 @@ global BASE_PARITY_INDEX: u32 = 18;
 global ROOT_PARITY_INDEX: u32 = 19;
 global BASE_ROLLUP_INDEX: u32 = 20;
 global MERGE_ROLLUP_INDEX: u32 = 21;
-global ROOT_ROLLUP_INDEX: u32 = 22;
+global BLOCK_ROOT_ROLLUP_INDEX: u32 = 22;
+global BLOCK_MERGE_ROLLUP_INDEX: u32 = 23;
+global ROOT_ROLLUP_INDEX: u32 = 24;
 
 // MISC CONSTANTS
 global FUNCTION_SELECTOR_NUM_BYTES: Field = 4;
@@ -259,6 +261,8 @@ global CONSTANT_ROLLUP_DATA_LENGTH = APPEND_ONLY_TREE_SNAPSHOT_LENGTH + 1 + GLOB
 
 // + 5 for rollup_type, height_in_block_tree, txs_effects_hash, out_hash, accumulated_fees
 global BASE_OR_MERGE_PUBLIC_INPUTS_LENGTH = CONSTANT_ROLLUP_DATA_LENGTH + PARTIAL_STATE_REFERENCE_LENGTH + PARTIAL_STATE_REFERENCE_LENGTH + 5;
+// + 64 for 32 * FeeRecipient { recipient, value }, + 4 for previous_block_hash, end_block_hash, out_hash, vk_tree_root + 1 temporarily for prover_id
+global BLOCK_ROOT_OR_BLOCK_MERGE_PUBLIC_INPUTS_LENGTH = 2 * APPEND_ONLY_TREE_SNAPSHOT_LENGTH + 2 * GLOBAL_VARIABLES_LENGTH + 69;
 
 global GET_NOTES_ORACLE_RETURN_LENGTH: u32 = 674;
 global NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP: u32 = 32 * MAX_NOTE_HASHES_PER_TX;

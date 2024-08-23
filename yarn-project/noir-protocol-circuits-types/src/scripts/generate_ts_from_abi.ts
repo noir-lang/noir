@@ -23,6 +23,8 @@ const circuits = [
   'public_kernel_tail',
   'rollup_base',
   'rollup_merge',
+  'rollup_block_root',
+  'rollup_block_merge',
   'rollup_root',
   'private_kernel_empty',
   'empty_nested',

@@ -33,6 +33,7 @@ import {Leonidas} from "./sequencer_selection/Leonidas.sol";
 contract Rollup is Leonidas, IRollup, ITestRollup {
   struct BlockLog {
     bytes32 archive;
+    bytes32 blockHash;
     uint128 slotNumber;
     bool isProven;
   }
@@ -88,7 +89,8 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     VERSION = 1;
 
     // Genesis block
-    blocks[0] = BlockLog({archive: bytes32(0), slotNumber: 0, isProven: true});
+    blocks[0] =
+      BlockLog({archive: bytes32(0), blockHash: bytes32(0), slotNumber: 0, isProven: true});
     pendingBlockCount = 1;
     provenBlockCount = 1;
   }
@@ -181,17 +183,19 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
+   * @param _blockHash - The poseidon2 hash of the header added to the archive tree in the rollup circuit
    * @param _signatures - Signatures from the validators
    * @param _body - The body of the L2 block
    */
   function publishAndProcess(
     bytes calldata _header,
     bytes32 _archive,
+    bytes32 _blockHash,
     SignatureLib.Signature[] memory _signatures,
     bytes calldata _body
   ) external override(IRollup) {
     AVAILABILITY_ORACLE.publish(_body);
-    process(_header, _archive, _signatures);
+    process(_header, _archive, _blockHash, _signatures);
   }
 
   /**
@@ -200,18 +204,23 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    * @dev     `eth_log_handlers` rely on this function
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
+   * @param _blockHash - The poseidon2 hash of the header added to the archive tree in the rollup circuit
    * @param _body - The body of the L2 block
    */
-  function publishAndProcess(bytes calldata _header, bytes32 _archive, bytes calldata _body)
-    external
-    override(IRollup)
-  {
+  function publishAndProcess(
+    bytes calldata _header,
+    bytes32 _archive,
+    bytes32 _blockHash,
+    bytes calldata _body
+  ) external override(IRollup) {
     AVAILABILITY_ORACLE.publish(_body);
-    process(_header, _archive);
+    process(_header, _archive, _blockHash);
   }
 
   /**
    * @notice  Submit a proof for a block in the pending chain
+   *
+   * @dev     TODO(#7346): Verify root proofs rather than block root when batch rollups are integrated.
    *
    * @dev     Will call `_progressState` to update the proven chain. Notice this have potentially
    *          unbounded gas consumption.
@@ -231,10 +240,11 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @param  _header - The header of the block (should match the block in the pending chain)
    * @param  _archive - The archive root of the block (should match the block in the pending chain)
+   * @param  _proverId - The id of this block's prover
    * @param  _aggregationObject - The aggregation object for the proof
    * @param  _proof - The proof to verify
    */
-  function submitProof(
+  function submitBlockRootProof(
     bytes calldata _header,
     bytes32 _archive,
     bytes32 _proverId,
@@ -259,23 +269,59 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       revert Errors.Rollup__InvalidProposedArchive(expectedArchive, _archive);
     }
 
-    bytes32[] memory publicInputs =
-      new bytes32[](4 + Constants.HEADER_LENGTH + Constants.AGGREGATION_OBJECT_LENGTH);
-    // the archive tree root
-    publicInputs[0] = _archive;
+    // TODO(#7346): Currently verifying block root proofs until batch rollups fully integrated.
+    // Hence the below pub inputs are BlockRootOrBlockMergePublicInputs, which are larger than
+    // the planned set (RootRollupPublicInputs), for the interim.
+    // Public inputs are not fully verified (TODO(#7373))
+
+    bytes32[] memory publicInputs = new bytes32[](
+      Constants.BLOCK_ROOT_OR_BLOCK_MERGE_PUBLIC_INPUTS_LENGTH + Constants.AGGREGATION_OBJECT_LENGTH
+    );
+
+    // From block_root_or_block_merge_public_inputs.nr: BlockRootOrBlockMergePublicInputs.
+    // previous_archive.root: the previous archive tree root
+    publicInputs[0] = expectedLastArchive;
+    // previous_archive.next_available_leaf_index: the previous archive next available index
+    publicInputs[1] = bytes32(header.globalVariables.blockNumber);
+
+    // new_archive.root: the new archive tree root
+    publicInputs[2] = expectedArchive;
     // this is the _next_ available leaf in the archive tree
     // normally this should be equal to the block number (since leaves are 0-indexed and blocks 1-indexed)
     // but in yarn-project/merkle-tree/src/new_tree.ts we prefill the tree so that block N is in leaf N
-    publicInputs[1] = bytes32(header.globalVariables.blockNumber + 1);
+    // new_archive.next_available_leaf_index: the new archive next available index
+    publicInputs[3] = bytes32(header.globalVariables.blockNumber + 1);
 
-    publicInputs[2] = vkTreeRoot;
+    // TODO(#7346): Currently previous block hash is unchecked, but will be checked in batch rollup (block merge -> root).
+    // block-building-helpers.ts is injecting as 0 for now, replicating here.
+    // previous_block_hash: the block hash just preceding this block (will eventually become the end_block_hash of the prev batch)
+    publicInputs[4] = bytes32(0);
 
-    bytes32[] memory headerFields = HeaderLib.toFields(header);
-    for (uint256 i = 0; i < headerFields.length; i++) {
-      publicInputs[i + 3] = headerFields[i];
+    // end_block_hash: the current block hash (will eventually become the hash of the final block proven in a batch)
+    publicInputs[5] = blocks[header.globalVariables.blockNumber].blockHash;
+
+    // For block root proof outputs, we have a block 'range' of just 1 block => start and end globals are the same
+    bytes32[] memory globalVariablesFields = HeaderLib.toFields(header.globalVariables);
+    for (uint256 i = 0; i < globalVariablesFields.length; i++) {
+      // start_global_variables
+      publicInputs[i + 6] = globalVariablesFields[i];
+      // end_global_variables
+      publicInputs[globalVariablesFields.length + i + 6] = globalVariablesFields[i];
     }
+    // out_hash: root of this block's l2 to l1 message tree (will eventually be root of roots)
+    publicInputs[24] = header.contentCommitment.outHash;
 
-    publicInputs[headerFields.length + 3] = _proverId;
+    // For block root proof outputs, we have a single recipient-value fee payment pair,
+    // but the struct contains space for the max (32) => we keep 31*2=62 fields blank to represent it.
+    // fees: array of recipient-value pairs, for a single block just one entry (will eventually be filled and paid out here)
+    publicInputs[25] = bytes32(uint256(uint160(header.globalVariables.coinbase)));
+    publicInputs[26] = bytes32(header.totalFees);
+    // publicInputs[27] -> publicInputs[88] left blank for empty fee array entries
+
+    // vk_tree_root
+    publicInputs[89] = vkTreeRoot;
+    // prover_id: id of current block range's prover
+    publicInputs[90] = _proverId;
 
     // the block proof is recursive, which means it comes with an aggregation object
     // this snippet copies it into the public inputs needed for verification
@@ -286,7 +332,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       assembly {
         part := calldataload(add(_aggregationObject.offset, mul(i, 32)))
       }
-      publicInputs[i + 4 + Constants.HEADER_LENGTH] = part;
+      publicInputs[i + 91] = part;
     }
 
     if (!verifier.verify(_proof, publicInputs)) {
@@ -327,11 +373,13 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
+   * @param _blockHash - The poseidon2 hash of the header added to the archive tree in the rollup circuit
    * @param _signatures - Signatures from the validators
    */
   function process(
     bytes calldata _header,
     bytes32 _archive,
+    bytes32 _blockHash,
     SignatureLib.Signature[] memory _signatures
   ) public override(IRollup) {
     // Decode and validate header
@@ -343,6 +391,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     // the slot number to uint128
     blocks[pendingBlockCount++] = BlockLog({
       archive: _archive,
+      blockHash: _blockHash,
       slotNumber: uint128(header.globalVariables.slotNumber),
       isProven: false
     });
@@ -385,10 +434,14 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
+   * @param _blockHash - The poseidon2 hash of the header added to the archive tree in the rollup circuit
    */
-  function process(bytes calldata _header, bytes32 _archive) public override(IRollup) {
+  function process(bytes calldata _header, bytes32 _archive, bytes32 _blockHash)
+    public
+    override(IRollup)
+  {
     SignatureLib.Signature[] memory emptySignatures = new SignatureLib.Signature[](0);
-    process(_header, _archive, emptySignatures);
+    process(_header, _archive, _blockHash, emptySignatures);
   }
 
   /**

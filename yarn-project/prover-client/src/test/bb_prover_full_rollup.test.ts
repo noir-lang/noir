@@ -66,7 +66,7 @@ describe('prover/bb_prover/full-rollup', () => {
     logger.info(`Finalising block`);
     const blockResult = await context.orchestrator.finaliseBlock();
 
-    await expect(prover.verifyProof('RootRollupArtifact', blockResult.proof)).resolves.not.toThrow();
+    await expect(prover.verifyProof('BlockRootRollupArtifact', blockResult.proof)).resolves.not.toThrow();
   });
 
   // TODO(@PhilWindle): Remove public functions and re-enable once we can handle empty tx slots

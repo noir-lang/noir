@@ -3,6 +3,9 @@ import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
+  type BlockMergeRollupInputs,
+  type BlockRootOrBlockMergePublicInputs,
+  type BlockRootRollupInputs,
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
   type NESTED_RECURSIVE_PROOF_LENGTH,
@@ -66,6 +69,8 @@ export enum ProvingRequestType {
 
   BASE_ROLLUP,
   MERGE_ROLLUP,
+  BLOCK_ROOT_ROLLUP,
+  BLOCK_MERGE_ROLLUP,
   ROOT_ROLLUP,
 
   BASE_PARITY,
@@ -106,6 +111,14 @@ export type ProvingRequest =
       inputs: MergeRollupInputs;
     }
   | {
+      type: ProvingRequestType.BLOCK_ROOT_ROLLUP;
+      inputs: BlockRootRollupInputs;
+    }
+  | {
+      type: ProvingRequestType.BLOCK_MERGE_ROLLUP;
+      inputs: BlockMergeRollupInputs;
+    }
+  | {
       type: ProvingRequestType.ROOT_ROLLUP;
       inputs: RootRollupInputs;
     }
@@ -127,6 +140,8 @@ export type ProvingRequestPublicInputs = {
 
   [ProvingRequestType.BASE_ROLLUP]: PublicInputsAndRecursiveProof<BaseOrMergeRollupPublicInputs>;
   [ProvingRequestType.MERGE_ROLLUP]: PublicInputsAndRecursiveProof<BaseOrMergeRollupPublicInputs>;
+  [ProvingRequestType.BLOCK_ROOT_ROLLUP]: PublicInputsAndRecursiveProof<BlockRootOrBlockMergePublicInputs>;
+  [ProvingRequestType.BLOCK_MERGE_ROLLUP]: PublicInputsAndRecursiveProof<BlockRootOrBlockMergePublicInputs>;
   [ProvingRequestType.ROOT_ROLLUP]: PublicInputsAndRecursiveProof<RootRollupPublicInputs>;
 
   [ProvingRequestType.BASE_PARITY]: RootParityInput<typeof RECURSIVE_PROOF_LENGTH>;

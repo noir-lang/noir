@@ -75,7 +75,7 @@ describe('proof_verification', () => {
       language: 'Solidity',
       sources: {
         'UltraHonkVerifier.sol': {
-          content: await circuitVerifier.generateSolidityContract('RootRollupArtifact', 'UltraHonkVerifier.sol'),
+          content: await circuitVerifier.generateSolidityContract('BlockRootRollupArtifact', 'UltraHonkVerifier.sol'),
         },
       },
       settings: {
@@ -121,6 +121,8 @@ describe('proof_verification', () => {
     );
 
     block = L2Block.fromString(blockResult.block);
+    // TODO(#6624): Note that with honk proofs the below writes incorrect test data to file.
+    // The serialisation does not account for the prepended fields (circuit size, PI size, PI offset) in new Honk proofs, so the written data is shifted.
     proof = Proof.fromString(blockResult.proof);
     proverId = Fr.ZERO;
     aggregationObject = blockResult.aggregationObject.map((x: string) => Fr.fromString(x));
@@ -128,10 +130,11 @@ describe('proof_verification', () => {
 
   describe('bb', () => {
     it('verifies proof', async () => {
-      await expect(circuitVerifier.verifyProofForCircuit('RootRollupArtifact', proof)).resolves.toBeUndefined();
+      await expect(circuitVerifier.verifyProofForCircuit('BlockRootRollupArtifact', proof)).resolves.toBeUndefined();
     });
   });
-
+  // TODO(#6624) & TODO(#7346): The below PIs do not correspond to BlockRoot/Root circuits.
+  // They will need to be updated to whichever circuit we are using when switching on this test.
   describe('HonkVerifier', () => {
     it('verifies full proof', async () => {
       const reader = BufferReader.asReader(proof.buffer);
@@ -180,7 +183,8 @@ describe('proof_verification', () => {
       logger.info('Rollup only accepts valid proofs now');
       await availabilityContract.write.publish([`0x${block.body.toBuffer().toString('hex')}`]);
     });
-
+    // TODO(#6624) & TODO(#7346): Rollup.submitProof has changed to submitBlockRootProof/submitRootProof
+    // The inputs below may change depending on which submit fn we are using when we reinstate this test.
     it('verifies proof', async () => {
       const args = [
         `0x${block.header.toBuffer().toString('hex')}`,
@@ -190,7 +194,7 @@ describe('proof_verification', () => {
         `0x${proof.withoutPublicInputs().toString('hex')}`,
       ] as const;
 
-      await expect(rollupContract.write.submitProof(args)).resolves.toBeDefined();
+      await expect(rollupContract.write.submitBlockRootProof(args)).resolves.toBeDefined();
     });
   });
 });

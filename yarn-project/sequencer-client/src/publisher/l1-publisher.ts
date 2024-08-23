@@ -72,6 +72,8 @@ export type L1ProcessArgs = {
   header: Buffer;
   /** A root of the archive tree after the L2 block is applied. */
   archive: Buffer;
+  /** The L2 block's leaf in the archive tree. */
+  blockHash: Buffer;
   /** L2 block body. */
   body: Buffer;
   /** Attestations */
@@ -213,6 +215,7 @@ export class L1Publisher {
     const processTxArgs = {
       header: block.header.toBuffer(),
       archive: block.archive.root.toBuffer(),
+      blockHash: block.header.hash().toBuffer(),
       body: encodedBody,
       attestations,
     };
@@ -372,7 +375,7 @@ export class L1Publisher {
         `0x${proof.toString('hex')}`,
       ] as const;
 
-      return await this.rollupContract.write.submitProof(args, {
+      return await this.rollupContract.write.submitBlockRootProof(args, {
         account: this.account,
       });
     } catch (err) {
@@ -405,6 +408,7 @@ export class L1Publisher {
           const args = [
             `0x${encodedData.header.toString('hex')}`,
             `0x${encodedData.archive.toString('hex')}`,
+            `0x${encodedData.blockHash.toString('hex')}`,
             attestations,
           ] as const;
 
@@ -412,7 +416,11 @@ export class L1Publisher {
             account: this.account,
           });
         } else {
-          const args = [`0x${encodedData.header.toString('hex')}`, `0x${encodedData.archive.toString('hex')}`] as const;
+          const args = [
+            `0x${encodedData.header.toString('hex')}`,
+            `0x${encodedData.archive.toString('hex')}`,
+            `0x${encodedData.blockHash.toString('hex')}`,
+          ] as const;
 
           return await this.rollupContract.write.process(args, {
             account: this.account,
@@ -434,6 +442,7 @@ export class L1Publisher {
           const args = [
             `0x${encodedData.header.toString('hex')}`,
             `0x${encodedData.archive.toString('hex')}`,
+            `0x${encodedData.blockHash.toString('hex')}`,
             attestations,
             `0x${encodedData.body.toString('hex')}`,
           ] as const;
@@ -445,6 +454,7 @@ export class L1Publisher {
           const args = [
             `0x${encodedData.header.toString('hex')}`,
             `0x${encodedData.archive.toString('hex')}`,
+            `0x${encodedData.blockHash.toString('hex')}`,
             `0x${encodedData.body.toString('hex')}`,
           ] as const;
 

@@ -3,6 +3,9 @@ import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
+  type BlockMergeRollupInputs,
+  type BlockRootOrBlockMergePublicInputs,
+  type BlockRootRollupInputs,
   type MergeRollupInputs,
   type ParityPublicInputs,
   type RootParityInputs,
@@ -15,6 +18,10 @@ import {
   SimulatedServerCircuitArtifacts,
   convertBaseParityInputsToWitnessMap,
   convertBaseParityOutputsFromWitnessMap,
+  convertBlockMergeRollupInputsToWitnessMap,
+  convertBlockMergeRollupOutputsFromWitnessMap,
+  convertBlockRootRollupInputsToWitnessMap,
+  convertBlockRootRollupOutputsFromWitnessMap,
   convertMergeRollupInputsToWitnessMap,
   convertMergeRollupOutputsFromWitnessMap,
   convertRootParityInputsToWitnessMap,
@@ -56,6 +63,18 @@ export interface RollupSimulator {
    * @returns The public inputs as outputs of the simulation.
    */
   mergeRollupCircuit(input: MergeRollupInputs): Promise<BaseOrMergeRollupPublicInputs>;
+  /**
+   * Simulates the block root rollup circuit from its inputs.
+   * @param input - Inputs to the circuit.
+   * @returns The public inputs as outputs of the simulation.
+   */
+  blockRootRollupCircuit(input: BlockRootRollupInputs): Promise<BlockRootOrBlockMergePublicInputs>;
+  /**
+   * Simulates the block merge rollup circuit from its inputs.
+   * @param input - Inputs to the circuit.
+   * @returns The public inputs as outputs of the simulation.
+   */
+  blockMergeRollupCircuit(input: BlockMergeRollupInputs): Promise<BlockRootOrBlockMergePublicInputs>;
   /**
    * Simulates the root rollup circuit from its inputs.
    * @param input - Inputs to the circuit.
@@ -128,6 +147,7 @@ export class RealRollupCircuitSimulator implements RollupSimulator {
 
     return Promise.resolve(result);
   }
+
   /**
    * Simulates the merge rollup circuit from its inputs.
    * @param input - Inputs to the circuit.
@@ -144,6 +164,42 @@ export class RealRollupCircuitSimulator implements RollupSimulator {
     const result = convertMergeRollupOutputsFromWitnessMap(witness);
 
     return result;
+  }
+
+  /**
+   * Simulates the block root rollup circuit from its inputs.
+   * @param input - Inputs to the circuit.
+   * @returns The public inputs as outputs of the simulation.
+   */
+  public async blockRootRollupCircuit(input: BlockRootRollupInputs): Promise<BlockRootOrBlockMergePublicInputs> {
+    const witnessMap = convertBlockRootRollupInputsToWitnessMap(input);
+
+    const witness = await this.wasmSimulator.simulateCircuit(
+      witnessMap,
+      SimulatedServerCircuitArtifacts.BlockRootRollupArtifact,
+    );
+
+    const result = convertBlockRootRollupOutputsFromWitnessMap(witness);
+
+    return Promise.resolve(result);
+  }
+
+  /**
+   * Simulates the block merge rollup circuit from its inputs.
+   * @param input - Inputs to the circuit.
+   * @returns The public inputs as outputs of the simulation.
+   */
+  public async blockMergeRollupCircuit(input: BlockMergeRollupInputs): Promise<BlockRootOrBlockMergePublicInputs> {
+    const witnessMap = convertBlockMergeRollupInputsToWitnessMap(input);
+
+    const witness = await this.wasmSimulator.simulateCircuit(
+      witnessMap,
+      SimulatedServerCircuitArtifacts.BlockMergeRollupArtifact,
+    );
+
+    const result = convertBlockMergeRollupOutputsFromWitnessMap(witness);
+
+    return Promise.resolve(result);
   }
 
   /**

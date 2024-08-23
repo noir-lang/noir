@@ -11,6 +11,9 @@ import {
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
+  type BlockMergeRollupInputs,
+  type BlockRootOrBlockMergePublicInputs,
+  type BlockRootRollupInputs,
   EmptyNestedData,
   type KernelCircuitPublicInputs,
   type MergeRollupInputs,
@@ -42,6 +45,10 @@ import {
   SimulatedServerCircuitArtifacts,
   convertBaseParityInputsToWitnessMap,
   convertBaseParityOutputsFromWitnessMap,
+  convertBlockMergeRollupInputsToWitnessMap,
+  convertBlockMergeRollupOutputsFromWitnessMap,
+  convertBlockRootRollupInputsToWitnessMap,
+  convertBlockRootRollupOutputsFromWitnessMap,
   convertMergeRollupInputsToWitnessMap,
   convertMergeRollupOutputsFromWitnessMap,
   convertPrivateKernelEmptyInputsToWitnessMap,
@@ -296,6 +303,76 @@ export class TestCircuitProver implements ServerCircuitProver {
       result,
       makeEmptyRecursiveProof(NESTED_RECURSIVE_PROOF_LENGTH),
       ProtocolCircuitVks['MergeRollupArtifact'],
+    );
+  }
+
+  /**
+   * Simulates the block root rollup circuit from its inputs.
+   * @param input - Inputs to the circuit.
+   * @returns The public inputs as outputs of the simulation.
+   */
+  @trackSpan('TestCircuitProver.getBlockRootRollupProof')
+  public async getBlockRootRollupProof(
+    input: BlockRootRollupInputs,
+  ): Promise<PublicInputsAndRecursiveProof<BlockRootOrBlockMergePublicInputs>> {
+    const timer = new Timer();
+    const witnessMap = convertBlockRootRollupInputsToWitnessMap(input);
+
+    // use WASM here as it is faster for small circuits
+    const witness = await this.wasmSimulator.simulateCircuit(
+      witnessMap,
+      SimulatedServerCircuitArtifacts.BlockRootRollupArtifact,
+    );
+
+    const result = convertBlockRootRollupOutputsFromWitnessMap(witness);
+
+    this.instrumentation.recordDuration('simulationDuration', 'block-root-rollup', timer);
+    emitCircuitSimulationStats(
+      'block-root-rollup',
+      timer.ms(),
+      input.toBuffer().length,
+      result.toBuffer().length,
+      this.logger,
+    );
+    return makePublicInputsAndRecursiveProof(
+      result,
+      makeEmptyRecursiveProof(NESTED_RECURSIVE_PROOF_LENGTH),
+      ProtocolCircuitVks['BlockRootRollupArtifact'],
+    );
+  }
+
+  /**
+   * Simulates the block merge rollup circuit from its inputs.
+   * @param input - Inputs to the circuit.
+   * @returns The public inputs as outputs of the simulation.
+   */
+  @trackSpan('TestCircuitProver.getBlockMergeRollupProof')
+  public async getBlockMergeRollupProof(
+    input: BlockMergeRollupInputs,
+  ): Promise<PublicInputsAndRecursiveProof<BlockRootOrBlockMergePublicInputs>> {
+    const timer = new Timer();
+    const witnessMap = convertBlockMergeRollupInputsToWitnessMap(input);
+
+    // use WASM here as it is faster for small circuits
+    const witness = await this.wasmSimulator.simulateCircuit(
+      witnessMap,
+      SimulatedServerCircuitArtifacts.BlockMergeRollupArtifact,
+    );
+
+    const result = convertBlockMergeRollupOutputsFromWitnessMap(witness);
+
+    this.instrumentation.recordDuration('simulationDuration', 'block-merge-rollup', timer);
+    emitCircuitSimulationStats(
+      'block-merge-rollup',
+      timer.ms(),
+      input.toBuffer().length,
+      result.toBuffer().length,
+      this.logger,
+    );
+    return makePublicInputsAndRecursiveProof(
+      result,
+      makeEmptyRecursiveProof(NESTED_RECURSIVE_PROOF_LENGTH),
+      ProtocolCircuitVks['BlockMergeRollupArtifact'],
     );
   }
 

@@ -82,14 +82,6 @@ mod tests {
     }
 
     #[test(should_fail_with="input proofs have different constants")]
-    fn constants_different_fails() {
-        let mut inputs = default_merge_rollup_inputs();
-        inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.constants.global_variables.chain_id = 1;
-        inputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.constants.global_variables.chain_id = 0;
-        let _output = inputs.merge_rollup_circuit();
-    }
-
-    #[test(should_fail_with="input proofs have different constants")]
     fn constants_different_chain_id_fails() {
         let mut inputs = default_merge_rollup_inputs();
         inputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.constants.global_variables.chain_id = 1;

@@ -4,9 +4,13 @@ import {
   AppendOnlyTreeSnapshot,
   type BaseOrMergeRollupPublicInputs,
   BaseRollupInputs,
+  BlockMergeRollupInputs,
+  type BlockRootOrBlockMergePublicInputs,
+  BlockRootRollupInputs,
   ConstantRollupData,
   Fr,
   type GlobalVariables,
+  type Header,
   KernelData,
   type L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NULLIFIERS_PER_TX,
@@ -25,6 +29,7 @@ import {
   PUBLIC_DATA_SUBTREE_SIBLING_PATH_LENGTH,
   PUBLIC_DATA_TREE_HEIGHT,
   PartialStateReference,
+  PreviousRollupBlockData,
   PreviousRollupData,
   PublicDataHint,
   PublicDataTreeLeaf,
@@ -34,7 +39,6 @@ import {
   type RecursiveProof,
   type RootParityInput,
   RootRollupInputs,
-  type RootRollupPublicInputs,
   StateDiffHints,
   type StateReference,
   VK_TREE_HEIGHT,
@@ -185,11 +189,35 @@ export function createMergeRollupInputs(
   return mergeInputs;
 }
 
+// TODO(#7346): Integrate batch rollup circuits and test below
+export function createBlockMergeRollupInputs(
+  left: [
+    BlockRootOrBlockMergePublicInputs,
+    RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
+    VerificationKeyAsFields,
+  ],
+  right: [
+    BlockRootOrBlockMergePublicInputs,
+    RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
+    VerificationKeyAsFields,
+  ],
+) {
+  const mergeInputs = new BlockMergeRollupInputs([
+    getPreviousRollupBlockDataFromPublicInputs(left[0], left[1], left[2]),
+    getPreviousRollupBlockDataFromPublicInputs(right[0], right[1], right[2]),
+  ]);
+  return mergeInputs;
+}
+
 // Validate that the roots of all local trees match the output of the root circuit simulation
-export async function validateRootOutput(rootOutput: RootRollupPublicInputs, db: MerkleTreeOperations) {
+export async function validateBlockRootOutput(
+  blockRootOutput: BlockRootOrBlockMergePublicInputs,
+  blockHeader: Header,
+  db: MerkleTreeOperations,
+) {
   await Promise.all([
-    validateState(rootOutput.header.state, db),
-    validateSimulatedTree(await getTreeSnapshot(MerkleTreeId.ARCHIVE, db), rootOutput.archive, 'Archive'),
+    validateState(blockHeader.state, db),
+    validateSimulatedTree(await getTreeSnapshot(MerkleTreeId.ARCHIVE, db), blockRootOutput.newArchive, 'Archive'),
   ]);
 }
 
@@ -210,8 +238,8 @@ export async function validateState(state: StateReference, db: MerkleTreeOperati
   );
 }
 
-// Builds the inputs for the root rollup circuit, without making any changes to trees
-export async function getRootRollupInput(
+// Builds the inputs for the block root rollup circuit, without making any changes to trees
+export async function getBlockRootRollupInput(
   rollupOutputLeft: BaseOrMergeRollupPublicInputs,
   rollupProofLeft: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
   verificationKeyLeft: VerificationKeyAsFields,
@@ -225,7 +253,7 @@ export async function getRootRollupInput(
   db: MerkleTreeOperations,
   proverId: Fr,
 ) {
-  const previousRollupData: RootRollupInputs['previousRollupData'] = [
+  const previousRollupData: BlockRootRollupInputs['previousRollupData'] = [
     getPreviousRollupDataFromPublicInputs(rollupOutputLeft, rollupProofLeft, verificationKeyLeft),
     getPreviousRollupDataFromPublicInputs(rollupOutputRight, rollupProofRight, verificationKeyRight),
   ];
@@ -246,7 +274,7 @@ export async function getRootRollupInput(
     0,
   );
 
-  return RootRollupInputs.from({
+  return BlockRootRollupInputs.from({
     previousRollupData,
     l1ToL2Roots,
     newL1ToL2Messages,
@@ -254,6 +282,30 @@ export async function getRootRollupInput(
     startL1ToL2MessageTreeSnapshot: messageTreeSnapshot,
     startArchiveSnapshot,
     newArchiveSiblingPath,
+    // TODO(#7346): Inject previous block hash (required when integrating batch rollup circuits)
+    previousBlockHash: Fr.ZERO,
+    proverId,
+  });
+}
+
+// Builds the inputs for the final root rollup circuit, without making any changes to trees
+// TODO(#7346): Integrate batch rollup circuits and test below
+export function getRootRollupInput(
+  rollupOutputLeft: BlockRootOrBlockMergePublicInputs,
+  rollupProofLeft: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
+  verificationKeyLeft: VerificationKeyAsFields,
+  rollupOutputRight: BlockRootOrBlockMergePublicInputs,
+  rollupProofRight: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
+  verificationKeyRight: VerificationKeyAsFields,
+  proverId: Fr,
+) {
+  const previousRollupData: RootRollupInputs['previousRollupData'] = [
+    getPreviousRollupBlockDataFromPublicInputs(rollupOutputLeft, rollupProofLeft, verificationKeyLeft),
+    getPreviousRollupBlockDataFromPublicInputs(rollupOutputRight, rollupProofRight, verificationKeyRight),
+  ];
+
+  return RootRollupInputs.from({
+    previousRollupData,
     proverId,
   });
 }
@@ -266,6 +318,21 @@ export function getPreviousRollupDataFromPublicInputs(
   const leafIndex = getVKIndex(vk);
 
   return new PreviousRollupData(
+    rollupOutput,
+    rollupProof,
+    vk,
+    new MembershipWitness(VK_TREE_HEIGHT, BigInt(leafIndex), getVKSiblingPath(leafIndex)),
+  );
+}
+
+export function getPreviousRollupBlockDataFromPublicInputs(
+  rollupOutput: BlockRootOrBlockMergePublicInputs,
+  rollupProof: RecursiveProof<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
+  vk: VerificationKeyAsFields,
+) {
+  const leafIndex = getVKIndex(vk);
+
+  return new PreviousRollupBlockData(
     rollupOutput,
     rollupProof,
     vk,

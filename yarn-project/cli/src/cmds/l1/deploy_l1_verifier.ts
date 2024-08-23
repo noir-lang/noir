@@ -26,7 +26,10 @@ export async function deployUltraHonkVerifier(
   const { BBCircuitVerifier } = await import('@aztec/bb-prover');
 
   const circuitVerifier = await BBCircuitVerifier.new({ bbBinaryPath, bbWorkingDirectory });
-  const contractSrc = await circuitVerifier.generateSolidityContract('RootRollupArtifact', 'UltraHonkVerifier.sol');
+  const contractSrc = await circuitVerifier.generateSolidityContract(
+    'BlockRootRollupArtifact',
+    'UltraHonkVerifier.sol',
+  );
   log('Generated UltraHonkVerifier contract');
 
   const input = {

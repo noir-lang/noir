@@ -2,16 +2,9 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, type Tuple, serializeToBuffer, serializeToFields } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
-import {
-  ARCHIVE_HEIGHT,
-  L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
-  NESTED_RECURSIVE_PROOF_LENGTH,
-  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-} from '../../constants.gen.js';
-import { Header } from '../header.js';
-import { RootParityInput } from '../parity/root_parity_input.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
-import { PreviousRollupData } from './previous_rollup_data.js';
+import { FeeRecipient } from './block_root_or_block_merge_public_inputs.js';
+import { PreviousRollupBlockData } from './previous_rollup_block_data.js';
 
 /**
  * Represents inputs of the root rollup circuit.
@@ -21,33 +14,9 @@ export class RootRollupInputs {
     /**
      * The previous rollup data.
      * Note: Root rollup circuit is the latest circuit the chain of circuits and the previous rollup data is the data
-     * from 2 merge or base rollup circuits.
+     * from 2 block merge circuits.
      */
-    public previousRollupData: [PreviousRollupData, PreviousRollupData],
-    /**
-     * The original and converted roots of the L1 to L2 messages subtrees.
-     */
-    public l1ToL2Roots: RootParityInput<typeof NESTED_RECURSIVE_PROOF_LENGTH>,
-    /**
-     * New L1 to L2 messages.
-     */
-    public newL1ToL2Messages: Tuple<Fr, typeof NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP>,
-    /**
-     * Sibling path of the new L1 to L2 message tree root.
-     */
-    public newL1ToL2MessageTreeRootSiblingPath: Tuple<Fr, typeof L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH>,
-    /**
-     * Snapshot of the L1 to L2 message tree at the start of the rollup.
-     */
-    public startL1ToL2MessageTreeSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the historical block roots tree at the start of the rollup.
-     */
-    public startArchiveSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Sibling path of the new block tree root.
-     */
-    public newArchiveSiblingPath: Tuple<Fr, typeof ARCHIVE_HEIGHT>,
+    public previousRollupData: [PreviousRollupBlockData, PreviousRollupBlockData],
     /** Identifier of the prover for this root rollup. */
     public proverId: Fr,
   ) {}
@@ -83,16 +52,7 @@ export class RootRollupInputs {
    * @returns An array of fields.
    */
   static getFields(fields: FieldsOf<RootRollupInputs>) {
-    return [
-      fields.previousRollupData,
-      fields.l1ToL2Roots,
-      fields.newL1ToL2Messages,
-      fields.newL1ToL2MessageTreeRootSiblingPath,
-      fields.startL1ToL2MessageTreeSnapshot,
-      fields.startArchiveSnapshot,
-      fields.newArchiveSiblingPath,
-      fields.proverId,
-    ] as const;
+    return [fields.previousRollupData, fields.proverId] as const;
   }
 
   /**
@@ -103,14 +63,8 @@ export class RootRollupInputs {
   static fromBuffer(buffer: Buffer | BufferReader): RootRollupInputs {
     const reader = BufferReader.asReader(buffer);
     return new RootRollupInputs(
-      [reader.readObject(PreviousRollupData), reader.readObject(PreviousRollupData)],
-      RootParityInput.fromBuffer(reader, NESTED_RECURSIVE_PROOF_LENGTH),
-      reader.readArray(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr),
-      reader.readArray(L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, Fr),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readArray(ARCHIVE_HEIGHT, Fr),
-      reader.readObject(Fr),
+      [reader.readObject(PreviousRollupBlockData), reader.readObject(PreviousRollupBlockData)],
+      Fr.fromBuffer(reader),
     );
   }
 
@@ -131,18 +85,33 @@ export class RootRollupInputs {
  */
 export class RootRollupPublicInputs {
   constructor(
-    /** Snapshot of archive tree after this block/rollup been processed */
-    public archive: AppendOnlyTreeSnapshot,
-    /** The root for the protocol circuits vk tree */
+    /** Snapshot of archive tree before/after this rollup been processed */
+    public previousArchive: AppendOnlyTreeSnapshot,
+    public endArchive: AppendOnlyTreeSnapshot,
+    public previousBlockHash: Fr,
+    public endBlockHash: Fr,
+    // This is a u64 in nr, but GlobalVariables contains this as a u64 and is mapped to ts as a field, so I'm doing the same here
+    public endTimestamp: Fr,
+    public endBlockNumber: Fr,
+    public outHash: Fr,
+    public fees: Tuple<FeeRecipient, 32>,
     public vkTreeRoot: Fr,
-    /** A header of an L2 block. */
-    public header: Header,
-    /** Identifier of the prover who generated this proof. */
     public proverId: Fr,
   ) {}
 
   static getFields(fields: FieldsOf<RootRollupPublicInputs>) {
-    return [fields.archive, fields.vkTreeRoot, fields.header, fields.proverId] as const;
+    return [
+      fields.previousArchive,
+      fields.endArchive,
+      fields.previousBlockHash,
+      fields.endBlockHash,
+      fields.endTimestamp,
+      fields.endBlockNumber,
+      fields.outHash,
+      fields.fees,
+      fields.vkTreeRoot,
+      fields.proverId,
+    ] as const;
   }
 
   toBuffer() {
@@ -166,9 +135,15 @@ export class RootRollupPublicInputs {
     const reader = BufferReader.asReader(buffer);
     return new RootRollupPublicInputs(
       reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(Fr),
-      reader.readObject(Header),
-      reader.readObject(Fr),
+      reader.readObject(AppendOnlyTreeSnapshot),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
+      reader.readArray(32, FeeRecipient),
+      Fr.fromBuffer(reader),
+      Fr.fromBuffer(reader),
     );
   }
 

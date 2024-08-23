@@ -46,11 +46,24 @@ describe('prover/orchestrator/failures', () => {
         },
       ],
       [
-        'Root Rollup Failed',
+        'Block Root Rollup Failed',
         () => {
-          jest.spyOn(mockProver, 'getRootRollupProof').mockRejectedValue('Root Rollup Failed');
+          jest.spyOn(mockProver, 'getBlockRootRollupProof').mockRejectedValue('Block Root Rollup Failed');
         },
       ],
+      // TODO(#7346): Integrate batch rollup circuits into orchestrator and test here
+      // [
+      //   'Block Merge Rollup Failed',
+      //   () => {
+      //     jest.spyOn(mockProver, 'getBlockMergeRollupProof').mockRejectedValue('Block Merge Rollup Failed');
+      //   },
+      // ],
+      // [
+      //   'Root Rollup Failed',
+      //   () => {
+      //     jest.spyOn(mockProver, 'getRootRollupProof').mockRejectedValue('Root Rollup Failed');
+      //   },
+      // ],
       [
         'Base Parity Failed',
         () => {

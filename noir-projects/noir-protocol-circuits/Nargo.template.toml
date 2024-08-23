@@ -34,5 +34,7 @@ members = [
     "crates/rollup-merge",
     "crates/rollup-base",
     "crates/rollup-base-simulated",
+    "crates/rollup-block-merge",
+    "crates/rollup-block-root",
     "crates/rollup-root",
 ]

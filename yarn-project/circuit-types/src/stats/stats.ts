@@ -76,6 +76,8 @@ export type CircuitName =
   | 'root-parity'
   | 'base-rollup'
   | 'merge-rollup'
+  | 'block-root-rollup'
+  | 'block-merge-rollup'
   | 'root-rollup'
   | 'private-kernel-init'
   | 'private-kernel-inner'

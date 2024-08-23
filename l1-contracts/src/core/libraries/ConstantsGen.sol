@@ -91,7 +91,9 @@ library Constants {
   uint256 internal constant ROOT_PARITY_INDEX = 19;
   uint256 internal constant BASE_ROLLUP_INDEX = 20;
   uint256 internal constant MERGE_ROLLUP_INDEX = 21;
-  uint256 internal constant ROOT_ROLLUP_INDEX = 22;
+  uint256 internal constant BLOCK_ROOT_ROLLUP_INDEX = 22;
+  uint256 internal constant BLOCK_MERGE_ROLLUP_INDEX = 23;
+  uint256 internal constant ROOT_ROLLUP_INDEX = 24;
   uint256 internal constant FUNCTION_SELECTOR_NUM_BYTES = 4;
   uint256 internal constant ARGS_HASH_CHUNK_LENGTH = 16;
   uint256 internal constant ARGS_HASH_CHUNK_COUNT = 16;
@@ -197,6 +199,7 @@ library Constants {
   uint256 internal constant KERNEL_CIRCUIT_PUBLIC_INPUTS_LENGTH = 663;
   uint256 internal constant CONSTANT_ROLLUP_DATA_LENGTH = 12;
   uint256 internal constant BASE_OR_MERGE_PUBLIC_INPUTS_LENGTH = 29;
+  uint256 internal constant BLOCK_ROOT_OR_BLOCK_MERGE_PUBLIC_INPUTS_LENGTH = 91;
   uint256 internal constant GET_NOTES_ORACLE_RETURN_LENGTH = 674;
   uint256 internal constant NOTE_HASHES_NUM_BYTES_PER_BASE_ROLLUP = 2048;
   uint256 internal constant NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP = 2048;

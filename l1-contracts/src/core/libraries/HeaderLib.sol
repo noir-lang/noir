@@ -203,4 +203,33 @@ library HeaderLib {
 
     return fields;
   }
+
+  // TODO(#7346): Currently using the below to verify block root proofs until batch rollups fully integrated.
+  // Once integrated, remove the below fn (not used anywhere else).
+  function toFields(GlobalVariables memory _globalVariables)
+    internal
+    pure
+    returns (bytes32[] memory)
+  {
+    bytes32[] memory fields = new bytes32[](Constants.GLOBAL_VARIABLES_LENGTH);
+
+    fields[0] = bytes32(_globalVariables.chainId);
+    fields[1] = bytes32(_globalVariables.version);
+    fields[2] = bytes32(_globalVariables.blockNumber);
+    fields[3] = bytes32(_globalVariables.slotNumber);
+    fields[4] = bytes32(_globalVariables.timestamp);
+    fields[5] = bytes32(uint256(uint160(_globalVariables.coinbase)));
+    fields[6] = bytes32(_globalVariables.feeRecipient);
+    fields[7] = bytes32(_globalVariables.gasFees.feePerDaGas);
+    fields[8] = bytes32(_globalVariables.gasFees.feePerL2Gas);
+
+    // fail if the header structure has changed without updating this function
+    if (fields.length != Constants.GLOBAL_VARIABLES_LENGTH) {
+      // TODO(Miranda): Temporarily using this method and below error while block-root proofs are verified
+      // When we verify root proofs, this method can be removed => no need for separate named error
+      revert Errors.HeaderLib__InvalidHeaderSize(Constants.HEADER_LENGTH, fields.length);
+    }
+
+    return fields;
+  }
 }

@@ -79,7 +79,8 @@ describe('full_prover', () => {
           // fail the test. User asked for fixtures but we don't have any
           throw new Error('No block result found in test data');
         }
-
+        // TODO(#6624): Note that with honk proofs the below writes incorrect test data to file.
+        // The serialisation does not account for the prepended fields (circuit size, PI size, PI offset) in new Honk proofs, so the written data is shifted.
         writeTestData(
           'yarn-project/end-to-end/src/fixtures/dumps/block_result.json',
           JSON.stringify({

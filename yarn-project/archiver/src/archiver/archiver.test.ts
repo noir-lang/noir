@@ -291,10 +291,11 @@ function makeProofVerifiedEvent(l1BlockNum: bigint, l2BlockNumber: bigint, prove
 function makeRollupTx(l2Block: L2Block) {
   const header = toHex(l2Block.header.toBuffer());
   const archive = toHex(l2Block.archive.root.toBuffer());
+  const blockHash = toHex(l2Block.header.hash().toBuffer());
   const input = encodeFunctionData({
     abi: RollupAbi,
     functionName: 'process',
-    args: [header, archive],
+    args: [header, archive, blockHash],
   });
   return { input } as Transaction<bigint, number>;
 }

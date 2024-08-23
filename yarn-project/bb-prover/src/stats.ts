@@ -15,6 +15,10 @@ export function mapProtocolArtifactNameToCircuitName(
       return 'base-rollup';
     case 'MergeRollupArtifact':
       return 'merge-rollup';
+    case 'BlockRootRollupArtifact':
+      return 'block-root-rollup';
+    case 'BlockMergeRollupArtifact':
+      return 'block-merge-rollup';
     case 'RootRollupArtifact':
       return 'root-rollup';
     case 'PublicKernelSetupArtifact':

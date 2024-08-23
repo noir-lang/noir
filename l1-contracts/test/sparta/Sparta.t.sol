@@ -239,13 +239,13 @@ contract SpartaTest is DecoderBase {
       }
 
       vm.prank(ree.proposer);
-      rollup.process(header, archive, signatures);
+      rollup.process(header, archive, bytes32(0), signatures);
 
       if (ree.shouldRevert) {
         return;
       }
     } else {
-      rollup.process(header, archive);
+      rollup.process(header, archive, bytes32(0));
     }
 
     assertEq(_expectRevert, ree.shouldRevert, "Invalid revert expectation");

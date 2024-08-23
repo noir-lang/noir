@@ -100,7 +100,7 @@ async function getBlockMetadataFromRollupTx(
   if (!(functionName === 'process' || functionName === 'publishAndProcess')) {
     throw new Error(`Unexpected method called ${functionName}`);
   }
-  const [headerHex, archiveRootHex] = args! as readonly [Hex, Hex];
+  const [headerHex, archiveRootHex, _] = args! as readonly [Hex, Hex, Hex];
 
   const header = Header.fromBuffer(Buffer.from(hexToBytes(headerHex)));
 
@@ -133,16 +133,16 @@ async function getBlockBodiesFromAvailabilityOracleTx(
   txHash: `0x${string}`,
 ): Promise<Body> {
   const { input: data } = await publicClient.getTransaction({ hash: txHash });
-  const DATA_INDEX = [3, 2, 0];
+  const DATA_INDEX = [4, 3, 0];
 
   // @note  Use `forge inspect Rollup methodIdentifiers to get this,
   //        If using `forge sig` you will get an INVALID value for the case with a struct.
   // [
-  //   "publishAndProcess(bytes calldata _header,bytes32 _archive,SignatureLib.Signature[] memory _signatures,bytes calldata _body)",
-  //   "publishAndProcess(bytes calldata _header,bytes32 _archive,bytes calldata _body)",
+  //   "publishAndProcess(bytes calldata _header,bytes32 _archive,bytes32 _blockHash,SignatureLib.Signature[] memory _signatures,bytes calldata _body)",
+  //   "publishAndProcess(bytes calldata _header,bytes32 _archive,bytes32 _blockHash,bytes calldata _body)",
   //   "publish(bytes calldata _body)"
   // ]
-  const SUPPORTED_SIGS = ['0xe4e90c26', '0xe86e3595', '0x7fd28346'];
+  const SUPPORTED_SIGS = ['0x64450c6c', '0xde36c478', '0x7fd28346'];
 
   const signature = slice(data, 0, 4);
 

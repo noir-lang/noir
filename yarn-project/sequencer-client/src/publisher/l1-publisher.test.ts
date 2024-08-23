@@ -66,6 +66,7 @@ describe('L1Publisher', () => {
 
   let header: Buffer;
   let archive: Buffer;
+  let blockHash: Buffer;
   let body: Buffer;
 
   let account: PrivateKeyAccount;
@@ -77,6 +78,7 @@ describe('L1Publisher', () => {
 
     header = l2Block.header.toBuffer();
     archive = l2Block.archive.root.toBuffer();
+    blockHash = l2Block.header.hash().toBuffer();
     body = l2Block.body.toBuffer();
 
     processTxHash = `0x${Buffer.from('txHashProcess').toString('hex')}`; // random tx hash
@@ -132,7 +134,12 @@ describe('L1Publisher', () => {
 
     expect(result).toEqual(true);
 
-    const args = [`0x${header.toString('hex')}`, `0x${archive.toString('hex')}`, `0x${body.toString('hex')}`] as const;
+    const args = [
+      `0x${header.toString('hex')}`,
+      `0x${archive.toString('hex')}`,
+      `0x${blockHash.toString('hex')}`,
+      `0x${body.toString('hex')}`,
+    ] as const;
     expect(rollupContractWrite.publishAndProcess).toHaveBeenCalledWith(args, { account: account });
     expect(publicClient.getTransactionReceipt).toHaveBeenCalledWith({ hash: publishAndProcessTxHash });
   });
@@ -146,7 +153,11 @@ describe('L1Publisher', () => {
     const result = await publisher.processL2Block(l2Block);
 
     expect(result).toEqual(true);
-    const args = [`0x${header.toString('hex')}`, `0x${archive.toString('hex')}`] as const;
+    const args = [
+      `0x${header.toString('hex')}`,
+      `0x${archive.toString('hex')}`,
+      `0x${blockHash.toString('hex')}`,
+    ] as const;
     expect(rollupContractWrite.process).toHaveBeenCalledWith(args, { account });
     expect(publicClient.getTransactionReceipt).toHaveBeenCalledWith({ hash: processTxHash });
   });
