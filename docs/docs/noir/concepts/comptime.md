@@ -38,7 +38,7 @@ Note that while in a `comptime` context, any runtime variables _local to the cur
 
 ## Evaluating
 
-Evaluation rules of `comptime` follows the normal evaluation rules for other Noir code. There are a few things to note though:
+Evaluation rules of `comptime` follows the normal unconstrained evaluation rules for other Noir code. There are a few things to note though:
 
 - Certain built-in functions may not be available, although more may be added over time.
 - Evaluation order of global items is currently unspecified. For example, given the following two functions we can't guarantee
