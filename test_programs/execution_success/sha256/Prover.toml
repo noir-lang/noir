@@ -34,3 +34,5 @@ result = [
         0x73,
         0x2b,
 ]
+input = [0, 0]
+toggle = false

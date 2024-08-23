@@ -2,9 +2,9 @@
 /// traversing the AST without any additional logic.
 use noirc_frontend::{
     ast::{
-        ArrayLiteral, AssignStatement, CallExpression, CastExpression, ConstrainStatement,
-        Expression, ForRange, FunctionReturnType, IndexExpression, InfixExpression, Literal,
-        MethodCallExpression, NoirTrait, NoirTypeAlias, TraitImplItem, UnresolvedType,
+        ArrayLiteral, AssignStatement, CastExpression, ConstrainStatement, Expression, ForRange,
+        FunctionReturnType, GenericTypeArgs, IndexExpression, InfixExpression, Literal, NoirTrait,
+        NoirTypeAlias, TraitImplItem, UnresolvedType,
     },
     ParsedModule,
 };
@@ -89,19 +89,6 @@ impl<'a> NodeFinder<'a> {
         self.find_in_expression(&index_expression.index);
     }
 
-    pub(super) fn find_in_call_expression(&mut self, call_expression: &CallExpression) {
-        self.find_in_expression(&call_expression.func);
-        self.find_in_expressions(&call_expression.arguments);
-    }
-
-    pub(super) fn find_in_method_call_expression(
-        &mut self,
-        method_call_expression: &MethodCallExpression,
-    ) {
-        self.find_in_expression(&method_call_expression.object);
-        self.find_in_expressions(&method_call_expression.arguments);
-    }
-
     pub(super) fn find_in_cast_expression(&mut self, cast_expression: &CastExpression) {
         self.find_in_expression(&cast_expression.lhs);
     }
@@ -114,6 +101,13 @@ impl<'a> NodeFinder<'a> {
     pub(super) fn find_in_unresolved_types(&mut self, unresolved_type: &[UnresolvedType]) {
         for unresolved_type in unresolved_type {
             self.find_in_unresolved_type(unresolved_type);
+        }
+    }
+
+    pub(super) fn find_in_type_args(&mut self, generics: &GenericTypeArgs) {
+        self.find_in_unresolved_types(&generics.ordered_args);
+        for (_name, typ) in &generics.named_args {
+            self.find_in_unresolved_type(typ);
         }
     }
 

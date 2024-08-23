@@ -74,6 +74,9 @@ pub struct SsaEvaluatorOptions {
     /// If specified, write the abstract assembly-like representation of the plonky2 high-level
     /// operations used to represent the program in the given file.
     pub plonky2_print_file: Option<String>,
+    
+    /// Skip the check for under constrained values
+    pub skip_underconstrained_check: bool,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -127,7 +130,13 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
-    let ssa_level_warnings = ssa.check_for_underconstrained_values();
+    let ssa_level_warnings = if options.skip_underconstrained_check {
+        vec![]
+    } else {
+        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
+            ssa.check_for_underconstrained_values()
+        })
+    };
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });

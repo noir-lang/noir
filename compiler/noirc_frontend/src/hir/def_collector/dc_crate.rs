@@ -12,16 +12,16 @@ use crate::{Generics, Type};
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::Context;
 
-use crate::macros_api::{MacroError, MacroProcessor};
+use crate::macros_api::{Expression, MacroError, MacroProcessor};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
     TypeAliasId,
 };
 
 use crate::ast::{
-    ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType,
+    ExpressionKind, GenericTypeArgs, Ident, LetStatement, Literal, NoirFunction, NoirStruct,
+    NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType,
 };
 
 use crate::parser::{ParserError, SortedModule};
@@ -75,12 +75,15 @@ pub struct UnresolvedTrait {
 pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub trait_generics: Vec<UnresolvedType>,
+    pub trait_generics: GenericTypeArgs,
     pub trait_path: Path,
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
+
+    pub associated_types: Vec<(Ident, UnresolvedType)>,
+    pub associated_constants: Vec<(Ident, UnresolvedType, Expression)>,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,

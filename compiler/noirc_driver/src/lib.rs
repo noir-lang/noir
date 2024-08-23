@@ -133,6 +133,12 @@ pub struct CompileOptions {
     /// Temporary flag to enable the experimental arithmetic generics feature
     #[arg(long, hide = true)]
     pub arithmetic_generics: bool,
+
+    /// Flag to turn off the compiler check for under constrained values.
+    /// Warning: This can improve compilation speed but can also lead to correctness errors.
+    /// This check should always be run on production code.
+    #[arg(long)]
+    pub skip_underconstrained_check: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -595,6 +601,7 @@ pub fn compile_no_check(
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         show_plonky2: options.show_plonky2,
         plonky2_print_file: options.plonky2_print_file.clone(),
+        skip_underconstrained_check: options.skip_underconstrained_check,
     };
     
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =

@@ -15,11 +15,12 @@ use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, Completion
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        AsTraitPath, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
-        ForLoopStatement, Ident, IfExpression, LValue, Lambda, LetStatement,
-        MemberAccessExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind,
-        PathSegment, Pattern, Statement, StatementKind, TraitItem, TypeImpl, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind,
+        AsTraitPath, BlockExpression, CallExpression, ConstructorExpression, Expression,
+        ExpressionKind, ForLoopStatement, Ident, IfExpression, LValue, Lambda, LetStatement,
+        MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl,
+        Path, PathKind, PathSegment, Pattern, Statement, StatementKind, TraitItem, TypeImpl,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
+        UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
@@ -338,6 +339,71 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    pub(super) fn find_in_call_expression(&mut self, call_expression: &CallExpression) {
+        // Check if it's this case:
+        //
+        // foo::b>|<(...)
+        //
+        // In this case we want to suggest items in foo but if they are functions
+        // we don't want to insert arguments, because they are already there (even if
+        // they could be wrong) just because inserting them would lead to broken code.
+        if let ExpressionKind::Variable(path) = &call_expression.func.kind {
+            if self.includes_span(path.span) {
+                self.find_in_path_impl(path, RequestedItems::AnyItems, true);
+                return;
+            }
+        }
+
+        // Check if it's this case:
+        //
+        // foo.>|<(...)
+        //
+        // "foo." is actually broken, but it's parsed as "foo", so this is seen
+        // as "foo(...)" but if we are at a dot right after "foo" it means it's
+        // the above case and we want to suggest methods of foo's type.
+        let after_dot = self.byte == Some(b'.');
+        if after_dot && call_expression.func.span.end() as usize == self.byte_index - 1 {
+            let location = Location::new(call_expression.func.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
+                let prefix = "";
+                self.complete_type_fields_and_methods(&typ, prefix, FunctionCompletionKind::Name);
+                return;
+            }
+        }
+
+        self.find_in_expression(&call_expression.func);
+        self.find_in_expressions(&call_expression.arguments);
+    }
+
+    pub(super) fn find_in_method_call_expression(
+        &mut self,
+        method_call_expression: &MethodCallExpression,
+    ) {
+        // Check if it's this case:
+        //
+        // foo.b>|<(...)
+        //
+        // In this case we want to suggest items in foo but if they are functions
+        // we don't want to insert arguments, because they are already there (even if
+        // they could be wrong) just because inserting them would lead to broken code.
+        if self.includes_span(method_call_expression.method_name.span()) {
+            let location = Location::new(method_call_expression.object.span, self.file);
+            if let Some(typ) = self.interner.type_at_location(location) {
+                let typ = typ.follow_bindings();
+                let prefix = method_call_expression.method_name.to_string();
+                let offset =
+                    self.byte_index - method_call_expression.method_name.span().start() as usize;
+                let prefix = prefix[0..offset].to_string();
+                self.complete_type_fields_and_methods(&typ, &prefix, FunctionCompletionKind::Name);
+                return;
+            }
+        }
+
+        self.find_in_expression(&method_call_expression.object);
+        self.find_in_expressions(&method_call_expression.arguments);
+    }
+
     fn find_in_block_expression(&mut self, block_expression: &BlockExpression) {
         let old_local_variables = self.local_variables.clone();
         for statement in &block_expression.statements {
@@ -418,7 +484,11 @@ impl<'a> NodeFinder<'a> {
                     {
                         let typ = self.interner.definition_type(definition_id);
                         let prefix = "";
-                        self.complete_type_fields_and_methods(&typ, prefix);
+                        self.complete_type_fields_and_methods(
+                            &typ,
+                            prefix,
+                            FunctionCompletionKind::NameAndParameters,
+                        );
                     }
                 }
             }
@@ -508,7 +578,11 @@ impl<'a> NodeFinder<'a> {
             if let Some(typ) = self.interner.type_at_location(location) {
                 let typ = typ.follow_bindings();
                 let prefix = "";
-                self.complete_type_fields_and_methods(&typ, prefix);
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                );
             }
         }
     }
@@ -570,7 +644,11 @@ impl<'a> NodeFinder<'a> {
             if let Some(typ) = self.interner.type_at_location(location) {
                 let typ = typ.follow_bindings();
                 let prefix = ident.to_string().to_case(Case::Snake);
-                self.complete_type_fields_and_methods(&typ, &prefix);
+                self.complete_type_fields_and_methods(
+                    &typ,
+                    &prefix,
+                    FunctionCompletionKind::NameAndParameters,
+                );
                 return;
             }
         }
@@ -628,11 +706,11 @@ impl<'a> NodeFinder<'a> {
             }
             UnresolvedTypeData::Named(path, unresolved_types, _) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_unresolved_types(unresolved_types);
+                self.find_in_type_args(unresolved_types);
             }
             UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
                 self.find_in_path(path, RequestedItems::OnlyTypes);
-                self.find_in_unresolved_types(unresolved_types);
+                self.find_in_type_args(unresolved_types);
             }
             UnresolvedTypeData::MutableReference(unresolved_type) => {
                 self.find_in_unresolved_type(unresolved_type);
@@ -663,15 +741,61 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn find_in_path(&mut self, path: &Path, requested_items: RequestedItems) {
-        // Only offer completions if we are right at the end of the path
-        if self.byte_index != path.span.end() as usize {
+        self.find_in_path_impl(path, requested_items, false);
+    }
+
+    fn find_in_path_impl(
+        &mut self,
+        path: &Path,
+        requested_items: RequestedItems,
+        mut in_the_middle: bool,
+    ) {
+        if !self.includes_span(path.span) {
             return;
         }
 
         let after_colons = self.byte == Some(b':');
 
-        let mut idents: Vec<Ident> =
-            path.segments.iter().map(|segment| segment.ident.clone()).collect();
+        let mut idents: Vec<Ident> = Vec::new();
+
+        // Find in which ident we are in, and in which part of it
+        // (it could be that we are completting in the middle of an ident)
+        for segment in &path.segments {
+            let ident = &segment.ident;
+
+            // Check if we are at the end of the ident
+            if self.byte_index == ident.span().end() as usize {
+                idents.push(ident.clone());
+                break;
+            }
+
+            // Check if we are in the middle of an ident
+            if self.includes_span(ident.span()) {
+                // If so, take the substring and push that as the list of idents
+                // we'll do autocompletion for
+                let offset = self.byte_index - ident.span().start() as usize;
+                let substring = ident.0.contents[0..offset].to_string();
+                let ident = Ident::new(
+                    substring,
+                    Span::from(ident.span().start()..ident.span().start() + offset as u32),
+                );
+                idents.push(ident);
+                in_the_middle = true;
+                break;
+            }
+
+            idents.push(ident.clone());
+
+            // Stop if the cursor is right after this ident and '::'
+            if after_colons && self.byte_index == ident.span().end() as usize + 2 {
+                break;
+            }
+        }
+
+        if idents.len() < path.segments.len() {
+            in_the_middle = true;
+        }
+
         let prefix;
         let at_root;
 
@@ -688,6 +812,21 @@ impl<'a> NodeFinder<'a> {
         let is_single_segment = !after_colons && idents.is_empty() && path.kind == PathKind::Plain;
         let module_id;
 
+        let module_completion_kind = if after_colons || !idents.is_empty() {
+            ModuleCompletionKind::DirectChildren
+        } else {
+            ModuleCompletionKind::AllVisibleItems
+        };
+
+        // When completing in the middle of an ident, we don't want to complete
+        // with function parameters because there might already be function parameters,
+        // and in the middle of a path it leads to code that won't compile
+        let function_completion_kind = if in_the_middle {
+            FunctionCompletionKind::Name
+        } else {
+            FunctionCompletionKind::NameAndParameters
+        };
+
         if idents.is_empty() {
             module_id = self.module_id;
         } else {
@@ -703,6 +842,7 @@ impl<'a> NodeFinder<'a> {
                         &Type::Struct(struct_type, vec![]),
                         &prefix,
                         FunctionKind::Any,
+                        function_completion_kind,
                     );
                     return;
                 }
@@ -713,24 +853,27 @@ impl<'a> NodeFinder<'a> {
                 ModuleDefId::TypeAliasId(type_alias_id) => {
                     let type_alias = self.interner.get_type_alias(type_alias_id);
                     let type_alias = type_alias.borrow();
-                    self.complete_type_methods(&type_alias.typ, &prefix, FunctionKind::Any);
+                    self.complete_type_methods(
+                        &type_alias.typ,
+                        &prefix,
+                        FunctionKind::Any,
+                        function_completion_kind,
+                    );
                     return;
                 }
                 ModuleDefId::TraitId(trait_id) => {
                     let trait_ = self.interner.get_trait(trait_id);
-                    self.complete_trait_methods(trait_, &prefix, FunctionKind::Any);
+                    self.complete_trait_methods(
+                        trait_,
+                        &prefix,
+                        FunctionKind::Any,
+                        function_completion_kind,
+                    );
                     return;
                 }
                 ModuleDefId::GlobalId(_) => return,
             }
         }
-
-        let module_completion_kind = if after_colons {
-            ModuleCompletionKind::DirectChildren
-        } else {
-            ModuleCompletionKind::AllVisibleItems
-        };
-        let function_completion_kind = FunctionCompletionKind::NameAndParameters;
 
         self.complete_in_module(
             module_id,
@@ -746,7 +889,7 @@ impl<'a> NodeFinder<'a> {
             match requested_items {
                 RequestedItems::AnyItems => {
                     self.local_variables_completion(&prefix);
-                    self.builtin_functions_completion(&prefix);
+                    self.builtin_functions_completion(&prefix, function_completion_kind);
                     self.builtin_values_completion(&prefix);
                 }
                 RequestedItems::OnlyTypes => {
@@ -754,7 +897,7 @@ impl<'a> NodeFinder<'a> {
                     self.type_parameters_completion(&prefix);
                 }
             }
-            self.complete_auto_imports(&prefix, requested_items);
+            self.complete_auto_imports(&prefix, requested_items, function_completion_kind);
         }
     }
 
@@ -925,17 +1068,30 @@ impl<'a> NodeFinder<'a> {
         };
     }
 
-    fn complete_type_fields_and_methods(&mut self, typ: &Type, prefix: &str) {
+    fn complete_type_fields_and_methods(
+        &mut self,
+        typ: &Type,
+        prefix: &str,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
         match typ {
             Type::Struct(struct_type, generics) => {
                 self.complete_struct_fields(&struct_type.borrow(), generics, prefix);
             }
             Type::MutableReference(typ) => {
-                return self.complete_type_fields_and_methods(typ, prefix);
+                return self.complete_type_fields_and_methods(
+                    typ,
+                    prefix,
+                    function_completion_kind,
+                );
             }
             Type::Alias(type_alias, _) => {
                 let type_alias = type_alias.borrow();
-                return self.complete_type_fields_and_methods(&type_alias.typ, prefix);
+                return self.complete_type_fields_and_methods(
+                    &type_alias.typ,
+                    prefix,
+                    function_completion_kind,
+                );
             }
             Type::Tuple(types) => {
                 self.complete_tuple_fields(types);
@@ -959,10 +1115,21 @@ impl<'a> NodeFinder<'a> {
             | Type::Error => (),
         }
 
-        self.complete_type_methods(typ, prefix, FunctionKind::SelfType(typ));
+        self.complete_type_methods(
+            typ,
+            prefix,
+            FunctionKind::SelfType(typ),
+            function_completion_kind,
+        );
     }
 
-    fn complete_type_methods(&mut self, typ: &Type, prefix: &str, function_kind: FunctionKind) {
+    fn complete_type_methods(
+        &mut self,
+        typ: &Type,
+        prefix: &str,
+        function_kind: FunctionKind,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
         let Some(methods_by_name) = self.interner.get_type_methods(typ) else {
             return;
         };
@@ -972,7 +1139,7 @@ impl<'a> NodeFinder<'a> {
                 if name_matches(name, prefix) {
                     if let Some(completion_item) = self.function_completion_item(
                         func_id,
-                        FunctionCompletionKind::NameAndParameters,
+                        function_completion_kind,
                         function_kind,
                     ) {
                         self.completion_items.push(completion_item);
@@ -988,14 +1155,13 @@ impl<'a> NodeFinder<'a> {
         trait_: &Trait,
         prefix: &str,
         function_kind: FunctionKind,
+        function_completion_kind: FunctionCompletionKind,
     ) {
         for (name, func_id) in &trait_.method_ids {
             if name_matches(name, prefix) {
-                if let Some(completion_item) = self.function_completion_item(
-                    *func_id,
-                    FunctionCompletionKind::NameAndParameters,
-                    function_kind,
-                ) {
+                if let Some(completion_item) =
+                    self.function_completion_item(*func_id, function_completion_kind, function_kind)
+                {
                     self.completion_items.push(completion_item);
                     self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(*func_id));
                 }
