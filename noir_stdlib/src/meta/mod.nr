@@ -12,13 +12,17 @@ mod quoted;
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
 /// itself does not need to do anything besides return its argument.
+// docs:start:unquote
 pub comptime fn unquote(code: Quoted) -> Quoted {
+    // docs:end:unquote
     code
 }
 
 /// Returns the type of any value
 #[builtin(type_of)]
+// docs:start:type_of
 pub comptime fn type_of<T>(x: T) -> Type {}
+// docs:end:type_of
 
 // docs:start:derive_example
 // These are needed for the unconstrained hashmap we're using to store derive functions
@@ -36,8 +40,10 @@ comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHas
 // Given a struct and a slice of traits to derive, create trait impls for each.
 // This function is as simple as iterating over the slice, checking if we have a trait
 // handler registered for the given trait, calling it, and appending the result.
+// docs:start:derive
 #[varargs]
 pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted {
+    // docs:end:derive
     let mut result = quote {};
 
     for trait_to_derive in traits {
@@ -56,7 +62,9 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
 
 // docs:start:derive_via
 // To register a handler for a trait, just add it to our handlers map
+// docs:start:derive_via_signature
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
+    // docs:end:derive_via_signature
     HANDLERS.insert(t, f);
 }
 // docs:end:derive_via
@@ -73,6 +81,7 @@ pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
 /// any final processing - e.g. wrapping each field in a `StructConstructor { .. }` expression.
 ///
 /// See `derive_eq` and `derive_default` for example usage.
+// docs:start:make_trait_impl
 pub comptime fn make_trait_impl<Env1, Env2>(
     s: StructDefinition,
     trait_name: Quoted,
@@ -81,6 +90,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     join_fields_with: Quoted,
     body: fn[Env2](Quoted) -> Quoted
 ) -> Quoted {
+    // docs:end:make_trait_impl
     let typ = s.as_type();
     let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
     let where_clause = s.generics().map(|name| quote { $name: $trait_name }).join(quote {,});
