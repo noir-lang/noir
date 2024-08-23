@@ -154,7 +154,9 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected array type"),
         };
 
-        if let Some(result) = self.try_merge_only_changed_indices(then_value, else_value, then_condition, typ.clone()) {
+        if let Some(result) =
+            self.try_merge_only_changed_indices(then_value, else_value, then_condition, typ.clone())
+        {
             return result;
         }
 
@@ -314,8 +316,11 @@ impl<'a> ValueMerger<'a> {
 
         let get = Instruction::ArrayGet { array: new_array, index };
         let typevars = Some(vec![array_type]);
-        Some(self.dfg.insert_instruction_and_results(get, self.block, typevars, self.call_stack.clone())
-            .first())
+        Some(
+            self.dfg
+                .insert_instruction_and_results(get, self.block, typevars, self.call_stack.clone())
+                .first(),
+        )
     }
 
     fn insert_instruction(&mut self, instruction: Instruction) -> InsertInstructionResult {
