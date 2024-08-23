@@ -85,27 +85,27 @@ Represents a binary operator. One of `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `
 
 `true` if this operator is `!=`
 
-#### is_less
+#### is_less_than
 
-#include_code is_less noir_stdlib/src/meta/op.nr rust
+#include_code is_less_than noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `<`
 
-#### is_less_equal
+#### is_less_than_or_equal
 
-#include_code is_less_equal noir_stdlib/src/meta/op.nr rust
+#include_code is_less_than_or_equal noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `<=`
 
-#### is_greater
+#### is_greater_than
 
-#include_code is_greater noir_stdlib/src/meta/op.nr rust
+#include_code is_greater_than noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `>`
 
-#### is_greater_equal
+#### is_greater_than_or_equal
 
-#include_code is_greater_equal noir_stdlib/src/meta/op.nr rust
+#include_code is_greater_than_or_equal noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `>=`
 

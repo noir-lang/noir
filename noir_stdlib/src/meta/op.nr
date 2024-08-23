@@ -69,29 +69,29 @@ impl BinaryOp {
     }
     // docs:end:is_not_equal
 
-    // docs:start:is_less
-    pub fn is_less(self) -> bool {
+    // docs:start:is_less_than
+    pub fn is_less_than(self) -> bool {
         self.op == 6
     }
-    // docs:end:is_less
+    // docs:end:is_less_than
 
-    // docs:start:is_less_equal
-    pub fn is_less_equal(self) -> bool {
+    // docs:start:is_less_than_or_equal
+    pub fn is_less_than_or_equal(self) -> bool {
         self.op == 7
     }
-    // docs:end:is_less_equal
+    // docs:end:is_less_than_or_equal
 
-    // docs:start:is_greater
-    pub fn is_greater(self) -> bool {
+    // docs:start:is_greater_than
+    pub fn is_greater_than(self) -> bool {
         self.op == 8
     }
-    // docs:end:is_greater
+    // docs:end:is_greater_than
 
-    // docs:start:is_greater_equal
-    pub fn is_greater_equal(self) -> bool {
+    // docs:start:is_greater_than_or_equal
+    pub fn is_greater_than_or_equal(self) -> bool {
         self.op == 9
     }
-    // docs:end:is_greater_equal
+    // docs:end:is_greater_than_or_equal
 
     // docs:start:is_and
     pub fn is_and(self) -> bool {
