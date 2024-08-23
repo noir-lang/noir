@@ -218,13 +218,15 @@ mod tests {
 
     #[test]
     fn test_expr_as_function_call() {
-        comptime
+        // docs:start:as_expr_example
+
         {
             let expr = quote { foo(42) }.as_expr().unwrap();
             let (_function, args) = expr.as_function_call().unwrap();
             assert_eq(args.len(), 1);
             assert_eq(args[0].as_integer().unwrap(), (42, false));
         }
+        // docs:end:as_expr_example
     }
 
     #[test]

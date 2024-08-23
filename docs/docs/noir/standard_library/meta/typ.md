@@ -67,7 +67,7 @@ trait constraint for this type. If the trait constraint is not
 found, `None` is returned. Note that since the concrete trait implementation
 for a trait constraint specified from a `where` clause is unknown,
 this function will return `None` in these cases. If you only want to know
-whether a type implements a true, use `implements` instead.
+whether a type implements a trait, use `implements` instead.
 
 Example:
 
