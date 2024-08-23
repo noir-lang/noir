@@ -182,7 +182,8 @@ mod completion_tests {
     async fn test_use_function() {
         let src = r#"
             mod foo {
-                fn bar(x: i32) -> u64 { 0 }
+                pub fn bar(x: i32) -> u64 { 0 }
+                fn bar_is_private(x: i32) -> u64 { 0 }
             }
             use foo::>|<
         "#;
@@ -1703,7 +1704,7 @@ mod completion_tests {
     async fn test_completes_after_colon_in_the_middle_of_an_ident_middle_segment() {
         let src = r#"
             mod foo {
-                fn bar() {}
+                pub fn bar() {}
             }
 
             fn main() {
@@ -1725,7 +1726,7 @@ mod completion_tests {
     async fn test_completes_at_function_call_name() {
         let src = r#"
             mod foo {
-                fn bar() {}
+                pub fn bar() {}
             }
 
             fn main() {
