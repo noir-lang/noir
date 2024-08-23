@@ -38,11 +38,11 @@ Note that while in a `comptime` context, any runtime variables _local to the cur
 
 ## Evaluating
 
-Evaluation rules of `comptime` follows the normal evaluation rules for other Noir code. There are a few things to note though:
+Evaluation rules of `comptime` follows the normal unconstrained evaluation rules for other Noir code. There are a few things to note though:
 
 - Certain built-in functions may not be available, although more may be added over time.
 - Evaluation order of global items is currently unspecified. For example, given the following two functions we can't guarantee
-which `println` will execute first. The ordering of the two printouts will be arbitrary, but should be stable across multiple compilations as long as the program is also unchanged.
+which `println` will execute first. The ordering of the two printouts will be arbitrary, but should be stable across multiple compilations with the same `nargo` version as long as the program is also unchanged.
 
 ```rs=
 fn one() {
@@ -258,7 +258,7 @@ This API can be accessed through built-in functions in `std::meta` as well as on
 The following is an incomplete list of some `comptime` types along with some useful methods on them.
 
 - `Quoted`: A token stream
-- `Type`: The type of a type in Noir
+- `Type`: The type of a Noir type
   - `fn implements(self, constraint: TraitConstraint) -> bool`
     - Returns true if `self` implements the given trait constraint
 - `Expr`: A syntactically valid expression. Can be used to recur on a program's parse tree to inspect how it is structured.
