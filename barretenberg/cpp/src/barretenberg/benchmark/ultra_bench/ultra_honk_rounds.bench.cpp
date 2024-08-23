@@ -46,15 +46,13 @@ BB_PROFILE static void test_round_inner(State& state, MegaProver& prover, size_t
             BB_REPORT_OP_COUNT_BENCH_CANCEL();
         }
     };
-    OinkProver<MegaFlavor> oink_prover(prover.instance->proving_key, prover.transcript);
+    OinkProver<MegaFlavor> oink_prover(prover.instance, prover.transcript);
     time_if_index(PREAMBLE, [&] { oink_prover.execute_preamble_round(); });
     time_if_index(WIRE_COMMITMENTS, [&] { oink_prover.execute_wire_commitments_round(); });
     time_if_index(SORTED_LIST_ACCUMULATOR, [&] { oink_prover.execute_sorted_list_accumulator_round(); });
     time_if_index(LOG_DERIVATIVE_INVERSE, [&] { oink_prover.execute_log_derivative_inverse_round(); });
     time_if_index(GRAND_PRODUCT_COMPUTATION, [&] { oink_prover.execute_grand_product_computation_round(); });
     time_if_index(GENERATE_ALPHAS, [&] { prover.instance->alphas = oink_prover.generate_alphas_round(); });
-    // we need to get the relation_parameters and prover_polynomials from the oink_prover
-    prover.instance->relation_parameters = oink_prover.relation_parameters;
 
     prover.generate_gate_challenges();
 

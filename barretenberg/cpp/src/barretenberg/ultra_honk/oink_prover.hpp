@@ -2,12 +2,12 @@
 // clang-format off
 /*                                            )\   /|
 *                                          .-/'-|_/ |
-*                       __            __,-' (   / \/          
-*                   .-'"  "'-..__,-'""          -o.`-._   
+*                       __            __,-' (   / \/
+*                   .-'"  "'-..__,-'""          -o.`-._
 *                  /                                   '/
-*          *--._ ./                                 _.-- 
-*                |                              _.-' 
-*                :                           .-/   
+*          *--._ ./                                 _.--
+*                |                              _.-'
+*                :                           .-/
 *                 \                       )_ /
 *                  \                _)   / \(
 *                    `.   /-.___.---'(  /   \\
@@ -22,15 +22,10 @@
 #include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_keccak.hpp"
+#include "barretenberg/sumcheck/instance/prover_instance.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
 namespace bb {
-template <IsUltraFlavor Flavor> struct OinkProverOutput {
-    typename Flavor::ProvingKey proving_key;
-    bb::RelationParameters<typename Flavor::FF> relation_parameters;
-    typename Flavor::RelationSeparator alphas;
-};
-
 /**
  * @brief Class for all the oink rounds, which are shared between the folding prover and ultra prover.
  * @details This class contains execute_preamble_round(), execute_wire_commitments_round(),
@@ -41,12 +36,12 @@ template <IsUltraFlavor Flavor> struct OinkProverOutput {
  */
 template <IsUltraFlavor Flavor> class OinkProver {
     using CommitmentKey = typename Flavor::CommitmentKey;
-    using ProvingKey = typename Flavor::ProvingKey;
+    using Instance = ProverInstance_<Flavor>;
     using Transcript = typename Flavor::Transcript;
     using FF = typename Flavor::FF;
 
   public:
-    ProvingKey proving_key;
+    std::shared_ptr<Instance> instance;
     std::shared_ptr<Transcript> transcript;
     std::shared_ptr<CommitmentKey> commitment_key;
     std::string domain_separator;
@@ -54,18 +49,16 @@ template <IsUltraFlavor Flavor> class OinkProver {
     typename Flavor::CommitmentLabels commitment_labels;
     using RelationSeparator = typename Flavor::RelationSeparator;
 
-    bb::RelationParameters<typename Flavor::FF> relation_parameters;
-
-    OinkProver(ProvingKey& proving_key,
+    OinkProver(std::shared_ptr<Instance> instance,
                const std::shared_ptr<typename Flavor::Transcript>& transcript,
                std::string domain_separator = "")
-        : proving_key(std::move(proving_key))
+        : instance(instance)
         , transcript(transcript)
-        , commitment_key(this->proving_key.commitment_key)
+        , commitment_key(this->instance->proving_key.commitment_key)
         , domain_separator(std::move(domain_separator))
     {}
 
-    OinkProverOutput<Flavor> prove();
+    void prove();
     void execute_preamble_round();
     void execute_wire_commitments_round();
     void execute_sorted_list_accumulator_round();

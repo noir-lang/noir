@@ -15,11 +15,8 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const HonkP
     using FF = typename Flavor::FF;
 
     transcript = std::make_shared<Transcript>(proof);
-    OinkVerifier<Flavor> oink_verifier{ instance->verification_key, transcript };
-    auto [relation_parameters, witness_commitments, public_inputs, alphas] = oink_verifier.verify();
-    instance->relation_parameters = std::move(relation_parameters);
-    instance->witness_commitments = std::move(witness_commitments);
-    instance->alphas = std::move(alphas);
+    OinkVerifier<Flavor> oink_verifier{ instance, transcript };
+    oink_verifier.verify();
 
     for (size_t idx = 0; idx < CONST_PROOF_SIZE_LOG_N; idx++) {
         instance->gate_challenges.emplace_back(

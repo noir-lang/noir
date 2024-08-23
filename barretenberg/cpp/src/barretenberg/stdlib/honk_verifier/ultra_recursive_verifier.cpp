@@ -47,10 +47,11 @@ UltraRecursiveVerifier_<Flavor>::AggregationObject UltraRecursiveVerifier_<Flavo
     using Transcript = typename Flavor::Transcript;
 
     transcript = std::make_shared<Transcript>(proof);
-    OinkVerifier oink_verifier{ builder, key, transcript };
-    auto [relation_parameters, witness_commitments, public_inputs, alphas] = oink_verifier.verify();
+    auto instance = std::make_shared<Instance>(builder, key);
+    OinkVerifier oink_verifier{ builder, instance, transcript };
+    oink_verifier.verify();
 
-    VerifierCommitments commitments{ key, witness_commitments };
+    VerifierCommitments commitments{ key, instance->witness_commitments };
 
     auto gate_challenges = std::vector<FF>(CONST_PROOF_SIZE_LOG_N);
     for (size_t idx = 0; idx < CONST_PROOF_SIZE_LOG_N; idx++) {
@@ -66,7 +67,7 @@ UltraRecursiveVerifier_<Flavor>::AggregationObject UltraRecursiveVerifier_<Flavo
         for (size_t j = 0; j < 2; j++) {
             std::array<FF, 4> bigfield_limbs;
             for (size_t k = 0; k < 4; k++) {
-                bigfield_limbs[k] = public_inputs[key->recursive_proof_public_input_indices[idx]];
+                bigfield_limbs[k] = instance->public_inputs[key->recursive_proof_public_input_indices[idx]];
                 idx++;
             }
             base_field_vals[j] =
@@ -88,7 +89,7 @@ UltraRecursiveVerifier_<Flavor>::AggregationObject UltraRecursiveVerifier_<Flavo
     auto sumcheck = Sumcheck(log_circuit_size, transcript);
 
     auto [multivariate_challenge, claimed_evaluations, sumcheck_verified] =
-        sumcheck.verify(relation_parameters, alphas, gate_challenges);
+        sumcheck.verify(instance->relation_parameters, instance->alphas, gate_challenges);
 
     // Execute ZeroMorph to produce an opening claim subsequently verified by a univariate PCS
     auto opening_claim = ZeroMorph::verify(key->circuit_size,

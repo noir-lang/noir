@@ -218,12 +218,9 @@ void ProtoGalaxyProver_<ProverInstances>::finalise_and_send_instance(std::shared
                                                                      const std::string& domain_separator)
 {
     ZoneScopedN("ProtoGalaxyProver::finalise_and_send_instance");
-    OinkProver<Flavor> oink_prover(instance->proving_key, transcript, domain_separator + '_');
+    OinkProver<Flavor> oink_prover(instance, transcript, domain_separator + '_');
 
-    auto [proving_key, relation_params, alphas] = oink_prover.prove();
-    instance->proving_key = std::move(proving_key);
-    instance->relation_parameters = std::move(relation_params);
-    instance->alphas = std::move(alphas);
+    oink_prover.prove();
 }
 
 template <class ProverInstances> void ProtoGalaxyProver_<ProverInstances>::prepare_for_folding()

@@ -6,15 +6,9 @@
 #include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_keccak.hpp"
+#include "barretenberg/sumcheck/instance/verifier_instance.hpp"
 
 namespace bb {
-
-template <IsUltraFlavor Flavor> struct OinkOutput {
-    bb::RelationParameters<typename Flavor::FF> relation_parameters;
-    typename Flavor::WitnessCommitments commitments;
-    std::vector<typename Flavor::FF> public_inputs;
-    typename Flavor::RelationSeparator alphas;
-};
 
 /**
  * @brief Verifier class for all the presumcheck rounds, which are shared between the folding verifier and ultra
@@ -26,7 +20,7 @@ template <IsUltraFlavor Flavor> struct OinkOutput {
  * @tparam Flavor
  */
 template <IsUltraFlavor Flavor> class OinkVerifier {
-    using VerificationKey = typename Flavor::VerificationKey;
+    using Instance = VerifierInstance_<Flavor>;
     using WitnessCommitments = typename Flavor::WitnessCommitments;
     using Transcript = typename Flavor::Transcript;
     using FF = typename Flavor::FF;
@@ -35,22 +29,22 @@ template <IsUltraFlavor Flavor> class OinkVerifier {
 
   public:
     std::shared_ptr<Transcript> transcript;
-    std::shared_ptr<VerificationKey> key;
+    std::shared_ptr<Instance> instance;
     std::string domain_separator;
     typename Flavor::CommitmentLabels comm_labels;
     bb::RelationParameters<FF> relation_parameters;
     WitnessCommitments witness_comms;
     std::vector<FF> public_inputs;
 
-    OinkVerifier(const std::shared_ptr<VerificationKey>& verifier_key,
+    OinkVerifier(const std::shared_ptr<Instance>& instance,
                  const std::shared_ptr<Transcript>& transcript,
                  std::string domain_separator = "")
         : transcript(transcript)
-        , key(verifier_key)
+        , instance(instance)
         , domain_separator(std::move(domain_separator))
     {}
 
-    OinkOutput<Flavor> verify();
+    void verify();
 
     void execute_preamble_round();
 

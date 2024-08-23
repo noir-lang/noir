@@ -9,13 +9,8 @@ template <class VerifierInstances>
 void ProtoGalaxyVerifier_<VerifierInstances>::receive_and_finalise_instance(const std::shared_ptr<Instance>& inst,
                                                                             const std::string& domain_separator)
 {
-    auto& key = inst->verification_key;
-    OinkVerifier<Flavor> oink_verifier{ key, transcript, domain_separator + '_' };
-    auto [relation_parameters, witness_commitments, public_inputs, alphas] = oink_verifier.verify();
-    inst->relation_parameters = std::move(relation_parameters);
-    inst->witness_commitments = std::move(witness_commitments);
-    inst->public_inputs = std::move(public_inputs);
-    inst->alphas = std::move(alphas);
+    OinkVerifier<Flavor> oink_verifier{ inst, transcript, domain_separator + '_' };
+    oink_verifier.verify();
 }
 
 template <class VerifierInstances>

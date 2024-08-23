@@ -9,12 +9,8 @@ void ProtoGalaxyRecursiveVerifier_<VerifierInstances>::receive_and_finalise_inst
     const std::shared_ptr<Instance>& inst, std::string& domain_separator)
 {
     domain_separator = domain_separator + "_";
-    OinkVerifier oink_verifier{ builder, inst->verification_key, transcript, domain_separator };
-    auto [relation_parameters, witness_commitments, public_inputs, alphas] = oink_verifier.verify();
-    inst->relation_parameters = std::move(relation_parameters);
-    inst->witness_commitments = std::move(witness_commitments);
-    inst->public_inputs = std::move(public_inputs);
-    inst->alphas = std::move(alphas);
+    OinkVerifier oink_verifier{ builder, inst, transcript, domain_separator };
+    oink_verifier.verify();
 }
 
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/795): The rounds prior to actual verifying are common
