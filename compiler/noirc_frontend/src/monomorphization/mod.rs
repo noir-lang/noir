@@ -1029,11 +1029,12 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _)
-            | HirType::Constant(_)
-            | HirType::InfixExpr(..)
-            | HirType::Error => {
-                unreachable!("Unexpected type {} found", typ)
+            HirType::Forall(_, _) | HirType::Constant(_) | HirType::InfixExpr(..) => {
+                unreachable!("Unexpected type {typ} found")
+            }
+            HirType::Error => {
+                let message = "Unexpected Type::Error found during monomorphization";
+                return Err(MonomorphizationError::InternalError { message, location });
             }
             HirType::Quoted(_) => unreachable!("Tried to translate Code type into runtime code"),
         })
@@ -1948,7 +1949,8 @@ pub fn resolve_trait_method(
             match interner.lookup_trait_implementation(
                 &object_type,
                 method.trait_id,
-                &trait_generics,
+                &trait_generics.ordered,
+                &trait_generics.named,
             ) {
                 Ok(TraitImplKind::Normal(impl_id)) => impl_id,
                 Ok(TraitImplKind::Assumed { .. }) => {

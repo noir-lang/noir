@@ -1,19 +1,23 @@
-use std::{collections::BTreeMap, rc::Rc};
+use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
 
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        BinaryOpKind, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTypeExpression,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{Interpreter, Value},
         def_map::ModuleDefId,
         resolution::errors::ResolverError,
-        type_check::{NoMatchingImplFoundError, Source, TypeCheckError},
+        type_check::{
+            generics::{Generic, TraitGenerics},
+            NoMatchingImplFoundError, Source, TypeCheckError,
+        },
     },
     hir_def::{
         expr::{
@@ -21,17 +25,18 @@ use crate::{
             HirPrefixExpression,
         },
         function::{FuncMeta, Parameters},
-        traits::TraitConstraint,
+        traits::{NamedType, TraitConstraint},
     },
     macros_api::{
-        HirExpression, HirLiteral, HirStatement, NodeInterner, Path, PathKind, SecondaryAttribute,
-        Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        HirExpression, HirLiteral, HirStatement, Ident, NodeInterner, Path, PathKind,
+        SecondaryAttribute, Signedness, UnaryOp, UnresolvedType, UnresolvedTypeData,
     },
     node_interner::{
         DefinitionKind, DependencyId, ExprId, FuncId, GlobalId, TraitId, TraitImplKind,
         TraitMethodId,
     },
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable, TypeVariableKind,
+    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, TypeVariable,
+    TypeVariableKind,
 };
 
 use super::{lints, Elaborator};
@@ -115,7 +120,11 @@ impl<'context> Elaborator<'context> {
             }
             Quoted(quoted) => Type::Quoted(quoted),
             Unit => Type::Unit,
-            Unspecified => Type::Error,
+            Unspecified => {
+                let span = typ.span;
+                self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+                Type::Error
+            }
             Error => Type::Error,
             Named(path, args, _) => self.resolve_named_type(path, args),
             TraitAsType(path, args) => self.resolve_trait_as_type(path, args),
@@ -148,17 +157,14 @@ impl<'context> Elaborator<'context> {
             }
             Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
-            AsTraitPath(_) => todo!("Resolve AsTraitPath"),
+            AsTraitPath(path) => self.resolve_as_trait_path(*path),
         };
 
-        let unresolved_span = typ.span;
-        let location = Location::new(named_path_span.unwrap_or(unresolved_span), self.file);
-
+        let location = Location::new(named_path_span.unwrap_or(typ.span), self.file);
         match resolved_type {
             Type::Struct(ref struct_type, _) => {
                 // Record the location of the type reference
                 self.interner.push_type_ref_location(resolved_type.clone(), location);
-
                 if !is_synthetic {
                     self.interner.add_struct_reference(
                         struct_type.borrow().id,
@@ -202,7 +208,27 @@ impl<'context> Elaborator<'context> {
         self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
-    fn resolve_named_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+    // Resolve Self::Foo to an associated type on the current trait or trait impl
+    fn lookup_associated_type_on_self(&self, path: &Path) -> Option<Type> {
+        if path.segments.len() == 2 && path.first_name() == SELF_TYPE_NAME {
+            if let Some(trait_id) = self.current_trait {
+                let the_trait = self.interner.get_trait(trait_id);
+                if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
+                    return Some(typ.clone().as_named_generic());
+                }
+            }
+
+            if let Some(impl_id) = self.current_trait_impl {
+                let name = path.last_name();
+                if let Some(typ) = self.interner.find_associated_type_for_impl(impl_id, name) {
+                    return Some(typ.clone());
+                }
+            }
+        }
+        None
+    }
+
+    fn resolve_named_type(&mut self, path: Path, args: GenericTypeArgs) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path) {
                 return typ;
@@ -224,28 +250,18 @@ impl<'context> Elaborator<'context> {
             } else if name == WILDCARD_TYPE {
                 return self.interner.next_type_variable();
             }
+        } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
+            if !args.is_empty() {
+                self.push_err(ResolverError::GenericsOnAssociatedType { span: path.span() });
+            }
+            return typ;
         }
 
         let span = path.span();
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone()) {
-            let type_alias = type_alias.borrow();
-            let actual_generic_count = args.len();
-            let expected_generic_count = type_alias.generics.len();
-            let type_alias_string = type_alias.to_string();
-            let id = type_alias.id;
-
-            let mut args = vecmap(type_alias.generics.iter().zip(args), |(generic, arg)| {
-                self.resolve_type_inner(arg, &generic.kind)
-            });
-
-            self.verify_generics_count(
-                expected_generic_count,
-                actual_generic_count,
-                &mut args,
-                span,
-                || type_alias_string,
-            );
+            let id = type_alias.borrow().id;
+            let (args, _) = self.resolve_type_args(args, id, path.span());
 
             if let Some(item) = self.current_item {
                 self.interner.add_type_alias_dependency(item, id);
@@ -260,8 +276,7 @@ impl<'context> Elaborator<'context> {
             // equal to another type alias. Fixing this fully requires an analysis to create a DFG
             // of definition ordering, but for now we have an explicit check here so that we at
             // least issue an error that the type was not found instead of silently passing.
-            let alias = self.interner.get_type_alias(id);
-            return Type::Alias(alias, args);
+            return Type::Alias(type_alias, args);
         }
 
         match self.lookup_struct_or_error(path) {
@@ -273,9 +288,6 @@ impl<'context> Elaborator<'context> {
 
                     return Type::Error;
                 }
-
-                let expected_generic_count = struct_type.borrow().generics.len();
-                let actual_generic_count = args.len();
 
                 if !self.in_contract()
                     && self
@@ -289,18 +301,7 @@ impl<'context> Elaborator<'context> {
                     });
                 }
 
-                let mut args =
-                    vecmap(struct_type.borrow().generics.iter().zip(args), |(generic, arg)| {
-                        self.resolve_type_inner(arg, &generic.kind)
-                    });
-
-                self.verify_generics_count(
-                    expected_generic_count,
-                    actual_generic_count,
-                    &mut args,
-                    span,
-                    || struct_type.borrow().to_string(),
-                );
+                let (args, _) = self.resolve_type_args(args, struct_type.borrow(), span);
 
                 if let Some(current_item) = self.current_item {
                     let dependency_id = struct_type.borrow().id;
@@ -313,44 +314,99 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn resolve_trait_as_type(&mut self, path: Path, args: Vec<UnresolvedType>) -> Type {
+    fn resolve_trait_as_type(&mut self, path: Path, args: GenericTypeArgs) -> Type {
         // Fetch information needed from the trait as the closure for resolving all the `args`
         // requires exclusive access to `self`
-        let trait_as_type_info = self
-            .lookup_trait_or_error(path)
-            .map(|t| (t.id, Rc::new(t.name.to_string()), t.generics.clone()));
+        let span = path.span;
+        let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
 
-        if let Some((id, name, resolved_generics)) = trait_as_type_info {
-            assert_eq!(resolved_generics.len(), args.len());
-            let generics_with_types = resolved_generics.iter().zip(args);
-            let args = vecmap(generics_with_types, |(generic, typ)| {
-                self.resolve_type_inner(typ, &generic.kind)
-            });
-            Type::TraitAsType(id, Rc::new(name.to_string()), args)
+        if let Some(id) = trait_as_type_info {
+            let (ordered, named) = self.resolve_type_args(args, id, span);
+            let name = self.interner.get_trait(id).name.to_string();
+            let generics = TraitGenerics { ordered, named };
+            Type::TraitAsType(id, Rc::new(name), generics)
         } else {
             Type::Error
         }
     }
 
-    fn verify_generics_count(
+    pub(super) fn resolve_type_args(
         &mut self,
-        expected_count: usize,
-        actual_count: usize,
-        args: &mut Vec<Type>,
+        mut args: GenericTypeArgs,
+        item: impl Generic,
         span: Span,
-        type_name: impl FnOnce() -> String,
-    ) {
-        if actual_count != expected_count {
-            self.push_err(ResolverError::IncorrectGenericCount {
-                span,
-                item_name: type_name(),
-                actual: actual_count,
-                expected: expected_count,
-            });
+    ) -> (Vec<Type>, Vec<NamedType>) {
+        let expected_kinds = item.generics(self.interner);
 
-            // Fix the generic count so we can continue typechecking
-            args.resize_with(expected_count, || Type::Error);
+        if args.ordered_args.len() != expected_kinds.len() {
+            self.push_err(TypeCheckError::GenericCountMismatch {
+                item: item.item_name(self.interner),
+                expected: expected_kinds.len(),
+                found: args.ordered_args.len(),
+                span,
+            });
+            let error_type = UnresolvedTypeData::Error.with_span(span);
+            args.ordered_args.resize(expected_kinds.len(), error_type);
         }
+
+        let ordered_args = expected_kinds.iter().zip(args.ordered_args);
+        let ordered =
+            vecmap(ordered_args, |(generic, typ)| self.resolve_type_inner(typ, &generic.kind));
+
+        let mut associated = Vec::new();
+
+        if item.accepts_named_type_args() {
+            associated = self.resolve_associated_type_args(args.named_args, item, span);
+        } else if !args.named_args.is_empty() {
+            let item_kind = item.item_kind();
+            self.push_err(ResolverError::NamedTypeArgs { span, item_kind });
+        }
+
+        (ordered, associated)
+    }
+
+    fn resolve_associated_type_args(
+        &mut self,
+        args: Vec<(Ident, UnresolvedType)>,
+        item: impl Generic,
+        span: Span,
+    ) -> Vec<NamedType> {
+        let mut seen_args = HashMap::default();
+        let mut required_args = item.named_generics(self.interner);
+        let mut resolved = Vec::with_capacity(required_args.len());
+
+        // Go through each argument to check if it is in our required_args list.
+        // If it is remove it from the list, otherwise issue an error.
+        for (name, typ) in args {
+            let index =
+                required_args.iter().position(|item| item.name.as_ref() == &name.0.contents);
+
+            let Some(index) = index else {
+                if let Some(prev_span) = seen_args.get(&name.0.contents).copied() {
+                    self.push_err(TypeCheckError::DuplicateNamedTypeArg { name, prev_span });
+                } else {
+                    let item = item.item_name(self.interner);
+                    self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item });
+                }
+                continue;
+            };
+
+            // Remove the argument from the required list so we remember that we already have it
+            let expected = required_args.remove(index);
+            seen_args.insert(name.0.contents.clone(), name.span());
+
+            let typ = self.resolve_type_inner(typ, &expected.kind);
+            resolved.push(NamedType { name, typ });
+        }
+
+        // Anything that hasn't been removed yet is missing
+        for generic in required_args {
+            let item = item.item_name(self.interner);
+            let name = generic.name.clone();
+            self.push_err(TypeCheckError::MissingNamedTypeArg { item, span, name });
+        }
+
+        resolved
     }
 
     pub fn lookup_generic_or_global_type(&mut self, path: &Path) -> Option<Type> {
@@ -360,6 +416,8 @@ impl<'context> Elaborator<'context> {
                 let generic = generic.clone();
                 return Some(Type::NamedGeneric(generic.type_var, generic.name, generic.kind));
             }
+        } else if let Some(typ) = self.lookup_associated_type_on_self(path) {
+            return Some(typ);
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
@@ -407,6 +465,49 @@ impl<'context> Elaborator<'context> {
                     }
                 }
             }
+            UnresolvedTypeExpression::AsTraitPath(path) => self.resolve_as_trait_path(*path),
+        }
+    }
+
+    fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
+        let span = path.trait_path.span;
+        let Some(trait_id) = self.resolve_trait_by_path(path.trait_path.clone()) else {
+            // Error should already be pushed in the None case
+            return Type::Error;
+        };
+
+        let (ordered, named) = self.resolve_type_args(path.trait_generics.clone(), trait_id, span);
+        let object_type = self.resolve_type(path.typ.clone());
+
+        match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
+            Ok(impl_kind) => self.get_associated_type_from_trait_impl(path, impl_kind),
+            Err(constraints) => {
+                self.push_trait_constraint_error(constraints, span);
+                Type::Error
+            }
+        }
+    }
+
+    fn get_associated_type_from_trait_impl(
+        &mut self,
+        path: AsTraitPath,
+        impl_kind: TraitImplKind,
+    ) -> Type {
+        let associated_types = match impl_kind {
+            TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
+            TraitImplKind::Normal(impl_id) => {
+                Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
+            }
+        };
+
+        match associated_types.iter().find(|named| named.name == path.impl_item) {
+            Some(generic) => generic.typ.clone(),
+            None => {
+                let name = path.impl_item.clone();
+                let item = format!("<{} as {}>", path.typ, path.trait_path);
+                self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item });
+                Type::Error
+            }
         }
     }
 
@@ -428,17 +529,8 @@ impl<'context> Elaborator<'context> {
             if name == SELF_TYPE_NAME {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.0.contents.as_str())?;
-
-                let constraint = TraitConstraint {
-                    typ: self.self_type.clone()?,
-                    trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
-                        generic.type_var.clone()
-                    })),
-                    trait_id,
-                    span: path.span(),
-                };
-
-                return Some((method, constraint, false));
+                let constraint = the_trait.as_constraint(path.span);
+                return Some((method, constraint, true));
             }
         }
         None
@@ -454,17 +546,9 @@ impl<'context> Elaborator<'context> {
     ) -> Option<(TraitMethodId, TraitConstraint, bool)> {
         let func_id: FuncId = self.lookup(path.clone()).ok()?;
         let meta = self.interner.function_meta(&func_id);
-        let trait_id = meta.trait_id?;
-        let the_trait = self.interner.get_trait(trait_id);
+        let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
-        let constraint = TraitConstraint {
-            typ: Type::TypeVariable(the_trait.self_type_typevar.clone(), TypeVariableKind::Normal),
-            trait_generics: Type::from_generics(&vecmap(&the_trait.generics, |generic| {
-                generic.type_var.clone()
-            })),
-            trait_id,
-            span: path.span(),
-        };
+        let constraint = the_trait.as_constraint(path.span);
         Some((method, constraint, false))
     }
 
@@ -674,7 +758,7 @@ impl<'context> Elaborator<'context> {
     /// Insert as many dereference operations as necessary to automatically dereference a method
     /// call object to its base value type T.
     pub(super) fn insert_auto_dereferences(&mut self, object: ExprId, typ: Type) -> (ExprId, Type) {
-        if let Type::MutableReference(element) = typ {
+        if let Type::MutableReference(element) = typ.follow_bindings() {
             let location = self.interner.id_location(object);
 
             let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
@@ -1151,7 +1235,7 @@ impl<'context> Elaborator<'context> {
             let the_trait = self.interner.get_trait(trait_method_id.trait_id);
             let object_type = object_type.substitute(&bindings);
             bindings.insert(
-                the_trait.self_type_typevar_id,
+                the_trait.self_type_typevar.id(),
                 (the_trait.self_type_typevar.clone(), object_type.clone()),
             );
             self.interner.select_impl_for_expression(
@@ -1283,10 +1367,9 @@ impl<'context> Elaborator<'context> {
                         if method.name.0.contents == method_name {
                             let trait_method =
                                 TraitMethodId { trait_id: constraint.trait_id, method_index };
-                            return Some(HirMethodReference::TraitMethodId(
-                                trait_method,
-                                constraint.trait_generics.clone(),
-                            ));
+
+                            let generics = constraint.trait_generics.clone();
+                            return Some(HirMethodReference::TraitMethodId(trait_method, generics));
                         }
                     }
                 }
@@ -1440,7 +1523,16 @@ impl<'context> Elaborator<'context> {
 
         let func_span = self.interner.expr_span(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
-            if self.interner.lookup_trait_implementation(&body_type, *trait_id, generics).is_err() {
+            if self
+                .interner
+                .lookup_trait_implementation(
+                    &body_type,
+                    *trait_id,
+                    &generics.ordered,
+                    &generics.named,
+                )
+                .is_err()
+            {
                 self.push_err(TypeCheckError::TypeMismatchWithSource {
                     expected: declared_return_type.clone(),
                     actual: body_type,
@@ -1491,22 +1583,29 @@ impl<'context> Elaborator<'context> {
         object_type: &Type,
         trait_id: TraitId,
         trait_generics: &[Type],
+        associated_types: &[NamedType],
         function_ident_id: ExprId,
         span: Span,
     ) {
-        match self.interner.lookup_trait_implementation(object_type, trait_id, trait_generics) {
+        match self.interner.lookup_trait_implementation(
+            object_type,
+            trait_id,
+            trait_generics,
+            associated_types,
+        ) {
             Ok(impl_kind) => {
                 self.interner.select_impl_for_expression(function_ident_id, impl_kind);
             }
-            Err(erroring_constraints) => {
-                if erroring_constraints.is_empty() {
-                    self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
-                } else if let Some(error) =
-                    NoMatchingImplFoundError::new(self.interner, erroring_constraints, span)
-                {
-                    self.push_err(TypeCheckError::NoMatchingImplFound(error));
-                }
-            }
+            Err(constraints) => self.push_trait_constraint_error(constraints, span),
+        }
+    }
+
+    fn push_trait_constraint_error(&mut self, constraints: Vec<TraitConstraint>, span: Span) {
+        if constraints.is_empty() {
+            self.push_err(TypeCheckError::TypeAnnotationsNeeded { span });
+        } else if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
+        {
+            self.push_err(TypeCheckError::NoMatchingImplFound(error));
         }
     }
 
@@ -1567,8 +1666,11 @@ impl<'context> Elaborator<'context> {
             | Type::Forall(_, _) => (),
 
             Type::TraitAsType(_, _, args) => {
-                for arg in args {
+                for arg in &args.ordered {
                     Self::find_numeric_generics_in_type(arg, found);
+                }
+                for arg in &args.named {
+                    Self::find_numeric_generics_in_type(&arg.typ, found);
                 }
             }
 
@@ -1663,6 +1765,50 @@ impl<'context> Elaborator<'context> {
                 let span = segment.turbofish_span();
                 self.push_err(TypeCheckError::UnsupportedTurbofishUsage { span });
             }
+        }
+    }
+
+    pub fn bind_generics_from_trait_constraint(
+        &mut self,
+        constraint: &TraitConstraint,
+        assumed: bool,
+        bindings: &mut TypeBindings,
+    ) {
+        let the_trait = self.interner.get_trait(constraint.trait_id);
+        assert_eq!(the_trait.generics.len(), constraint.trait_generics.ordered.len());
+
+        for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics.ordered) {
+            // Avoid binding t = t
+            if !arg.occurs(param.type_var.id()) {
+                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
+            }
+        }
+
+        let mut associated_types = the_trait.associated_types.clone();
+        assert_eq!(associated_types.len(), constraint.trait_generics.named.len());
+
+        for arg in &constraint.trait_generics.named {
+            let i = associated_types
+                .iter()
+                .position(|typ| *typ.name == arg.name.0.contents)
+                .unwrap_or_else(|| {
+                    unreachable!("Expected to find associated type named {}", arg.name)
+                });
+
+            let param = associated_types.swap_remove(i);
+
+            // Avoid binding t = t
+            if !arg.typ.occurs(param.type_var.id()) {
+                bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.typ.clone()));
+            }
+        }
+
+        // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
+        // Otherwise `self` will be replaced with a fresh type variable, which will require the user
+        // to specify a redundant type annotation.
+        if assumed {
+            let self_type = the_trait.self_type_typevar.clone();
+            bindings.insert(self_type.id(), (self_type, constraint.typ.clone()));
         }
     }
 }

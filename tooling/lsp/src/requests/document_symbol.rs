@@ -359,10 +359,20 @@ impl<'a> DocumentSymbolCollector<'a> {
         trait_name.push_str(&noir_trait_impl.trait_name.to_string());
         if !noir_trait_impl.trait_generics.is_empty() {
             trait_name.push('<');
-            for (index, generic) in noir_trait_impl.trait_generics.iter().enumerate() {
+            for (index, generic) in noir_trait_impl.trait_generics.ordered_args.iter().enumerate() {
                 if index > 0 {
                     trait_name.push_str(", ");
                 }
+                trait_name.push_str(&generic.to_string());
+            }
+            for (index, (name, generic)) in
+                noir_trait_impl.trait_generics.named_args.iter().enumerate()
+            {
+                if index > 0 {
+                    trait_name.push_str(", ");
+                }
+                trait_name.push_str(&name.0.contents);
+                trait_name.push_str(" = ");
                 trait_name.push_str(&generic.to_string());
             }
             trait_name.push('>');
