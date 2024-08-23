@@ -18,7 +18,7 @@ mod quoted;
 /// itself does not need to do anything besides return its argument.
 // docs:start:unquote
 pub comptime fn unquote(code: Quoted) -> Quoted {
-// docs:end:unquote
+    // docs:end:unquote
     code
 }
 
@@ -35,7 +35,7 @@ comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHas
 // docs:start:derive
 #[varargs]
 pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted {
-// docs:end:derive
+    // docs:end:derive
     let mut result = quote {};
 
     for trait_to_derive in traits {
@@ -53,7 +53,7 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
 
 // docs:start:derive_via
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
-// docs:end:derive_via
+    // docs:end:derive_via
     HANDLERS.insert(t, f);
 }
 
@@ -78,7 +78,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     join_fields_with: Quoted,
     body: fn[Env2](Quoted) -> Quoted
 ) -> Quoted {
-// docs:end:make_trait_impl
+    // docs:end:make_trait_impl
     let typ = s.as_type();
     let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
     let where_clause = s.generics().map(|name| quote { $name: $trait_name }).join(quote {,});
