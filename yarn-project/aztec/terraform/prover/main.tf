@@ -274,8 +274,8 @@ resource "aws_ecs_task_definition" "aztec-proving-agent" {
         "value": "${var.PROVING_ENABLED}"
       },
       {
-        "name": "OTEL_EXPORTER_OTLP_ENDPOINT",
-        "value": "http://aztec-otel.local:4318"
+        "name": "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
+        "value": "http://aztec-otel.local:4318/v1/metrics"
       },
       {
         "name": "OTEL_SERVICE_NAME",

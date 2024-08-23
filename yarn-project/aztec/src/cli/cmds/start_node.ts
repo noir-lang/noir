@@ -91,7 +91,7 @@ export const startNode = async (
   }
 
   const telemetryConfig = extractRelevantOptions<TelemetryClientConfig>(options, telemetryClientConfigMappings, 'tel');
-  const telemetryClient = createAndStartTelemetryClient(telemetryConfig);
+  const telemetryClient = await createAndStartTelemetryClient(telemetryConfig);
 
   // Create and start Aztec Node.
   const node = await createAztecNode(nodeConfig, telemetryClient);

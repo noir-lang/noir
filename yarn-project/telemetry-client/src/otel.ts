@@ -62,14 +62,7 @@ export class OpenTelemetryClient implements TelemetryClient {
       description: 'Target information',
     });
 
-    if (this.resource.asyncAttributesPending) {
-      void this.resource.waitForAsyncAttributes!().then(() => {
-        this.targetInfo!.record(1, this.resource.attributes);
-      });
-    } else {
-      this.targetInfo.record(1, this.resource.attributes);
-    }
-
+    this.targetInfo.record(1, this.resource.attributes);
     this.hostMetrics.start();
   }
 
@@ -77,7 +70,11 @@ export class OpenTelemetryClient implements TelemetryClient {
     await Promise.all([this.meterProvider.shutdown()]);
   }
 
-  public static createAndStart(collectorBaseUrl: URL, log: DebugLogger): OpenTelemetryClient {
+  public static async createAndStart(
+    metricsCollector: URL,
+    tracesCollector: URL | undefined,
+    log: DebugLogger,
+  ): Promise<OpenTelemetryClient> {
     const resource = detectResourcesSync({
       detectors: [
         osDetectorSync,
@@ -90,12 +87,19 @@ export class OpenTelemetryClient implements TelemetryClient {
       ],
     });
 
+    if (resource.asyncAttributesPending) {
+      await resource.waitForAsyncAttributes!();
+    }
+
     const tracerProvider = new NodeTracerProvider({
       resource,
     });
-    tracerProvider.addSpanProcessor(
-      new BatchSpanProcessor(new OTLPTraceExporter({ url: new URL('/v1/traces', collectorBaseUrl).href })),
-    );
+
+    // optionally push traces to an OTEL collector instance
+    if (tracesCollector) {
+      tracerProvider.addSpanProcessor(new BatchSpanProcessor(new OTLPTraceExporter({ url: tracesCollector.href })));
+    }
+
     tracerProvider.register();
 
     const meterProvider = new MeterProvider({
@@ -103,7 +107,7 @@ export class OpenTelemetryClient implements TelemetryClient {
       readers: [
         new PeriodicExportingMetricReader({
           exporter: new OTLPMetricExporter({
-            url: new URL('/v1/metrics', collectorBaseUrl).href,
+            url: metricsCollector.href,
           }),
         }),
       ],

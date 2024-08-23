@@ -62,7 +62,8 @@ services:
       P2P_ENABLED: true
       PEER_ID_PRIVATE_KEY:
       AZTEC_PORT: 8999
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:-http://otel-collector:4318/v1/metrics}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-http://otel-collector:4318/v1/traces}
     secrets:
       - ethereum-host
       - p2p-boot-node
@@ -77,13 +78,14 @@ services:
         # if the stack is started with --profile metrics --profile node, give the collector a chance to start before the node
         i=0
         max=3
-        while ! curl --head --silent $$OTEL_EXPORTER_OTLP_ENDPOINT > /dev/null; do
+        while ! curl --head --silent $$OTEL_EXPORTER_OTLP_METRICS_ENDPOINT > /dev/null; do
           echo "OpenTelemetry collector not up. Retrying after 1s";
           sleep 1;
           i=$$((i+1));
           if [ $$i -eq $$max ]; then
-            echo "OpenTelemetry collector at $$OTEL_EXPORTER_OTLP_ENDPOINT not up after $${max}s. Running without metrics";
-            unset OTEL_EXPORTER_OTLP_ENDPOINT;
+            echo "OpenTelemetry collector at $$OTEL_EXPORTER_METRICS_ENDPOINT not up after $${max}s. Running without metrics";
+            unset OTEL_EXPORTER_METRICS_ENDPOINT;
+            unset OTEL_EXPORTER_TRACES_ENDPOINT;
             break
           fi;
         done;
@@ -171,8 +173,8 @@ configs:
   prometheus-config:
     content: |
       global:
-        evaluation_interval: 30s
-        scrape_interval: 10s
+        evaluation_interval: 15s
+        scrape_interval: 15s
       scrape_configs:
         - job_name: otel-collector
           static_configs:

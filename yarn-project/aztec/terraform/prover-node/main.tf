@@ -202,7 +202,7 @@ resource "aws_ecs_task_definition" "aztec-prover-node" {
         { name = "PROVER_NODE_MAX_PENDING_JOBS", value = tostring(var.PROVER_NODE_MAX_PENDING_JOBS) },
 
         // Metrics
-        { name = "OTEL_EXPORTER_OTLP_ENDPOINT", value = "http://aztec-otel.local:4318" },
+        { name = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", value = "http://aztec-otel.local:4318/v1/metrics" },
         { name = "OTEL_SERVICE_NAME", value = "${var.DEPLOY_TAG}-aztec-prover-node-${count.index + 1}" },
 
         // L1 addresses

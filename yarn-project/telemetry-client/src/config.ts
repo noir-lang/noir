@@ -1,15 +1,21 @@
 import { type ConfigMappingsType, getConfigFromMappings } from '@aztec/foundation/config';
 
 export interface TelemetryClientConfig {
-  collectorBaseUrl?: URL;
+  metricsCollectorUrl?: URL;
+  tracesCollectorUrl?: URL;
   serviceName: string;
   networkName: string;
 }
 
 export const telemetryClientConfigMappings: ConfigMappingsType<TelemetryClientConfig> = {
-  collectorBaseUrl: {
-    env: 'OTEL_EXPORTER_OTLP_ENDPOINT',
-    description: 'The URL of the telemetry collector',
+  metricsCollectorUrl: {
+    env: 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT',
+    description: 'The URL of the telemetry collector for metrics',
+    parseEnv: (val: string) => new URL(val),
+  },
+  tracesCollectorUrl: {
+    env: 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT',
+    description: 'The URL of the telemetry collector for traces',
     parseEnv: (val: string) => new URL(val),
   },
   serviceName: {

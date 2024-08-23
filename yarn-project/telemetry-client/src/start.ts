@@ -7,11 +7,11 @@ import { type TelemetryClient } from './telemetry.js';
 
 export * from './config.js';
 
-export function createAndStartTelemetryClient(config: TelemetryClientConfig): TelemetryClient {
+export async function createAndStartTelemetryClient(config: TelemetryClientConfig): Promise<TelemetryClient> {
   const log = createDebugLogger('aztec:telemetry-client');
-  if (config.collectorBaseUrl) {
+  if (config.metricsCollectorUrl) {
     log.info('Using OpenTelemetry client');
-    return OpenTelemetryClient.createAndStart(config.collectorBaseUrl, log);
+    return await OpenTelemetryClient.createAndStart(config.metricsCollectorUrl, config.tracesCollectorUrl, log);
   } else {
     log.info('Using NoopTelemetryClient');
     return new NoopTelemetryClient();

@@ -21,7 +21,7 @@ export const startProverAgent: ServiceStarter = async (options, signalHandlers, 
   const source = createProvingJobSourceClient(proverConfig.nodeUrl, 'provingJobSource');
 
   const telemetryConfig = extractRelevantOptions<TelemetryClientConfig>(options, telemetryClientConfigMappings, 'tel');
-  const telemetry = createAndStartTelemetryClient(telemetryConfig);
+  const telemetry = await createAndStartTelemetryClient(telemetryConfig);
 
   let circuitProver: ServerCircuitProver;
   if (proverConfig.realProofs) {

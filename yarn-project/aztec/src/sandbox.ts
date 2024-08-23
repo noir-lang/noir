@@ -170,7 +170,7 @@ export async function createSandbox(config: Partial<SandboxConfig> = {}) {
     await deployContractsToL1(aztecNodeConfig, hdAccount);
   }
 
-  const client = createAndStartTelemetryClient(getTelemetryClientConfig());
+  const client = await createAndStartTelemetryClient(getTelemetryClientConfig());
   const node = await createAztecNode(aztecNodeConfig, client);
   const pxe = await createAztecPXE(node);
 

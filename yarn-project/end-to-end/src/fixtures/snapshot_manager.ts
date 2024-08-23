@@ -325,7 +325,7 @@ async function setupFromFresh(
     aztecNodeConfig.bbWorkingDirectory = bbConfig.bbWorkingDirectory;
   }
 
-  const telemetry = createAndStartTelemetryClient(getTelemetryConfig());
+  const telemetry = await createAndStartTelemetryClient(getTelemetryConfig());
   logger.verbose('Creating and synching an aztec node...');
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig, telemetry);
 
@@ -408,7 +408,7 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
   const { publicClient, walletClient } = createL1Clients(aztecNodeConfig.l1RpcUrl, mnemonicToAccount(MNEMONIC));
 
   logger.verbose('Creating aztec node...');
-  const telemetry = createAndStartTelemetryClient(getTelemetryConfig());
+  const telemetry = await createAndStartTelemetryClient(getTelemetryConfig());
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig, telemetry);
 
   const proverNodePrivateKey = getPrivateKeyFromIndex(2);

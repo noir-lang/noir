@@ -25,7 +25,7 @@ export const startArchiver = async (options: any, signalHandlers: (() => Promise
   const store = await createStore(archiverConfig, rollupAddress, storeLog);
   const archiverStore = new KVArchiverDataStore(store, archiverConfig.maxLogs);
 
-  const telemetry = createAndStartTelemetryClient(getTelemetryClientConfig());
+  const telemetry = await createAndStartTelemetryClient(getTelemetryClientConfig());
   const archiver = await Archiver.createAndSync(archiverConfig, archiverStore, telemetry, true);
   const archiverServer = createArchiverRpcServer(archiver);
   services.push({ archiver: archiverServer });

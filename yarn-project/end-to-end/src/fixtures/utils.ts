@@ -90,10 +90,11 @@ export { deployAndInitializeTokenAndBridgeContracts } from '../shared/cross_chai
 
 const { PXE_URL = '' } = process.env;
 
-const telemetry = createAndStartTelemetryClient(getTelemetryConfig());
+const telemetryPromise = createAndStartTelemetryClient(getTelemetryConfig());
 if (typeof afterAll === 'function') {
   afterAll(async () => {
-    await telemetry.stop();
+    const client = await telemetryPromise;
+    await client.stop();
   });
 }
 
@@ -395,6 +396,7 @@ export async function setup(
   }
   config.l1PublishRetryIntervalMS = 100;
 
+  const telemetry = await telemetryPromise;
   const aztecNode = await AztecNodeService.createAndSync(config, telemetry);
   const sequencer = aztecNode.getSequencer();
 
