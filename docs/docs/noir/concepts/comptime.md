@@ -58,12 +58,13 @@ fn two() {
 For example, using globals to generate unique ids should be fine but relying on certain ids always being produced (especially after edits to the program) should be avoided.
 - Although most ordering of globals is unspecified, two are:
   - Dependencies of a crate will always be evaluated before the dependent crate.
-  - `comptime` items are evaluated before runtime items, however `comptime` functions can call runtime functions in which case
-    the runtime functions will be executed at compile-time.
+  - Any annotations on a function will be run before the function itself is resolved. This is to allow the annotation to modify the function if necessary. Note that if the
+    function itself was called at compile-time previously, it will already be resolved and cannot be modified. To prevent accidentally calling functions you wish to modify
+    at compile-time, it may be helpful to sort your `comptime` annotation functions into a different crate along with any dependencies they require.
 
 ## Lowering
 
-When a `comptime` value is used in runtime code it must be lowered into a runtime value. This often means replacing the expression with the literal that it evaluated to. For example, the code:
+When a `comptime` value is used in runtime code it must be lowered into a runtime value. This means replacing the expression with the literal that it evaluated to. For example, the code:
 
 ```rs=
 struct Foo { array: [Field; 2], len: u32 }
@@ -109,9 +110,11 @@ More specifically, the code value `quote` creates is a token stream - a represen
 For example, the expression `quote { Hi "there reader"! }` would quote three tokens: the word "hi", the string "there reader", and an exclamation mark.
 You'll note that snippets that would otherwise be invalid syntax can still be quoted.
 
-When a `Quoted` value is lowered, each token is inserted into the program at that point and parsed.
-To lower a `Quoted` value returned by a function, we have to specify that we want to lower it via `!` after the function name.
-Calling such a function without `!` will just return the `Quoted` value to be further manipulated. For example:
+When a `Quoted` value is used in runtime code, it is lowered into a `quote { ... }` expression. Since this expression is only valid
+in compile-time code however, we'd get an error if we tried this. Instead, we can use macro insertion to insert each token into the
+program at that point, and parse it as an expression. To do this, we have to add a `!` after the function name returning the `Quoted` value.
+If the value was created locally and there is no function returning it, `std::meta::unquote!(_)` can be used instead.
+Calling such a function at compile-time without `!` will just return the `Quoted` value to be further manipulated. For example:
 
 ```rs=
 comptime fn foo() -> Quoted {
@@ -122,7 +125,7 @@ fn main() {
     comptime {
         // let a = quote { 1 };
         let a = foo();
-        
+
         // let b = 1;
         let b = foo!();
     }
