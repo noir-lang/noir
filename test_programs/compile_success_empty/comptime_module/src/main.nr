@@ -32,7 +32,8 @@ mod baz {
 
 #[test]
 fn as_module_test() {
-    comptime {
+    comptime
+    {
         let my_mod = quote { baz::qux }.as_module().unwrap();
         assert_eq(my_mod.name(), quote { qux });
     }
