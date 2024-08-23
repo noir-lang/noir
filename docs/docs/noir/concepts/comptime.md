@@ -44,7 +44,7 @@ Evaluation rules of `comptime` follows the normal unconstrained evaluation rules
 - Evaluation order of global items is currently unspecified. For example, given the following two functions we can't guarantee
 which `println` will execute first. The ordering of the two printouts will be arbitrary, but should be stable across multiple compilations with the same `nargo` version as long as the program is also unchanged.
 
-```rs=
+```rust=
 fn one() {
     comptime { println("one"); }
 }
@@ -66,7 +66,7 @@ For example, using globals to generate unique ids should be fine but relying on 
 
 When a `comptime` value is used in runtime code it must be lowered into a runtime value. This means replacing the expression with the literal that it evaluated to. For example, the code:
 
-```rs=
+```rust=
 struct Foo { array: [Field; 2], len: u32 }
 
 fn main() {
@@ -81,7 +81,7 @@ fn main() {
 
 will be converted to the following after `comptime` expressions are evaluated:
 
-```rs=
+```rust=
 struct Foo { array: [Field; 2], len: u32 }
 
 fn main() {
@@ -91,7 +91,7 @@ fn main() {
 
 Not all types of values can be lowered. For example, `Type`s and `TypeDefinition`s (among other types) cannot be lowered at all.
 
-```rs=
+```rust=
 fn main() {
     // There's nothing we could inline here to create a Type value at runtime
     // let _ = get_type!();
@@ -116,7 +116,7 @@ program at that point, and parse it as an expression. To do this, we have to add
 If the value was created locally and there is no function returning it, `std::meta::unquote!(_)` can be used instead.
 Calling such a function at compile-time without `!` will just return the `Quoted` value to be further manipulated. For example:
 
-```rs=
+```rust=
 comptime fn foo() -> Quoted {
     quote { 1 }
 }
@@ -140,7 +140,7 @@ This means we can escape the quoting by using the unquote operator to splice val
 The unquote operator `$` is usable within a `quote` expression.
 It takes a variable as an argument, evaluates the variable, and splices the resulting value into the quoted token stream at that point. For example,
 
-```rs=
+```rust=
 comptime {
     let x = 1 + 2;
     let y = quote { $x + 4 };
@@ -149,7 +149,7 @@ comptime {
 
 The value of `y` above will be the token stream containing `3`, `+`, and `4`. We can also use this to combine `Quoted` values into larger token streams:
 
-```rs=
+```rust=
 comptime {
     let x = quote { 1 + 2 };
     let y = quote { $x + 4 };
@@ -179,7 +179,7 @@ comptime {
 Annotations provide a way to run a `comptime` function on an item in the program.
 When you use an annotation, the function with the same name will be called with that item as an argument:
 
-```rs=
+```rust=
 #[my_struct_annotation]
 struct Foo {}
 
@@ -200,7 +200,7 @@ Note that expressions are not valid at top-level so you'll get an error trying t
 You can insert other top-level items such as traits, structs, or functions this way though.
 For example, this is the mechanism used to insert additional trait implementations into the program when deriving a trait impl from a struct:
 
-```rs=
+```rust=
 trait FieldCount {
     fn field_count() -> u32;
 }
@@ -226,7 +226,7 @@ comptime fn derive_field_count(s: StructDefinition) -> Quoted {
 Arguments may optionally be given to annotations.
 When this is done, these additional arguments are passed to the annotation function after the item argument.
 
-```rs=
+```rust=
 #[inject_field(quote { foo }, quote { Field })]
 struct MyStruct { my_field: u32 }
 
@@ -237,7 +237,7 @@ comptime fn inject_field(s: StructDefinition, field_name: Quoted, typ: Quoted) {
 
 We can also take any number of arguments by adding the `varargs` annotation:
 
-```rs=
+```rust=
 #[count_args(1, 2, 3)]
 struct MyStruct { my_field: u32 }
 
@@ -291,7 +291,7 @@ Using these methods is the key to writing powerful metaprogramming libraries.
 Using all of the above, we can write a `derive` macro that behaves similarly to Rust's but is not built into the language.
 From the user's perspective it will look like this:
 
-```rs=
+```rust=
 // Example usage
 #[derive(Default, Eq, Cmp)]
 struct MyStruct { my_field: u32 }
@@ -306,7 +306,7 @@ Registering a derive function could be done as follows:
 
 #include_code derive_via noir_stdlib/src/meta/mod.nr rust
 
-```rs=
+```rust=
 // Finally, to register a handler we call the above function as an annotation
 // with our handler function.
 #[derive_via(derive_do_nothing)]
