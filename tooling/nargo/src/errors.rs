@@ -158,13 +158,16 @@ fn extract_locations_from_error<F: AcirField>(
                 debug[resolved_location.acir_function_index]
                     .opcode_location(&resolved_location.opcode_location)
                     .unwrap_or_else(|| {
-                        if let Some(brillig_function_id) = brillig_function_id {
+                        if let (Some(brillig_function_id), Some(brillig_location)) = (
+                            brillig_function_id,
+                            &resolved_location.opcode_location.to_brillig_location(),
+                        ) {
                             let brillig_locations = debug[resolved_location.acir_function_index]
                                 .brillig_locations
                                 .get(&brillig_function_id);
                             brillig_locations
                                 .unwrap()
-                                .get(&resolved_location.opcode_location)
+                                .get(brillig_location)
                                 .cloned()
                                 .unwrap_or_default()
                         } else {
