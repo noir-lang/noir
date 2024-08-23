@@ -2,3 +2,4 @@ mod previous_kernel_validator;
 mod public_call_data_validator;
 mod public_kernel_output_composer;
 mod public_tail_output_composer;
+mod public_tail_output_validator;

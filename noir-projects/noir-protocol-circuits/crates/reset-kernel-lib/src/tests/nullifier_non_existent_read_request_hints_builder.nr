@@ -6,7 +6,7 @@ use dep::types::{
     NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT
 },
     merkle_tree::MembershipWitness, tests::{merkle_tree_utils::NonEmptyMerkleTree},
-    utils::{arrays::{find_index_hint, sort_get_sorted_hints}, field::full_field_greater_than}
+    utils::{arrays::{find_index_hint, get_sorted_hints}, field::full_field_greater_than}
 };
 
 struct NullifierNonExistentReadRequestHintsBuilder {
@@ -50,9 +50,9 @@ impl NullifierNonExistentReadRequestHintsBuilder {
     }
 
     pub fn to_hints(self) -> NullifierNonExistentReadRequestHints {
-        let sorted_result = sort_get_sorted_hints(
+        let sorted_result = get_sorted_hints(
             self.pending_nullifiers,
-            |a: Nullifier, b: Nullifier| a.value.lt(b.value)
+            |a: Nullifier, b: Nullifier| (b.value == 0) | ((a.value != 0) & a.value.lt(b.value))
         );
         let sorted_pending_values = sorted_result.sorted_array;
         let sorted_pending_value_index_hints = sorted_result.sorted_index_hints;

@@ -1,7 +1,8 @@
 use crate::{
     components::{
     previous_kernel_validator::PreviousKernelValidator,
-    public_tail_output_composer::{PublicTailOutputComposer, CombineHints}
+    public_tail_output_composer::PublicTailOutputComposer,
+    public_tail_output_validator::PublicTailOutputValidator
 },
     public_kernel_phase::PublicKernelPhase
 };
@@ -31,11 +32,14 @@ struct PublicKernelTailCircuitPrivateInputs {
     public_data_hints: [PublicDataHint; MAX_PUBLIC_DATA_HINTS],
     public_data_read_request_hints: PublicDataReadRequestHints,
     start_state: PartialStateReference,
-    combine_hints: CombineHints
 }
 
 impl PublicKernelTailCircuitPrivateInputs {
-    pub fn public_kernel_tail(self) -> KernelCircuitPublicInputs {
+    unconstrained fn generate_output(self) -> KernelCircuitPublicInputs {
+        PublicTailOutputComposer::new(self.previous_kernel.public_inputs, self.start_state).finish()
+    }
+
+    pub fn execute(self) -> KernelCircuitPublicInputs {
         let previous_kernel_validator = PreviousKernelValidator::new(self.previous_kernel);
         previous_kernel_validator.validate_phase(PublicKernelPhase.TAIL);
         previous_kernel_validator.validate_proof(ALLOWED_PREVIOUS_CIRCUITS);
@@ -51,15 +55,16 @@ impl PublicKernelTailCircuitPrivateInputs {
             self.start_state.public_data_tree.root
         ).validate();
 
-        PublicTailOutputComposer::new(previous_public_inputs, self.start_state, self.combine_hints).finish()
+        let output = self.generate_output();
+
+        PublicTailOutputValidator::new(output, previous_public_inputs, self.start_state).validate();
+
+        output
     }
 }
 
 mod tests {
-    use crate::{
-        components::public_tail_output_composer::CombineHints,
-        public_kernel_tail::{ALLOWED_PREVIOUS_CIRCUITS, PublicKernelTailCircuitPrivateInputs}
-    };
+    use crate::{public_kernel_tail::{ALLOWED_PREVIOUS_CIRCUITS, PublicKernelTailCircuitPrivateInputs}};
     use dep::reset_kernel_lib::{
         tests::{
         nullifier_non_existent_read_request_hints_builder::NullifierNonExistentReadRequestHintsBuilder,
@@ -71,9 +76,7 @@ mod tests {
     use dep::types::{
         abis::{
         kernel_circuit_public_inputs::KernelCircuitPublicInputs, public_kernel_data::PublicKernelData,
-        nullifier::ScopedNullifier, nullifier_leaf_preimage::NullifierLeafPreimage,
-        accumulated_data::CombinedAccumulatedData, public_data_update_request::PublicDataUpdateRequest,
-        note_hash::ScopedNoteHash, log_hash::{ScopedLogHash, LogHash}
+        nullifier::ScopedNullifier, nullifier_leaf_preimage::NullifierLeafPreimage
     },
         address::AztecAddress,
         constants::{
@@ -85,12 +88,14 @@ mod tests {
         PUBLIC_KERNEL_APP_LOGIC_INDEX, BASE_ROLLUP_INDEX, PUBLIC_KERNEL_SETUP_INDEX,
         PUBLIC_KERNEL_TEARDOWN_INDEX
     },
-        hash::{compute_siloed_nullifier, sha256_to_field},
+        hash::{compute_siloed_nullifier, silo_note_hash},
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
-        tests::{fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree},
+        tests::{
+        fixture_builder::FixtureBuilder, merkle_tree_utils::NonEmptyMerkleTree,
+        utils::{assert_array_eq, swap_items}
+    },
         traits::is_empty, partial_state_reference::PartialStateReference,
-        utils::arrays::{array_length, array_merge, sort_get_sorted_hints},
-        merkle_tree::MembershipWitness
+        utils::arrays::{array_length, array_merge}, merkle_tree::MembershipWitness
     };
 
     fn build_nullifier_tree<N>() -> NonEmptyMerkleTree<MAX_NULLIFIERS_PER_TX, NULLIFIER_TREE_HEIGHT, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH, NULLIFIER_SUBTREE_HEIGHT> {
@@ -140,7 +145,7 @@ mod tests {
             let previous_revertible = FixtureBuilder::new();
             let nullifier_non_existent_read_request_hints_builder = NullifierNonExistentReadRequestHintsBuilder::new();
 
-            let mut builder = PublicKernelTailCircuitPrivateInputsBuilder {
+            PublicKernelTailCircuitPrivateInputsBuilder {
                 previous_kernel,
                 previous_revertible,
                 nullifier_read_request_hints_builder: NullifierReadRequestHintsBuilder::new(),
@@ -149,9 +154,7 @@ mod tests {
                 public_data_hints: BoundedVec::new(),
                 public_data_tree: NonEmptyMerkleTree::empty(),
                 start_state: PartialStateReference::empty()
-            };
-            builder.set_nullifiers_for_non_existent_read_request_hints();
-            builder
+            }
         }
 
         pub fn with_nullifier_tree(&mut self) -> Self {
@@ -270,78 +273,7 @@ mod tests {
             let mut previous_kernel = self.previous_kernel.to_public_kernel_data(false);
             previous_kernel.public_inputs.end = self.previous_revertible.to_public_accumulated_data();
 
-            // Note: note hashes are a bit odd here: whereas we'd like to use `combined` and then
-            // sort the result, we cannot because we lose the side effect counters when we combine.
-            let merged = array_merge(
-                previous_kernel.public_inputs.end_non_revertible.note_hashes,
-                previous_kernel.public_inputs.end.note_hashes
-            );
-            let sorted = sort_get_sorted_hints(
-                merged,
-                |a: ScopedNoteHash, b: ScopedNoteHash| a.counter() < b.counter()
-            );
-            let sorted_note_hashes = sorted.sorted_array;
-            let sorted_note_hashes_indexes = sorted.sorted_index_hints;
-
-            let merged = array_merge(
-                previous_kernel.public_inputs.end_non_revertible.unencrypted_logs_hashes,
-                previous_kernel.public_inputs.end.unencrypted_logs_hashes
-            );
-            let sorted = sort_get_sorted_hints(
-                merged,
-                |a: ScopedLogHash, b: ScopedLogHash| a.counter() < b.counter()
-            );
-            let sorted_unencrypted_logs_hashes = sorted.sorted_array;
-            let sorted_unencrypted_logs_hashes_indexes = sorted.sorted_index_hints;
-
-            let merged = array_merge(
-                previous_kernel.public_inputs.end_non_revertible.encrypted_logs_hashes,
-                previous_kernel.public_inputs.end.encrypted_logs_hashes
-            );
-            let sorted = sort_get_sorted_hints(
-                merged,
-                |a: ScopedLogHash, b: ScopedLogHash| a.counter() < b.counter()
-            );
-            let sorted_encrypted_logs_hashes = sorted.sorted_array;
-            let sorted_encrypted_logs_hashes_indexes = sorted.sorted_index_hints;
-
-            let merged = array_merge(
-                previous_kernel.public_inputs.end_non_revertible.note_encrypted_logs_hashes,
-                previous_kernel.public_inputs.end.note_encrypted_logs_hashes
-            );
-            let sorted = sort_get_sorted_hints(merged, |a: LogHash, b: LogHash| a.counter() < b.counter());
-            let sorted_note_encrypted_logs_hashes = sorted.sorted_array;
-            let sorted_note_encrypted_logs_hashes_indexes = sorted.sorted_index_hints;
-
-            let merged = array_merge(
-                previous_kernel.public_inputs.end_non_revertible.public_data_update_requests,
-                previous_kernel.public_inputs.end.public_data_update_requests
-            );
-
-            let mut deduped_public_data_update_requests_runs = [0; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
-            let mut sorted_public_data_update_requests_indexes = [0; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX];
-            let array_length = array_length(merged);
-            for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
-                if i < array_length {
-                    deduped_public_data_update_requests_runs[i] = 1;
-                }
-                sorted_public_data_update_requests_indexes[i] = i;
-            }
-
-            let combine_hints = CombineHints {
-                sorted_note_hashes,
-                sorted_note_hashes_indexes,
-                sorted_unencrypted_logs_hashes,
-                sorted_unencrypted_logs_hashes_indexes,
-                sorted_encrypted_logs_hashes,
-                sorted_encrypted_logs_hashes_indexes,
-                sorted_note_encrypted_logs_hashes,
-                sorted_note_encrypted_logs_hashes_indexes,
-                sorted_public_data_update_requests: merged,
-                sorted_public_data_update_requests_indexes,
-                deduped_public_data_update_requests: merged,
-                deduped_public_data_update_requests_runs
-            };
+            self.set_nullifiers_for_non_existent_read_request_hints();
 
             let kernel = PublicKernelTailCircuitPrivateInputs {
                 previous_kernel,
@@ -349,11 +281,10 @@ mod tests {
                 nullifier_non_existent_read_request_hints: self.nullifier_non_existent_read_request_hints_builder.to_hints(),
                 public_data_hints: self.public_data_hints.storage,
                 public_data_read_request_hints: self.public_data_read_request_hints_builder.to_hints(),
-                start_state: self.start_state,
-                combine_hints
+                start_state: self.start_state
             };
 
-            kernel.public_kernel_tail()
+            kernel.execute()
         }
 
         pub fn succeeded(&mut self) {
@@ -588,6 +519,68 @@ mod tests {
         assert_eq(is_empty(builder.previous_kernel.fee_payer), true);
         let public_inputs = builder.execute();
         assert_eq(public_inputs.fee_payer, AztecAddress::empty());
+    }
+
+    #[test]
+    unconstrained fn combine_and_silo_accumulated_note_hashes() {
+        let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
+        builder.previous_revertible.value_offset = 999;
+        builder.previous_revertible.counter = 88;
+        builder.previous_kernel.set_first_nullifier();
+
+        builder.previous_kernel.append_note_hashes(3);
+        // 1 of them is from private.
+        builder.previous_kernel.note_hashes.storage[0].note_hash.counter = 0;
+        let non_rev = builder.previous_kernel.note_hashes.storage;
+
+        builder.previous_revertible.append_note_hashes(5);
+        // 2 of them are from private:
+        builder.previous_revertible.note_hashes.storage[0].note_hash.counter = 0;
+        builder.previous_revertible.note_hashes.storage[1].note_hash.counter = 0;
+        let rev = builder.previous_revertible.note_hashes.storage;
+        // Swap the items so that they are not ordered by counters.
+        swap_items(&mut builder.previous_revertible.note_hashes, 2, 3);
+
+        let public_inputs = builder.execute();
+
+        let tx_hash = builder.previous_kernel.nullifiers.storage[0].value();
+        let expected = [
+            // Note hashes from private are already siloed.
+            non_rev[0].value(),
+            rev[0].value(),
+            rev[1].value(),
+            silo_note_hash(non_rev[1], tx_hash, 3),
+            silo_note_hash(non_rev[2], tx_hash, 4),
+            silo_note_hash(rev[2], tx_hash, 5),
+            silo_note_hash(rev[3], tx_hash, 6),
+            silo_note_hash(rev[4], tx_hash, 7)
+        ];
+        assert_array_eq(public_inputs.end.note_hashes, expected);
+    }
+
+    #[test]
+    unconstrained fn combine_accumulated_nullifiers() {
+        let mut builder = PublicKernelTailCircuitPrivateInputsBuilder::new();
+        builder.previous_revertible.value_offset = 999;
+        builder.previous_revertible.counter = 88;
+
+        builder.previous_kernel.append_nullifiers(3);
+        // 1 of them is from private:
+        builder.previous_kernel.nullifiers.storage[0].nullifier.counter = 0;
+        let non_rev = builder.previous_kernel.nullifiers.storage;
+
+        builder.previous_revertible.append_nullifiers(5);
+        // 2 of them are from private:
+        builder.previous_revertible.nullifiers.storage[0].nullifier.counter = 0;
+        builder.previous_revertible.nullifiers.storage[1].nullifier.counter = 0;
+        let rev = builder.previous_revertible.nullifiers.storage;
+        // Swap the items so that they are not ordered by counters.
+        swap_items(&mut builder.previous_revertible.nullifiers, 2, 3);
+
+        let public_inputs = builder.execute();
+
+        let expected = [non_rev[0], rev[0], rev[1], non_rev[1], non_rev[2], rev[2], rev[3], rev[4]].map(|n: ScopedNullifier| n.nullifier.value);
+        assert_array_eq(public_inputs.end.nullifiers, expected);
     }
 
     #[test]

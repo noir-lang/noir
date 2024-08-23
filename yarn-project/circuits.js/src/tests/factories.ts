@@ -24,7 +24,6 @@ import {
   BaseParityInputs,
   BaseRollupInputs,
   CallContext,
-  CombineHints,
   CombinedAccumulatedData,
   CombinedConstantData,
   ConstantRollupData,
@@ -669,31 +668,6 @@ export function makePublicKernelCircuitPrivateInputs(seed = 1): PublicKernelCirc
   return new PublicKernelCircuitPrivateInputs(makePublicKernelData(seed), makePublicCallData(seed + 0x1000));
 }
 
-export function makeCombineHints(seed = 1): CombineHints {
-  return CombineHints.from({
-    sortedNoteHashes: makeTuple(MAX_NOTE_HASHES_PER_TX, makeScopedNoteHash, seed + 0x100),
-    sortedNoteHashesIndexes: makeTuple(MAX_NOTE_HASHES_PER_TX, i => i, seed + 0x200),
-    sortedNoteEncryptedLogsHashes: makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, makeLogHash, seed + 0x300),
-    sortedNoteEncryptedLogsHashesIndexes: makeTuple(MAX_NOTE_ENCRYPTED_LOGS_PER_TX, i => i, seed + 0x400),
-    sortedEncryptedLogsHashes: makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x500),
-    sortedEncryptedLogsHashesIndexes: makeTuple(MAX_ENCRYPTED_LOGS_PER_TX, i => i, seed + 0x600),
-    sortedUnencryptedLogsHashes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, makeScopedLogHash, seed + 0x700),
-    sortedUnencryptedLogsHashesIndexes: makeTuple(MAX_UNENCRYPTED_LOGS_PER_TX, i => i, seed + 0x800),
-    sortedPublicDataUpdateRequests: makeTuple(
-      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-      makePublicDataUpdateRequest,
-      seed + 0x900,
-    ),
-    sortedPublicDataUpdateRequestsIndexes: makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, seed + 0x1000),
-    dedupedPublicDataUpdateRequests: makeTuple(
-      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-      makePublicDataUpdateRequest,
-      seed + 0x1100,
-    ),
-    dedupedPublicDataUpdateRequestsRuns: makeTuple(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX, i => i, seed + 0x1200),
-  });
-}
-
 /**
  * Makes arbitrary public kernel tail inputs.
  * @param seed - The seed to use for generating the public kernel inputs.
@@ -707,7 +681,6 @@ export function makePublicKernelTailCircuitPrivateInputs(seed = 1): PublicKernel
     makeTuple(MAX_PUBLIC_DATA_HINTS, PublicDataHint.empty, seed + 0x100),
     PublicDataReadRequestHintsBuilder.empty(),
     makePartialStateReference(seed + 0x200),
-    makeCombineHints(seed + 0x300),
   );
 }
 

@@ -11,7 +11,7 @@ use dep::types::{
     MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL
 },
     traits::is_empty, transaction::tx_request::TxRequest,
-    utils::arrays::{array_length, array_to_bounded_vec, sort_by_counters_asc, sort_by_counters_desc}
+    utils::arrays::{array_length, array_to_bounded_vec, sort_by_counter_asc, sort_by_counter_desc}
 };
 
 struct DataSource {
@@ -101,9 +101,9 @@ impl PrivateKernelCircuitPublicInputsComposer {
 
     pub fn sort_ordered_values(&mut self) {
         // Note hashes, nullifiers, note_encrypted_logs_hashes, and encrypted_logs_hashes are sorted in the reset circuit.
-        self.public_inputs.end.l2_to_l1_msgs.storage = sort_by_counters_asc(self.public_inputs.end.l2_to_l1_msgs.storage);
-        self.public_inputs.end.unencrypted_logs_hashes.storage = sort_by_counters_asc(self.public_inputs.end.unencrypted_logs_hashes.storage);
-        self.public_inputs.end.public_call_requests.storage = sort_by_counters_desc(self.public_inputs.end.public_call_requests.storage);
+        self.public_inputs.end.l2_to_l1_msgs.storage = sort_by_counter_asc(self.public_inputs.end.l2_to_l1_msgs.storage);
+        self.public_inputs.end.unencrypted_logs_hashes.storage = sort_by_counter_asc(self.public_inputs.end.unencrypted_logs_hashes.storage);
+        self.public_inputs.end.public_call_requests.storage = sort_by_counter_desc(self.public_inputs.end.public_call_requests.storage);
     }
 
     pub fn finish(self) -> PrivateKernelCircuitPublicInputs {

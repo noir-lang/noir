@@ -1,6 +1,6 @@
 mod combine_data;
 
-use crate::components::public_tail_output_composer::combine_data::{combine_data, CombineHints};
+use crate::components::public_tail_output_composer::combine_data::combine_data;
 use dep::types::{
     abis::{kernel_circuit_public_inputs::{KernelCircuitPublicInputs, PublicKernelCircuitPublicInputs}},
     partial_state_reference::PartialStateReference
@@ -9,23 +9,20 @@ use dep::types::{
 struct PublicTailOutputComposer {
     previous_kernel: PublicKernelCircuitPublicInputs,
     start_state: PartialStateReference,
-    combine_hints: CombineHints
 }
 
 impl PublicTailOutputComposer {
     pub fn new(
         previous_kernel: PublicKernelCircuitPublicInputs,
-        start_state: PartialStateReference,
-        combine_hints: CombineHints
+        start_state: PartialStateReference
     ) -> Self {
-        PublicTailOutputComposer { previous_kernel, start_state, combine_hints }
+        PublicTailOutputComposer { previous_kernel, start_state }
     }
 
     pub fn finish(self) -> KernelCircuitPublicInputs {
         let end = combine_data(
             self.previous_kernel.end_non_revertible,
-            self.previous_kernel.end,
-            self.combine_hints
+            self.previous_kernel.end
         );
 
         KernelCircuitPublicInputs {

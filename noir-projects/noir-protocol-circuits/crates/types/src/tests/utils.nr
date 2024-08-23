@@ -25,3 +25,11 @@ pub fn swap_items<T, let N: u32>(vec: &mut BoundedVec<T, N>, from_index: u32, to
     vec.storage[from_index] = vec.storage[to_index];
     vec.storage[to_index] = tmp;
 }
+
+pub fn pad_end<T, let N: u32, let M: u32>(items: [T; N], emptyItem: T) -> [T; M] {
+    let mut output = [emptyItem; M];
+    for i in 0..N {
+        output[i] = items[i];
+    }
+    output
+}

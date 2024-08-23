@@ -1,8 +1,8 @@
 use crate::{
     abis::side_effect::Ordered, traits::{Empty, is_empty},
     utils::arrays::{
-    sort_by_counters::{order_by_counters_empty_padded_asc, order_by_counters_empty_padded_desc},
-    sort_get_sorted_tuple::sort_get_sorted_tuple
+    sort_by_counter::{compare_by_counter_empty_padded_asc, compare_by_counter_empty_padded_desc},
+    get_sorted_tuple::get_sorted_tuple
 }
 };
 
@@ -23,11 +23,11 @@ impl Eq for OrderHint {
     }
 }
 
-pub fn sort_get_order_hints<T, let N: u32>(
+pub fn get_order_hints<T, let N: u32>(
     array: [T; N],
     ordering: fn(T, T) -> bool
 ) -> [OrderHint; N] where T: Ordered + Eq + Empty {
-    let sorted_tuples = sort_get_sorted_tuple(array, ordering);
+    let sorted_tuples = get_sorted_tuple(array, ordering);
 
     let mut hints = [OrderHint::empty(); N];
     for i in 0..N {
@@ -44,18 +44,18 @@ pub fn sort_get_order_hints<T, let N: u32>(
     hints
 }
 
-pub fn sort_get_order_hints_asc<T, S, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
-    sort_get_order_hints(array, order_by_counters_empty_padded_asc)
+pub fn get_order_hints_asc<T, S, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
+    get_order_hints(array, compare_by_counter_empty_padded_asc)
 }
 
-pub fn sort_get_order_hints_desc<T, S, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
-    sort_get_order_hints(array, order_by_counters_empty_padded_desc)
+pub fn get_order_hints_desc<T, S, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
+    get_order_hints(array, compare_by_counter_empty_padded_desc)
 }
 
 mod tests {
     use crate::{
         abis::side_effect::Ordered, traits::Empty,
-        utils::arrays::sort_get_order_hints::{OrderHint, sort_get_order_hints_asc, sort_get_order_hints_desc}
+        utils::arrays::assert_exposed_sorted_transformed_value_array::get_order_hints::{get_order_hints_asc, get_order_hints_desc, OrderHint}
     };
 
     struct TestItem {
@@ -82,13 +82,13 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_order_hints_asc_full_non_empty() {
+    fn get_order_hints_asc_full_non_empty() {
         let array = [
             TestItem { value: 100, counter: 9 },
             TestItem { value: 200, counter: 3 },
             TestItem { value: 300, counter: 6 }
         ];
-        let hints = sort_get_order_hints_asc(array);
+        let hints = get_order_hints_asc(array);
         let expected_hints = [
             OrderHint { counter: 3, sorted_index: 2 },
             OrderHint { counter: 6, sorted_index: 0 },
@@ -98,7 +98,7 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_order_hints_asc_padded_empty() {
+    fn get_order_hints_asc_padded_empty() {
         let array = [
             TestItem { value: 100, counter: 9 },
             TestItem { value: 200, counter: 3 },
@@ -106,7 +106,7 @@ mod tests {
             TestItem::empty(),
             TestItem::empty()
         ];
-        let hints = sort_get_order_hints_asc(array);
+        let hints = get_order_hints_asc(array);
         let expected_hints = [
             OrderHint { counter: 3, sorted_index: 2 },
             OrderHint { counter: 6, sorted_index: 0 },
@@ -118,13 +118,13 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_order_hints_desc_full_non_empty() {
+    fn get_order_hints_desc_full_non_empty() {
         let array = [
             TestItem { value: 100, counter: 9 },
             TestItem { value: 200, counter: 3 },
             TestItem { value: 300, counter: 6 }
         ];
-        let hints = sort_get_order_hints_desc(array);
+        let hints = get_order_hints_desc(array);
         let expected_hints = [
             OrderHint { counter: 9, sorted_index: 0 },
             OrderHint { counter: 6, sorted_index: 2 },
@@ -134,7 +134,7 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_order_hints_desc_padded_empty() {
+    fn get_order_hints_desc_padded_empty() {
         let array = [
             TestItem { value: 100, counter: 9 },
             TestItem { value: 200, counter: 3 },
@@ -142,7 +142,7 @@ mod tests {
             TestItem::empty(),
             TestItem::empty()
         ];
-        let hints = sort_get_order_hints_desc(array);
+        let hints = get_order_hints_desc(array);
         let expected_hints = [
             OrderHint { counter: 9, sorted_index: 0 },
             OrderHint { counter: 6, sorted_index: 2 },

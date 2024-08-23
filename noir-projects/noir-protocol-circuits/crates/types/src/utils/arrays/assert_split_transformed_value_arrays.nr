@@ -70,7 +70,7 @@ pub fn assert_split_transformed_value_arrays<T, S, let N: u32, Env>(
 
 mod tests {
     use crate::{
-        abis::side_effect::Ordered, traits::Empty,
+        abis::side_effect::Ordered, tests::utils::pad_end, traits::Empty,
         utils::arrays::assert_split_transformed_value_arrays::{assert_split_transformed_value_arrays, assert_split_transformed_value_arrays_with_hint}
     };
 
@@ -101,14 +101,6 @@ mod tests {
 
     fn is_transformed(from: TestItem, to: Field) -> bool {
         from.value == to
-    }
-
-    fn pad_end<T, let N: u32>(items: [T; N], emptyItem: T) -> [T; NUM_TEST_ITEMS] {
-        let mut output = [emptyItem; NUM_TEST_ITEMS];
-        for i in 0..N {
-            output[i] = items[i];
-        }
-        output
     }
 
     struct TestBuilder {

@@ -1,6 +1,8 @@
+mod get_order_hints;
+
 use crate::{
     abis::side_effect::Ordered, traits::{Empty, is_empty},
-    utils::arrays::{array_length, sort_get_order_hints::OrderHint}
+    utils::arrays::{array_length, assert_exposed_sorted_transformed_value_array::get_order_hints::OrderHint}
 };
 
 // original_array must be valid, i.e. validate_array(original_array) == true
@@ -37,10 +39,7 @@ pub fn assert_exposed_sorted_transformed_value_array<T, S, let N: u32, Env>(
 mod tests {
     use crate::{
         abis::side_effect::Ordered, traits::Empty,
-        utils::arrays::{
-        assert_exposed_sorted_transformed_value_array::assert_exposed_sorted_transformed_value_array,
-        sort_get_order_hints::OrderHint
-    }
+        utils::arrays::{assert_exposed_sorted_transformed_value_array::{assert_exposed_sorted_transformed_value_array, get_order_hints::OrderHint}}
     };
 
     struct TestItem {

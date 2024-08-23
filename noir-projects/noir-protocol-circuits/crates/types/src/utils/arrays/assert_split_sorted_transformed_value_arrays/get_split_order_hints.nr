@@ -1,8 +1,8 @@
 use crate::{
     abis::side_effect::Ordered, traits::{Empty, is_empty},
     utils::arrays::{
-    sort_by_counters::{order_by_counters_empty_padded_asc, order_by_counters_empty_padded_desc},
-    sort_get_sorted_tuple::sort_get_sorted_tuple
+    sort_by_counter::{compare_by_counter_empty_padded_asc, compare_by_counter_empty_padded_desc},
+    get_sorted_tuple::get_sorted_tuple
 }
 };
 
@@ -26,17 +26,17 @@ impl<let N: u32> Eq for SplitOrderHints<N> {
     }
 }
 
-fn sort_get_split_order_hints<T, let N: u32>(
+fn get_split_order_hints<T, let N: u32>(
     array: [T; N],
     split_counter: u32,
     ascending: bool
 ) -> SplitOrderHints<N> where T: Ordered + Eq + Empty {
     let ordering = if ascending {
-        order_by_counters_empty_padded_asc
+        compare_by_counter_empty_padded_asc
     } else {
-        order_by_counters_empty_padded_desc
+        compare_by_counter_empty_padded_desc
     };
-    let sorted_tuples = sort_get_sorted_tuple(array, ordering);
+    let sorted_tuples = get_sorted_tuple(array, ordering);
 
     let mut sorted_counters_lt = [0; N];
     let mut sorted_counters_gte = [0; N];
@@ -67,24 +67,24 @@ fn sort_get_split_order_hints<T, let N: u32>(
     SplitOrderHints { sorted_counters_lt, sorted_counters_gte, sorted_indexes }
 }
 
-pub fn sort_get_split_order_hints_asc<T, S, let N: u32>(
+pub fn get_split_order_hints_asc<T, S, let N: u32>(
     array: [T; N],
     split_counter: u32
 ) -> SplitOrderHints<N> where T: Ordered + Eq + Empty {
-    sort_get_split_order_hints(array, split_counter, true)
+    get_split_order_hints(array, split_counter, true)
 }
 
-pub fn sort_get_split_order_hints_desc<T, S, let N: u32>(
+pub fn get_split_order_hints_desc<T, S, let N: u32>(
     array: [T; N],
     split_counter: u32
 ) -> SplitOrderHints<N> where T: Ordered + Eq + Empty {
-    sort_get_split_order_hints(array, split_counter, false)
+    get_split_order_hints(array, split_counter, false)
 }
 
 mod tests {
     use crate::{
         abis::side_effect::Ordered, traits::Empty,
-        utils::arrays::sort_get_split_order_hints::{sort_get_split_order_hints_asc, sort_get_split_order_hints_desc, SplitOrderHints}
+        utils::arrays::assert_split_sorted_transformed_value_arrays::get_split_order_hints::{get_split_order_hints_asc, get_split_order_hints_desc, SplitOrderHints}
     };
 
     struct TestItem {
@@ -131,9 +131,9 @@ mod tests {
     // asc
 
     #[test]
-    fn sort_get_split_order_hints_asc_zero_split_counter_full() {
+    fn get_split_order_hints_asc_zero_split_counter_full() {
         let split_counter = 0;
-        let hints = sort_get_split_order_hints_asc(full_array, split_counter);
+        let hints = get_split_order_hints_asc(full_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [0, 0, 0, 0, 0],
             sorted_counters_gte: [5, 7, 11, 13, 17],
@@ -143,9 +143,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_asc_non_zero_split_counter_full() {
+    fn get_split_order_hints_asc_non_zero_split_counter_full() {
         let split_counter = 9;
-        let hints = sort_get_split_order_hints_asc(full_array, split_counter);
+        let hints = get_split_order_hints_asc(full_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [5, 7, 0, 0, 0],
             sorted_counters_gte: [11, 13, 17, 0, 0],
@@ -155,9 +155,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_asc_non_zero_split_counter_equal_full() {
+    fn get_split_order_hints_asc_non_zero_split_counter_equal_full() {
         let split_counter = 11; // Equal one of the item's counter.
-        let hints = sort_get_split_order_hints_asc(full_array, split_counter);
+        let hints = get_split_order_hints_asc(full_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [5, 7, 0, 0, 0],
             sorted_counters_gte: [11, 13, 17, 0, 0],
@@ -167,9 +167,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_asc_zero_split_counter_padded_empty() {
+    fn get_split_order_hints_asc_zero_split_counter_padded_empty() {
         let split_counter = 0;
-        let hints = sort_get_split_order_hints_asc(padded_array, split_counter);
+        let hints = get_split_order_hints_asc(padded_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [0, 0, 0, 0, 0, 0, 0],
             sorted_counters_gte: [5, 7, 11, 13, 17, 0, 0],
@@ -179,9 +179,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_asc_non_zero_split_counter_padded_empty() {
+    fn get_split_order_hints_asc_non_zero_split_counter_padded_empty() {
         let split_counter = 9;
-        let hints = sort_get_split_order_hints_asc(padded_array, split_counter);
+        let hints = get_split_order_hints_asc(padded_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [5, 7, 0, 0, 0, 0, 0],
             sorted_counters_gte: [11, 13, 17, 0, 0, 0, 0],
@@ -191,9 +191,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_asc_non_zero_split_counter_equal_padded_empty() {
+    fn get_split_order_hints_asc_non_zero_split_counter_equal_padded_empty() {
         let split_counter = 11;
-        let hints = sort_get_split_order_hints_asc(padded_array, split_counter);
+        let hints = get_split_order_hints_asc(padded_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [5, 7, 0, 0, 0, 0, 0],
             sorted_counters_gte: [11, 13, 17, 0, 0, 0, 0],
@@ -205,9 +205,9 @@ mod tests {
     // desc
 
     #[test]
-    fn sort_get_split_order_hints_desc_zero_split_counter_empty() {
+    fn get_split_order_hints_desc_zero_split_counter_empty() {
         let split_counter = 0;
-        let hints = sort_get_split_order_hints_desc(full_array, split_counter);
+        let hints = get_split_order_hints_desc(full_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [0, 0, 0, 0, 0],
             sorted_counters_gte: [17, 13, 11, 7, 5],
@@ -217,9 +217,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_desc_non_zero_split_counter_empty() {
+    fn get_split_order_hints_desc_non_zero_split_counter_empty() {
         let split_counter = 9;
-        let hints = sort_get_split_order_hints_desc(full_array, split_counter);
+        let hints = get_split_order_hints_desc(full_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [7, 5, 0, 0, 0],
             sorted_counters_gte: [17, 13, 11, 0, 0],
@@ -229,9 +229,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_desc_non_zero_split_counter_equal_empty() {
+    fn get_split_order_hints_desc_non_zero_split_counter_equal_empty() {
         let split_counter = 11;
-        let hints = sort_get_split_order_hints_desc(full_array, split_counter);
+        let hints = get_split_order_hints_desc(full_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [7, 5, 0, 0, 0],
             sorted_counters_gte: [17, 13, 11, 0, 0],
@@ -241,9 +241,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_desc_zero_split_counter_padded_empty() {
+    fn get_split_order_hints_desc_zero_split_counter_padded_empty() {
         let split_counter = 0;
-        let hints = sort_get_split_order_hints_desc(padded_array, split_counter);
+        let hints = get_split_order_hints_desc(padded_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [0, 0, 0, 0, 0, 0, 0],
             sorted_counters_gte: [17, 13, 11, 7, 5, 0, 0],
@@ -253,9 +253,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_desc_non_zero_split_counter_padded_empty() {
+    fn get_split_order_hints_desc_non_zero_split_counter_padded_empty() {
         let split_counter = 9;
-        let hints = sort_get_split_order_hints_desc(padded_array, split_counter);
+        let hints = get_split_order_hints_desc(padded_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [7, 5, 0, 0, 0, 0, 0],
             sorted_counters_gte: [17, 13, 11, 0, 0, 0, 0],
@@ -265,9 +265,9 @@ mod tests {
     }
 
     #[test]
-    fn sort_get_split_order_hints_desc_non_zero_split_counter_equal_padded_empty() {
+    fn get_split_order_hints_desc_non_zero_split_counter_equal_padded_empty() {
         let split_counter = 11;
-        let hints = sort_get_split_order_hints_desc(padded_array, split_counter);
+        let hints = get_split_order_hints_desc(padded_array, split_counter);
         let expected_hints = SplitOrderHints {
             sorted_counters_lt: [7, 5, 0, 0, 0, 0, 0],
             sorted_counters_gte: [17, 13, 11, 0, 0, 0, 0],

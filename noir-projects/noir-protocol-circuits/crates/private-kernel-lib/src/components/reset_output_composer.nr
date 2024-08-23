@@ -16,7 +16,7 @@ use dep::types::{
     MAX_ENCRYPTED_LOGS_PER_TX, MAX_NOTE_ENCRYPTED_LOGS_PER_TX, MAX_NOTE_HASHES_PER_TX,
     MAX_NULLIFIERS_PER_TX
 },
-    hash::{mask_encrypted_log_hash, silo_note_hash, silo_nullifier}, utils::arrays::sort_by_counters_asc
+    hash::{mask_encrypted_log_hash, silo_note_hash, silo_nullifier}, utils::arrays::sort_by_counter_asc
 };
 
 struct ResetOutputComposer<
@@ -99,7 +99,7 @@ impl<
     }
 
     fn get_sorted_siloed_note_hashes(self) -> [ScopedNoteHash; MAX_NOTE_HASHES_PER_TX] {
-        let mut note_hashes = sort_by_counters_asc(self.hints.kept_note_hashes);
+        let mut note_hashes = sort_by_counter_asc(self.hints.kept_note_hashes);
         let first_nullifier = self.previous_kernel.end.nullifiers[0].value();
         for i in 0..note_hashes.len() {
             note_hashes[i].note_hash.value = silo_note_hash(
@@ -113,7 +113,7 @@ impl<
     }
 
     fn get_sorted_siloed_nullifiers(self) -> [ScopedNullifier; MAX_NULLIFIERS_PER_TX] {
-        let mut nullifiers = sort_by_counters_asc(self.hints.kept_nullifiers);
+        let mut nullifiers = sort_by_counter_asc(self.hints.kept_nullifiers);
         for i in 0..nullifiers.len() {
             nullifiers[i].nullifier.value = silo_nullifier(nullifiers[i]);
             nullifiers[i].contract_address = AztecAddress::zero();
@@ -122,7 +122,7 @@ impl<
     }
 
     fn get_sorted_note_encrypted_log_hashes(self) -> [NoteLogHash; MAX_NOTE_ENCRYPTED_LOGS_PER_TX] {
-        let mut log_hashes = sort_by_counters_asc(self.hints.kept_note_encrypted_log_hashes);
+        let mut log_hashes = sort_by_counter_asc(self.hints.kept_note_encrypted_log_hashes);
         for i in 0..log_hashes.len() {
             log_hashes[i].note_hash_counter = 0;
         }
@@ -130,7 +130,7 @@ impl<
     }
 
     fn get_sorted_masked_encrypted_log_hashes(self) -> [ScopedEncryptedLogHash; MAX_ENCRYPTED_LOGS_PER_TX] {
-        let mut log_hashes = sort_by_counters_asc(self.previous_kernel.end.encrypted_logs_hashes);
+        let mut log_hashes = sort_by_counter_asc(self.previous_kernel.end.encrypted_logs_hashes);
         for i in 0..log_hashes.len() {
             log_hashes[i].contract_address = mask_encrypted_log_hash(log_hashes[i]);
             log_hashes[i].log_hash.randomness = 0;

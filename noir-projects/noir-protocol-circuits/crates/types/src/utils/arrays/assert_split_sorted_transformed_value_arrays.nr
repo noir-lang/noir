@@ -1,6 +1,11 @@
+mod get_split_order_hints;
+
 use crate::{
     abis::side_effect::Ordered, traits::{Empty, is_empty},
-    utils::arrays::{array_length, sort_get_split_order_hints::SplitOrderHints, validate_array}
+    utils::arrays::{
+    array_length, assert_split_sorted_transformed_value_arrays::get_split_order_hints::SplitOrderHints,
+    validate_array
+}
 };
 
 // original_array must be valid, i.e. validate_array(original_array) == true
@@ -112,8 +117,10 @@ mod tests {
     use crate::{
         abis::side_effect::Ordered, traits::Empty,
         utils::arrays::{
-        assert_split_sorted_transformed_value_arrays::{assert_split_sorted_transformed_value_arrays_asc, assert_split_sorted_transformed_value_arrays_desc},
-        sort_get_split_order_hints::SplitOrderHints
+        assert_split_sorted_transformed_value_arrays::{
+        assert_split_sorted_transformed_value_arrays_asc,
+        assert_split_sorted_transformed_value_arrays_desc, get_split_order_hints::SplitOrderHints
+    }
     }
     };
 

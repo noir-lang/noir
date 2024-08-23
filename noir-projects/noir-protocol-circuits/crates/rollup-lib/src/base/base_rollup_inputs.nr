@@ -489,9 +489,12 @@ mod tests {
         public_data_tree_leaf_preimage::PublicDataTreeLeafPreimage,
         tests::{
         fixtures, fixture_builder::FixtureBuilder,
-        merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes}, sort::sort_high_to_low
+        merkle_tree_utils::{NonEmptyMerkleTree, compute_zero_hashes}
     },
-        utils::{field::{full_field_less_than, field_from_bytes_32_trunc, field_from_bytes}, uint256::U256},
+        utils::{
+        arrays::get_sorted_tuple::get_sorted_tuple,
+        field::{full_field_less_than, field_from_bytes_32_trunc, field_from_bytes}, uint256::U256
+    },
         traits::Empty
     };
 
@@ -537,14 +540,14 @@ mod tests {
             final_public_data_writes.extend_from_array(protocol_public_data_writes.storage);
         }
 
-        let mut sorted_write_tuples = sort_high_to_low(
+        let mut sorted_write_tuples = get_sorted_tuple(
             final_public_data_writes.storage,
-            |(_, leaf_a): (u32, PublicDataTreeLeaf),(_,leaf_b):(u32, PublicDataTreeLeaf)| full_field_less_than(leaf_a.slot, leaf_b.slot)
+            |(_, leaf_a): (u32, PublicDataTreeLeaf), (_, leaf_b): (u32, PublicDataTreeLeaf)| full_field_less_than(leaf_b.slot, leaf_a.slot)
         );
 
         for i in 0..MAX_TOTAL_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX {
             if i < final_public_data_writes.len() {
-                let (low_leaf_index, leaf): (u32, PublicDataTreeLeaf) = sorted_write_tuples[i].value;
+                let (low_leaf_index, leaf): (u32, PublicDataTreeLeaf) = sorted_write_tuples[i].elem;
 
                 sorted_public_data_writes[i] = leaf;
                 sorted_public_data_writes_indexes[i] = sorted_write_tuples[i].original_index;
@@ -670,9 +673,9 @@ mod tests {
             let mut nullifier_predecessor_preimages = [NullifierLeafPreimage::empty(); MAX_NULLIFIERS_PER_TX];
             let mut low_nullifier_membership_witness = [MembershipWitness::empty(); MAX_NULLIFIERS_PER_TX];
 
-            let sorted_new_nullifier_tuples = sort_high_to_low(
+            let sorted_new_nullifier_tuples = get_sorted_tuple(
                 self.nullifiers.storage.map(|insertion: NullifierInsertion| insertion.value),
-                full_field_less_than
+                |a, b| full_field_less_than(b, a)
             );
 
             let mut sorted_nullifiers = [0; MAX_NULLIFIERS_PER_TX];
@@ -680,7 +683,7 @@ mod tests {
 
             for i in 0..MAX_NULLIFIERS_PER_TX {
                 if (i as u32) < (MAX_nullifiers_PER_TEST as u32) {
-                    sorted_nullifiers[i] = sorted_new_nullifier_tuples[i].value;
+                    sorted_nullifiers[i] = sorted_new_nullifier_tuples[i].elem;
                     sorted_nullifiers_indexes[i] = sorted_new_nullifier_tuples[i].original_index;
                 } else {
                     sorted_nullifiers[i] = 0;
@@ -693,7 +696,7 @@ mod tests {
             for i in 0..MAX_nullifiers_PER_TEST {
                 if i < self.nullifiers.len() {
                     let sorted_tuple = sorted_new_nullifier_tuples[i];
-                    let new_nullifier = sorted_tuple.value;
+                    let new_nullifier = sorted_tuple.elem;
                     let original_index = sorted_tuple.original_index;
 
                     let low_index = self.nullifiers.get_unchecked(original_index).existing_index;
