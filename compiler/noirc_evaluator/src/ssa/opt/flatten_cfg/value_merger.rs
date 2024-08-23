@@ -1,5 +1,7 @@
+use std::rc::Rc;
+
 use acvm::{acir::AcirField, FieldElement};
-use fxhash::{FxHashMap as HashMap, FxHashSet};
+use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -152,7 +154,7 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected array type"),
         };
 
-        if let Some(result) = self.try_merge_only_changed_indices(then_value, else_value) {
+        if let Some(result) = self.try_merge_only_changed_indices(then_value, else_value, then_condition, typ.clone()) {
             return result;
         }
 
@@ -301,85 +303,19 @@ impl<'a> ValueMerger<'a> {
         &mut self,
         then_value: ValueId,
         else_value: ValueId,
+        then_condition: ValueId,
+        array_type: Type,
     ) -> Option<ValueId> {
-        let mut found_ancestor = None;
-        let current_condition = self.current_condition?;
+        let outer_type = Type::Array(Rc::new(vec![array_type.clone()]), 2);
+        let new_array = self.dfg.make_array(vec![else_value, then_value].into(), outer_type);
 
-        let mut current_then = then_value;
-        let mut current_else = else_value;
+        let cast = Instruction::Cast(then_condition, Type::length_type());
+        let index = self.insert_instruction(cast).first();
 
-        // Arbitrarily limit this to looking at most `max_iters` past ArraySet operations.
-        // If there are more than that, we assume 2 completely separate arrays are being merged.
-        // TODO: A value of 5 or higher fails the conditional_1 test.
-        //       See https://github.com/noir-lang/noir/actions/runs/10473667497/job/29006337618?pr=5762
-        let max_iters = 4;
-        let mut seen_then = Vec::with_capacity(max_iters);
-        let mut seen_else = Vec::with_capacity(max_iters);
-
-        // We essentially have a tree of ArraySets and want to find a common
-        // ancestor if it exists, alone with the path to it from each starting node.
-        // This path will be the indices that were changed to create each result array.
-        for _ in 0..max_iters {
-            if current_then == current_else {
-                found_ancestor = Some(current_then);
-                break;
-            }
-
-            if let Some(index) = seen_then.iter().position(|(elem, _, _, _)| *elem == current_else)
-            {
-                seen_else.truncate(index);
-                found_ancestor = Some(current_else);
-                break;
-            }
-
-            if let Some(index) = seen_else.iter().position(|(elem, _, _, _)| *elem == current_then)
-            {
-                seen_then.truncate(index);
-                found_ancestor = Some(current_then);
-                break;
-            }
-
-            current_then = self.find_previous_array_set(current_then, &mut seen_then);
-            current_else = self.find_previous_array_set(current_else, &mut seen_else);
-        }
-
-        let changed_indices: FxHashSet<_> = seen_then
-            .into_iter()
-            .map(|(_, index, typ, condition)| (index, typ, condition))
-            .chain(seen_else.into_iter().map(|(_, index, typ, condition)| (index, typ, condition)))
-            .collect();
-
-        let mut array = found_ancestor?;
-
-        for (index, set_value, condition) in changed_indices {
-            let instruction = Instruction::EnableSideEffects { condition };
-            self.insert_instruction(instruction);
-            let element_type = self.dfg.type_of_value(set_value);
-
-            let mut get_element = |array, typevars| {
-                let get = Instruction::ArrayGet { array, index };
-                self.dfg
-                    .insert_instruction_and_results(
-                        get,
-                        self.block,
-                        typevars,
-                        self.call_stack.clone(),
-                    )
-                    .first()
-            };
-
-            let typevars = Some(vec![element_type]);
-            let old_value = get_element(array, typevars);
-
-            let not_condition = self.insert_instruction(Instruction::Not(condition)).first();
-
-            let value = self.merge_values(condition, not_condition, set_value, old_value);
-            array = self.insert_array_set(array, index, value, Some(condition)).first();
-        }
-
-        let instruction = Instruction::EnableSideEffects { condition: current_condition };
-        self.insert_instruction(instruction);
-        Some(array)
+        let get = Instruction::ArrayGet { array: new_array, index };
+        let typevars = Some(vec![array_type]);
+        Some(self.dfg.insert_instruction_and_results(get, self.block, typevars, self.call_stack.clone())
+            .first())
     }
 
     fn insert_instruction(&mut self, instruction: Instruction) -> InsertInstructionResult {
