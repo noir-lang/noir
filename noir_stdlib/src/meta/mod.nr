@@ -212,7 +212,7 @@ mod tests {
             println("something");
             $body
         };
-        std::meta::make_trait_impl(
+        crate::meta::make_trait_impl(
             s,
             trait_name,
             method_signature,
