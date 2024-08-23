@@ -216,18 +216,20 @@ mod tests {
         }
     }
 
+    // This test can't only be around the comptime block since that will cause
+    // `nargo fmt` to remove the comptime keyword.
+    // docs:start:as_expr_example
     #[test]
     fn test_expr_as_function_call() {
-        // docs:start:as_expr_example
-
+        comptime
         {
             let expr = quote { foo(42) }.as_expr().unwrap();
             let (_function, args) = expr.as_function_call().unwrap();
             assert_eq(args.len(), 1);
             assert_eq(args[0].as_integer().unwrap(), (42, false));
         }
-        // docs:end:as_expr_example
     }
+    // docs:end:as_expr_example
 
     #[test]
     fn test_expr_as_if() {
