@@ -255,7 +255,7 @@ This API can be accessed through built-in functions in `std::meta` as well as on
 The following is an incomplete list of some `comptime` types along with some useful methods on them.
 
 - `Quoted`: A token stream
-- `Type`: The type of a type in Noir
+- `Type`: The type of a Noir type
   - `fn implements(self, constraint: TraitConstraint) -> bool`
     - Returns true if `self` implements the given trait constraint
 - `Expr`: A syntactically valid expression. Can be used to recur on a program's parse tree to inspect how it is structured.
