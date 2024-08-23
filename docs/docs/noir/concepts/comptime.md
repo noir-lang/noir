@@ -42,7 +42,7 @@ Evaluation rules of `comptime` follows the normal unconstrained evaluation rules
 
 - Certain built-in functions may not be available, although more may be added over time.
 - Evaluation order of global items is currently unspecified. For example, given the following two functions we can't guarantee
-which `println` will execute first. The ordering of the two printouts will be arbitrary, but should be stable across multiple compilations as long as the program is also unchanged.
+which `println` will execute first. The ordering of the two printouts will be arbitrary, but should be stable across multiple compilations with the same `nargo` version as long as the program is also unchanged.
 
 ```rs=
 fn one() {
