@@ -119,6 +119,7 @@
         "keccakf",
         "krate",
         "libc",
+        "Linea",
         "losslessly",
         "lvalue",
         "Maddiaa",
@@ -126,6 +127,7 @@
         "memfs",
         "memset",
         "merkle",
+        "Metaprogramming",
         "metas",
         "microcontroller",
         "minreq",
@@ -217,8 +219,7 @@
         "wasi",
         "wasmer",
         "Weierstraß",
-        "zshell",
-        "Linea"
+        "zshell"
     ],
     "ignorePaths": [
         "./**/node_modules/**",
