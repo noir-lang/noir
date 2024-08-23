@@ -16,16 +16,19 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
         AsTraitPath, BlockExpression, CallExpression, ConstructorExpression, Expression,
-        ExpressionKind, ForLoopStatement, Ident, IfExpression, LValue, Lambda, LetStatement,
-        MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl,
-        Path, PathKind, PathSegment, Pattern, Statement, StatementKind, TraitItem, TypeImpl,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
-        UseTreeKind,
+        ExpressionKind, ForLoopStatement, Ident, IfExpression, ItemVisibility, LValue, Lambda,
+        LetStatement, MemberAccessExpression, MethodCallExpression, NoirFunction, NoirStruct,
+        NoirTraitImpl, Path, PathKind, PathSegment, Pattern, Statement, StatementKind, TraitItem,
+        TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        UseTree, UseTreeKind,
     },
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleId},
-        resolution::path_resolver::{PathResolver, StandardPathResolver},
+        resolution::{
+            import::can_reference_module_id,
+            path_resolver::{PathResolver, StandardPathResolver},
+        },
     },
     hir_def::traits::Trait,
     macros_api::{ModuleDefId, NodeInterner},
@@ -1238,29 +1241,33 @@ impl<'a> NodeFinder<'a> {
 
             if name_matches(name, prefix) {
                 let per_ns = module_data.find_name(ident);
-                if let Some((module_def_id, _, _)) = per_ns.types {
-                    if let Some(completion_item) = self.module_def_id_completion_item(
-                        module_def_id,
-                        name.clone(),
-                        function_completion_kind,
-                        function_kind,
-                        requested_items,
-                    ) {
-                        self.completion_items.push(completion_item);
-                        self.suggested_module_def_ids.insert(module_def_id);
+                if let Some((module_def_id, visibility, _)) = per_ns.types {
+                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                        if let Some(completion_item) = self.module_def_id_completion_item(
+                            module_def_id,
+                            name.clone(),
+                            function_completion_kind,
+                            function_kind,
+                            requested_items,
+                        ) {
+                            self.completion_items.push(completion_item);
+                            self.suggested_module_def_ids.insert(module_def_id);
+                        }
                     }
                 }
 
-                if let Some((module_def_id, _, _)) = per_ns.values {
-                    if let Some(completion_item) = self.module_def_id_completion_item(
-                        module_def_id,
-                        name.clone(),
-                        function_completion_kind,
-                        function_kind,
-                        requested_items,
-                    ) {
-                        self.completion_items.push(completion_item);
-                        self.suggested_module_def_ids.insert(module_def_id);
+                if let Some((module_def_id, visibility, _)) = per_ns.values {
+                    if is_visible(module_id, self.module_id, visibility, self.def_maps) {
+                        if let Some(completion_item) = self.module_def_id_completion_item(
+                            module_def_id,
+                            name.clone(),
+                            function_completion_kind,
+                            function_kind,
+                            requested_items,
+                        ) {
+                            self.completion_items.push(completion_item);
+                            self.suggested_module_def_ids.insert(module_def_id);
+                        }
                     }
                 }
             }
@@ -1382,6 +1389,21 @@ fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDe
         | ReferenceId::Local(_)
         | ReferenceId::Reference(_, _) => None,
     }
+}
+
+fn is_visible(
+    target_module_id: ModuleId,
+    current_module_id: ModuleId,
+    visibility: ItemVisibility,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+) -> bool {
+    can_reference_module_id(
+        def_maps,
+        current_module_id.krate,
+        current_module_id.local_id,
+        target_module_id,
+        visibility,
+    )
 }
 
 #[cfg(test)]
