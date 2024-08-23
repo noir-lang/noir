@@ -88,6 +88,7 @@ pub fn generate_note_interface_impl(
         let mut note_fields = vec![];
         let note_interface_generics = trait_impl
             .trait_generics
+            .ordered_args
             .iter()
             .map(|gen| match gen.typ.clone() {
                 UnresolvedTypeData::Named(path, _, _) => Ok(path.last_name().to_string()),
@@ -120,7 +121,7 @@ pub fn generate_note_interface_impl(
                 ident("header"),
                 make_type(UnresolvedTypeData::Named(
                     chained_dep!("aztec", "note", "note_header", "NoteHeader"),
-                    vec![],
+                    Default::default(),
                     false,
                 )),
             );

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use clap::Args;
 use color_eyre::eyre::{self, Context};
@@ -20,7 +21,7 @@ pub(crate) struct OpcodesFlamegraphCommand {
     #[clap(long, short)]
     output: String,
 
-    /// Wether to skip brillig functions
+    /// Whether to skip brillig functions
     #[clap(long, short, action)]
     skip_brillig: bool,
 }
@@ -62,6 +63,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                 opcode: AcirOrBrilligOpcode::Acir(opcode.clone()),
                 call_stack: vec![OpcodeLocation::Acir(index)],
                 count: 1,
+                brillig_function_id: None,
             })
             .collect();
 
@@ -101,6 +103,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                         brillig_index,
                     }],
                     count: 1,
+                    brillig_function_id: Some(BrilligFunctionId(brillig_fn_index as u32)),
                 })
                 .collect();
 

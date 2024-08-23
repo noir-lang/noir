@@ -64,6 +64,10 @@ pub enum ParserErrorReason {
     ForbiddenNumericGenericType,
     #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
     InvalidCallDataIdentifier,
+    #[error("Associated types are not allowed in paths")]
+    AssociatedTypesNotAllowedInPaths,
+    #[error("Associated types are not allowed on a method call")]
+    AssociatedTypesNotAllowedInMethodCalls,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

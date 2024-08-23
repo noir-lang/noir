@@ -1,4 +1,5 @@
 use acvm::acir::circuit::brillig::BrilligFunctionId;
+use acvm::acir::circuit::BrilligOpcodeLocation;
 use acvm::acir::circuit::OpcodeLocation;
 use acvm::compiler::AcirTransformationMap;
 
@@ -98,8 +99,8 @@ pub struct DebugInfo {
     /// that they should be serialized to/from strings.
     #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     pub locations: BTreeMap<OpcodeLocation, Vec<Location>>,
-    #[serde_as(as = "BTreeMap<_, BTreeMap<DisplayFromStr, _>>")]
-    pub brillig_locations: BTreeMap<BrilligFunctionId, BTreeMap<OpcodeLocation, Vec<Location>>>,
+    pub brillig_locations:
+        BTreeMap<BrilligFunctionId, BTreeMap<BrilligOpcodeLocation, Vec<Location>>>,
     pub variables: DebugVariables,
     pub functions: DebugFunctions,
     pub types: DebugTypes,
@@ -116,7 +117,10 @@ pub struct OpCodesCount {
 impl DebugInfo {
     pub fn new(
         locations: BTreeMap<OpcodeLocation, Vec<Location>>,
-        brillig_locations: BTreeMap<BrilligFunctionId, BTreeMap<OpcodeLocation, Vec<Location>>>,
+        brillig_locations: BTreeMap<
+            BrilligFunctionId,
+            BTreeMap<BrilligOpcodeLocation, Vec<Location>>,
+        >,
         variables: DebugVariables,
         functions: DebugFunctions,
         types: DebugTypes,
