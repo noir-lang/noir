@@ -344,7 +344,15 @@ jobs:
 
   publish-aztec-manifests:
     needs:
-      [build-aztec, build-aztec-arm, build-aztec-nargo, build-aztec-nargo-arm]
+      [
+        set-network,
+        build-aztec,
+        build-aztec-arm,
+        build-aztec-nargo,
+        build-aztec-nargo-arm,
+      ]
+    env:
+      DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
     runs-on: ${{ github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
@@ -477,7 +485,9 @@ jobs:
           earthly-ci --no-output --push ./yarn-project+export-cli-wallet --DIST_TAG=${{ github.sha }} --ARCH=arm64
 
   publish-cli-wallet-manifest:
-    needs: [build-cli-wallet, build-cli-wallet-arm]
+    needs: [set-network, build-cli-wallet, build-cli-wallet-arm]
+    env:
+      DEPLOY_TAG: ${{ needs.set-network.outputs.deploy_tag }}
     runs-on: ${{ github.actor }}-x86
     steps:
       - uses: actions/checkout@v4
