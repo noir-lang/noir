@@ -15,25 +15,25 @@ Represents a unary operator. One of `-`, `!`, `&mut`, or `*`.
 
 #### is_minus
 
-#include_code is_minus noir_stdlib/src/meta/expr.nr rust
+#include_code is_minus noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `-`
 
 #### is_not
 
-#include_code is_not noir_stdlib/src/meta/expr.nr rust
+#include_code is_not noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `!`
 
 #### is_mutable_reference
 
-#include_code is_mutable_reference noir_stdlib/src/meta/expr.nr rust
+#include_code is_mutable_reference noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `&mut`
 
 #### is_dereference
 
-#include_code is_dereference noir_stdlib/src/meta/expr.nr rust
+#include_code is_dereference noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `*`
 
@@ -45,90 +45,90 @@ Represents a binary operator. One of `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `
 
 #### is_add
 
-#include_code is_add noir_stdlib/src/meta/expr.nr rust
+#include_code is_add noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `+`
 
 #### is_subtract
 
-#include_code is_subtract noir_stdlib/src/meta/expr.nr rust
+#include_code is_subtract noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `-`
 
 #### is_multiply
 
-#include_code is_multiply noir_stdlib/src/meta/expr.nr rust
+#include_code is_multiply noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `*`
 
 #### is_divide
 
-#include_code is_divide noir_stdlib/src/meta/expr.nr rust
+#include_code is_divide noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `/`
 
 #### is_modulo
 
-#include_code is_modulo noir_stdlib/src/meta/expr.nr rust
+#include_code is_modulo noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `%`
 
 #### is_equal
 
-#include_code is_equal noir_stdlib/src/meta/expr.nr rust
+#include_code is_equal noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `==`
 
 #### is_not_equal
 
-#include_code is_not_equal noir_stdlib/src/meta/expr.nr rust
+#include_code is_not_equal noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `!=`
 
 #### is_less
 
-#include_code is_less noir_stdlib/src/meta/expr.nr rust
+#include_code is_less noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `<`
 
 #### is_less_equal
 
-#include_code is_less_equal noir_stdlib/src/meta/expr.nr rust
+#include_code is_less_equal noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `<=`
 
 #### is_greater
 
-#include_code is_greater noir_stdlib/src/meta/expr.nr rust
+#include_code is_greater noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `>`
 
 #### is_greater_equal
 
-#include_code is_greater_equal noir_stdlib/src/meta/expr.nr rust
+#include_code is_greater_equal noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `>=`
 
 #### is_and
 
-#include_code is_and noir_stdlib/src/meta/expr.nr rust
+#include_code is_and noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `&`
 
 #### is_or
 
-#include_code is_or noir_stdlib/src/meta/expr.nr rust
+#include_code is_or noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `|`
 
 #### is_shift_right
 
-#include_code is_shift_right noir_stdlib/src/meta/expr.nr rust
+#include_code is_shift_right noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `>>`
 
 #### is_shift_left
 
-#include_code is_shift_right noir_stdlib/src/meta/expr.nr rust
+#include_code is_shift_right noir_stdlib/src/meta/op.nr rust
 
 `true` if this operator is `<<`
