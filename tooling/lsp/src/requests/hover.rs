@@ -423,8 +423,11 @@ impl<'a> TypeLinksGatherer<'a> {
             Type::TraitAsType(trait_id, _, generics) => {
                 let some_trait = self.interner.get_trait(*trait_id);
                 self.gather_trait_links(some_trait);
-                for generic in generics {
+                for generic in &generics.ordered {
                     self.gather_type_links(generic);
+                }
+                for named_type in &generics.named {
+                    self.gather_type_links(&named_type.typ);
                 }
             }
             Type::NamedGeneric(var, _, _) => {
