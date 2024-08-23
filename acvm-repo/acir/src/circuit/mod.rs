@@ -223,16 +223,6 @@ impl FromStr for OpcodeLocation {
     }
 }
 
-impl FromStr for BrilligOpcodeLocation {
-    type Err = OpcodeLocationFromStrError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let index = s
-            .parse()
-            .map_err(|_| OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()))?;
-        Ok(BrilligOpcodeLocation(index))
-    }
-}
-
 impl std::fmt::Display for BrilligOpcodeLocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let index = self.0;
