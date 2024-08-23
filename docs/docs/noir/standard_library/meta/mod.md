@@ -67,7 +67,7 @@ fn main() {
 
 ### derive_via
 
-#include_code derive_via noir_stdlib/src/meta/mod.nr rust
+#include_code derive_via_signature noir_stdlib/src/meta/mod.nr rust
 
 Attribute placed on trait definitions.
 

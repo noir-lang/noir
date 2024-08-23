@@ -153,7 +153,26 @@ pub struct ResolvedOpcodeLocation {
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
     Acir(usize),
+    // TODO(https://github.com/noir-lang/noir/issues/5792): We can not get rid of this enum field entirely just yet as this format is still
+    // used for resolving assert messages which is a breaking serialization change.
     Brillig { acir_index: usize, brillig_index: usize },
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct BrilligOpcodeLocation(pub usize);
+
+impl OpcodeLocation {
+    // Utility method to allow easily comparing a resolved Brillig location and a debug Brillig location.
+    // This method is useful when fetching Brillig debug locations as this does not need an ACIR index,
+    // and just need the Brillig index.
+    pub fn to_brillig_location(self) -> Option<BrilligOpcodeLocation> {
+        match self {
+            OpcodeLocation::Brillig { brillig_index, .. } => {
+                Some(BrilligOpcodeLocation(brillig_index))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Display for OpcodeLocation {
@@ -201,6 +220,13 @@ impl FromStr for OpcodeLocation {
 
         parse_components(parts)
             .map_err(|_| OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()))
+    }
+}
+
+impl std::fmt::Display for BrilligOpcodeLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let index = self.0;
+        write!(f, "{index}")
     }
 }
 

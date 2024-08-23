@@ -60,6 +60,6 @@ for dir in $current_dir/benchmarks/*; do
     dirs_to_process+=("$dir")
 done
 
-parallel -j0  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
+parallel -j7  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
 
 echo "Rebuild Succeeded!"

@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::{collections::BTreeMap, io::BufWriter};
 
+use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::OpcodeLocation;
 use acir::AcirField;
 use color_eyre::eyre::{self};
@@ -19,6 +20,7 @@ pub(crate) struct Sample<F: AcirField> {
     pub(crate) opcode: AcirOrBrilligOpcode<F>,
     pub(crate) call_stack: Vec<OpcodeLocation>,
     pub(crate) count: usize,
+    pub(crate) brillig_function_id: Option<BrilligFunctionId>,
 }
 
 #[derive(Debug, Default)]
@@ -90,9 +92,24 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
         let mut location_names: Vec<String> = sample
             .call_stack
             .into_iter()
-            .flat_map(|opcode_location| debug_symbols.locations.get(&opcode_location))
-            .flatten()
-            .map(|location| location_to_callsite_label(*location, files))
+            .flat_map(|opcode_location| {
+                debug_symbols.opcode_location(&opcode_location).unwrap_or_else(|| {
+                    if let (Some(brillig_function_id), Some(brillig_location)) =
+                        (sample.brillig_function_id, opcode_location.to_brillig_location())
+                    {
+                        let brillig_locations =
+                            debug_symbols.brillig_locations.get(&brillig_function_id);
+                        if let Some(brillig_locations) = brillig_locations {
+                            brillig_locations.get(&brillig_location).cloned().unwrap_or_default()
+                        } else {
+                            vec![]
+                        }
+                    } else {
+                        vec![]
+                    }
+                })
+            })
+            .map(|location| location_to_callsite_label(location, files))
             .collect();
 
         if location_names.is_empty() {
@@ -286,11 +303,13 @@ mod tests {
                 opcode: AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(Expression::default())),
                 call_stack: vec![OpcodeLocation::Acir(0)],
                 count: 10,
+                brillig_function_id: None,
             },
             Sample {
                 opcode: AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(Expression::default())),
                 call_stack: vec![OpcodeLocation::Acir(1)],
                 count: 20,
+                brillig_function_id: None,
             },
             Sample {
                 opcode: AcirOrBrilligOpcode::Acir(AcirOpcode::MemoryInit {
@@ -300,6 +319,7 @@ mod tests {
                 }),
                 call_stack: vec![OpcodeLocation::Acir(2)],
                 count: 30,
+                brillig_function_id: None,
             },
         ];
 
