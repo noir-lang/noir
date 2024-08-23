@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.50.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.50.0...aztec-packages-v0.50.1) (2024-08-23)
+
+
+### Features
+
+* Free instances and circuits earlier to reduce max memory usage ([#8118](https://github.com/AztecProtocol/aztec-packages/issues/8118)) ([32a04c1](https://github.com/AztecProtocol/aztec-packages/commit/32a04c1e14564192df1581829d8f0ccb4a072769))
+* Prepare protocol circuits for batch rollup ([#7727](https://github.com/AztecProtocol/aztec-packages/issues/7727)) ([a126e22](https://github.com/AztecProtocol/aztec-packages/commit/a126e220a1a6b5265926f5bbb91b7eb79102f0f3))
+* Share the commitment key between instances to reduce mem ([#8154](https://github.com/AztecProtocol/aztec-packages/issues/8154)) ([c3dddf8](https://github.com/AztecProtocol/aztec-packages/commit/c3dddf83941fd7411f2faefff43552aa174e1401))
+
+
+### Bug Fixes
+
+* Cli-wallet manifest ([#8156](https://github.com/AztecProtocol/aztec-packages/issues/8156)) ([2ffcda3](https://github.com/AztecProtocol/aztec-packages/commit/2ffcda319b6b185c2ce05361149750a8abfdae0d))
+
+
+### Miscellaneous
+
+* Replace relative paths to noir-protocol-circuits ([5372ac4](https://github.com/AztecProtocol/aztec-packages/commit/5372ac44107eac4a9b216ffa588b69dac4e41c76))
+* Requiring only 1 sig from user ([#8146](https://github.com/AztecProtocol/aztec-packages/issues/8146)) ([f0b564b](https://github.com/AztecProtocol/aztec-packages/commit/f0b564be119fd0625032abf55d040a186b1cb380))
+
 ## [0.50.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-packages-v0.49.2...aztec-packages-v0.50.0) (2024-08-22)
 
 
