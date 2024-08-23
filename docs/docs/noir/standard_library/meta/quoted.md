@@ -23,7 +23,7 @@ Example:
 #include_code as_module noir_stdlib/src/meta/quoted.nr rust
 
 Interprets this token stream as a module path leading to the name of a module.
-Returns `Option::none()` if the module isn't found or this cannot be parsed as a path.
+Returns `Option::none()` if the module isn't found or this token stream cannot be parsed as a path.
 
 Example:
 

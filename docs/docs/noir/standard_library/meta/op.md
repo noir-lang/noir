@@ -17,7 +17,7 @@ Represents a unary operator. One of `-`, `!`, `&mut`, or `*`.
 
 #include_code is_minus noir_stdlib/src/meta/op.nr rust
 
-`true` if this operator is `-`
+Returns `true` if this operator is `-`.
 
 #### is_not
 

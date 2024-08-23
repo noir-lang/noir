@@ -12,13 +12,13 @@ declarations in the source program.
 
 #include_code name noir_stdlib/src/meta/module.nr rust
 
-Returns the name of the module
+Returns the name of the module.
 
 ### functions
 
 #include_code functions noir_stdlib/src/meta/module.nr rust
 
-Returns each function in the module
+Returns each function in the module.
 
 ### is_contract
 

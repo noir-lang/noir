@@ -42,4 +42,4 @@ comptime fn example(foo: StructDefinition) {
 
 #include_code fields noir_stdlib/src/meta/struct_def.nr rust
 
-Returns each field of this struct as a pair of (field name, field type)
+Returns each field of this struct as a pair of (field name, field type).
