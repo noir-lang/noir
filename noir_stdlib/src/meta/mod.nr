@@ -110,7 +110,8 @@ mod tests {
     }
 
     fn returning_versus_macro_insertion() {
-        comptime {
+        comptime
+        {
             // let _a: Quoted = quote { 1 };
             let _a: Quoted = quote_one();
 
@@ -211,7 +212,14 @@ mod tests {
             println("something");
             $body
         };
-        std::meta::make_trait_impl(s, trait_name, method_signature, for_each_field, join_fields_with, body)
+        std::meta::make_trait_impl(
+            s,
+            trait_name,
+            method_signature,
+            for_each_field,
+            join_fields_with,
+            body
+        )
     }
     // docs:end:big-derive-usage-example
 }
