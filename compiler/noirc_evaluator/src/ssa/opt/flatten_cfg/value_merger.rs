@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet};
 
@@ -145,49 +147,32 @@ impl<'a> ValueMerger<'a> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
-        let mut merged = im::Vector::new();
-
-        let (element_types, len) = match &typ {
+        let (_element_types, len) = match &typ {
             Type::Array(elements, len) => (elements, *len),
             _ => panic!("Expected array type"),
         };
 
-        if let Some(result) = self.try_merge_only_changed_indices(then_value, else_value) {
+        if let Some(result) = self.try_merge_only_changed_indices(
+            then_condition,
+            else_condition,
+            then_value,
+            else_value,
+            len,
+        ) {
             return result;
         }
 
-        for i in 0..len {
-            for (element_index, element_type) in element_types.iter().enumerate() {
-                let index = ((i * element_types.len() + element_index) as u128).into();
-                let index = self.dfg.make_constant(index, Type::field());
+        let outer_type = Type::Array(Rc::new(vec![typ.clone()]), 2);
+        let new_array = self.dfg.make_array(vec![else_value, then_value].into(), outer_type);
 
-                let typevars = Some(vec![element_type.clone()]);
+        let index =
+            self.insert_instruction(Instruction::Cast(then_condition, Type::length_type())).first();
 
-                let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
-                    self.dfg
-                        .insert_instruction_and_results(
-                            get,
-                            self.block,
-                            typevars,
-                            self.call_stack.clone(),
-                        )
-                        .first()
-                };
-
-                let then_element = get_element(then_value, typevars.clone());
-                let else_element = get_element(else_value, typevars);
-
-                merged.push_back(self.merge_values(
-                    then_condition,
-                    else_condition,
-                    then_element,
-                    else_element,
-                ));
-            }
-        }
-
-        self.dfg.make_array(merged, typ)
+        let get = Instruction::ArrayGet { array: new_array, index };
+        let typevars = Some(vec![typ]);
+        self.dfg
+            .insert_instruction_and_results(get, self.block, typevars, self.call_stack.clone())
+            .first()
     }
 
     fn merge_slice_values(
@@ -299,20 +284,21 @@ impl<'a> ValueMerger<'a> {
 
     fn try_merge_only_changed_indices(
         &mut self,
+        then_condition: ValueId,
+        else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
+        array_length: usize,
     ) -> Option<ValueId> {
-        let mut found_ancestor = None;
+        let mut found = false;
         let current_condition = self.current_condition?;
 
         let mut current_then = then_value;
         let mut current_else = else_value;
 
-        // Arbitrarily limit this to looking at most `max_iters` past ArraySet operations.
+        // Arbitrarily limit this to looking at most 10 past ArraySet operations.
         // If there are more than that, we assume 2 completely separate arrays are being merged.
-        // TODO: A value of 5 or higher fails the conditional_1 test.
-        //       See https://github.com/noir-lang/noir/actions/runs/10473667497/job/29006337618?pr=5762
-        let max_iters = 4;
+        let max_iters = 2;
         let mut seen_then = Vec::with_capacity(max_iters);
         let mut seen_else = Vec::with_capacity(max_iters);
 
@@ -320,22 +306,29 @@ impl<'a> ValueMerger<'a> {
         // ancestor if it exists, alone with the path to it from each starting node.
         // This path will be the indices that were changed to create each result array.
         for _ in 0..max_iters {
-            if current_then == current_else {
-                found_ancestor = Some(current_then);
+            if current_then == else_value {
+                seen_else.clear();
+                found = true;
+                break;
+            }
+
+            if current_else == then_value {
+                seen_then.clear();
+                found = true;
                 break;
             }
 
             if let Some(index) = seen_then.iter().position(|(elem, _, _, _)| *elem == current_else)
             {
                 seen_else.truncate(index);
-                found_ancestor = Some(current_else);
+                found = true;
                 break;
             }
 
             if let Some(index) = seen_else.iter().position(|(elem, _, _, _)| *elem == current_then)
             {
                 seen_then.truncate(index);
-                found_ancestor = Some(current_then);
+                found = true;
                 break;
             }
 
@@ -349,12 +342,17 @@ impl<'a> ValueMerger<'a> {
             .chain(seen_else.into_iter().map(|(_, index, typ, condition)| (index, typ, condition)))
             .collect();
 
-        let mut array = found_ancestor?;
+        if !found || changed_indices.len() >= array_length {
+            return None;
+        }
 
-        for (index, set_value, condition) in changed_indices {
+        let mut array = then_value;
+
+        for (index, element_type, condition) in changed_indices {
+            let typevars = Some(vec![element_type.clone()]);
+
             let instruction = Instruction::EnableSideEffects { condition };
             self.insert_instruction(instruction);
-            let element_type = self.dfg.type_of_value(set_value);
 
             let mut get_element = |array, typevars| {
                 let get = Instruction::ArrayGet { array, index };
@@ -368,12 +366,12 @@ impl<'a> ValueMerger<'a> {
                     .first()
             };
 
-            let typevars = Some(vec![element_type]);
-            let old_value = get_element(array, typevars);
+            let then_element = get_element(then_value, typevars.clone());
+            let else_element = get_element(else_value, typevars);
 
-            let not_condition = self.insert_instruction(Instruction::Not(condition)).first();
+            let value =
+                self.merge_values(then_condition, else_condition, then_element, else_element);
 
-            let value = self.merge_values(condition, not_condition, set_value, old_value);
             array = self.insert_array_set(array, index, value, Some(condition)).first();
         }
 
@@ -425,7 +423,7 @@ impl<'a> ValueMerger<'a> {
     fn find_previous_array_set(
         &self,
         result: ValueId,
-        changed_indices: &mut Vec<(ValueId, ValueId, ValueId, ValueId)>,
+        changed_indices: &mut Vec<(ValueId, ValueId, Type, ValueId)>,
     ) -> ValueId {
         match &self.dfg[result] {
             Value::Instruction { instruction, .. } => match &self.dfg[*instruction] {
@@ -437,7 +435,8 @@ impl<'a> ValueMerger<'a> {
                                 self.array_set_conditionals
                             )
                         });
-                    changed_indices.push((result, *index, *value, condition));
+                    let element_type = self.dfg.type_of_value(*value);
+                    changed_indices.push((result, *index, element_type, condition));
                     *array
                 }
                 _ => result,
