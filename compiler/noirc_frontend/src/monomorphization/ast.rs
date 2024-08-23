@@ -10,6 +10,7 @@ use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     token::{Attributes, FunctionAttribute},
 };
+use serde::{Deserialize, Serialize};
 
 use super::HirType;
 
@@ -207,7 +208,7 @@ pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.
@@ -287,7 +288,12 @@ pub enum Type {
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     MutableReference(Box<Type>),
-    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>, /*env:*/ Box<Type>),
+    Function(
+        /*args:*/ Vec<Type>,
+        /*ret:*/ Box<Type>,
+        /*env:*/ Box<Type>,
+        /*unconstrained:*/ bool,
+    ),
 }
 
 impl Type {
@@ -418,7 +424,11 @@ impl std::fmt::Display for Type {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    write!(f, "unconstrained ")?;
+                }
+
                 let args = vecmap(args, ToString::to_string);
                 let closure_env_text = match **env {
                     Type::Unit => "".to_string(),

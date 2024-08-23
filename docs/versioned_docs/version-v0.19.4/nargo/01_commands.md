@@ -213,7 +213,7 @@ you run `nargo test`. To print `println` statements in tests, use the `--show-ou
 
 Takes an optional `--exact` flag which allows you to select tests based on an exact name.
 
-See an example on the [testing page](./testing.md).
+See an example on the [testing page](./02_testing.md).
 
 ### Options
 

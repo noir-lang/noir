@@ -1,0 +1,20 @@
+#[foo]
+struct MyOtherStruct<A, B> {
+    field1: A,
+    field2: B,
+}
+
+comptime fn foo(_s: StructDefinition) -> Quoted {
+    quote {
+        impl<A, B> Eq for MyOtherStruct<A, B> where A: Eq, B: Eq {
+            fn eq(self, other: Self) -> bool {
+                (self.field1 == other.field1) & (self.field2 == other.field2)
+            }
+        }
+    }
+}
+
+fn main() {
+    let x = MyOtherStruct { field1: 1, field2: 2 };
+    assert_eq(x, x);
+}

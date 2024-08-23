@@ -7,14 +7,8 @@ use crate::{
     ast::{
         FunctionKind, TraitItem, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
     },
-    hir::{
-        def_collector::dc_crate::{CollectedItems, UnresolvedTrait},
-        type_check::TypeCheckError,
-    },
-    hir_def::{
-        function::Parameters,
-        traits::{TraitConstant, TraitFunction, TraitType},
-    },
+    hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
+    hir_def::{function::Parameters, traits::TraitFunction},
     macros_api::{
         BlockExpression, FunctionDefinition, FunctionReturnType, Ident, ItemVisibility,
         NodeInterner, NoirFunction, Param, Pattern, UnresolvedType, Visibility,
@@ -27,58 +21,39 @@ use crate::{
 use super::Elaborator;
 
 impl<'context> Elaborator<'context> {
-    pub fn collect_traits(
-        &mut self,
-        traits: BTreeMap<TraitId, UnresolvedTrait>,
-        generated_items: &mut CollectedItems,
-    ) {
+    pub fn collect_traits(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.recover_generics(|this| {
-                let resolved_generics = this.interner.get_trait(trait_id).generics.clone();
+                this.current_trait = Some(*trait_id);
+
+                let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
                 this.add_existing_generics(
                     &unresolved_trait.trait_def.generics,
                     &resolved_generics,
                 );
 
-                // Resolve order
-                // 1. Trait Types ( Trait constants can have a trait type, therefore types before constants)
-                let _ = this.resolve_trait_types(&unresolved_trait);
-                // 2. Trait Constants ( Trait's methods can use trait types & constants, therefore they should be after)
-                let _ = this.resolve_trait_constants(&unresolved_trait);
-                // 3. Trait Methods
-                let methods = this.resolve_trait_methods(trait_id, &unresolved_trait);
+                // Each associated type in this trait is also an implicit generic
+                for associated_type in &this.interner.get_trait(*trait_id).associated_types {
+                    this.generics.push(associated_type.clone());
+                }
 
-                this.interner.update_trait(trait_id, |trait_def| {
+                let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
+
+                this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_methods(methods);
                 });
-
-                let attributes = &unresolved_trait.trait_def.attributes;
-                let item = crate::hir::comptime::Value::TraitDefinition(trait_id);
-                let span = unresolved_trait.trait_def.span;
-                this.run_comptime_attributes_on_item(attributes, item, span, generated_items);
             });
 
             // This check needs to be after the trait's methods are set since
             // the interner may set `interner.ordering_type` based on the result type
             // of the Cmp trait, if this is it.
             if self.crate_id.is_stdlib() {
-                self.interner.try_add_infix_operator_trait(trait_id);
-                self.interner.try_add_prefix_operator_trait(trait_id);
+                self.interner.try_add_infix_operator_trait(*trait_id);
+                self.interner.try_add_prefix_operator_trait(*trait_id);
             }
         }
-    }
 
-    fn resolve_trait_types(&mut self, _unresolved_trait: &UnresolvedTrait) -> Vec<TraitType> {
-        // TODO
-        vec![]
-    }
-
-    fn resolve_trait_constants(
-        &mut self,
-        _unresolved_trait: &UnresolvedTrait,
-    ) -> Vec<TraitConstant> {
-        // TODO
-        vec![]
+        self.current_trait = None;
     }
 
     fn resolve_trait_methods(
@@ -123,6 +98,7 @@ impl<'context> Elaborator<'context> {
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
 
                     this.resolve_trait_function(
+                        trait_id,
                         name,
                         generics,
                         parameters,
@@ -153,8 +129,9 @@ impl<'context> Elaborator<'context> {
                     };
 
                     let no_environment = Box::new(Type::Unit);
+                    // TODO: unconstrained
                     let function_type =
-                        Type::Function(arguments, Box::new(return_type), no_environment);
+                        Type::Function(arguments, Box::new(return_type), no_environment, false);
 
                     functions.push(TraitFunction {
                         name: name.clone(),
@@ -171,8 +148,10 @@ impl<'context> Elaborator<'context> {
         functions
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn resolve_trait_function(
         &mut self,
+        trait_id: TraitId,
         name: &Ident,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
@@ -206,7 +185,7 @@ impl<'context> Elaborator<'context> {
         };
 
         let mut function = NoirFunction { kind, def };
-        self.define_function_meta(&mut function, func_id, true);
+        self.define_function_meta(&mut function, func_id, Some(trait_id));
         self.elaborate_function(func_id);
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
@@ -244,23 +223,17 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     let definition_type = meta.typ.as_monotype();
 
-    let impl_ =
+    let impl_id =
         meta.trait_impl.expect("Trait impl function should have a corresponding trait impl");
 
     // If the trait implementation is not defined in the interner then there was a previous
     // error in resolving the trait path and there is likely no trait for this impl.
-    let Some(impl_) = interner.try_get_trait_implementation(impl_) else {
+    let Some(impl_) = interner.try_get_trait_implementation(impl_id) else {
         return errors;
     };
 
     let impl_ = impl_.borrow();
     let trait_info = interner.get_trait(impl_.trait_id);
-
-    let mut bindings = TypeBindings::new();
-    bindings.insert(
-        trait_info.self_type_typevar_id,
-        (trait_info.self_type_typevar.clone(), impl_.typ.clone()),
-    );
 
     if trait_info.generics.len() != impl_.trait_generics.len() {
         let expected = trait_info.generics.len();
@@ -271,9 +244,12 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     }
 
     // Substitute each generic on the trait with the corresponding generic on the impl
-    for (generic, arg) in trait_info.generics.iter().zip(&impl_.trait_generics) {
-        bindings.insert(generic.type_var.id(), (generic.type_var.clone(), arg.clone()));
-    }
+    let mut bindings = interner.trait_to_impl_bindings(
+        impl_.trait_id,
+        impl_id,
+        &impl_.trait_generics,
+        impl_.typ.clone(),
+    );
 
     // If this is None, the trait does not have the corresponding function.
     // This error should have been caught in name resolution already so we don't
@@ -326,9 +302,15 @@ fn check_function_type_matches_expected_type(
 ) {
     let mut bindings = TypeBindings::new();
     // Shouldn't need to unify envs, they should always be equal since they're both free functions
-    if let (Type::Function(params_a, ret_a, _env_a), Type::Function(params_b, ret_b, _env_b)) =
-        (expected, actual)
+    if let (
+        Type::Function(params_a, ret_a, _env_a, _unconstrained_a),
+        Type::Function(params_b, ret_b, _env_b, _unconstrained_b),
+    ) = (expected, actual)
     {
+        // TODO: we don't yet allow marking a trait function or a trait impl function as unconstrained,
+        // so both values will always be false here. Once we support that, we should check that both
+        // match (adding a test for it).
+
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
                 if a.try_unify(b, &mut bindings).is_err() {

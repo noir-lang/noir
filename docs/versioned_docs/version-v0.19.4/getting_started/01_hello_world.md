@@ -84,7 +84,7 @@ assert(x != y);
 
 The Noir syntax `assert` can be interpreted as something similar to constraints in other zk-contract languages.
 
-For more Noir syntax, check the [Language Concepts](../language_concepts/comments.md) chapter.
+For more Noir syntax, check the [Language Concepts](../language_concepts/09_comments.md) chapter.
 
 ## Build In/Output Files
 

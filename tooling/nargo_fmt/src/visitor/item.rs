@@ -6,7 +6,10 @@ use crate::{
     },
     visitor::expr::{format_seq, NewlineMode},
 };
-use noirc_frontend::ast::{NoirFunction, Visibility};
+use noirc_frontend::{
+    ast::{NoirFunction, Visibility},
+    macros_api::UnresolvedTypeData,
+};
 use noirc_frontend::{
     hir::resolution::errors::Span,
     parser::{Item, ItemKind},
@@ -108,20 +111,25 @@ impl super::FmtVisitor<'_> {
 
     fn format_return_type(
         &self,
-        return_type_span: Option<Span>,
+        span: Span,
         func: &NoirFunction,
         func_span: Span,
         params_end: u32,
     ) -> String {
         let mut result = String::new();
 
-        if let Some(span) = return_type_span {
+        if func.return_type().typ == UnresolvedTypeData::Unit {
+            result.push_str(self.slice(params_end..func_span.start()));
+        } else {
             result.push_str(" -> ");
 
             let visibility = match func.def.return_visibility {
                 Visibility::Public => "pub",
-                Visibility::DataBus => "return_data",
+                Visibility::ReturnData => "return_data",
                 Visibility::Private => "",
+                Visibility::CallData(_) => {
+                    unreachable!("call_data cannot be used for return value")
+                }
             };
             result.push_str(&append_space_if_nonempty(visibility.into()));
 
@@ -132,8 +140,6 @@ impl super::FmtVisitor<'_> {
             if !slice.trim().is_empty() {
                 result.push_str(slice);
             }
-        } else {
-            result.push_str(self.slice(params_end..func_span.start()));
         }
 
         result

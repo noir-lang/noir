@@ -23,7 +23,7 @@ impl DebugArtifact {
     pub fn new(debug_symbols: Vec<DebugInfo>, file_manager: &FileManager) -> Self {
         let mut file_map = BTreeMap::new();
 
-        let files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
+        let mut files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
             .iter()
             .flat_map(|function_symbols| {
                 function_symbols
@@ -32,6 +32,21 @@ impl DebugArtifact {
                     .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
             })
             .collect();
+
+        let files_with_brillig_debug_symbols: BTreeSet<FileId> = debug_symbols
+            .iter()
+            .flat_map(|function_symbols| {
+                let brillig_location_maps =
+                    function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
+                        brillig_location_map
+                            .values()
+                            .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+                    });
+                brillig_location_maps
+            })
+            .collect();
+
+        files_with_debug_symbols.extend(files_with_brillig_debug_symbols);
 
         for file_id in files_with_debug_symbols {
             let file_path = file_manager.path(file_id).expect("file should exist");
@@ -245,6 +260,7 @@ mod tests {
 
         let debug_symbols = vec![DebugInfo::new(
             opcode_locations,
+            BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

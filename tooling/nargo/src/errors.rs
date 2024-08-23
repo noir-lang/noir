@@ -64,31 +64,25 @@ impl<F: AcirField> NargoError<F> {
         &self,
         error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
     ) -> Option<String> {
-        let execution_error = match self {
-            NargoError::ExecutionError(error) => error,
-            _ => return None,
-        };
-
-        match execution_error {
-            ExecutionError::AssertionFailed(payload, _) => match payload {
-                ResolvedAssertionPayload::String(message) => Some(message.to_string()),
-                ResolvedAssertionPayload::Raw(raw) => {
-                    let abi_type = error_types.get(&raw.selector)?;
-                    let decoded = display_abi_error(&raw.data, abi_type.clone());
-                    Some(decoded.to_string())
-                }
+        match self {
+            NargoError::ExecutionError(error) => match error {
+                ExecutionError::AssertionFailed(payload, _) => match payload {
+                    ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                    ResolvedAssertionPayload::Raw(raw) => {
+                        let abi_type = error_types.get(&raw.selector)?;
+                        let decoded = display_abi_error(&raw.data, abi_type.clone());
+                        Some(decoded.to_string())
+                    }
+                },
+                ExecutionError::SolvingError(error, _) => match error {
+                    OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
+                        Some(reason.to_string())
+                    }
+                    _ => None,
+                },
             },
-            ExecutionError::SolvingError(error, _) => match error {
-                OpcodeResolutionError::IndexOutOfBounds { .. }
-                | OpcodeResolutionError::OpcodeNotSolvable(_)
-                | OpcodeResolutionError::UnsatisfiedConstrain { .. }
-                | OpcodeResolutionError::AcirMainCallAttempted { .. }
-                | OpcodeResolutionError::BrilligFunctionFailed { .. }
-                | OpcodeResolutionError::AcirCallOutputsMismatch { .. } => None,
-                OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
-                    Some(reason.to_string())
-                }
-            },
+            NargoError::ForeignCallError(error) => Some(error.to_string()),
+            _ => None,
         }
     }
 }
@@ -149,13 +143,34 @@ fn extract_locations_from_error<F: AcirField>(
         }
     }
 
+    let brillig_function_id = match error {
+        ExecutionError::SolvingError(
+            OpcodeResolutionError::BrilligFunctionFailed { function_id, .. },
+            _,
+        ) => Some(*function_id),
+        _ => None,
+    };
+
     Some(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
                 debug[resolved_location.acir_function_index]
                     .opcode_location(&resolved_location.opcode_location)
-                    .unwrap_or_default()
+                    .unwrap_or_else(|| {
+                        if let Some(brillig_function_id) = brillig_function_id {
+                            let brillig_locations = debug[resolved_location.acir_function_index]
+                                .brillig_locations
+                                .get(&brillig_function_id);
+                            brillig_locations
+                                .unwrap()
+                                .get(&resolved_location.opcode_location)
+                                .cloned()
+                                .unwrap_or_default()
+                        } else {
+                            vec![]
+                        }
+                    })
             })
             .collect(),
     )

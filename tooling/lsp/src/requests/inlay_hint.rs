@@ -1,11 +1,10 @@
-use fm::codespan_files::Files;
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
 use fm::{FileId, FileMap, PathString};
 use lsp_types::{
-    InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position,
-    TextDocumentPositionParams,
+    InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position, Range,
+    TextDocumentPositionParams, TextEdit,
 };
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
@@ -21,7 +20,7 @@ use noirc_frontend::{
     ParsedModule, Type, TypeBinding, TypeVariable, TypeVariableKind,
 };
 
-use crate::LspState;
+use crate::{utils, LspState};
 
 use super::{process_request, to_lsp_location, InlayHintsOptions};
 
@@ -43,7 +42,7 @@ pub(crate) fn on_inlay_hint_request(
             let source = file.source();
             let (parsed_moduled, _errors) = noirc_frontend::parse_program(source);
 
-            let span = range_to_byte_span(args.files, file_id, &params.range)
+            let span = utils::range_to_byte_span(args.files, file_id, &params.range)
                 .map(|range| Span::from(range.start as u32..range.end as u32));
 
             let mut collector =
@@ -86,25 +85,46 @@ impl<'a> InlayHintCollector<'a> {
         }
 
         match &item.kind {
-            ItemKind::Function(noir_function) => self.collect_in_noir_function(noir_function),
+            ItemKind::Function(noir_function) => {
+                self.collect_in_noir_function(noir_function, item.span);
+            }
             ItemKind::Trait(noir_trait) => {
                 for item in &noir_trait.items {
                     self.collect_in_trait_item(item);
                 }
             }
             ItemKind::TraitImpl(noir_trait_impl) => {
-                for item in &noir_trait_impl.items {
-                    self.collect_in_trait_impl_item(item);
+                for trait_impl_item in &noir_trait_impl.items {
+                    self.collect_in_trait_impl_item(trait_impl_item, item.span);
                 }
+
+                self.show_closing_brace_hint(item.span, || {
+                    format!(
+                        " impl {} for {}",
+                        noir_trait_impl.trait_name, noir_trait_impl.object_type
+                    )
+                });
             }
             ItemKind::Impl(type_impl) => {
-                for (noir_function, _) in &type_impl.methods {
-                    self.collect_in_noir_function(noir_function);
+                for (noir_function, span) in &type_impl.methods {
+                    self.collect_in_noir_function(noir_function, *span);
                 }
+
+                self.show_closing_brace_hint(item.span, || {
+                    format!(" impl {}", type_impl.object_type)
+                });
             }
             ItemKind::Global(let_statement) => self.collect_in_let_statement(let_statement),
             ItemKind::Submodules(parsed_submodule) => {
                 self.collect_in_parsed_module(&parsed_submodule.contents);
+
+                self.show_closing_brace_hint(item.span, || {
+                    if parsed_submodule.is_contract {
+                        format!(" contract {}", parsed_submodule.name)
+                    } else {
+                        format!(" mod {}", parsed_submodule.name)
+                    }
+                });
             }
             ItemKind::ModuleDecl(_) => (),
             ItemKind::Import(_) => (),
@@ -129,9 +149,11 @@ impl<'a> InlayHintCollector<'a> {
         }
     }
 
-    fn collect_in_trait_impl_item(&mut self, item: &TraitImplItem) {
+    fn collect_in_trait_impl_item(&mut self, item: &TraitImplItem, span: Span) {
         match item {
-            TraitImplItem::Function(noir_function) => self.collect_in_noir_function(noir_function),
+            TraitImplItem::Function(noir_function) => {
+                self.collect_in_noir_function(noir_function, span);
+            }
             TraitImplItem::Constant(_name, _typ, default_value) => {
                 self.collect_in_expression(default_value);
             }
@@ -139,8 +161,10 @@ impl<'a> InlayHintCollector<'a> {
         }
     }
 
-    fn collect_in_noir_function(&mut self, noir_function: &NoirFunction) {
+    fn collect_in_noir_function(&mut self, noir_function: &NoirFunction, span: Span) {
         self.collect_in_block_expression(&noir_function.def.body);
+
+        self.show_closing_brace_hint(span, || format!(" fn {}", noir_function.def.name));
     }
 
     fn collect_in_let_statement(&mut self, let_statement: &LetStatement) {
@@ -173,7 +197,7 @@ impl<'a> InlayHintCollector<'a> {
                 self.collect_in_expression(&assign_statement.expression);
             }
             StatementKind::For(for_loop_statement) => {
-                self.collect_in_ident(&for_loop_statement.identifier);
+                self.collect_in_ident(&for_loop_statement.identifier, false);
                 self.collect_in_expression(&for_loop_statement.block);
             }
             StatementKind::Comptime(statement) => self.collect_in_statement(statement),
@@ -251,7 +275,15 @@ impl<'a> InlayHintCollector<'a> {
                     self.collect_in_expression(expression);
                 }
             }
-            ExpressionKind::Lambda(lambda) => self.collect_in_expression(&lambda.body),
+            ExpressionKind::Lambda(lambda) => {
+                for (pattern, typ) in &lambda.parameters {
+                    if matches!(typ.typ, UnresolvedTypeData::Unspecified) {
+                        self.collect_in_pattern(pattern);
+                    }
+                }
+
+                self.collect_in_expression(&lambda.body);
+            }
             ExpressionKind::Parenthesized(parenthesized) => {
                 self.collect_in_expression(parenthesized);
             }
@@ -260,6 +292,12 @@ impl<'a> InlayHintCollector<'a> {
             }
             ExpressionKind::Comptime(block_expression, _span) => {
                 self.collect_in_block_expression(block_expression);
+            }
+            ExpressionKind::Unsafe(block_expression, _span) => {
+                self.collect_in_block_expression(block_expression);
+            }
+            ExpressionKind::AsTraitPath(path) => {
+                self.collect_in_ident(&path.impl_item, true);
             }
             ExpressionKind::Literal(..)
             | ExpressionKind::Variable(..)
@@ -276,7 +314,7 @@ impl<'a> InlayHintCollector<'a> {
 
         match pattern {
             Pattern::Identifier(ident) => {
-                self.collect_in_ident(ident);
+                self.collect_in_ident(ident, true);
             }
             Pattern::Mutable(pattern, _span, _is_synthesized) => {
                 self.collect_in_pattern(pattern);
@@ -294,7 +332,7 @@ impl<'a> InlayHintCollector<'a> {
         }
     }
 
-    fn collect_in_ident(&mut self, ident: &Ident) {
+    fn collect_in_ident(&mut self, ident: &Ident, editable: bool) {
         if !self.options.type_hints.enabled {
             return;
         }
@@ -308,17 +346,17 @@ impl<'a> InlayHintCollector<'a> {
                         let global_info = self.interner.get_global(global_id);
                         let definition_id = global_info.definition_id;
                         let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ);
+                        self.push_type_hint(lsp_location, &typ, editable);
                     }
                     ReferenceId::Local(definition_id) => {
                         let typ = self.interner.definition_type(definition_id);
-                        self.push_type_hint(lsp_location, &typ);
+                        self.push_type_hint(lsp_location, &typ, editable);
                     }
                     ReferenceId::StructMember(struct_id, field_index) => {
                         let struct_type = self.interner.get_struct(struct_id);
                         let struct_type = struct_type.borrow();
                         let (_field_name, field_type) = struct_type.field_at(field_index);
-                        self.push_type_hint(lsp_location, field_type);
+                        self.push_type_hint(lsp_location, field_type, false);
                     }
                     ReferenceId::Module(_)
                     | ReferenceId::Struct(_)
@@ -331,7 +369,7 @@ impl<'a> InlayHintCollector<'a> {
         }
     }
 
-    fn push_type_hint(&mut self, location: lsp_types::Location, typ: &Type) {
+    fn push_type_hint(&mut self, location: lsp_types::Location, typ: &Type, editable: bool) {
         let position = location.range.end;
 
         let mut parts = Vec::new();
@@ -342,7 +380,14 @@ impl<'a> InlayHintCollector<'a> {
             position,
             label: InlayHintLabel::LabelParts(parts),
             kind: Some(InlayHintKind::TYPE),
-            text_edits: None,
+            text_edits: if editable {
+                Some(vec![TextEdit {
+                    range: Range { start: location.range.end, end: location.range.end },
+                    new_text: format!(": {}", typ),
+                }])
+            } else {
+                None
+            },
             tooltip: None,
             padding_left: None,
             padding_right: None,
@@ -464,6 +509,20 @@ impl<'a> InlayHintCollector<'a> {
     fn intersects_span(&self, other_span: Span) -> bool {
         self.span.map_or(true, |span| span.intersects(&other_span))
     }
+
+    fn show_closing_brace_hint<F>(&mut self, span: Span, f: F)
+    where
+        F: FnOnce() -> String,
+    {
+        if self.options.closing_brace_hints.enabled {
+            if let Some(lsp_location) = to_lsp_location(self.files, self.file_id, span) {
+                let lines = lsp_location.range.end.line - lsp_location.range.start.line + 1;
+                if lines >= self.options.closing_brace_hints.min_lines {
+                    self.push_text_hint(lsp_location.range.end, f());
+                }
+            }
+        }
+    }
 }
 
 fn string_part(str: impl Into<String>) -> InlayHintLabelPart {
@@ -533,7 +592,11 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 parts.push(string_part(">"));
             }
         }
-        Type::Function(args, return_type, _env) => {
+        Type::Function(args, return_type, _env, unconstrained) => {
+            if *unconstrained {
+                parts.push(string_part("unconstrained "));
+            }
+
             parts.push(string_part("fn("));
             for (index, arg) in args.iter().enumerate() {
                 push_type_parts(arg, parts, files);
@@ -584,6 +647,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
         | Type::NamedGeneric(..)
         | Type::Forall(..)
         | Type::Constant(..)
+        | Type::InfixExpr(..)
         | Type::Quoted(..)
         | Type::Error => {
             parts.push(string_part(typ.to_string()));
@@ -609,13 +673,14 @@ fn push_type_variable_parts(
 
 fn get_expression_name(expression: &Expression) -> Option<String> {
     match &expression.kind {
-        ExpressionKind::Variable(path, _) => Some(path.last_segment().to_string()),
+        ExpressionKind::Variable(path) => Some(path.last_name().to_string()),
         ExpressionKind::Prefix(prefix) => get_expression_name(&prefix.rhs),
         ExpressionKind::MemberAccess(member_access) => Some(member_access.rhs.to_string()),
         ExpressionKind::Call(call) => get_expression_name(&call.func),
         ExpressionKind::MethodCall(method_call) => Some(method_call.method_name.to_string()),
         ExpressionKind::Cast(cast) => get_expression_name(&cast.lhs),
         ExpressionKind::Parenthesized(expr) => get_expression_name(expr),
+        ExpressionKind::AsTraitPath(path) => Some(path.impl_item.to_string()),
         ExpressionKind::Constructor(..)
         | ExpressionKind::Infix(..)
         | ExpressionKind::Index(..)
@@ -628,71 +693,15 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::Comptime(..)
         | ExpressionKind::Resolved(..)
         | ExpressionKind::Literal(..)
+        | ExpressionKind::Unsafe(..)
         | ExpressionKind::Error => None,
-    }
-}
-
-// These functions are copied from the codespan_lsp crate, except that they never panic
-// (the library will sometimes panic, so functions returning Result are not always accurate)
-
-fn range_to_byte_span(
-    files: &FileMap,
-    file_id: FileId,
-    range: &lsp_types::Range,
-) -> Option<std::ops::Range<usize>> {
-    Some(
-        position_to_byte_index(files, file_id, &range.start)?
-            ..position_to_byte_index(files, file_id, &range.end)?,
-    )
-}
-
-fn position_to_byte_index(
-    files: &FileMap,
-    file_id: FileId,
-    position: &lsp_types::Position,
-) -> Option<usize> {
-    let Ok(source) = files.source(file_id) else {
-        return None;
-    };
-
-    let Ok(line_span) = files.line_range(file_id, position.line as usize) else {
-        return None;
-    };
-    let line_str = source.get(line_span.clone())?;
-
-    let byte_offset = character_to_line_offset(line_str, position.character)?;
-
-    Some(line_span.start + byte_offset)
-}
-
-fn character_to_line_offset(line: &str, character: u32) -> Option<usize> {
-    let line_len = line.len();
-    let mut character_offset = 0;
-
-    let mut chars = line.chars();
-    while let Some(ch) = chars.next() {
-        if character_offset == character {
-            let chars_off = chars.as_str().len();
-            let ch_off = ch.len_utf8();
-
-            return Some(line_len - chars_off - ch_off);
-        }
-
-        character_offset += ch.len_utf16() as u32;
-    }
-
-    // Handle positions after the last character on the line
-    if character_offset == character {
-        Some(line_len)
-    } else {
-        None
     }
 }
 
 #[cfg(test)]
 mod inlay_hints_tests {
     use crate::{
-        requests::{ParameterHintsOptions, TypeHintsOptions},
+        requests::{ClosingBraceHintsOptions, ParameterHintsOptions, TypeHintsOptions},
         test_utils,
     };
 
@@ -713,9 +722,9 @@ mod inlay_hints_tests {
             InlayHintParams {
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 text_document: TextDocumentIdentifier { uri: noir_text_document },
-                range: lsp_types::Range {
-                    start: lsp_types::Position { line: start_line, character: 0 },
-                    end: lsp_types::Position { line: end_line, character: 0 },
+                range: Range {
+                    start: Position { line: start_line, character: 0 },
+                    end: Position { line: end_line, character: 0 },
                 },
             },
         )
@@ -728,6 +737,7 @@ mod inlay_hints_tests {
         InlayHintsOptions {
             type_hints: TypeHintsOptions { enabled: false },
             parameter_hints: ParameterHintsOptions { enabled: false },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 25 },
         }
     }
 
@@ -735,6 +745,7 @@ mod inlay_hints_tests {
         InlayHintsOptions {
             type_hints: TypeHintsOptions { enabled: true },
             parameter_hints: ParameterHintsOptions { enabled: false },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 25 },
         }
     }
 
@@ -742,6 +753,15 @@ mod inlay_hints_tests {
         InlayHintsOptions {
             type_hints: TypeHintsOptions { enabled: false },
             parameter_hints: ParameterHintsOptions { enabled: true },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: false, min_lines: 25 },
+        }
+    }
+
+    fn closing_braces_hints(min_lines: u32) -> InlayHintsOptions {
+        InlayHintsOptions {
+            type_hints: TypeHintsOptions { enabled: false },
+            parameter_hints: ParameterHintsOptions { enabled: false },
+            closing_brace_hints: ClosingBraceHintsOptions { enabled: true, min_lines },
         }
     }
 
@@ -756,8 +776,10 @@ mod inlay_hints_tests {
         let inlay_hints = get_inlay_hints(0, 3, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
+        let position = Position { line: 1, character: 11 };
+
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 1, character: 11 });
+        assert_eq!(inlay_hint.position, position);
 
         if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
             assert_eq!(labels.len(), 2);
@@ -770,6 +792,14 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+
+        assert_eq!(
+            inlay_hint.text_edits,
+            Some(vec![TextEdit {
+                range: Range { start: position, end: position },
+                new_text: ": Field".to_string(),
+            }])
+        );
     }
 
     #[test]
@@ -777,8 +807,10 @@ mod inlay_hints_tests {
         let inlay_hints = get_inlay_hints(12, 15, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
+        let position = Position { line: 13, character: 11 };
+
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 13, character: 11 });
+        assert_eq!(inlay_hint.position, position);
 
         if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
             assert_eq!(labels.len(), 2);
@@ -798,6 +830,34 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+
+        assert_eq!(
+            inlay_hint.text_edits,
+            Some(vec![TextEdit {
+                range: Range { start: position, end: position },
+                new_text: ": Foo".to_string(),
+            }])
+        );
+    }
+
+    #[test]
+    async fn test_type_inlay_hints_in_struct_member_pattern() {
+        let inlay_hints = get_inlay_hints(94, 96, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 95, character: 24 });
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].value, ": ");
+            assert_eq!(labels[0].location, None);
+            assert_eq!(labels[1].value, "i32");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+
+        assert_eq!(inlay_hint.text_edits, None);
     }
 
     #[test]
@@ -816,6 +876,8 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+
+        assert_eq!(inlay_hint.text_edits, None);
     }
 
     #[test]
@@ -823,8 +885,10 @@ mod inlay_hints_tests {
         let inlay_hints = get_inlay_hints(19, 21, type_hints()).await;
         assert_eq!(inlay_hints.len(), 1);
 
+        let position = Position { line: 20, character: 10 };
+
         let inlay_hint = &inlay_hints[0];
-        assert_eq!(inlay_hint.position, Position { line: 20, character: 10 });
+        assert_eq!(inlay_hint.position, position);
 
         if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
             assert_eq!(labels.len(), 2);
@@ -834,6 +898,42 @@ mod inlay_hints_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+
+        assert_eq!(
+            inlay_hint.text_edits,
+            Some(vec![TextEdit {
+                range: Range { start: position, end: position },
+                new_text: ": Field".to_string(),
+            }])
+        );
+    }
+
+    #[test]
+    async fn test_type_inlay_hints_in_lambda() {
+        let inlay_hints = get_inlay_hints(102, 105, type_hints()).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let position = Position { line: 104, character: 35 };
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, position);
+
+        if let InlayHintLabel::LabelParts(labels) = &inlay_hint.label {
+            assert_eq!(labels.len(), 2);
+            assert_eq!(labels[0].value, ": ");
+            assert_eq!(labels[0].location, None);
+            assert_eq!(labels[1].value, "i32");
+        } else {
+            panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
+        }
+
+        assert_eq!(
+            inlay_hint.text_edits,
+            Some(vec![TextEdit {
+                range: Range { start: position, end: position },
+                new_text: ": i32".to_string(),
+            }])
+        );
     }
 
     #[test]
@@ -855,6 +955,7 @@ mod inlay_hints_tests {
 
         let inlay_hint = &inlay_hints[0];
         assert_eq!(inlay_hint.position, Position { line: 25, character: 12 });
+        assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, "one: ");
         } else {
@@ -863,6 +964,7 @@ mod inlay_hints_tests {
 
         let inlay_hint = &inlay_hints[1];
         assert_eq!(inlay_hint.position, Position { line: 25, character: 15 });
+        assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, "two: ");
         } else {
@@ -877,6 +979,7 @@ mod inlay_hints_tests {
 
         let inlay_hint = &inlay_hints[0];
         assert_eq!(inlay_hint.position, Position { line: 38, character: 18 });
+        assert_eq!(inlay_hint.text_edits, None);
         if let InlayHintLabel::String(label) = &inlay_hint.label {
             assert_eq!(label, "one: ");
         } else {
@@ -925,5 +1028,92 @@ mod inlay_hints_tests {
     async fn test_do_not_show_parameter_inlay_hints_if_param_name_is_suffix_of_arg_name() {
         let inlay_hints = get_inlay_hints(89, 92, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_does_not_show_closing_brace_inlay_hints_if_disabled() {
+        let inlay_hints = get_inlay_hints(41, 46, no_hints()).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_does_not_show_closing_brace_inlay_hints_if_enabled_but_not_lines() {
+        let inlay_hints = get_inlay_hints(41, 46, closing_braces_hints(6)).await;
+        assert!(inlay_hints.is_empty());
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_a_function() {
+        let inlay_hints = get_inlay_hints(41, 46, closing_braces_hints(5)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 45, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " fn call_where_name_matches");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_impl() {
+        let inlay_hints = get_inlay_hints(32, 34, closing_braces_hints(2)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 34, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " impl SomeStruct");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_trait_impl() {
+        let inlay_hints = get_inlay_hints(111, 113, closing_braces_hints(2)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 113, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " impl SomeTrait for SomeStruct");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_module() {
+        let inlay_hints = get_inlay_hints(115, 117, closing_braces_hints(2)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 117, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " mod some_module");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
+    }
+
+    #[test]
+    async fn test_shows_closing_brace_inlay_hints_for_contract() {
+        let inlay_hints = get_inlay_hints(119, 121, closing_braces_hints(2)).await;
+        assert_eq!(inlay_hints.len(), 1);
+
+        let inlay_hint = &inlay_hints[0];
+        assert_eq!(inlay_hint.position, Position { line: 121, character: 1 });
+        assert_eq!(inlay_hint.text_edits, None);
+        if let InlayHintLabel::String(label) = &inlay_hint.label {
+            assert_eq!(label, " contract some_contract");
+        } else {
+            panic!("Expected InlayHintLabel::String, got {:?}", inlay_hint.label);
+        }
     }
 }

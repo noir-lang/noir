@@ -88,6 +88,7 @@
         "foralls",
         "formatcp",
         "frontends",
+        "fuzzer",
         "fxhash",
         "getrandom",
         "gloo",
@@ -126,6 +127,7 @@
         "memset",
         "merkle",
         "metas",
+        "microcontroller",
         "minreq",
         "monomorphization",
         "monomorphize",
@@ -135,6 +137,7 @@
         "monomorphizing",
         "montcurve",
         "MSRV",
+        "multicall",
         "nand",
         "nargo",
         "neovim",
@@ -201,6 +204,7 @@
         "typevar",
         "typevars",
         "udiv",
+        "underconstrained",
         "uninstantiated",
         "unnormalized",
         "unoptimized",
@@ -213,7 +217,8 @@
         "wasi",
         "wasmer",
         "Weierstraß",
-        "zshell"
+        "zshell",
+        "Linea"
     ],
     "ignorePaths": [
         "./**/node_modules/**",

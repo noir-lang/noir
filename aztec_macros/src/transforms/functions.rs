@@ -8,16 +8,18 @@ use noirc_frontend::ast::{
     UnresolvedTypeData, Visibility,
 };
 
-use noirc_frontend::{macros_api::FieldElement, parse_program};
+use noirc_frontend::macros_api::FieldElement;
 
 use crate::utils::ast_utils::member_access;
+use crate::utils::parse_utils::parse_program;
 use crate::{
     chained_dep, chained_path,
     utils::{
         ast_utils::{
             assignment, assignment_with_type, call, cast, expression, ident, ident_path,
             index_array, make_eq, make_statement, make_type, method_call, mutable_assignment,
-            mutable_reference, path, return_type, variable, variable_ident, variable_path,
+            mutable_reference, path, path_segment, return_type, variable, variable_ident,
+            variable_path,
         },
         errors::AztecMacroError,
     },
@@ -131,6 +133,7 @@ pub fn transform_function(
 pub fn export_fn_abi(
     types: &mut Vec<NoirStruct>,
     func: &NoirFunction,
+    empty_spans: bool,
 ) -> Result<(), AztecMacroError> {
     let mut parameters_struct_source: Option<&str> = None;
 
@@ -197,7 +200,7 @@ pub fn export_fn_abi(
 
     program.push_str(&export_struct_source);
 
-    let (ast, errors) = parse_program(&program);
+    let (ast, errors) = parse_program(&program, empty_spans);
     if !errors.is_empty() {
         return Err(AztecMacroError::CouldNotExportFunctionAbi {
             span: None,
@@ -264,7 +267,7 @@ fn create_inputs(ty: &str) -> Param {
     let path_snippet = ty.to_case(Case::Snake); // e.g. private_context_inputs
     let type_path = chained_dep!("aztec", "context", "inputs", &path_snippet, ty);
 
-    let context_type = make_type(UnresolvedTypeData::Named(type_path, vec![], true));
+    let context_type = make_type(UnresolvedTypeData::Named(type_path, Default::default(), true));
     let visibility = Visibility::Private;
 
     Param { pattern: context_pattern, typ: context_type, visibility, span: Span::default() }
@@ -393,7 +396,7 @@ fn serialize_to_hasher(
                         Signedness::Unsigned,
                         ast::IntegerBitSize::ThirtyTwo,
                     ),
-                    span: None,
+                    span: Span::default(),
                 },
                 hasher_name,
             ))
@@ -592,7 +595,7 @@ fn abstract_return_values(func: &NoirFunction) -> Result<Option<Vec<Statement>>,
                 serialize_to_hasher(&ident(return_value_name), &current_return_type, hasher_name)
                     .ok_or_else(|| AztecMacroError::UnsupportedFunctionReturnType {
                     typ: current_return_type.clone(),
-                    span: func.return_type().span.unwrap_or_default(),
+                    span: func.return_type().span,
                 })?;
 
             replacement_statements.extend(serialization_statements);
@@ -722,8 +725,8 @@ fn add_struct_to_hasher(identifier: &Ident, hasher_name: &str) -> Statement {
 fn str_to_bytes(identifier: &Ident) -> (Statement, Ident) {
     // let identifier_as_bytes = identifier.as_bytes();
     let var = variable_ident(identifier.clone());
-    let contents = if let ExpressionKind::Variable(p, _) = &var.kind {
-        p.segments.first().cloned().unwrap_or_else(|| panic!("No segments")).0.contents
+    let contents = if let ExpressionKind::Variable(p) = &var.kind {
+        p.first_name()
     } else {
         panic!("Unexpected identifier type")
     };

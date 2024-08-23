@@ -44,7 +44,7 @@ pub(crate) fn generate_ssa(
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
-    let is_return_data = matches!(program.return_visibility, Visibility::DataBus);
+    let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
 
     let return_location = program.return_location;
     let context = SharedContext::new(program);
@@ -83,8 +83,11 @@ pub(crate) fn generate_ssa(
                     _ => unreachable!("ICE - expect return on the last block"),
                 };
 
-            return_data =
-                function_context.builder.initialize_data_bus(&return_data_values, return_data);
+            return_data = function_context.builder.initialize_data_bus(
+                &return_data_values,
+                return_data,
+                None,
+            );
         }
         let return_instruction =
             function_context.builder.current_function.dfg[block].unwrap_terminator_mut();
@@ -393,11 +396,11 @@ impl<'a> FunctionContext<'a> {
     /// return a reference to each element, for use with the store instruction.
     fn codegen_array_index(
         &mut self,
-        array: super::ir::value::ValueId,
-        index: super::ir::value::ValueId,
+        array: ValueId,
+        index: ValueId,
         element_type: &ast::Type,
         location: Location,
-        length: Option<super::ir::value::ValueId>,
+        length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
@@ -435,11 +438,7 @@ impl<'a> FunctionContext<'a> {
     /// Prepare a slice access.
     /// Check that the index being used to access a slice element
     /// is less than the dynamic slice length.
-    fn codegen_slice_access_check(
-        &mut self,
-        index: super::ir::value::ValueId,
-        length: Option<super::ir::value::ValueId>,
-    ) {
+    fn codegen_slice_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self

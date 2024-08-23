@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use acir::{
     brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
-        brillig::{BrilligInputs, BrilligOutputs},
+        brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
         ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
         STRING_ERROR_SELECTOR,
@@ -29,6 +29,10 @@ pub enum BrilligSolverStatus<F> {
 pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
     vm: VM<'b, F, B>,
     acir_index: usize,
+    /// This id references which Brillig function within the main ACIR program we are solving.
+    /// This is used for appropriately resolving errors as the ACIR program artifacts
+    /// set up their Brillig debug metadata by function id.
+    pub function_id: BrilligFunctionId,
 }
 
 impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
@@ -61,10 +65,11 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         brillig_bytecode: &'b [BrilligOpcode<F>],
         bb_solver: &'b B,
         acir_index: usize,
+        brillig_function_id: BrilligFunctionId,
     ) -> Result<Self, OpcodeResolutionError<F>> {
         let vm =
             Self::setup_brillig_vm(initial_witness, memory, inputs, brillig_bytecode, bb_solver)?;
-        Ok(Self { vm, acir_index })
+        Ok(Self { vm, acir_index, function_id: brillig_function_id })
     }
 
     fn setup_brillig_vm(
@@ -182,7 +187,11 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     }
                 };
 
-                Err(OpcodeResolutionError::BrilligFunctionFailed { payload, call_stack })
+                Err(OpcodeResolutionError::BrilligFunctionFailed {
+                    function_id: self.function_id,
+                    payload,
+                    call_stack,
+                })
             }
             VMStatus::ForeignCallWait { function, inputs } => {
                 Ok(BrilligSolverStatus::ForeignCallWait(ForeignCallWaitInfo { function, inputs }))
@@ -264,6 +273,7 @@ fn extract_failure_payload_from_memory<F: AcirField>(
         let error_selector = ErrorSelector::new(
             revert_values_iter
                 .next()
+                .copied()
                 .expect("Incorrect revert data size")
                 .try_into()
                 .expect("Error selector is not u64"),
@@ -273,7 +283,7 @@ fn extract_failure_payload_from_memory<F: AcirField>(
             STRING_ERROR_SELECTOR => {
                 // If the error selector is 0, it means the error is a string
                 let string = revert_values_iter
-                    .map(|memory_value| {
+                    .map(|&memory_value| {
                         let as_u8: u8 = memory_value.try_into().expect("String item is not u8");
                         as_u8 as char
                     })

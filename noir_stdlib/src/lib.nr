@@ -12,7 +12,6 @@ mod sha256;
 mod sha512;
 mod field;
 mod ec;
-mod unsafe;
 mod collections;
 mod compat;
 mod convert;
@@ -28,22 +27,36 @@ mod bigint;
 mod runtime;
 mod meta;
 mod append;
+mod mem;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
 #[oracle(print)]
 unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
 
-unconstrained pub fn print<T>(input: T) {
-    print_oracle(false, input);
+unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+    print_oracle(with_newline, input);
 }
 
-unconstrained pub fn println<T>(input: T) {
-    print_oracle(true, input);
+pub fn println<T>(input: T) {
+    unsafe {
+        print_unconstrained(true, input);
+    }
+}
+
+pub fn print<T>(input: T) {
+    unsafe {
+        print_unconstrained(false, input);
+    }
 }
 
 #[foreign(recursive_aggregation)]
-pub fn verify_proof<N>(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
+pub fn verify_proof<let N: u32, let M: u32, let K: u32>(
+    verification_key: [Field; N],
+    proof: [Field; M],
+    public_inputs: [Field; K],
+    key_hash: Field
+) {}
 
 // Asserts that the given value is known at compile-time.
 // Useful for debugging for-loop bounds.
