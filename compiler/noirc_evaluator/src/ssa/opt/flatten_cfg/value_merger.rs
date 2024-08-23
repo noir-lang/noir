@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use acvm::{acir::AcirField, FieldElement};
-use fxhash::{FxHashMap as HashMap, FxHashSet};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -336,7 +336,7 @@ impl<'a> ValueMerger<'a> {
             current_else = self.find_previous_array_set(current_else, &mut seen_else);
         }
 
-        let changed_indices: FxHashSet<_> = seen_then
+        let changed_indices: HashSet<_> = seen_then
             .into_iter()
             .map(|(_, index, typ, condition)| (index, typ, condition))
             .chain(seen_else.into_iter().map(|(_, index, typ, condition)| (index, typ, condition)))
