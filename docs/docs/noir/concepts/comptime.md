@@ -285,53 +285,25 @@ Using these methods is the key to writing powerful metaprogramming libraries.
 
 # Example: Derive
 
-Using all of the above, we can write a `derive` macro that behaves similarly to Rust's but is not built into the language:
+Using all of the above, we can write a `derive` macro that behaves similarly to Rust's but is not built into the language.
+From the user's perspective it will look like this:
 
 ```rs=
 // Example usage
 #[derive(Default, Eq, Cmp)]
 struct MyStruct { my_field: u32 }
-
-// These are needed for the unconstrained hashmap we're using to store derive functions
-use crate::collections::umap::UHashMap;
-use crate::hash::BuildHasherDefault;
-use crate::hash::poseidon2::Poseidon2Hasher;
-
-// A derive function is one that given a struct definition, can
-// create us a quoted trait impl from it.
-type DeriveFunction = fn(StructDefinition) -> Quoted;
-
-// We'll keep a global HANDLERS map to keep track of the derive handler for each trait
-comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>>
-    = UHashMap::default();
-
-// Given a struct and a slice of traits to derive, create trait impls for each.
-// This function is as simple as iterating over the slice, checking if we have a trait
-// handler registered for the given trait, calling it, and appending the result.
-#[varargs]
-pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted {
-    let mut result = quote {};
-
-    for trait_to_derive in traits {
-        let handler = HANDLERS.get(trait_to_derive);
-        assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
-
-        let trait_impl = handler.unwrap()(s);
-        result = quote { $result $trait_impl };
-    }
-
-    result
-}
 ```
+
+To implement `derive` we'll have to create a `comptime` function that accepts
+a variable amount of traits.
+
+#include_code derive_example noir_stdlib/src/meta/mod.nr rust
 
 Registering a derive function could be done as follows:
 
-```rs=
-// To register a handler for a trait, just add it to our handlers map
-pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
-    HANDLERS.insert(t, f);
-}
+#include_code derive_via noir_stdlib/src/meta/mod.nr rust
 
+```rs=
 // Finally, to register a handler we call the above function as an annotation
 // with our handler function.
 #[derive_via(derive_do_nothing)]

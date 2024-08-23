@@ -1,7 +1,3 @@
-use crate::collections::umap::UHashMap;
-use crate::hash::BuildHasherDefault;
-use crate::hash::poseidon2::Poseidon2Hasher;
-
 mod expr;
 mod function_def;
 mod module;
@@ -24,10 +20,22 @@ pub comptime fn unquote(code: Quoted) -> Quoted {
 #[builtin(type_of)]
 pub comptime fn type_of<T>(x: T) -> Type {}
 
+// docs:start:derive_example
+// These are needed for the unconstrained hashmap we're using to store derive functions
+use crate::collections::umap::UHashMap;
+use crate::hash::BuildHasherDefault;
+use crate::hash::poseidon2::Poseidon2Hasher;
+
+// A derive function is one that given a struct definition can
+// create us a quoted trait impl from it.
 type DeriveFunction = fn(StructDefinition) -> Quoted;
 
+// We'll keep a global HANDLERS map to keep track of the derive handler for each trait
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> = UHashMap::default();
 
+// Given a struct and a slice of traits to derive, create trait impls for each.
+// This function is as simple as iterating over the slice, checking if we have a trait
+// handler registered for the given trait, calling it, and appending the result.
 #[varargs]
 pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted {
     let mut result = quote {};
@@ -44,10 +52,14 @@ pub comptime fn derive(s: StructDefinition, traits: [TraitDefinition]) -> Quoted
 
     result
 }
+// docs:end:derive_example
 
+// docs:start:derive_via
+// To register a handler for a trait, just add it to our handlers map
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
     HANDLERS.insert(t, f);
 }
+// docs:end:derive_via
 
 /// `make_impl` is a helper function to make a simple impl, usually while deriving a trait.
 /// This impl has a couple assumptions:
