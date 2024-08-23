@@ -30,7 +30,7 @@ comptime {
 #include_code as_module noir_stdlib/src/meta/quoted.nr rust
 
 Interprets this token stream as a module path leading to the name of a module.
-Returns `None` if the module isn't found or this cannot be parsed as a path.
+Returns `None` if the module isn't found or the token stream cannot be parsed as a path.
 
 Example:
 
