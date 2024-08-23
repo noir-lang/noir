@@ -70,7 +70,7 @@ struct Foo { array: [Field; 2], len: u32 }
 
 fn main() {
     println(comptime {
-        let mut foo = std::unsafe::zeroed::<Foo>();
+        let mut foo = std::mem::zeroed::<Foo>();
         foo.array[0] = 4;
         foo.len = 1;
         foo
@@ -93,7 +93,7 @@ Not all types of values can be lowered. For example, `Type`s and `TypeDefinition
 ```rs=
 fn main() {
     // There's nothing we could inline here to create a Type value at runtime
-    let _ = get_type!();
+    // let _ = get_type!();
 }
 
 comptime fn get_type() -> Type { ... }
