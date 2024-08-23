@@ -112,6 +112,22 @@ export const pxeTestSuite = (testName: string, pxeSetup: () => Promise<PXE>) => 
       expect(await pxe.getContractInstance(instance.address)).toEqual(instance);
     });
 
+    it('refuses to register a class with a mismatched address', async () => {
+      const artifact = randomContractArtifact();
+      const contractClass = getContractClassFromArtifact(artifact);
+      const contractClassId = contractClass.id;
+      const instance = randomContractInstanceWithAddress({ contractClassId });
+      await expect(
+        pxe.registerContract({
+          instance: {
+            ...instance,
+            address: Fr.random(),
+          },
+          artifact,
+        }),
+      ).rejects.toThrow(/Added a contract in which the address does not match the contract instance./);
+    });
+
     it('refuses to register a contract with a class that has not been registered', async () => {
       const instance = randomContractInstanceWithAddress();
       await expect(pxe.registerContract({ instance })).rejects.toThrow(/Missing contract artifact/i);

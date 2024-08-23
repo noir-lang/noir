@@ -14,6 +14,7 @@ import {
   PrivateKernelTailCircuitPublicInputs,
   PublicAccumulatedDataBuilder,
   ScopedLogHash,
+  computeContractAddressFromInstance,
   computeContractClassId,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
@@ -236,8 +237,11 @@ export const randomContractArtifact = (): ContractArtifact => ({
 
 export const randomContractInstanceWithAddress = (
   opts: { contractClassId?: Fr } = {},
-  address: AztecAddress = AztecAddress.random(),
-): ContractInstanceWithAddress => SerializableContractInstance.random(opts).withAddress(address);
+  address?: AztecAddress,
+): ContractInstanceWithAddress => {
+  const instance = SerializableContractInstance.random(opts);
+  return instance.withAddress(address ?? computeContractAddressFromInstance(instance));
+};
 
 export const randomDeployedContract = () => {
   const artifact = randomContractArtifact();

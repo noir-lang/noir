@@ -36,6 +36,7 @@ import {
   type CompleteAddress,
   type L1_TO_L2_MSG_TREE_HEIGHT,
   type PartialAddress,
+  computeContractAddressFromInstance,
   computeContractClassId,
   getContractClassFromArtifact,
 } from '@aztec/circuits.js';
@@ -272,6 +273,13 @@ export class PXEService implements PXE {
           `Artifact does not match expected class id (computed ${contractClassId} but instance refers to ${instance.contractClassId})`,
         );
       }
+      if (
+        // Computed address from the instance does not match address inside instance
+        !computeContractAddressFromInstance(instance).equals(instance.address)
+      ) {
+        throw new Error('Added a contract in which the address does not match the contract instance.');
+      }
+
       await this.db.addContractArtifact(contractClassId, artifact);
       await this.node.addContractArtifact(instance.address, artifact);
     } else {
