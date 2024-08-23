@@ -12,7 +12,7 @@ declarations in the source program.
 
 #include_code name noir_stdlib/src/meta/module.nr rust
 
-Returns the name of the module
+Returns the name of the module.
 
 ### functions
 
