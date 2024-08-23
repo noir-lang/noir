@@ -1,7 +1,8 @@
 use chumsky::prelude::*;
 
-use crate::ast::{ExpressionKind, Ident, PathSegment, UnaryOp};
+use crate::ast::{ExpressionKind, GenericTypeArgs, Ident, PathSegment, UnaryOp};
 use crate::macros_api::UnresolvedType;
+use crate::parser::ParserErrorReason;
 use crate::{
     parser::{labels::ParsingRuleLabel, ExprParser, NoirParser, ParserError},
     token::{Keyword, Token, TokenKind},
@@ -36,10 +37,14 @@ pub(super) fn token_kind(token_kind: TokenKind) -> impl NoirParser<Token> {
 pub(super) fn path_segment<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
 ) -> impl NoirParser<PathSegment> + 'a {
-    ident().then(turbofish(type_parser)).map_with_span(|(ident, generics), span| PathSegment {
-        ident,
-        generics,
-        span,
+    ident().then(turbofish(type_parser)).validate(|(ident, generics), span, emit| {
+        if generics.as_ref().map_or(false, |generics| !generics.named_args.is_empty()) {
+            let reason = ParserErrorReason::AssociatedTypesNotAllowedInPaths;
+            emit(ParserError::with_reason(reason, span));
+        }
+
+        let generics = generics.map(|generics| generics.ordered_args);
+        PathSegment { ident, generics, span }
     })
 }
 
@@ -95,7 +100,7 @@ where
 
 pub(super) fn turbofish<'a>(
     type_parser: impl NoirParser<UnresolvedType> + 'a,
-) -> impl NoirParser<Option<Vec<UnresolvedType>>> + 'a {
+) -> impl NoirParser<Option<GenericTypeArgs>> + 'a {
     just(Token::DoubleColon).ignore_then(required_generic_type_args(type_parser)).or_not()
 }
 

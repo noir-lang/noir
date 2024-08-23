@@ -585,25 +585,7 @@ impl<'context> Elaborator<'context> {
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
         if let ImplKind::TraitMethod(_, constraint, assumed) = &ident.impl_kind {
-            let the_trait = self.interner.get_trait(constraint.trait_id);
-            assert_eq!(the_trait.generics.len(), constraint.trait_generics.len());
-
-            for (param, arg) in the_trait.generics.iter().zip(&constraint.trait_generics) {
-                // Avoid binding t = t
-                if !arg.occurs(param.type_var.id()) {
-                    bindings.insert(param.type_var.id(), (param.type_var.clone(), arg.clone()));
-                }
-            }
-
-            // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
-            // Otherwise `self` will be replaced with a fresh type variable, which will require the user
-            // to specify a redundant type annotation.
-            if *assumed {
-                bindings.insert(
-                    the_trait.self_type_typevar_id,
-                    (the_trait.self_type_typevar.clone(), constraint.typ.clone()),
-                );
-            }
+            self.bind_generics_from_trait_constraint(constraint, *assumed, &mut bindings);
         }
 
         // An identifiers type may be forall-quantified in the case of generic functions.
@@ -622,6 +604,7 @@ impl<'context> Elaborator<'context> {
 
         let span = self.interner.expr_span(&expr_id);
         let location = self.interner.expr_location(&expr_id);
+
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
@@ -643,10 +626,9 @@ impl<'context> Elaborator<'context> {
         if let ImplKind::TraitMethod(_, mut constraint, assumed) = ident.impl_kind {
             constraint.apply_bindings(&bindings);
             if assumed {
-                let trait_impl = TraitImplKind::Assumed {
-                    object_type: constraint.typ,
-                    trait_generics: constraint.trait_generics,
-                };
+                let trait_generics = constraint.trait_generics.clone();
+                let object_type = constraint.typ;
+                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
                 self.interner.select_impl_for_expression(expr_id, trait_impl);
             } else {
                 // Currently only one impl can be selected per expr_id, so this

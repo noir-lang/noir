@@ -7,8 +7,8 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
-    MethodCallExpression, UnresolvedType,
+    BlockExpression, Expression, ExpressionKind, GenericTypeArgs, IndexExpression,
+    MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
@@ -371,6 +371,7 @@ impl UseTree {
 pub struct AsTraitPath {
     pub typ: UnresolvedType,
     pub trait_path: Path,
+    pub trait_generics: GenericTypeArgs,
     pub impl_item: Ident,
 }
 

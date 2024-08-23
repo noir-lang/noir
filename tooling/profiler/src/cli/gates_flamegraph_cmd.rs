@@ -22,7 +22,7 @@ pub(crate) struct GatesFlamegraphCommand {
     backend_path: String,
 
     /// Command to get a gates report from the backend. Defaults to "gates"
-    #[clap(long, short, default_value = "gates")]
+    #[clap(long, short = 'g', default_value = "gates")]
     backend_gates_command: String,
 
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -87,6 +87,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
                 opcode: AcirOrBrilligOpcode::Acir(opcode),
                 call_stack: vec![OpcodeLocation::Acir(index)],
                 count: gates,
+                brillig_function_id: None,
             })
             .collect();
 
