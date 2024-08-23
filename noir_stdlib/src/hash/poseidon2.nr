@@ -85,13 +85,6 @@ impl Poseidon2 {
         }
         // By this point, we should have a non-empty cache. Pop one item off the top of the cache and return it.
         let result = self.cache[0];
-        for i in 1..RATE {
-            if i < self.cache_size {
-                self.cache[i - 1] = self.cache[i];
-            }
-        }
-        self.cache_size -= 1;
-        self.cache[self.cache_size] = 0;
         result
     }
 
