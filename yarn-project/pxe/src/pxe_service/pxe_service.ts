@@ -636,18 +636,21 @@ export class PXEService implements PXE {
   }
 
   public async getNodeInfo(): Promise<NodeInfo> {
-    const [nodeVersion, protocolVersion, chainId, contractAddresses, protocolContractAddresses] = await Promise.all([
-      this.node.getNodeVersion(),
-      this.node.getVersion(),
-      this.node.getChainId(),
-      this.node.getL1ContractAddresses(),
-      this.node.getProtocolContractAddresses(),
-    ]);
+    const [nodeVersion, protocolVersion, chainId, enr, contractAddresses, protocolContractAddresses] =
+      await Promise.all([
+        this.node.getNodeVersion(),
+        this.node.getVersion(),
+        this.node.getChainId(),
+        this.node.getEncodedEnr(),
+        this.node.getL1ContractAddresses(),
+        this.node.getProtocolContractAddresses(),
+      ]);
 
     const nodeInfo: NodeInfo = {
       nodeVersion,
       l1ChainId: chainId,
       protocolVersion,
+      enr,
       l1ContractAddresses: contractAddresses,
       protocolContractAddresses: protocolContractAddresses,
     };

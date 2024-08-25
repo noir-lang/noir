@@ -1,0 +1,70 @@
+images:
+  test:
+    image: aztecprotocol/end-to-end
+    pullPolicy: IfNotPresent
+  aztec:
+    image: aztecprotocol/aztec
+    pullPolicy: IfNotPresent
+  curl:
+    image: curlimages/curl:7.81.0
+    pullPolicy: IfNotPresent
+  foundry:
+    image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
+    pullPolicy: IfNotPresent
+
+bootNode:
+  replicas: 1
+  service:
+    p2pPort: 40400
+    nodePort: 8080
+  logLevel: "debug"
+  debug: "discv5:*,aztec:*"
+  p2p:
+    enabled: "true"
+  resources: {}
+
+validator:
+  replicas: 1
+  service:
+    p2pPort: 40400
+    nodePort: 8080
+  logLevel: "debug"
+  debug: "discv5:*,aztec:*"
+  p2p:
+    enabled: "true"
+  resources: {}
+
+pxe:
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+  resources: {}
+
+ethereum:
+  replicas: 1
+  chainId: 31337
+  forkUrl: ""
+  forkBlockNumber: ""
+  args: ""
+  service:
+    type: ClusterIP
+    port: 8545
+    targetPort: 8545
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+  resources: {}
+
+test: "sample"
+scenario: "default"

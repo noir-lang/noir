@@ -19,6 +19,10 @@ export interface NodeInfo {
    */
   protocolVersion: number;
   /**
+   * The node's ENR.
+   */
+  enr: string | undefined;
+  /**
    * The deployed l1 contract addresses
    */
   l1ContractAddresses: L1ContractAddresses;

@@ -223,6 +223,10 @@ export class AztecNodeService implements AztecNode {
     return Promise.resolve(this.config.l1Contracts);
   }
 
+  public getEncodedEnr(): Promise<string | undefined> {
+    return Promise.resolve(this.p2pClient.getEnr()?.encodeTxt());
+  }
+
   /**
    * Method to determine if the node is ready to accept transactions.
    * @returns - Flag indicating the readiness for tx submission.

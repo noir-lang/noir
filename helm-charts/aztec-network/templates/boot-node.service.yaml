@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-boot-node
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "aztec-network.selectorLabels" . | nindent 4 }}
+    app: boot-node
+  ports:
+    - port: {{ .Values.bootNode.service.p2pPort }}
+      name: p2p
+    - port: {{ .Values.bootNode.service.nodePort }}
+      name: node

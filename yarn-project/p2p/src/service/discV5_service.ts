@@ -84,12 +84,11 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
       const multiAddrTcp = await enr.getFullMultiaddr('tcp');
       const multiAddrUdp = await enr.getFullMultiaddr('udp');
       this.logger.debug(`ENR multiaddr: ${multiAddrTcp?.toString()}, ${multiAddrUdp?.toString()}`);
+      this.onDiscovered(enr);
     });
   }
 
   public async start(): Promise<void> {
-    // Do this conversion once since it involves an async function call
-    this.bootstrapNodePeerIds = await Promise.all(this.bootstrapNodes.map(enr => ENR.decodeTxt(enr).peerId()));
     if (this.currentState === PeerDiscoveryState.RUNNING) {
       throw new Error('DiscV5Service already started');
     }
@@ -102,6 +101,8 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
 
     // Add bootnode ENR if provided
     if (this.bootstrapNodes?.length) {
+      // Do this conversion once since it involves an async function call
+      this.bootstrapNodePeerIds = await Promise.all(this.bootstrapNodes.map(enr => ENR.decodeTxt(enr).peerId()));
       this.logger.info(`Adding bootstrap ENRs: ${this.bootstrapNodes.join(', ')}`);
       try {
         this.bootstrapNodes.forEach(enr => {

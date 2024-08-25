@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-boot-node
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "aztec-network.fullname" . }}-boot-node
+  replicas: {{ .Values.bootNode.replicas }}
+  selector:
+    matchLabels:
+      {{- include "aztec-network.selectorLabels" . | nindent 6 }}
+      app: boot-node
+  template:
+    metadata:
+      labels:
+        {{- include "aztec-network.selectorLabels" . | nindent 8 }}
+        app: boot-node
+    spec:
+      initContainers:
+        - name: wait-for-ethereum
+          image: {{ .Values.images.curl.image }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until curl -s -X POST -H 'Content-Type: application/json' \
+                -d '{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":67}' \
+                {{ include "aztec-network.ethereumHost" . }} | grep -q anvil; do
+                echo "Waiting for Ethereum node..."
+                sleep 5
+              done
+              echo "Ethereum node is ready!"
+        - name: deploy-contracts
+          image: {{ .Values.images.aztec.image }}
+          command:
+            [
+              "/bin/sh",
+              "-c",
+              "cp /scripts/deploy-contracts.sh /tmp/deploy-contracts.sh && chmod +x /tmp/deploy-contracts.sh && /tmp/deploy-contracts.sh",
+            ]
+          volumeMounts:
+            - name: shared-volume
+              mountPath: /shared
+            - name: scripts
+              mountPath: /scripts
+          env:
+            - name: ETHEREUM_HOST
+              value: {{ include "aztec-network.ethereumHost" . | quote }}
+      containers:
+        - name: aztec
+          image: {{ .Values.images.aztec.image }}
+          command:
+            [
+              "/bin/bash",
+              "-c",
+              "source /shared/contracts.env && env && node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --node --archiver --sequencer",
+            ]
+          volumeMounts:
+            - name: shared-volume
+              mountPath: /shared
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_DNS_NAME
+              value: "$(POD_NAME).{{ include "aztec-network.fullname" . }}-boot-node.$(POD_NAMESPACE).svc.cluster.local"
+            - name: PORT
+              value: "{{ .Values.bootNode.service.nodePort }}"
+            - name: LOG_LEVEL
+              value: "{{ .Values.bootNode.logLevel }}"
+            - name: DEBUG
+              value: "{{ .Values.bootNode.debug }}"
+            - name: ETHEREUM_HOST
+              value: {{ include "aztec-network.ethereumHost" . | quote }}
+            - name: P2P_ENABLED
+              value: "{{ .Values.bootNode.p2p.enabled }}"
+            - name: P2P_TCP_ANNOUNCE_ADDR
+              value: "$(POD_DNS_NAME):{{ .Values.bootNode.service.p2pPort }}"
+            - name: P2P_UDP_ANNOUNCE_ADDR
+              value: "$(POD_DNS_NAME):{{ .Values.bootNode.service.p2pPort }}"
+            - name: P2P_TCP_LISTEN_ADDR
+              value: "0.0.0.0:{{ .Values.bootNode.service.p2pPort }}"
+            - name: P2P_UDP_LISTEN_ADDR
+              value: "0.0.0.0:{{ .Values.bootNode.service.p2pPort }}"
+            - name: VALIDATOR_PRIVATE_KEY
+              value: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a"
+          ports:
+            - containerPort: "{{ .Values.bootNode.service.nodePort }}"
+            - containerPort: "{{ .Values.bootNode.service.p2pPort }}"
+          resources:
+            {{- toYaml .Values.bootNode.resources | nindent 12 }}
+      volumes:
+        - name: shared-volume
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: {{ include "aztec-network.fullname" . }}-deploy-contracts-script

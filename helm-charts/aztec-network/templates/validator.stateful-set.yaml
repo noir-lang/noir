@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-validator
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "aztec-network.fullname" . }}-validator
+  replicas: {{ .Values.validator.replicas }}
+  selector:
+    matchLabels:
+      {{- include "aztec-network.selectorLabels" . | nindent 6 }}
+      app: validator
+  template:
+    metadata:
+      labels:
+        {{- include "aztec-network.selectorLabels" . | nindent 8 }}
+        app: validator
+    spec:
+      initContainers:
+        - name: configure-validator-env
+          image: "{{ .Values.images.aztec.image }}"
+          imagePullPolicy: {{ .Values.images.aztec.pullPolicy }}
+          command:
+            - "/bin/sh"
+            - "-c"
+            - "cp /scripts/configure-validator-env.sh /tmp/configure-validator-env.sh && chmod +x /tmp/configure-validator-env.sh && /tmp/configure-validator-env.sh"
+          volumeMounts:
+            - name: shared-volume
+              mountPath: /shared
+            - name: scripts
+              mountPath: /scripts
+          env:
+            - name: ETHEREUM_HOST
+              value: {{ include "aztec-network.ethereumHost" . | quote }}
+      containers:
+        - name: aztec
+          image: "{{ .Values.images.aztec.image }}"
+          imagePullPolicy: {{ .Values.images.aztec.pullPolicy }}
+          command:
+            - "/bin/bash"
+            - "-c"
+            - "source /shared/contracts.env && env && node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --node --archiver --sequencer"
+          volumeMounts:
+            - name: shared-volume
+              mountPath: /shared
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_DNS_NAME
+              value: "$(POD_NAME).{{ include "aztec-network.fullname" . }}-validator.$(POD_NAMESPACE).svc.cluster.local"
+            - name: PORT
+              value: "{{ .Values.validator.service.nodePort }}"
+            - name: LOG_LEVEL
+              value: "{{ .Values.validator.logLevel }}"
+            - name: DEBUG
+              value: "{{ .Values.validator.debug }}"
+            - name: ETHEREUM_HOST
+              value: {{ include "aztec-network.ethereumHost" . | quote }}
+            - name: P2P_ENABLED
+              value: "{{ .Values.validator.p2p.enabled }}"
+            - name: P2P_TCP_ANNOUNCE_ADDR
+              value: "$(POD_DNS_NAME):{{ .Values.validator.service.p2pPort }}"
+            - name: P2P_UDP_ANNOUNCE_ADDR
+              value: "$(POD_DNS_NAME):{{ .Values.validator.service.p2pPort }}"
+            - name: P2P_TCP_LISTEN_ADDR
+              value: "0.0.0.0:{{ .Values.validator.service.p2pPort }}"
+            - name: P2P_UDP_LISTEN_ADDR
+              value: "0.0.0.0:{{ .Values.validator.service.p2pPort }}"
+          ports:
+            - containerPort: {{ .Values.validator.service.nodePort }}
+            - containerPort: {{ .Values.validator.service.p2pPort }}
+          resources:
+            {{- toYaml .Values.validator.resources | nindent 12 }}
+      volumes:
+        - name: shared-volume
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: {{ include "aztec-network.fullname" . }}-configure-validator-env

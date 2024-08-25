@@ -8,7 +8,7 @@ import { DiscV5Service } from '../service/discV5_service.js';
 import { DummyP2PService } from '../service/dummy_service.js';
 import { LibP2PService, createLibP2PPeerId } from '../service/index.js';
 import { type TxPool } from '../tx_pool/index.js';
-import { getPublicIp, splitAddressPort } from '../util.js';
+import { getPublicIp, resolveAddressIfNecessary, splitAddressPort } from '../util.js';
 
 export * from './p2p_client.js';
 
@@ -28,6 +28,13 @@ export const createP2PClient = async (
       udpAnnounceAddress: configUdpAnnounceAddress,
       queryForIp,
     } = config;
+
+    config.tcpAnnounceAddress = configTcpAnnounceAddress
+      ? await resolveAddressIfNecessary(configTcpAnnounceAddress)
+      : undefined;
+    config.udpAnnounceAddress = configUdpAnnounceAddress
+      ? await resolveAddressIfNecessary(configUdpAnnounceAddress)
+      : undefined;
 
     // create variable for re-use if needed
     let publicIp;

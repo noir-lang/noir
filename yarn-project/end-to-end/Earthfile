@@ -46,6 +46,44 @@ E2E_TEST:
   # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
   RUN docker run -e HARDWARE_CONCURRENCY=$hardware_concurrency --rm aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG $test || $allow_fail
 
+NETWORK_TEST:
+  FUNCTION
+  ARG hardware_concurrency=""
+  ARG namespace
+  ARG test
+  ARG chaos_values
+  ARG fresh_install
+  ARG force_build
+  LOCALLY
+  # Let docker compose know about the pushed tags above
+  ENV AZTEC_DOCKER_TAG=$(git rev-parse HEAD)
+  IF  [ "$force_build" = "true" ] || \
+     ! docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "aztecprotocol/aztec:$AZTEC_DOCKER_TAG" || \
+     ! docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG"
+    WAIT
+      BUILD ../+export-e2e-test-images
+    END
+  END
+  # load the docker image into kind
+  RUN kind load docker-image aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG
+  RUN kind load docker-image aztecprotocol/aztec:$AZTEC_DOCKER_TAG
+
+  # if fresh_install is true, delete the namespace
+  IF [ "$fresh_install" = "true" ]
+    RUN kubectl delete namespace $namespace --ignore-not-found=true --wait=true --now --timeout=10m
+  END
+
+
+  RUN helm install spartan ../../helm-charts/aztec-network \
+        --namespace $namespace --create-namespace \
+        --set images.test.image="aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG" \
+        --set images.aztec.image="aztecprotocol/aztec:$AZTEC_DOCKER_TAG" \
+        --set test="$test"
+
+  RUN kubectl wait pod -l app==pxe --for=condition=Ready -n $namespace --timeout=10m
+
+  RUN helm test spartan --namespace $namespace --timeout 30m
+
 e2e-p2p:
   DO +E2E_TEST --test=./src/e2e_p2p_network.test.ts
 
@@ -256,3 +294,6 @@ e2e-devnet-smoke:
 
 e2e-cli-wallet:
   DO +E2E_COMPOSE_TEST --test=e2e_cli_wallet --compose_file=scripts/docker-compose-wallet.yml
+
+network-smoke:
+  DO +NETWORK_TEST --fresh_install=true --namespace=smoke --test=./src/spartan/smoke.test.ts

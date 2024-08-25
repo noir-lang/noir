@@ -41,6 +41,10 @@ export class DummyP2PService implements P2PService {
    * Register a callback into the validator client for when a block proposal is received
    */
   public registerBlockReceivedCallback(_: (block: BlockProposal) => Promise<BlockAttestation>) {}
+
+  public getEnr(): undefined {
+    return undefined;
+  }
 }
 
 /**
@@ -82,5 +86,9 @@ export class DummyPeerDiscoveryService extends EventEmitter implements PeerDisco
 
   public getStatus(): PeerDiscoveryState {
     return this.currentState;
+  }
+
+  public getEnr(): undefined {
+    return undefined;
   }
 }

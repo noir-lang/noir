@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-pxe
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.pxe.replicas }}
+  selector:
+    matchLabels:
+      {{- include "aztec-network.selectorLabels" . | nindent 6 }}
+      app: pxe
+  template:
+    metadata:
+      labels:
+        {{- include "aztec-network.selectorLabels" . | nindent 8 }}
+        app: pxe
+    spec:
+      containers:
+        - name: aztec
+          image: "{{ .Values.images.aztec.image }}"
+          command:
+            - "/bin/bash"
+            - "-c"
+            - >
+              node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --pxe
+          env:
+            - name: ETHEREUM_HOST
+              value: "http://{{ include "aztec-network.fullname" . }}-ethereum.{{ .Release.Namespace }}:{{ .Values.ethereum.service.port }}"
+            - name: AZTEC_NODE_URL
+              value: "http://{{ include "aztec-network.fullname" . }}-boot-node-0.{{ include "aztec-network.fullname" . }}-boot-node.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.bootNode.service.nodePort }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.pxe.service.port }}
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  curl -s -X POST -H 'content-type: application/json' \
+                  -d '{"jsonrpc":"2.0","method":"pxe_getNodeInfo","params":[],"id":67}' \
+                  127.0.0.1:{{ .Values.pxe.service.port }} > /tmp/probe_output.txt && \
+                  cat /tmp/probe_output.txt && \
+                  grep -q '"enr:-' /tmp/probe_output.txt
+            initialDelaySeconds: {{ .Values.pxe.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.pxe.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.pxe.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.pxe.readinessProbe.successThreshold }}
+            failureThreshold: {{ .Values.pxe.readinessProbe.failureThreshold }}
+          resources:
+            {{- toYaml .Values.pxe.resources | nindent 12 }}

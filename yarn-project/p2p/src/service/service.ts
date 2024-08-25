@@ -33,6 +33,8 @@ export interface P2PService {
 
   // Leaky abstraction: fix https://github.com/AztecProtocol/aztec-packages/issues/7963
   registerBlockReceivedCallback(callback: (block: BlockProposal) => Promise<BlockAttestation>): void;
+
+  getEnr(): ENR | undefined;
 }
 
 /**
@@ -74,4 +76,6 @@ export interface PeerDiscoveryService extends EventEmitter {
   emit(event: 'peer:discovered', enr: ENR): boolean;
 
   getStatus(): PeerDiscoveryState;
+
+  getEnr(): ENR | undefined;
 }

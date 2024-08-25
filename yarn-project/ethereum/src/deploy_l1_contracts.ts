@@ -89,7 +89,7 @@ export interface L1ContractArtifactsForDeployment {
    */
   feeJuice: ContractArtifacts;
   /**
-   * Gas portal contract artifacts. Optional for now as gas is not strictly enforced
+   * Fee juice portal contract artifacts. Optional for now as gas is not strictly enforced
    */
   feeJuicePortal: ContractArtifacts;
 }

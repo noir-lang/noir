@@ -57,7 +57,7 @@ export class FeeJuicePortalTestingHarnessFactory {
     const feeJuicePortalAddress = l1ContractAddresses.feeJuicePortalAddress;
 
     if (feeJuiceAddress.isZero() || feeJuicePortalAddress.isZero()) {
-      throw new Error('Gas portal not deployed on L1');
+      throw new Error('Fee Juice portal not deployed on L1');
     }
 
     const outbox = getContract({

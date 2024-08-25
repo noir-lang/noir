@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-ethereum
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.ethereum.replicas }}
+  selector:
+    matchLabels:
+      {{- include "aztec-network.selectorLabels" . | nindent 6 }}
+      app: ethereum
+  template:
+    metadata:
+      labels:
+        {{- include "aztec-network.selectorLabels" . | nindent 8 }}
+        app: ethereum
+    spec:
+      containers:
+        - name: ethereum
+          image: "{{ .Values.images.foundry.image }}"
+          imagePullPolicy: {{ .Values.images.foundry.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              [ -n "$FORK_URL" ] && ARGS="$ARGS --fork-url $FORK_URL";
+              [ -n "$FORK_BLOCK_NUMBER" ] && ARGS="$ARGS --fork-block-number $FORK_BLOCK_NUMBER";
+              echo anvil -p $ANVIL_PORT --host 0.0.0.0 --chain-id {{ .Values.ethereum.chainId }} $ARGS;
+              anvil -p $ANVIL_PORT --host 0.0.0.0 --chain-id {{ .Values.ethereum.chainId }} $ARGS;
+          ports:
+            - containerPort: {{ .Values.ethereum.service.port }}
+              name: anvil
+          env:
+            - name: FORK_URL
+              value: {{ .Values.ethereum.forkUrl | quote }}
+            - name: FORK_BLOCK_NUMBER
+              value: {{ .Values.ethereum.forkBlockNumber | quote }}
+            - name: ANVIL_PORT
+              value: {{ .Values.ethereum.service.port | quote }}
+            - name: ARGS
+              value: {{ .Values.ethereum.args | quote }}
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - |
+                  wget -qO- --post-data='{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":67}' \
+                  --header='Content-Type: application/json' \
+                  127.0.0.1:{{ .Values.ethereum.service.port }} \
+                  | grep -q '"result":"anvil'
+            initialDelaySeconds: {{ .Values.ethereum.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.ethereum.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.ethereum.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.ethereum.readinessProbe.successThreshold }}
+            failureThreshold: {{ .Values.ethereum.readinessProbe.failureThreshold }}
+          resources:
+            {{- toYaml .Values.ethereum.resources | nindent 12 }}

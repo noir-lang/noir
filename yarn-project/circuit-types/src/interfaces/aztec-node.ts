@@ -350,4 +350,9 @@ export interface AztecNode {
 
   /** Forces the next block to be built bypassing all time and pending checks. Useful for testing. */
   flushTxs(): Promise<void>;
+
+  /**
+   * Returns the ENR of this node for peer discovery, if available.
+   */
+  getEncodedEnr(): Promise<string | undefined>;
 }
