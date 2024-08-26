@@ -13,11 +13,6 @@ fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
 pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
     assert(N >= message_size);
     let mut block_bytes = [0; BLOCK_SIZE];
-    // for i in 0..N {
-    //     if i < message_size {
-    //         block_bytes[i] = input[i];
-    //     }
-    // }
     if is_unconstrained() {
         for i in 0..message_size {
             block_bytes[i] = input[i];
@@ -45,7 +40,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
     let num_limbs = max_blocks * LIMBS_PER_BLOCK; //max_blocks_length / WORD_SIZE;
     for i in 0..num_limbs {
         let mut temp = [0; WORD_SIZE];
-        let word_size_times_i = WORD_SIZE * i;
+        let word_size_times_i = WORD_SIZE*i;
         for j in 0..WORD_SIZE {
             temp[j] = block_bytes[word_size_times_i+j];
         }
@@ -53,7 +48,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
             block_bytes[word_size_times_i + j] = temp[7 - j];
         }
     }
-
+    
     let mut sliced_buffer = Vec::new();
     // populate a vector of 64-bit limbs from our byte array
     for i in 0..num_limbs {
@@ -112,7 +107,7 @@ pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 3
                     state[j] = state[j] ^ sliced_buffer.get(i * LIMBS_PER_BLOCK + j);
                 }
                 state = keccakf1600(state);
-            }
+            } 
         }
     }
 
