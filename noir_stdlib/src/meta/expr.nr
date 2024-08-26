@@ -113,12 +113,46 @@ impl Expr {
 
     fn map<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
         let result = f(self);
+        let result = result.or_else(|| map_if(self, f));
+        let result = result.or_else(|| map_block(self, f));
+        result.unwrap_or(self)
+    }
+}
 
-        if result.is_some() {
-            result.unwrap()
-        } else {
-            // TODO: check each variant of self and apply f to each sub-expr
-            self
-        }
+fn map_block<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    let exprs = expr.as_block();
+    if exprs.is_some() {
+        let exprs = exprs.unwrap();
+        let exprs = exprs.map(|expr: Expr| expr.map(f));
+        Option::some(new_block(exprs))
+    } else {
+        Option::none()
+    }
+}
+
+fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    let if_ = expr.as_if();
+    if if_.is_some() {
+        let (condition, consequence, alternative) = if_.unwrap();
+        let condition = condition.map(f);
+        let consequence = consequence.map(f);
+        let alternative = alternative.and_then(f);
+        Option::some(new_if(condition, consequence, alternative))
+    } else {
+        Option::none()
+    }
+}
+
+fn new_block(exprs: [Expr]) -> Expr {
+    let exprs = exprs.map(|expr| quote { $expr }).join(quote { });
+    quote { { $exprs }}.as_expr().unwrap()
+}
+
+fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr {
+    if alternative.is_some() {
+        let alternative = alternative.unwrap();
+        quote { if $condition { $consequence } else { $alternative }}.as_expr().unwrap()
+    } else {
+        quote { if $condition { $consequence } }.as_expr().unwrap()
     }
 }

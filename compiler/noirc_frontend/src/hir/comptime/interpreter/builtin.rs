@@ -12,6 +12,7 @@ use builtin_helpers::{
     mutate_func_meta_type, parse, parse_tokens, replace_func_meta_parameters,
     replace_func_meta_return_type,
 };
+use chumsky::{prelude::choice, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -362,10 +363,14 @@ fn quoted_as_expr(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
-    let expr = parse(argument, parser::expression(), "an expression").ok();
-    let value = expr.map(|expr| Value::expression(expr.kind));
+    let expr_parser = parser::expression().map(|expr| Value::expression(expr.kind));
+    let statement_parser = parser::fresh_statement().map(|statement| Value::statement(statement));
+    let lvalue_parser = parser::lvalue(parser::expression()).map(|lvalue| Value::lvalue(lvalue));
+    let parser = choice((expr_parser, statement_parser, lvalue_parser));
 
-    option(return_type, value)
+    let expr = parse(argument, parser, "an expression").ok();
+
+    option(return_type, expr)
 }
 
 // fn as_module(quoted: Quoted) -> Option<Module>

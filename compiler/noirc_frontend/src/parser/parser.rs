@@ -652,7 +652,7 @@ enum LValueRhs {
     Index(Expression, Span),
 }
 
-fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
+pub fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
 where
     P: ExprParser + 'a,
 {

@@ -4,12 +4,17 @@ struct Context {
 
 #[aztec]
 fn foo(x: Field) {
-    bar(x + 1);
+    if true {
+        bar(x + 1);
+    } else {
+        assert(false);
+    }
 }
 
 #[aztec]
 fn bar(x: Field) {
-    assert_eq(x, _context.value);
+    let expected = _context.value;
+    assert_eq(x, expected);
 }
 
 fn aztec(f: FunctionDefinition) {
@@ -31,7 +36,7 @@ fn aztec(f: FunctionDefinition) {
               let arguments = arguments.map(|arg| quote { $arg }).join(quote { , });
               Option::some(quote { $name($arguments) }.as_expr().unwrap())
             } else {
-              Option::some(expr)
+              Option::none()
             }
         })
     }
