@@ -164,7 +164,7 @@ mod tests {
     }
     // docs:end:annotation-arguments-example
 
-    // docs:end:annotation-varargs-example
+    // docs:start:annotation-varargs-example
     #[assert_three_args(1, 2, 3)]
     struct MyOtherStruct { my_other_field: u32 }
 
