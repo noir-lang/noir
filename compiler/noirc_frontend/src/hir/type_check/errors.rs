@@ -422,7 +422,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
             TypeCheckError::CyclicType { typ: _, span } => {
-                Diagnostic::simple_error(error.to_string(), "Cyclic types would have infinite size and are prohibited in Noir".into(), *span)
+                Diagnostic::simple_error(error.to_string(), "Cyclic types have unlimited size and are prohibited in Noir".into(), *span)
             }
         }
     }
