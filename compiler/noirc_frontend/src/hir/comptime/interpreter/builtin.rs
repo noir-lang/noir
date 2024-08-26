@@ -65,6 +65,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_index" => expr_as_index(arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(arguments, return_type, location),
             "expr_as_member_access" => expr_as_member_access(arguments, return_type, location),
+            "expr_as_method_call" => expr_as_method_call(arguments, return_type, location),
             "expr_as_repeated_element_array" => {
                 expr_as_repeated_element_array(arguments, return_type, location)
             }
@@ -1053,6 +1054,39 @@ fn expr_as_member_access(
             Some(Value::Tuple(vec![Value::lvalue(*object), Value::Quoted(tokens)]))
         }
         _ => None,
+    })
+}
+
+// fn as_method_call(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])>
+fn expr_as_method_call(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
+            let object = Value::expression(method_call.object.kind);
+
+            let name_tokens =
+                Rc::new(vec![Token::Ident(method_call.method_name.0.contents.clone())]);
+            let name = Value::Quoted(name_tokens);
+
+            let generics = method_call.generics.unwrap_or_default().into_iter();
+            let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
+            let generics = Value::Slice(
+                generics,
+                Type::Slice(Box::new(Type::Quoted(QuotedType::UnresolvedType))),
+            );
+
+            let arguments = method_call.arguments.into_iter();
+            let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
+            let arguments =
+                Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
+
+            Some(Value::Tuple(vec![object, name, generics, arguments]))
+        } else {
+            None
+        }
     })
 }
 
