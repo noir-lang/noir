@@ -41,34 +41,27 @@ impl Poseidon2 {
     }
 
     fn absorb(&mut self, input: Field) {
-        if (!self.squeeze_mode) & (self.cache_size == RATE) {
+        assert(!self.squeeze_mode);
+        if self.cache_size == RATE {
             // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
             self.perform_duplex();
             self.cache[0] = input;
             self.cache_size = 1;
-        } else if (!self.squeeze_mode) & (self.cache_size != RATE) {
+        } else {
             // If we're absorbing, and the cache is not full, add the input into the cache
             self.cache[self.cache_size] = input;
             self.cache_size += 1;
-        } else if self.squeeze_mode {
-            // If we're in squeeze mode, switch to absorb mode and add the input into the cache.
-            // N.B. I don't think this code path can be reached?!
-            self.cache[0] = input;
-            self.cache_size = 1;
-            self.squeeze_mode = false;
         }
     }
 
     fn squeeze(&mut self) -> Field {
-        let mut result = self.cache[0];
-        if !self.squeeze_mode {
-            // If we're in absorb mode, apply sponge permutation to compress the cache.
-            // Note: this code block will execute if this `if` condition was not matched.
-            // Pop one item off the top of the permutation and return it.
-            self.perform_duplex();
-            result = self.state[0];
-        }
-        result
+        assert(!self.squeeze_mode);
+        // If we're in absorb mode, apply sponge permutation to compress the cache.
+        self.perform_duplex();
+        self.squeeze_mode = true;
+
+        // Pop one item off the top of the permutation and return it.
+        self.state[0]
     }
 
     fn hash_internal<let N: u32>(input: [Field; N], in_len: u32, is_variable_length: bool) -> Field {
