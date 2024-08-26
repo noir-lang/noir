@@ -1,4 +1,5 @@
 #include "barretenberg/aztec_ivc/aztec_ivc.hpp"
+#include "barretenberg/ultra_honk/oink_prover.hpp"
 
 namespace bb {
 
@@ -13,23 +14,53 @@ void AztecIVC::complete_kernel_circuit_logic(ClientCircuit& circuit)
 {
     circuit.databus_propagation_data.is_kernel = true;
 
-    // The folding verification queue should be either empty or contain two fold proofs
-    ASSERT(verification_queue.empty() || verification_queue.size() == 2);
-
-    for (auto& [proof, vkey] : verification_queue) {
-
-        // Construct stdlib accumulator, vkey and proof
-        auto stdlib_verifier_accum = std::make_shared<RecursiveVerifierInstance>(&circuit, verifier_accumulator);
-        auto stdlib_vkey = std::make_shared<RecursiveVerificationKey>(&circuit, vkey);
+    // Peform recursive verification and databus consistency checks for each entry in the verification queue
+    for (auto& [proof, vkey, type] : verification_queue) {
+        // Construct stdlib verification key and proof
         auto stdlib_proof = bb::convert_proof_to_witness(&circuit, proof);
+        auto stdlib_vkey = std::make_shared<RecursiveVerificationKey>(&circuit, vkey);
 
-        // Perform folding recursive verification
-        FoldingRecursiveVerifier verifier{ &circuit, stdlib_verifier_accum, { stdlib_vkey } };
-        auto verifier_accum = verifier.verify_folding_proof(stdlib_proof);
-        verifier_accumulator = std::make_shared<VerifierInstance>(verifier_accum->get_value());
+        switch (type) {
+        case QUEUE_TYPE::PG: {
+            // Construct stdlib verifier accumulator from the native counterpart computed on a previous round
+            auto stdlib_verifier_accum = std::make_shared<RecursiveVerifierInstance>(&circuit, verifier_accumulator);
 
-        // Perform databus commitment consistency checks and propagate return data commitments via public inputs
-        bus_depot.execute(verifier.instances);
+            // Perform folding recursive verification to update the verifier accumulator
+            FoldingRecursiveVerifier verifier{ &circuit, stdlib_verifier_accum, { stdlib_vkey } };
+            auto verifier_accum = verifier.verify_folding_proof(stdlib_proof);
+
+            // Extract native verifier accumulator from the stdlib accum for use on the next round
+            verifier_accumulator = std::make_shared<VerifierInstance>(verifier_accum->get_value());
+
+            // Perform databus commitment consistency checks and propagate return data commitments via public inputs
+            bus_depot.execute(verifier.instances[1]->witness_commitments,
+                              verifier.instances[1]->public_inputs,
+                              verifier.instances[1]->verification_key->databus_propagation_data);
+            break;
+        }
+        case QUEUE_TYPE::OINK: {
+            // Construct an incomplete stdlib verifier accumulator from the corresponding stdlib verification key
+            auto verifier_accum = std::make_shared<RecursiveVerifierInstance>(&circuit, stdlib_vkey);
+
+            // Perform oink recursive verification to complete the initial verifier accumulator
+            OinkRecursiveVerifier oink{ &circuit, verifier_accum };
+            oink.verify_proof(stdlib_proof);
+            verifier_accum->is_accumulator = true; // indicate to PG that it should not run oink on this instance
+
+            // Extract native verifier accumulator from the stdlib accum for use on the next round
+            verifier_accumulator = std::make_shared<VerifierInstance>(verifier_accum->get_value());
+            // Initialize the gate challenges to zero for use in first round of folding
+            verifier_accumulator->gate_challenges =
+                std::vector<FF>(verifier_accum->verification_key->log_circuit_size, 0);
+
+            // Perform databus commitment consistency checks and propagate return data commitments via public inputs
+            bus_depot.execute(verifier_accum->witness_commitments,
+                              verifier_accum->public_inputs,
+                              verifier_accum->verification_key->databus_propagation_data);
+
+            break;
+        }
+        }
     }
     verification_queue.clear();
 
@@ -71,17 +102,26 @@ void AztecIVC::accumulate(ClientCircuit& circuit, const std::shared_ptr<Verifica
     // Set the instance verification key from precomputed if available, else compute it
     instance_vk = precomputed_vk ? precomputed_vk : std::make_shared<VerificationKey>(prover_instance->proving_key);
 
-    // If this is the first circuit simply initialize the prover and verifier accumulator instances
+    // If this is the first circuit in the IVC, use oink to compute the completed instance and generate an oink proof
     if (!initialized) {
-        fold_output.accumulator = prover_instance;
-        verifier_accumulator = std::make_shared<VerifierInstance>(instance_vk);
+        OinkProver<Flavor> oink_prover{ prover_instance };
+        oink_prover.prove();
+        prover_instance->is_accumulator = true; // indicate to PG that it should not run oink on this instance
+        // Initialize the gate challenges to zero for use in first round of folding
+        prover_instance->gate_challenges = std::vector<FF>(prover_instance->proving_key.log_circuit_size, 0);
+
+        fold_output.accumulator = prover_instance; // initialize the prover accum with the completed instance
+
+        // Add oink proof and corresponding verification key to the verification queue
+        verification_queue.emplace_back(oink_prover.transcript->proof_data, instance_vk, QUEUE_TYPE::OINK);
+
         initialized = true;
     } else { // Otherwise, fold the new instance into the accumulator
         FoldingProver folding_prover({ fold_output.accumulator, prover_instance });
         fold_output = folding_prover.prove();
 
         // Add fold proof and corresponding verification key to the verification queue
-        verification_queue.emplace_back(fold_output.proof, instance_vk);
+        verification_queue.emplace_back(fold_output.proof, instance_vk, QUEUE_TYPE::PG);
     }
 
     // Track the maximum size of each block for all circuits porcessed (for debugging purposes only)

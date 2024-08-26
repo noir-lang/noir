@@ -50,7 +50,7 @@ template <IsUltraFlavor Flavor> class OinkProver {
     using RelationSeparator = typename Flavor::RelationSeparator;
 
     OinkProver(std::shared_ptr<Instance> instance,
-               const std::shared_ptr<typename Flavor::Transcript>& transcript,
+               const std::shared_ptr<typename Flavor::Transcript>& transcript = std::make_shared<Transcript>(),
                std::string domain_separator = "")
         : instance(instance)
         , transcript(transcript)

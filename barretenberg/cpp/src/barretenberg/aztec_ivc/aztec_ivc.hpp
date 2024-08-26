@@ -42,12 +42,13 @@ class AztecIVC {
     using ECCVMVerificationKey = bb::ECCVMFlavor::VerificationKey;
     using TranslatorVerificationKey = bb::TranslatorFlavor::VerificationKey;
 
-    using GURecursiveFlavor = MegaRecursiveFlavor_<bb::MegaCircuitBuilder>;
-    using RecursiveVerifierInstances = bb::stdlib::recursion::honk::RecursiveVerifierInstances_<GURecursiveFlavor, 2>;
+    using RecursiveFlavor = MegaRecursiveFlavor_<bb::MegaCircuitBuilder>;
+    using RecursiveVerifierInstances = bb::stdlib::recursion::honk::RecursiveVerifierInstances_<RecursiveFlavor, 2>;
     using RecursiveVerifierInstance = RecursiveVerifierInstances::Instance;
-    using RecursiveVerificationKey = RecursiveVerifierInstances::VerificationKey;
+    using RecursiveVerificationKey = RecursiveFlavor::VerificationKey;
     using FoldingRecursiveVerifier =
         bb::stdlib::recursion::honk::ProtoGalaxyRecursiveVerifier_<RecursiveVerifierInstances>;
+    using OinkRecursiveVerifier = stdlib::recursion::honk::OinkRecursiveVerifier_<RecursiveFlavor>;
 
     using DataBusDepot = stdlib::DataBusDepot<ClientCircuit>;
 
@@ -62,9 +63,11 @@ class AztecIVC {
         MSGPACK_FIELDS(folding_proof, decider_proof, goblin_proof);
     };
 
-    struct FoldingVerifierInputs {
-        FoldProof proof;
+    enum class QUEUE_TYPE { OINK, PG };
+    struct RecursiveVerifierInputs {
+        std::vector<FF> proof; // oink or PG
         std::shared_ptr<VerificationKey> instance_vk;
+        QUEUE_TYPE type;
     };
 
     // Utility for tracking the max size of each block across the full IVC
@@ -82,7 +85,7 @@ class AztecIVC {
     std::shared_ptr<VerificationKey> instance_vk;           // verification key for instance to be folded
 
     // Set of pairs of {fold_proof, verification_key} to be recursively verified
-    std::vector<FoldingVerifierInputs> verification_queue;
+    std::vector<RecursiveVerifierInputs> verification_queue;
     // Set of merge proofs to be recursively verified
     std::vector<MergeProof> merge_verification_queue;
 

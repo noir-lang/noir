@@ -17,13 +17,45 @@ template <typename Flavor> class OinkRecursiveVerifier_ {
     using RelationSeparator = typename Flavor::RelationSeparator;
     using Transcript = bb::BaseTranscript<bb::stdlib::recursion::honk::StdlibTranscriptParams<Builder>>;
     using WitnessCommitments = typename Flavor::WitnessCommitments;
+    using OinkProof = std::vector<FF>;
 
+    /**
+     * @brief Constructs an Oink Recursive Verifier with a transcript that has been instantiated externally.
+     * @details Used when oink recursive verification is part of a larger protocol for which a transcript already
+     * exists, e.g. Honk recursive verification.
+     *
+     * @param builder
+     * @param instance Incomplete verifier instance to be completed during verification
+     * @param transcript Transcript instantiated with an Oink proof (or a proof that contains an Oink proof).
+     * @param domain_separator string used for differentiating instances in the transcript (PG only)
+     */
     explicit OinkRecursiveVerifier_(Builder* builder,
                                     const std::shared_ptr<Instance>& instance,
                                     std::shared_ptr<Transcript> transcript,
                                     std::string domain_separator = "");
 
+    /**
+     * @brief Constructs an Oink Recursive Verifier
+     *
+     * @param builder
+     * @param instance Incomplete verifier instance to be completed during verification
+     * @param domain_separator string used for differentiating instances in the transcript (PG only)
+     */
+    explicit OinkRecursiveVerifier_(Builder* builder,
+                                    const std::shared_ptr<Instance>& instance,
+                                    std::string domain_separator = "");
+
+    /**
+     * @brief Constructs an oink recursive verifier circuit for an oink proof assumed to be contained in the transcript.
+     *
+     */
     void verify();
+
+    /**
+     * @brief Constructs an oink recursive verifier circuit for a provided oink proof.
+     *
+     */
+    void verify_proof(OinkProof& proof);
 
     std::shared_ptr<Instance> instance;
     Builder* builder;
