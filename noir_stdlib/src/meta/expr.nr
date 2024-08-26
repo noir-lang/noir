@@ -9,7 +9,9 @@ impl Expr {
     // docs:end:as_array
 
     #[builtin(expr_as_assign)]
+    // docs:start:as_assign
     fn as_assign(self) -> Option<(Expr, Expr)> {}
+    // docs:end:as_assign
 
     #[builtin(expr_as_integer)]
     // docs:start:as_integer
