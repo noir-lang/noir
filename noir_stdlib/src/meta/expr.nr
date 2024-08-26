@@ -115,6 +115,8 @@ impl Expr {
         let result = f(self);
         let result = result.or_else(|| map_if(self, f));
         let result = result.or_else(|| map_block(self, f));
+        // TODO: check the remaining possibilities...
+        // though to test this it's easier if we have `as_let`.
         result.unwrap_or(self)
     }
 }
