@@ -1,0 +1,6 @@
+[package]
+name = "aztec_macro_add_context"
+type = "bin"
+authors = [""]
+
+[dependencies]

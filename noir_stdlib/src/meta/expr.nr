@@ -110,4 +110,15 @@ impl Expr {
     // docs:start:is_continue
     fn is_continue(self) -> bool {}
     // docs:end:is_continue
+
+    fn map<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
+        let result = f(self);
+
+        if result.is_some() {
+            result.unwrap()
+        } else {
+            // TODO: check each variant of self and apply f to each sub-expr
+            self
+        }
+    }
 }
