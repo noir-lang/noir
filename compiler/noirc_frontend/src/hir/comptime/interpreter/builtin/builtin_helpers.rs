@@ -4,7 +4,7 @@ use acvm::FieldElement;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{BlockExpression, IntegerBitSize, Signedness},
+    ast::{BlockExpression, IntegerBitSize, Signedness, UnresolvedTypeData},
     hir::{
         comptime::{
             errors::IResult,
@@ -204,6 +204,15 @@ pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec
     match value {
         Value::Quoted(tokens) => Ok(tokens),
         value => type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
+    }
+}
+
+pub(crate) fn get_unresolved_type(
+    (value, location): (Value, Location),
+) -> IResult<UnresolvedTypeData> {
+    match value {
+        Value::UnresolvedType(typ) => Ok(typ),
+        value => type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType), location),
     }
 }
 

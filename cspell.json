@@ -120,6 +120,7 @@
         "keccakf",
         "krate",
         "libc",
+        "Linea",
         "losslessly",
         "lvalue",
         "Maddiaa",
@@ -127,6 +128,7 @@
         "memfs",
         "memset",
         "merkle",
+        "metaprogramming",
         "metas",
         "microcontroller",
         "minreq",
@@ -167,6 +169,7 @@
         "pseudocode",
         "pubkey",
         "quantile",
+        "quasiquote",
         "rangemap",
         "repr",
         "reqwest",
@@ -205,6 +208,7 @@
         "typevar",
         "typevars",
         "udiv",
+        "umap",
         "underconstrained",
         "uninstantiated",
         "unnormalized",
@@ -218,8 +222,7 @@
         "wasi",
         "wasmer",
         "Weierstraß",
-        "zshell",
-        "Linea"
+        "zshell"
     ],
     "ignorePaths": [
         "./**/node_modules/**",
