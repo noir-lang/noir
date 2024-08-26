@@ -211,8 +211,7 @@ template <typename Flavor> class SumcheckProver {
             setup_zk_sumcheck_data(zk_sumcheck_data);
         };
 
-        bb::PowPolynomial<FF> pow_univariate(gate_challenges);
-        pow_univariate.compute_values(multivariate_d);
+        bb::PowPolynomial<FF> pow_univariate(gate_challenges, multivariate_d);
 
         std::vector<FF> multivariate_challenge;
         multivariate_challenge.reserve(multivariate_d);

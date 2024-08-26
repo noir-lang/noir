@@ -54,9 +54,13 @@ TEST(Protogalaxy, CombinerOn2Instances)
             }
 
             ProverInstances instances{ instance_data };
-            instances.alphas.fill(bb::Univariate<FF, 12>(FF(0))); // focus on the arithmetic relation only
-            auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
-            auto result = Fun::compute_combiner(instances, pow_polynomial, prover.state.univariate_accumulators);
+            prover.state.alphas.fill(bb::Univariate<FF, 12>(FF(0))); // focus on the arithmetic relation only
+            PowPolynomial<FF> pow_polynomial({ 2 }, /*log_num_monomials=*/1);
+            auto result = Fun::compute_combiner(instances,
+                                                pow_polynomial,
+                                                prover.state.relation_parameters,
+                                                prover.state.alphas,
+                                                prover.state.univariate_accumulators);
             // The expected_result values are computed by running the python script combiner_example_gen.py
             auto expected_result = Univariate<FF, 12>(std::array<FF, 12>{ 9704UL,
                                                                           13245288UL,
@@ -87,7 +91,7 @@ TEST(Protogalaxy, CombinerOn2Instances)
             }
 
             ProverInstances instances{ instance_data };
-            instances.alphas.fill(bb::Univariate<FF, 12>(FF(0))); // focus on the arithmetic relation only
+            prover.state.alphas.fill(bb::Univariate<FF, 12>(FF(0))); // focus on the arithmetic relation only
 
             const auto create_add_gate = [](auto& polys, const size_t idx, FF w_l, FF w_r) {
                 polys.w_l[idx] = w_l;
@@ -133,10 +137,17 @@ TEST(Protogalaxy, CombinerOn2Instances)
             relation value:
                       0    0    0    0    0    0    0              0    0    6   18   36   60   90      */
 
-            auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
-            auto result = Fun::compute_combiner(instances, pow_polynomial, prover.state.univariate_accumulators);
-            auto optimised_result =
-                Fun::compute_combiner(instances, pow_polynomial, prover.state.optimised_univariate_accumulators);
+            PowPolynomial<FF> pow_polynomial({ 2 }, /*log_num_monomials=*/1);
+            auto result = Fun::compute_combiner(instances,
+                                                pow_polynomial,
+                                                prover.state.relation_parameters,
+                                                prover.state.alphas,
+                                                prover.state.univariate_accumulators);
+            auto optimised_result = Fun::compute_combiner(instances,
+                                                          pow_polynomial,
+                                                          prover.state.optimised_relation_parameters,
+                                                          prover.state.alphas,
+                                                          prover.state.optimised_univariate_accumulators);
             auto expected_result =
                 Univariate<FF, 12>(std::array<FF, 12>{ 0, 0, 12, 36, 72, 120, 180, 252, 336, 432, 540, 660 });
 
@@ -190,10 +201,9 @@ TEST(Protogalaxy, CombinerOptimizationConsistency)
             }
 
             ProverInstances instances{ instance_data };
-            instances.alphas.fill(
+            prover.state.alphas.fill(
                 bb::Univariate<FF, UNIVARIATE_LENGTH>(FF(0))); // focus on the arithmetic relation only
-            auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
-            pow_polynomial.compute_values(1);
+            PowPolynomial<FF> pow_polynomial({ 2 }, /*log_num_monomials=*/1);
 
             // Relation parameters are all zeroes
             RelationParameters<FF> relation_parameters;
@@ -254,9 +264,16 @@ TEST(Protogalaxy, CombinerOptimizationConsistency)
                 precomputed_result[idx] = std::get<0>(accumulator)[0];
             }
             auto expected_result = Univariate<FF, UNIVARIATE_LENGTH>(precomputed_result);
-            auto result = Fun::compute_combiner(instances, pow_polynomial, prover.state.univariate_accumulators);
-            auto optimised_result =
-                Fun::compute_combiner(instances, pow_polynomial, prover.state.optimised_univariate_accumulators);
+            auto result = Fun::compute_combiner(instances,
+                                                pow_polynomial,
+                                                prover.state.relation_parameters,
+                                                prover.state.alphas,
+                                                prover.state.univariate_accumulators);
+            auto optimised_result = Fun::compute_combiner(instances,
+                                                          pow_polynomial,
+                                                          prover.state.optimised_relation_parameters,
+                                                          prover.state.alphas,
+                                                          prover.state.optimised_univariate_accumulators);
 
             EXPECT_EQ(result, expected_result);
             EXPECT_EQ(optimised_result, expected_result);
@@ -276,7 +293,7 @@ TEST(Protogalaxy, CombinerOptimizationConsistency)
             }
 
             ProverInstances instances{ instance_data };
-            instances.alphas.fill(bb::Univariate<FF, 12>(FF(0))); // focus on the arithmetic relation only
+            prover.state.alphas.fill(bb::Univariate<FF, 12>(FF(0))); // focus on the arithmetic relation only
 
             const auto create_add_gate = [](auto& polys, const size_t idx, FF w_l, FF w_r) {
                 polys.w_l[idx] = w_l;
@@ -322,10 +339,17 @@ TEST(Protogalaxy, CombinerOptimizationConsistency)
             relation value:
                       0    0    0    0    0    0    0              0    0    6   18   36   60   90      */
 
-            auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
-            auto result = Fun::compute_combiner(instances, pow_polynomial, prover.state.univariate_accumulators);
-            auto optimised_result =
-                Fun::compute_combiner(instances, pow_polynomial, prover.state.optimised_univariate_accumulators);
+            PowPolynomial<FF> pow_polynomial({ 2 }, /*log_num_monomials=*/1);
+            auto result = Fun::compute_combiner(instances,
+                                                pow_polynomial,
+                                                prover.state.relation_parameters,
+                                                prover.state.alphas,
+                                                prover.state.univariate_accumulators);
+            auto optimised_result = Fun::compute_combiner(instances,
+                                                          pow_polynomial,
+                                                          prover.state.optimised_relation_parameters,
+                                                          prover.state.alphas,
+                                                          prover.state.optimised_univariate_accumulators);
             auto expected_result =
                 Univariate<FF, 12>(std::array<FF, 12>{ 0, 0, 12, 36, 72, 120, 180, 252, 336, 432, 540, 660 });
 
@@ -336,59 +360,3 @@ TEST(Protogalaxy, CombinerOptimizationConsistency)
     run_test(true);
     run_test(false);
 };
-
-// // Tests a combiner on 4 instances, note currently we don't plan
-// // to fold with num instances > 2, this would require an additional explicit instantiation in
-// // protogalaxy_prover_ultra.cpp. Currently, we rather save the compile time.
-// TEST(Protogalaxy, DISABLED_CombinerOn4Instances)
-// {
-//     constexpr size_t NUM_INSTANCES = 4;
-//     using ProverInstance = ProverInstance_<Flavor>;
-//     using ProverInstances = ProverInstances_<Flavor, NUM_INSTANCES>;
-//     using ProtoGalaxyProver = ProtoGalaxyProver_<ProverInstances>;
-//     using Fun = ProtogalaxyProverInternal<ProverInstances>;
-
-//     const auto zero_all_selectors = [](auto& polys) {
-//         std::fill(polys.q_arith.begin(), polys.q_arith.end(), 0);
-//         std::fill(polys.q_delta_range.begin(), polys.q_delta_range.end(), 0);
-//         std::fill(polys.q_elliptic.begin(), polys.q_elliptic.end(), 0);
-//         std::fill(polys.q_aux.begin(), polys.q_aux.end(), 0);
-//         std::fill(polys.q_lookup.begin(), polys.q_lookup.end(), 0);
-//         std::fill(polys.q_4.begin(), polys.q_4.end(), 0);
-//         std::fill(polys.w_4.begin(), polys.w_4.end(), 0);
-//         std::fill(polys.w_4_shift.begin(), polys.w_4_shift.end(), 0);
-//     };
-
-//     auto run_test = [&]() {
-//         std::vector<std::shared_ptr<ProverInstance>> instance_data(NUM_INSTANCES);
-//         ProtoGalaxyProver prover;
-
-//         for (size_t idx = 0; idx < NUM_INSTANCES; idx++) {
-//             auto instance = std::make_shared<ProverInstance>();
-//             auto prover_polynomials = get_zero_prover_polynomials<Flavor>(
-//                 /*log_circuit_size=*/1);
-//             instance->proving_key.polynomials = std::move(prover_polynomials);
-//             instance->proving_key.circuit_size = 2;
-//             instance_data[idx] = instance;
-//         }
-
-//         ProverInstances instances{ instance_data };
-//         instances.alphas.fill(bb::Univariate<FF, 40>(FF(0))); // focus on the arithmetic relation only
-
-//         zero_all_selectors(instances[0]->proving_key.polynomials);
-//         zero_all_selectors(instances[1]->proving_key.polynomials);
-//         zero_all_selectors(instances[2]->proving_key.polynomials);
-//         zero_all_selectors(instances[3]->proving_key.polynomials);
-
-//         auto pow_polynomial = PowPolynomial(std::vector<FF>{ 2 });
-//         auto result = Fun::compute_combiner(instances, pow_polynomial, prover.state.univariate_accumulators);
-//         auto optimised_result =
-//             Fun::compute_combiner(instances, pow_polynomial, prover.state.optimised_univariate_accumulators);
-//         std::array<FF, 40> zeroes;
-//         std::fill(zeroes.begin(), zeroes.end(), 0);
-//         auto expected_result = Univariate<FF, 40>(zeroes);
-//         EXPECT_EQ(result, expected_result);
-//         EXPECT_EQ(optimised_result, expected_result);
-//     };
-//     run_test();
-// };

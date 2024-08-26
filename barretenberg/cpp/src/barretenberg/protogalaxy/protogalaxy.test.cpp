@@ -98,8 +98,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         auto expected_honk_evals = Fun::compute_full_honk_evaluations(
             accumulator->proving_key.polynomials, accumulator->alphas, accumulator->relation_parameters);
         // Construct pow(\vec{betas*}) as in the paper
-        auto expected_pows = PowPolynomial(accumulator->gate_challenges);
-        expected_pows.compute_values(accumulator->gate_challenges.size());
+        PowPolynomial expected_pows(accumulator->gate_challenges, accumulator->gate_challenges.size());
 
         // Compute the corresponding target sum and create a dummy accumulator
         auto expected_target_sum = FF(0);
@@ -204,8 +203,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         }
 
         // Construct pow(\vec{betas}) as in the paper
-        auto pow_beta = bb::PowPolynomial(betas);
-        pow_beta.compute_values(log_instance_size);
+        bb::PowPolynomial pow_beta(betas, log_instance_size);
 
         // Compute the corresponding target sum and create a dummy accumulator
         auto target_sum = FF(0);
@@ -263,7 +261,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
      * univariate, barycentrially extended to the desired number of evaluations, is performed correctly.
      *
      */
-    static void test_combine_relation_parameters()
+    static void test_compute_extended_relation_parameters()
     {
         Builder builder1;
         auto instance1 = std::make_shared<ProverInstance>(builder1);
@@ -275,14 +273,18 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         instance2->relation_parameters.eta = 3;
 
         ProverInstances instances{ { instance1, instance2 } };
-        Fun::combine_relation_parameters(instances);
+        auto relation_parameters =
+            Fun::template compute_extended_relation_parameters<typename FoldingProver::State::RelationParameters>(
+                instances);
+        auto optimised_relation_parameters = Fun::template compute_extended_relation_parameters<
+            typename FoldingProver::State::OptimisedRelationParameters>(instances);
 
         bb::Univariate<FF, 11> expected_eta{ { 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21 } };
-        EXPECT_EQ(instances.relation_parameters.eta, expected_eta);
+        EXPECT_EQ(relation_parameters.eta, expected_eta);
         // Optimised relation parameters are the same, we just don't compute any values for non-used indices when
         // deriving values from them
         for (size_t i = 0; i < 11; i++) {
-            EXPECT_EQ(instances.optimised_relation_parameters.eta.evaluations[i], expected_eta.evaluations[i]);
+            EXPECT_EQ(optimised_relation_parameters.eta.evaluations[i], expected_eta.evaluations[i]);
         }
     }
 
@@ -290,7 +292,7 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
      * @brief Given two dummy instances with the batching challenges alphas set (one for each subrelation) ensure
      * combining them in a univariate of desired length works as expected.
      */
-    static void test_combine_alpha()
+    static void test_compute_and_extend_alphas()
     {
         Builder builder1;
         auto instance1 = std::make_shared<ProverInstance>(builder1);
@@ -302,11 +304,11 @@ template <typename Flavor> class ProtoGalaxyTests : public testing::Test {
         instance2->alphas.fill(4);
 
         ProverInstances instances{ { instance1, instance2 } };
-        Fun::combine_alpha(instances);
+        auto alphas = Fun::compute_and_extend_alphas(instances);
 
-        bb::Univariate<FF, 12> expected_alpha{ { 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24 } };
-        for (const auto& alpha : instances.alphas) {
-            EXPECT_EQ(alpha, expected_alpha);
+        bb::Univariate<FF, 12> expected_alphas{ { 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24 } };
+        for (const auto& alpha : alphas) {
+            EXPECT_EQ(alpha, expected_alphas);
         }
     }
 
@@ -585,12 +587,12 @@ TYPED_TEST(ProtoGalaxyTests, CombinerQuotient)
 
 TYPED_TEST(ProtoGalaxyTests, CombineRelationParameters)
 {
-    TestFixture::test_combine_relation_parameters();
+    TestFixture::test_compute_extended_relation_parameters();
 }
 
-TYPED_TEST(ProtoGalaxyTests, CombineAlpha)
+TYPED_TEST(ProtoGalaxyTests, CombineAlphas)
 {
-    TestFixture::test_combine_alpha();
+    TestFixture::test_compute_and_extend_alphas();
 }
 
 TYPED_TEST(ProtoGalaxyTests, ProtogalaxyInhomogeneous)

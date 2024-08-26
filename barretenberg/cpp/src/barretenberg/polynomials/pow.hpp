@@ -41,9 +41,27 @@ template <typename FF> struct PowPolynomial {
      */
     FF partial_evaluation_result = FF(1);
 
-    explicit PowPolynomial(const std::vector<FF>& betas)
+    /**
+     * @brief Construct a new PowPolynomial
+     *
+     * @param betas
+     * @param log_num_monomials
+     */
+    PowPolynomial(const std::vector<FF>& betas, const size_t log_num_monomials)
+        : betas(betas)
+        , pow_betas(compute_pow_betas(betas, log_num_monomials))
+    {}
+
+    /**
+     * @brief Construct a new PowPolynomial object without expanding to a vector of monomials
+     * @details The sumcheck verifier does not use pow_betas
+     *
+     * @param betas
+     */
+    PowPolynomial(const std::vector<FF>& betas)
         : betas(betas)
     {}
+
     /**
      * @brief Retruns the element in #pow_betas at place #idx.
      *
@@ -116,15 +134,15 @@ template <typename FF> struct PowPolynomial {
      * @brief Given \f$ \vec\beta = (\beta_0,...,\beta_{d-1})\f$ compute \f$ pow_{\ell}(\vec \beta) = pow_{\beta}(\vec
      * \ell)\f$ for \f$ \ell =0,\ldots,2^{d}-1\f$.
      *
-     * @param log_circuit_size Determines the number of beta challenges used to compute pow_betas (required because when
-     * we generate CONST_SIZE_PROOF_LOG_N, currently 28, challenges but the real circuit size is less than 1 <<
+     * @param log_num_monomials Determines the number of beta challenges used to compute pow_betas (required because
+     * when we generate CONST_SIZE_PROOF_LOG_N, currently 28, challenges but the real circuit size is less than 1 <<
      * CONST_SIZE_PROOF_LOG_N, we should compute unnecessarily a vector of pow_betas of length 1 << 28 )
      */
-    BB_PROFILE void compute_values(size_t log_circuit_size)
+    BB_PROFILE static std::vector<FF> compute_pow_betas(const std::vector<FF>& betas, const size_t log_num_monomials)
     {
 
-        size_t pow_size = 1 << log_circuit_size;
-        pow_betas = std::vector<FF>(pow_size);
+        size_t pow_size = 1 << log_num_monomials;
+        std::vector<FF> pow_betas(pow_size);
 
         // Determine number of threads for multithreading.
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
@@ -154,6 +172,8 @@ template <typename FF> struct PowPolynomial {
                 pow_betas[i] = res;
             }
         });
+
+        return pow_betas;
     }
 };
 /**<

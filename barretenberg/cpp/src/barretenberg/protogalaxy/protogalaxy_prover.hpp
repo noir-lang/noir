@@ -3,27 +3,39 @@
 #include "barretenberg/protogalaxy/folding_result.hpp"
 
 namespace bb {
-template <class ProverInstances_> struct ProtogalaxyProofConstructionState {
-    using FF = typename ProverInstances_::FF;
-    using ProverInstance = typename ProverInstances_::Instance;
-    using Flavor = typename ProverInstances_::Flavor;
-    using TupleOfTuplesOfUnivariates =
-        typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariates<ProverInstances_::NUM>;
-    using OptimisedTupleOfTuplesOfUnivariates =
-        typename Flavor::template OptimisedProtogalaxyTupleOfTuplesOfUnivariates<ProverInstances_::NUM>;
-
-    std::shared_ptr<ProverInstance> accumulator;
-    LegacyPolynomial<FF> perturbator;
-    std::vector<FF> deltas;
-    Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH, ProverInstances_::NUM> combiner_quotient;
-    FF compressed_perturbator;
-    OptimisedTupleOfTuplesOfUnivariates optimised_univariate_accumulators;
-    TupleOfTuplesOfUnivariates univariate_accumulators;
-    FoldingResult<typename ProverInstances_::Flavor> result;
-};
 
 template <class ProverInstances_> class ProtoGalaxyProver_ {
   public:
+    struct State {
+        using FF = typename ProverInstances_::FF;
+        using ProverInstance = typename ProverInstances_::Instance;
+        using Flavor = typename ProverInstances_::Flavor;
+        static constexpr size_t NUM_INSTANCES = ProverInstances_::NUM;
+        using CombinerQuotient = Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH, NUM_INSTANCES>;
+        using TupleOfTuplesOfUnivariates =
+            typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariates<NUM_INSTANCES>;
+        using OptimisedTupleOfTuplesOfUnivariates =
+            typename Flavor::template OptimisedProtogalaxyTupleOfTuplesOfUnivariates<NUM_INSTANCES>;
+        using RelationParameters = bb::RelationParameters<Univariate<FF, ProverInstances_::EXTENDED_LENGTH>>;
+        using OptimisedRelationParameters = bb::RelationParameters<
+            Univariate<FF, ProverInstances_::EXTENDED_LENGTH, 0, /*skip_count=*/NUM_INSTANCES - 1>>;
+        using CombinedRelationSeparator =
+            std::array<Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH>, Flavor::NUM_SUBRELATIONS - 1>;
+
+        std::shared_ptr<ProverInstance> accumulator;
+        LegacyPolynomial<FF> perturbator;
+        std::vector<FF> gate_challenges;
+        std::vector<FF> deltas;
+        CombinerQuotient combiner_quotient;
+        FF compressed_perturbator;
+        RelationParameters relation_parameters;
+        CombinedRelationSeparator alphas; // a univariate interpolation of challenges for each subrelation
+        OptimisedRelationParameters optimised_relation_parameters;
+        OptimisedTupleOfTuplesOfUnivariates optimised_univariate_accumulators;
+        TupleOfTuplesOfUnivariates univariate_accumulators;
+        FoldingResult<typename ProverInstances_::Flavor> result;
+    };
+
     using ProverInstances = ProverInstances_;
     using Flavor = typename ProverInstances::Flavor;
     using Transcript = typename Flavor::Transcript;
@@ -36,14 +48,13 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     ProverInstances instances;
     std::shared_ptr<Transcript> transcript = std::make_shared<Transcript>();
     std::shared_ptr<CommitmentKey> commitment_key;
-    ProtogalaxyProofConstructionState<ProverInstances> state;
+    State state;
 
     ProtoGalaxyProver_() = default;
     ProtoGalaxyProver_(const std::vector<std::shared_ptr<Instance>>& insts)
         : instances(ProverInstances(insts))
         // TODO(https://github.com/AztecProtocol/barretenberg/issues/878)
         , commitment_key(instances[1]->proving_key.commitment_key){};
-    ~ProtoGalaxyProver_() = default;
 
     /**
      * @brief Prior to folding, we need to finalize the given instances and add all their public data ϕ to the
@@ -89,11 +100,11 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
      * TODO(https://github.com/AztecProtocol/barretenberg/issues/796): optimise the construction of the new
      * accumulator
      */
-    std::shared_ptr<Instance> compute_next_accumulator(
-        ProverInstances& instances,
-        Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM>& combiner_quotient,
-        FF& challenge,
-        const FF& compressed_perturbator);
+    std::shared_ptr<Instance> compute_next_accumulator(ProverInstances&,
+                                                       State::CombinerQuotient&,
+                                                       State::OptimisedRelationParameters&,
+                                                       FF& challenge,
+                                                       const FF& compressed_perturbator);
 
     /**
      * @brief Finalise the prover instances that will be folded: complete computation of all the witness polynomials

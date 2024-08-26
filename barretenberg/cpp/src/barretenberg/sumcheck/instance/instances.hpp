@@ -17,18 +17,13 @@ template <typename Flavor_, size_t NUM_ = 2> struct ProverInstances_ {
     // The extended length here is the length of a composition of polynomials.
     static constexpr size_t EXTENDED_LENGTH = (Flavor::MAX_TOTAL_RELATION_LENGTH - 1) * (NUM - 1) + 1;
     static constexpr size_t BATCHED_EXTENDED_LENGTH = (Flavor::MAX_TOTAL_RELATION_LENGTH - 1 + NUM - 1) * (NUM - 1) + 1;
-    using RelationParameters = bb::RelationParameters<Univariate<FF, EXTENDED_LENGTH>>;
-    using OptimisedRelationParameters = bb::RelationParameters<Univariate<FF, EXTENDED_LENGTH, 0, NUM_ - 1>>;
-    using RelationSeparator = std::array<Univariate<FF, BATCHED_EXTENDED_LENGTH>, NUM_SUBRELATIONS - 1>;
 
-    ArrayType _data;
-    RelationParameters relation_parameters;
-    OptimisedRelationParameters optimised_relation_parameters;
-    RelationSeparator alphas;
-    std::vector<FF> next_gate_challenges;
+    ArrayType _data; // we should not add any other data to this class
 
     std::shared_ptr<Instance> const& operator[](size_t idx) const { return _data[idx]; }
+    typename ArrayType::const_iterator begin() const { return _data.begin(); };
     typename ArrayType::iterator begin() { return _data.begin(); };
+    typename ArrayType::const_iterator end() const { return _data.end(); };
     typename ArrayType::iterator end() { return _data.end(); };
     ProverInstances_() = default;
     ProverInstances_(std::vector<std::shared_ptr<Instance>> data)

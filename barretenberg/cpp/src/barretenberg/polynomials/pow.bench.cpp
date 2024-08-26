@@ -16,8 +16,7 @@ void compute_pow_poly(benchmark::State& state)
     for (auto _ : state) {
         int64_t num_betas = state.range(0);
         std::vector<bb::fr> cur_betas(betas.begin(), betas.begin() + num_betas);
-        PowPolynomial pow{ cur_betas };
-        pow.compute_values(static_cast<size_t>(num_betas));
+        PowPolynomial pow{ cur_betas, cur_betas.size() };
     }
 }
 

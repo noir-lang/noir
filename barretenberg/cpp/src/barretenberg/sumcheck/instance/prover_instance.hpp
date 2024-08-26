@@ -34,8 +34,7 @@ template <class Flavor> class ProverInstance_ {
 
   public:
     ProvingKey proving_key;
-
-    RelationSeparator alphas;
+    RelationSeparator alphas; // a challenge for each subrelation
     bb::RelationParameters<FF> relation_parameters;
 
     bool is_accumulator = false;

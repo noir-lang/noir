@@ -25,7 +25,8 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
     using ProverPolynomials = typename Flavor::ProverPolynomials;
     using Relations = typename Flavor::Relations;
     using RelationSeparator = typename Flavor::RelationSeparator;
-    using CombinedRelationSeparator = typename ProverInstances::RelationSeparator;
+    using CombinedRelationSeparator =
+        std::array<Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH>, Flavor::NUM_SUBRELATIONS - 1>;
 
     // The length of ExtendedUnivariate is the largest length (==max_relation_degree + 1) of a univariate polynomial
     // obtained by composing a relation with folded instance + relation parameters .
@@ -254,9 +255,11 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
      * @param pow_betas
      * @return ExtendedUnivariateWithRandomization
      */
-    template <typename TupleOfTuples>
+    template <typename Parameters, typename TupleOfTuples>
     static ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances,
-                                                                PowPolynomial<FF>& pow_betas,
+                                                                const PowPolynomial<FF>& pow_betas,
+                                                                const Parameters& relation_parameters,
+                                                                const CombinedRelationSeparator& alphas,
                                                                 TupleOfTuples& univariate_accumulators)
     {
         BB_OP_COUNT_TIME();
@@ -265,7 +268,6 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
         constexpr bool skip_zero_computations = std::same_as<TupleOfTuples, OptimisedTupleOfTuplesOfUnivariates>;
 
         size_t common_instance_size = instances[0]->proving_key.circuit_size;
-        pow_betas.compute_values(instances[0]->proving_key.log_circuit_size);
         // Determine number of threads for multithreading.
         // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
         // on a specified minimum number of iterations per thread. This eventually leads to the use of a
@@ -312,19 +314,10 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
                 // Accumulate the i-th row's univariate contribution. Note that the relation parameters passed to
                 // this function have already been folded. Moreover, linear-dependent relations that act over the
                 // entire execution trace rather than on rows, will not be multiplied by the pow challenge.
-                if constexpr (skip_zero_computations) {
-                    accumulate_relation_univariates(
-                        thread_univariate_accumulators[thread_idx],
-                        extended_univariates[thread_idx],
-                        instances.optimised_relation_parameters, // these parameters have already been folded
-                        pow_challenge);
-                } else {
-                    accumulate_relation_univariates(
-                        thread_univariate_accumulators[thread_idx],
-                        extended_univariates[thread_idx],
-                        instances.relation_parameters, // these parameters have already been folded
-                        pow_challenge);
-                }
+                accumulate_relation_univariates(thread_univariate_accumulators[thread_idx],
+                                                extended_univariates[thread_idx],
+                                                relation_parameters, // these parameters have already been folded
+                                                pow_challenge);
             }
         });
 
@@ -336,7 +329,7 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
         // This does nothing if TupleOfTuples is TupleOfTuplesOfUnivariates
         TupleOfTuplesOfUnivariates deoptimized_univariates = deoptimise_univariates(univariate_accumulators);
         //  Batch the univariate contributions from each sub-relation to obtain the round univariate
-        return batch_over_relations(deoptimized_univariates, instances.alphas);
+        return batch_over_relations(deoptimized_univariates, alphas);
     }
 
     /**
@@ -454,39 +447,37 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
     }
 
     /**
-     * @brief Combine each relation parameter, in part, from all the instances into univariates, used in the
-     * computation of combiner.
-     * @details For a given relation parameter type, extract that parameter from each instance, place the values in
-     * a univariate (i.e., sum them against an appropriate univariate Lagrange basis) and then extended as needed
-     * during the constuction of the combiner.
+     * @brief For each parameter, collect the value in each instance in a univariate and extend for use in the combiner
+     * compute.
      */
-    static void combine_relation_parameters(ProverInstances& instances)
+    template <typename ExtendedRelationParameters>
+    static ExtendedRelationParameters compute_extended_relation_parameters(const ProverInstances& instances)
     {
+        using UnivariateParameter = typename ExtendedRelationParameters::DataType;
+        ExtendedRelationParameters result;
         size_t param_idx = 0;
-        auto to_fold = instances.relation_parameters.get_to_fold();
-        auto to_fold_optimised = instances.optimised_relation_parameters.get_to_fold();
-        for (auto [folded_parameter, optimised_folded_parameter] : zip_view(to_fold, to_fold_optimised)) {
+        for (auto& param : result.get_to_fold()) {
             Univariate<FF, ProverInstances::NUM> tmp(0);
             size_t instance_idx = 0;
             for (auto& instance : instances) {
                 tmp.value_at(instance_idx) = instance->relation_parameters.get_to_fold()[param_idx];
                 instance_idx++;
             }
-            folded_parameter = tmp.template extend_to<ProverInstances::EXTENDED_LENGTH>();
-            optimised_folded_parameter =
-                tmp.template extend_to<ProverInstances::EXTENDED_LENGTH, ProverInstances::NUM - 1>();
+            param = tmp.template extend_to<UnivariateParameter::LENGTH, UnivariateParameter::SKIP_COUNT>();
             param_idx++;
         }
+        return result;
     }
 
     /**
      * @brief Combine the relation batching parameters (alphas) from each instance into a univariate, used in the
      * computation of combiner.
      */
-    static void combine_alpha(ProverInstances& instances)
+    static CombinedRelationSeparator compute_and_extend_alphas(const ProverInstances& instances)
     {
+        CombinedRelationSeparator result;
         size_t alpha_idx = 0;
-        for (auto& alpha : instances.alphas) {
+        for (auto& alpha : result) {
             Univariate<FF, ProverInstances::NUM> tmp;
             size_t instance_idx = 0;
             for (auto& instance : instances) {
@@ -496,6 +487,7 @@ template <class ProverInstances_> class ProtogalaxyProverInternal {
             alpha = tmp.template extend_to<ProverInstances::BATCHED_EXTENDED_LENGTH>();
             alpha_idx++;
         }
+        return result;
     }
 };
 } // namespace bb
