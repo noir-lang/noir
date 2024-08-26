@@ -119,7 +119,10 @@ pub fn brillig_to_avm(
                 });
             }
             BrilligOpcode::Const { destination, value, bit_size } => {
-                handle_const(&mut avm_instrs, destination, value, bit_size);
+                handle_const(&mut avm_instrs, destination, value, bit_size, false);
+            }
+            BrilligOpcode::IndirectConst { destination_pointer, value, bit_size } => {
+                handle_const(&mut avm_instrs, destination_pointer, value, bit_size, true);
             }
             BrilligOpcode::Mov { destination, source } => {
                 avm_instrs.push(generate_mov_instruction(
@@ -371,7 +374,7 @@ fn handle_cast(
         );
         avm_instrs.extend([
             // We cast to Field to be able to use toradix.
-            generate_cast_instruction(source_offset, dest_offset, AvmTypeTag::FIELD),
+            generate_cast_instruction(source_offset, false, dest_offset, false, AvmTypeTag::FIELD),
             // Toradix with radix 2 and 1 limb is the same as modulo 2.
             // We need to insert an instruction explicitly because we want to fine-tune 'indirect'.
             AvmInstruction {
@@ -386,11 +389,11 @@ fn handle_cast(
                 ],
             },
             // Then we cast back to u8 (which is what we use for u1).
-            generate_cast_instruction(dest_offset, dest_offset, AvmTypeTag::UINT8),
+            generate_cast_instruction(dest_offset, false, dest_offset, false, AvmTypeTag::UINT8),
         ]);
     } else {
         let tag = tag_from_bit_size(bit_size);
-        avm_instrs.push(generate_cast_instruction(source_offset, dest_offset, tag));
+        avm_instrs.push(generate_cast_instruction(source_offset, false, dest_offset, false, tag));
     }
 }
 
@@ -667,12 +670,13 @@ fn handle_const(
     destination: &MemoryAddress,
     value: &FieldElement,
     bit_size: &BitSize,
+    indirect: bool,
 ) {
     let tag = tag_from_bit_size(*bit_size);
     let dest = destination.to_usize() as u32;
 
     if !matches!(tag, AvmTypeTag::FIELD) {
-        avm_instrs.push(generate_set_instruction(tag, dest, value.to_u128()));
+        avm_instrs.push(generate_set_instruction(tag, dest, value.to_u128(), indirect));
     } else {
         // We can't fit a field in an instruction. This should've been handled in Brillig.
         let field = value;
@@ -680,17 +684,22 @@ fn handle_const(
             panic!("SET: Field value doesn't fit in 128 bits, that's not supported!");
         }
         avm_instrs.extend([
-            generate_set_instruction(AvmTypeTag::UINT128, dest, field.to_u128()),
-            generate_cast_instruction(dest, dest, AvmTypeTag::FIELD),
+            generate_set_instruction(AvmTypeTag::UINT128, dest, field.to_u128(), indirect),
+            generate_cast_instruction(dest, indirect, dest, indirect, AvmTypeTag::FIELD),
         ]);
     }
 }
 
 /// Generates an AVM SET instruction.
-fn generate_set_instruction(tag: AvmTypeTag, dest: u32, value: u128) -> AvmInstruction {
+fn generate_set_instruction(
+    tag: AvmTypeTag,
+    dest: u32,
+    value: u128,
+    indirect: bool,
+) -> AvmInstruction {
     AvmInstruction {
         opcode: AvmOpcode::SET,
-        indirect: Some(ALL_DIRECT),
+        indirect: if indirect { Some(ZEROTH_OPERAND_INDIRECT) } else { Some(ALL_DIRECT) },
         tag: Some(tag),
         operands: vec![
             // const
@@ -709,10 +718,23 @@ fn generate_set_instruction(tag: AvmTypeTag, dest: u32, value: u128) -> AvmInstr
 }
 
 /// Generates an AVM CAST instruction.
-fn generate_cast_instruction(source: u32, destination: u32, dst_tag: AvmTypeTag) -> AvmInstruction {
+fn generate_cast_instruction(
+    source: u32,
+    source_indirect: bool,
+    destination: u32,
+    destination_indirect: bool,
+    dst_tag: AvmTypeTag,
+) -> AvmInstruction {
+    let mut indirect_flags = ALL_DIRECT;
+    if source_indirect {
+        indirect_flags |= ZEROTH_OPERAND_INDIRECT;
+    }
+    if destination_indirect {
+        indirect_flags |= FIRST_OPERAND_INDIRECT;
+    }
     AvmInstruction {
         opcode: AvmOpcode::CAST,
-        indirect: Some(ALL_DIRECT),
+        indirect: Some(indirect_flags),
         tag: Some(dst_tag),
         operands: vec![AvmOperand::U32 { value: source }, AvmOperand::U32 { value: destination }],
     }
@@ -1107,6 +1129,7 @@ pub fn map_brillig_pcs_to_avm_pcs(brillig_bytecode: &[BrilligOpcode<FieldElement
     for i in 0..brillig_bytecode.len() - 1 {
         let num_avm_instrs_for_this_brillig_instr = match &brillig_bytecode[i] {
             BrilligOpcode::Const { bit_size: BitSize::Field, .. } => 2,
+            BrilligOpcode::IndirectConst { bit_size: BitSize::Field, .. } => 2,
             BrilligOpcode::Cast { bit_size: BitSize::Integer(IntegerBitSize::U1), .. } => 3,
             _ => 1,
         };

@@ -77,9 +77,10 @@ export class Set extends Instruction {
     if ([TypeTag.FIELD, TypeTag.UNINITIALIZED, TypeTag.INVALID].includes(this.inTag)) {
       throw new InstructionExecutionError(`Invalid tag ${TypeTag[this.inTag]} for SET.`);
     }
+    const [dstOffset] = Addressing.fromWire(this.indirect).resolve([this.dstOffset], memory);
 
     const res = TaggedMemory.integralFromTag(this.value, this.inTag);
-    memory.set(this.dstOffset, res);
+    memory.set(dstOffset, res);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
