@@ -44,6 +44,24 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_as_method_call() {
+        comptime
+        {
+            let expr = quote { foo.bar::<Field>(3, 4) }.as_expr().unwrap();
+            let (_object, name, generics, arguments) = expr.as_method_call().unwrap();
+
+            assert_eq(name, quote { bar });
+
+            assert_eq(generics.len(), 1);
+            assert(generics[0].is_field());
+
+            assert_eq(arguments.len(), 2);
+            assert_eq(arguments[0].as_integer().unwrap(), (3, false));
+            assert_eq(arguments[1].as_integer().unwrap(), (4, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_integer() {
         comptime
         {

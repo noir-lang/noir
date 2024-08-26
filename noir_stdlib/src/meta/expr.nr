@@ -61,6 +61,11 @@ impl Expr {
     fn as_member_access(self) -> Option<(Expr, Quoted)> {}
     // docs:end:as_member_access
 
+    #[builtin(expr_as_method_call)]
+    // docs:start:as_method_call
+    fn as_method_call(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])> {}
+    // docs:end:as_method_call
+
     #[builtin(expr_as_repeated_element_array)]
     // docs:start:as_repeated_element_array
     fn as_repeated_element_array(self) -> Option<(Expr, Expr)> {}

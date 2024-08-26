@@ -82,6 +82,13 @@ as well as whether the integer is negative (true) or not (false).
 If this expression is a member access `foo.bar`, return the struct/tuple
 expression and the field. The field will be represented as a quoted value.
 
+### as_method_call
+
+#include_code as_method_call noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a method call `foo.bar::<generic1, ..., genericM>(arg1, ..., argN)`, return
+the receiver, method name, a slice of each generic argument, and a slice of each argument.
+
 ### as_repeated_element_array
 
 #include_code as_repeated_element_array noir_stdlib/src/meta/expr.nr rust
