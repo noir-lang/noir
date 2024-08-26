@@ -364,8 +364,8 @@ fn quoted_as_expr(
     let argument = check_one_argument(arguments, location)?;
 
     let expr_parser = parser::expression().map(|expr| Value::expression(expr.kind));
-    let statement_parser = parser::fresh_statement().map(|statement| Value::statement(statement));
-    let lvalue_parser = parser::lvalue(parser::expression()).map(|lvalue| Value::lvalue(lvalue));
+    let statement_parser = parser::fresh_statement().map(Value::statement);
+    let lvalue_parser = parser::lvalue(parser::expression()).map(Value::lvalue);
     let parser = choice((expr_parser, statement_parser, lvalue_parser));
 
     let expr = parse(argument, parser, "an expression").ok();

@@ -42,7 +42,7 @@ impl<'context> Elaborator<'context> {
             StatementKind::Resolved(id) => {
                 let kind = self.interner.get_quoted_statement(id);
                 let statement = Statement { kind: kind.clone(), span: statement.span };
-                return self.elaborate_statement_value(statement);
+                self.elaborate_statement_value(statement)
             }
             StatementKind::Error => (HirStatement::Error, Type::Error),
         }
