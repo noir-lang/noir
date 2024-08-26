@@ -1,0 +1,2 @@
+///////////////////use library::ReExportMeFromA|otherLib;
+fn main(_x: ReExportMeFromAnotherLib) {}

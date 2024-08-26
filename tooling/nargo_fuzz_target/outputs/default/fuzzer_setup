@@ -1,0 +1,6 @@
+# environment variables:
+AFL_CUSTOM_INFO_PROGRAM=../../target/debug/nargo_fuzz_target
+AFL_CUSTOM_INFO_PROGRAM_ARGV=
+AFL_CUSTOM_INFO_OUT=outputs/default
+# command line:
+'/Users/michaelklein/.local/share/afl.rs/rustc-1.74.1-a28077b/afl.rs-0.15.10/afl/bin/afl-fuzz' '-c0' '-i' 'inputs' '-o' 'outputs' '../../target/debug/nargo_fuzz_target'
