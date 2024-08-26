@@ -16,7 +16,7 @@ the expression failed to parse.
 
 Example:
 
-#include_code as_expr_example noir_stdlib/src/meta/quoted.nr rust
+#include_code as_expr_example test_programs/noir_test_success/comptime_expr/src/main.nr rust
 
 ### as_module
 
