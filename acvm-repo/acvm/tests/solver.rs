@@ -738,8 +738,6 @@ type ConstantOrWitness = (FieldElement, bool);
 // - If use_constant, then convert to a FunctionInput::constant
 // - Otherwise, convert to FunctionInput::witness
 //   + With the Witness index as (input_index + offset)
-//
-// Both use FieldElement::max_num_bits as the number of bits.
 fn constant_or_witness_to_function_inputs(
     xs: Vec<ConstantOrWitness>,
     offset: usize,
@@ -1386,7 +1384,9 @@ proptest! {
         prop_assert!(result, "{}", message);
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5689): doesn't fail with an error, returns constant output
+    // TODO(https://github.com/noir-lang/noir/issues/5689): doesn't fail with a user error
+    // The test failing with "not injective" demonstrates that it returns constant output instead
+    // of failing with a user error.
     #[test]
     #[should_panic(expected = "Test failed: not injective")]
     fn keccak256_invalid_message_size_fails(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
