@@ -3,11 +3,14 @@
 pragma solidity >=0.8.18;
 
 import {Inbox} from "../../src/core/messagebridge/Inbox.sol";
+import {FrontierLib} from "../../src/core/messagebridge/frontier_tree/FrontierLib.sol";
 
 // Libraries
 import {Constants} from "../../src/core/libraries/ConstantsGen.sol";
 
 contract InboxHarness is Inbox {
+  using FrontierLib for FrontierLib.Tree;
+
   constructor(address _rollup, uint256 _height) Inbox(_rollup, _height) {}
 
   function getSize() external view returns (uint256) {
@@ -19,13 +22,13 @@ contract InboxHarness is Inbox {
   }
 
   function treeInProgressFull() external view returns (bool) {
-    return trees[inProgress].isFull();
+    return trees[inProgress].isFull(SIZE);
   }
 
   function getToConsumeRoot(uint256 _toConsume) external view returns (bytes32) {
     bytes32 root = EMPTY_ROOT;
     if (_toConsume > Constants.INITIAL_L2_BLOCK_NUM) {
-      root = trees[_toConsume].root();
+      root = trees[_toConsume].root(forest, HEIGHT, SIZE);
     }
     return root;
   }

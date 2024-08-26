@@ -76,6 +76,11 @@ contract InboxTest is Test {
     inbox.consume(blockNumber);
   }
 
+  function testRevertIFConsumingInFuture() public {
+    vm.expectRevert(Errors.Inbox__MustBuildBeforeConsume.selector);
+    inbox.consume(blockNumber + 1000);
+  }
+
   function testFuzzInsert(DataStructures.L1ToL2Msg memory _message) public checkInvariant {
     DataStructures.L1ToL2Msg memory message = _boundMessage(_message);
 

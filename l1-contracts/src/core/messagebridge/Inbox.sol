@@ -3,8 +3,6 @@
 pragma solidity >=0.8.18;
 
 // Interfaces
-import {IFrontier} from "../interfaces/messagebridge/IFrontier.sol";
-import {IRegistry} from "../interfaces/messagebridge/IRegistry.sol";
 import {IInbox} from "../interfaces/messagebridge/IInbox.sol";
 
 // Libraries
@@ -13,18 +11,17 @@ import {DataStructures} from "../libraries/DataStructures.sol";
 import {Errors} from "../libraries/Errors.sol";
 import {Hash} from "../libraries/Hash.sol";
 
-// Contracts
-import {FrontierMerkle} from "./frontier_tree/Frontier.sol";
+import {FrontierLib} from "./frontier_tree/FrontierLib.sol";
 
 /**
  * @title Inbox
  * @author Aztec Labs
  * @notice Lives on L1 and is used to pass messages into the rollup, e.g., L1 -> L2 messages.
- *
- * @dev     The current code is horribly gas inefficient, and should only be used as a reference implementation.
  */
 contract Inbox is IInbox {
   using Hash for DataStructures.L1ToL2Msg;
+  using FrontierLib for FrontierLib.Forest;
+  using FrontierLib for FrontierLib.Tree;
 
   address public immutable ROLLUP;
 
@@ -35,7 +32,10 @@ contract Inbox is IInbox {
   // Number of a tree which is currently being filled
   uint256 public inProgress = Constants.INITIAL_L2_BLOCK_NUM + 1;
 
-  mapping(uint256 blockNumber => IFrontier tree) public trees;
+  // Practically immutable value as we only set it in the constructor.
+  FrontierLib.Forest internal forest;
+
+  mapping(uint256 blockNumber => FrontierLib.Tree tree) public trees;
 
   constructor(address _rollup, uint256 _height) {
     ROLLUP = _rollup;
@@ -43,11 +43,8 @@ contract Inbox is IInbox {
     HEIGHT = _height;
     SIZE = 2 ** _height;
 
-    // We deploy the first tree
-    IFrontier firstTree = IFrontier(new FrontierMerkle(_height));
-    trees[inProgress] = firstTree;
-
-    EMPTY_ROOT = firstTree.root();
+    forest.initialize(_height);
+    EMPTY_ROOT = trees[inProgress].root(forest, HEIGHT, SIZE);
   }
 
   /**
@@ -76,11 +73,11 @@ contract Inbox is IInbox {
       revert Errors.Inbox__SecretHashTooLarge(_secretHash);
     }
 
-    IFrontier currentTree = trees[inProgress];
-    if (currentTree.isFull()) {
+    FrontierLib.Tree storage currentTree = trees[inProgress];
+
+    if (currentTree.isFull(SIZE)) {
       inProgress += 1;
-      currentTree = IFrontier(new FrontierMerkle(HEIGHT));
-      trees[inProgress] = currentTree;
+      currentTree = trees[inProgress];
     }
 
     DataStructures.L1ToL2Msg memory message = DataStructures.L1ToL2Msg({
@@ -113,17 +110,24 @@ contract Inbox is IInbox {
       revert Errors.Inbox__Unauthorized();
     }
 
+    if (_toConsume >= inProgress) {
+      revert Errors.Inbox__MustBuildBeforeConsume();
+    }
+
     bytes32 root = EMPTY_ROOT;
     if (_toConsume > Constants.INITIAL_L2_BLOCK_NUM) {
-      root = trees[_toConsume].root();
+      root = trees[_toConsume].root(forest, HEIGHT, SIZE);
     }
 
     // If we are "catching up" we skip the tree creation as it is already there
     if (_toConsume + 1 == inProgress) {
       inProgress += 1;
-      trees[inProgress] = IFrontier(new FrontierMerkle(HEIGHT));
     }
 
     return root;
+  }
+
+  function getRoot(uint256 _blockNumber) external view override(IInbox) returns (bytes32) {
+    return trees[_blockNumber].root(forest, HEIGHT, SIZE);
   }
 }

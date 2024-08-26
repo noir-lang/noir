@@ -16,7 +16,6 @@ import {IFeeJuicePortal} from "../src/core/interfaces/IFeeJuicePortal.sol";
 import {FeeJuicePortal} from "../src/core/FeeJuicePortal.sol";
 import {Leonidas} from "../src/core/sequencer_selection/Leonidas.sol";
 import {AvailabilityOracle} from "../src/core/availability_oracle/AvailabilityOracle.sol";
-import {FrontierMerkle} from "../src/core/messagebridge/frontier_tree/Frontier.sol";
 import {NaiveMerkle} from "./merkle/Naive.sol";
 import {MerkleTestUtil} from "./merkle/TestUtil.sol";
 import {PortalERC20} from "./portals/PortalERC20.sol";
@@ -101,7 +100,7 @@ contract RollupTest is DecoderBase {
 
     // @note  Fetch the inbox root of block 2. This should be frozen when block 1 is proposed.
     //        Even if we end up reverting block 1, we should still see the same root in the inbox.
-    bytes32 inboxRoot2 = inbox.trees(2).root();
+    bytes32 inboxRoot2 = inbox.getRoot(2);
 
     (,, uint128 slot,) = rollup.blocks(1);
     uint256 prunableAt = uint256(slot) + rollup.TIMELINESS_PROVING_IN_SLOTS();
@@ -136,7 +135,7 @@ contract RollupTest is DecoderBase {
     _testBlock("empty_block_1", false, prunableAt);
 
     assertEq(inbox.inProgress(), 3, "Invalid in progress");
-    assertEq(inbox.trees(2).root(), inboxRoot2, "Invalid inbox root");
+    assertEq(inbox.getRoot(2), inboxRoot2, "Invalid inbox root");
     assertEq(rollup.pendingBlockCount(), 2, "Invalid pending block count");
     assertEq(rollup.provenBlockCount(), 1, "Invalid proven block count");
 
