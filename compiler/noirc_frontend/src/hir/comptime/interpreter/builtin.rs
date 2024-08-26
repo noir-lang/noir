@@ -80,6 +80,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_is_break" => expr_is_break(arguments, location),
             "expr_is_continue" => expr_is_continue(arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
+            "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
@@ -1270,6 +1271,22 @@ where
 
     let option_value = f(expr_value);
     option(return_type, option_value)
+}
+
+// fn body(self) -> [Expr]
+fn function_def_body(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let func_meta = interner.function_meta(&func_id);
+    if let FunctionBody::Unresolved(_, block_expr, _) = &func_meta.function_body {
+        Ok(block_expression_to_value(block_expr.clone()))
+    } else {
+        Err(InterpreterError::FunctionAlreadyResolved { location })
+    }
 }
 
 // fn name(self) -> Quoted

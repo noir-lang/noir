@@ -1,4 +1,9 @@
 impl FunctionDefinition {
+    #[builtin(function_def_body)]
+    // docs:start:body
+    fn body(self) -> [Expr] {}
+    // docs:end:body
+
     #[builtin(function_def_name)]
     // docs:start:name
     fn name(self) -> Quoted {}
