@@ -1,5 +1,6 @@
 use crate::ast::{Ident, Path, UnresolvedTypeData};
 use crate::hir::resolution::import::PathResolutionError;
+use crate::hir::type_check::generics::TraitGenerics;
 
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::FileDiagnostic;
@@ -76,7 +77,7 @@ pub enum DefCollectorErrorKind {
     ImplIsStricterThanTrait {
         constraint_typ: crate::Type,
         constraint_name: String,
-        constraint_generics: Vec<crate::Type>,
+        constraint_generics: TraitGenerics,
         constraint_span: Span,
         trait_method_name: String,
         trait_method_span: Span,
@@ -280,18 +281,11 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 )
             }
             DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_span, trait_method_name, trait_method_span } => {
-                let mut constraint_name_with_generics = constraint_name.to_owned();
-                if !constraint_generics.is_empty() {
-                    constraint_name_with_generics.push('<');
-                    for generic in constraint_generics.iter() {
-                        constraint_name_with_generics.push_str(generic.to_string().as_str());
-                    }
-                    constraint_name_with_generics.push('>');
-                }
+                let constraint = format!("{}{}", constraint_name, constraint_generics);
 
                 let mut diag = Diagnostic::simple_error(
                     "impl has stricter requirements than trait".to_string(),
-                    format!("impl has extra requirement `{constraint_typ}: {constraint_name_with_generics}`"),
+                    format!("impl has extra requirement `{constraint_typ}: {constraint}`"),
                     *constraint_span,
                 );
                 diag.add_secondary(format!("definition of `{trait_method_name}` from trait"), *trait_method_span);

@@ -5,20 +5,22 @@ use std::{
 
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
-    check_argument_count, check_function_not_yet_resolved, check_one_argument,
-    check_three_arguments, check_two_arguments, get_expr, get_function_def, get_module, get_quoted,
-    get_slice, get_struct, get_trait_constraint, get_trait_def, get_trait_impl, get_tuple,
-    get_type, get_u32, hir_pattern_to_tokens, mutate_func_meta_type, parse, parse_tokens,
-    replace_func_meta_parameters, replace_func_meta_return_type,
+    block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
+    check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_function_def,
+    get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
+    get_trait_impl, get_tuple, get_type, get_u32, get_unresolved_type, hir_pattern_to_tokens,
+    mutate_func_meta_type, parse, parse_tokens, replace_func_meta_parameters,
+    replace_func_meta_return_type,
 };
+use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ArrayLiteral, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize, Literal,
-        StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        ArrayLiteral, Expression, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize,
+        Literal, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
     hir::comptime::{
         errors::IResult,
@@ -52,14 +54,18 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_array" => expr_as_array(arguments, return_type, location),
+            "expr_as_assign" => expr_as_assign(arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
             "expr_as_block" => expr_as_block(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
+            "expr_as_cast" => expr_as_cast(arguments, return_type, location),
+            "expr_as_comptime" => expr_as_comptime(arguments, return_type, location),
             "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
             "expr_as_if" => expr_as_if(arguments, return_type, location),
             "expr_as_index" => expr_as_index(arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(arguments, return_type, location),
             "expr_as_member_access" => expr_as_member_access(arguments, return_type, location),
+            "expr_as_method_call" => expr_as_method_call(arguments, return_type, location),
             "expr_as_repeated_element_array" => {
                 expr_as_repeated_element_array(arguments, return_type, location)
             }
@@ -69,7 +75,10 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_slice" => expr_as_slice(arguments, return_type, location),
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
+            "expr_as_unsafe" => expr_as_unsafe(arguments, return_type, location),
             "expr_has_semicolon" => expr_has_semicolon(arguments, location),
+            "expr_is_break" => expr_is_break(arguments, location),
+            "expr_is_continue" => expr_is_continue(arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
@@ -126,6 +135,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
+            "unresolved_type_is_field" => unresolved_type_is_field(arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
                 let item = format!("Comptime evaluation for builtin function {name}");
@@ -390,6 +400,7 @@ fn quoted_as_trait_constraint(
             elaborator.resolve_trait_bound(&trait_bound, Type::Unit)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
+
     Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
 }
 
@@ -548,7 +559,12 @@ fn type_get_trait_impl(
     let typ = get_type(typ)?;
     let (trait_id, generics) = get_trait_constraint(constraint)?;
 
-    let option_value = match interner.try_lookup_trait_implementation(&typ, trait_id, &generics) {
+    let option_value = match interner.try_lookup_trait_implementation(
+        &typ,
+        trait_id,
+        &generics.ordered,
+        &generics.named,
+    ) {
         Ok((TraitImplKind::Normal(trait_impl_id), _)) => Some(Value::TraitImpl(trait_impl_id)),
         _ => None,
     };
@@ -567,7 +583,9 @@ fn type_implements(
     let typ = get_type(typ)?;
     let (trait_id, generics) = get_trait_constraint(constraint)?;
 
-    let implements = interner.try_lookup_trait_implementation(&typ, trait_id, &generics).is_ok();
+    let implements = interner
+        .try_lookup_trait_implementation(&typ, trait_id, &generics.ordered, &generics.named)
+        .is_ok();
     Ok(Value::Bool(implements))
 }
 
@@ -691,6 +709,16 @@ fn trait_impl_trait_generic_args(
     Ok(Value::Slice(trait_generics, slice_type))
 }
 
+// fn is_field(self) -> bool
+fn unresolved_type_is_field(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typ = get_unresolved_type(self_argument)?;
+    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::FieldElement)))
+}
+
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type) -> IResult<Value> {
     match return_type {
@@ -767,7 +795,7 @@ fn zeroed(return_type: Type) -> IResult<Value> {
         | Type::InfixExpr(..)
         | Type::Quoted(_)
         | Type::Error
-        | Type::TraitAsType(_, _, _)
+        | Type::TraitAsType(..)
         | Type::NamedGeneric(_, _, _) => Ok(Value::Zeroed(return_type)),
     }
 }
@@ -786,6 +814,23 @@ fn expr_as_array(
             let exprs = exprs.into_iter().map(|expr| Value::expression(expr.kind)).collect();
             let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
             Some(Value::Slice(exprs, typ))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_assign(self) -> Option<(Expr, Expr)>
+fn expr_as_assign(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Statement(StatementKind::Assign(assign)) = expr {
+            let lhs = Value::lvalue(assign.lvalue);
+            let rhs = Value::expression(assign.expression.kind);
+            Some(Value::Tuple(vec![lhs, rhs]))
         } else {
             None
         }
@@ -833,11 +878,7 @@ fn expr_as_block(
 ) -> IResult<Value> {
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Block(block_expr)) = expr {
-            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
-            let statements = block_expr.statements.into_iter();
-            let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
-
-            Some(Value::Slice(statements, typ))
+            Some(block_expression_to_value(block_expr))
         } else {
             None
         }
@@ -853,6 +894,55 @@ fn expr_as_bool(
     expr_as(arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Literal(Literal::Bool(bool))) = expr {
             Some(Value::Bool(bool))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_cast(self) -> Option<(Expr, UnresolvedType)>
+fn expr_as_cast(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Cast(cast)) = expr {
+            let lhs = Value::expression(cast.lhs.kind);
+            let typ = Value::UnresolvedType(cast.r#type.typ);
+            Some(Value::Tuple(vec![lhs, typ]))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_comptime(self) -> Option<[Expr]>
+fn expr_as_comptime(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    use ExpressionKind::Block;
+
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Comptime(block_expr, _)) = expr {
+            Some(block_expression_to_value(block_expr))
+        } else if let ExprValue::Statement(StatementKind::Comptime(statement)) = expr {
+            let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+
+            // comptime { ... } as a statement wraps a block expression,
+            // and in that case we return the block expression statements
+            // (comptime as a statement can also be comptime for, but in that case we'll
+            // return the for statement as a single expression)
+            if let StatementKind::Expression(Expression { kind: Block(block), .. }) = statement.kind
+            {
+                Some(block_expression_to_value(block))
+            } else {
+                let mut elements = Vector::new();
+                elements.push_back(Value::statement(statement.kind));
+                Some(Value::Slice(elements, typ))
+            }
         } else {
             None
         }
@@ -951,13 +1041,49 @@ fn expr_as_member_access(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
-        if let ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) = expr {
+    expr_as(arguments, return_type, location, |expr| match expr {
+        ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
             let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
             Some(Value::Tuple(vec![
                 Value::expression(member_access.lhs.kind),
                 Value::Quoted(tokens),
             ]))
+        }
+        ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
+            let tokens = Rc::new(vec![Token::Ident(field_name.0.contents.clone())]);
+            Some(Value::Tuple(vec![Value::lvalue(*object), Value::Quoted(tokens)]))
+        }
+        _ => None,
+    })
+}
+
+// fn as_method_call(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])>
+fn expr_as_method_call(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
+            let object = Value::expression(method_call.object.kind);
+
+            let name_tokens =
+                Rc::new(vec![Token::Ident(method_call.method_name.0.contents.clone())]);
+            let name = Value::Quoted(name_tokens);
+
+            let generics = method_call.generics.unwrap_or_default().into_iter();
+            let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
+            let generics = Value::Slice(
+                generics,
+                Type::Slice(Box::new(Type::Quoted(QuotedType::UnresolvedType))),
+            );
+
+            let arguments = method_call.arguments.into_iter();
+            let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
+            let arguments =
+                Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
+
+            Some(Value::Tuple(vec![object, name, generics, arguments]))
         } else {
             None
         }
@@ -1081,11 +1207,40 @@ fn expr_as_unary_op(
     })
 }
 
+// fn as_unsafe(self) -> Option<[Expr]>
+fn expr_as_unsafe(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::Unsafe(block_expr, _)) = expr {
+            Some(block_expression_to_value(block_expr))
+        } else {
+            None
+        }
+    })
+}
+
 // fn as_has_semicolon(self) -> bool
 fn expr_has_semicolon(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(self_argument)?;
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
+}
+
+// fn is_break(self) -> bool
+fn expr_is_break(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(self_argument)?;
+    Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Break))))
+}
+
+// fn is_continue(self) -> bool
+fn expr_is_continue(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(self_argument)?;
+    Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Continue))))
 }
 
 // Helper function for implementing the `expr_as_...` functions.
@@ -1415,12 +1570,9 @@ fn trait_def_as_trait_constraint(
     let argument = check_one_argument(arguments, location)?;
 
     let trait_id = get_trait_def(argument)?;
-    let the_trait = interner.get_trait(trait_id);
-    let trait_generics = vecmap(&the_trait.generics, |generic| {
-        Type::NamedGeneric(generic.type_var.clone(), generic.name.clone(), generic.kind.clone())
-    });
+    let constraint = interner.get_trait(trait_id).as_constraint(location.span);
 
-    Ok(Value::TraitConstraint(trait_id, trait_generics))
+    Ok(Value::TraitConstraint(trait_id, constraint.trait_generics))
 }
 
 /// Creates a value that holds an `Option`.

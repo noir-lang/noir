@@ -9,10 +9,10 @@ use strum_macros::Display;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
-        Statement, StatementKind,
+        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, LValue,
+        Signedness, Statement, StatementKind, UnresolvedTypeData,
     },
-    hir::def_map::ModuleId,
+    hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
     hir_def::{
         expr::{HirArrayLiteral, HirConstructorExpression, HirIdent, HirLambda, ImplKind},
         traits::TraitConstraint,
@@ -58,7 +58,7 @@ pub enum Value {
     /// be inserted into separate files entirely.
     Quoted(Rc<Vec<Token>>),
     StructDefinition(StructId),
-    TraitConstraint(TraitId, /* trait generics */ Vec<Type>),
+    TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
     TraitImpl(TraitImplId),
     FunctionDefinition(FuncId),
@@ -66,12 +66,14 @@ pub enum Value {
     Type(Type),
     Zeroed(Type),
     Expr(ExprValue),
+    UnresolvedType(UnresolvedTypeData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
 pub enum ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),
+    LValue(LValue),
 }
 
 impl Value {
@@ -81,6 +83,10 @@ impl Value {
 
     pub(crate) fn statement(statement: StatementKind) -> Self {
         Value::Expr(ExprValue::Statement(statement))
+    }
+
+    pub(crate) fn lvalue(lvaue: LValue) -> Self {
+        Value::Expr(ExprValue::LValue(lvaue))
     }
 
     pub(crate) fn get_type(&self) -> Cow<Type> {
@@ -128,6 +134,7 @@ impl Value {
             Value::Type(_) => Type::Quoted(QuotedType::Type),
             Value::Zeroed(typ) => return Cow::Borrowed(typ),
             Value::Expr(_) => Type::Quoted(QuotedType::Expr),
+            Value::UnresolvedType(_) => Type::Quoted(QuotedType::UnresolvedType),
         })
     }
 
@@ -254,7 +261,8 @@ impl Value {
                     statements: vec![Statement { kind: statement, span: location.span }],
                 })
             }
-            Value::Pointer(..)
+            Value::Expr(ExprValue::LValue(_))
+            | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
@@ -262,6 +270,7 @@ impl Value {
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
             | Value::Type(_)
+            | Value::UnresolvedType(_)
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
@@ -386,6 +395,7 @@ impl Value {
             | Value::FunctionDefinition(_)
             | Value::Zeroed(_)
             | Value::Type(_)
+            | Value::UnresolvedType(_)
             | Value::ModuleDefinition(_) => {
                 let typ = self.get_type().into_owned();
                 let value = self.display(interner).to_string();
@@ -546,7 +556,8 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 write!(f, "{}", def.name)
             }
             Value::TraitConstraint(trait_id, generics) => {
-                write!(f, "{}", display_trait_id_and_generics(self.interner, trait_id, generics))
+                let trait_ = self.interner.get_trait(*trait_id);
+                write!(f, "{}{generics}", trait_.name)
             }
             Value::TraitDefinition(trait_id) => {
                 let trait_ = self.interner.get_trait(*trait_id);
@@ -588,29 +599,13 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Type(typ) => write!(f, "{}", typ),
             Value::Expr(ExprValue::Expression(expr)) => write!(f, "{}", expr),
             Value::Expr(ExprValue::Statement(statement)) => write!(f, "{}", statement),
+            Value::Expr(ExprValue::LValue(lvalue)) => write!(f, "{}", lvalue),
+            Value::UnresolvedType(typ) => write!(f, "{}", typ),
         }
     }
 }
 
-fn display_trait_id_and_generics(
-    interner: &NodeInterner,
-    trait_id: &TraitId,
-    generics: &Vec<Type>,
-) -> String {
-    let trait_ = interner.get_trait(*trait_id);
-    let generic_string = vecmap(generics, ToString::to_string).join(", ");
-    if generics.is_empty() {
-        format!("{}", trait_.name)
-    } else {
-        format!("{}<{generic_string}>", trait_.name)
-    }
-}
-
 fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitConstraint) -> String {
-    let trait_constraint_string = display_trait_id_and_generics(
-        interner,
-        &trait_constraint.trait_id,
-        &trait_constraint.trait_generics,
-    );
-    format!("{}: {}", trait_constraint.typ, trait_constraint_string)
+    let trait_ = interner.get_trait(trait_constraint.trait_id);
+    format!("{}: {}{}", trait_constraint.typ, trait_.name, trait_constraint.trait_generics)
 }
