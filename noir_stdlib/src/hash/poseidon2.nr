@@ -26,7 +26,7 @@ impl Poseidon2 {
         result
     }
 
-    fn perform_duplex(&mut self) -> [Field; RATE] {
+    fn perform_duplex(&mut self) {
         // zero-pad the cache
         for i in 0..RATE {
             if i >= self.cache_size {
@@ -38,18 +38,12 @@ impl Poseidon2 {
             self.state[i] += self.cache[i];
         }
         self.state = crate::hash::poseidon2_permutation(self.state, 4);
-        // return `RATE` number of field elements from the sponge state.
-        let mut result = [0; RATE];
-        for i in 0..RATE {
-            result[i] = self.state[i];
-        }
-        result
     }
 
     fn absorb(&mut self, input: Field) {
         if (!self.squeeze_mode) & (self.cache_size == RATE) {
             // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache
-            let _ = self.perform_duplex();
+            self.perform_duplex();
             self.cache[0] = input;
             self.cache_size = 1;
         } else if (!self.squeeze_mode) & (self.cache_size != RATE) {
@@ -68,10 +62,11 @@ impl Poseidon2 {
     fn squeeze(&mut self) -> Field {
         let mut result = self.cache[0];
         if !self.squeeze_mode {
-            // If we're in absorb mode, apply sponge permutation to compress the cache, populate cache with compressed
-            // state and switch to squeeze mode. Note: this code block will execute if this `if` condition was not matched.
-            // By this point, we should have a non-empty cache. Pop one item off the top of the cache and return it.
-            result = self.perform_duplex()[0];
+            // If we're in absorb mode, apply sponge permutation to compress the cache.
+            // Note: this code block will execute if this `if` condition was not matched.
+            // Pop one item off the top of the permutation and return it.
+            self.perform_duplex();
+            result = self.state[0];
         }
         result
     }
