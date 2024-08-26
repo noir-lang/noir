@@ -1,7 +1,0 @@
-[package]
-name = "poseidon2_squeeze_no_cache_reset"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.30.0"
-
-[dependencies]
