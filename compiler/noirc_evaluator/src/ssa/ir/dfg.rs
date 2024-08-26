@@ -171,13 +171,14 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStack,
     ) -> InsertInstructionResult {
-        use InsertInstructionResult::*;
         match instruction.simplify(self, block, ctrl_typevars.clone(), &call_stack) {
-            SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
-            SimplifyResult::SimplifiedToMultiple(simplification) => {
-                SimplifiedToMultiple(simplification)
+            SimplifyResult::SimplifiedTo(simplification) => {
+                InsertInstructionResult::SimplifiedTo(simplification)
             }
-            SimplifyResult::Remove => InstructionRemoved,
+            SimplifyResult::SimplifiedToMultiple(simplification) => {
+                InsertInstructionResult::SimplifiedToMultiple(simplification)
+            }
+            SimplifyResult::Remove => InsertInstructionResult::InstructionRemoved,
             result @ (SimplifyResult::SimplifiedToInstruction(_)
             | SimplifyResult::SimplifiedToInstructionMultiple(_)
             | SimplifyResult::None) => {
@@ -471,6 +472,14 @@ impl DataFlowGraph {
         }
     }
 
+    /// A constant index less than the array length is safe
+    pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
+        #[allow(clippy::match_like_matches_macro)]
+        match (self.type_of_value(array), self.get_numeric_constant(index)) {
+            (Type::Array(_, len), Some(index)) if index.to_u128() < (len as u128) => true,
+            _ => false,
+        }
+    }
     /// Sets the terminator instruction for the given basic block
     pub(crate) fn set_block_terminator(
         &mut self,

@@ -64,6 +64,9 @@ pub struct SsaEvaluatorOptions {
 
     /// Dump the unoptimized SSA to the supplied path if it exists
     pub emit_ssa: Option<PathBuf>,
+
+    /// Skip the check for under constrained values
+    pub skip_underconstrained_check: bool,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -117,7 +120,13 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
-    let ssa_level_warnings = ssa.check_for_underconstrained_values();
+    let ssa_level_warnings = if options.skip_underconstrained_check {
+        vec![]
+    } else {
+        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
+            ssa.check_for_underconstrained_values()
+        })
+    };
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });
@@ -151,6 +160,7 @@ pub struct SsaProgramArtifact {
     pub main_input_witnesses: Vec<Witness>,
     pub main_return_witnesses: Vec<Witness>,
     pub names: Vec<String>,
+    pub brillig_names: Vec<String>,
     pub error_types: BTreeMap<ErrorSelector, HirType>,
 }
 
@@ -167,6 +177,7 @@ impl SsaProgramArtifact {
             main_input_witnesses: Vec::default(),
             main_return_witnesses: Vec::default(),
             names: Vec::default(),
+            brillig_names: Vec::default(),
             error_types,
         }
     }
@@ -202,8 +213,10 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
-        optimize_into_acir(program, options)?;
+    let ArtifactsAndWarnings(
+        (generated_acirs, generated_brillig, brillig_function_names, error_types),
+        ssa_level_warnings,
+    ) = optimize_into_acir(program, options)?;
     if options.force_brillig_output {
         assert_eq!(
             generated_acirs.len(),
@@ -236,6 +249,7 @@ pub fn create_program(
         program_artifact.add_circuit(circuit_artifact, is_main);
         is_main = false;
     }
+    program_artifact.brillig_names = brillig_function_names;
 
     Ok(program_artifact)
 }

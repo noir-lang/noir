@@ -4,17 +4,22 @@ use acvm::FieldElement;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{IntegerBitSize, Signedness},
+    ast::{BlockExpression, IntegerBitSize, Signedness, UnresolvedTypeData},
     hir::{
-        comptime::{errors::IResult, value::add_token_spans, Interpreter, InterpreterError, Value},
+        comptime::{
+            errors::IResult,
+            value::{add_token_spans, ExprValue},
+            Interpreter, InterpreterError, Value,
+        },
         def_map::ModuleId,
+        type_check::generics::TraitGenerics,
     },
     hir_def::{
         function::{FuncMeta, FunctionBody},
         stmt::HirPattern,
     },
     macros_api::{NodeInterner, StructId},
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, TraitId, TraitImplId},
     parser::NoirParser,
     token::{Token, Tokens},
     QuotedType, Type,
@@ -77,8 +82,7 @@ pub(crate) fn get_array(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Array(type_var.clone(), type_var);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
+            type_mismatch(value, expected, location)
         }
     }
 }
@@ -92,8 +96,7 @@ pub(crate) fn get_slice(
         value => {
             let type_var = Box::new(interner.next_type_variable());
             let expected = Type::Slice(type_var);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
+            type_mismatch(value, expected, location)
         }
     }
 }
@@ -107,8 +110,7 @@ pub(crate) fn get_tuple(
         value => {
             let type_var = interner.next_type_variable();
             let expected = Type::Tuple(vec![type_var]);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
+            type_mismatch(value, expected, location)
         }
     }
 }
@@ -116,10 +118,7 @@ pub(crate) fn get_tuple(
 pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
     match value {
         Value::Field(value) => Ok(value),
-        value => {
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected: Type::FieldElement, actual, location })
-        }
+        value => type_mismatch(value, Type::FieldElement, location),
     }
 }
 
@@ -128,8 +127,7 @@ pub(crate) fn get_u8((value, location): (Value, Location)) -> IResult<u8> {
         Value::U8(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
+            type_mismatch(value, expected, location)
         }
     }
 }
@@ -139,89 +137,88 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
         Value::U32(value) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
+            type_mismatch(value, expected, location)
         }
+    }
+}
+
+pub(crate) fn get_expr((value, location): (Value, Location)) -> IResult<ExprValue> {
+    match value {
+        Value::Expr(expr) => Ok(expr),
+        value => type_mismatch(value, Type::Quoted(QuotedType::Expr), location),
     }
 }
 
 pub(crate) fn get_function_def((value, location): (Value, Location)) -> IResult<FuncId> {
     match value {
         Value::FunctionDefinition(id) => Ok(id),
-        value => {
-            let expected = Type::Quoted(QuotedType::FunctionDefinition);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::FunctionDefinition), location),
     }
 }
 
 pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<ModuleId> {
     match value {
         Value::ModuleDefinition(module_id) => Ok(module_id),
-        value => {
-            let expected = Type::Quoted(QuotedType::Module);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::Module), location),
     }
 }
 
 pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<StructId> {
     match value {
         Value::StructDefinition(id) => Ok(id),
-        _ => {
-            let expected = Type::Quoted(QuotedType::StructDefinition);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, location, actual })
-        }
+        _ => type_mismatch(value, Type::Quoted(QuotedType::StructDefinition), location),
     }
 }
 
 pub(crate) fn get_trait_constraint(
     (value, location): (Value, Location),
-) -> IResult<(TraitId, Vec<Type>)> {
+) -> IResult<(TraitId, TraitGenerics)> {
     match value {
         Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
-        value => {
-            let expected = Type::Quoted(QuotedType::TraitConstraint);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::TraitConstraint), location),
     }
 }
 
 pub(crate) fn get_trait_def((value, location): (Value, Location)) -> IResult<TraitId> {
     match value {
         Value::TraitDefinition(id) => Ok(id),
-        value => {
-            let expected = Type::Quoted(QuotedType::TraitDefinition);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::TraitDefinition), location),
+    }
+}
+
+pub(crate) fn get_trait_impl((value, location): (Value, Location)) -> IResult<TraitImplId> {
+    match value {
+        Value::TraitImpl(id) => Ok(id),
+        value => type_mismatch(value, Type::Quoted(QuotedType::TraitImpl), location),
     }
 }
 
 pub(crate) fn get_type((value, location): (Value, Location)) -> IResult<Type> {
     match value {
         Value::Type(typ) => Ok(typ),
-        value => {
-            let expected = Type::Quoted(QuotedType::Type);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::Type), location),
     }
 }
 
 pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<Token>>> {
     match value {
         Value::Quoted(tokens) => Ok(tokens),
-        value => {
-            let expected = Type::Quoted(QuotedType::Quoted);
-            let actual = value.get_type().into_owned();
-            Err(InterpreterError::TypeMismatch { expected, actual, location })
-        }
+        value => type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
     }
+}
+
+pub(crate) fn get_unresolved_type(
+    (value, location): (Value, Location),
+) -> IResult<UnresolvedTypeData> {
+    match value {
+        Value::UnresolvedType(typ) => Ok(typ),
+        value => type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType), location),
+    }
+}
+
+fn type_mismatch<T>(value: Value, expected: Type, location: Location) -> IResult<T> {
+    let actual = value.get_type().into_owned();
+    Err(InterpreterError::TypeMismatch { expected, actual, location })
 }
 
 pub(crate) fn hir_pattern_to_tokens(
@@ -346,7 +343,7 @@ where
 
 pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<Type>) {
     match typ {
-        Type::Function(parameters, _, _) => {
+        Type::Function(parameters, _, _, _) => {
             *parameters = parameter_types;
         }
         Type::Forall(_, typ) => replace_func_meta_parameters(typ, parameter_types),
@@ -356,10 +353,18 @@ pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<
 
 pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
     match typ {
-        Type::Function(_, ret, _) => {
+        Type::Function(_, ret, _, _) => {
             *ret = Box::new(return_type);
         }
         Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
         _ => {}
     }
+}
+
+pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
+    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+    let statements = block_expr.statements.into_iter();
+    let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
+
+    Value::Slice(statements, typ)
 }

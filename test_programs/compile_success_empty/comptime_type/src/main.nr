@@ -108,14 +108,20 @@ fn main() {
         let some_trait_field = quote { SomeTrait<Field> }.as_trait_constraint();
         assert(!struct_implements_some_trait.implements(some_trait_field));
         assert(!struct_does_not_implement_some_trait.implements(some_trait_field));
+
+        let _trait_impl = struct_implements_some_trait.get_trait_impl(some_trait_i32).unwrap();
     }
 }
 
+// docs:start:implements_example
 fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
     comptime
     {
         let t = quote { T }.as_type();
         let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
         assert(t.implements(some_trait_i32));
+
+        assert(t.get_trait_impl(some_trait_i32).is_none());
     }
 }
+// docs:end:implements_example

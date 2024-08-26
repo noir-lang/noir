@@ -7,12 +7,12 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BlockExpression, Expression, ExpressionKind, IndexExpression, MemberAccessExpression,
-    MethodCallExpression, UnresolvedType,
+    BlockExpression, Expression, ExpressionKind, GenericTypeArgs, IndexExpression,
+    MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
-use crate::macros_api::SecondaryAttribute;
+use crate::macros_api::{SecondaryAttribute, UnresolvedTypeData};
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 
@@ -100,7 +100,9 @@ impl StatementKind {
             StatementKind::Expression(expr) => {
                 match (&expr.kind, semi, last_statement_in_block) {
                     // Semicolons are optional for these expressions
-                    (ExpressionKind::Block(_), semi, _) | (ExpressionKind::If(_), semi, _) => {
+                    (ExpressionKind::Block(_), semi, _)
+                    | (ExpressionKind::Unsafe(..), semi, _)
+                    | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
                         } else {
@@ -369,6 +371,7 @@ impl UseTree {
 pub struct AsTraitPath {
     pub typ: UnresolvedType,
     pub trait_path: Path,
+    pub trait_generics: GenericTypeArgs,
     pub impl_item: Ident,
 }
 
@@ -670,7 +673,7 @@ impl ForRange {
                 let let_array = Statement {
                     kind: StatementKind::Let(LetStatement {
                         pattern: Pattern::Identifier(array_ident.clone()),
-                        r#type: UnresolvedType::unspecified(),
+                        r#type: UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         expression: array,
                         comptime: false,
                         attributes: vec![],
@@ -716,7 +719,7 @@ impl ForRange {
                 let let_elem = Statement {
                     kind: StatementKind::Let(LetStatement {
                         pattern: Pattern::Identifier(identifier),
-                        r#type: UnresolvedType::unspecified(),
+                        r#type: UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         expression: Expression::new(loop_element, array_span),
                         comptime: false,
                         attributes: vec![],
@@ -745,8 +748,10 @@ impl ForRange {
                 let block = ExpressionKind::Block(BlockExpression {
                     statements: vec![let_array, for_loop],
                 });
-                let kind = StatementKind::Expression(Expression::new(block, for_loop_span));
-                Statement { kind, span: for_loop_span }
+                Statement {
+                    kind: StatementKind::Expression(Expression::new(block, for_loop_span)),
+                    span: for_loop_span,
+                }
             }
         }
     }

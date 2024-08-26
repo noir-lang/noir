@@ -27,3 +27,4 @@ trait Trait {
 
 }
 
+use dependency::something;

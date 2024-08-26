@@ -66,36 +66,31 @@ impl<'context> Elaborator<'context> {
     ) -> (HirStatement, Type) {
         let expr_span = let_stmt.expression.span;
         let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
-        let annotated_type = self.resolve_type(let_stmt.r#type);
+        let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
         let definition = match global_id {
             None => DefinitionKind::Local(Some(expression)),
             Some(id) => DefinitionKind::Global(id),
         };
 
-        // First check if the LHS is unspecified
-        // If so, then we give it the same type as the expression
-        let r#type = if annotated_type != Type::Error {
-            // Now check if LHS is the same type as the RHS
-            // Importantly, we do not coerce any types implicitly
-            self.unify_with_coercions(&expr_type, &annotated_type, expression, || {
-                TypeCheckError::TypeMismatch {
-                    expected_typ: annotated_type.to_string(),
-                    expr_typ: expr_type.to_string(),
-                    expr_span,
-                }
-            });
-            if annotated_type.is_integer() {
-                let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
-                for error in errors {
-                    self.push_err(error);
-                }
+        // Now check if LHS is the same type as the RHS
+        // Importantly, we do not coerce any types implicitly
+        self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_span, || {
+            TypeCheckError::TypeMismatch {
+                expected_typ: annotated_type.to_string(),
+                expr_typ: expr_type.to_string(),
+                expr_span,
             }
-            annotated_type
-        } else {
-            expr_type
-        };
+        });
 
+        if annotated_type.is_integer() {
+            let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
+            for error in errors {
+                self.push_err(error);
+            }
+        }
+
+        let r#type = annotated_type;
         let pattern = self.elaborate_pattern_and_store_ids(
             let_stmt.pattern,
             r#type.clone(),
@@ -136,7 +131,7 @@ impl<'context> Elaborator<'context> {
             self.push_err(TypeCheckError::VariableMustBeMutable { name, span });
         }
 
-        self.unify_with_coercions(&expr_type, &lvalue_type, expression, || {
+        self.unify_with_coercions(&expr_type, &lvalue_type, expression, span, || {
             TypeCheckError::TypeMismatchWithSource {
                 actual: expr_type.clone(),
                 expected: lvalue_type.clone(),

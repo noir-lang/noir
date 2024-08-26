@@ -13,7 +13,7 @@ pub mod ops;
 pub mod package;
 pub mod workspace;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use fm::{FileManager, FILE_EXTENSION};
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
@@ -46,8 +46,20 @@ pub fn insert_all_files_for_workspace_into_file_manager(
     workspace: &workspace::Workspace,
     file_manager: &mut FileManager,
 ) {
+    insert_all_files_for_workspace_into_file_manager_with_overrides(
+        workspace,
+        file_manager,
+        &HashMap::new(),
+    );
+}
+
+pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
+    workspace: &workspace::Workspace,
+    file_manager: &mut FileManager,
+    overrides: &HashMap<&std::path::Path, &str>,
+) {
     for package in workspace.clone().into_iter() {
-        insert_all_files_for_package_into_file_manager(package, file_manager);
+        insert_all_files_for_package_into_file_manager(package, file_manager, overrides);
     }
 }
 // We will pre-populate the file manager with all the files in the package
@@ -59,6 +71,7 @@ pub fn insert_all_files_for_workspace_into_file_manager(
 fn insert_all_files_for_package_into_file_manager(
     package: &Package,
     file_manager: &mut FileManager,
+    overrides: &HashMap<&std::path::Path, &str>,
 ) {
     // Start off at the entry path and read all files in the parent directory.
     let entry_path_parent = package
@@ -70,8 +83,12 @@ fn insert_all_files_for_package_into_file_manager(
     let paths = get_all_noir_source_in_dir(entry_path_parent)
         .expect("could not get all paths in the package");
     for path in paths {
-        let source = std::fs::read_to_string(path.as_path())
-            .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
+        let source = if let Some(src) = overrides.get(path.as_path()) {
+            src.to_string()
+        } else {
+            std::fs::read_to_string(path.as_path())
+                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path))
+        };
         file_manager.add_file_with_source(path.as_path(), source);
     }
 
@@ -87,7 +104,11 @@ fn insert_all_files_for_packages_dependencies_into_file_manager(
     for (_, dep) in package.dependencies.iter() {
         match dep {
             Dependency::Local { package } | Dependency::Remote { package } => {
-                insert_all_files_for_package_into_file_manager(package, file_manager);
+                insert_all_files_for_package_into_file_manager(
+                    package,
+                    file_manager,
+                    &HashMap::new(),
+                );
                 insert_all_files_for_packages_dependencies_into_file_manager(package, file_manager);
             }
         }

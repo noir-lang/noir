@@ -2,12 +2,13 @@ use noirc_frontend::{
     ast::{
         ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression,
         ConstrainStatement, ConstructorExpression, Expression, ExpressionKind, ForLoopStatement,
-        ForRange, FunctionReturnType, Ident, IfExpression, IndexExpression, InfixExpression,
-        LValue, Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
-        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem,
-        TypeImpl, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-        UnresolvedTypeData, UnresolvedTypeExpression, UseTree, UseTreeKind,
+        ForRange, FunctionReturnType, GenericTypeArgs, Ident, IfExpression, IndexExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait,
+        NoirTraitImpl, NoirTypeAlias, Path, PathSegment, Pattern, PrefixExpression, Statement,
+        StatementKind, TraitImplItem, TraitItem, TypeImpl, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+        UseTree, UseTreeKind,
     },
     parser::{Item, ItemKind, ParsedSubModule, ParserError},
     ParsedModule,
@@ -267,6 +268,9 @@ fn empty_expression(expression: &mut Expression) {
         ExpressionKind::Comptime(block_expression, _span) => {
             empty_block_expression(block_expression);
         }
+        ExpressionKind::Unsafe(block_expression, _span) => {
+            empty_block_expression(block_expression);
+        }
         ExpressionKind::Quote(..) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
         ExpressionKind::AsTraitPath(path) => {
             empty_unresolved_type(&mut path.typ);
@@ -294,6 +298,14 @@ fn empty_unresolved_types(unresolved_types: &mut [UnresolvedType]) {
     }
 }
 
+fn empty_type_args(generics: &mut GenericTypeArgs) {
+    empty_unresolved_types(&mut generics.ordered_args);
+    for (name, typ) in &mut generics.named_args {
+        empty_ident(name);
+        empty_unresolved_type(typ);
+    }
+}
+
 fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
     unresolved_type.span = Default::default();
 
@@ -315,17 +327,17 @@ fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
         }
         UnresolvedTypeData::Named(path, unresolved_types, _) => {
             empty_path(path);
-            empty_unresolved_types(unresolved_types);
+            empty_type_args(unresolved_types);
         }
         UnresolvedTypeData::TraitAsType(path, unresolved_types) => {
             empty_path(path);
-            empty_unresolved_types(unresolved_types);
+            empty_type_args(unresolved_types);
         }
         UnresolvedTypeData::MutableReference(unresolved_type) => {
             empty_unresolved_type(unresolved_type)
         }
         UnresolvedTypeData::Tuple(unresolved_types) => empty_unresolved_types(unresolved_types),
-        UnresolvedTypeData::Function(args, ret, _env) => {
+        UnresolvedTypeData::Function(args, ret, _env, _) => {
             empty_unresolved_types(args);
             empty_unresolved_type(ret);
         }
@@ -540,5 +552,10 @@ fn empty_unresolved_type_expression(unresolved_type_expression: &mut UnresolvedT
             empty_unresolved_type_expression(rhs);
         }
         UnresolvedTypeExpression::Constant(_, _) => (),
+        UnresolvedTypeExpression::AsTraitPath(path) => {
+            empty_unresolved_type(&mut path.typ);
+            empty_path(&mut path.trait_path);
+            empty_ident(&mut path.impl_item);
+        }
     }
 }

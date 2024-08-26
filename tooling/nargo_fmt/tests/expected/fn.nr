@@ -69,3 +69,5 @@ fn id_two<T, let I: Field>(x: [Field; I]) -> [Field; I] {}
 fn whitespace_before_generics<T>(foo: T) {}
 
 fn more_whitespace_before_generics<T>(foo: T) {}
+
+fn with_unconstrained(x: unconstrained fn() -> ()) {}
