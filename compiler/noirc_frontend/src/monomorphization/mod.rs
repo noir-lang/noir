@@ -195,7 +195,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn next_function_id(&mut self) -> ast::FuncId {
         let id = self.next_function_id;
         self.next_function_id += 1;
-        ast::FuncId::Interned(id)
+        ast::FuncId(id)
     }
 
     fn lookup_local(&mut self, id: node_interner::DefinitionId) -> Option<Definition> {

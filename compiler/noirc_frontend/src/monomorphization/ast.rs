@@ -67,17 +67,11 @@ pub struct LocalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum FuncId {
-    Dummy,
-    Interned(u32),
-}
+pub struct FuncId(pub u32);
 
 impl Display for FuncId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Dummy => write!(f, "[dummy-ID]"),
-            Self::Interned(id) => write!(f, "{}", id),
-        }
+        write!(f, "{}", self.0)
     }
 }
 
@@ -368,11 +362,7 @@ impl Program {
     }
 
     pub fn main_id() -> FuncId {
-        FuncId::Interned(0)
-    }
-
-    pub fn take_main_body(&mut self) -> Expression {
-        self.take_function_body(self.main_id())
+        FuncId(0)
     }
 
     /// Takes a function body by replacing it with `false` and
@@ -388,19 +378,13 @@ impl std::ops::Index<FuncId> for Program {
     type Output = Function;
 
     fn index(&self, index: FuncId) -> &Self::Output {
-        match index {
-            FuncId::Dummy => panic!("ICE: attempted to index a Program using FuncId::Dummy"),
-            FuncId::Interned(index) => &self.functions[index as usize],
-        }
+        &self.functions[index.0 as usize]
     }
 }
 
 impl std::ops::IndexMut<FuncId> for Program {
     fn index_mut(&mut self, index: FuncId) -> &mut Self::Output {
-        match index {
-            FuncId::Dummy => panic!("ICE: attempted to index a Program using FuncId::Dummy"),
-            FuncId::Interned(index) => &mut self.functions[index as usize],
-        }
+        &mut self.functions[index.0 as usize]
     }
 }
 
