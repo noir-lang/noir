@@ -35,10 +35,11 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
 unconstrained fn build_msg_block_iter<let N: u32>(
     msg: [u8; N],
     message_size: u64,
-    mut msg_block: [u8; 64]
+    mut msg_block: [u8; 64],
+    msg_start: u32
 ) -> ([u8; 64], u64) {
     let mut msg_byte_ptr: u64 = 0; // Message byte pointer
-    for k in 0..N {
+    for k in msg_start..N {
         if k as u64 < message_size {
             msg_block[msg_byte_ptr] = msg[k];
             msg_byte_ptr = msg_byte_ptr + 1;
@@ -52,9 +53,14 @@ unconstrained fn build_msg_block_iter<let N: u32>(
 }
 
 // Verify the block we are compressing was appropriately constructed
-fn verify_msg_block<let N: u32>(msg: [u8; N], message_size: u64, msg_block: [u8; 64]) -> u64 {
+fn verify_msg_block<let N: u32>(
+    msg: [u8; N],
+    message_size: u64,
+    msg_block: [u8; 64],
+    msg_start: u32
+) -> u64 {
     let mut msg_byte_ptr: u64 = 0; // Message byte pointer
-    for k in 0..N {
+    for k in msg_start..N {
         if k as u64 < message_size {
             assert_eq(msg_block[msg_byte_ptr], msg[k]);
             msg_byte_ptr = msg_byte_ptr + 1;
@@ -74,34 +80,36 @@ fn verify_msg_block<let N: u32>(msg: [u8; N], message_size: u64, msg_block: [u8;
     msg_byte_ptr
 }
 
+global BLOCK_SIZE = 64;
+
 // Variable size SHA-256 hash
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
-    let num_blocks = N / 64;
-    let mut msg_block: [u8; 64] = [0; 64];
+    let num_blocks = N / BLOCK_SIZE;
+    let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
     let mut h: [u32; 8] = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value
-    let mut msg_byte_ptr = 0;
+    let mut msg_byte_ptr = 0; // Pointer into msg_block
 
     if num_blocks == 0 {
         unsafe {
-            let (new_msg_block, new_msg_byte_ptr)  = build_msg_block_iter(msg, message_size, msg_block);
+            let (new_msg_block, new_msg_byte_ptr)  = build_msg_block_iter(msg, message_size, msg_block, 0);
             msg_block = new_msg_block;
             msg_byte_ptr = new_msg_byte_ptr;
         }
 
         if !crate::runtime::is_unconstrained() {
-            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block);
+            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, 0);
         }
     }
 
-    for _ in 0..num_blocks {
+    for i in 0..num_blocks {
         unsafe {
-            let (new_msg_block, new_msg_byte_ptr)  = build_msg_block_iter(msg, message_size, msg_block);
+            let (new_msg_block, new_msg_byte_ptr)  = build_msg_block_iter(msg, message_size, msg_block, BLOCK_SIZE * i);
             msg_block = new_msg_block;
             msg_byte_ptr = new_msg_byte_ptr;
         }
         if !crate::runtime::is_unconstrained() {
             // Verify the block we are compressing was appropriately constructed
-            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block);
+            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, BLOCK_SIZE * i);
         }
 
         // Hash the block
@@ -122,6 +130,13 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     }
 
     if !crate::runtime::is_unconstrained() {
+        for i in 0..64 {
+            if i as u64 < msg_byte_ptr - 1 {
+                assert_eq(msg_block[i], last_block[i]);
+            }
+        }
+        assert_eq(msg_block[msg_byte_ptr - 1], 1 << 7);
+
         // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
         // the 1 and 0s fill up the current block, which we then compress accordingly.
         // Not enough bits (64) to store length. Fill up with zeros.
@@ -144,12 +159,14 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     }
 
     if !crate::runtime::is_unconstrained() {
-        for i in 0..64 {
-            if i as u64 < msg_byte_ptr - 1 {
-                assert_eq(msg_block[i], last_block[i]);
+        if msg_byte_ptr != 0 {
+            for i in 0..64 {
+                if i as u64 < msg_byte_ptr - 1 {
+                    assert_eq(msg_block[i], last_block[i]);
+                }
             }
+            assert_eq(msg_block[msg_byte_ptr - 1], 1 << 7);
         }
-        assert_eq(msg_block[msg_byte_ptr - 1], 1 << 7);
 
         let len = 8 * message_size;
         let len_bytes = (len as Field).to_le_bytes(8);
