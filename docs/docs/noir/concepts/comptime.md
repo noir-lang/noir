@@ -245,7 +245,7 @@ From the user's perspective it will look like this:
 
 ```rust
 // Example usage
-#[derive(Default, Eq, Cmp)]
+#[derive(Default, Eq, Ord)]
 struct MyStruct { my_field: u32 }
 ```
 
