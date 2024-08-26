@@ -119,6 +119,13 @@ pub(super) fn macro_quote_marker() -> impl NoirParser<ExpressionKind> {
     })
 }
 
+pub(super) fn resolved_expr() -> impl NoirParser<ExpressionKind> {
+    token_kind(TokenKind::QuotedExpr).map(|token| match token {
+        Token::QuotedExpr(id) => ExpressionKind::ResolvedQuoted(id),
+        _ => unreachable!("token_kind(QuotedExpr) guarantees we parse a quoted expr"),
+    })
+}
+
 #[cfg(test)]
 mod test {
     use crate::parser::parser::{

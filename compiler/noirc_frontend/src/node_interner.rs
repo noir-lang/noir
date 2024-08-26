@@ -13,6 +13,7 @@ use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::ast::ExpressionKind;
 use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::comptime;
@@ -207,6 +208,9 @@ pub struct NodeInterner {
     /// and creating a `Token::QuotedType(id)` from this id. We cannot create a token holding
     /// the actual type since types do not implement Send or Sync.
     quoted_types: noirc_arena::Arena<Type>,
+
+    /// Similar to `quoted_types` but for ExpressionKind.
+    quoted_exprs: noirc_arena::Arena<ExpressionKind>,
 
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
@@ -573,6 +577,9 @@ pub struct GlobalInfo {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QuotedTypeId(noirc_arena::Index);
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QuotedExprId(noirc_arena::Index);
+
 impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
@@ -610,6 +617,7 @@ impl Default for NodeInterner {
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
+            quoted_exprs: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
@@ -2015,6 +2023,14 @@ impl NodeInterner {
 
     pub fn get_quoted_type(&self, id: QuotedTypeId) -> &Type {
         &self.quoted_types[id.0]
+    }
+
+    pub fn push_quoted_expr(&mut self, expr: ExpressionKind) -> QuotedExprId {
+        QuotedExprId(self.quoted_exprs.insert(expr))
+    }
+
+    pub fn get_quoted_expr(&self, id: QuotedExprId) -> &ExpressionKind {
+        &self.quoted_exprs[id.0]
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.

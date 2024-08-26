@@ -73,7 +73,9 @@ mod test_helpers;
 
 use literals::literal;
 use path::{maybe_empty_path, path};
-use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
+use primitives::{
+    dereference, ident, negation, not, nothing, resolved_expr, right_shift_operator, token_kind,
+};
 use traits::where_clause;
 
 /// Entry function for the parser - also handles lexing internally.
@@ -1154,6 +1156,7 @@ where
         literal(),
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
         macro_quote_marker(),
+        resolved_expr(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {

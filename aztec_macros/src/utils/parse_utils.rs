@@ -271,12 +271,15 @@ fn empty_expression(expression: &mut Expression) {
         ExpressionKind::Unsafe(block_expression, _span) => {
             empty_block_expression(block_expression);
         }
-        ExpressionKind::Quote(..) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
         ExpressionKind::AsTraitPath(path) => {
             empty_unresolved_type(&mut path.typ);
             empty_path(&mut path.trait_path);
             empty_ident(&mut path.impl_item);
         }
+        ExpressionKind::Quote(..)
+        | ExpressionKind::Resolved(_)
+        | ExpressionKind::ResolvedQuoted(_)
+        | ExpressionKind::Error => (),
     }
 }
 

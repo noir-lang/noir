@@ -21,9 +21,8 @@ fn aztec(f: FunctionDefinition) {
             let func_call = expr.as_function_call();
             if func_call.is_some() {
               let (name, arguments) = func_call.unwrap();
-              let name = quote { $name };
               let arguments = arguments.map(|arg| quote { $arg }).join(quote { , });
-              Option::some(quote { name($arguments) }.as_expr().unwrap())
+              Option::some(quote { $name($arguments) }.as_expr().unwrap())
             } else {
               Option::some(expr)
             }

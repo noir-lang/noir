@@ -232,6 +232,7 @@ impl<'a> SignatureFinder<'a> {
             | ExpressionKind::AsTraitPath(_)
             | ExpressionKind::Quote(_)
             | ExpressionKind::Resolved(_)
+            | ExpressionKind::ResolvedQuoted(_)
             | ExpressionKind::Error => (),
         }
     }

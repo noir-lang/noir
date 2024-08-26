@@ -565,7 +565,10 @@ impl<'a> NodeFinder<'a> {
             ExpressionKind::AsTraitPath(as_trait_path) => {
                 self.find_in_as_trait_path(as_trait_path);
             }
-            ExpressionKind::Quote(_) | ExpressionKind::Resolved(_) | ExpressionKind::Error => (),
+            ExpressionKind::Quote(_)
+            | ExpressionKind::Resolved(_)
+            | ExpressionKind::ResolvedQuoted(_)
+            | ExpressionKind::Error => (),
         }
 
         // "foo." (no identifier afterwards) is parsed as the expression on the left hand-side of the dot.

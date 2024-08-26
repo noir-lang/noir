@@ -417,6 +417,9 @@ impl Value {
         let token = match self {
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
             Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
+            Value::Expr(ExprValue::Expression(expr)) => {
+                Token::QuotedExpr(interner.push_quoted_expr(expr))
+            }
             other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
         };
         Ok(vec![token])

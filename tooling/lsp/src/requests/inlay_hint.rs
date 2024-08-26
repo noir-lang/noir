@@ -303,6 +303,7 @@ impl<'a> InlayHintCollector<'a> {
             | ExpressionKind::Variable(..)
             | ExpressionKind::Quote(..)
             | ExpressionKind::Resolved(..)
+            | ExpressionKind::ResolvedQuoted(..)
             | ExpressionKind::Error => (),
         }
     }
@@ -692,6 +693,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::Unquote(..)
         | ExpressionKind::Comptime(..)
         | ExpressionKind::Resolved(..)
+        | ExpressionKind::ResolvedQuoted(..)
         | ExpressionKind::Literal(..)
         | ExpressionKind::Unsafe(..)
         | ExpressionKind::Error => None,
