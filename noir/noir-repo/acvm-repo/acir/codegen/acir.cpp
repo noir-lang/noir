@@ -464,6 +464,7 @@ namespace Program {
             Program::MemoryAddress input;
             uint32_t radix;
             Program::HeapArray output;
+            bool output_bits;
 
             friend bool operator==(const ToRadix&, const ToRadix&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -4529,6 +4530,7 @@ namespace Program {
         if (!(lhs.input == rhs.input)) { return false; }
         if (!(lhs.radix == rhs.radix)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
+        if (!(lhs.output_bits == rhs.output_bits)) { return false; }
         return true;
     }
 
@@ -4555,6 +4557,7 @@ void serde::Serializable<Program::BlackBoxOp::ToRadix>::serialize(const Program:
     serde::Serializable<decltype(obj.input)>::serialize(obj.input, serializer);
     serde::Serializable<decltype(obj.radix)>::serialize(obj.radix, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
+    serde::Serializable<decltype(obj.output_bits)>::serialize(obj.output_bits, serializer);
 }
 
 template <>
@@ -4564,6 +4567,7 @@ Program::BlackBoxOp::ToRadix serde::Deserializable<Program::BlackBoxOp::ToRadix>
     obj.input = serde::Deserializable<decltype(obj.input)>::deserialize(deserializer);
     obj.radix = serde::Deserializable<decltype(obj.radix)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
+    obj.output_bits = serde::Deserializable<decltype(obj.output_bits)>::deserialize(deserializer);
     return obj;
 }
 

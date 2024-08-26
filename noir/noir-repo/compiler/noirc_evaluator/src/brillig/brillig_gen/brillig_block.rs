@@ -549,7 +549,7 @@ impl<'block> BrilligBlock<'block> {
                         radix,
                         limb_count,
                         matches!(endianness, Endian::Big),
-                        8,
+                        false,
                     );
                 }
                 Value::Intrinsic(Intrinsic::ToBits(endianness)) => {
@@ -595,7 +595,7 @@ impl<'block> BrilligBlock<'block> {
                         2,
                         limb_count,
                         matches!(endianness, Endian::Big),
-                        1,
+                        true,
                     );
                 }
 

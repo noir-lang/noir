@@ -71,7 +71,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         radix: u32,
         limb_count: usize,
         big_endian: bool,
-        limb_bit_size: u32,
+        output_bits: bool, // If true will generate bit limbs, if false will generate byte limbs
     ) {
         assert!(source_field.bit_size == F::max_num_bits());
 
@@ -83,38 +83,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             input: source_field.address,
             radix,
             output: HeapArray { pointer: target_vector.pointer, size: limb_count },
+            output_bits,
         });
-
-        if limb_bit_size != F::max_num_bits() {
-            let end_pointer = self.allocate_register();
-            let temporary_register = self.allocate_register();
-
-            self.memory_op_instruction(
-                target_vector.pointer,
-                target_vector.size,
-                end_pointer,
-                BrilligBinaryOp::Add,
-            );
-
-            self.codegen_for_loop(
-                Some(target_vector.pointer),
-                end_pointer,
-                None,
-                |ctx, item_pointer| {
-                    ctx.load_instruction(temporary_register, item_pointer.address);
-
-                    ctx.cast(
-                        SingleAddrVariable::new(temporary_register, limb_bit_size),
-                        SingleAddrVariable::new(temporary_register, F::max_num_bits()),
-                    );
-
-                    ctx.store_instruction(item_pointer.address, temporary_register);
-                },
-            );
-
-            self.deallocate_register(end_pointer);
-            self.deallocate_register(temporary_register);
-        }
 
         if big_endian {
             self.codegen_array_reverse(target_vector.pointer, target_vector.size);

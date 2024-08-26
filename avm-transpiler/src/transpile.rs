@@ -822,7 +822,8 @@ fn handle_black_box_function(avm_instrs: &mut Vec<AvmInstruction>, operation: &B
                 ..Default::default()
             });
         }
-        BlackBoxOp::ToRadix { input, radix, output } => {
+        // We ignore the output bits flag since we represent bits as bytes
+        BlackBoxOp::ToRadix { input, radix, output, output_bits: _ } => {
             let num_limbs = output.size as u32;
             let input_offset = input.0 as u32;
             let output_offset = output.pointer.0 as u32;
