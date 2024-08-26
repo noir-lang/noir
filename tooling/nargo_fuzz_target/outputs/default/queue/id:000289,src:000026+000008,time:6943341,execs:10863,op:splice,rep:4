@@ -1,2 +1,0 @@
-// ensure we can implyTraiement traits us_ng the Path syntax
-impl cr`te::module4::MyTrait4 for craVe::module5::MyStruct5 { }

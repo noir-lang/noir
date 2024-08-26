@@ -1,2 +1,0 @@
-// ensure4 for crate::module5::MyS we can implement traits using the Path syntax
-impl crateMyTrait4 for crate::module5::MyStruct5 { }
