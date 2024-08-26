@@ -374,9 +374,9 @@ fn resolve_external_dep(
     resolve_path_to_ns(&dep_directive, dep_module.krate, importing_crate, def_maps, path_references)
 }
 
-// Issue an error if the given private function is being called from a non-child module, or
-// if the given pub(crate) function is being called from another crate
-fn can_reference_module_id(
+// Returns false if the given private function is being called from a non-child module, or
+// if the given pub(crate) function is being called from another crate. Otherwise returns true.
+pub fn can_reference_module_id(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     importing_crate: CrateId,
     current_module: LocalModuleId,
