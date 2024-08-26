@@ -837,7 +837,6 @@ where
         .collect()
 }
 
-
 prop_compose! {
     fn bigint_with_modulus()(modulus in select(allowed_bigint_moduli()))
         (inputs in proptest::collection::vec(any::<(u8, bool)>(), modulus.len()), modulus in Just(modulus))
@@ -935,8 +934,8 @@ fn bigint_solve_binary_op_opt(
         .collect();
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
-    let lhs = constant_or_witness_to_function_inputs(lhs, 0);
-    let rhs = constant_or_witness_to_function_inputs(rhs, lhs.len());
+    let lhs = constant_or_witness_to_function_inputs(lhs, 0, None);
+    let rhs = constant_or_witness_to_function_inputs(rhs, lhs.len(), None);
 
     let to_op_input = if middle_op.is_some() { 2 } else { 0 };
 
@@ -1182,7 +1181,7 @@ fn run_both_poseidon2_permutations(
         external_poseidon2.permutation(&into_repr_vec(drop_use_constant(&inputs)));
     (into_repr_vec(result), expected_result)
 }
-  
+
 // Using the given BigInt modulus, solve the following circuit:
 // - Convert xs, ys to BigInt's with ID's 0, 1, resp.
 // - Run the middle_op:
