@@ -1041,9 +1041,6 @@ impl<'context> Elaborator<'context> {
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
             (TypeVariable(int, _), other) | (other, TypeVariable(int, _)) => {
-                if let TypeBinding::Bound(binding) = &*int.borrow() {
-                    return self.infix_operand_type_rules(binding, op, other, span);
-                }
                 if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
                     self.unify(
                         rhs_type,
@@ -1057,6 +1054,9 @@ impl<'context> Elaborator<'context> {
                         true
                     };
                     return Ok((lhs_type.clone(), use_impl));
+                }
+                if let TypeBinding::Bound(binding) = &*int.borrow() {
+                    return self.infix_operand_type_rules(binding, op, other, span);
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
                 Ok((other.clone(), use_impl))

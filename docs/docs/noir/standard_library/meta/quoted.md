@@ -16,7 +16,7 @@ the expression failed to parse.
 
 Example:
 
-#include_code as_expr_example noir_stdlib/src/meta/quoted.nr rust
+#include_code as_expr_example test_programs/noir_test_success/comptime_expr/src/main.nr rust
 
 ### as_module
 
@@ -39,7 +39,7 @@ stream does not parse and resolve to a valid trait constraint.
 
 Example:
 
-#include_code implements_example noir_stdlib/src/meta/quoted.nr rust
+#include_code implements_example test_programs/compile_success_empty/comptime_type/src/main.nr rust
 
 ### as_type
 
@@ -48,7 +48,7 @@ Example:
 Interprets this token stream as a resolved type. Panics if the token
 stream doesn't parse to a type or if the type isn't a valid type in scope.
 
-#include_code implements_example noir_stdlib/src/meta/quoted.nr rust
+#include_code implements_example test_programs/compile_success_empty/comptime_type/src/main.nr rust
 
 ## Trait Implementations
 
