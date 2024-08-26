@@ -15,6 +15,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::ExpressionKind;
 use crate::ast::Ident;
+use crate::ast::StatementKind;
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -211,6 +212,9 @@ pub struct NodeInterner {
 
     /// Similar to `quoted_types` but for ExpressionKind.
     quoted_exprs: noirc_arena::Arena<ExpressionKind>,
+
+    /// Similar to `quoted_types` but for StatementKind.
+    quoted_statements: noirc_arena::Arena<StatementKind>,
 
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
@@ -580,6 +584,9 @@ pub struct QuotedTypeId(noirc_arena::Index);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct QuotedExprId(noirc_arena::Index);
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct QuotedStatementId(noirc_arena::Index);
+
 impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
@@ -618,6 +625,7 @@ impl Default for NodeInterner {
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
             quoted_exprs: Default::default(),
+            quoted_statements: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
@@ -2031,6 +2039,14 @@ impl NodeInterner {
 
     pub fn get_quoted_expr(&self, id: QuotedExprId) -> &ExpressionKind {
         &self.quoted_exprs[id.0]
+    }
+
+    pub fn push_quoted_statement(&mut self, statement: StatementKind) -> QuotedStatementId {
+        QuotedStatementId(self.quoted_statements.insert(statement))
+    }
+
+    pub fn get_quoted_statement(&self, id: QuotedStatementId) -> &StatementKind {
+        &self.quoted_statements[id.0]
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.

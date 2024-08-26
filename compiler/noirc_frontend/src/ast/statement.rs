@@ -13,6 +13,7 @@ use super::{
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::lexer::token::SpannedToken;
 use crate::macros_api::{SecondaryAttribute, UnresolvedTypeData};
+use crate::node_interner::QuotedStatementId;
 use crate::parser::{ParserError, ParserErrorReason};
 use crate::token::Token;
 
@@ -45,6 +46,7 @@ pub enum StatementKind {
     Comptime(Box<Statement>),
     // This is an expression with a trailing semi-colon
     Semi(Expression),
+    Resolved(QuotedStatementId),
     // This statement is the result of a recovered parse error.
     // To avoid issuing multiple errors in later steps, it should
     // be skipped in any future analysis if possible.
@@ -96,6 +98,9 @@ impl StatementKind {
             }
             // A semicolon on a for loop is optional and does nothing
             StatementKind::For(_) => self,
+
+            // No semicolon needed for a resolved statement
+            StatementKind::Resolved(_) => self,
 
             StatementKind::Expression(expr) => {
                 match (&expr.kind, semi, last_statement_in_block) {
@@ -777,6 +782,7 @@ impl Display for StatementKind {
             StatementKind::Continue => write!(f, "continue"),
             StatementKind::Comptime(statement) => write!(f, "comptime {}", statement.kind),
             StatementKind::Semi(semi) => write!(f, "{semi};"),
+            StatementKind::Resolved(_) => write!(f, "(resolved);"),
             StatementKind::Error => write!(f, "Error"),
         }
     }

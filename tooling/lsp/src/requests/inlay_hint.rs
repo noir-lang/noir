@@ -202,9 +202,10 @@ impl<'a> InlayHintCollector<'a> {
             }
             StatementKind::Comptime(statement) => self.collect_in_statement(statement),
             StatementKind::Semi(expression) => self.collect_in_expression(expression),
-            StatementKind::Break => (),
-            StatementKind::Continue => (),
-            StatementKind::Error => (),
+            StatementKind::Break
+            | StatementKind::Continue
+            | StatementKind::Resolved(_)
+            | StatementKind::Error => (),
         }
     }
 

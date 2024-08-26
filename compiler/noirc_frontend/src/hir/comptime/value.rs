@@ -420,6 +420,9 @@ impl Value {
             Value::Expr(ExprValue::Expression(expr)) => {
                 Token::QuotedExpr(interner.push_quoted_expr(expr))
             }
+            Value::Expr(ExprValue::Statement(statement)) => {
+                Token::QuotedStatement(interner.push_quoted_statement(statement))
+            }
             other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
         };
         Ok(vec![token])

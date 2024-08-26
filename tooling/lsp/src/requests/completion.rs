@@ -449,7 +449,10 @@ impl<'a> NodeFinder<'a> {
             StatementKind::Semi(expression) => {
                 self.find_in_expression(expression);
             }
-            StatementKind::Break | StatementKind::Continue | StatementKind::Error => (),
+            StatementKind::Break
+            | StatementKind::Continue
+            | StatementKind::Resolved(_)
+            | StatementKind::Error => (),
         }
     }
 

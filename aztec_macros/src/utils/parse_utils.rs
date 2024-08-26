@@ -218,7 +218,10 @@ fn empty_statement(statement: &mut Statement) {
         StatementKind::For(for_loop_statement) => empty_for_loop_statement(for_loop_statement),
         StatementKind::Comptime(statement) => empty_statement(statement),
         StatementKind::Semi(expression) => empty_expression(expression),
-        StatementKind::Break | StatementKind::Continue | StatementKind::Error => (),
+        StatementKind::Break
+        | StatementKind::Continue
+        | StatementKind::Resolved(_)
+        | StatementKind::Error => (),
     }
 }
 

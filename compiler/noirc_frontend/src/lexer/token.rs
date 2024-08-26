@@ -4,7 +4,7 @@ use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::{
     lexer::errors::LexerErrorKind,
-    node_interner::{ExprId, QuotedExprId, QuotedTypeId},
+    node_interner::{ExprId, QuotedExprId, QuotedStatementId, QuotedTypeId},
 };
 
 /// Represents a token in noir's grammar - a word, number,
@@ -29,6 +29,7 @@ pub enum BorrowedToken<'input> {
     Quote(&'input Tokens),
     QuotedType(QuotedTypeId),
     QuotedExpr(QuotedExprId),
+    QuotedStatement(QuotedStatementId),
     /// <
     Less,
     /// <=
@@ -137,6 +138,8 @@ pub enum Token {
     QuotedType(QuotedTypeId),
     /// Similar to QuotedType but for `ExpressionKind`.
     QuotedExpr(QuotedExprId),
+    /// Similar to QuotedType but for `StatementKind`.
+    QuotedStatement(QuotedStatementId),
     /// <
     Less,
     /// <=
@@ -237,6 +240,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Quote(stream) => BorrowedToken::Quote(stream),
         Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
         Token::QuotedExpr(id) => BorrowedToken::QuotedExpr(*id),
+        Token::QuotedStatement(id) => BorrowedToken::QuotedStatement(*id),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -359,7 +363,7 @@ impl fmt::Display for Token {
             }
             // Quoted types and exprs only have an ID so there is nothing to display
             Token::QuotedType(_) => write!(f, "(type)"),
-            Token::QuotedExpr(_) => write!(f, "(expr)"),
+            Token::QuotedExpr(_) | Token::QuotedStatement(_) => write!(f, "(expr)"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -413,6 +417,7 @@ pub enum TokenKind {
     Quote,
     QuotedType,
     QuotedExpr,
+    QuotedStatement,
     UnquoteMarker,
 }
 
@@ -427,6 +432,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Quote => write!(f, "quote"),
             TokenKind::QuotedType => write!(f, "quoted type"),
             TokenKind::QuotedExpr => write!(f, "quoted expr"),
+            TokenKind::QuotedStatement => write!(f, "quoted statement"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
@@ -447,6 +453,7 @@ impl Token {
             Token::Quote(_) => TokenKind::Quote,
             Token::QuotedType(_) => TokenKind::QuotedType,
             Token::QuotedExpr(_) => TokenKind::QuotedExpr,
+            Token::QuotedStatement(_) => TokenKind::QuotedStatement,
             tok => TokenKind::Token(tok.clone()),
         }
     }

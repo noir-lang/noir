@@ -489,6 +489,7 @@ where
             continue_statement(),
             return_statement(expr_parser.clone()),
             comptime_statement(expr_parser.clone(), expr_no_constructors, statement),
+            resolved_statement(),
             expr_parser.map(StatementKind::Expression),
         ))
     })
@@ -526,6 +527,13 @@ where
     .map_with_span(|kind, span| Box::new(Statement { kind, span }));
 
     keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
+}
+
+pub(super) fn resolved_statement() -> impl NoirParser<StatementKind> {
+    token_kind(TokenKind::QuotedStatement).map(|token| match token {
+        Token::QuotedStatement(id) => StatementKind::Resolved(id),
+        _ => unreachable!("token_kind(QuotedStatement) guarantees we parse a quoted statement"),
+    })
 }
 
 /// Comptime in an expression position only accepts entire blocks
