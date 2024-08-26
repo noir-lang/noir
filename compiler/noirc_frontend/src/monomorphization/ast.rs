@@ -368,9 +368,9 @@ impl Program {
     /// Takes a function body by replacing it with `false` and
     /// returning the previous value
     pub fn take_function_body(&mut self, function: FuncId) -> Expression {
-        let main = &mut self[function];
+        let function_definition = &mut self[function];
         let replacement = Expression::Block(vec![]);
-        std::mem::replace(&mut main.body, replacement)
+        std::mem::replace(&mut function_definition.body, replacement)
     }
 }
 
