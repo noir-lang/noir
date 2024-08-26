@@ -45,6 +45,7 @@ fn aztec(f: FunctionDefinition) {
 fn mapping_function(expr: Expr) -> Option<Expr> {
     let func_call = expr.as_function_call();
     if func_call.is_some() {
+        // TODO: only do this if the function is annotated with #[aztec]
         let (name, arguments) = func_call.unwrap();
         let arguments = arguments.map(|arg: Expr| arg.map(mapping_function));
         let arguments = arguments.push_back(quote { _context }.as_expr().unwrap());
