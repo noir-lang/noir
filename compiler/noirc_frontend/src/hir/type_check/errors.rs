@@ -313,15 +313,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 error
             },
             TypeCheckError::MultipleMatchingImpls { object_type, candidates, span } => {
-                let mut error = Diagnostic::simple_error(
-                    format!("Multiple trait impls match the object type `{object_type}`"),
-                    "Ambiguous impl".to_string(),
-                    *span,
-                );
+                let message = format!("Multiple trait impls match the object type `{object_type}`");
+                let secondary = "Ambiguous impl".to_string();
+                let mut error = Diagnostic::simple_error(message, secondary, *span);
                 for (i, candidate) in candidates.iter().enumerate() {
                     error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
                 }
-                error.add_note("Try adding a type annotation for the object type before this method call".to_string());
                 error
             },
             TypeCheckError::ResolverError(error) => error.into(),

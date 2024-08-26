@@ -538,18 +538,12 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::MultipleMatchingImpls { object_type, candidates, location } => {
-                let mut error = CustomDiagnostic::simple_error(
-                    format!("Multiple trait impls match the object type `{object_type}`"),
-                    "Ambiguous impl".to_string(),
-                    location.span,
-                );
+                let message = format!("Multiple trait impls match the object type `{object_type}`");
+                let secondary = "Ambiguous impl".to_string();
+                let mut error = CustomDiagnostic::simple_error(message, secondary, location.span);
                 for (i, candidate) in candidates.iter().enumerate() {
                     error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
                 }
-                error.add_note(
-                    "Try adding a type annotation for the object type before this method call"
-                        .to_string(),
-                );
                 error
             }
             InterpreterError::TypeAnnotationsNeededForMethodCall { location } => {
@@ -558,10 +552,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Type must be known by this point to know which method to call".to_string(),
                     location.span,
                 );
-                error.add_note(
-                    "Try adding a type annotation for the object type before this method call"
-                        .to_string(),
-                );
+                let message =
+                    "Try adding a type annotation for the object type before this method call";
+                error.add_note(message.to_string());
                 error
             }
         }
