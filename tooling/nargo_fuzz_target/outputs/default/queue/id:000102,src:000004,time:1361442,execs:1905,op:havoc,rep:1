@@ -1,4 +1,0 @@
-trait MyTrait {
-}
-_mod() -> Field {
-    2
