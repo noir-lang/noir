@@ -161,12 +161,14 @@ export const deployL1Contracts = async (
     };
     return await (await fetch(rpcUrl, content)).json();
   };
-  const interval = 12;
-  const res = await rpcCall(rpcUrl, 'anvil_setBlockTimestampInterval', [interval]);
-  if (res.error) {
-    throw new Error(`Error setting block interval: ${res.error.message}`);
+  if (chain.id == foundry.id) {
+    const interval = 12;
+    const res = await rpcCall(rpcUrl, 'anvil_setBlockTimestampInterval', [interval]);
+    if (res.error) {
+      throw new Error(`Error setting block interval: ${res.error.message}`);
+    }
+    logger.info(`Set block interval to ${interval}`);
   }
-  logger.info(`Set block interval to ${interval}`);
 
   logger.info(`Deploying contracts from ${account.address.toString()}...`);
 

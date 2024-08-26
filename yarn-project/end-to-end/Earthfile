@@ -222,6 +222,9 @@ e2e-static-calls:
 e2e-token-contract:
   DO +E2E_TEST --test=./src/e2e_token_contract
 
+e2e-public-testnet:
+  DO +E2E_TEST --test=./src/public-testnet
+
 flakey-e2e-tests:
   DO +E2E_TEST --test=./src/flakey --allow_fail=true
 

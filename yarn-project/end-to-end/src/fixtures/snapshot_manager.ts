@@ -232,7 +232,7 @@ async function teardown(context: SubsystemsContext | undefined) {
 
 export async function createAndSyncProverNode(
   rollupAddress: EthAddress,
-  proverNodePrivateKey: Buffer,
+  proverNodePrivateKey: `0x${string}`,
   aztecNodeConfig: AztecNodeConfig,
   aztecNode: AztecNode,
 ) {
@@ -255,7 +255,7 @@ export async function createAndSyncProverNode(
     proverId: new Fr(42),
     realProofs: false,
     proverAgentConcurrency: 2,
-    publisherPrivateKey: `0x${proverNodePrivateKey.toString('hex')}`,
+    publisherPrivateKey: proverNodePrivateKey,
     proverNodeMaxPendingJobs: 100,
   };
   const proverNode = await createProverNode(proverConfig, {
@@ -332,7 +332,7 @@ async function setupFromFresh(
   logger.verbose('Creating and syncing a simulated prover node...');
   const proverNode = await createAndSyncProverNode(
     deployL1ContractsValues.l1ContractAddresses.rollupAddress,
-    proverNodePrivateKey!,
+    `0x${proverNodePrivateKey!.toString('hex')}`,
     aztecNodeConfig,
     aztecNode,
   );
@@ -416,7 +416,7 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
   logger.verbose('Creating and syncing a simulated prover node...');
   const proverNode = await createAndSyncProverNode(
     aztecNodeConfig.l1Contracts.rollupAddress,
-    proverNodePrivateKey!,
+    `0x${proverNodePrivateKey!}`,
     aztecNodeConfig,
     aztecNode,
   );
