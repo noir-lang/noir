@@ -236,9 +236,9 @@ pub(crate) fn overflowing_int(
         },
         HirExpression::Prefix(expr) => {
             overflowing_int(interner, &expr.rhs, annotated_type);
-            if expr.operator == UnaryOp::Minus {
+            if expr.operator == UnaryOp::Minus && annotated_type.is_unsigned() {
                 errors.push(TypeCheckError::InvalidUnaryOp {
-                    kind: "annotated_type".to_string(),
+                    kind: annotated_type.to_string(),
                     span,
                 });
             }
