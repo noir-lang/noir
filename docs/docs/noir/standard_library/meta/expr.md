@@ -12,6 +12,13 @@ title: Expr
 
 If this expression is an array, this returns a slice of each element in the array.
 
+### as_assign
+
+#include_code as_assign noir_stdlib/src/meta/expr.nr rust
+
+If this expression is an assignment, this returns a tuple with the left hand side
+and right hand side in order.
+
 ### as_integer
 
 #include_code as_integer noir_stdlib/src/meta/expr.nr rust

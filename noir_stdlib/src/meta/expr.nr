@@ -8,6 +8,11 @@ impl Expr {
     fn as_array(self) -> Option<[Expr]> {}
     // docs:end:as_array
 
+    #[builtin(expr_as_assign)]
+    // docs:start:as_assign
+    fn as_assign(self) -> Option<(Expr, Expr)> {}
+    // docs:end:as_assign
+
     #[builtin(expr_as_integer)]
     // docs:start:as_integer
     fn as_integer(self) -> Option<(Field, bool)> {}
@@ -120,6 +125,17 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_as_assign() {
+        comptime
+        {
+            let expr = quote { { a = 1; } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            let (_lhs, rhs) = exprs[0].as_assign().unwrap();
+            assert_eq(rhs.as_integer().unwrap(), (1, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_block() {
         comptime
         {
@@ -188,8 +204,9 @@ mod tests {
         comptime
         {
             let expr = quote { 1 as Field }.as_expr().unwrap();
-            let (expr, _typ) = expr.as_cast().unwrap();
+            let (expr, typ) = expr.as_cast().unwrap();
             assert_eq(expr.as_integer().unwrap(), (1, false));
+            assert(typ.is_field());
         }
     }
 
@@ -260,6 +277,18 @@ mod tests {
         {
             let expr = quote { foo.bar }.as_expr().unwrap();
             let (_, name) = expr.as_member_access().unwrap();
+            assert_eq(name, quote { bar });
+        }
+    }
+
+    #[test]
+    fn test_expr_as_member_access_with_an_lvalue() {
+        comptime
+        {
+            let expr = quote { { foo.bar = 1; } }.as_expr().unwrap();
+            let exprs = expr.as_block().unwrap();
+            let (lhs, _rhs) = exprs[0].as_assign().unwrap();
+            let (_, name) = lhs.as_member_access().unwrap();
             assert_eq(name, quote { bar });
         }
     }
