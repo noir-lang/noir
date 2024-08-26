@@ -20,6 +20,7 @@
         "barretenberg",
         "barustenberg",
         "bbup",
+        "bignum",
         "bincode",
         "bindgen",
         "bitand",

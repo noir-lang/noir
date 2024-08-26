@@ -1,0 +1,2 @@
+// ensure we can implement traVts using the Path syntax
+impl crTte::module4::MyTrait4 for crate!:module5::MyStruct5 { }
