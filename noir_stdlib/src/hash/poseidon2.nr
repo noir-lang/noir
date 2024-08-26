@@ -66,25 +66,13 @@ impl Poseidon2 {
     }
 
     fn squeeze(&mut self) -> Field {
-        if self.squeeze_mode & (self.cache_size == 0) {
-            // If we're in squeze mode and the cache is empty, there is nothing left to squeeze out of the sponge!
-            // Switch to absorb mode.
-            self.squeeze_mode = false;
-            self.cache_size = 0;
-        }
+        let mut result = self.cache[0];
         if !self.squeeze_mode {
             // If we're in absorb mode, apply sponge permutation to compress the cache, populate cache with compressed
-            // state and switch to squeeze mode. Note: this code block will execute if the previous `if` condition was
-            // matched
-            let new_output_elements = self.perform_duplex();
-            self.squeeze_mode = true;
-            for i in 0..RATE {
-                self.cache[i] = new_output_elements[i];
-            }
-            self.cache_size = RATE;
+            // state and switch to squeeze mode. Note: this code block will execute if this `if` condition was not matched.
+            // By this point, we should have a non-empty cache. Pop one item off the top of the cache and return it.
+            result = self.perform_duplex()[0];
         }
-        // By this point, we should have a non-empty cache. Pop one item off the top of the cache and return it.
-        let result = self.cache[0];
         result
     }
 
