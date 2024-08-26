@@ -5,7 +5,8 @@ struct Context {
 #[aztec]
 fn foo(x: Field) {
     if true {
-        bar(x + 1);
+        // 20 + 1 => 21
+        bar(qux(x + 1));
     } else {
         assert(false);
     }
@@ -15,6 +16,12 @@ fn foo(x: Field) {
 fn bar(x: Field) {
     let expected = _context.value;
     assert_eq(x, expected);
+}
+
+#[aztec]
+fn qux(x: Field) -> Field {
+    // 21 * 2 => 42
+    x * 2
 }
 
 fn aztec(f: FunctionDefinition) {
@@ -28,25 +35,28 @@ fn aztec(f: FunctionDefinition) {
     let body_exprs = body_exprs.map(
         |body_expr| { 
         let body_expr: Expr = body_expr;
-        body_expr.map(|expr: Expr|  {
-            let func_call = expr.as_function_call();
-            if func_call.is_some() {
-              let (name, arguments) = func_call.unwrap();
-              let arguments = arguments.push_back(quote { _context }.as_expr().unwrap());
-              let arguments = arguments.map(|arg| quote { $arg }).join(quote { , });
-              Option::some(quote { $name($arguments) }.as_expr().unwrap())
-            } else {
-              Option::none()
-            }
-        })
+        body_expr.map(mapping_function)
     }
     );
     let body = body_exprs.map(|expr| quote { $expr }).join(quote { ; });
     f.set_body(body);
 }
 
+fn mapping_function(expr: Expr) -> Option<Expr> {
+    let func_call = expr.as_function_call();
+    if func_call.is_some() {
+        let (name, arguments) = func_call.unwrap();
+        let arguments = arguments.map(|arg: Expr| arg.map(mapping_function));
+        let arguments = arguments.push_back(quote { _context }.as_expr().unwrap());
+        let arguments = arguments.map(|arg| quote { $arg }).join(quote { , });
+        Option::some(quote { $name($arguments) }.as_expr().unwrap())
+    } else {
+        Option::none()
+    }
+}
+
 fn main() {
     let context = Context { value: 42 };
-    foo(41, context);
+    foo(20, context);
 }
 
