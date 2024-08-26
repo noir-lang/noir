@@ -1,26 +1,24 @@
 #pragma once
-#include "barretenberg/common/op_count.hpp"
-#include "barretenberg/common/thread.hpp"
-#include "barretenberg/flavor/flavor.hpp"
-#include "barretenberg/polynomials/pow.hpp"
 #include "barretenberg/polynomials/univariate.hpp"
 #include "barretenberg/protogalaxy/folding_result.hpp"
-#include "barretenberg/relations/relation_parameters.hpp"
-#include "barretenberg/relations/utils.hpp"
-#include "barretenberg/stdlib_circuit_builders/mega_flavor.hpp"
-#include "barretenberg/stdlib_circuit_builders/ultra_flavor.hpp"
-#include "barretenberg/sumcheck/instance/instances.hpp"
 
 namespace bb {
 template <class ProverInstances_> struct ProtogalaxyProofConstructionState {
     using FF = typename ProverInstances_::FF;
     using ProverInstance = typename ProverInstances_::Instance;
+    using Flavor = typename ProverInstances_::Flavor;
+    using TupleOfTuplesOfUnivariates =
+        typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariates<ProverInstances_::NUM>;
+    using OptimisedTupleOfTuplesOfUnivariates =
+        typename Flavor::template OptimisedProtogalaxyTupleOfTuplesOfUnivariates<ProverInstances_::NUM>;
 
     std::shared_ptr<ProverInstance> accumulator;
     LegacyPolynomial<FF> perturbator;
     std::vector<FF> deltas;
     Univariate<FF, ProverInstances_::BATCHED_EXTENDED_LENGTH, ProverInstances_::NUM> combiner_quotient;
     FF compressed_perturbator;
+    OptimisedTupleOfTuplesOfUnivariates optimised_univariate_accumulators;
+    TupleOfTuplesOfUnivariates univariate_accumulators;
     FoldingResult<typename ProverInstances_::Flavor> result;
 };
 
@@ -31,45 +29,7 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     using Transcript = typename Flavor::Transcript;
     using FF = typename Flavor::FF;
     using Instance = typename ProverInstances::Instance;
-    using Utils = bb::RelationUtils<Flavor>;
-    using RowEvaluations = typename Flavor::AllValues;
-    using ProvingKey = typename Flavor::ProvingKey;
-    using ProverPolynomials = typename Flavor::ProverPolynomials;
-    using Relations = typename Flavor::Relations;
-    using RelationSeparator = typename Flavor::RelationSeparator;
-    using CombinedRelationSeparator = typename ProverInstances::RelationSeparator;
-    using VerificationKey = typename Flavor::VerificationKey;
     using CommitmentKey = typename Flavor::CommitmentKey;
-    using WitnessCommitments = typename Flavor::WitnessCommitments;
-    using CommitmentLabels = typename Flavor::CommitmentLabels;
-    using Commitment = typename Flavor::Commitment;
-
-    using BaseUnivariate = Univariate<FF, ProverInstances::NUM>;
-    // The length of ExtendedUnivariate is the largest length (==max_relation_degree + 1) of a univariate polynomial
-    // obtained by composing a relation with folded instance + relation parameters .
-    using ExtendedUnivariate = Univariate<FF, (Flavor::MAX_TOTAL_RELATION_LENGTH - 1) * (ProverInstances::NUM - 1) + 1>;
-    // Same as ExtendedUnivariate, but uses optimised univariates which skip redundant computation in optimistic cases
-    // (when we know that the evaluation of all relations is 0 on a particular index, for example)
-    using OptimisedExtendedUnivariate =
-        Univariate<FF,
-                   (Flavor::MAX_TOTAL_RELATION_LENGTH - 1) * (ProverInstances::NUM - 1) + 1,
-                   0,
-                   ProverInstances::NUM - 1>;
-    // Represents the total length of the combiner univariate, obtained by combining the already folded relations with
-    // the folded relation batching challenge.
-    using ExtendedUnivariateWithRandomization =
-        Univariate<FF,
-                   (Flavor::MAX_TOTAL_RELATION_LENGTH - 1 + ProverInstances::NUM - 1) * (ProverInstances::NUM - 1) + 1>;
-    using ExtendedUnivariates = typename Flavor::template ProverUnivariates<ExtendedUnivariate::LENGTH>;
-    using OptimisedExtendedUnivariates =
-        typename Flavor::template OptimisedProverUnivariates<ExtendedUnivariate::LENGTH,
-                                                             /* SKIP_COUNT= */ ProverInstances::NUM - 1>;
-
-    using TupleOfTuplesOfUnivariates =
-        typename Flavor::template ProtogalaxyTupleOfTuplesOfUnivariates<ProverInstances::NUM>;
-    using OptimisedTupleOfTuplesOfUnivariates =
-        typename Flavor::template OptimisedProtogalaxyTupleOfTuplesOfUnivariates<ProverInstances::NUM>;
-    using RelationEvaluations = typename Flavor::TupleOfArraysOfValues;
 
     static constexpr size_t NUM_SUBRELATIONS = ProverInstances::NUM_SUBRELATIONS;
 
@@ -113,277 +73,6 @@ template <class ProverInstances_> class ProtoGalaxyProver_ {
     // Returns the accumulator, which is the first element in ProverInstances. The accumulator is assumed to have the
     // FoldingParameters set and be the result of a previous round of folding.
     std::shared_ptr<Instance> get_accumulator() { return instances[0]; }
-
-    /**
-     * @brief Compute the values of the full Honk relation at each row in the execution trace, representing f_i(ω) in
-     * the ProtoGalaxy paper, given the evaluations of all the prover polynomials and \vec{α} (the batching challenges
-     * that help establishing each subrelation is independently valid in Honk - from the Plonk paper, DO NOT confuse
-     * with α in ProtoGalaxy).
-     *
-     * @details When folding Mega instances, one of the relations is linearly dependent. We define such relations
-     * as acting on the entire execution trace and hence requiring to be accumulated separately as we iterate over each
-     * row. At the end of the function, the linearly dependent contribution is accumulated at index 0 representing the
-     * sum f_0(ω) + α_j*g(ω) where f_0 represents the full honk evaluation at row 0, g(ω) is the linearly dependent
-     * subrelation and α_j is its corresponding batching challenge.
-     */
-    static std::vector<FF> compute_full_honk_evaluations(const ProverPolynomials& instance_polynomials,
-                                                         const RelationSeparator& alpha,
-                                                         const RelationParameters<FF>& relation_parameters);
-
-    /**
-     * @brief  Recursively compute the parent nodes of each level in the tree, starting from the leaves. Note that at
-     * each level, the resulting parent nodes will be polynomials of degree (level+1) because we multiply by an
-     * additional factor of X.
-     */
-    static std::vector<FF> construct_coefficients_tree(const std::vector<FF>& betas,
-                                                       const std::vector<FF>& deltas,
-                                                       const std::vector<std::vector<FF>>& prev_level_coeffs,
-                                                       size_t level = 1);
-
-    /**
-     * @brief We construct the coefficients of the perturbator polynomial in O(n) time following the technique in
-     * Claim 4.4. Consider a binary tree whose leaves are the evaluations of the full Honk relation at each row in the
-     * execution trace. The subsequent levels in the tree are constructed using the following technique: At level i in
-     * the tree, label the branch connecting the left node n_l to its parent by 1 and for the right node n_r by β_i +
-     * δ_i X. The value of the parent node n will be constructed as n = n_l + n_r * (β_i + δ_i X). Recurse over each
-     * layer until the root is reached which will correspond to the perturbator polynomial F(X).
-     * TODO(https://github.com/AztecProtocol/barretenberg/issues/745): make computation of perturbator more memory
-     * efficient, operate in-place and use std::resize; add multithreading
-     */
-    static std::vector<FF> construct_perturbator_coefficients(const std::vector<FF>& betas,
-                                                              const std::vector<FF>& deltas,
-                                                              const std::vector<FF>& full_honk_evaluations);
-
-    /**
-     * @brief Construct the power perturbator polynomial F(X) in coefficient form from the accumulator, representing the
-     * relaxed instance.
-     *
-     *
-     */
-    static LegacyPolynomial<FF> compute_perturbator(std::shared_ptr<Instance> accumulator,
-                                                    const std::vector<FF>& deltas);
-
-    OptimisedTupleOfTuplesOfUnivariates optimised_univariate_accumulators;
-    TupleOfTuplesOfUnivariates univariate_accumulators;
-
-    /**
-     * @brief Prepare a univariate polynomial for relation execution in one step of the main loop in folded instance
-     * construction.
-     * @details For a fixed prover polynomial index, extract that polynomial from each instance in Instances. From
-     *each polynomial, extract the value at row_idx. Use these values to create a univariate polynomial, and then
-     *extend (i.e., compute additional evaluations at adjacent domain values) as needed.
-     * @todo TODO(https://github.com/AztecProtocol/barretenberg/issues/751) Optimize memory
-     *
-     *
-     */
-
-    template <size_t skip_count = 0>
-    void extend_univariates(
-        std::conditional_t<skip_count != 0, OptimisedExtendedUnivariates, ExtendedUnivariates>& extended_univariates,
-        const ProverInstances& instances,
-        const size_t row_idx)
-    {
-        auto base_univariates = instances.template row_to_univariates<skip_count>(row_idx);
-        for (auto [extended_univariate, base_univariate] : zip_view(extended_univariates.get_all(), base_univariates)) {
-            extended_univariate = base_univariate.template extend_to<ExtendedUnivariate::LENGTH, skip_count>();
-        }
-    }
-
-    /**
-     * @brief Add the value of each relation over univariates to an appropriate accumulator
-     *
-     * @tparam TupleOfTuplesOfUnivariates_ A tuple of univariate accumulators, where the univariates may be optimized to
-     * avoid computation on some indices.
-     * @tparam ExtendedUnivariates_ T
-     * @tparam Parameters relation parameters type
-     * @tparam relation_idx The index of the relation
-     * @param univariate_accumulators
-     * @param extended_univariates
-     * @param relation_parameters
-     * @param scaling_factor
-     */
-    template <typename TupleOfTuplesOfUnivariates_,
-              typename ExtendedUnivariates_,
-              typename Parameters,
-              size_t relation_idx = 0>
-    void accumulate_relation_univariates(TupleOfTuplesOfUnivariates_& univariate_accumulators,
-                                         const ExtendedUnivariates_& extended_univariates,
-                                         const Parameters& relation_parameters,
-                                         const FF& scaling_factor)
-    {
-        using Relation = std::tuple_element_t<relation_idx, Relations>;
-
-        //  Check if the relation is skippable to speed up accumulation
-        if constexpr (!isSkippable<Relation, decltype(extended_univariates)>) {
-            // If not, accumulate normally
-            Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
-                                 extended_univariates,
-                                 relation_parameters,
-                                 scaling_factor);
-        } else {
-            // If so, only compute the contribution if the relation is active
-            if (!Relation::skip(extended_univariates)) {
-                Relation::accumulate(std::get<relation_idx>(univariate_accumulators),
-                                     extended_univariates,
-                                     relation_parameters,
-                                     scaling_factor);
-            }
-        }
-
-        // Repeat for the next relation.
-        if constexpr (relation_idx + 1 < Flavor::NUM_RELATIONS) {
-            accumulate_relation_univariates<TupleOfTuplesOfUnivariates_,
-                                            ExtendedUnivariates_,
-                                            Parameters,
-                                            relation_idx + 1>(
-                univariate_accumulators, extended_univariates, relation_parameters, scaling_factor);
-        }
-    }
-
-    /**
-     * @brief Compute the combiner polynomial $G$ in the Protogalaxy paper
-     * @details We have implemented an optimization that (eg in the case where we fold one instance-witness pair at a
-     * time) assumes the value G(1) is 0, which is true in the case where the witness to be folded is valid.
-     * @todo (https://github.com/AztecProtocol/barretenberg/issues/968) Make combiner tests better
-     *
-     * @tparam skip_zero_computations whether to use the the optimization that skips computing zero.
-     * @param instances
-     * @param pow_betas
-     * @return ExtendedUnivariateWithRandomization
-     */
-    template <bool skip_zero_computations = true>
-    ExtendedUnivariateWithRandomization compute_combiner(const ProverInstances& instances, PowPolynomial<FF>& pow_betas)
-    {
-        BB_OP_COUNT_TIME();
-        size_t common_instance_size = instances[0]->proving_key.circuit_size;
-        pow_betas.compute_values(instances[0]->proving_key.log_circuit_size);
-        // Determine number of threads for multithreading.
-        // Note: Multithreading is "on" for every round but we reduce the number of threads from the max available based
-        // on a specified minimum number of iterations per thread. This eventually leads to the use of a
-        // single thread. For now we use a power of 2 number of threads simply to ensure the round size is evenly
-        // divided.
-        size_t max_num_threads = get_num_cpus_pow2(); // number of available threads (power of 2)
-        size_t min_iterations_per_thread = 1 << 6; // min number of iterations for which we'll spin up a unique thread
-        size_t desired_num_threads = common_instance_size / min_iterations_per_thread;
-        size_t num_threads = std::min(desired_num_threads, max_num_threads); // fewer than max if justified
-        num_threads = num_threads > 0 ? num_threads : 1;                     // ensure num threads is >= 1
-        size_t iterations_per_thread = common_instance_size / num_threads;   // actual iterations per thread
-
-        // Univariates are optimised for usual PG, but we need the unoptimised version for tests (it's a version that
-        // doesn't skip computation), so we need to define types depending on the template instantiation
-        using ThreadAccumulators =
-            std::conditional_t<skip_zero_computations, OptimisedTupleOfTuplesOfUnivariates, TupleOfTuplesOfUnivariates>;
-        using ExtendedUnivatiatesType =
-            std::conditional_t<skip_zero_computations, OptimisedExtendedUnivariates, ExtendedUnivariates>;
-
-        // Construct univariate accumulator containers; one per thread
-        std::vector<ThreadAccumulators> thread_univariate_accumulators(num_threads);
-        for (auto& accum : thread_univariate_accumulators) {
-            // just normal relation lengths
-            Utils::zero_univariates(accum);
-        }
-
-        // Construct extended univariates containers; one per thread
-        std::vector<ExtendedUnivatiatesType> extended_univariates;
-        extended_univariates.resize(num_threads);
-
-        // Accumulate the contribution from each sub-relation
-        parallel_for(num_threads, [&](size_t thread_idx) {
-            size_t start = thread_idx * iterations_per_thread;
-            size_t end = (thread_idx + 1) * iterations_per_thread;
-
-            for (size_t idx = start; idx < end; idx++) {
-                // Instantiate univariates, possibly with skipping toto ignore computation in those indices (they are
-                // still available for skipping relations, but all derived univariate will ignore those evaluations)
-                // No need to initialise extended_univariates to 0, as it's assigned to.
-                constexpr size_t skip_count = skip_zero_computations ? ProverInstances::NUM - 1 : 0;
-                extend_univariates<skip_count>(extended_univariates[thread_idx], instances, idx);
-
-                FF pow_challenge = pow_betas[idx];
-
-                // Accumulate the i-th row's univariate contribution. Note that the relation parameters passed to
-                // this function have already been folded. Moreover, linear-dependent relations that act over the
-                // entire execution trace rather than on rows, will not be multiplied by the pow challenge.
-                if constexpr (skip_zero_computations) {
-                    accumulate_relation_univariates(
-                        thread_univariate_accumulators[thread_idx],
-                        extended_univariates[thread_idx],
-                        instances.optimised_relation_parameters, // these parameters have already been folded
-                        pow_challenge);
-                } else {
-                    accumulate_relation_univariates(
-                        thread_univariate_accumulators[thread_idx],
-                        extended_univariates[thread_idx],
-                        instances.relation_parameters, // these parameters have already been folded
-                        pow_challenge);
-                }
-            }
-        });
-        const auto batch_univariates = [&](auto& possibly_optimised_univariate_accumulators) {
-            Utils::zero_univariates(possibly_optimised_univariate_accumulators);
-            // Accumulate the per-thread univariate accumulators into a single set of accumulators
-            for (auto& accumulators : thread_univariate_accumulators) {
-                Utils::add_nested_tuples(possibly_optimised_univariate_accumulators, accumulators);
-            }
-
-            if constexpr (skip_zero_computations) { // Convert from optimised version to non-optimised
-                deoptimise_univariates(possibly_optimised_univariate_accumulators, univariate_accumulators);
-            };
-            //  Batch the univariate contributions from each sub-relation to obtain the round univariate
-            return batch_over_relations(univariate_accumulators, instances.alphas);
-        };
-
-        if constexpr (skip_zero_computations) { // Convert from optimised version to non-optimised
-            return batch_univariates(optimised_univariate_accumulators);
-        } else {
-            return batch_univariates(univariate_accumulators);
-        }
-    }
-
-    /**
-     * @brief Convert univariates from optimised form to regular
-     *
-     * @details We need to convert before we batch relations, since optimised versions don't have enough information to
-     * extend the univariates to maximum length
-     *
-     * @param optimised_univariate_accumulators
-     * @param new_univariate_accumulators
-     */
-    static void deoptimise_univariates(const OptimisedTupleOfTuplesOfUnivariates& optimised_univariate_accumulators,
-                                       TupleOfTuplesOfUnivariates& new_univariate_accumulators
-
-    );
-
-    static ExtendedUnivariateWithRandomization batch_over_relations(TupleOfTuplesOfUnivariates& univariate_accumulators,
-                                                                    const CombinedRelationSeparator& alpha);
-
-    static std::pair<typename ProverInstances::FF, std::array<typename ProverInstances::FF, ProverInstances::NUM>>
-    _compute_vanishing_polynomial_and_lagranges(const FF& challenge);
-    /**
-     * @brief Compute the combiner quotient defined as $K$ polynomial in the paper.
-     *
-     * TODO(https://github.com/AztecProtocol/barretenberg/issues/764): generalize the computation of vanishing
-     * polynomials and Lagrange basis and use batch_invert.
-     *
-     */
-    static Univariate<FF, ProverInstances::BATCHED_EXTENDED_LENGTH, ProverInstances::NUM> compute_combiner_quotient(
-        FF compressed_perturbator, ExtendedUnivariateWithRandomization combiner);
-
-    /**
-     * @brief Combine each relation parameter, in part, from all the instances into univariates, used in the
-     * computation of combiner.
-     * @details For a given relation parameter type, extract that parameter from each instance, place the values in
-     * a univariate (i.e., sum them against an appropriate univariate Lagrange basis) and then extended as needed
-     * during the constuction of the combiner.
-     */
-    static void combine_relation_parameters(ProverInstances& instances);
-
-    /**
-     * @brief Combine the relation batching parameters (alphas) from each instance into a univariate, used in the
-     * computation of combiner.
-     *
-     */
-    static void combine_alpha(ProverInstances& instances);
 
     /**
      * @brief Compute the next accumulator (ϕ*, ω*, \vec{\beta*}, e*), send the public data ϕ*  and the folding

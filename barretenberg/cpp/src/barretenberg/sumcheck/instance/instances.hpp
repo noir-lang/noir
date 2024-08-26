@@ -20,6 +20,7 @@ template <typename Flavor_, size_t NUM_ = 2> struct ProverInstances_ {
     using RelationParameters = bb::RelationParameters<Univariate<FF, EXTENDED_LENGTH>>;
     using OptimisedRelationParameters = bb::RelationParameters<Univariate<FF, EXTENDED_LENGTH, 0, NUM_ - 1>>;
     using RelationSeparator = std::array<Univariate<FF, BATCHED_EXTENDED_LENGTH>, NUM_SUBRELATIONS - 1>;
+
     ArrayType _data;
     RelationParameters relation_parameters;
     OptimisedRelationParameters optimised_relation_parameters;
