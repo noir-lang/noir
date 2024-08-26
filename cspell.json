@@ -222,7 +222,9 @@
         "wasi",
         "wasmer",
         "Weierstraß",
-        "zshell"
+        "zkhash",
+        "zshell",
+        "Linea"
     ],
     "ignorePaths": [
         "./**/node_modules/**",
