@@ -7,12 +7,14 @@ trait Eq {
 }
 // docs:end:eq-trait
 
+// docs:start:derive_eq
 comptime fn derive_eq(s: StructDefinition) -> Quoted {
     let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
     let for_each_field = |name| quote { (_self.$name == _other.$name) };
     let body = |fields| fields;
     crate::meta::make_trait_impl(s, quote { Eq }, signature, for_each_field, quote { & }, body)
 }
+// docs:end:derive_eq
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
@@ -118,6 +120,7 @@ trait Ord {
 }
 // docs:end:ord-trait
 
+// docs:start:derive_ord
 comptime fn derive_ord(s: StructDefinition) -> Quoted {
     let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };
     let for_each_field = |name| quote {
@@ -132,6 +135,7 @@ comptime fn derive_ord(s: StructDefinition) -> Quoted {
     };
     crate::meta::make_trait_impl(s, quote { Ord }, signature, for_each_field, quote {}, body)
 }
+// docs:end:derive_ord
 
 // Note: Field deliberately does not implement Ord
 
