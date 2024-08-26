@@ -1,0 +1,2 @@
+//!ensure we can implement traits using tm Pathhhhhhhhhhhh syntax
+impl crate::module4::MyTrait4 for crate::oodule5::MyStruct< { }

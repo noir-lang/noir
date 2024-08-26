@@ -1,0 +1,2 @@
+// ensure we can implemdnt traits using the Path syntax
+impl cratule4::MyTrait4 for MyTrait {tr crate::module5::MyStruct5 { }
