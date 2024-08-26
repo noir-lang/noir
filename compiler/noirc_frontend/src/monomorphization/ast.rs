@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{
@@ -66,6 +68,12 @@ pub struct LocalId(pub u32);
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
+
+impl Display for FuncId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Hash)]
 pub struct Ident {
@@ -357,16 +365,12 @@ impl Program {
         FuncId(0)
     }
 
-    pub fn take_main_body(&mut self) -> Expression {
-        self.take_function_body(FuncId(0))
-    }
-
     /// Takes a function body by replacing it with `false` and
     /// returning the previous value
     pub fn take_function_body(&mut self, function: FuncId) -> Expression {
-        let main = &mut self.functions[function.0 as usize];
-        let replacement = Expression::Literal(Literal::Bool(false));
-        std::mem::replace(&mut main.body, replacement)
+        let function_definition = &mut self[function];
+        let replacement = Expression::Block(vec![]);
+        std::mem::replace(&mut function_definition.body, replacement)
     }
 }
 

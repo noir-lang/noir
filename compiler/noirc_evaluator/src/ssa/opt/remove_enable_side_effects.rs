@@ -1,13 +1,13 @@
-//! The goal of the "remove enable side effects" optimization pass is to delay any [Instruction::EnableSideEffects]
+//! The goal of the "remove enable side effects" optimization pass is to delay any [Instruction::EnableSideEffectsIf]
 //! instructions such that they cover the minimum number of instructions possible.
 //!
 //! The pass works as follows:
-//! - Insert instructions until an [Instruction::EnableSideEffects] is encountered, save this [InstructionId].
+//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this [InstructionId].
 //! - Continue inserting instructions until either
-//!     - Another [Instruction::EnableSideEffects] is encountered, if so then drop the previous [InstructionId] in favour
+//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous [InstructionId] in favour
 //!       of this one.
-//!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved [Instruction::EnableSideEffects]
-//!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffects] is encountered.
+//!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved [Instruction::EnableSideEffectsIf]
+//!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
 use std::collections::HashSet;
 
 use acvm::{acir::AcirField, FieldElement};
@@ -70,10 +70,10 @@ impl Context {
         for instruction_id in instructions {
             let instruction = &function.dfg[instruction_id];
 
-            // If we run into another `Instruction::EnableSideEffects` before encountering any
+            // If we run into another `Instruction::EnableSideEffectsIf` before encountering any
             // instructions with side effects then we can drop the instruction we're holding and
-            // continue with the new `Instruction::EnableSideEffects`.
-            if let Instruction::EnableSideEffects { condition } = instruction {
+            // continue with the new `Instruction::EnableSideEffectsIf`.
+            if let Instruction::EnableSideEffectsIf { condition } = instruction {
                 // If this instruction isn't changing the currently active condition then we can ignore it.
                 if active_condition == *condition {
                     continue;
@@ -98,7 +98,7 @@ impl Context {
             }
 
             // If we hit an instruction which is affected by the side effects var then we must insert the
-            // `Instruction::EnableSideEffects` before we insert this new instruction.
+            // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
             if Self::responds_to_side_effects_var(&function.dfg, instruction) {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
@@ -140,7 +140,7 @@ impl Context {
             | IncrementRc { .. }
             | DecrementRc { .. } => false,
 
-            EnableSideEffects { .. }
+            EnableSideEffectsIf { .. }
             | ArrayGet { .. }
             | ArraySet { .. }
             | Allocate

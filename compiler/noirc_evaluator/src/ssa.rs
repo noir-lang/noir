@@ -114,7 +114,7 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
     .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
     .run_pass(Ssa::fold_constants, "After Constant Folding:")
-    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
+    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
     .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
     .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
