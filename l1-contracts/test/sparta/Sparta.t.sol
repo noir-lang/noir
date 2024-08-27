@@ -109,12 +109,9 @@ contract SpartaTest is DecoderBase {
     }
 
     assertGt(rollup.getValidators().length, rollup.TARGET_COMMITTEE_SIZE(), "Not enough validators");
-    _testBlock("mixed_block_1", false, 0, false); // We run a block before the epoch with validators
-
-    uint256 ts = block.timestamp + rollup.EPOCH_DURATION() * rollup.SLOT_DURATION();
-
     uint256 committeSize = rollup.TARGET_COMMITTEE_SIZE() * 2 / 3 + (_insufficientSigs ? 0 : 1);
-    _testBlock("mixed_block_2", _insufficientSigs, committeSize, false, ts); // We need signatures!
+
+    _testBlock("mixed_block_1", _insufficientSigs, committeSize, false);
 
     assertEq(
       rollup.getEpochCommittee(rollup.getCurrentEpoch()).length,
@@ -128,8 +125,8 @@ contract SpartaTest is DecoderBase {
       return;
     }
 
-    _testBlock("mixed_block_1", false, 0, false); // We run a block before the epoch with validators
-    _testBlock("mixed_block_2", false, 3, false); // We need signatures!
+    _testBlock("mixed_block_1", false, 3, false);
+    _testBlock("mixed_block_2", false, 3, false);
   }
 
   function testInvalidProposer() public setup(4) {
@@ -137,8 +134,7 @@ contract SpartaTest is DecoderBase {
       return;
     }
 
-    _testBlock("mixed_block_1", false, 0, false); // We run a block before the epoch with validators
-    _testBlock("mixed_block_2", true, 3, true); // We need signatures!
+    _testBlock("mixed_block_1", true, 3, true);
   }
 
   function testInsufficientSigs() public setup(4) {
@@ -146,8 +142,7 @@ contract SpartaTest is DecoderBase {
       return;
     }
 
-    _testBlock("mixed_block_1", false, 0, false); // We run a block before the epoch with validators
-    _testBlock("mixed_block_2", true, 2, false); // We need signatures!
+    _testBlock("mixed_block_1", true, 2, false);
   }
 
   struct StructToAvoidDeepStacks {
@@ -162,16 +157,6 @@ contract SpartaTest is DecoderBase {
     uint256 _signatureCount,
     bool _invalidaProposer
   ) internal {
-    _testBlock(_name, _expectRevert, _signatureCount, _invalidaProposer, 0);
-  }
-
-  function _testBlock(
-    string memory _name,
-    bool _expectRevert,
-    uint256 _signatureCount,
-    bool _invalidaProposer,
-    uint256 _ts
-  ) internal {
     DecoderBase.Full memory full = load(_name);
     bytes memory header = full.block.header;
     bytes32 archive = full.block.archive;
@@ -180,18 +165,7 @@ contract SpartaTest is DecoderBase {
     StructToAvoidDeepStacks memory ree;
 
     // We jump to the time of the block. (unless it is in the past)
-    vm.warp(max(block.timestamp, max(full.block.decodedHeader.globalVariables.timestamp, _ts)));
-
-    if (_ts > 0) {
-      // Update the timestamp and slot in the header
-      uint256 slotValue = rollup.getCurrentSlot();
-      uint256 timestampMemoryPosition = 0x01b4;
-      uint256 slotMemoryPosition = 0x0194;
-      assembly {
-        mstore(add(header, add(0x20, timestampMemoryPosition)), _ts)
-        mstore(add(header, add(0x20, slotMemoryPosition)), slotValue)
-      }
-    }
+    vm.warp(max(block.timestamp, full.block.decodedHeader.globalVariables.timestamp));
 
     _populateInbox(full.populate.sender, full.populate.recipient, full.populate.l1ToL2Content);
 
@@ -248,7 +222,7 @@ contract SpartaTest is DecoderBase {
       rollup.process(header, archive, bytes32(0));
     }
 
-    assertEq(_expectRevert, ree.shouldRevert, "Invalid revert expectation");
+    assertEq(_expectRevert, ree.shouldRevert, "Does not match revert expectation");
 
     bytes32 l2ToL1MessageTreeRoot;
     {

@@ -52,12 +52,12 @@ contract Leonidas is Ownable, ILeonidas {
   //
   //                    The value should be a higher multiple for any actual chain
   // @todo  #8019
-  uint256 public constant SLOT_DURATION = Constants.ETHEREUM_SLOT_DURATION * 1;
+  uint256 public constant SLOT_DURATION = Constants.AZTEC_SLOT_DURATION;
 
   // The duration of an epoch in slots
   // @todo  @LHerskind - This value should be updated when we are not blind.
   // @todo  #8020
-  uint256 public constant EPOCH_DURATION = 32;
+  uint256 public constant EPOCH_DURATION = Constants.AZTEC_EPOCH_DURATION;
 
   // The target number of validators in a committee
   // @todo #8021

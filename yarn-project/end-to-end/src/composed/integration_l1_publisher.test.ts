@@ -21,6 +21,7 @@ import {
 import {
   ETHEREUM_SLOT_DURATION,
   EthAddress,
+  GENESIS_ARCHIVE_ROOT,
   GasFees,
   type Header,
   KernelCircuitPublicInputs,
@@ -113,10 +114,10 @@ describe('L1Publisher integration', () => {
   // If running ANVIL locally, you can use ETHEREUM_HOST="http://0.0.0.0:8545"
   const AZTEC_GENERATE_TEST_DATA = !!process.env.AZTEC_GENERATE_TEST_DATA;
 
-  const setTimeToNextSlot = async () => {
+  const progressTimeBySlot = async (slotsToJump = 1n) => {
     const currentTime = (await publicClient.getBlock()).timestamp;
     const currentSlot = await rollup.read.getCurrentSlot();
-    const timestamp = (await rollup.read.getTimestampForSlot([currentSlot + 1n])) - BigInt(ETHEREUM_SLOT_DURATION);
+    const timestamp = await rollup.read.getTimestampForSlot([currentSlot + slotsToJump]);
     if (timestamp > currentTime) {
       await ethCheatCodes.warp(Number(timestamp));
     }
@@ -169,6 +170,7 @@ describe('L1Publisher integration', () => {
         publisherPrivateKey: sequencerPK,
         l1PublishRetryIntervalMS: 100,
         l1ChainId: 31337,
+        timeTraveler: true,
       },
       new NoopTelemetryClient(),
     );
@@ -178,7 +180,9 @@ describe('L1Publisher integration', () => {
 
     prevHeader = builderDb.getInitialHeader();
 
-    await setTimeToNextSlot();
+    // We jump to the next epoch such that the committee can be setup.
+    const timeToJump = await rollup.read.EPOCH_DURATION();
+    await progressTimeBySlot(timeToJump);
   });
 
   const makeEmptyProcessedTx = () =>
@@ -345,7 +349,7 @@ describe('L1Publisher integration', () => {
 
   it(`Build ${numberOfConsecutiveBlocks} blocks of 4 bloated txs building on each other`, async () => {
     const archiveInRollup_ = await rollup.read.archive();
-    expect(hexStringToBuffer(archiveInRollup_.toString())).toEqual(Buffer.alloc(32, 0));
+    expect(hexStringToBuffer(archiveInRollup_.toString())).toEqual(new Fr(GENESIS_ARCHIVE_ROOT).toBuffer());
 
     const blockNumber = await publicClient.getBlockNumber();
     // random recipient address, just kept consistent for easy testing ts/sol.
@@ -463,14 +467,14 @@ describe('L1Publisher integration', () => {
       // We wipe the messages from previous iteration
       nextL1ToL2Messages = [];
 
-      // @todo @LHerskind need to make sure that time have progressed to the next slot!
-      await setTimeToNextSlot();
+      // Make sure that time have progressed to the next slot!
+      await progressTimeBySlot();
     }
   });
 
   it(`Build ${numberOfConsecutiveBlocks} blocks of 2 empty txs building on each other`, async () => {
     const archiveInRollup_ = await rollup.read.archive();
-    expect(hexStringToBuffer(archiveInRollup_.toString())).toEqual(Buffer.alloc(32, 0));
+    expect(hexStringToBuffer(archiveInRollup_.toString())).toEqual(new Fr(GENESIS_ARCHIVE_ROOT).toBuffer());
 
     const blockNumber = await publicClient.getBlockNumber();
 
@@ -545,7 +549,7 @@ describe('L1Publisher integration', () => {
             });
       expect(ethTx.input).toEqual(expectedData);
 
-      await setTimeToNextSlot();
+      await progressTimeBySlot();
     }
   });
 });

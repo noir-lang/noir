@@ -24,6 +24,7 @@
     "test:integration:run": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --no-cache --config jest.integration.config.json"
   },
   "dependencies": {
+    "@aztec/aztec.js": "workspace:^",
     "@aztec/bb-prover": "workspace:^",
     "@aztec/circuit-types": "workspace:^",
     "@aztec/circuits.js": "workspace:^",

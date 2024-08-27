@@ -152,7 +152,7 @@ export const deployL1Contracts = async (
   // We are assuming that you are running this on a local anvil node which have 1s block times
   // To align better with actual deployment, we update the block interval to 12s
   // The code is same as `setBlockInterval` in `cheat_codes.ts`
-  const rpcCall = async (rpcUrl: string, method: string, params: any[]) => {
+  const rpcCall = async (method: string, params: any[]) => {
     const paramsString = JSON.stringify(params);
     const content = {
       body: `{"jsonrpc":"2.0", "method": "${method}", "params": ${paramsString}, "id": 1}`,
@@ -163,7 +163,7 @@ export const deployL1Contracts = async (
   };
   if (chain.id == foundry.id) {
     const interval = 12;
-    const res = await rpcCall(rpcUrl, 'anvil_setBlockTimestampInterval', [interval]);
+    const res = await rpcCall('anvil_setBlockTimestampInterval', [interval]);
     if (res.error) {
       throw new Error(`Error setting block interval: ${res.error.message}`);
     }
@@ -205,6 +205,7 @@ export const deployL1Contracts = async (
 
   // @note  This value MUST match what is in `constants.nr`. It is currently specified here instead of just importing
   //        because there is circular dependency hell. This is a temporary solution. #3342
+  // @todo  #8084
   const FEE_JUICE_INITIAL_MINT = 20000000000;
   const receipt = await feeJuice.write.mint([feeJuicePortalAddress.toString(), FEE_JUICE_INITIAL_MINT], {} as any);
   await publicClient.waitForTransactionReceipt({ hash: receipt });
@@ -236,13 +237,35 @@ export const deployL1Contracts = async (
   ]);
   logger.info(`Deployed Rollup at ${rollupAddress}`);
 
+  const rollup = getContract({
+    address: getAddress(rollupAddress.toString()),
+    abi: contractsToDeploy.rollup.contractAbi,
+    client: walletClient,
+  });
+
+  // @note  We make a time jump PAST the very first slot to not have to deal with the edge case of the first slot.
+  //        The edge case being that the genesis block is already occupying slot 0, so we cannot have another block.
+  try {
+    // Need to get the time
+    const currentSlot = (await rollup.read.getCurrentSlot([])) as bigint;
+
+    if (BigInt(currentSlot) === 0n) {
+      const ts = Number(await rollup.read.getTimestampForSlot([1]));
+      await rpcCall('evm_setNextBlockTimestamp', [ts]);
+      await rpcCall('hardhat_mine', [1]);
+      const currentSlot = (await rollup.read.getCurrentSlot([])) as bigint;
+
+      if (BigInt(currentSlot) !== 1n) {
+        throw new Error(`Error jumping time: current slot is ${currentSlot}`);
+      }
+      logger.info(`Jumped to slot 1`);
+    }
+  } catch (e) {
+    throw new Error(`Error jumping time: ${e}`);
+  }
+
   // Set initial blocks as proven if requested
   if (args.assumeProvenUntil && args.assumeProvenUntil > 0) {
-    const rollup = getContract({
-      address: getAddress(rollupAddress.toString()),
-      abi: contractsToDeploy.rollup.contractAbi,
-      client: walletClient,
-    });
     await rollup.write.setAssumeProvenUntilBlockNumber([BigInt(args.assumeProvenUntil)], { account });
     logger.info(`Set Rollup assumedProvenUntil to ${args.assumeProvenUntil}`);
   }

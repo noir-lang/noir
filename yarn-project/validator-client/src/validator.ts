@@ -20,7 +20,7 @@ export interface Validator {
 
   // TODO(md): possible abstraction leak
   broadcastBlockProposal(proposal: BlockProposal): void;
-  collectAttestations(slot: bigint, numberOfRequiredAttestations: number): Promise<BlockAttestation[]>;
+  collectAttestations(proposal: BlockProposal, numberOfRequiredAttestations: number): Promise<BlockAttestation[]>;
 }
 
 /** Validator Client
@@ -75,13 +75,18 @@ export class ValidatorClient implements Validator {
   // Target is temporarily hardcoded, for a test, but will be calculated from smart contract
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/7962)
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/7976): require suitable timeouts
-  async collectAttestations(slot: bigint, numberOfRequiredAttestations: number): Promise<BlockAttestation[]> {
+  async collectAttestations(
+    proposal: BlockProposal,
+    numberOfRequiredAttestations: number,
+  ): Promise<BlockAttestation[]> {
     // Wait and poll the p2pClients attestation pool for this block
     // until we have enough attestations
 
-    this.log.info(`Waiting for attestations for slot, ${slot}`);
+    const slot = proposal.header.globalVariables.slotNumber.toBigInt();
 
-    let attestations: BlockAttestation[] = [];
+    this.log.info(`Waiting for ${numberOfRequiredAttestations} attestations for slot: ${slot}`);
+
+    let attestations: BlockAttestation[] = [await this.attestToProposal(proposal)];
     while (attestations.length < numberOfRequiredAttestations) {
       attestations = await this.p2pClient.getAttestationsForSlot(slot);
 

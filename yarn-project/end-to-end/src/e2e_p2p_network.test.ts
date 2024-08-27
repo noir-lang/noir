@@ -16,6 +16,7 @@ import { RollupAbi } from '@aztec/l1-artifacts';
 import { type BootstrapNode } from '@aztec/p2p';
 import { type PXEService, createPXEService, getPXEServiceConfig as getRpcConfig } from '@aztec/pxe';
 
+import { jest } from '@jest/globals';
 import fs from 'fs';
 import { getContract } from 'viem';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
@@ -47,7 +48,13 @@ describe('e2e_p2p_network', () => {
   let deployL1ContractsValues: DeployL1Contracts;
 
   beforeEach(async () => {
-    ({ teardown, config, logger, deployL1ContractsValues } = await setup(0));
+    // If we want to test with interval mining, we can use the local host and start `anvil --block-time 12`
+    const useLocalHost = false;
+    if (useLocalHost) {
+      jest.setTimeout(300_000);
+    }
+    const options = useLocalHost ? { l1RpcUrl: 'http://127.0.0.1:8545' } : {};
+    ({ teardown, config, logger, deployL1ContractsValues } = await setup(0, options));
     // It would likely be useful if we had the sequencers in such that they don't spam each other.
     // However, even if they do, it should still work. Not sure what caused the failure
     // Would be easier if I could see the errors from anvil as well, but those seem to be hidden.
@@ -63,7 +70,7 @@ describe('e2e_p2p_network', () => {
       const hdAccount = mnemonicToAccount(MNEMONIC, { addressIndex: 1 });
       const publisherPrivKey = Buffer.from(hdAccount.getHdKey().privateKey!);
       const account = privateKeyToAccount(`0x${publisherPrivKey!.toString('hex')}`);
-      await rollup.write.addValidator([account.address]);
+      await rollup.write.addValidator([account.address], { gas: 1_000_000n });
       logger.info(`Adding sequencer ${account.address}`);
     } else {
       // Add all nodes as validators - they will all sign attestations of each other's proposals
@@ -71,17 +78,19 @@ describe('e2e_p2p_network', () => {
         const hdAccount = mnemonicToAccount(MNEMONIC, { addressIndex: i + 1 });
         const publisherPrivKey = Buffer.from(hdAccount.getHdKey().privateKey!);
         const account = privateKeyToAccount(`0x${publisherPrivKey!.toString('hex')}`);
-        await rollup.write.addValidator([account.address]);
+        await rollup.write.addValidator([account.address], { gas: 1_000_000n });
         logger.info(`Adding sequencer ${account.address}`);
       }
     }
 
-    // Now we jump ahead to the next epoch, such that the next epoch begins
-    const timeToJump = (await rollup.read.EPOCH_DURATION()) * (await rollup.read.SLOT_DURATION());
+    //@note   Now we jump ahead to the next epoch such that the validator committee is picked
+    //        INTERVAL MINING: If we are using anvil interval mining this will NOT progress the time!
+    //        Which means that the validator set will still be empty! So anyone can propose.
+    const slotsInEpoch = await rollup.read.EPOCH_DURATION();
+    const timestamp = await rollup.read.getTimestampForSlot([slotsInEpoch]);
 
     const cheatCodes = new EthCheatCodes(config.l1RpcUrl);
-    const timestamp = (await cheatCodes.timestamp()) + Number(timeToJump);
-    await cheatCodes.warp(timestamp);
+    await cheatCodes.warp(Number(timestamp));
 
     bootstrapNode = await createBootstrapNode(BOOT_NODE_UDP_PORT);
     bootstrapNodeEnr = bootstrapNode.getENR().encodeTxt();
@@ -175,7 +184,7 @@ describe('e2e_p2p_network', () => {
         i + 1 + BOOT_NODE_UDP_PORT,
         undefined,
         i,
-        /*validators*/ false,
+        /*validators*/ !IS_DEV_NET,
         `./data-${i}`,
       );
       logger.info(`Node ${i} restarted`);

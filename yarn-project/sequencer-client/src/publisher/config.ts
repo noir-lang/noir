@@ -1,5 +1,5 @@
 import { type L1ReaderConfig, NULL_KEY } from '@aztec/ethereum';
-import { type ConfigMappingsType, getConfigFromMappings } from '@aztec/foundation/config';
+import { type ConfigMappingsType, booleanConfigHelper, getConfigFromMappings } from '@aztec/foundation/config';
 
 /**
  * The configuration of the rollup transaction publisher.
@@ -24,6 +24,11 @@ export interface PublisherConfig {
    * The interval to wait between publish retries.
    */
   l1PublishRetryIntervalMS: number;
+  /**
+   * Whether the publisher is a time traveler and can warp the underlying chain
+   * @todo #8153 - Remove this flag once the time traveler is removed
+   */
+  timeTraveler: boolean;
 }
 
 export const getTxSenderConfigMappings: (
@@ -63,6 +68,11 @@ export const getPublisherConfigMappings: (scope: 'PROVER' | 'SEQ') => ConfigMapp
     parseEnv: (val: string) => +val,
     defaultValue: 1000,
     description: 'The interval to wait between publish retries.',
+  },
+  timeTraveler: {
+    env: `TIME_TRAVELER`,
+    description: 'Whether the publisher is a time traveler and can warp the underlying chain',
+    ...booleanConfigHelper(),
   },
 });
 
