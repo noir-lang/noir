@@ -417,8 +417,8 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UseExplicitNumericGeneric { ident } => {
                 let name = &ident.0.contents;
 
-                Diagnostic::simple_warning(
-                    String::from("Noir now supports explicit numeric generics. Support for implicit numeric generics will be removed in the following release."), 
+                Diagnostic::simple_error(
+                    String::from("Noir requires explicit numeric generics."), 
                 format!("Numeric generic `{name}` should now be specified with `let {name}: <annotated type>`"), 
                 ident.0.span(),
                 )

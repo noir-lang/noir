@@ -898,6 +898,8 @@ impl<'context> Elaborator<'context> {
         }
 
         for (name_to_find, type_variable) in Self::find_numeric_generics(params, return_type) {
+            // TODO: cleanup comments
+            //
             // Declare any generics to let users use numeric generics in scope.
             // Don't issue a warning if these are unused
             //
@@ -907,6 +909,8 @@ impl<'context> Elaborator<'context> {
             if let Some(ResolvedGeneric { name, span, kind, .. }) =
                 self.generics.iter_mut().find(|generic| generic.name.as_ref() == &name_to_find)
             {
+                // TODO: cleanup comments
+                //
                 let scope = self.scopes.get_mut_scope();
                 let value = scope.find(&name_to_find);
                 if value.is_some() {
@@ -921,8 +925,10 @@ impl<'context> Elaborator<'context> {
                 }
                 *kind = Kind::Numeric(Box::new(Type::default_int_type()));
                 let ident = Ident::new(name.to_string(), *span);
-                let definition = DefinitionKind::GenericType(type_variable);
-                self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
+
+                // TODO
+                // let definition = DefinitionKind::GenericType(type_variable);
+                // self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
 
                 self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
             }
