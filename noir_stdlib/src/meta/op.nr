@@ -27,9 +27,9 @@ impl UnaryOp {
         self.op == 3
     }
 
-    // docs:start:quoted
+    // docs:start:unary_quoted
     pub fn quoted(self) -> Quoted {
-        // docs:end:quoted
+        // docs:end:unary_quoted
         if self.is_minus() {
             quote { - }
         } else if self.is_not() {
@@ -143,9 +143,9 @@ impl BinaryOp {
         self.op == 15
     }
 
-    // docs:start:quoted
+    // docs:start:binary_quoted
     pub fn quoted(self) -> Quoted {
-        // docs:end:quoted
+        // docs:end:binary_quoted
         if self.is_add() {
             quote { + }
         } else if self.is_subtract() {

@@ -39,7 +39,7 @@ Returns `true` if this operator is `-`.
 
 #### quoted
 
-#include_code quoted noir_stdlib/src/meta/op.nr rust
+#include_code unary_quoted noir_stdlib/src/meta/op.nr rust
 
 Returns this operator as a `Quoted` value.
 
@@ -141,6 +141,6 @@ Represents a binary operator. One of `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `
 
 #### quoted
 
-#include_code quoted noir_stdlib/src/meta/op.nr rust
+#include_code binary_quoted noir_stdlib/src/meta/op.nr rust
 
 Returns this operator as a `Quoted` value.
