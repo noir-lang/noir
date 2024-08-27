@@ -30,6 +30,7 @@ pub enum BorrowedToken<'input> {
     QuotedType(QuotedTypeId),
     InternedExpression(InternedExpressionKind),
     InternedStatement(InternedStatementKind),
+    InternedLValue(InternedExpressionKind),
     /// <
     Less,
     /// <=
@@ -136,10 +137,12 @@ pub enum Token {
     /// to avoid having to tokenize it, re-parse it, and re-resolve it which
     /// may change the underlying type.
     QuotedType(QuotedTypeId),
-    /// Similar to QuotedType but for `ExpressionKind`.
+    /// A reference to an interned `ExpressionKind`.
     InternedExpr(InternedExpressionKind),
-    /// Similar to QuotedType but for `StatementKind`.
+    /// A reference to an interned `StatementKind`.
     InternedStatement(InternedStatementKind),
+    /// A reference to an interned `LValue`.
+    InternedLValue(InternedExpressionKind),
     /// <
     Less,
     /// <=
@@ -241,6 +244,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
         Token::InternedExpr(id) => BorrowedToken::InternedExpression(*id),
         Token::InternedStatement(id) => BorrowedToken::InternedStatement(*id),
+        Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -363,7 +367,9 @@ impl fmt::Display for Token {
             }
             // Quoted types and exprs only have an ID so there is nothing to display
             Token::QuotedType(_) => write!(f, "(type)"),
-            Token::InternedExpr(_) | Token::InternedStatement(_) => write!(f, "(expr)"),
+            Token::InternedExpr(_) | Token::InternedStatement(_) | Token::InternedLValue(_) => {
+                write!(f, "(expr)")
+            }
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -418,6 +424,7 @@ pub enum TokenKind {
     QuotedType,
     InternedExpr,
     InternedStatement,
+    InternedLValue,
     UnquoteMarker,
 }
 
@@ -433,6 +440,7 @@ impl fmt::Display for TokenKind {
             TokenKind::QuotedType => write!(f, "quoted type"),
             TokenKind::InternedExpr => write!(f, "interned expr"),
             TokenKind::InternedStatement => write!(f, "interned statement"),
+            TokenKind::InternedLValue => write!(f, "interned lvalue"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
@@ -454,6 +462,7 @@ impl Token {
             Token::QuotedType(_) => TokenKind::QuotedType,
             Token::InternedExpr(_) => TokenKind::InternedExpr,
             Token::InternedStatement(_) => TokenKind::InternedStatement,
+            Token::InternedLValue(_) => TokenKind::InternedLValue,
             tok => TokenKind::Token(tok.clone()),
         }
     }

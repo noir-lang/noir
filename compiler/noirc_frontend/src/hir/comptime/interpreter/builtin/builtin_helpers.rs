@@ -5,7 +5,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        BlockExpression, ExpressionKind, IntegerBitSize, Signedness, StatementKind,
+        BlockExpression, ExpressionKind, IntegerBitSize, LValue, Signedness, StatementKind,
         UnresolvedTypeData,
     },
     hir::{
@@ -156,6 +156,9 @@ pub(crate) fn get_expr(
             }
             ExprValue::Statement(StatementKind::Interned(id)) => {
                 Ok(ExprValue::Statement(interner.get_statement_kind(id).clone()))
+            }
+            ExprValue::LValue(LValue::Interned(id, _)) => {
+                Ok(ExprValue::LValue(interner.get_lvalue(id, location.span).clone()))
             }
             _ => Ok(expr),
         },

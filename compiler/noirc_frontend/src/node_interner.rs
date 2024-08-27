@@ -15,6 +15,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::ExpressionKind;
 use crate::ast::Ident;
+use crate::ast::LValue;
 use crate::ast::StatementKind;
 use crate::graph::CrateId;
 use crate::hir::comptime;
@@ -2047,6 +2048,14 @@ impl NodeInterner {
 
     pub fn get_statement_kind(&self, id: InternedStatementKind) -> &StatementKind {
         &self.interned_statement_kinds[id.0]
+    }
+
+    pub fn push_lvalue(&mut self, lvalue: LValue) -> InternedExpressionKind {
+        self.push_expression_kind(lvalue.as_expression().kind)
+    }
+
+    pub fn get_lvalue(&self, id: InternedExpressionKind, span: Span) -> LValue {
+        LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.

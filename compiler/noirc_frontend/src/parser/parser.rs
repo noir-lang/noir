@@ -667,7 +667,15 @@ where
 
         let parenthesized = lvalue.delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
-        let term = choice((parenthesized, dereferences, l_ident));
+        let interned =
+            token_kind(TokenKind::InternedLValue).map_with_span(|token, span| match token {
+                Token::InternedLValue(id) => LValue::Interned(id, span),
+                _ => unreachable!(
+                    "token_kind(InternedLValue) guarantees we parse an interned lvalue"
+                ),
+            });
+
+        let term = choice((parenthesized, dereferences, l_ident, interned));
 
         let l_member_rhs =
             just(Token::Dot).ignore_then(field_name()).map_with_span(LValueRhs::MemberAccess);

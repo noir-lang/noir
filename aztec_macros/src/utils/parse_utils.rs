@@ -537,6 +537,7 @@ fn empty_lvalue(lvalue: &mut LValue) {
             empty_expression(index);
         }
         LValue::Dereference(lvalue, _) => empty_lvalue(lvalue),
+        LValue::Interned(..) => (),
     }
 }
 

@@ -114,6 +114,7 @@ impl Expr {
     fn map<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
         let result = f(self);
         let result = result.or_else(|| map_array(self, f));
+        let result = result.or_else(|| map_assign(self, f));
         let result = result.or_else(|| map_if(self, f));
         let result = result.or_else(|| map_block(self, f));
         // TODO: check the remaining possibilities...
@@ -131,6 +132,17 @@ fn map_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> 
         |exprs: [Expr]| {
         let exprs = map_expressions(exprs, f);
         new_array(exprs)
+    }
+    )
+}
+
+fn map_assign<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_assign().map(
+        |expr: (Expr, Expr)| {
+        let (lhs, rhs) = expr;
+        let lhs = lhs.map(f);
+        let rhs = rhs.map(f);
+        new_assign(lhs, rhs)
     }
     )
 }
@@ -163,6 +175,10 @@ fn map_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Exp
 fn new_array(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
     quote { [ $exprs ]}.as_expr().unwrap()
+}
+
+fn new_assign(lhs: Expr, rhs: Expr) -> Expr {
+    quote { $lhs = $rhs }.as_expr().unwrap()
 }
 
 fn new_block(exprs: [Expr]) -> Expr {

@@ -41,6 +41,18 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_assign() {
+        comptime
+        {
+            let expr = quote { { a = 1; } }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let exprs = expr.as_block().unwrap();
+            let (_lhs, rhs) = exprs[0].as_assign().unwrap();
+            assert_eq(rhs.as_integer().unwrap(), (2, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_block() {
         comptime
         {

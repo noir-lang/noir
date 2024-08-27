@@ -362,6 +362,10 @@ impl<'context> Elaborator<'context> {
                 let lvalue = HirLValue::Dereference { lvalue, element_type, location };
                 (lvalue, typ, true)
             }
+            LValue::Interned(id, span) => {
+                let lvalue = self.interner.get_lvalue(id, span).clone();
+                self.elaborate_lvalue(lvalue, assign_span)
+            }
         }
     }
 

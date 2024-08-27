@@ -426,6 +426,9 @@ impl Value {
             Value::Expr(ExprValue::Statement(statement)) => {
                 Token::InternedStatement(interner.push_statement_kind(statement))
             }
+            Value::Expr(ExprValue::LValue(lvalue)) => {
+                Token::InternedLValue(interner.push_lvalue(lvalue))
+            }
             other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
         };
         Ok(vec![token])
@@ -612,7 +615,9 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Expr(ExprValue::Statement(statement)) => {
                 write!(f, "{}", resolve_statement_kind(self.interner, statement.clone()))
             }
-            Value::Expr(ExprValue::LValue(lvalue)) => write!(f, "{}", lvalue),
+            Value::Expr(ExprValue::LValue(lvalue)) => {
+                write!(f, "{}", resolve_lvalue(self.interner, lvalue.clone()))
+            }
             Value::UnresolvedType(typ) => write!(f, "{}", typ),
         }
     }
@@ -623,12 +628,12 @@ fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitCon
     format!("{}: {}{}", trait_constraint.typ, trait_.name, trait_constraint.trait_generics)
 }
 
-// Returns a new Expression where all Interned and Resolved expressions have been turned into ExpressionKind.
+// Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
 fn resolve_expression(interner: &NodeInterner, expr: Expression) -> Expression {
     Expression { kind: resolve_expression_kind(interner, expr.kind), span: expr.span }
 }
 
-// Returns a new ExpressionKind where all Interned and Resolved expressions have been turned into ExpressionKind.
+// Returns a new ExpressionKind where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
 fn resolve_expression_kind(interner: &NodeInterner, expr: ExpressionKind) -> ExpressionKind {
     match expr {
         ExpressionKind::Literal(literal) => {
@@ -753,12 +758,12 @@ fn resolve_array_literal(interner: &NodeInterner, literal: ArrayLiteral) -> Arra
     }
 }
 
-// Returns a new Statement where all Interned statements have been turned into StatementKind.
+// Returns a new Statement where all Interned statements have been turned into non-interned StatementKind.
 fn resolve_statement(interner: &NodeInterner, statement: Statement) -> Statement {
     Statement { kind: resolve_statement_kind(interner, statement.kind), span: statement.span }
 }
 
-// Returns a new StatementKind where all Interned statements have been turned into StatementKind.
+// Returns a new StatementKind where all Interned statements have been turned into non-interned StatementKind.
 fn resolve_statement_kind(interner: &NodeInterner, statement: StatementKind) -> StatementKind {
     match statement {
         StatementKind::Let(let_statement) => StatementKind::Let(LetStatement {
@@ -797,5 +802,29 @@ fn resolve_statement_kind(interner: &NodeInterner, statement: StatementKind) -> 
             resolve_statement_kind(interner, statement)
         }
         StatementKind::Break | StatementKind::Continue | StatementKind::Error => statement,
+    }
+}
+
+// Returns a new LValue where all Interned LValues have been turned into LValue.
+fn resolve_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
+    match lvalue {
+        LValue::Ident(_) => lvalue,
+        LValue::MemberAccess { object, field_name, span } => LValue::MemberAccess {
+            object: Box::new(resolve_lvalue(interner, *object)),
+            field_name,
+            span,
+        },
+        LValue::Index { array, index, span } => LValue::Index {
+            array: Box::new(resolve_lvalue(interner, *array)),
+            index: resolve_expression(interner, index),
+            span,
+        },
+        LValue::Dereference(lvalue, span) => {
+            LValue::Dereference(Box::new(resolve_lvalue(interner, *lvalue)), span)
+        }
+        LValue::Interned(id, span) => {
+            let lvalue = interner.get_lvalue(id, span);
+            resolve_lvalue(interner, lvalue)
+        }
     }
 }

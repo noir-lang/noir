@@ -163,6 +163,7 @@ impl<'a> SignatureFinder<'a> {
                 self.find_in_expression(index);
             }
             LValue::Dereference(lvalue, _) => self.find_in_lvalue(lvalue),
+            LValue::Interned(..) => (),
         }
     }
 
