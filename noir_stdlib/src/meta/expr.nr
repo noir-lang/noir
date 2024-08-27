@@ -147,7 +147,7 @@ fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
 }
 
 fn new_block(exprs: [Expr]) -> Expr {
-    let exprs = exprs.map(|expr: Expr| expr.quoted()).join(quote { });
+    let exprs = exprs.map(|expr: Expr| expr.quoted()).join(quote { ; });
     quote { { $exprs }}.as_expr().unwrap()
 }
 
