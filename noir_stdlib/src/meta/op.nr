@@ -26,6 +26,18 @@ impl UnaryOp {
         // docs:end:is_dereference
         self.op == 3
     }
+
+    pub fn quoted(self) -> Quoted {
+        if self.is_minus() {
+            quote { - }
+        } else if self.is_not() {
+            quote { ! }
+        } else if self.is_mutable_reference() {
+            quote { &mut }
+        } else {
+            quote { * }
+        }
+    }
 }
 
 struct BinaryOp {

@@ -481,6 +481,18 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_unary_op() {
+        comptime
+        {
+            let expr = quote { -(1) }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let (op, expr) = expr.as_unary_op().unwrap();
+            assert(op.is_minus());
+            assert_eq(expr.as_integer().unwrap(), (2, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_unsafe() {
         comptime
         {

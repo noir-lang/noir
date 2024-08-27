@@ -128,6 +128,7 @@ impl Expr {
         let result = result.or_else(|| map_repeated_element_slice(self, f));
         let result = result.or_else(|| map_slice(self, f));
         let result = result.or_else(|| map_tuple(self, f));
+        let result = result.or_else(|| map_unary_op(self, f));
         result.unwrap_or(self)
     }
 
@@ -290,6 +291,16 @@ fn map_tuple<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> 
     )
 }
 
+fn map_unary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_unary_op().map(
+        |expr: (UnaryOp, Expr)| {
+        let (op, rhs) = expr;
+        let rhs = rhs.map(f);
+        new_unary_op(op, rhs)
+    }
+    )
+}
+
 fn map_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
     exprs.map(|expr: Expr| expr.map(f))
 }
@@ -372,6 +383,11 @@ fn new_slice(exprs: [Expr]) -> Expr {
 fn new_tuple(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
     quote { ($exprs) }.as_expr().unwrap()
+}
+
+fn new_unary_op(op: UnaryOp, rhs: Expr) -> Expr {
+    let op = op.quoted();
+    quote { $op $rhs }.as_expr().unwrap()
 }
 
 fn join_expressions(exprs: [Expr], separator: Quoted) -> Quoted {
