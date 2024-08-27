@@ -7,6 +7,9 @@ edition.workspace = true#
 rust-version.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -30,6 +33,7 @@ thiserror.workspace = true
 fm.workspace = true
 rayon = "1.8.0"
 fxhash.workspace = true
+convert_case = "0.6.0"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 wasm-bindgen.workspace = true

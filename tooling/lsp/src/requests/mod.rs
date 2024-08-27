@@ -46,6 +46,7 @@ mod inlay_hint;
 mod profile_run;
 mod references;
 mod rename;
+mod signature_help;
 mod test_run;
 mod tests;
 
@@ -56,7 +57,8 @@ pub(crate) use {
     goto_definition::on_goto_type_definition_request, hover::on_hover_request,
     inlay_hint::on_inlay_hint_request, profile_run::on_profile_run_request,
     references::on_references_request, rename::on_prepare_rename_request,
-    rename::on_rename_request, test_run::on_test_run_request, tests::on_tests_request,
+    rename::on_rename_request, signature_help::on_signature_help_request,
+    test_run::on_test_run_request, tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -241,6 +243,15 @@ pub(crate) fn on_initialize(
                     },
                     completion_item: None,
                 })),
+                signature_help_provider: Some(lsp_types::OneOf::Right(
+                    lsp_types::SignatureHelpOptions {
+                        trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
+                        retrigger_characters: None,
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                    },
+                )),
             },
             server_info: None,
         })

@@ -151,6 +151,7 @@ pub struct SsaProgramArtifact {
     pub main_input_witnesses: Vec<Witness>,
     pub main_return_witnesses: Vec<Witness>,
     pub names: Vec<String>,
+    pub brillig_names: Vec<String>,
     pub error_types: BTreeMap<ErrorSelector, HirType>,
 }
 
@@ -167,6 +168,7 @@ impl SsaProgramArtifact {
             main_input_witnesses: Vec::default(),
             main_return_witnesses: Vec::default(),
             names: Vec::default(),
+            brillig_names: Vec::default(),
             error_types,
         }
     }
@@ -202,8 +204,10 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
-        optimize_into_acir(program, options)?;
+    let ArtifactsAndWarnings(
+        (generated_acirs, generated_brillig, brillig_function_names, error_types),
+        ssa_level_warnings,
+    ) = optimize_into_acir(program, options)?;
     if options.force_brillig_output {
         assert_eq!(
             generated_acirs.len(),
@@ -236,6 +240,7 @@ pub fn create_program(
         program_artifact.add_circuit(circuit_artifact, is_main);
         is_main = false;
     }
+    program_artifact.brillig_names = brillig_function_names;
 
     Ok(program_artifact)
 }

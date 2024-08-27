@@ -396,11 +396,11 @@ impl<'a> FunctionContext<'a> {
     /// return a reference to each element, for use with the store instruction.
     fn codegen_array_index(
         &mut self,
-        array: super::ir::value::ValueId,
-        index: super::ir::value::ValueId,
+        array: ValueId,
+        index: ValueId,
         element_type: &ast::Type,
         location: Location,
-        length: Option<super::ir::value::ValueId>,
+        length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
         // base_index = index * type_size
         let index = self.make_array_index(index);
@@ -438,11 +438,7 @@ impl<'a> FunctionContext<'a> {
     /// Prepare a slice access.
     /// Check that the index being used to access a slice element
     /// is less than the dynamic slice length.
-    fn codegen_slice_access_check(
-        &mut self,
-        index: super::ir::value::ValueId,
-        length: Option<super::ir::value::ValueId>,
-    ) {
+    fn codegen_slice_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self

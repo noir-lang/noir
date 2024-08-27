@@ -2,16 +2,21 @@ pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
 use acvm::FieldElement;
+use brillig_ir::artifact::LabelType;
 
 use self::{
-    brillig_gen::{brillig_fn::FunctionContext, convert_ssa_function},
-    brillig_ir::artifact::{BrilligArtifact, Label},
+    brillig_gen::convert_ssa_function,
+    brillig_ir::{
+        artifact::{BrilligArtifact, Label},
+        procedures::compile_procedure,
+    },
 };
 use crate::ssa::{
     ir::function::{Function, FunctionId, RuntimeType},
     ssa_gen::Ssa,
 };
-use std::collections::{BTreeSet, HashMap};
+use fxhash::FxHashMap as HashMap;
+use std::{borrow::Cow, collections::BTreeSet};
 
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
@@ -28,18 +33,19 @@ impl Brillig {
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
-    /// Finds a brillig function artifact by its function label
-    pub(crate) fn find_by_function_label(
+    /// Finds a brillig artifact by its label
+    pub(crate) fn find_by_label(
         &self,
         function_label: Label,
-    ) -> Option<&BrilligArtifact<FieldElement>> {
-        self.ssa_function_to_brillig.iter().find_map(|(function_id, obj)| {
-            if FunctionContext::function_id_to_function_label(*function_id) == function_label {
-                Some(obj)
-            } else {
-                None
+    ) -> Option<Cow<BrilligArtifact<FieldElement>>> {
+        match function_label.label_type {
+            LabelType::Function(function_id, _) => {
+                self.ssa_function_to_brillig.get(&function_id).map(Cow::Borrowed)
             }
-        })
+            // Procedures are compiled as needed
+            LabelType::Procedure(procedure_id) => Some(Cow::Owned(compile_procedure(procedure_id))),
+            _ => unreachable!("ICE: Expected a function or procedure label"),
+        }
     }
 }
 

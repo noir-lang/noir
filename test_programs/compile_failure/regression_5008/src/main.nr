@@ -13,5 +13,7 @@ impl Foo {
 fn main() {
     let foo = Foo { bar: &mut Bar { value: 0 } };
 
-    foo.crash_fn();
+    unsafe {
+        foo.crash_fn()
+    };
 }

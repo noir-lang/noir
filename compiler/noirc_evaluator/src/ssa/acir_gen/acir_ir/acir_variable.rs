@@ -8,7 +8,7 @@ use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
-use acvm::acir::circuit::opcodes::{BlockId, BlockType, MemOp};
+use acvm::acir::circuit::opcodes::{AcirFunctionId, BlockId, BlockType, MemOp};
 use acvm::acir::circuit::{AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode};
 use acvm::blackbox_solver;
 use acvm::brillig_vm::{MemoryValue, VMStatus, VM};
@@ -1426,6 +1426,30 @@ impl<F: AcirField> AcirContext<F> {
                 output_count = input_size + (16 - input_size % 16);
                 (vec![], vec![F::from(output_count as u128)])
             }
+            BlackBoxFunc::RecursiveAggregation => {
+                let proof_type_var = match inputs.pop() {
+                    Some(domain_var) => domain_var.into_var()?,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                            name: "verify proof".to_string(),
+                            arg: "proof type".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                let proof_type_constant = match self.vars[&proof_type_var].as_constant() {
+                    Some(proof_type_constant) => proof_type_constant,
+                    None => {
+                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
+                            name: "proof type".to_string(),
+                            call_stack: self.get_call_stack(),
+                        }))
+                    }
+                };
+
+                (vec![*proof_type_constant], Vec::new())
+            }
             _ => (vec![], vec![]),
         };
         // Allow constant inputs only for MSM for now
@@ -1959,7 +1983,7 @@ impl<F: AcirField> AcirContext<F> {
 
     pub(crate) fn call_acir_function(
         &mut self,
-        id: u32,
+        id: AcirFunctionId,
         inputs: Vec<AcirValue>,
         output_count: usize,
         predicate: AcirVar,
@@ -2005,7 +2029,7 @@ impl<F: PartialEq> PartialEq for AcirVarData<F> {
 }
 
 // TODO: check/test this hash impl
-impl<F> std::hash::Hash for AcirVarData<F> {
+impl<F> Hash for AcirVarData<F> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
     }

@@ -85,7 +85,7 @@ pub(super) struct Loop {
 }
 
 /// The queue of functions remaining to compile
-type FunctionQueue = Vec<(ast::FuncId, IrFunctionId)>;
+type FunctionQueue = Vec<(FuncId, IrFunctionId)>;
 
 impl<'a> FunctionContext<'a> {
     /// Create a new FunctionContext to compile the first function in the shared_context's
@@ -248,7 +248,7 @@ impl<'a> FunctionContext<'a> {
             }
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
-            ast::Type::Function(_, _, _) => Type::Function,
+            ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
             ast::Type::MutableReference(element) => {
                 // Recursive call to panic if element is a tuple
@@ -1005,14 +1005,14 @@ impl SharedContext {
     }
 
     /// Pops the next function from the shared function queue, returning None if the queue is empty.
-    pub(super) fn pop_next_function_in_queue(&self) -> Option<(ast::FuncId, IrFunctionId)> {
+    pub(super) fn pop_next_function_in_queue(&self) -> Option<(FuncId, IrFunctionId)> {
         self.function_queue.lock().expect("Failed to lock function_queue").pop()
     }
 
     /// Return the matching id for the given function if known. If it is not known this
     /// will add the function to the queue of functions to compile, assign it a new id,
     /// and return this new id.
-    pub(super) fn get_or_queue_function(&self, id: ast::FuncId) -> IrFunctionId {
+    pub(super) fn get_or_queue_function(&self, id: FuncId) -> IrFunctionId {
         // Start a new block to guarantee the destructor for the map lock is released
         // before map needs to be acquired again in self.functions.write() below
         {

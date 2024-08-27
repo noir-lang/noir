@@ -7,7 +7,7 @@ struct BoundedVec<T, let MaxLen: u32> {
 
 impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     pub fn new() -> Self {
-        let zeroed = crate::unsafe::zeroed();
+        let zeroed = crate::mem::zeroed();
         BoundedVec { storage: [zeroed; MaxLen], len: 0 }
     }
 
@@ -106,7 +106,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         self.len -= 1;
 
         let elem = self.storage[self.len];
-        self.storage[self.len] = crate::unsafe::zeroed();
+        self.storage[self.len] = crate::mem::zeroed();
         elem
     }
 

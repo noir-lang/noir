@@ -132,5 +132,6 @@ pub enum BlackBoxOp {
         input: MemoryAddress,
         radix: u32,
         output: HeapArray,
+        output_bits: bool,
     },
 }

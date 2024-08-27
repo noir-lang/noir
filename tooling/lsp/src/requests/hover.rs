@@ -319,6 +319,21 @@ fn format_parent_module_from_module_id(
     args: &ProcessRequestCallbackArgs,
     string: &mut String,
 ) -> bool {
+    let mut segments: Vec<&str> = Vec::new();
+
+    if let Some(module_attributes) = args.interner.try_module_attributes(module) {
+        segments.push(&module_attributes.name);
+
+        let mut current_attributes = module_attributes;
+        while let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
+            krate: module.krate,
+            local_id: current_attributes.parent,
+        }) {
+            segments.push(&parent_attributes.name);
+            current_attributes = parent_attributes;
+        }
+    }
+
     let crate_id = module.krate;
     let crate_name = match crate_id {
         CrateId::Root(_) => Some(args.crate_name.clone()),
@@ -328,44 +343,21 @@ fn format_parent_module_from_module_id(
             .find(|dep| dep.crate_id == crate_id)
             .map(|dep| format!("{}", dep.name)),
         CrateId::Stdlib(_) => Some("std".to_string()),
-        CrateId::Dummy => None,
+        CrateId::Dummy => unreachable!("ICE: A dummy CrateId should not be accessible"),
     };
 
-    let wrote_crate = if let Some(crate_name) = crate_name {
-        string.push_str("    ");
-        string.push_str(&crate_name);
-        true
-    } else {
-        false
+    if let Some(crate_name) = &crate_name {
+        segments.push(crate_name);
     };
 
-    let Some(module_attributes) = args.interner.try_module_attributes(module) else {
-        return wrote_crate;
-    };
-
-    if wrote_crate {
-        string.push_str("::");
-    } else {
-        string.push_str("    ");
+    if segments.is_empty() {
+        return false;
     }
 
-    let mut segments = Vec::new();
-    let mut current_attributes = module_attributes;
-    while let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
-        krate: module.krate,
-        local_id: current_attributes.parent,
-    }) {
-        segments.push(&parent_attributes.name);
-        current_attributes = parent_attributes;
-    }
+    segments.reverse();
 
-    for segment in segments.iter().rev() {
-        string.push_str(segment);
-        string.push_str("::");
-    }
-
-    string.push_str(&module_attributes.name);
-
+    string.push_str("    ");
+    string.push_str(&segments.join("::"));
     true
 }
 
@@ -431,7 +423,7 @@ impl<'a> TypeLinksGatherer<'a> {
             Type::NamedGeneric(var, _, _) => {
                 self.gather_type_variable_links(var);
             }
-            Type::Function(args, return_type, env) => {
+            Type::Function(args, return_type, env, _) => {
                 for arg in args {
                     self.gather_type_links(arg);
                 }

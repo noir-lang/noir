@@ -100,7 +100,7 @@ fn format_binary_field_op(op: &BinaryFieldOp) -> String {
     }
 }
 
-fn format_binary_int(op: &acir::brillig::BinaryIntOp) -> String {
+fn format_binary_int(op: &BinaryIntOp) -> String {
     match op {
         BinaryIntOp::Add => "add".to_string(),
         BinaryIntOp::Sub => "sub".to_string(),
@@ -129,6 +129,7 @@ fn format_brillig_opcode_kind<F>(opcode: &BrilligOpcode<F>) -> String {
         BrilligOpcode::Cast { .. } => "cast".to_string(),
         BrilligOpcode::ConditionalMov { .. } => "cmov".to_string(),
         BrilligOpcode::Const { .. } => "const".to_string(),
+        BrilligOpcode::IndirectConst { .. } => "iconst".to_string(),
         BrilligOpcode::ForeignCall { function, .. } => format!("foreign_call({})", function),
         BrilligOpcode::Jump { .. } => "jump".to_string(),
         BrilligOpcode::JumpIf { .. } => "jump_if".to_string(),
