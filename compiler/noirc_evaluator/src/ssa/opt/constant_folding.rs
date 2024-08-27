@@ -192,8 +192,32 @@ impl Context {
         }
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
+        let instruction = instruction
+            .map_values(|value_id| resolve_cache(dfg, constraint_simplification_mapping, value_id));
+
+        // Sort operands of commutative instructions
+        if let Instruction::Binary(binary) = &instruction {
+            match binary.operator {
+                BinaryOp::Add
+                | BinaryOp::Mul
+                | BinaryOp::Eq
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor => {
+                    let (lhs, rhs) = if binary.lhs < binary.rhs {
+                        (binary.lhs, binary.rhs)
+                    } else {
+                        (binary.rhs, binary.lhs)
+                    };
+                    let commutative_instruction =
+                        Instruction::Binary(Binary { lhs, rhs, operator: binary.operator });
+                    return commutative_instruction;
+                }
+                _ => {}
+            }
+        }
+
         instruction
-            .map_values(|value_id| resolve_cache(dfg, constraint_simplification_mapping, value_id))
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -264,62 +288,16 @@ impl Context {
             }
         }
 
-        fn insert_instruction_into_cache(
-            instruction: Instruction,
-            instruction_results: Vec<ValueId>,
-            dfg: &DataFlowGraph,
-            instruction_result_cache: &mut InstructionResultCache,
-            side_effects_enabled_var: ValueId,
-            use_constraint_info: bool,
-        ) {
-            // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
-            // we cache the results so we can reuse them if the same instruction appears again later in the block.
-            if instruction.can_be_deduplicated(dfg, use_constraint_info) {
-                let use_predicate =
-                    use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
-                let predicate = use_predicate.then_some(side_effects_enabled_var);
+        if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
+            let use_predicate =
+                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+            let predicate = use_predicate.then_some(side_effects_enabled_var);
 
-                instruction_result_cache
-                    .entry(instruction)
-                    .or_default()
-                    .insert(predicate, instruction_results.clone());
-            }
+            instruction_result_cache
+                .entry(instruction)
+                .or_default()
+                .insert(predicate, instruction_results.clone());
         }
-
-        if let Instruction::Binary(binary) = &instruction {
-            match binary.operator {
-                BinaryOp::Add
-                | BinaryOp::Mul
-                | BinaryOp::Eq
-                | BinaryOp::And
-                | BinaryOp::Or
-                | BinaryOp::Xor => {
-                    let commutative_instruction = Instruction::Binary(Binary {
-                        lhs: binary.rhs,
-                        rhs: binary.lhs,
-                        operator: binary.operator,
-                    });
-                    insert_instruction_into_cache(
-                        commutative_instruction,
-                        instruction_results.clone(),
-                        dfg,
-                        instruction_result_cache,
-                        side_effects_enabled_var,
-                        self.use_constraint_info,
-                    );
-                }
-                _ => {}
-            }
-        }
-
-        insert_instruction_into_cache(
-            instruction,
-            instruction_results,
-            dfg,
-            instruction_result_cache,
-            side_effects_enabled_var,
-            self.use_constraint_info,
-        );
     }
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
@@ -339,6 +317,31 @@ impl Context {
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
     ) -> Option<&'a Vec<ValueId>> {
+        // dbg!(instruction.clone());
+        // let new_instruction = if let Instruction::Binary(binary) = &instruction {
+        //     match binary.operator {
+        //         BinaryOp::Add
+        //         | BinaryOp::Mul
+        //         | BinaryOp::Eq
+        //         | BinaryOp::And
+        //         | BinaryOp::Or
+        //         | BinaryOp::Xor => {
+        //             let (lhs, rhs) = if binary.lhs < binary.rhs {
+        //                 (binary.lhs, binary.rhs)
+        //             } else {
+        //                 (binary.rhs, binary.lhs)
+        //             };
+        //             let commutative_instruction =
+        //                 Instruction::Binary(Binary { lhs, rhs, operator: binary.operator });
+        //             // instruction_result_cache.get(&commutative_instruction)
+        //             Some(commutative_instruction)
+        //         }
+        //         _ => None,
+        //     }
+        // } else {
+        //     None
+        // };
+
         let results_for_instruction = instruction_result_cache.get(instruction);
 
         // See if there's a cached version with no predicate first
