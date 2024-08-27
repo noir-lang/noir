@@ -6,4 +6,4 @@ fn main() -> pub [u8; 16] {
     let ciphertext = std::aes128::aes128_encrypt(input, iv, key); // In this case, the output length will be 16 bytes.
     ciphertext.as_array()
 }
-// docs:start:aes_example
+// docs:end:aes_example
