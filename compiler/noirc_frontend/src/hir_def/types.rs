@@ -1679,7 +1679,7 @@ impl Type {
 
                 let lhs = lhs.canonicalize();
                 let rhs = rhs.canonicalize();
-                if let Some(result) = Self::try_simplify_addition(&lhs, op, &rhs) {
+                if let Some(result) = Self::try_simplify_non_constants(&lhs, op, &rhs) {
                     return result;
                 }
 
@@ -1745,24 +1745,22 @@ impl Type {
         }
     }
 
-    /// Try to simplify an addition expression of `lhs + rhs`.
+    /// Try to simplify non-constant expressions in the form `(N op1 M) op2 M`
+    /// where the two `M` terms are expected to cancel out.
     ///
-    /// - Simplifies `(a - b) + b` to `a`.
-    fn try_simplify_addition(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Option<Type> {
-        use BinaryTypeOperator::*;
-        match lhs {
-            Type::InfixExpr(l_lhs, l_op, l_rhs) => {
-                if op == Addition && *l_op == Subtraction {
-                    // TODO: Propagate type bindings. Can do in another PR, this one is large enough.
-                    let unifies = l_rhs.try_unify(rhs, &mut TypeBindings::new());
-                    if unifies.is_ok() {
-                        return Some(l_lhs.as_ref().clone());
-                    }
-                }
-                None
-            }
-            _ => None,
+    /// - Simplifies `(N +/- M) -/+ M` to `a`
+    /// - Simplifies `(N */÷ M) ÷/* M` to `a`
+    fn try_simplify_non_constants(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Option<Type> {
+        let Type::InfixExpr(l_type, l_op, l_rhs) = lhs.follow_bindings() else {
+            return None;
+        };
+
+        // Note that this is exact, syntactic equality, not unification.
+        if l_op.inverse() != Some(op) || l_rhs.canonicalize() != rhs.canonicalize() {
+            return None;
         }
+
+        Some(*l_type)
     }
 
     /// Given:
@@ -1788,8 +1786,8 @@ impl Type {
     /// Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
     /// where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
     ///
-    /// - Simplifies `(a +/- C1) +/- C2` to `a +/- (C1 +/- C2)` if C1 and C2 are constants.
-    /// - Simplifies `(a */÷ C1) */÷ C2` to `a */÷ (C1 */÷ C2)` if C1 and C2 are constants.
+    /// - Simplifies `(N +/- C1) +/- C2` to `N +/- (C1 +/- C2)` if C1 and C2 are constants.
+    /// - Simplifies `(N */÷ C1) */÷ C2` to `N */÷ (C1 */÷ C2)` if C1 and C2 are constants.
     fn try_simplify_partial_constants(
         lhs: &Type,
         mut op: BinaryTypeOperator,

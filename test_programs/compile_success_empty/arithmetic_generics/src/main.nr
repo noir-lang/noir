@@ -8,8 +8,8 @@ fn main() {
 
     let _ = push_multiple([1, 2, 3]);
 
-    test_constant_folding();
-    test_non_constant_folding();
+    test_constant_folding::<10>();
+    test_non_constant_folding::<10, 20>();
 }
 
 fn split_first<T, let N: u32>(array: [T; N]) -> (T, [T; N - 1]) {
@@ -105,25 +105,30 @@ fn demo_proof<let N: u32>() -> Equiv<W<(N * (N + 1))>, (Equiv<W<N>, (), W<N>, ()
     equiv_trans(equiv_trans(p1, p2), p3)
 }
 
-// Helper function as a quick way to make a particular numeric generic
-fn value<let N: u32>() -> W<N> {
-    W {}
-}
-
 fn test_constant_folding<let N: u32>() {
     // N + C1 - C2 = N + (C1 - C2)
-    let _: W<N + 5 - 2> = value::<N + 3>();
+    let _: W<N + 5 - 2> = W::<N + 3> {};
 
     // N - C1 + C2 = N - (C1 - C2)
-    let _: W<N - 3 + 2> = value::<N - 1>();
+    let _: W<N - 3 + 2> = W::<N - 1> {};
 
     // N * C1 / C2 = N * (C1 / C2)
-    let _: W<N * 10 / 2> = value::<N * 5>();
+    let _: W<N * 10 / 2> = W::<N * 5> {};
 
     // N / C1 * C2 = N / (C1 / C2)
-    let _: W<N / 10 * 2> = value::<N / 5>();
+    let _: W<N / 10 * 2> = W::<N / 5> {};
 }
 
-fn test_non_constant_folding<let N: u32>() {
-    // TODO
+fn test_non_constant_folding<let N: u32, let M: u32>() {
+    // N + M - M = N
+    let _: W<N + M - M> = W::<N> {};
+
+    // N - M + M = N
+    let _: W<N - M + M> = W::<N> {};
+
+    // N * M / M = N
+    let _: W<N * M / M> = W::<N> {};
+
+    // N / M * M = N
+    let _: W<N / M * M> = W::<N> {};
 }
