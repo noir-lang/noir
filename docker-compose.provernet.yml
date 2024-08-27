@@ -3,12 +3,12 @@
 # Logs latest block numbers every 10 seconds.
 name: aztec-provernet
 services:
-  
+
   # Anvil instance that serves as L1
   ethereum:
     image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
     command: >
-      'anvil --host 0.0.0.0 --chain-id 31337 --port 8545 --silent'
+      'anvil --block-time 12 --host 0.0.0.0 --chain-id 31337 --port 8545 --silent'
     ports:
       - 8545:8545
 

@@ -25,8 +25,8 @@ spec:
             - |
               [ -n "$FORK_URL" ] && ARGS="$ARGS --fork-url $FORK_URL";
               [ -n "$FORK_BLOCK_NUMBER" ] && ARGS="$ARGS --fork-block-number $FORK_BLOCK_NUMBER";
-              echo anvil -p $ANVIL_PORT --host 0.0.0.0 --chain-id {{ .Values.ethereum.chainId }} $ARGS;
-              anvil -p $ANVIL_PORT --host 0.0.0.0 --chain-id {{ .Values.ethereum.chainId }} $ARGS;
+              echo anvil --block-time 12 -p $ANVIL_PORT --host 0.0.0.0 --chain-id {{ .Values.ethereum.chainId }} $ARGS;
+              anvil --block-time 12 -p $ANVIL_PORT --host 0.0.0.0 --chain-id {{ .Values.ethereum.chainId }} $ARGS;
           ports:
             - containerPort: {{ .Values.ethereum.service.port }}
               name: anvil
