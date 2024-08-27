@@ -143,7 +143,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
-            "unresolved_type_is_field" => unresolved_type_is_field(arguments, location),
+            "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
                 let item = format!("Comptime evaluation for builtin function {name}");
@@ -723,11 +723,12 @@ fn trait_impl_trait_generic_args(
 
 // fn is_field(self) -> bool
 fn unresolved_type_is_field(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let typ = get_unresolved_type(self_argument)?;
+    let typ = get_unresolved_type(interner, self_argument)?;
     Ok(Value::Bool(matches!(typ, UnresolvedTypeData::FieldElement)))
 }
 
@@ -1316,13 +1317,13 @@ where
                 expr_value = ExprValue::Expression(expression.kind);
             }
             ExprValue::Expression(ExpressionKind::Interned(id)) => {
-                expr_value = ExprValue::Expression(interner.get_expression_kind(id).clone())
+                expr_value = ExprValue::Expression(interner.get_expression_kind(id).clone());
             }
             ExprValue::Statement(StatementKind::Interned(id)) => {
-                expr_value = ExprValue::Statement(interner.get_statement_kind(id).clone())
+                expr_value = ExprValue::Statement(interner.get_statement_kind(id).clone());
             }
             ExprValue::LValue(LValue::Interned(id, span)) => {
-                expr_value = ExprValue::LValue(interner.get_lvalue(id, span).clone())
+                expr_value = ExprValue::LValue(interner.get_lvalue(id, span).clone());
             }
             _ => break,
         }

@@ -225,10 +225,18 @@ pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec
 }
 
 pub(crate) fn get_unresolved_type(
+    interner: &NodeInterner,
     (value, location): (Value, Location),
 ) -> IResult<UnresolvedTypeData> {
     match value {
-        Value::UnresolvedType(typ) => Ok(typ),
+        Value::UnresolvedType(typ) => {
+            if let UnresolvedTypeData::Interned(id) = typ {
+                let typ = interner.get_unresolved_type_data(id).clone();
+                Ok(typ)
+            } else {
+                Ok(typ)
+            }
+        }
         value => type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType), location),
     }
 }

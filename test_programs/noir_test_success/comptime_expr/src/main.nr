@@ -208,6 +208,18 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_cast() {
+        comptime
+        {
+            let expr = quote { 1 as Field }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let (expr, typ) = expr.as_cast().unwrap();
+            assert_eq(expr.as_integer().unwrap(), (2, false));
+            assert(typ.is_field());
+        }
+    }
+
+    #[test]
     fn test_expr_as_comptime() {
         comptime
         {

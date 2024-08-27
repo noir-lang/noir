@@ -359,6 +359,7 @@ fn empty_unresolved_type(unresolved_type: &mut UnresolvedType) {
         | UnresolvedTypeData::Unit
         | UnresolvedTypeData::Quoted(_)
         | UnresolvedTypeData::Resolved(_)
+        | UnresolvedTypeData::Interned(_)
         | UnresolvedTypeData::Unspecified
         | UnresolvedTypeData::Error => (),
     }

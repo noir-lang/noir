@@ -746,6 +746,7 @@ impl<'a> NodeFinder<'a> {
             | UnresolvedTypeData::Bool
             | UnresolvedTypeData::Unit
             | UnresolvedTypeData::Resolved(_)
+            | UnresolvedTypeData::Interned(_)
             | UnresolvedTypeData::Error => (),
         }
     }

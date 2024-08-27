@@ -429,6 +429,9 @@ impl Value {
             Value::Expr(ExprValue::LValue(lvalue)) => {
                 Token::InternedLValue(interner.push_lvalue(lvalue))
             }
+            Value::UnresolvedType(typ) => {
+                Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
+            }
             other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
         };
         Ok(vec![token])
@@ -618,7 +621,14 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Expr(ExprValue::LValue(lvalue)) => {
                 write!(f, "{}", resolve_lvalue(self.interner, lvalue.clone()))
             }
-            Value::UnresolvedType(typ) => write!(f, "{}", typ),
+            Value::UnresolvedType(typ) => {
+                if let UnresolvedTypeData::Interned(id) = typ {
+                    let typ = self.interner.get_unresolved_type_data(*id);
+                    write!(f, "{}", typ)
+                } else {
+                    write!(f, "{}", typ)
+                }
+            }
         }
     }
 }
