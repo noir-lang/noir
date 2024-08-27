@@ -161,3 +161,21 @@ comptime {
 #include_code is_continue noir_stdlib/src/meta/expr.nr rust
 
 `true` if this expression is `continue`.
+
+### map
+
+#include_code map noir_stdlib/src/meta/expr.nr rust
+
+Applies a mapping function to this expression or to all of its sub-expressions.
+
+If `f` returns `Option::some`, that's the return value of this method. Otherwise,
+`f` will be recursively called on each of this expression sub-expressions.
+
+For example, calling `map` on `[1, 2, [3, 4]]` with an `f` that returns `Option::some`
+for expressions that are integers, doubling them, would return `[2, 4, [6, 8]]`.
+
+### quoted
+
+#include_code quoted noir_stdlib/src/meta/expr.nr rust
+
+Returns this expression as a `Quoted` value. It's the same as `quote { $self }`.

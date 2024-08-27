@@ -111,7 +111,9 @@ impl Expr {
     fn is_continue(self) -> bool {}
     // docs:end:is_continue
 
+    // docs:start:map
     fn map<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
+        // docs:end:map
         let result = f(self);
         let result = result.or_else(|| map_array(self, f));
         let result = result.or_else(|| map_assign(self, f));
@@ -133,7 +135,9 @@ impl Expr {
         result.unwrap_or(self)
     }
 
+    // docs:start:quoted
     fn quoted(self) -> Quoted {
+        // docs:end:quoted
         quote { $self }
     }
 }
