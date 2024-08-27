@@ -250,25 +250,27 @@ export const deployL1Contracts = async (
     client: walletClient,
   });
 
-  // @note  We make a time jump PAST the very first slot to not have to deal with the edge case of the first slot.
-  //        The edge case being that the genesis block is already occupying slot 0, so we cannot have another block.
-  try {
-    // Need to get the time
-    const currentSlot = (await rollup.read.getCurrentSlot([])) as bigint;
-
-    if (BigInt(currentSlot) === 0n) {
-      const ts = Number(await rollup.read.getTimestampForSlot([1]));
-      await rpcCall('evm_setNextBlockTimestamp', [ts]);
-      await rpcCall('hardhat_mine', [1]);
+  if (chain.id == foundry.id) {
+    // @note  We make a time jump PAST the very first slot to not have to deal with the edge case of the first slot.
+    //        The edge case being that the genesis block is already occupying slot 0, so we cannot have another block.
+    try {
+      // Need to get the time
       const currentSlot = (await rollup.read.getCurrentSlot([])) as bigint;
 
-      if (BigInt(currentSlot) !== 1n) {
-        throw new Error(`Error jumping time: current slot is ${currentSlot}`);
+      if (BigInt(currentSlot) === 0n) {
+        const ts = Number(await rollup.read.getTimestampForSlot([1]));
+        await rpcCall('evm_setNextBlockTimestamp', [ts]);
+        await rpcCall('hardhat_mine', [1]);
+        const currentSlot = (await rollup.read.getCurrentSlot([])) as bigint;
+
+        if (BigInt(currentSlot) !== 1n) {
+          throw new Error(`Error jumping time: current slot is ${currentSlot}`);
+        }
+        logger.info(`Jumped to slot 1`);
       }
-      logger.info(`Jumped to slot 1`);
+    } catch (e) {
+      throw new Error(`Error jumping time: ${e}`);
     }
-  } catch (e) {
-    throw new Error(`Error jumping time: ${e}`);
   }
 
   // Set initial blocks as proven if requested

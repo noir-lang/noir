@@ -43,8 +43,27 @@ E2E_TEST:
       BUILD ../+export-end-to-end
     END
   END
-  # Run our docker compose, ending whenever sandbox ends, filtering out noisy eth_getLogs
   RUN docker run -e HARDWARE_CONCURRENCY=$hardware_concurrency --rm aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG $test || $allow_fail
+
+E2E_TEST_PUBLIC_TESTNET:
+  FUNCTION
+  ARG hardware_concurrency=""
+  ARG test
+  ARG allow_fail=false
+  ARG seq_private_key
+  ARG prover_private_key
+  ARG ethereum_host
+  ARG l1_chain_id
+  LOCALLY
+  # Let docker compose know about the pushed tags above
+  ENV AZTEC_DOCKER_TAG=$(git rev-parse HEAD)
+  # Optimize to not cause serial behavior if image already exists
+  IF ! docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG"
+    WAIT
+      BUILD ../+export-end-to-end
+    END
+  END
+  RUN docker run -e L1_CHAIN_ID=$l1_chain_id -e ETHEREUM_HOST=$ethereum_host -e SEQ_PUBLISHER_PRIVATE_KEY=$seq_private_key -e PROVER_PUBLISHER_PRIVATE_KEY=$prover_private_key -e HARDWARE_CONCURRENCY=$hardware_concurrency --rm aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG $test || $allow_fail
 
 NETWORK_TEST:
   FUNCTION
@@ -225,7 +244,11 @@ e2e-token-contract:
   DO +E2E_TEST --test=./src/e2e_token_contract
 
 e2e-public-testnet:
-  DO +E2E_TEST --test=./src/public-testnet
+  ARG L1_CHAIN_ID="31337"
+  ARG ETHEREUM_HOST
+  ARG SEQ_PUBLISHER_PRIVATE_KEY
+  ARG PROVER_PUBLISHER_PRIVATE_KEY
+  DO +E2E_TEST_PUBLIC_TESTNET --test=./src/public-testnet --seq_private_key=${SEQ_PUBLISHER_PRIVATE_KEY:-} --prover_private_key=${PROVER_PUBLISHER_PRIVATE_KEY:-} --ethereum_host=${ETHEREUM_HOST:-} --l1_chain_id=${L1_CHAIN_ID:-}
 
 flakey-e2e-tests:
   DO +E2E_TEST --test=./src/flakey --allow_fail=true

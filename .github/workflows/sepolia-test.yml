@@ -14,11 +14,14 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-  # Uncomment the following to run against Sepolia
-  # SEQ_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEPOLIA_SEQ_PRIVATE_KEY }}
-  # PROVER_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEPOLIA_PROVER_PRIVATE_KEY }}
-  # ETHEREUM_HOST: 'https://sepolia.infura.io/v3/${{ secrets.SEPOLIA_API_KEY }}';
-  # L1_CHAIN_ID: '11155111' # Sepolia Chain ID
+  # Address 0x652575Ff941e7c2850fB89f2B207efF6B06BC7B4
+  SEQ_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEPOLIA_SEQ_PRIVATE_KEY }}
+
+  # Address 0xE3b8F9F23b8D4BD7d437218Bff3bcED1ce5E70B3
+  PROVER_PUBLISHER_PRIVATE_KEY: ${{ secrets.SEPOLIA_PROVER_PRIVATE_KEY }}
+
+  ETHEREUM_HOST: "https://sepolia.infura.io/v3/${{ secrets.SEPOLIA_API_KEY }}"
+  L1_CHAIN_ID: "11155111"
 
 jobs:
   setup:
@@ -28,11 +31,9 @@ jobs:
       runner_type: builder-x86
     secrets: inherit
 
-  build:
+  build-and-test:
     needs: setup
     runs-on: ${{ github.event.pull_request.user.login || github.actor }}-x86
-    outputs:
-      e2e_list: ${{ steps.e2e_list.outputs.list }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,37 +48,16 @@ jobs:
         run: |
           earthly-ci ./yarn-project+export-e2e-test-images
 
-      - name: Create list of testnet end-to-end jobs
-        id: e2e_list
-        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep 'public-testnet' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
-
-  e2e:
-    needs: build
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        test: ${{ fromJson( needs.build.outputs.e2e_list )}}
-    steps:
-      - uses: actions/checkout@v4
-        with: { ref: "${{ env.GIT_COMMIT }}" }
-      - uses: ./.github/ci-setup-action
-        with:
-          # must be globally unique for build x runner
-          concurrency_key: public-testnet-x86
-      - name: Setup and Test
+      - name: Run Testnet Test
         timeout-minutes: 40
-        uses: ./.github/ensure-tester-with-images
-        with:
-          runner_type: "8core-tester-x86"
-          builder_type: builder-x86
-          # these are copied to the tester and expected by the earthly command below
-          # if they fail to copy, it will try to build them on the tester and fail
-          builder_images_to_copy: aztecprotocol/end-to-end:${{ env.GIT_COMMIT }}
-          # command to produce the images in case they don't exist
-          builder_command: scripts/earthly-ci ./yarn-project+export-e2e-test-images
-          run: |
-            set -eux
-            cd ./yarn-project/end-to-end/
-            export FORCE_COLOR=1
-            ../../scripts/earthly-ci -P --no-output +${{ matrix.test }}
+        run: |
+          set -eux
+          cd ./yarn-project/end-to-end/
+          export FORCE_COLOR=1
+          ../../scripts/earthly-ci -P --no-output +e2e-public-testnet \
+          --SEQ_PUBLISHER_PRIVATE_KEY=${{ secrets.SEPOLIA_SEQ_PRIVATE_KEY }} \
+          --PROVER_PUBLISHER_PRIVATE_KEY=${{ secrets.SEPOLIA_PROVER_PRIVATE_KEY }} \
+          --ETHEREUM_HOST="https://sepolia.infura.io/v3/${{ secrets.SEPOLIA_API_KEY }}" \
+          --L1_CHAIN_ID="11155111"
+
+
