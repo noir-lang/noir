@@ -1435,7 +1435,6 @@ impl<F: AcirField> AcirContext<F> {
             name,
             BlackBoxFunc::MultiScalarMul
                 | BlackBoxFunc::Keccakf1600
-                | BlackBoxFunc::Sha256Compression
                 | BlackBoxFunc::Blake2s
                 | BlackBoxFunc::Blake3
                 | BlackBoxFunc::AND
