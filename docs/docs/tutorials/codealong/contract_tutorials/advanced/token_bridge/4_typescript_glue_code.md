@@ -9,8 +9,7 @@ In this step we will write a Typescript test to interact with the sandbox and ca
 We need some helper files that can keep our code clean. Inside your `src/test` directory:
 
 ```bash
-cd fixtures
-cd .. && mkdir shared && cd shared
+mkdir shared && cd shared
 touch cross_chain_test_harness.ts
 ```
 
