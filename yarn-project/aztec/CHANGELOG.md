@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.51.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.50.1...aztec-package-v0.51.0) (2024-08-27)
+
+
+### Bug Fixes
+
+* Releasing devnet docker img ([#8168](https://github.com/AztecProtocol/aztec-packages/issues/8168)) ([7f95ee7](https://github.com/AztecProtocol/aztec-packages/commit/7f95ee75e14e82915c480fbb65c325052ebec9c3))
+* Start trace exporter only if required ([#8147](https://github.com/AztecProtocol/aztec-packages/issues/8147)) ([4e63106](https://github.com/AztecProtocol/aztec-packages/commit/4e63106a43b3f16d46baa03552a355b9d4ab3e7a))
+
 ## [0.50.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.50.0...aztec-package-v0.50.1) (2024-08-23)
 
 
