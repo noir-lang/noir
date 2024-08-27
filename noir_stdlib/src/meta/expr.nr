@@ -121,6 +121,7 @@ impl Expr {
             let result_cast  = map_cast(self, f);
             let result_comptime  = map_comptime(self, f);
             let result_if = map_if(self, f);
+            let result_function_call = map_function_call(self, f);
             let result_method_call = map_method_call(self, f);
 
             let result = result_array;
@@ -130,6 +131,7 @@ impl Expr {
             let result = result.or(result_cast);
             let result = result.or(result_comptime);
             let result = result.or(result_if);
+            let result = result.or(result_function_call);
             let result = result.or(result_method_call);
 
             result
@@ -213,6 +215,17 @@ fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     )
 }
 
+fn map_function_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_function_call().map(
+        |expr: (Expr, [Expr])| {
+        let (function, arguments) = expr;
+        let function = function.map(f);
+        let arguments = arguments.map(|arg: Expr| arg.map(f));
+        new_function_call(function, arguments)
+    }
+    )
+}
+
 fn map_method_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_method_call().map(
         |expr: (Expr, Quoted, [UnresolvedType], [Expr])| {
@@ -263,6 +276,12 @@ fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr
     } else {
         quote { if $condition { $consequence } }.as_expr().unwrap()
     }
+}
+
+fn new_function_call(function: Expr, arguments: [Expr]) -> Expr {
+    let arguments = join_expressions(arguments, quote { , });
+
+    quote { $function($arguments) }.as_expr().unwrap()
 }
 
 fn new_method_call(object: Expr, name: Quoted, generics: [UnresolvedType], arguments: [Expr]) -> Expr {

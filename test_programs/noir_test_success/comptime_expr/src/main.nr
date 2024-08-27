@@ -270,6 +270,18 @@ mod tests {
     // docs:end:as_expr_example
 
     #[test]
+    fn test_expr_map_for_function_call() {
+        comptime
+        {
+            let expr = quote { foo(42) }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let (_function, args) = expr.as_function_call().unwrap();
+            assert_eq(args.len(), 1);
+            assert_eq(args[0].as_integer().unwrap(), (84, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_if() {
         comptime
         {
