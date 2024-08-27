@@ -122,27 +122,24 @@ impl Expr {
 }
 
 fn map_block<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    let exprs = expr.as_block();
-    if exprs.is_some() {
-        let exprs = exprs.unwrap();
+    expr.as_block().map(
+        |exprs: [Expr]| {
         let exprs = exprs.map(|expr: Expr| expr.map(f));
-        Option::some(new_block(exprs))
-    } else {
-        Option::none()
+        new_block(exprs)
     }
+    )
 }
 
 fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    let if_ = expr.as_if();
-    if if_.is_some() {
-        let (condition, consequence, alternative) = if_.unwrap();
+    expr.as_if().map(
+        |expr: (Expr, Expr, Option<Expr>)| {
+        let (condition, consequence, alternative) = expr;
         let condition = condition.map(f);
         let consequence = consequence.map(f);
         let alternative = alternative.and_then(f);
-        Option::some(new_if(condition, consequence, alternative))
-    } else {
-        Option::none()
+        new_if(condition, consequence, alternative)
     }
+    )
 }
 
 fn new_block(exprs: [Expr]) -> Expr {
