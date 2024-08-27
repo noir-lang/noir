@@ -119,6 +119,7 @@ impl Expr {
             let result_binary_op  = map_binary_op(self, f);
             let result_block  = map_block(self, f);
             let result_cast  = map_cast(self, f);
+            let result_comptime  = map_comptime(self, f);
             let result_if = map_if(self, f);
             let result_method_call = map_method_call(self, f);
 
@@ -127,6 +128,7 @@ impl Expr {
             let result = result.or(result_binary_op);
             let result = result.or(result_block);
             let result = result.or(result_cast);
+            let result = result.or(result_comptime);
             let result = result.or(result_if);
             let result = result.or(result_method_call);
 
@@ -190,6 +192,15 @@ fn map_cast<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     )
 }
 
+fn map_comptime<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_comptime().map(
+        |exprs: [Expr]| {
+        let exprs = exprs.map(|expr: Expr| expr.map(f));
+        new_comptime(exprs)
+    }
+    )
+}
+
 fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_if().map(
         |expr: (Expr, Expr, Option<Expr>)| {
@@ -238,6 +249,11 @@ fn new_block(exprs: [Expr]) -> Expr {
 
 fn new_cast(expr: Expr, typ: UnresolvedType) -> Expr {
     quote { $expr as $typ }.as_expr().unwrap()
+}
+
+fn new_comptime(exprs: [Expr]) -> Expr {
+    let exprs = join_expressions(exprs, quote { ; });
+    quote { comptime { $exprs }}.as_expr().unwrap()
 }
 
 fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr {
