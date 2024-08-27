@@ -544,7 +544,7 @@ impl TypeVariable {
         };
 
         if binding.occurs(id) {
-            Err(TypeCheckError::TypeAnnotationsNeeded { span })
+            Err(TypeCheckError::CyclicType { span, typ: binding })
         } else {
             *self.1.borrow_mut() = TypeBinding::Bound(binding);
             Ok(())

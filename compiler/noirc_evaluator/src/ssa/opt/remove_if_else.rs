@@ -128,7 +128,7 @@ impl Context {
                     self.slice_sizes.insert(result, old_capacity);
                     function.dfg[block].instructions_mut().push(instruction);
                 }
-                Instruction::EnableSideEffects { condition } => {
+                Instruction::EnableSideEffectsIf { condition } => {
                     current_conditional = *condition;
                     function.dfg[block].instructions_mut().push(instruction);
                 }

@@ -104,8 +104,12 @@ pub enum TypeCheckError {
         second_type: String,
         second_index: usize,
     },
-    #[error("Cannot infer type of expression, type annotations needed before this point")]
-    TypeAnnotationsNeeded { span: Span },
+    #[error("Object type is unknown in method call")]
+    TypeAnnotationsNeededForMethodCall { span: Span },
+    #[error("Object type is unknown in field access")]
+    TypeAnnotationsNeededForFieldAccess { span: Span },
+    #[error("Multiple trait impls may apply to this object type")]
+    MultipleMatchingImpls { object_type: Type, candidates: Vec<String>, span: Span },
     #[error("use of deprecated function {name}")]
     CallDeprecated { name: String, note: Option<String>, span: Span },
     #[error("{0}")]
@@ -166,6 +170,10 @@ pub enum TypeCheckError {
     NoSuchNamedTypeArg { name: Ident, item: String },
     #[error("`{item}` is missing the associated type `{name}`")]
     MissingNamedTypeArg { name: Rc<String>, item: String, span: Span },
+    #[error("Internal compiler error: type unspecified for value")]
+    UnspecifiedType { span: Span },
+    #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
+    CyclicType { typ: Type, span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -286,11 +294,33 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 format!("return type is {typ}"),
                 *span,
             ),
-            TypeCheckError::TypeAnnotationsNeeded { span } => Diagnostic::simple_error(
-                "Expression type is ambiguous".to_string(),
-                "Type must be known at this point".to_string(),
-                *span,
-            ),
+            TypeCheckError::TypeAnnotationsNeededForMethodCall { span } => {
+                let mut error = Diagnostic::simple_error(
+                    "Object type is unknown in method call".to_string(),
+                    "Type must be known by this point to know which method to call".to_string(),
+                    *span,
+                );
+                error.add_note("Try adding a type annotation for the object type before this method call".to_string());
+                error
+            },
+            TypeCheckError::TypeAnnotationsNeededForFieldAccess { span } => {
+                let mut error = Diagnostic::simple_error(
+                    "Object type is unknown in field access".to_string(),
+                    "Type must be known by this point".to_string(),
+                    *span,
+                );
+                error.add_note("Try adding a type annotation for the object type before this expression".to_string());
+                error
+            },
+            TypeCheckError::MultipleMatchingImpls { object_type, candidates, span } => {
+                let message = format!("Multiple trait impls match the object type `{object_type}`");
+                let secondary = "Ambiguous impl".to_string();
+                let mut error = Diagnostic::simple_error(message, secondary, *span);
+                for (i, candidate) in candidates.iter().enumerate() {
+                    error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
+                }
+                error
+            },
             TypeCheckError::ResolverError(error) => error.into(),
             TypeCheckError::TypeMismatchWithSource { expected, actual, span, source } => {
                 let message = match source {
@@ -387,6 +417,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::UnsafeFn { span } => {
                 Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::UnspecifiedType { span } => {
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
+            }
+            TypeCheckError::CyclicType { typ: _, span } => {
+                Diagnostic::simple_error(error.to_string(), "Cyclic types have unlimited size and are prohibited in Noir".into(), *span)
             }
         }
     }
