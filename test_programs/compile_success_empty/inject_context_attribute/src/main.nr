@@ -2,7 +2,7 @@ struct Context {
     value: Field,
 }
 
-#[aztec]
+#[inject_context]
 fn foo(x: Field) {
     if true {
         // 20 + 1 => 21
@@ -12,19 +12,19 @@ fn foo(x: Field) {
     }
 }
 
-#[aztec]
+#[inject_context]
 fn bar(x: Field) {
     let expected = _context.value;
     assert_eq(x, expected);
 }
 
-#[aztec]
+#[inject_context]
 fn qux(x: Field) -> Field {
     // 21 * 2 => 42
     x * 2
 }
 
-fn aztec(f: FunctionDefinition) {
+fn inject_context(f: FunctionDefinition) {
     // Add a `_context: Context` parameter to the function
     let parameters = f.parameters();
     let parameters = parameters.push_back((quote { _context }, quote { Context }.as_type()));
