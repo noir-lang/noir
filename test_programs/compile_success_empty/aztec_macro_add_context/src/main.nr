@@ -31,8 +31,7 @@ fn aztec(f: FunctionDefinition) {
     f.set_parameters(parameters);
 
     // Create a new body where every function call has `_context` added to the list of arguments.
-    let body = f.body().map(mapping_function);
-    let body = quote { $body };
+    let body = f.body().map(mapping_function).quoted();
     f.set_body(body);
 }
 
@@ -43,7 +42,7 @@ fn mapping_function(expr: Expr) -> Option<Expr> {
         let (name, arguments) = func_call.unwrap();
         let arguments = arguments.map(|arg: Expr| arg.map(mapping_function));
         let arguments = arguments.push_back(quote { _context }.as_expr().unwrap());
-        let arguments = arguments.map(|arg| quote { $arg }).join(quote { , });
+        let arguments = arguments.map(|arg: Expr| arg.quoted()).join(quote { , });
         Option::some(quote { $name($arguments) }.as_expr().unwrap())
     } else {
         Option::none()
