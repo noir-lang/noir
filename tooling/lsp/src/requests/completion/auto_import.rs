@@ -167,9 +167,14 @@ fn module_id_path(
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
+
         loop {
+            let Some(parent_local_id) = current_attributes.parent else {
+                break;
+            };
+
             let parent_module_id =
-                &ModuleId { krate: target_module_id.krate, local_id: current_attributes.parent };
+                &ModuleId { krate: target_module_id.krate, local_id: parent_local_id };
 
             if current_module_id == parent_module_id {
                 is_relative = true;

@@ -334,12 +334,16 @@ fn format_parent_module_from_module_id(
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
-        while let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
-            krate: module.krate,
-            local_id: current_attributes.parent,
-        }) {
-            segments.push(&parent_attributes.name);
-            current_attributes = parent_attributes;
+        while let Some(parent_local_id) = current_attributes.parent {
+            let parent_module_id = ModuleId { krate: module.krate, local_id: parent_local_id };
+            if let Some(parent_attributes) = args.interner.try_module_attributes(&parent_module_id)
+            {
+                segments.push(&parent_attributes.name);
+                current_attributes = parent_attributes;
+            } else {
+                // We cannot find a parent module.
+                break;
+            }
         }
     }
 
