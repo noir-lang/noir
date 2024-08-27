@@ -845,6 +845,13 @@ impl<'interner> Monomorphizer<'interner> {
             return self.resolve_trait_method_expr(expr_id, typ, method);
         }
 
+        // Ensure all instantiation bindings are bound.
+        // This ensures even unused type variables like `fn foo<T>() {}` have concrete types
+        let bindings = self.interner.get_instantiation_bindings(expr_id);
+        for (_, (_, binding)) in bindings {
+            Self::check_type(binding, ident.location)?;
+        }
+
         let definition = self.interner.definition(ident.id);
         let ident = match &definition.kind {
             DefinitionKind::Function(func_id) => {
