@@ -136,19 +136,18 @@ impl Context {
             constraint_simplification_mappings.entry(*side_effects_enabled_var).or_default();
         let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
         let old_results = dfg.instruction_results(id).to_vec();
-        // dbg!(old_results.clone());
+
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         if let Some(cached_results) =
             Self::get_cached(dfg, instruction_result_cache, &instruction, *side_effects_enabled_var)
         {
-            // dbg!(cached_results.clone());
             Self::replace_result_ids(dfg, &old_results, cached_results);
             return;
         }
 
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
         let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
-        // dbg!(new_results.clone());
+
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
         self.cache_instruction(
@@ -340,10 +339,8 @@ impl Context {
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
     ) -> Option<&'a Vec<ValueId>> {
-        // dbg!(instruction_result_cache.clone());
-        // dbg!(instruction.clone());
         let results_for_instruction = instruction_result_cache.get(instruction);
-        // dbg!(results_for_instruction.clone());
+
         // See if there's a cached version with no predicate first
         if let Some(results) = results_for_instruction.and_then(|map| map.get(&None)) {
             return Some(results);
@@ -917,7 +914,8 @@ mod test {
         let instructions = entry_block.instructions();
         assert_eq!(instructions.len(), 2);
 
-        if let TerminatorInstruction::Return { return_values, .. } = entry_block.unwrap_terminator() {
+        if let TerminatorInstruction::Return { return_values, .. } = entry_block.unwrap_terminator()
+        {
             assert!(return_values[0] != return_values[1]);
         } else {
             panic!("Should have a return terminator");
@@ -939,11 +937,13 @@ mod test {
 
         if let Instruction::Binary(binary) = &main.dfg[instructions[0]] {
             assert_eq!(binary.lhs, v0);
-            let constant_two = main.dfg.get_numeric_constant(binary.rhs).expect("Should have a numeric constant");
+            let constant_two =
+                main.dfg.get_numeric_constant(binary.rhs).expect("Should have a numeric constant");
             assert_eq!(constant_two.to_u128(), 2u128);
         }
 
-        if let TerminatorInstruction::Return { return_values, .. } = entry_block.unwrap_terminator() {
+        if let TerminatorInstruction::Return { return_values, .. } = entry_block.unwrap_terminator()
+        {
             assert_eq!(main.dfg.resolve(return_values[0]), main.dfg.resolve(return_values[1]));
         } else {
             panic!("Should have a return terminator");
