@@ -11,7 +11,7 @@ a function definition in the source program.
 
 #include_code body noir_stdlib/src/meta/function_def.nr rust
 
-Returns the body of the function as a list of expressions. This is only valid 
+Returns the body of the function as an expression. This is only valid 
 on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
 

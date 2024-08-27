@@ -31,14 +31,8 @@ fn aztec(f: FunctionDefinition) {
     f.set_parameters(parameters);
 
     // Create a new body where every function call has `_context` added to the list of arguments.
-    let body_exprs = f.body();
-    let body_exprs = body_exprs.map(
-        |body_expr| { 
-        let body_expr: Expr = body_expr;
-        body_expr.map(mapping_function)
-    }
-    );
-    let body = body_exprs.map(|expr| quote { $expr }).join(quote { ; });
+    let body = f.body().map(mapping_function);
+    let body = quote { $body };
     f.set_body(body);
 }
 

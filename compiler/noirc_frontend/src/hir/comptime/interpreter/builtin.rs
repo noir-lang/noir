@@ -1278,7 +1278,7 @@ where
     option(return_type, option_value)
 }
 
-// fn body(self) -> [Expr]
+// fn body(self) -> Expr
 fn function_def_body(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -1288,7 +1288,7 @@ fn function_def_body(
     let func_id = get_function_def(self_argument)?;
     let func_meta = interner.function_meta(&func_id);
     if let FunctionBody::Unresolved(_, block_expr, _) = &func_meta.function_body {
-        Ok(block_expression_to_value(block_expr.clone()))
+        Ok(Value::expression(ExpressionKind::Block(block_expr.clone())))
     } else {
         Err(InterpreterError::FunctionAlreadyResolved { location })
     }
