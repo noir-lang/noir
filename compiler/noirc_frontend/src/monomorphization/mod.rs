@@ -848,7 +848,7 @@ impl<'interner> Monomorphizer<'interner> {
         // Ensure all instantiation bindings are bound.
         // This ensures even unused type variables like `fn foo<T>() {}` have concrete types
         let bindings = self.interner.get_instantiation_bindings(expr_id);
-        for (_, (_, binding)) in bindings {
+        for (_, binding) in bindings.values() {
             Self::check_type(binding, ident.location)?;
         }
 
