@@ -116,7 +116,7 @@ impl<T> Option<T> {
     }
 
     /// If self is Some, return self. Otherwise, return `default()`.
-    pub fn or_else<U, Env>(self, default: fn[Env]() -> Self) -> Self {
+    pub fn or_else<Env>(self, default: fn[Env]() -> Self) -> Self {
         if self._is_some { self } else { default() }
     }
 
