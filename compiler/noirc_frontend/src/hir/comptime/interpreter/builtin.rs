@@ -29,7 +29,7 @@ use crate::{
         InterpreterError, Value,
     },
     hir_def::function::FunctionBody,
-    macros_api::{ModuleDefId, NodeInterner, Signedness},
+    macros_api::{HirExpression, HirLiteral, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
     token::{SpannedToken, Token},
@@ -54,32 +54,38 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
-            "expr_as_array" => expr_as_array(arguments, return_type, location),
-            "expr_as_assign" => expr_as_assign(arguments, return_type, location),
-            "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
-            "expr_as_block" => expr_as_block(arguments, return_type, location),
-            "expr_as_bool" => expr_as_bool(arguments, return_type, location),
-            "expr_as_cast" => expr_as_cast(arguments, return_type, location),
-            "expr_as_comptime" => expr_as_comptime(arguments, return_type, location),
-            "expr_as_function_call" => expr_as_function_call(arguments, return_type, location),
-            "expr_as_if" => expr_as_if(arguments, return_type, location),
-            "expr_as_index" => expr_as_index(arguments, return_type, location),
-            "expr_as_integer" => expr_as_integer(arguments, return_type, location),
-            "expr_as_member_access" => expr_as_member_access(arguments, return_type, location),
-            "expr_as_method_call" => expr_as_method_call(arguments, return_type, location),
+            "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
+            "expr_as_assign" => expr_as_assign(interner, arguments, return_type, location),
+            "expr_as_binary_op" => expr_as_binary_op(interner, arguments, return_type, location),
+            "expr_as_block" => expr_as_block(interner, arguments, return_type, location),
+            "expr_as_bool" => expr_as_bool(interner, arguments, return_type, location),
+            "expr_as_cast" => expr_as_cast(interner, arguments, return_type, location),
+            "expr_as_comptime" => expr_as_comptime(interner, arguments, return_type, location),
+            "expr_as_function_call" => {
+                expr_as_function_call(interner, arguments, return_type, location)
+            }
+            "expr_as_if" => expr_as_if(interner, arguments, return_type, location),
+            "expr_as_index" => expr_as_index(interner, arguments, return_type, location),
+            "expr_as_integer" => expr_as_integer(interner, arguments, return_type, location),
+            "expr_as_member_access" => {
+                expr_as_member_access(interner, arguments, return_type, location)
+            }
+            "expr_as_method_call" => {
+                expr_as_method_call(interner, arguments, return_type, location)
+            }
             "expr_as_repeated_element_array" => {
-                expr_as_repeated_element_array(arguments, return_type, location)
+                expr_as_repeated_element_array(interner, arguments, return_type, location)
             }
             "expr_as_repeated_element_slice" => {
-                expr_as_repeated_element_slice(arguments, return_type, location)
+                expr_as_repeated_element_slice(interner, arguments, return_type, location)
             }
-            "expr_as_slice" => expr_as_slice(arguments, return_type, location),
-            "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
-            "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
-            "expr_as_unsafe" => expr_as_unsafe(arguments, return_type, location),
-            "expr_has_semicolon" => expr_has_semicolon(arguments, location),
-            "expr_is_break" => expr_is_break(arguments, location),
-            "expr_is_continue" => expr_is_continue(arguments, location),
+            "expr_as_slice" => expr_as_slice(interner, arguments, return_type, location),
+            "expr_as_tuple" => expr_as_tuple(interner, arguments, return_type, location),
+            "expr_as_unary_op" => expr_as_unary_op(interner, arguments, return_type, location),
+            "expr_as_unsafe" => expr_as_unsafe(interner, arguments, return_type, location),
+            "expr_has_semicolon" => expr_has_semicolon(interner, arguments, location),
+            "expr_is_break" => expr_is_break(interner, arguments, location),
+            "expr_is_continue" => expr_is_continue(interner, arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_name" => function_def_name(interner, arguments, location),
@@ -808,11 +814,12 @@ fn zeroed(return_type: Type) -> IResult<Value> {
 
 // fn as_array(self) -> Option<[Expr]>
 fn expr_as_array(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Literal(Literal::Array(
             ArrayLiteral::Standard(exprs),
         ))) = expr
@@ -828,11 +835,12 @@ fn expr_as_array(
 
 // fn as_assign(self) -> Option<(Expr, Expr)>
 fn expr_as_assign(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::Assign(assign)) = expr {
             let lhs = Value::lvalue(assign.lvalue);
             let rhs = Value::expression(assign.expression.kind);
@@ -845,11 +853,12 @@ fn expr_as_assign(
 
 // fn as_binary_op(self) -> Option<(Expr, BinaryOp, Expr)>
 fn expr_as_binary_op(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type.clone(), location, |expr| {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Infix(infix_expr)) = expr {
             let option_type = extract_option_generic_type(return_type);
             let Type::Tuple(mut tuple_types) = option_type else {
@@ -878,11 +887,12 @@ fn expr_as_binary_op(
 
 // fn as_block(self) -> Option<[Expr]>
 fn expr_as_block(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Block(block_expr)) = expr {
             Some(block_expression_to_value(block_expr))
         } else {
@@ -893,11 +903,12 @@ fn expr_as_block(
 
 // fn as_bool(self) -> Option<bool>
 fn expr_as_bool(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Literal(Literal::Bool(bool))) = expr {
             Some(Value::Bool(bool))
         } else {
@@ -908,11 +919,12 @@ fn expr_as_bool(
 
 // fn as_cast(self) -> Option<(Expr, UnresolvedType)>
 fn expr_as_cast(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Cast(cast)) = expr {
             let lhs = Value::expression(cast.lhs.kind);
             let typ = Value::UnresolvedType(cast.r#type.typ);
@@ -925,13 +937,14 @@ fn expr_as_cast(
 
 // fn as_comptime(self) -> Option<[Expr]>
 fn expr_as_comptime(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     use ExpressionKind::Block;
 
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Comptime(block_expr, _)) = expr {
             Some(block_expression_to_value(block_expr))
         } else if let ExprValue::Statement(StatementKind::Comptime(statement)) = expr {
@@ -957,11 +970,12 @@ fn expr_as_comptime(
 
 // fn as_function_call(self) -> Option<(Expr, [Expr])>
 fn expr_as_function_call(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Call(call_expression)) = expr {
             let function = Value::expression(call_expression.func.kind);
             let arguments = call_expression.arguments.into_iter();
@@ -977,11 +991,12 @@ fn expr_as_function_call(
 
 // fn as_if(self) -> Option<(Expr, Expr, Option<Expr>)>
 fn expr_as_if(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type.clone(), location, |expr| {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::If(if_expr)) = expr {
             // Get the type of `Option<Expr>`
             let option_type = extract_option_generic_type(return_type.clone());
@@ -1009,11 +1024,12 @@ fn expr_as_if(
 
 // fn as_index(self) -> Option<Expr>
 fn expr_as_index(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Index(index_expr)) = expr {
             Some(Value::Tuple(vec![
                 Value::expression(index_expr.collection.kind),
@@ -1027,27 +1043,36 @@ fn expr_as_index(
 
 // fn as_integer(self) -> Option<(Field, bool)>
 fn expr_as_integer(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type.clone(), location, |expr| {
-        if let ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, sign))) = expr
-        {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, sign))) => {
             Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
-        } else {
-            None
         }
+        ExprValue::Expression(ExpressionKind::Resolved(id)) => {
+            if let HirExpression::Literal(HirLiteral::Integer(field, sign)) =
+                interner.expression(&id)
+            {
+                Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+            } else {
+                None
+            }
+        }
+        _ => None,
     })
 }
 
 // fn as_member_access(self) -> Option<(Expr, Quoted)>
 fn expr_as_member_access(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| match expr {
+    expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
             let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
             Some(Value::Tuple(vec![
@@ -1065,11 +1090,12 @@ fn expr_as_member_access(
 
 // fn as_method_call(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])>
 fn expr_as_method_call(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
             let object = Value::expression(method_call.object.kind);
 
@@ -1098,11 +1124,12 @@ fn expr_as_method_call(
 
 // fn as_repeated_element_array(self) -> Option<(Expr, Expr)>
 fn expr_as_repeated_element_array(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Literal(Literal::Array(
             ArrayLiteral::Repeated { repeated_element, length },
         ))) = expr
@@ -1119,11 +1146,12 @@ fn expr_as_repeated_element_array(
 
 // fn as_repeated_element_slice(self) -> Option<(Expr, Expr)>
 fn expr_as_repeated_element_slice(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Literal(Literal::Slice(
             ArrayLiteral::Repeated { repeated_element, length },
         ))) = expr
@@ -1140,11 +1168,12 @@ fn expr_as_repeated_element_slice(
 
 // fn as_slice(self) -> Option<[Expr]>
 fn expr_as_slice(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Literal(Literal::Slice(
             ArrayLiteral::Standard(exprs),
         ))) = expr
@@ -1160,11 +1189,12 @@ fn expr_as_slice(
 
 // fn as_tuple(self) -> Option<[Expr]>
 fn expr_as_tuple(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Tuple(expressions)) = expr {
             let expressions =
                 expressions.into_iter().map(|expr| Value::expression(expr.kind)).collect();
@@ -1178,11 +1208,12 @@ fn expr_as_tuple(
 
 // fn as_unary_op(self) -> Option<(UnaryOp, Expr)>
 fn expr_as_unary_op(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type.clone(), location, |expr| {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Prefix(prefix_expr)) = expr {
             let option_type = extract_option_generic_type(return_type);
             let Type::Tuple(mut tuple_types) = option_type else {
@@ -1215,11 +1246,12 @@ fn expr_as_unary_op(
 
 // fn as_unsafe(self) -> Option<[Expr]>
 fn expr_as_unsafe(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
+    expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Unsafe(block_expr, _)) = expr {
             Some(block_expression_to_value(block_expr))
         } else {
@@ -1229,28 +1261,41 @@ fn expr_as_unsafe(
 }
 
 // fn as_has_semicolon(self) -> bool
-fn expr_has_semicolon(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn expr_has_semicolon(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let expr_value = get_expr(self_argument)?;
+    let expr_value = get_expr(interner, self_argument)?;
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
 }
 
 // fn is_break(self) -> bool
-fn expr_is_break(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn expr_is_break(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let expr_value = get_expr(self_argument)?;
+    let expr_value = get_expr(interner, self_argument)?;
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Break))))
 }
 
 // fn is_continue(self) -> bool
-fn expr_is_continue(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+fn expr_is_continue(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let expr_value = get_expr(self_argument)?;
+    let expr_value = get_expr(interner, self_argument)?;
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Continue))))
 }
 
 // Helper function for implementing the `expr_as_...` functions.
 fn expr_as<F>(
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -1260,7 +1305,7 @@ where
     F: FnOnce(ExprValue) -> Option<Value>,
 {
     let self_argument = check_one_argument(arguments, location)?;
-    let mut expr_value = get_expr(self_argument)?;
+    let mut expr_value = get_expr(interner, self_argument)?;
     loop {
         match expr_value {
             ExprValue::Expression(ExpressionKind::Parenthesized(expression)) => {

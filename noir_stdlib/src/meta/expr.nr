@@ -113,6 +113,7 @@ impl Expr {
 
     fn map<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
         let result = f(self);
+        let result = result.or_else(|| map_array(self, f));
         let result = result.or_else(|| map_if(self, f));
         let result = result.or_else(|| map_block(self, f));
         // TODO: check the remaining possibilities...
@@ -125,10 +126,19 @@ impl Expr {
     }
 }
 
+fn map_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_array().map(
+        |exprs: [Expr]| {
+        let exprs = map_expressions(exprs, f);
+        new_array(exprs)
+    }
+    )
+}
+
 fn map_block<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_block().map(
         |exprs: [Expr]| {
-        let exprs = exprs.map(|expr: Expr| expr.map(f));
+        let exprs = map_expressions(exprs, f);
         new_block(exprs)
     }
     )
@@ -146,8 +156,17 @@ fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     )
 }
 
+fn map_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
+    exprs.map(|expr: Expr| expr.map(f))
+}
+
+fn new_array(exprs: [Expr]) -> Expr {
+    let exprs = join_expressions(exprs, quote { , });
+    quote { [ $exprs ]}.as_expr().unwrap()
+}
+
 fn new_block(exprs: [Expr]) -> Expr {
-    let exprs = exprs.map(|expr: Expr| expr.quoted()).join(quote { ; });
+    let exprs = join_expressions(exprs, quote { ; });
     quote { { $exprs }}.as_expr().unwrap()
 }
 
@@ -158,4 +177,8 @@ fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr
     } else {
         quote { if $condition { $consequence } }.as_expr().unwrap()
     }
+}
+
+fn join_expressions(exprs: [Expr], separator: Quoted) -> Quoted {
+    exprs.map(|expr: Expr| expr.quoted()).join(separator)
 }

@@ -4,7 +4,10 @@ use acvm::FieldElement;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{BlockExpression, IntegerBitSize, Signedness, UnresolvedTypeData},
+    ast::{
+        BlockExpression, ExpressionKind, IntegerBitSize, Signedness, StatementKind,
+        UnresolvedTypeData,
+    },
     hir::{
         comptime::{
             errors::IResult,
@@ -142,9 +145,20 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     }
 }
 
-pub(crate) fn get_expr((value, location): (Value, Location)) -> IResult<ExprValue> {
+pub(crate) fn get_expr(
+    interner: &NodeInterner,
+    (value, location): (Value, Location),
+) -> IResult<ExprValue> {
     match value {
-        Value::Expr(expr) => Ok(expr),
+        Value::Expr(expr) => match expr {
+            ExprValue::Expression(ExpressionKind::Interned(id)) => {
+                Ok(ExprValue::Expression(interner.get_expression_kind(id).clone()))
+            }
+            ExprValue::Statement(StatementKind::Interned(id)) => {
+                Ok(ExprValue::Statement(interner.get_statement_kind(id).clone()))
+            }
+            _ => Ok(expr),
+        },
         value => type_mismatch(value, Type::Quoted(QuotedType::Expr), location),
     }
 }

@@ -16,6 +16,20 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_array() {
+        comptime
+        {
+            let expr = quote { [1, 2, 4] }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let elems = expr.as_array().unwrap();
+            assert_eq(elems.len(), 3);
+            assert_eq(elems[0].as_integer().unwrap(), (2, false));
+            assert_eq(elems[1].as_integer().unwrap(), (4, false));
+            assert_eq(elems[2].as_integer().unwrap(), (8, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_assign() {
         comptime
         {
@@ -307,6 +321,16 @@ mod tests {
         let expr = quoted.as_expr().unwrap();
         let (_, op, _) = expr.as_binary_op().unwrap();
         op
+    }
+
+    comptime fn times_two(expr: Expr) -> Option<Expr> {
+        expr.as_integer().and_then(
+            |integer: (Field, bool)| {
+          let (value, _) = integer;
+            let value = value * 2;
+            quote { $value }.as_expr()
+        }
+        )
     }
 }
 
