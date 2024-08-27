@@ -1,5 +1,5 @@
 [package]
-name = "aztec_macro_add_context"
+name = "inject_context_attribute"
 type = "bin"
 authors = [""]
 
