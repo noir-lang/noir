@@ -858,6 +858,7 @@ impl<'interner> Monomorphizer<'interner> {
                     generics.unwrap_or_default(),
                     None,
                 );
+                eprintln!("Converting type of function: {typ:?}");
                 let typ = Self::convert_type(&typ, ident.location)?;
                 let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
                 let ident_expression = ast::Expression::Ident(ident);

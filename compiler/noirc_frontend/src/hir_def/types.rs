@@ -1672,7 +1672,9 @@ impl Type {
                 // evaluate_to_u32 also calls canonicalize so if we just called
                 // `self.evaluate_to_u32()` we'd get infinite recursion.
                 if let (Some(lhs), Some(rhs)) = (lhs.evaluate_to_u32(), rhs.evaluate_to_u32()) {
-                    return Type::Constant(op.function(lhs, rhs));
+                    if let Some(result) = op.function(lhs, rhs) {
+                        return Type::Constant(result);
+                    }
                 }
 
                 let lhs = lhs.canonicalize();
@@ -1681,7 +1683,9 @@ impl Type {
                     return result;
                 }
 
-                if let Some(result) = Self::try_simplify_subtraction(&lhs, op, &rhs) {
+                // Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
+                // where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
+                if let Some(result) = Self::try_simplify_partial_constants(&lhs, op, &rhs) {
                     return result;
                 }
 
@@ -1711,7 +1715,11 @@ impl Type {
                     queue.push(*rhs);
                 }
                 Type::Constant(new_constant) => {
-                    constant = op.function(constant, new_constant);
+                    if let Some(result) = op.function(constant, new_constant) {
+                        constant = result;
+                    } else {
+                        sorted.insert(Type::Constant(new_constant));
+                    }
                 }
                 other => {
                     sorted.insert(other);
@@ -1757,27 +1765,60 @@ impl Type {
         }
     }
 
-    /// Try to simplify a subtraction expression of `lhs - rhs`.
+    /// Given:
+    ///   lhs = `N op C1`
+    ///   rhs = C2
+    /// Returns: `(N, op, C1, C2)` if C1 and C2 are constants.
+    ///   Note that the operator here is within the `lhs` term, the operator
+    ///   separating lhs and rhs is not needed.
+    fn parse_constant_expr(
+        lhs: &Type,
+        rhs: &Type,
+    ) -> Option<(Box<Type>, BinaryTypeOperator, u32, u32)> {
+        let rhs = rhs.evaluate_to_u32()?;
+
+        let Type::InfixExpr(l_type, l_op, l_rhs) = lhs.follow_bindings() else {
+            return None;
+        };
+
+        let l_rhs = l_rhs.evaluate_to_u32()?;
+        Some((l_type, l_op, l_rhs, rhs))
+    }
+
+    /// Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
+    /// where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
     ///
-    /// - Simplifies `(a + C1) - C2` to `a + (C1 - C2)` if C1 and C2 are constants.
-    fn try_simplify_subtraction(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Option<Type> {
+    /// - Simplifies `(a +/- C1) +/- C2` to `a +/- (C1 +/- C2)` if C1 and C2 are constants.
+    /// - Simplifies `(a */÷ C1) */÷ C2` to `a */÷ (C1 */÷ C2)` if C1 and C2 are constants.
+    fn try_simplify_partial_constants(
+        lhs: &Type,
+        mut op: BinaryTypeOperator,
+        rhs: &Type,
+    ) -> Option<Type> {
         use BinaryTypeOperator::*;
-        match lhs {
-            Type::InfixExpr(l_lhs, l_op, l_rhs) => {
-                // Simplify `(N + 2) - 1`
-                if op == Subtraction && *l_op == Addition {
-                    if let (Some(lhs_const), Some(rhs_const)) =
-                        (l_rhs.evaluate_to_u32(), rhs.evaluate_to_u32())
-                    {
-                        if lhs_const > rhs_const {
-                            let constant = Box::new(Type::Constant(lhs_const - rhs_const));
-                            return Some(
-                                Type::InfixExpr(l_lhs.clone(), *l_op, constant).canonicalize(),
-                            );
-                        }
-                    }
+        let (l_type, l_op, l_const, r_const) = Type::parse_constant_expr(lhs, rhs)?;
+
+        match (l_op, op) {
+            (Addition | Subtraction, Addition | Subtraction) => {
+                // If l_op is a subtraction we want to inverse the rhs operator.
+                if l_op == Subtraction {
+                    op = op.inverse()?;
                 }
-                None
+                let result = op.function(l_const, r_const)?;
+                Some(Type::InfixExpr(l_type, l_op, Box::new(Type::Constant(result))))
+            }
+            (Multiplication | Division, Multiplication | Division) => {
+                // If l_op is a subtraction we want to inverse the rhs operator.
+                if l_op == Division {
+                    op = op.inverse()?;
+                }
+                // If op is a division we need to ensure it divides evenly
+                if op == Division && l_const % r_const != 0 {
+                    None
+                } else {
+                    let result = op.function(l_const, r_const)?;
+                    Some(Type::InfixExpr(l_type, l_op, Box::new(Type::Constant(result))))
+                }
             }
             _ => None,
         }
@@ -1926,7 +1967,7 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.evaluate_to_u32()?;
                 let rhs = rhs.evaluate_to_u32()?;
-                Some(op.function(lhs, rhs))
+                op.function(lhs, rhs)
             }
             _ => None,
         }
@@ -2030,17 +2071,13 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 assert_eq!(types.len() + implicit_generic_count, typevars.len(), "Turbofish operator used with incorrect generic count which was not caught by name resolution");
 
+                let bindings =
+                    (0..implicit_generic_count).map(|_| interner.next_type_variable()).chain(types);
+
                 let replacements = typevars
                     .iter()
-                    .enumerate()
-                    .map(|(i, var)| {
-                        let binding = if i < implicit_generic_count {
-                            interner.next_type_variable()
-                        } else {
-                            types[i - implicit_generic_count].clone()
-                        };
-                        (var.id(), (var.clone(), binding))
-                    })
+                    .zip(bindings)
+                    .map(|(var, binding)| (var.id(), (var.clone(), binding)))
                     .collect();
 
                 let instantiated = typ.substitute(&replacements);
@@ -2457,13 +2494,13 @@ fn convert_array_expression_to_slice(
 
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
-    pub fn function(self, a: u32, b: u32) -> u32 {
+    pub fn function(self, a: u32, b: u32) -> Option<u32> {
         match self {
-            BinaryTypeOperator::Addition => a.wrapping_add(b),
-            BinaryTypeOperator::Subtraction => a.wrapping_sub(b),
-            BinaryTypeOperator::Multiplication => a.wrapping_mul(b),
-            BinaryTypeOperator::Division => a.wrapping_div(b),
-            BinaryTypeOperator::Modulo => a.wrapping_rem(b),
+            BinaryTypeOperator::Addition => a.checked_add(b),
+            BinaryTypeOperator::Subtraction => a.checked_sub(b),
+            BinaryTypeOperator::Multiplication => a.checked_mul(b),
+            BinaryTypeOperator::Division => a.checked_div(b),
+            BinaryTypeOperator::Modulo => a.checked_rem(b),
         }
     }
 

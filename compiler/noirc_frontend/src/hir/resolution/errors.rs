@@ -120,6 +120,8 @@ pub enum ResolverError {
     NamedTypeArgs { span: Span, item_kind: &'static str },
     #[error("Associated constants may only be a field or integer type")]
     AssociatedConstantsMustBeNumeric { span: Span },
+    #[error("Overflow in `{lhs} {op} {rhs}`")]
+    OverflowInType { lhs: u32, op: crate::BinaryTypeOperator, rhs: u32, span: Span },
 }
 
 impl ResolverError {
@@ -477,6 +479,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Associated constants may only be a field or integer type".to_string(),
                     "Only numeric constants are allowed".to_string(),
+                    *span,
+                )
+            }
+            ResolverError::OverflowInType { lhs, op, rhs, span } => {
+                Diagnostic::simple_error(
+                    format!("Overflow in `{lhs} {op} {rhs}`"),
+                    "Overflow here".to_string(),
                     *span,
                 )
             }
