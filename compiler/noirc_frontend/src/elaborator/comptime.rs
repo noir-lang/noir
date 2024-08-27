@@ -284,13 +284,14 @@ impl<'context> Elaborator<'context> {
                 });
             }
             TopLevelStatement::TraitImpl(mut trait_impl) => {
-                let methods = dc_mod::collect_trait_impl_functions(
-                    self.interner,
-                    &mut trait_impl,
-                    self.crate_id,
-                    self.file,
-                    self.local_module,
-                );
+                let (methods, associated_types, associated_constants) =
+                    dc_mod::collect_trait_impl_items(
+                        self.interner,
+                        &mut trait_impl,
+                        self.crate_id,
+                        self.file,
+                        self.local_module,
+                    );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
                     file_id: self.file,
@@ -301,6 +302,8 @@ impl<'context> Elaborator<'context> {
                     methods,
                     generics: trait_impl.impl_generics,
                     where_clause: trait_impl.where_clause,
+                    associated_types,
+                    associated_constants,
 
                     // These last fields are filled in later
                     trait_id: None,

@@ -706,7 +706,7 @@ impl<'a> Context<'a> {
                     self.convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 let acir_var = self.convert_numeric_value(*condition, dfg)?;
                 self.current_side_effects_enabled_var = acir_var;
             }
@@ -1165,11 +1165,15 @@ impl<'a> Context<'a> {
         let index_var = self.convert_numeric_value(index, dfg)?;
         let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
-        // predicate_index = index*predicate + (1-predicate)*offset
-        let offset = self.acir_context.add_constant(offset);
-        let sub = self.acir_context.sub_var(index_var, offset)?;
-        let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
-        let predicate_index = self.acir_context.add_var(pred, offset)?;
+        let predicate_index = if dfg.is_safe_index(index, array_id) {
+            index_var
+        } else {
+            // index*predicate + (1-predicate)*offset
+            let offset = self.acir_context.add_constant(offset);
+            let sub = self.acir_context.sub_var(index_var, offset)?;
+            let pred = self.acir_context.mul_var(sub, self.current_side_effects_enabled_var)?;
+            self.acir_context.add_var(pred, offset)?
+        };
 
         let new_value = if let Some(store) = store_value {
             let store_value = self.convert_value(store, dfg);

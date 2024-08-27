@@ -63,7 +63,7 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
 ///
 /// This is equivalent to the Noir (pseudo)code
 ///
-/// ```ignore
+/// ```text
 /// fn quotient<T>(a: T, b: T) -> (T,T) {
 ///    (a/b, a-a/b*b)
 /// }
