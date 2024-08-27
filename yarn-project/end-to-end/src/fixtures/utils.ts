@@ -32,6 +32,7 @@ import { type BBNativePrivateKernelProver } from '@aztec/bb-prover';
 import {
   CANONICAL_AUTH_REGISTRY_ADDRESS,
   CANONICAL_KEY_REGISTRY_ADDRESS,
+  type EthAddress,
   GasSettings,
   MAX_PACKED_PUBLIC_BYTECODE_SIZE_IN_FIELDS,
   computeContractAddressFromInstance,
@@ -113,7 +114,7 @@ export const setupL1Contracts = async (
   l1RpcUrl: string,
   account: HDAccount | PrivateKeyAccount,
   logger: DebugLogger,
-  args: { salt?: number } = {},
+  args: { salt?: number; initialValidators?: EthAddress[] } = {},
   chain: Chain = foundry,
 ) => {
   const l1Artifacts: L1ContractArtifactsForDeployment = {
@@ -151,6 +152,7 @@ export const setupL1Contracts = async (
     l2FeeJuiceAddress: FeeJuiceAddress,
     vkTreeRoot: getVKTreeRoot(),
     salt: args.salt,
+    initialValidators: args.initialValidators,
   });
 
   return l1Data;
@@ -295,6 +297,8 @@ type SetupOptions = {
   skipProtocolContracts?: boolean;
   /** Salt to use in L1 contract deployment */
   salt?: number;
+  /** An initial set of validators */
+  initialValidators?: EthAddress[];
 } & Partial<AztecNodeConfig>;
 
 /** Context for an end-to-end test as returned by the `setup` function */
@@ -388,7 +392,13 @@ export async function setup(
 
   const deployL1ContractsValues =
     opts.deployL1ContractsValues ??
-    (await setupL1Contracts(config.l1RpcUrl, publisherHdAccount!, logger, { salt: opts.salt }, chain));
+    (await setupL1Contracts(
+      config.l1RpcUrl,
+      publisherHdAccount!,
+      logger,
+      { salt: opts.salt, initialValidators: opts.initialValidators },
+      chain,
+    ));
 
   config.l1Contracts = deployL1ContractsValues.l1ContractAddresses;
 

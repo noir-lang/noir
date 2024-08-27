@@ -147,7 +147,13 @@ export const deployL1Contracts = async (
   chain: Chain,
   logger: DebugLogger,
   contractsToDeploy: L1ContractArtifactsForDeployment,
-  args: { l2FeeJuiceAddress: AztecAddress; vkTreeRoot: Fr; assumeProvenUntil?: number; salt: number | undefined },
+  args: {
+    l2FeeJuiceAddress: AztecAddress;
+    vkTreeRoot: Fr;
+    assumeProvenUntil?: number;
+    salt: number | undefined;
+    initialValidators?: EthAddress[];
+  },
 ): Promise<DeployL1Contracts> => {
   // We are assuming that you are running this on a local anvil node which have 1s block times
   // To align better with actual deployment, we update the block interval to 12s
@@ -234,6 +240,7 @@ export const deployL1Contracts = async (
     getAddress(feeJuicePortalAddress.toString()),
     args.vkTreeRoot.toString(),
     account.address.toString(),
+    args.initialValidators?.map(v => v.toString()) ?? [],
   ]);
   logger.info(`Deployed Rollup at ${rollupAddress}`);
 

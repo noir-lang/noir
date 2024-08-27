@@ -96,7 +96,7 @@ contract Leonidas is Ownable, ILeonidas {
    */
   function addValidator(address _validator) external override(ILeonidas) onlyOwner {
     setupEpoch();
-    validatorSet.add(_validator);
+    _addValidator(_validator);
   }
 
   /**
@@ -187,6 +187,15 @@ contract Leonidas is Ownable, ILeonidas {
    */
   function getValidatorCount() public view override(ILeonidas) returns (uint256) {
     return validatorSet.length();
+  }
+
+  /**
+   * @notice  Get the number of validators in the validator set
+   *
+   * @return The number of validators in the validator set
+   */
+  function getValidatorAt(uint256 _index) public view override(ILeonidas) returns (address) {
+    return validatorSet.at(_index);
   }
 
   /**
@@ -318,6 +327,14 @@ contract Leonidas is Ownable, ILeonidas {
     uint256 sampleSeed = _getSampleSeed(epochNumber);
     address[] memory committee = _sampleValidators(epochNumber, sampleSeed);
     return committee[_computeProposerIndex(epochNumber, slot, sampleSeed, committee.length)];
+  }
+
+  /**
+   * @notice  Adds a validator to the set WITHOUT setting up the epoch
+   * @param _validator - The validator to add
+   */
+  function _addValidator(address _validator) internal {
+    validatorSet.add(_validator);
   }
 
   /**

@@ -65,7 +65,8 @@ contract RollupTest is DecoderBase {
       availabilityOracle,
       IFeeJuicePortal(address(feeJuicePortal)),
       bytes32(0),
-      address(this)
+      address(this),
+      new address[](0)
     );
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));

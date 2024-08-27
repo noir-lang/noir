@@ -17,6 +17,7 @@ interface ILeonidas {
   function getCurrentSlot() external view returns (uint256);
   function isValidator(address _validator) external view returns (bool);
   function getValidatorCount() external view returns (uint256);
+  function getValidatorAt(uint256 _index) external view returns (address);
 
   // Consider removing below this point
   function getTimestampForSlot(uint256 _slotNumber) external view returns (uint256);

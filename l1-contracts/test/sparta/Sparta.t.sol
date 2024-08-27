@@ -63,7 +63,12 @@ contract SpartaTest is DecoderBase {
     availabilityOracle = new AvailabilityOracle();
     portalERC20 = new PortalERC20();
     rollup = new Rollup(
-      registry, availabilityOracle, IFeeJuicePortal(address(0)), bytes32(0), address(this)
+      registry,
+      availabilityOracle,
+      IFeeJuicePortal(address(0)),
+      bytes32(0),
+      address(this),
+      new address[](0)
     );
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));

@@ -57,7 +57,12 @@ contract DevNetTest is DecoderBase {
     registry = new Registry(address(this));
     availabilityOracle = new AvailabilityOracle();
     rollup = new Rollup(
-      registry, availabilityOracle, IFeeJuicePortal(address(0)), bytes32(0), address(this)
+      registry,
+      availabilityOracle,
+      IFeeJuicePortal(address(0)),
+      bytes32(0),
+      address(this),
+      new address[](0)
     );
     inbox = Inbox(address(rollup.INBOX()));
     outbox = Outbox(address(rollup.OUTBOX()));
@@ -160,7 +165,9 @@ contract DevNetTest is DecoderBase {
       ree.proposer = address(uint160(uint256(keccak256(abi.encode("invalid", ree.proposer)))));
       // Why don't we end up here?
       vm.expectRevert(
-        abi.encodeWithSelector(Errors.Leonidas__InvalidProposer.selector, address(0), ree.proposer)
+        abi.encodeWithSelector(
+          Errors.Leonidas__InvalidProposer.selector, rollup.getValidatorAt(0), ree.proposer
+        )
       );
       ree.shouldRevert = true;
     }

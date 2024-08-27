@@ -62,7 +62,12 @@ contract TokenPortalTest is Test {
     registry = new Registry(address(this));
     portalERC20 = new PortalERC20();
     rollup = new Rollup(
-      registry, new AvailabilityOracle(), IFeeJuicePortal(address(0)), bytes32(0), address(this)
+      registry,
+      new AvailabilityOracle(),
+      IFeeJuicePortal(address(0)),
+      bytes32(0),
+      address(this),
+      new address[](0)
     );
     inbox = rollup.INBOX();
     outbox = rollup.OUTBOX();

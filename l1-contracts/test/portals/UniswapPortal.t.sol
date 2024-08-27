@@ -54,7 +54,12 @@ contract UniswapPortalTest is Test {
 
     registry = new Registry(address(this));
     rollup = new Rollup(
-      registry, new AvailabilityOracle(), IFeeJuicePortal(address(0)), bytes32(0), address(this)
+      registry,
+      new AvailabilityOracle(),
+      IFeeJuicePortal(address(0)),
+      bytes32(0),
+      address(this),
+      new address[](0)
     );
     registry.upgrade(address(rollup));
 
