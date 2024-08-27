@@ -1,3 +1,3 @@
 mod transparent_note;
-mod balances_map;
+mod balance_set;
 mod token_note;
