@@ -70,6 +70,24 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_block() {
+        comptime
+        {
+            let expr = quote { { 1; 4; 23 } }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let exprs = expr.as_block().unwrap();
+            assert_eq(exprs.len(), 3);
+            assert_eq(exprs[0].as_integer().unwrap(), (2, false));
+            assert_eq(exprs[1].as_integer().unwrap(), (8, false));
+            assert_eq(exprs[2].as_integer().unwrap(), (46, false));
+
+            assert(exprs[0].has_semicolon());
+            assert(exprs[1].has_semicolon());
+            assert(!exprs[2].has_semicolon());
+        }
+    }
+
+    #[test]
     fn test_expr_as_method_call() {
         comptime
         {

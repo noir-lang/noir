@@ -21,7 +21,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     ast::{
         ArrayLiteral, Expression, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize,
-        Literal, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        LValue, Literal, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
     },
     hir::comptime::{
         errors::IResult,
@@ -1314,6 +1314,15 @@ where
             ExprValue::Statement(StatementKind::Expression(expression))
             | ExprValue::Statement(StatementKind::Semi(expression)) => {
                 expr_value = ExprValue::Expression(expression.kind);
+            }
+            ExprValue::Expression(ExpressionKind::Interned(id)) => {
+                expr_value = ExprValue::Expression(interner.get_expression_kind(id).clone())
+            }
+            ExprValue::Statement(StatementKind::Interned(id)) => {
+                expr_value = ExprValue::Statement(interner.get_statement_kind(id).clone())
+            }
+            ExprValue::LValue(LValue::Interned(id, span)) => {
+                expr_value = ExprValue::LValue(interner.get_lvalue(id, span).clone())
             }
             _ => break,
         }

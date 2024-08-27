@@ -112,13 +112,17 @@ impl Expr {
     // docs:end:is_continue
 
     fn map<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
-        let result = f(self);
-        let result = result.or_else(|| map_array(self, f));
-        let result = result.or_else(|| map_assign(self, f));
-        let result = result.or_else(|| map_if(self, f));
-        let result = result.or_else(|| map_block(self, f));
-        // TODO: check the remaining possibilities...
-        // though to test this it's easier if we have `as_let`.
+        let result_self = f(self);
+        let result_array = map_array(self, f);
+        let result_assign = map_assign(self, f);
+        let result_block  = map_block(self, f);
+        let result_if = map_if(self, f);
+
+        let result = result_self;
+        let result = result.or(result_array);
+        let result = result.or(result_assign);
+        let result = result.or(result_block);
+        let result = result.or(result_if);
         result.unwrap_or(self)
     }
 
