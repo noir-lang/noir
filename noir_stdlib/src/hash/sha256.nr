@@ -122,7 +122,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     msg_block[msg_byte_ptr] = 1 << 7;
     msg_byte_ptr = msg_byte_ptr + 1;
     unsafe {
-        let (new_msg_block, new_msg_byte_ptr)= pad_msg_block(msg_block, msg_byte_ptr);
+        let (new_msg_block, new_msg_byte_ptr) = pad_msg_block(msg_block, msg_byte_ptr);
         msg_block = new_msg_block;
         if crate::runtime::is_unconstrained() {
             msg_byte_ptr = new_msg_byte_ptr;
@@ -188,7 +188,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     hash_final_block(msg_block, h)
 }
 
-unconstrained fn pad_msg_block<let N: u32>(
+unconstrained fn pad_msg_block(
     mut msg_block: [u8; 64],
     mut msg_byte_ptr: u64
 ) -> ([u8; 64], u64) {
@@ -208,7 +208,7 @@ unconstrained fn pad_msg_block<let N: u32>(
     (msg_block, msg_byte_ptr)
 }
 
-unconstrained fn attach_len_to_msg_block<let N: u32>(
+unconstrained fn attach_len_to_msg_block(
     mut msg_block: [u8; 64],
     mut msg_byte_ptr: u64,
     message_size: u64
