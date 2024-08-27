@@ -106,6 +106,25 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_method_call() {
+        comptime
+        {
+            let expr = quote { foo.bar(3, 4) }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+
+            let (_object, name, generics, arguments) = expr.as_method_call().unwrap();
+
+            assert_eq(name, quote { bar });
+
+            assert_eq(generics.len(), 0);
+
+            assert_eq(arguments.len(), 2);
+            assert_eq(arguments[0].as_integer().unwrap(), (6, false));
+            assert_eq(arguments[1].as_integer().unwrap(), (8, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_integer() {
         comptime
         {

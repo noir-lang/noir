@@ -117,12 +117,14 @@ impl Expr {
         let result_assign = map_assign(self, f);
         let result_block  = map_block(self, f);
         let result_if = map_if(self, f);
+        let result_method_call = map_method_call(self, f);
 
         let result = result_self;
         let result = result.or(result_array);
         let result = result.or(result_assign);
         let result = result.or(result_block);
         let result = result.or(result_if);
+        let result = result.or(result_method_call);
         result.unwrap_or(self)
     }
 
@@ -172,6 +174,17 @@ fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     )
 }
 
+fn map_method_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_method_call().map(
+        |expr: (Expr, Quoted, [UnresolvedType], [Expr])| {
+        let (object, name, generics, arguments) = expr;
+        let object = object.map(f);
+        let arguments = arguments.map(|arg: Expr| arg.map(f));
+        new_method_call(object, name, generics, arguments)
+    }
+    )
+}
+
 fn map_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
     exprs.map(|expr: Expr| expr.map(f))
 }
@@ -196,6 +209,17 @@ fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr
         quote { if $condition { $consequence } else { $alternative }}.as_expr().unwrap()
     } else {
         quote { if $condition { $consequence } }.as_expr().unwrap()
+    }
+}
+
+fn new_method_call(object: Expr, name: Quoted, generics: [UnresolvedType], arguments: [Expr]) -> Expr {
+    let arguments = join_expressions(arguments, quote { , });
+
+    if generics.len() == 0 {
+        quote { $object.$name($arguments) }.as_expr().unwrap()
+    } else {
+        let generics = generics.map(|generic| quote { $generic }).join(quote { , });
+        quote { $object.$name::<$generics>($arguments) }.as_expr().unwrap()
     }
 }
 
