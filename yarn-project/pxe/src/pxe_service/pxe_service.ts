@@ -565,6 +565,7 @@ export class PXEService implements PXE {
     }
     this.log.info(`Sending transaction ${txHash}`);
     await this.node.sendTx(tx);
+    this.log.info(`Sent transaction ${txHash}`);
     return txHash;
   }
 

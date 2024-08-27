@@ -139,7 +139,7 @@ services:
     profiles:
       - metrics
     volumes:
-      - ./grafana_dashboards:/etc/grafana/provisioning/dashboards
+      - ./helm-charts/aztec-network/files/grafana_dashboards:/etc/grafana/provisioning/dashboards
       - grafana:/var/lib/grafana
     configs:
       - source: grafana-sources

@@ -37,7 +37,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -119,7 +119,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -139,7 +139,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -221,7 +221,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -254,7 +254,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -302,7 +302,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -322,7 +322,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -373,7 +373,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -389,7 +389,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -410,7 +410,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -490,7 +490,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -511,7 +511,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -603,7 +603,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -623,7 +623,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "description": "",
       "fieldConfig": {
@@ -673,7 +673,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -693,7 +693,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "description": "",
       "fieldConfig": {
@@ -775,7 +775,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -795,7 +795,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -843,7 +843,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -877,7 +877,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -956,7 +956,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -978,7 +978,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1029,7 +1029,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -1046,7 +1046,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -1068,7 +1068,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1116,7 +1116,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1160,7 +1160,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1212,7 +1212,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1310,7 +1310,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -1330,7 +1330,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1410,7 +1410,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1428,7 +1428,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -1445,7 +1445,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -1467,7 +1467,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1542,7 +1542,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1559,7 +1559,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1577,7 +1577,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1612,7 +1612,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1692,7 +1692,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -1712,7 +1712,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1759,7 +1759,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1780,7 +1780,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1859,7 +1859,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguyxik"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -1894,7 +1894,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1970,7 +1970,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -1986,7 +1986,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -2007,7 +2007,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -2086,7 +2086,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -2108,7 +2108,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "-qqguYXIk"
+        "uid": "aztec-node-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -2187,7 +2187,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "-qqguYXIk"
+            "uid": "aztec-node-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -2220,7 +2220,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "-qqguYXIk"
+          "uid": "aztec-node-metrics"
         },
         "definition": "label_values(target_info,aztec_network_name)",
         "hide": 0,
@@ -2248,7 +2248,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "-qqguYXIk"
+          "uid": "aztec-node-metrics"
         },
         "definition": "label_values(target_info{aztec_network_name=\"$network\"},exported_instance)",
         "hide": 0,
@@ -2307,7 +2307,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "-qqguYXIk"
+          "uid": "aztec-node-metrics"
         },
         "definition": "label_values(aztec_circuit_protocol_circuit_name)",
         "hide": 0,
@@ -2335,7 +2335,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "New new new dashboard",
+  "title": "Aztec Network Dashboard",
   "uid": "cdtxao66xa1ogc",
   "version": 31,
   "weekStart": ""

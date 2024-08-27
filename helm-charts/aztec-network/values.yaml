@@ -11,6 +11,18 @@ images:
   foundry:
     image: ghcr.io/foundry-rs/foundry@sha256:29ba6e34379e79c342ec02d437beb7929c9e254261e8032b17e187be71a2609f
     pullPolicy: IfNotPresent
+  otelCollector:
+    image: otel/opentelemetry-collector-contrib
+    pullPolicy: IfNotPresent
+  prometheus:
+    image: prom/prometheus
+    pullPolicy: IfNotPresent
+  grafana:
+    image: grafana/grafana
+    pullPolicy: IfNotPresent
+  jaeger:
+    image: jaegertracing/all-in-one
+    pullPolicy: IfNotPresent
 
 bootNode:
   replicas: 1
@@ -18,20 +30,30 @@ bootNode:
     p2pPort: 40400
     nodePort: 8080
   logLevel: "debug"
-  debug: "discv5:*,aztec:*"
+  debug: "aztec:*"
   p2p:
     enabled: "true"
   resources: {}
 
 validator:
-  replicas: 1
+  replicas: 0
   service:
     p2pPort: 40400
     nodePort: 8080
   logLevel: "debug"
-  debug: "discv5:*,aztec:*"
+  debug: "aztec:*"
   p2p:
     enabled: "true"
+  resources: {}
+
+proverNode:
+  replicas: 1
+  service:
+    nodePort: 8080
+  logLevel: "debug"
+  debug: "aztec:*"
+  realProofs: false
+  proverAgentEnabled: true
   resources: {}
 
 pxe:
@@ -65,6 +87,22 @@ ethereum:
     successThreshold: 1
     failureThreshold: 3
   resources: {}
+
+metrics:
+  service:
+    type: ClusterIP
+  ports:
+    otlp: 4316
+    metrics: 4315
+    prometheus: 9090
+    grafana: 3000
+    jaeger: 16686
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
 
 test: "sample"
 scenario: "default"

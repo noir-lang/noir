@@ -12,6 +12,7 @@ import {
   EthCheatCodes,
   Fr,
   GrumpkinScalar,
+  type PXE,
   SignerlessWallet,
   type Wallet,
 } from '@aztec/aztec.js';
@@ -448,7 +449,7 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
  */
 export const addAccounts =
   (numberOfAccounts: number, logger: DebugLogger) =>
-  async ({ pxe }: SubsystemsContext) => {
+  async ({ pxe }: { pxe: PXE }) => {
     // Generate account keys.
     const accountKeys: [Fr, GrumpkinScalar][] = Array.from({ length: numberOfAccounts }).map(_ => [
       Fr.random(),

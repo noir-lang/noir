@@ -38,7 +38,7 @@ export const startProverNode = async (
     process.exit(1);
   }
 
-  if (options.prover) {
+  if (options.prover || options.proverAgentEnabled) {
     userLog(`Running prover node with local prover agent.`);
     proverConfig.proverAgentEnabled = true;
   } else {

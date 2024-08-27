@@ -161,6 +161,35 @@ jobs:
             export FORCE_COLOR=1
             ../../scripts/earthly-ci -P --no-output +${{ matrix.test }}
 
+  # all the network end-to-end tests for aztec (not required to merge)
+  network-e2e:
+    needs: [build, changes]
+    if: ${{ needs.changes.outputs.non-barretenberg-cpp == 'true' }}
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.GIT_COMMIT }}" }
+      - uses: ./.github/ci-setup-action
+      - name: Setup and Test
+        uses: ./.github/ensure-tester-with-images
+        timeout-minutes: 45
+        with:
+          runner_type: ${{ contains(matrix.test, 'prover') && '64core-tester-x86' || '16core-tester-x86' }}
+          builder_type: builder-x86
+          # these are copied to the tester and expected by the earthly command below
+          # if they fail to copy, it will try to build them on the tester and fail
+          builder_images_to_copy: aztecprotocol/aztec:${{ env.GIT_COMMIT }} aztecprotocol/end-to-end:${{ env.GIT_COMMIT }}
+          # command to produce the images in case they don't exist
+          builder_command: scripts/earthly-ci ./yarn-project+export-e2e-test-images
+          tester_ttl: 40
+          run: |
+            set -eux
+            cd ./yarn-project/end-to-end/
+            ./scripts/setup_local_k8s.sh
+            export FORCE_COLOR=1
+            export EARTHLY_BUILD_ARGS="${{ env.EARTHLY_BUILD_ARGS }}"
+            ../../scripts/earthly-ci --exec-stats -P --no-output ./+network-transfer
+
   # all the benchmarking end-to-end integration tests for aztec (not required to merge)
   bench-e2e:
     needs: [build, changes]

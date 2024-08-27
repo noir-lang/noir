@@ -10,7 +10,7 @@ data:
     set -e
 
     # Ask the bootnode for l1 contract addresses
-    output=$(node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js get-node-info -u http://{{ include "aztec-network.fullname" . }}-boot-node-0.{{ include "aztec-network.fullname" . }}-boot-node.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.bootNode.service.nodePort }})
+    output=$(node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js get-node-info -u {{ include "aztec-network.bootNodeUrl" . }})
 
     echo "$output"
 

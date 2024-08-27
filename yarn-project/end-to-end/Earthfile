@@ -73,12 +73,14 @@ NETWORK_TEST:
     RUN kubectl delete namespace $namespace --ignore-not-found=true --wait=true --now --timeout=10m
   END
 
-
   RUN helm install spartan ../../helm-charts/aztec-network \
         --namespace $namespace --create-namespace \
         --set images.test.image="aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG" \
         --set images.aztec.image="aztecprotocol/aztec:$AZTEC_DOCKER_TAG" \
-        --set test="$test"
+        --set test="$test" \
+        --wait \
+        --wait-for-jobs=true \
+        --timeout=10m
 
   RUN kubectl wait pod -l app==pxe --for=condition=Ready -n $namespace --timeout=10m
 
@@ -299,4 +301,9 @@ e2e-cli-wallet:
   DO +E2E_COMPOSE_TEST --test=e2e_cli_wallet --compose_file=scripts/docker-compose-wallet.yml
 
 network-smoke:
-  DO +NETWORK_TEST --fresh_install=true --namespace=smoke --test=./src/spartan/smoke.test.ts
+  ARG force_build
+  DO +NETWORK_TEST --force_build=$force_build --fresh_install=true --namespace=smoke --test=./src/spartan/smoke.test.ts
+
+network-transfer:
+  ARG force_build
+  DO +NETWORK_TEST --force_build=$force_build --fresh_install=true --namespace=transfer --test=./src/spartan/transfer.test.ts

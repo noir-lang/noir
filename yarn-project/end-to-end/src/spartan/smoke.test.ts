@@ -5,7 +5,7 @@ const { PXE_URL } = process.env;
 if (!PXE_URL) {
   throw new Error('PXE_URL env variable must be set');
 }
-const debugLogger = createDebugLogger('aztec:spartan-test');
+const debugLogger = createDebugLogger('aztec:spartan-test:smoke');
 // const userLog = createConsoleLogger();
 
 describe('sample test', () => {

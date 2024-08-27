@@ -1,0 +1,175 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-metrics
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "aztec-network.selectorLabels" . | nindent 6 }}
+      app: metrics
+  template:
+    metadata:
+      labels:
+        {{- include "aztec-network.selectorLabels" . | nindent 8 }}
+        app: metrics
+    spec:
+      containers:
+        - name: otel-collector
+          image: "{{ .Values.images.otelCollector.image }}"
+          imagePullPolicy: {{ .Values.images.otelCollector.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.metrics.ports.otlp }}
+              name: otlp
+            - containerPort: {{ .Values.metrics.ports.metrics }}
+              name: metrics
+          args:
+            - "--config=/etc/otel-collector-config.yaml"
+          volumeMounts:
+            - name: metrics-config
+              mountPath: /etc/otel-collector-config.yaml
+              subPath: otel-collector-config.yaml
+
+        - name: prometheus
+          image: "{{ .Values.images.prometheus.image }}"
+          ports:
+            - containerPort: {{ .Values.metrics.ports.prometheus }}
+          volumeMounts:
+            - name: metrics-config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yaml
+
+        - name: grafana
+          image: "{{ .Values.images.grafana.image }}"
+          ports:
+            - containerPort: {{ .Values.metrics.ports.grafana }}
+          volumeMounts:
+            - name: metrics-config
+              mountPath: /etc/grafana/provisioning/dashboards/default.yml
+              subPath: grafana-default-dashboard.yml
+            - name: metrics-config
+              mountPath: /etc/grafana/provisioning/dashboards/aztec/aztec-dashboard.json
+              subPath: grafana-aztec-dashboard.json
+            - name: metrics-config
+              mountPath: /etc/grafana/provisioning/datasources/default.yaml
+              subPath: grafana-sources.yaml
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+
+        - name: jaeger
+          image: "{{ .Values.images.jaeger.image }}"
+          ports:
+            - containerPort: {{ .Values.metrics.ports.jaeger }}
+      volumes:
+        - name: metrics-config
+          configMap:
+            name: {{ include "aztec-network.fullname" . }}-metrics
+        - name: grafana-storage
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-metrics
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.metrics.service.type }}
+  ports:
+    - port: {{ .Values.metrics.ports.otlp }}
+      targetPort: otlp
+      protocol: TCP
+      name: otlp
+    - port: {{ .Values.metrics.ports.metrics }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+    - port: {{ .Values.metrics.ports.prometheus }}
+      targetPort: {{ .Values.metrics.ports.prometheus }}
+      protocol: TCP
+      name: prometheus
+    - port: {{ .Values.metrics.ports.grafana }}
+      targetPort: {{ .Values.metrics.ports.grafana }}
+      protocol: TCP
+      name: grafana
+    - port: {{ .Values.metrics.ports.jaeger }}
+      targetPort: {{ .Values.metrics.ports.jaeger }}
+      protocol: TCP
+      name: jaeger-ui
+    - port: 14250
+      targetPort: 14250
+      protocol: TCP
+      name: jaeger-collector
+  selector:
+    {{- include "aztec-network.selectorLabels" . | nindent 4 }}
+    app: metrics
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-metrics
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          http:
+            endpoint: "0.0.0.0:{{ .Values.metrics.ports.otlp }}"
+
+    processors:
+      batch:
+
+    exporters:
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+        metric_expiration: 5m
+      otlp/jaeger:
+          endpoint: "0.0.0.0:4317"
+          tls:
+            insecure: true
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp/jaeger]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheus]
+
+  prometheus.yaml: |
+    global:
+      evaluation_interval: 15s
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: otel-collector
+        static_configs:
+        - targets: ['localhost:8888']
+      - job_name: aztec
+        static_configs:
+        - targets: ['localhost:8889']
+
+  grafana-sources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: aztec-node-metrics
+        type: prometheus
+        url: http://localhost:{{ .Values.metrics.ports.prometheus }}
+        editable: false
+        isDefault: true
+        jsonData:
+          timeInterval: 10s
+
+  grafana-aztec-dashboard.json: |
+    {{ .Files.Get "files/grafana_dashboards/aztec/aztec-dashboard-all-in-one.json" | nindent 4 }}
+
+  grafana-default-dashboard.yml: |
+    {{ .Files.Get "files/grafana_dashboards/default.yml" | nindent 4 }}

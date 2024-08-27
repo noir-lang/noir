@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-deploy-l2-contracts
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "aztec-network.selectorLabels" . | nindent 8 }}
+        app: deploy-l2-contracts
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: deploy-l2-contracts
+          image: {{ .Values.images.aztec.image }}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              until curl -s -X POST -H 'content-type: application/json' \
+                -d '{"jsonrpc":"2.0","method":"pxe_getNodeInfo","params":[],"id":67}' \
+                {{ include "aztec-network.pxeUrl" . }} | grep -q '"enr:-'; do
+                echo "Waiting for PXE service..."
+                sleep 5
+              done
+              echo "PXE service is ready!"
+              node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js deploy-protocol-contracts
+          env:
+            - name: PXE_URL
+              value: {{ include "aztec-network.pxeUrl" . | quote }}
+            - name: DEBUG
+              value: "aztec:*"
+            - name: LOG_LEVEL
+              value: "debug"

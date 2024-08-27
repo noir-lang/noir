@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aztec-network.fullname" . }}-prover-node
+  labels:
+    {{- include "aztec-network.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "aztec-network.selectorLabels" . | nindent 4 }}
+    app: prover-node
+  ports:
+    - port: {{ .Values.proverNode.service.nodePort }}
+      name: node

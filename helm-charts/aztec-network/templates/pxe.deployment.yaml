@@ -26,9 +26,9 @@ spec:
               node --no-warnings /usr/src/yarn-project/aztec/dest/bin/index.js start --pxe
           env:
             - name: ETHEREUM_HOST
-              value: "http://{{ include "aztec-network.fullname" . }}-ethereum.{{ .Release.Namespace }}:{{ .Values.ethereum.service.port }}"
+              value: {{ include "aztec-network.ethereumHost" . | quote }}
             - name: AZTEC_NODE_URL
-              value: "http://{{ include "aztec-network.fullname" . }}-boot-node-0.{{ include "aztec-network.fullname" . }}-boot-node.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.bootNode.service.nodePort }}"
+              value: {{ include "aztec-network.bootNodeUrl" . | quote }}
           ports:
             - name: http
               containerPort: {{ .Values.pxe.service.port }}
