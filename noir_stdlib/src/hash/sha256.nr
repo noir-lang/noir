@@ -39,14 +39,10 @@ unconstrained fn build_msg_block_iter<let N: u32>(
     msg_start: u32
 ) -> ([u8; 64], u64) {
     let mut msg_byte_ptr: u64 = 0; // Message byte pointer
-    for k in msg_start..N {
+    for k in msg_start..(msg_start + BLOCK_SIZE) {
         if k as u64 < message_size {
             msg_block[msg_byte_ptr] = msg[k];
             msg_byte_ptr = msg_byte_ptr + 1;
-
-            if msg_byte_ptr == 64 {
-                msg_byte_ptr = 0;
-            }
         }
     }
     (msg_block, msg_byte_ptr)
@@ -60,17 +56,13 @@ fn verify_msg_block<let N: u32>(
     msg_start: u32
 ) -> u64 {
     let mut msg_byte_ptr: u64 = 0; // Message byte pointer
-    for k in msg_start..N {
+    for k in msg_start..(msg_start + BLOCK_SIZE) {
         if k as u64 < message_size {
             assert_eq(msg_block[msg_byte_ptr], msg[k]);
             msg_byte_ptr = msg_byte_ptr + 1;
-            if msg_byte_ptr == 64 {
-                // Enough to hash block
-                msg_byte_ptr = 0;
-            }
         } else {
             // Need to assert over the msg block in the else case as well 
-            if N < 64 {
+            if N < BLOCK_SIZE {
                 assert_eq(msg_block[msg_byte_ptr], 0);
             } else {
                 assert_eq(msg_block[msg_byte_ptr], msg[k]);
@@ -97,6 +89,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         }
 
         if !crate::runtime::is_unconstrained() {
+            assert(msg_byte_ptr <= BLOCK_SIZE as u64);
             msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, 0);
         }
     }
@@ -107,13 +100,19 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
             msg_block = new_msg_block;
             msg_byte_ptr = new_msg_byte_ptr;
         }
+
         if !crate::runtime::is_unconstrained() {
+            assert(msg_byte_ptr <= BLOCK_SIZE as u64);
             // Verify the block we are compressing was appropriately constructed
             msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, BLOCK_SIZE * i);
         }
 
         // Hash the block
         h = sha256_compression(msg_u8_to_u32(msg_block), h);
+    }
+
+    if msg_byte_ptr == BLOCK_SIZE as u64 {
+        msg_byte_ptr = 0;
     }
 
     let last_block = msg_block;
