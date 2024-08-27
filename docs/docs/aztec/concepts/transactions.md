@@ -31,7 +31,7 @@ _The transaction has not been broadcasted to the sequencer network yet. For now,
 
 _The transaction has still not been broadcasted to the sequencer network yet and continues to live solely within the context of the PXE._
 
-1. **The PXE proves correct execution** – At this point, the PXE proves correct execution (via zero-knowledge proofs) of the authorization and of the private transfer method. Once the proofs have been generated, the PXE sends the proofs and required inputs (inputs are new note commitments, stored in the [note hash tree](../../protocol-specs/state/note-hash-tree.md) and nullifiers stored in the [nullifiers tree](../../protocol-specs/state/nullifier-tree.md)) to the sequencer. Nullifiers are data that invalidate old commitments, ensuring that commitments can only be used once.
+3. **The PXE proves correct execution** – At this point, the PXE proves correct execution (via zero-knowledge proofs) of the authorization and of the private transfer method. Once the proofs have been generated, the PXE sends the proofs and required inputs (inputs are new note commitments, stored in the [note hash tree](../../protocol-specs/state/note-hash-tree.md) and nullifiers stored in the [nullifiers tree](../../protocol-specs/state/nullifier-tree.md)) to the sequencer. Nullifiers are data that invalidate old commitments, ensuring that commitments can only be used once.
 
 _The sequencer has received the transaction proof and can begin to process the transaction - verifying proofs and applying updates to the relevant [data trees](../../protocol-specs/state/index.md) - alongside other public and private transactions._
 
