@@ -1024,8 +1024,9 @@ export class ProvingOrchestrator implements BlockProver {
             if (process.env.AVM_PROVING_STRICT) {
               throw err;
             } else {
-              logger.warn(`Error thrown when proving AVM circuit: ${err}`);
-              logger.warn(`AVM_PROVING_STRICT is off, faking AVM proof and carrying on...`);
+              logger.warn(
+                `Error thrown when proving AVM circuit, but AVM_PROVING_STRICT is off, so faking AVM proof and carrying on. Error: ${err}.`,
+              );
               return { proof: makeEmptyProof(), verificationKey: VerificationKeyData.makeFake() };
             }
           }

@@ -178,7 +178,11 @@ export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource
       );
       this.queue.put(job);
     } else {
-      this.log.error(`Job id=${job.id} type=${ProvingRequestType[job.request.type]} failed with error: ${err}`);
+      const logFn =
+        job.request.type === ProvingRequestType.PUBLIC_VM && !process.env.AVM_PROVING_STRICT
+          ? this.log.warn
+          : this.log.error;
+      logFn(`Job id=${job.id} type=${ProvingRequestType[job.request.type]} failed with error: ${err}`);
       job.reject(err);
     }
     return Promise.resolve();
