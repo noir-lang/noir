@@ -448,6 +448,7 @@ __metadata:
   resolution: "@aztec/cli@workspace:cli"
   dependencies:
     "@aztec/accounts": "workspace:^"
+    "@aztec/archiver": "workspace:^"
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuit-types": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
@@ -460,6 +461,7 @@ __metadata:
     "@jest/globals": ^29.5.0
     "@libp2p/peer-id-factory": ^3.0.4
     "@types/jest": ^29.5.0
+    "@types/lodash.groupby": ^4.6.9
     "@types/lodash.startcase": ^4.4.7
     "@types/node": ^18.7.23
     "@types/semver": ^7.5.2
@@ -467,6 +469,7 @@ __metadata:
     commander: ^12.1.0
     jest: ^29.5.0
     jest-mock-extended: ^3.0.5
+    lodash.groupby: ^4.6.0
     semver: ^7.5.4
     solc: ^0.8.26
     source-map-support: ^0.5.21

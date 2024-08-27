@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../archiver"
+    },
+    {
       "path": "../aztec.js"
     },
     {
@@ -14,6 +17,9 @@
     },
     {
       "path": "../foundation"
+    },
+    {
+      "path": "../l1-artifacts"
     },
     {
       "path": "../types"
@@ -26,9 +32,6 @@
     },
     {
       "path": "../ethereum"
-    },
-    {
-      "path": "../l1-artifacts"
     },
     {
       "path": "../protocol-contracts"

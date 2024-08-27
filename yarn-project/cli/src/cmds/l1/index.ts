@@ -159,7 +159,7 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
     });
 
   program
-    .command('set-proven-until')
+    .command('set-proven-until', { hidden: true })
     .description(
       'Instructs the L1 rollup contract to assume all blocks until the given number are automatically proven.',
     )
@@ -188,6 +188,27 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         options.mnemonic,
         log,
       );
+    });
+
+  program
+    .command('prover-stats', { hidden: true })
+    .requiredOption(
+      '--l1-rpc-url <string>',
+      'Url of the ethereum host. Chain identifiers localhost and testnet can be used',
+      ETHEREUM_HOST,
+    )
+    .addOption(l1ChainIdOption)
+    .option('--start-block <number>', 'The block number to start from', parseBigint, 1n)
+    .option('--batch-size <number>', 'The number of blocks to query in each batch', parseBigint, 100n)
+    .option('--l1-rollup-address <string>', 'Address of the rollup contract (required if node URL is not set)')
+    .option(
+      '--node-url <string>',
+      'JSON RPC URL of an Aztec node to retrieve the rollup contract address (required if L1 rollup address is not set)',
+    )
+    .action(async options => {
+      const { proverStats } = await import('./prover_stats.js');
+      const { l1RpcUrl, chainId, l1RollupAddress, startBlock, batchSize, nodeUrl } = options;
+      await proverStats({ l1RpcUrl, chainId, l1RollupAddress, startBlock, batchSize, nodeUrl, log });
     });
 
   return program;
