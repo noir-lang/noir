@@ -93,7 +93,7 @@ jobs:
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/* /usr/local/lib/
           sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
 
-      - name: Install yarn # Needed to call 'yarn build' on barretenberg/ts 
+      - name: Install yarn # Needed to call 'yarn build' on barretenberg/ts
         run: |
           curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
           echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
@@ -152,7 +152,7 @@ jobs:
           export PATH="/usr/local/opt/llvm@16/bin:$PATH"
           export LDFLAGS="-L/usr/local/opt/llvm@16/lib"
           export CPPFLAGS="-I/usr/local/opt/llvm@16/include"
-          cmake -DCMAKE_BUILD_TYPE=RelWithAssert --preset default 
+          cmake -DCMAKE_BUILD_TYPE=RelWithAssert --preset default
           cmake --build --preset default --target bb
 
       - name: Package barretenberg artifact
@@ -170,7 +170,7 @@ jobs:
           retention-days: 3
 
   build-mac-m1:
-    name: Build on Mac aarch64-apple-darwin 
+    name: Build on Mac aarch64-apple-darwin
     runs-on: macos-14
     steps:
       - name: Checkout
@@ -201,9 +201,44 @@ jobs:
           path: ./barretenberg/cpp/build/bin/barretenberg-aarch64-apple-darwin.tar.gz
           retention-days: 3
 
+  build-check:
+    name: Check builds are successful
+    needs: [build-x86_64-linux-gnu, build-mac-intel, build-mac-m1,build-wasm-ts]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report overall success
+        env:
+          FAIL: ${{ contains(needs.*.result, 'failure') }}
+        run: |
+          if [[ $FAIL == true ]]; then
+              echo "At least one job failed, release is unsuccessful."
+              exit 1
+          else
+              echo "All jobs succeeded, uploading artifacts to release."
+              exit 0
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        if: ${{ failure() }}
+        with:
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
+
+      # Raise an issue if the release failed
+      - name: Alert on dead links
+        uses: JasonEtco/create-an-issue@1b14a70e4d8dc185e5cc76d3bec9eab20257b2c5 # v2.9.2
+        if: ${{ failure() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          update_existing: true
+          filename: .github/RELEASE_FAILED.md
+
   release:
     name: Publish
-    needs: [build-x86_64-linux-gnu, build-mac-intel, build-mac-m1,build-wasm-ts]
+    needs: [build-check]
     runs-on: ubuntu-latest
     steps:
       - name: Download files from Linux Runner
