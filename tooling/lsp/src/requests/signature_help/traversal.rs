@@ -127,7 +127,7 @@ impl<'a> SignatureFinder<'a> {
             }
             StatementKind::Break
             | StatementKind::Continue
-            | StatementKind::Resolved(_)
+            | StatementKind::Interned(_)
             | StatementKind::Error => (),
         }
     }
@@ -235,7 +235,7 @@ impl<'a> SignatureFinder<'a> {
             | ExpressionKind::AsTraitPath(_)
             | ExpressionKind::Quote(_)
             | ExpressionKind::Resolved(_)
-            | ExpressionKind::ResolvedQuoted(_)
+            | ExpressionKind::Interned(_)
             | ExpressionKind::Error => (),
         }
     }

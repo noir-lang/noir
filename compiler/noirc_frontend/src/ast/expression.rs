@@ -7,7 +7,7 @@ use crate::ast::{
 };
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::macros_api::StructId;
-use crate::node_interner::{ExprId, QuotedExprId, QuotedTypeId};
+use crate::node_interner::{ExprId, InternedExpressionKind, QuotedTypeId};
 use crate::token::{Attributes, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
@@ -43,7 +43,11 @@ pub enum ExpressionKind {
     // code. It is used to translate function values back into the AST while
     // guaranteeing they have the same instantiated type and definition id without resolving again.
     Resolved(ExprId),
-    ResolvedQuoted(QuotedExprId),
+
+    // This is an interned ExpressionKind during comptime code.
+    // The actual ExpressionKind can be retrieved with a NodeInterner.
+    Interned(InternedExpressionKind),
+
     Error,
 }
 
@@ -604,7 +608,7 @@ impl Display for ExpressionKind {
             Unsafe(block, _) => write!(f, "unsafe {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
-            ResolvedQuoted(_) => write!(f, "?ResolvedQuoted"),
+            Interned(_) => write!(f, "?Interned"),
             Unquote(expr) => write!(f, "$({expr})"),
             Quote(tokens) => {
                 let tokens = vecmap(&tokens.0, ToString::to_string);

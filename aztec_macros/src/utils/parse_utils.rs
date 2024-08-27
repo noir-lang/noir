@@ -220,7 +220,7 @@ fn empty_statement(statement: &mut Statement) {
         StatementKind::Semi(expression) => empty_expression(expression),
         StatementKind::Break
         | StatementKind::Continue
-        | StatementKind::Resolved(_)
+        | StatementKind::Interned(_)
         | StatementKind::Error => (),
     }
 }
@@ -281,7 +281,7 @@ fn empty_expression(expression: &mut Expression) {
         }
         ExpressionKind::Quote(..)
         | ExpressionKind::Resolved(_)
-        | ExpressionKind::ResolvedQuoted(_)
+        | ExpressionKind::Interned(_)
         | ExpressionKind::Error => (),
     }
 }

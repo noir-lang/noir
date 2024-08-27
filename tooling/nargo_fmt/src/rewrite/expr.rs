@@ -175,10 +175,8 @@ pub(crate) fn rewrite(
         ExpressionKind::Resolved(_) => {
             unreachable!("ExpressionKind::Resolved should only emitted by the comptime interpreter")
         }
-        ExpressionKind::ResolvedQuoted(_) => {
-            unreachable!(
-                "ExpressionKind::ResolvedQuoted should only emitted by the comptime interpreter"
-            )
+        ExpressionKind::Interned(_) => {
+            unreachable!("ExpressionKind::Interned should only emitted by the comptime interpreter")
         }
         ExpressionKind::Unquote(expr) => {
             if matches!(&expr.kind, ExpressionKind::Variable(..)) {

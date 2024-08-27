@@ -204,7 +204,7 @@ impl<'a> InlayHintCollector<'a> {
             StatementKind::Semi(expression) => self.collect_in_expression(expression),
             StatementKind::Break
             | StatementKind::Continue
-            | StatementKind::Resolved(_)
+            | StatementKind::Interned(_)
             | StatementKind::Error => (),
         }
     }
@@ -304,7 +304,7 @@ impl<'a> InlayHintCollector<'a> {
             | ExpressionKind::Variable(..)
             | ExpressionKind::Quote(..)
             | ExpressionKind::Resolved(..)
-            | ExpressionKind::ResolvedQuoted(..)
+            | ExpressionKind::Interned(..)
             | ExpressionKind::Error => (),
         }
     }
@@ -694,7 +694,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::Unquote(..)
         | ExpressionKind::Comptime(..)
         | ExpressionKind::Resolved(..)
-        | ExpressionKind::ResolvedQuoted(..)
+        | ExpressionKind::Interned(..)
         | ExpressionKind::Literal(..)
         | ExpressionKind::Unsafe(..)
         | ExpressionKind::Error => None,

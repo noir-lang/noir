@@ -418,10 +418,10 @@ impl Value {
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
             Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
             Value::Expr(ExprValue::Expression(expr)) => {
-                Token::QuotedExpr(interner.push_quoted_expr(expr))
+                Token::InternedExpr(interner.push_expression_kind(expr))
             }
             Value::Expr(ExprValue::Statement(statement)) => {
-                Token::QuotedStatement(interner.push_quoted_statement(statement))
+                Token::InternedStatement(interner.push_statement_kind(statement))
             }
             other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
         };

@@ -39,8 +39,8 @@ impl<'context> Elaborator<'context> {
                 let (expr, _typ) = self.elaborate_expression(expr);
                 (HirStatement::Semi(expr), Type::Unit)
             }
-            StatementKind::Resolved(id) => {
-                let kind = self.interner.get_quoted_statement(id);
+            StatementKind::Interned(id) => {
+                let kind = self.interner.get_statement_kind(id);
                 let statement = Statement { kind: kind.clone(), span: statement.span };
                 self.elaborate_statement_value(statement)
             }

@@ -210,11 +210,11 @@ pub struct NodeInterner {
     /// the actual type since types do not implement Send or Sync.
     quoted_types: noirc_arena::Arena<Type>,
 
-    /// Similar to `quoted_types` but for ExpressionKind.
-    quoted_exprs: noirc_arena::Arena<ExpressionKind>,
+    // Interned `ExpressionKind`s during comptime code.
+    interned_expression_kinds: noirc_arena::Arena<ExpressionKind>,
 
-    /// Similar to `quoted_types` but for StatementKind.
-    quoted_statements: noirc_arena::Arena<StatementKind>,
+    // Interned `StatementKind`s during comptime code.
+    interned_statement_kinds: noirc_arena::Arena<StatementKind>,
 
     /// Determins whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
@@ -582,10 +582,10 @@ pub struct GlobalInfo {
 pub struct QuotedTypeId(noirc_arena::Index);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct QuotedExprId(noirc_arena::Index);
+pub struct InternedExpressionKind(noirc_arena::Index);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct QuotedStatementId(noirc_arena::Index);
+pub struct InternedStatementKind(noirc_arena::Index);
 
 impl Default for NodeInterner {
     fn default() -> Self {
@@ -624,8 +624,8 @@ impl Default for NodeInterner {
             type_alias_ref: Vec::new(),
             type_ref_locations: Vec::new(),
             quoted_types: Default::default(),
-            quoted_exprs: Default::default(),
-            quoted_statements: Default::default(),
+            interned_expression_kinds: Default::default(),
+            interned_statement_kinds: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
@@ -2033,20 +2033,20 @@ impl NodeInterner {
         &self.quoted_types[id.0]
     }
 
-    pub fn push_quoted_expr(&mut self, expr: ExpressionKind) -> QuotedExprId {
-        QuotedExprId(self.quoted_exprs.insert(expr))
+    pub fn push_expression_kind(&mut self, expr: ExpressionKind) -> InternedExpressionKind {
+        InternedExpressionKind(self.interned_expression_kinds.insert(expr))
     }
 
-    pub fn get_quoted_expr(&self, id: QuotedExprId) -> &ExpressionKind {
-        &self.quoted_exprs[id.0]
+    pub fn get_expression_kind(&self, id: InternedExpressionKind) -> &ExpressionKind {
+        &self.interned_expression_kinds[id.0]
     }
 
-    pub fn push_quoted_statement(&mut self, statement: StatementKind) -> QuotedStatementId {
-        QuotedStatementId(self.quoted_statements.insert(statement))
+    pub fn push_statement_kind(&mut self, statement: StatementKind) -> InternedStatementKind {
+        InternedStatementKind(self.interned_statement_kinds.insert(statement))
     }
 
-    pub fn get_quoted_statement(&self, id: QuotedStatementId) -> &StatementKind {
-        &self.quoted_statements[id.0]
+    pub fn get_statement_kind(&self, id: InternedStatementKind) -> &StatementKind {
+        &self.interned_statement_kinds[id.0]
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.

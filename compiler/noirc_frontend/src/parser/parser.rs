@@ -74,7 +74,7 @@ mod test_helpers;
 use literals::literal;
 use path::{maybe_empty_path, path};
 use primitives::{
-    dereference, ident, negation, not, nothing, resolved_expr, right_shift_operator, token_kind,
+    dereference, ident, interned_expr, negation, not, nothing, right_shift_operator, token_kind,
 };
 use traits::where_clause;
 
@@ -489,7 +489,7 @@ where
             continue_statement(),
             return_statement(expr_parser.clone()),
             comptime_statement(expr_parser.clone(), expr_no_constructors, statement),
-            resolved_statement(),
+            interned_statement(),
             expr_parser.map(StatementKind::Expression),
         ))
     })
@@ -529,10 +529,12 @@ where
     keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
 }
 
-pub(super) fn resolved_statement() -> impl NoirParser<StatementKind> {
-    token_kind(TokenKind::QuotedStatement).map(|token| match token {
-        Token::QuotedStatement(id) => StatementKind::Resolved(id),
-        _ => unreachable!("token_kind(QuotedStatement) guarantees we parse a quoted statement"),
+pub(super) fn interned_statement() -> impl NoirParser<StatementKind> {
+    token_kind(TokenKind::InternedStatement).map(|token| match token {
+        Token::InternedStatement(id) => StatementKind::Interned(id),
+        _ => {
+            unreachable!("token_kind(InternedStatement) guarantees we parse an interned statement")
+        }
     })
 }
 
@@ -1164,7 +1166,7 @@ where
         literal(),
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
         macro_quote_marker(),
-        resolved_expr(),
+        interned_expr(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {

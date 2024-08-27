@@ -451,7 +451,7 @@ impl<'a> NodeFinder<'a> {
             }
             StatementKind::Break
             | StatementKind::Continue
-            | StatementKind::Resolved(_)
+            | StatementKind::Interned(_)
             | StatementKind::Error => (),
         }
     }
@@ -570,7 +570,7 @@ impl<'a> NodeFinder<'a> {
             }
             ExpressionKind::Quote(_)
             | ExpressionKind::Resolved(_)
-            | ExpressionKind::ResolvedQuoted(_)
+            | ExpressionKind::Interned(_)
             | ExpressionKind::Error => (),
         }
 
