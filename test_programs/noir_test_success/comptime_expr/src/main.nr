@@ -503,6 +503,18 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_unsafe() {
+        comptime
+        {
+            let expr = quote { unsafe { 1; 4; 23 } }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let exprs = expr.as_unsafe().unwrap();
+            assert_eq(exprs.len(), 3);
+            assert_eq(exprs[0].as_integer().unwrap(), (2, false));
+        }
+    }
+
+    #[test]
     fn test_expr_is_break() {
         comptime
         {

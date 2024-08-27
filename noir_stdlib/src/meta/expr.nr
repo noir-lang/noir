@@ -129,6 +129,7 @@ impl Expr {
         let result = result.or_else(|| map_slice(self, f));
         let result = result.or_else(|| map_tuple(self, f));
         let result = result.or_else(|| map_unary_op(self, f));
+        let result = result.or_else(|| map_unsafe(self, f));
         result.unwrap_or(self)
     }
 
@@ -301,6 +302,15 @@ fn map_unary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Exp
     )
 }
 
+fn map_unsafe<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_unsafe().map(
+        |exprs: [Expr]| {
+        let exprs = exprs.map(|expr: Expr| expr.map(f));
+        new_unsafe(exprs)
+    }
+    )
+}
+
 fn map_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
     exprs.map(|expr: Expr| expr.map(f))
 }
@@ -388,6 +398,11 @@ fn new_tuple(exprs: [Expr]) -> Expr {
 fn new_unary_op(op: UnaryOp, rhs: Expr) -> Expr {
     let op = op.quoted();
     quote { $op $rhs }.as_expr().unwrap()
+}
+
+fn new_unsafe(exprs: [Expr]) -> Expr {
+    let exprs = join_expressions(exprs, quote { ; });
+    quote { unsafe { $exprs }}.as_expr().unwrap()
 }
 
 fn join_expressions(exprs: [Expr], separator: Quoted) -> Quoted {
