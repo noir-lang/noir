@@ -127,6 +127,7 @@ impl Expr {
         let result = result.or_else(|| map_repeated_element_array(self, f));
         let result = result.or_else(|| map_repeated_element_slice(self, f));
         let result = result.or_else(|| map_slice(self, f));
+        let result = result.or_else(|| map_tuple(self, f));
         result.unwrap_or(self)
     }
 
@@ -280,13 +281,22 @@ fn map_slice<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> 
     )
 }
 
+fn map_tuple<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_tuple().map(
+        |exprs: [Expr]| {
+        let exprs = map_expressions(exprs, f);
+        new_tuple(exprs)
+    }
+    )
+}
+
 fn map_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
     exprs.map(|expr: Expr| expr.map(f))
 }
 
 fn new_array(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
-    quote { [ $exprs ]}.as_expr().unwrap()
+    quote { [$exprs]}.as_expr().unwrap()
 }
 
 fn new_assign(lhs: Expr, rhs: Expr) -> Expr {
@@ -356,7 +366,12 @@ fn new_repeated_element_slice(expr: Expr, length: Expr) -> Expr {
 
 fn new_slice(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
-    quote { &[ $exprs ]}.as_expr().unwrap()
+    quote { &[$exprs]}.as_expr().unwrap()
+}
+
+fn new_tuple(exprs: [Expr]) -> Expr {
+    let exprs = join_expressions(exprs, quote { , });
+    quote { ($exprs) }.as_expr().unwrap()
 }
 
 fn join_expressions(exprs: [Expr], separator: Quoted) -> Quoted {

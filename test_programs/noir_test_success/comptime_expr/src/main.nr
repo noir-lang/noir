@@ -457,6 +457,19 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_tuple() {
+        comptime
+        {
+            let expr = quote { (1, 2) }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let tuple_exprs = expr.as_tuple().unwrap();
+            assert_eq(tuple_exprs.len(), 2);
+            assert_eq(tuple_exprs[0].as_integer().unwrap(), (2, false));
+            assert_eq(tuple_exprs[1].as_integer().unwrap(), (4, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_unary_op() {
         comptime
         {
