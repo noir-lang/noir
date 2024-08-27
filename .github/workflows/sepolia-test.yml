@@ -1,7 +1,7 @@
 name: Run public testnet test
 on:
   schedule:
-    - cron: '00 08 * * 1-5'
+    - cron: "00 12 * * 1-5"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -46,9 +46,9 @@ jobs:
         run: |
           earthly-ci ./yarn-project+export-e2e-test-images
 
-      - name: Create list of devnet end-to-end jobs
+      - name: Create list of testnet end-to-end jobs
         id: e2e_list
-        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep 'public_testnet' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
+        run: echo "list=$(earthly ls ./yarn-project/end-to-end | grep 'public-testnet' |  sed 's/+//' | jq -R . | jq -cs .)" >> $GITHUB_OUTPUT
 
   e2e:
     needs: build
