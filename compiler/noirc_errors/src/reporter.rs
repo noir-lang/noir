@@ -12,6 +12,7 @@ pub struct CustomDiagnostic {
     pub secondaries: Vec<CustomLabel>,
     notes: Vec<String>,
     pub kind: DiagnosticKind,
+    call_stack: Option<Vec<Location>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -35,6 +36,7 @@ impl CustomDiagnostic {
             secondaries: Vec::new(),
             notes: Vec::new(),
             kind: DiagnosticKind::Error,
+            call_stack: None,
         }
     }
 
@@ -49,6 +51,7 @@ impl CustomDiagnostic {
             secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
             notes: Vec::new(),
             kind,
+            call_stack: None,
         }
     }
 
@@ -101,6 +104,7 @@ impl CustomDiagnostic {
             secondaries: vec![CustomLabel::new(secondary_message, secondary_span)],
             notes: Vec::new(),
             kind: DiagnosticKind::Bug,
+            call_stack: None,
         }
     }
 
@@ -114,6 +118,10 @@ impl CustomDiagnostic {
 
     pub fn add_secondary(&mut self, message: String, span: Span) {
         self.secondaries.push(CustomLabel::new(message, span));
+    }
+
+    pub fn set_call_stack(&mut self, call_stack: Vec<Location>) {
+        self.call_stack = Some(call_stack);
     }
 
     pub fn is_error(&self) -> bool {
@@ -228,7 +236,7 @@ fn convert_diagnostic(
         _ => Diagnostic::error(),
     };
 
-    let secondary_labels = if let Some(file_id) = file {
+    let mut secondary_labels = if let Some(file_id) = file {
         cd.secondaries
             .iter()
             .map(|sl| {
@@ -240,6 +248,14 @@ fn convert_diagnostic(
     } else {
         vec![]
     };
+
+    if let Some(call_stack) = &cd.call_stack {
+        secondary_labels.extend(call_stack.iter().map(|frame| {
+            let start_span = frame.span.start() as usize;
+            let end_span = frame.span.end() as usize;
+            Label::secondary(frame.file, start_span..end_span)
+        }));
+    }
 
     let mut notes = cd.notes.clone();
     notes.push(stack_trace);

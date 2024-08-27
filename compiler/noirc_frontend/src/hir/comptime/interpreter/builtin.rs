@@ -146,7 +146,8 @@ impl<'local, 'context> Interpreter<'local, 'context> {
 }
 
 fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IResult<T> {
-    Err(InterpreterError::FailingConstraint { message: Some(message.into()), location })
+    let call_stack = Vec::new();
+    Err(InterpreterError::FailingConstraint { message: Some(message.into()), location, call_stack })
 }
 
 fn array_len(

@@ -60,6 +60,8 @@ pub struct Interpreter<'local, 'interner> {
     /// multiple times. Without this map, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
     bound_generics: Vec<HashMap<TypeVariable, Type>>,
+
+    call_stack: Vec<Location>,
 }
 
 #[allow(unused)]
@@ -70,7 +72,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         current_function: Option<FuncId>,
     ) -> Self {
         let bound_generics = Vec::new();
-        Self { elaborator, crate_id, current_function, bound_generics, in_loop: false }
+        let in_loop = false;
+        let call_stack = Vec::new();
+        Self { elaborator, crate_id, current_function, bound_generics, in_loop, call_stack }
     }
 
     pub(crate) fn call_function(
@@ -99,8 +103,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         self.remember_bindings(&instantiation_bindings, &impl_bindings);
+        self.call_stack.push(location);
+
         let result = self.call_function_inner(function, arguments, location);
 
+        self.call_stack.pop();
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         self.rebind_generics_from_previous_function();
@@ -1462,7 +1469,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
                 let message =
                     message.map(|value| value.display(self.elaborator.interner).to_string());
-                Err(InterpreterError::FailingConstraint { location, message })
+                let call_stack = self.call_stack.clone();
+                Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
             value => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);

@@ -56,6 +56,7 @@ pub enum InterpreterError {
     FailingConstraint {
         message: Option<String>,
         location: Location,
+        call_stack: Vec<Location>,
     },
     NoMethodFound {
         name: String,
@@ -353,12 +354,15 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("Expected a `bool` but found `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
-            InterpreterError::FailingConstraint { message, location } => {
+            InterpreterError::FailingConstraint { message, location, call_stack } => {
                 let (primary, secondary) = match message {
                     Some(msg) => (msg.clone(), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
-                CustomDiagnostic::simple_error(primary, secondary, location.span)
+                let mut diagnostic =
+                    CustomDiagnostic::simple_error(primary, secondary, location.span);
+                diagnostic.set_call_stack(call_stack.clone());
+                diagnostic
             }
             InterpreterError::NoMethodFound { name, typ, location } => {
                 let msg = format!("No method named `{name}` found for type `{typ}`");
