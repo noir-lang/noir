@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use lsp_types::{Position, Range, TextEdit};
 use noirc_frontend::{
     ast::ItemVisibility,
-    graph::CrateId,
+    graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, ModuleId},
     macros_api::{ModuleDefId, NodeInterner},
     node_interner::ReferenceId,
@@ -47,6 +47,7 @@ impl<'a> NodeFinder<'a> {
                         &self.module_id,
                         current_module_parent_id,
                         self.interner,
+                        self.dependencies,
                     );
                 } else {
                     let Some(parent_module) = get_parent_module(self.interner, *module_def_id)
@@ -73,6 +74,7 @@ impl<'a> NodeFinder<'a> {
                         &self.module_id,
                         current_module_parent_id,
                         self.interner,
+                        self.dependencies,
                     );
                 }
 
@@ -147,6 +149,7 @@ fn module_id_path(
     current_module_id: &ModuleId,
     current_module_parent_id: Option<ModuleId>,
     interner: &NodeInterner,
+    dependencies: &[Dependency],
 ) -> String {
     if Some(target_module_id) == current_module_parent_id {
         return "super".to_string();
@@ -160,12 +163,8 @@ fn module_id_path(
 
         let mut current_attributes = module_attributes;
         loop {
-            let Some(parent_local_id) = current_attributes.parent else {
-                break;
-            };
-
             let parent_module_id =
-                &ModuleId { krate: target_module_id.krate, local_id: parent_local_id };
+                &ModuleId { krate: target_module_id.krate, local_id: current_attributes.parent };
 
             if current_module_id == parent_module_id {
                 is_relative = true;
@@ -187,13 +186,24 @@ fn module_id_path(
         }
     }
 
-    if !is_relative {
-        // We don't record module attributes for the root module,
-        // so we handle that case separately
-        if let CrateId::Root(_) = target_module_id.krate {
-            segments.push("crate");
+    let crate_id = target_module_id.krate;
+    let crate_name = if is_relative {
+        None
+    } else {
+        match crate_id {
+            CrateId::Root(_) => Some("crate".to_string()),
+            CrateId::Stdlib(_) => Some("std".to_string()),
+            CrateId::Crate(_) => dependencies
+                .iter()
+                .find(|dep| dep.crate_id == crate_id)
+                .map(|dep| dep.name.to_string()),
+            CrateId::Dummy => unreachable!("ICE: A dummy CrateId should not be accessible"),
         }
-    }
+    };
+
+    if let Some(crate_name) = &crate_name {
+        segments.push(crate_name);
+    };
 
     segments.reverse();
     segments.join("::")

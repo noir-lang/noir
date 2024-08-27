@@ -549,7 +549,7 @@ impl<'block> BrilligBlock<'block> {
                         radix,
                         limb_count,
                         matches!(endianness, Endian::Big),
-                        8,
+                        false,
                     );
                 }
                 Value::Intrinsic(Intrinsic::ToBits(endianness)) => {
@@ -595,7 +595,7 @@ impl<'block> BrilligBlock<'block> {
                         2,
                         limb_count,
                         matches!(endianness, Endian::Big),
-                        1,
+                        true,
                     );
                 }
 
@@ -1735,10 +1735,19 @@ impl<'block> BrilligBlock<'block> {
         self.brillig_context.mov_instruction(write_pointer_register, pointer);
 
         for (element_idx, element_id) in data.iter().enumerate() {
-            let element_variable = self.convert_ssa_value(*element_id, dfg);
-            // Store the item in memory
-            self.brillig_context
-                .codegen_store_variable_in_pointer(write_pointer_register, element_variable);
+            if let Some((constant, typ)) = dfg.get_numeric_constant_with_type(*element_id) {
+                self.brillig_context.indirect_const_instruction(
+                    write_pointer_register,
+                    typ.bit_size(),
+                    constant,
+                );
+            } else {
+                let element_variable = self.convert_ssa_value(*element_id, dfg);
+                // Store the item in memory
+                self.brillig_context
+                    .codegen_store_variable_in_pointer(write_pointer_register, element_variable);
+            }
+
             if element_idx != data.len() - 1 {
                 // Increment the write_pointer_register
                 self.brillig_context.memory_op_instruction(

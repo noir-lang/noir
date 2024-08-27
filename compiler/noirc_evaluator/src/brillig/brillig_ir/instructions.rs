@@ -373,17 +373,28 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Stores the value of `constant` in the `result` register
     pub(crate) fn const_instruction(&mut self, result: SingleAddrVariable, constant: F) {
         self.debug_show.const_instruction(result.address, constant);
-        self.constant(result, constant);
+        self.constant(result.address, result.bit_size, constant, false);
     }
 
-    fn constant(&mut self, result: SingleAddrVariable, constant: F) {
+    /// Stores the value of `constant` in the result_pointer
+    pub(crate) fn indirect_const_instruction(
+        &mut self,
+        result_pointer: MemoryAddress,
+        bit_size: u32,
+        constant: F,
+    ) {
+        self.debug_show.indirect_const_instruction(result_pointer, constant);
+        self.constant(result_pointer, bit_size, constant, true);
+    }
+
+    fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         assert!(
-            result.bit_size >= constant.num_bits(),
+            bit_size >= constant.num_bits(),
             "Constant {} does not fit in bit size {}",
             constant,
-            result.bit_size
+            bit_size
         );
-        if result.bit_size > 128 && constant.num_bits() > 128 {
+        if bit_size > 128 && constant.num_bits() > 128 {
             let high = F::from_be_bytes_reduce(
                 constant.to_be_bytes().get(0..16).expect("FieldElement::to_be_bytes() too short!"),
             );
@@ -391,24 +402,45 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             let high_register = SingleAddrVariable::new(self.allocate_register(), 254);
             let low_register = SingleAddrVariable::new(self.allocate_register(), 254);
             let intermediate_register = SingleAddrVariable::new(self.allocate_register(), 254);
-            self.constant(high_register, high);
-            self.constant(low_register, low);
+
+            self.constant(high_register.address, high_register.bit_size, high, false);
+            self.constant(low_register.address, low_register.bit_size, low, false);
             // I want to multiply high by 2^128, but I can't get that big constant in.
             // So I'll multiply by 2^64 twice.
-            self.constant(intermediate_register, F::from(1_u128 << 64));
+            self.constant(
+                intermediate_register.address,
+                intermediate_register.bit_size,
+                F::from(1_u128 << 64),
+                false,
+            );
             self.binary(high_register, intermediate_register, high_register, BrilligBinaryOp::Mul);
             self.binary(high_register, intermediate_register, high_register, BrilligBinaryOp::Mul);
             // Now we can add.
             self.binary(high_register, low_register, intermediate_register, BrilligBinaryOp::Add);
-            self.cast(result, intermediate_register);
+            if indirect {
+                self.cast(
+                    SingleAddrVariable::new(intermediate_register.address, bit_size),
+                    intermediate_register,
+                );
+                self.store_instruction(result, intermediate_register.address);
+            } else {
+                self.cast(SingleAddrVariable::new(result, bit_size), intermediate_register);
+            }
+
             self.deallocate_single_addr(high_register);
             self.deallocate_single_addr(low_register);
             self.deallocate_single_addr(intermediate_register);
+        } else if indirect {
+            self.push_opcode(BrilligOpcode::IndirectConst {
+                destination_pointer: result,
+                value: constant,
+                bit_size: BitSize::try_from_u32::<F>(bit_size).unwrap(),
+            });
         } else {
             self.push_opcode(BrilligOpcode::Const {
-                destination: result.address,
+                destination: result,
                 value: constant,
-                bit_size: BitSize::try_from_u32::<F>(result.bit_size).unwrap(),
+                bit_size: BitSize::try_from_u32::<F>(bit_size).unwrap(),
             });
         }
     }
@@ -430,7 +462,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
     fn make_constant(&mut self, constant: F, bit_size: u32) -> SingleAddrVariable {
         let var = SingleAddrVariable::new(self.allocate_register(), bit_size);
-        self.constant(var, constant);
+        self.constant(var.address, var.bit_size, constant, false);
         var
     }
 

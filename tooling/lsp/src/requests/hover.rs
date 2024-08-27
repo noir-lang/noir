@@ -334,27 +334,29 @@ fn format_parent_module_from_module_id(
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
-        loop {
-            let Some(parent_local_id) = current_attributes.parent else {
-                break;
-            };
-
-            let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
-                krate: module.krate,
-                local_id: parent_local_id,
-            }) else {
-                break;
-            };
-
+        while let Some(parent_attributes) = args.interner.try_module_attributes(&ModuleId {
+            krate: module.krate,
+            local_id: current_attributes.parent,
+        }) {
             segments.push(&parent_attributes.name);
             current_attributes = parent_attributes;
         }
     }
 
-    // We don't record module attriubtes for the root module,
-    // so we handle that case separately
-    if let CrateId::Root(_) = module.krate {
-        segments.push(&args.crate_name);
+    let crate_id = module.krate;
+    let crate_name = match crate_id {
+        CrateId::Root(_) => Some(args.crate_name.clone()),
+        CrateId::Crate(_) => args
+            .dependencies
+            .iter()
+            .find(|dep| dep.crate_id == crate_id)
+            .map(|dep| format!("{}", dep.name)),
+        CrateId::Stdlib(_) => Some("std".to_string()),
+        CrateId::Dummy => unreachable!("ICE: A dummy CrateId should not be accessible"),
+    };
+
+    if let Some(crate_name) = &crate_name {
+        segments.push(crate_name);
     };
 
     if segments.is_empty() {

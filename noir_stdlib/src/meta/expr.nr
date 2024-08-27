@@ -12,9 +12,6 @@ impl Expr {
     #[builtin(expr_as_binary_op)]
     fn as_binary_op(self) -> Option<(Expr, BinaryOp, Expr)> {}
 
-    #[builtin(expr_as_block)]
-    fn as_block(self) -> Option<[Expr]> {}
-
     #[builtin(expr_as_bool)]
     fn as_bool(self) -> Option<bool> {}
 
@@ -44,9 +41,6 @@ impl Expr {
 
     #[builtin(expr_as_unary_op)]
     fn as_unary_op(self) -> Option<(UnaryOp, Expr)> {}
-
-    #[builtin(expr_has_semicolon)]
-    fn has_semicolon(self) -> bool {}
 }
 
 mod tests {
@@ -63,23 +57,6 @@ mod tests {
             assert_eq(elems[0].as_integer().unwrap(), (1, false));
             assert_eq(elems[1].as_integer().unwrap(), (2, false));
             assert_eq(elems[2].as_integer().unwrap(), (4, false));
-        }
-    }
-
-    #[test]
-    fn test_expr_as_block() {
-        comptime
-        {
-            let expr = quote { { 1; 4; 23 } }.as_expr().unwrap();
-            let exprs = expr.as_block().unwrap();
-            assert_eq(exprs.len(), 3);
-            assert_eq(exprs[0].as_integer().unwrap(), (1, false));
-            assert_eq(exprs[1].as_integer().unwrap(), (4, false));
-            assert_eq(exprs[2].as_integer().unwrap(), (23, false));
-
-            assert(exprs[0].has_semicolon());
-            assert(exprs[1].has_semicolon());
-            assert(!exprs[2].has_semicolon());
         }
     }
 
