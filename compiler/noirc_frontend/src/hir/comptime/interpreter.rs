@@ -70,10 +70,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         crate_id: CrateId,
         current_function: Option<FuncId>,
+        location: Location,
     ) -> Self {
         let bound_generics = Vec::new();
         let in_loop = false;
-        let call_stack = Vec::new();
+        let call_stack = vec![location];
         Self { elaborator, crate_id, current_function, bound_generics, in_loop, call_stack }
     }
 

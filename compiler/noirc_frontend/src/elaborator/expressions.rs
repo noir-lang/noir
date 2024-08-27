@@ -744,7 +744,8 @@ impl<'context> Elaborator<'context> {
         let (block, _typ) = self.elaborate_block_expression(block);
 
         self.check_and_pop_function_context();
-        let mut interpreter = self.setup_interpreter();
+        let location = Location::new(span, self.file);
+        let mut interpreter = self.setup_interpreter(location);
         let value = interpreter.evaluate_block(block);
         let (id, typ) = self.inline_comptime_value(value, span);
 
@@ -829,7 +830,7 @@ impl<'context> Elaborator<'context> {
         };
 
         let file = self.file;
-        let mut interpreter = self.setup_interpreter();
+        let mut interpreter = self.setup_interpreter(location);
         let mut comptime_args = Vec::new();
         let mut errors = Vec::new();
 

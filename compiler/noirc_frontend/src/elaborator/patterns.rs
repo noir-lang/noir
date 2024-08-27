@@ -505,7 +505,7 @@ impl<'context> Elaborator<'context> {
         // Comptime variables must be replaced with their values
         if let Some(definition) = self.interner.try_definition(definition_id) {
             if definition.comptime && !self.in_comptime_context() {
-                let mut interpreter = self.setup_interpreter();
+                let mut interpreter = self.setup_interpreter(definition.location);
                 let value = interpreter.evaluate(id);
                 return self.inline_comptime_value(value, span);
             }

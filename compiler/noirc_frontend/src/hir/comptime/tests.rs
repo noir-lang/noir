@@ -48,7 +48,7 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
         Elaborator::elaborate_and_return_self(&mut context, krate, collector.items, None, false);
     assert_eq!(elaborator.errors.len(), 0);
 
-    let mut interpreter = elaborator.setup_interpreter();
+    let mut interpreter = elaborator.setup_interpreter(location);
 
     let no_location = Location::dummy();
     interpreter.call_function(main, Vec::new(), HashMap::new(), no_location)

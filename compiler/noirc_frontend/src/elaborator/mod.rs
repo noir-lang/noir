@@ -1313,7 +1313,7 @@ impl<'context> Elaborator<'context> {
         let global = self.interner.get_global(global_id);
         let definition_id = global.definition_id;
         let location = global.location;
-        let mut interpreter = self.setup_interpreter();
+        let mut interpreter = self.setup_interpreter(location);
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());

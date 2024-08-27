@@ -440,7 +440,8 @@ impl<'context> Elaborator<'context> {
         let span = statement.span;
         let (hir_statement, _typ) = self.elaborate_statement(statement);
         self.check_and_pop_function_context();
-        let mut interpreter = self.setup_interpreter();
+        let location = Location::new(span, self.file);
+        let mut interpreter = self.setup_interpreter(location);
         let value = interpreter.evaluate_statement(hir_statement);
         let (expr, typ) = self.inline_comptime_value(value, span);
 
