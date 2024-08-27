@@ -27,7 +27,7 @@ fn qux(x: Field) -> Field {
 fn inject_context(f: FunctionDefinition) {
     // Add a `_context: Context` parameter to the function
     let parameters = f.parameters();
-    let parameters = parameters.push_back((quote { _context }, quote { Context }.as_type()));
+    let parameters = parameters.push_front((quote { _context }, quote { Context }.as_type()));
     f.set_parameters(parameters);
 
     // Create a new body where every function call has `_context` added to the list of arguments.
@@ -41,7 +41,7 @@ fn mapping_function(expr: Expr) -> Option<Expr> {
         // TODO: only do this if the function is annotated with #[aztec]
         let (name, arguments) = func_call.unwrap();
         let arguments = arguments.map(|arg: Expr| arg.map(mapping_function));
-        let arguments = arguments.push_back(quote { _context }.as_expr().unwrap());
+        let arguments = arguments.push_front(quote { _context }.as_expr().unwrap());
         let arguments = arguments.map(|arg: Expr| arg.quoted()).join(quote { , });
         Option::some(quote { $name($arguments) }.as_expr().unwrap())
     } else {
@@ -51,6 +51,6 @@ fn mapping_function(expr: Expr) -> Option<Expr> {
 
 fn main() {
     let context = Context { value: 42 };
-    foo(20, context);
+    foo(context, 20);
 }
 
