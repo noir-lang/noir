@@ -137,6 +137,17 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_integer() {
+        comptime
+        {
+            let expr = quote { 1 }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+
+            assert_eq((2, false), expr.as_integer().unwrap());
+        }
+    }
+
+    #[test]
     fn test_expr_as_binary_op() {
         comptime
         {
