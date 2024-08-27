@@ -124,6 +124,7 @@ impl Expr {
         let result = result.or_else(|| map_function_call(self, f));
         let result = result.or_else(|| map_member_access(self, f));
         let result = result.or_else(|| map_method_call(self, f));
+        let result = result.or_else(|| map_repeated_element_array(self, f));
         result.unwrap_or(self)
     }
 
@@ -246,6 +247,17 @@ fn map_method_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<
     )
 }
 
+fn map_repeated_element_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_repeated_element_array().map(
+        |expr: (Expr, Expr)| {
+        let (expr, length) = expr;
+        let expr = expr.map(f);
+        let length = length.map(f);
+        new_repeated_element_array(expr, length)
+    }
+    )
+}
+
 fn map_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
     exprs.map(|expr: Expr| expr.map(f))
 }
@@ -310,6 +322,10 @@ fn new_method_call(object: Expr, name: Quoted, generics: [UnresolvedType], argum
         let generics = generics.map(|generic| quote { $generic }).join(quote { , });
         quote { $object.$name::<$generics>($arguments) }.as_expr().unwrap()
     }
+}
+
+fn new_repeated_element_array(expr: Expr, length: Expr) -> Expr {
+    quote { [$expr; $length] }.as_expr().unwrap()
 }
 
 fn join_expressions(exprs: [Expr], separator: Quoted) -> Quoted {
