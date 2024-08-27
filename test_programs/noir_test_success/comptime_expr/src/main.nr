@@ -408,6 +408,18 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_repeated_element_slice() {
+        comptime
+        {
+            let expr = quote { &[1; 3] }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let (expr, length) = expr.as_repeated_element_slice().unwrap();
+            assert_eq(expr.as_integer().unwrap(), (2, false));
+            assert_eq(length.as_integer().unwrap(), (6, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_slice() {
         comptime
         {
