@@ -296,6 +296,29 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_if() {
+        comptime
+        {
+            let expr = quote { if 1 { 2 } }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let (condition, consequence, alternative) = expr.as_if().unwrap();
+            assert_eq(condition.as_integer().unwrap(), (2, false));
+            let consequence = consequence.as_block().unwrap()[0].as_block().unwrap()[0];
+            assert_eq(consequence.as_integer().unwrap(), (4, false));
+            assert(alternative.is_none());
+
+            let expr = quote { if 1 { 2 } else { 3 } }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let (condition, consequence, alternative) = expr.as_if().unwrap();
+            assert_eq(condition.as_integer().unwrap(), (2, false));
+            let consequence = consequence.as_block().unwrap()[0].as_block().unwrap()[0];
+            assert_eq(consequence.as_integer().unwrap(), (4, false));
+            let alternative = alternative.unwrap().as_block().unwrap()[0].as_block().unwrap()[0];
+            assert_eq(alternative.as_integer().unwrap(), (6, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_index() {
         comptime
         {

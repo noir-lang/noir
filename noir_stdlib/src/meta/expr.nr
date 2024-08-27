@@ -209,7 +209,7 @@ fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
         let (condition, consequence, alternative) = expr;
         let condition = condition.map(f);
         let consequence = consequence.map(f);
-        let alternative = alternative.and_then(f);
+        let alternative = alternative.map(|alternative: Expr| alternative.map(f));
         new_if(condition, consequence, alternative)
     }
     )
