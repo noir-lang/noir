@@ -908,7 +908,7 @@ impl Builder {
                 }
             }
 
-            Instruction::EnableSideEffects { .. } => {
+            Instruction::EnableSideEffectsIf { .. } => {
                 // ignore
             }
 

@@ -12,12 +12,12 @@ title: Expr
 
 If this expression is an array, this returns a slice of each element in the array.
 
-### as_integer
+### as_assign
 
-#include_code as_integer noir_stdlib/src/meta/expr.nr rust
+#include_code as_assign noir_stdlib/src/meta/expr.nr rust
 
-If this element is an integer literal, return the integer as a field
-as well as whether the integer is negative (true) or not (false).
+If this expression is an assignment, this returns a tuple with the left hand side
+and right hand side in order.
 
 ### as_binary_op
 
@@ -68,12 +68,26 @@ return the condition, then branch, and else branch. If there is no else branch,
 If this expression is an index into an array `array[index]`, return the
 array and the index.
 
+### as_integer
+
+#include_code as_integer noir_stdlib/src/meta/expr.nr rust
+
+If this element is an integer literal, return the integer as a field
+as well as whether the integer is negative (true) or not (false).
+
 ### as_member_access
 
 #include_code as_member_access noir_stdlib/src/meta/expr.nr rust
 
 If this expression is a member access `foo.bar`, return the struct/tuple
 expression and the field. The field will be represented as a quoted value.
+
+### as_method_call
+
+#include_code as_method_call noir_stdlib/src/meta/expr.nr rust
+
+If this expression is a method call `foo.bar::<generic1, ..., genericM>(arg1, ..., argN)`, return
+the receiver, method name, a slice of each generic argument, and a slice of each argument.
 
 ### as_repeated_element_array
 

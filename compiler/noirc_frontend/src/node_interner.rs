@@ -318,6 +318,13 @@ pub enum TraitImplKind {
     },
 }
 
+/// When searching for a trait impl, these are the types of errors we can expect
+pub enum ImplSearchErrorKind {
+    TypeAnnotationsNeededOnObjectType,
+    Nested(Vec<TraitConstraint>),
+    MultipleMatching(Vec<String>),
+}
+
 /// Represents the methods on a given type that each share the same name.
 ///
 /// Methods are split into inherent methods and trait methods. If there is
@@ -1383,7 +1390,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-    ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
+    ) -> Result<TraitImplKind, ImplSearchErrorKind> {
         let (impl_kind, bindings) = self.try_lookup_trait_implementation(
             object_type,
             trait_id,
@@ -1425,7 +1432,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
-    ) -> Result<(TraitImplKind, TypeBindings), Vec<TraitConstraint>> {
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let mut bindings = TypeBindings::new();
         let impl_kind = self.lookup_trait_implementation_helper(
             object_type,
@@ -1451,7 +1458,7 @@ impl NodeInterner {
         trait_associated_types: &[NamedType],
         type_bindings: &mut TypeBindings,
         recursion_limit: u32,
-    ) -> Result<TraitImplKind, Vec<TraitConstraint>> {
+    ) -> Result<TraitImplKind, ImplSearchErrorKind> {
         let make_constraint = || {
             let ordered = trait_generics.to_vec();
             let named = trait_associated_types.to_vec();
@@ -1463,29 +1470,29 @@ impl NodeInterner {
             }
         };
 
+        let nested_error = || ImplSearchErrorKind::Nested(vec![make_constraint()]);
+
         // Prevent infinite recursion when looking for impls
         if recursion_limit == 0 {
-            return Err(vec![make_constraint()]);
+            return Err(nested_error());
         }
 
         let object_type = object_type.substitute(type_bindings);
 
         // If the object type isn't known, just return an error saying type annotations are needed.
         if object_type.is_bindable() {
-            return Err(Vec::new());
+            return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
 
-        let impls =
-            self.trait_implementation_map.get(&trait_id).ok_or_else(|| vec![make_constraint()])?;
+        let impls = self.trait_implementation_map.get(&trait_id).ok_or_else(nested_error)?;
 
         let mut matching_impls = Vec::new();
+        let mut where_clause_error = None;
 
-        let mut where_clause_errors = Vec::new();
-
-        for (existing_object_type2, impl_kind) in impls {
+        for (existing_object_type, impl_kind) in impls {
             // Bug: We're instantiating only the object type's generics here, not all of the trait's generics like we need to
             let (existing_object_type, instantiation_bindings) =
-                existing_object_type2.instantiate(self);
+                existing_object_type.instantiate(self);
 
             let mut fresh_bindings = type_bindings.clone();
 
@@ -1503,19 +1510,18 @@ impl NodeInterner {
                     )
                 };
 
-            let generics_match = match impl_kind {
+            let trait_generics = match impl_kind {
                 TraitImplKind::Normal(id) => {
                     let shared_impl = self.get_trait_implementation(*id);
                     let shared_impl = shared_impl.borrow();
-                    let impl_associated_types = self.get_associated_types_for_impl(*id);
-                    check_trait_generics(&shared_impl.trait_generics, impl_associated_types)
+                    let named = self.get_associated_types_for_impl(*id).to_vec();
+                    let ordered = shared_impl.trait_generics.clone();
+                    TraitGenerics { named, ordered }
                 }
-                TraitImplKind::Assumed { trait_generics, .. } => {
-                    check_trait_generics(&trait_generics.ordered, &trait_generics.named)
-                }
+                TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),
             };
 
-            if !generics_match {
+            if !check_trait_generics(&trait_generics.ordered, &trait_generics.named) {
                 continue;
             }
 
@@ -1524,34 +1530,48 @@ impl NodeInterner {
                     let trait_impl = self.get_trait_implementation(*impl_id);
                     let trait_impl = trait_impl.borrow();
 
-                    if let Err(errors) = self.validate_where_clause(
+                    if let Err(error) = self.validate_where_clause(
                         &trait_impl.where_clause,
                         &mut fresh_bindings,
                         &instantiation_bindings,
                         recursion_limit,
                     ) {
                         // Only keep the first errors we get from a failing where clause
-                        if where_clause_errors.is_empty() {
-                            where_clause_errors.extend(errors);
+                        if where_clause_error.is_none() {
+                            where_clause_error = Some(error);
                         }
                         continue;
                     }
                 }
 
-                matching_impls.push((impl_kind.clone(), fresh_bindings));
+                let constraint = TraitConstraint {
+                    typ: existing_object_type,
+                    trait_id,
+                    trait_generics,
+                    span: Span::default(),
+                };
+                matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
             }
         }
 
         if matching_impls.len() == 1 {
-            let (impl_, fresh_bindings) = matching_impls.pop().unwrap();
+            let (impl_, fresh_bindings, _) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
             Ok(impl_)
         } else if matching_impls.is_empty() {
-            where_clause_errors.push(make_constraint());
-            Err(where_clause_errors)
+            let mut errors = match where_clause_error {
+                Some((_, ImplSearchErrorKind::Nested(errors))) => errors,
+                Some((constraint, _other)) => vec![constraint],
+                None => vec![],
+            };
+            errors.push(make_constraint());
+            Err(ImplSearchErrorKind::Nested(errors))
         } else {
-            // multiple matching impls, type annotations needed
-            Err(vec![])
+            let impls = vecmap(matching_impls, |(_, _, constraint)| {
+                let name = &self.get_trait(constraint.trait_id).name;
+                format!("{}: {name}{}", constraint.typ, constraint.trait_generics)
+            });
+            Err(ImplSearchErrorKind::MultipleMatching(impls))
         }
     }
 
@@ -1563,7 +1583,7 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         instantiation_bindings: &TypeBindings,
         recursion_limit: u32,
-    ) -> Result<(), Vec<TraitConstraint>> {
+    ) -> Result<(), (TraitConstraint, ImplSearchErrorKind)> {
         for constraint in where_clause {
             // Instantiation bindings are generally safe to force substitute into the same type.
             // This is needed here to undo any bindings done to trait methods by monomorphization.
@@ -1591,7 +1611,8 @@ impl NodeInterner {
                 // our impl list, which we don't want to bind to.
                 type_bindings,
                 recursion_limit - 1,
-            )?;
+            )
+            .map_err(|error| (constraint.clone(), error))?;
         }
 
         Ok(())

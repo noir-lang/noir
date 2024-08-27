@@ -706,7 +706,7 @@ impl<'a> Context<'a> {
                     self.convert_ssa_truncate(*value, *bit_size, *max_bit_size, dfg)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 let acir_var = self.convert_numeric_value(*condition, dfg)?;
                 self.current_side_effects_enabled_var = acir_var;
             }

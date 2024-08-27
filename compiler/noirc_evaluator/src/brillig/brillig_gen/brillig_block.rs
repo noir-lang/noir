@@ -725,7 +725,7 @@ impl<'block> BrilligBlock<'block> {
                     1,
                 );
             }
-            Instruction::EnableSideEffects { .. } => {
+            Instruction::EnableSideEffectsIf { .. } => {
                 todo!("enable_side_effects not supported by brillig")
             }
             Instruction::IfElse { .. } => {

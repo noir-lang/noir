@@ -502,7 +502,7 @@ impl<'function> PerFunctionContext<'function> {
                     }
                     None => self.push_instruction(*id),
                 },
-                Instruction::EnableSideEffects { condition } => {
+                Instruction::EnableSideEffectsIf { condition } => {
                     side_effects_enabled = Some(self.translate_value(*condition));
                     self.push_instruction(*id);
                 }
