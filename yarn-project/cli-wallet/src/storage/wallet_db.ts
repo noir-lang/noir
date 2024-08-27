@@ -1,3 +1,4 @@
+import { type AuthWitness } from '@aztec/circuit-types';
 import { type AztecAddress, Fr } from '@aztec/circuits.js';
 import { type LogFn } from '@aztec/foundation/log';
 import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
@@ -5,7 +6,7 @@ import { type AztecKVStore, type AztecMap } from '@aztec/kv-store';
 import { type AccountType } from '../utils/accounts.js';
 import { extractECDSAPublicKeyFromBase64String } from '../utils/ecdsa.js';
 
-export const Aliases = ['accounts', 'contracts', 'artifacts', 'secrets', 'transactions'] as const;
+export const Aliases = ['accounts', 'contracts', 'artifacts', 'secrets', 'transactions', 'authwits'] as const;
 export type AliasType = (typeof Aliases)[number];
 
 export class WalletDB {
@@ -88,6 +89,14 @@ export class WalletDB {
     await this.#aliases.set(`artifacts:last`, Buffer.from(artifactPath));
     await this.#aliases.set(`artifacts:${address.toString()}`, Buffer.from(artifactPath));
     log(`Contract stored in database with alias${alias ? `es last & ${alias}` : ' last'}`);
+  }
+
+  async storeAuthwitness(authWit: AuthWitness, log: LogFn, alias?: string) {
+    if (alias) {
+      await this.#aliases.set(`authwits:${alias}`, Buffer.from(authWit.toString()));
+    }
+    await this.#aliases.set(`authwits:last`, Buffer.from(authWit.toString()));
+    log(`Authorization witness stored in database with alias${alias ? `es last & ${alias}` : ' last'}`);
   }
 
   async storeTxHash(txHash: string, log: LogFn, alias?: string) {

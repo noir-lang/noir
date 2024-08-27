@@ -25,13 +25,13 @@ export class EcdsaSignature implements Signature {
     public v: Buffer,
   ) {
     if (r.length != 32) {
-      throw new Error(`Invalid length of 'r' in ECDSA signature`);
+      throw new Error(`Invalid length of 'r' in ECDSA signature. Expected 32, got ${s.length}`);
     }
     if (s.length != 32) {
-      throw new Error(`Invalid length of 's' in ECDSA signature`);
+      throw new Error(`Invalid length of 's' in ECDSA signature. Expected 32, got ${r.length}`);
     }
     if (v.length != 1) {
-      throw new Error(`Invalid length of '1' in ECDSA signature`);
+      throw new Error(`Invalid length of 'v' in ECDSA signature. Expected 1, got ${v.length}`);
     }
   }
 

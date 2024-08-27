@@ -60,6 +60,10 @@ export abstract class BaseWallet implements Wallet {
     this.scopes = scopes;
   }
 
+  getScopes() {
+    return this.scopes;
+  }
+
   getAddress() {
     return this.getCompleteAddress().address;
   }

@@ -15,6 +15,8 @@ export async function bridgeL1FeeJuice(
   mnemonic: string,
   mint: boolean,
   json: boolean,
+  wait: boolean,
+  interval = 60_000,
   log: LogFn,
   debugLogger: DebugLogger,
 ) {
@@ -47,18 +49,38 @@ export async function bridgeL1FeeJuice(
     }
     log(`claimAmount=${claimAmount},claimSecret=${claimSecret},messageHash=${messageHash}\n`);
     log(`Note: You need to wait for two L2 blocks before pulling them from the L2 side`);
-    log(`This command will now continually poll every minute for the inclusion of the newly created L1 to L2 message`);
+    if (wait) {
+      log(
+        `This command will now continually poll every ${
+          interval / 1000
+        }s for the inclusion of the newly created L1 to L2 message`,
+      );
+    }
   }
 
-  const interval = setInterval(async () => {
-    const witness = await client.getL1ToL2MembershipWitness(feeJuiceAddress, Fr.fromString(messageHash), claimSecret);
-    if (witness) {
-      log(`Your bridged fee juice is now available. You can claim it like this:
-        aztec send claim_public --args ${recipient} ${amount} ${claimSecret} ${witness[0]} -ca ${feeJuiceAddress} -c FeeJuice -sk $SECRET_KEY
-      `);
-      clearInterval(interval);
+  if (wait) {
+    const delayedCheck = (delay: number) => {
+      return new Promise(resolve => {
+        setTimeout(async () => {
+          const witness = await client.getL1ToL2MembershipWitness(
+            feeJuiceAddress,
+            Fr.fromString(messageHash),
+            claimSecret,
+          );
+          resolve(witness);
+        }, delay);
+      });
+    };
+
+    let witness;
+
+    while (!witness) {
+      witness = await delayedCheck(interval);
+      if (!witness) {
+        log(`No L1 to L2 message found yet, checking again in ${interval / 1000}s`);
+      }
     }
-  }, 60_000);
+  }
 
   return claimSecret;
 }

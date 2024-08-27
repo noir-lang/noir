@@ -1,3 +1,4 @@
+import { AuthWitness } from '@aztec/circuit-types';
 import { type AztecAddress } from '@aztec/circuits.js';
 import { parseAztecAddress, parseSecretKey, parseTxHash } from '@aztec/cli/utils';
 
@@ -19,6 +20,16 @@ export function aliasedTxHashParser(txHash: string, db?: WalletDB) {
     const prefixed = txHash.includes(':') ? txHash : `transactions:${txHash}`;
     const rawTxHash = db ? db.tryRetrieveAlias(prefixed) : txHash;
     return parseTxHash(rawTxHash);
+  }
+}
+
+export function aliasedAuthWitParser(witness: string, db?: WalletDB) {
+  try {
+    return AuthWitness.fromString(witness);
+  } catch (err) {
+    const prefixed = witness.includes(':') ? witness : `authwits:${witness}`;
+    const rawAuthWitness = db ? db.tryRetrieveAlias(prefixed) : witness;
+    return AuthWitness.fromString(rawAuthWitness);
   }
 }
 
