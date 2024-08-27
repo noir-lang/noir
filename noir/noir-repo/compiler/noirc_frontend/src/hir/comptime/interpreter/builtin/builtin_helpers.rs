@@ -4,10 +4,15 @@ use acvm::FieldElement;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{ExpressionKind, IntegerBitSize, Signedness},
+    ast::{BlockExpression, IntegerBitSize, Signedness, UnresolvedTypeData},
     hir::{
-        comptime::{errors::IResult, value::add_token_spans, Interpreter, InterpreterError, Value},
+        comptime::{
+            errors::IResult,
+            value::{add_token_spans, ExprValue},
+            Interpreter, InterpreterError, Value,
+        },
         def_map::ModuleId,
+        type_check::generics::TraitGenerics,
     },
     hir_def::{
         function::{FuncMeta, FunctionBody},
@@ -137,7 +142,7 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     }
 }
 
-pub(crate) fn get_expr((value, location): (Value, Location)) -> IResult<ExpressionKind> {
+pub(crate) fn get_expr((value, location): (Value, Location)) -> IResult<ExprValue> {
     match value {
         Value::Expr(expr) => Ok(expr),
         value => type_mismatch(value, Type::Quoted(QuotedType::Expr), location),
@@ -167,7 +172,7 @@ pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<Struct
 
 pub(crate) fn get_trait_constraint(
     (value, location): (Value, Location),
-) -> IResult<(TraitId, Vec<Type>)> {
+) -> IResult<(TraitId, TraitGenerics)> {
     match value {
         Value::TraitConstraint(trait_id, generics) => Ok((trait_id, generics)),
         value => type_mismatch(value, Type::Quoted(QuotedType::TraitConstraint), location),
@@ -199,6 +204,15 @@ pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec
     match value {
         Value::Quoted(tokens) => Ok(tokens),
         value => type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
+    }
+}
+
+pub(crate) fn get_unresolved_type(
+    (value, location): (Value, Location),
+) -> IResult<UnresolvedTypeData> {
+    match value {
+        Value::UnresolvedType(typ) => Ok(typ),
+        value => type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType), location),
     }
 }
 
@@ -345,4 +359,12 @@ pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
         Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
         _ => {}
     }
+}
+
+pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
+    let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
+    let statements = block_expr.statements.into_iter();
+    let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
+
+    Value::Slice(statements, typ)
 }

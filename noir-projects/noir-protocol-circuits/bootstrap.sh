@@ -44,14 +44,14 @@ MIN_PARALLEL_VK_GENERATION_MEMORY=500000000
 if [[ AVAILABLE_MEMORY -lt MIN_PARALLEL_VK_GENERATION_MEMORY ]]; then
   echo "System does not have enough memory for parallel vk generation, falling back to sequential"
 
-  for pathname in "./target"/*.json; do    
+  for pathname in "./target"/*.json; do
       BB_HASH=$BB_HASH node ../scripts/generate_vk_json.js "$pathname" "./target/keys"
   done
 
 else
 
   echo "Generating vks in parallel..."
-  for pathname in "./target"/*.json; do    
+  for pathname in "./target"/*.json; do
       BB_HASH=$BB_HASH node ../scripts/generate_vk_json.js "$pathname" "./target/keys" &
   done
 

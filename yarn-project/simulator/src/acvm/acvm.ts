@@ -35,6 +35,19 @@ export interface ACIRExecutionResult {
 }
 
 /**
+ * Extracts a brillig location from an opcode location.
+ * @param opcodeLocation - The opcode location to extract from. It should be in the format `acirLocation.brilligLocation` or `acirLocation`.
+ * @returns The brillig location if the opcode location contains one.
+ */
+function extractBrilligLocation(opcodeLocation: string): string | undefined {
+  const splitted = opcodeLocation.split('.');
+  if (splitted.length === 2) {
+    return splitted[1];
+  }
+  return undefined;
+}
+
+/**
  * Extracts the call stack from the location of a failing opcode and the debug metadata.
  * One opcode can point to multiple calls due to inlining.
  */
@@ -47,8 +60,9 @@ function getSourceCodeLocationsFromOpcodeLocation(
 
   let callStack = debugSymbols.locations[opcodeLocation] || [];
   if (callStack.length === 0) {
-    if (brilligFunctionId !== undefined) {
-      callStack = debugSymbols.brillig_locations[brilligFunctionId][opcodeLocation] || [];
+    const brilligLocation = extractBrilligLocation(opcodeLocation);
+    if (brilligFunctionId !== undefined && brilligLocation !== undefined) {
+      callStack = debugSymbols.brillig_locations[brilligFunctionId][brilligLocation] || [];
     }
   }
   return callStack.map(call => {

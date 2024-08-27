@@ -123,6 +123,17 @@ pub struct CompileOptions {
     /// Temporary flag to enable the experimental arithmetic generics feature
     #[arg(long, hide = true)]
     pub arithmetic_generics: bool,
+
+    /// Flag to turn off the compiler check for under constrained values.
+    /// Warning: This can improve compilation speed but can also lead to correctness errors.
+    /// This check should always be run on production code.
+    #[arg(long)]
+    pub skip_underconstrained_check: bool,
+
+    /// A workspace is compiled in parallel by default. This flag will compile it sequentially.
+    /// This flag is useful to reduce memory consumption or to avoid using rayon threads for compilation (which don't have dynamic stacks).
+    #[arg(long)]
+    pub sequential: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -574,6 +585,7 @@ pub fn compile_no_check(
             ExpressionWidth::default()
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
+        skip_underconstrained_check: options.skip_underconstrained_check,
     };
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =

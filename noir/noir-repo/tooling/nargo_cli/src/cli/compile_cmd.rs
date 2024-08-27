@@ -181,30 +181,33 @@ fn compile_programs(
             .map(|p| p.into())
     };
 
-    let program_results: Vec<CompilationResult<()>> = binary_packages
-        .par_iter()
-        .map(|package| {
-            let (program, warnings) = compile_program(
-                file_manager,
-                parsed_files,
-                workspace,
-                package,
-                compile_options,
-                load_cached_program(package),
-            )?;
+    let compile_package = |package| {
+        let (program, warnings) = compile_program(
+            file_manager,
+            parsed_files,
+            workspace,
+            package,
+            compile_options,
+            load_cached_program(package),
+        )?;
 
-            let target_width =
-                get_target_width(package.expression_width, compile_options.expression_width);
-            let program = nargo::ops::transform_program(program, target_width);
+        let target_width =
+            get_target_width(package.expression_width, compile_options.expression_width);
+        let program = nargo::ops::transform_program(program, target_width);
 
-            save_program_to_file(
-                &program.clone().into(),
-                &package.name,
-                workspace.target_directory_path(),
-            );
-            Ok(((), warnings))
-        })
-        .collect();
+        save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
+
+        Ok(((), warnings))
+    };
+
+    let program_results: Vec<CompilationResult<()>> = if compile_options.sequential {
+        binary_packages.iter().map(compile_package).collect()
+    } else {
+        // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
+        // Default is 2MB.
+        let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+        pool.install(|| binary_packages.par_iter().map(compile_package).collect())
+    };
 
     // Collate any warnings/errors which were encountered during compilation.
     collect_errors(program_results).map(|(_, warnings)| ((), warnings))

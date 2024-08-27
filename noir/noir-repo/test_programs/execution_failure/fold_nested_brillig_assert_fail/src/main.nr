@@ -3,6 +3,7 @@
 // The features being tested is using assert on brillig that is triggered through nested ACIR calls.
 // We want to make sure we get a call stack from the original call in main to the failed assert.
 fn main(x: Field) {
+    assert(1 == fold_conditional_wrapper(!x as bool));
     assert(1 == fold_conditional_wrapper(x as bool));
 }
 

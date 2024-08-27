@@ -2,13 +2,12 @@ use std::collections::BTreeMap;
 
 use acvm::acir::brillig::{BitSize, IntegerBitSize, Opcode as BrilligOpcode};
 
-use acvm::acir::circuit::OpcodeLocation;
+use acvm::acir::circuit::BrilligOpcodeLocation;
 use acvm::brillig_vm::brillig::{
     BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray,
 };
 use acvm::{AcirField, FieldElement};
 use noirc_errors::debug_info::DebugInfo;
-use noirc_errors::Location;
 
 use crate::instructions::{
     AvmInstruction, AvmOperand, AvmTypeTag, ALL_DIRECT, FIRST_OPERAND_INDIRECT,
@@ -1088,19 +1087,11 @@ pub fn patch_debug_info_pcs(
             patched_debug_info.brillig_locations.iter()
         {
             // create a new map with all of its keys (OpcodeLocations) patched
-            let mut patched_locations: BTreeMap<OpcodeLocation, Vec<Location>> = BTreeMap::new();
+            let mut patched_locations = BTreeMap::new();
             for (original_opcode_location, source_locations) in opcode_locations_map.iter() {
-                match original_opcode_location {
-                    OpcodeLocation::Brillig { acir_index, brillig_index } => {
-                        let avm_opcode_location = OpcodeLocation::Brillig {
-                            acir_index: *acir_index,
-                            // patch the PC
-                            brillig_index: brillig_pcs_to_avm_pcs[*brillig_index],
-                        };
-                        patched_locations.insert(avm_opcode_location, source_locations.clone());
-                    }
-                    OpcodeLocation::Acir(_) => (),
-                }
+                let avm_opcode_location =
+                    BrilligOpcodeLocation(brillig_pcs_to_avm_pcs[original_opcode_location.0]);
+                patched_locations.insert(avm_opcode_location, source_locations.clone());
             }
             // insert the new map as a brillig locations map for the current function id
             patched_brillig_locations.insert(*brillig_function_id, patched_locations);
