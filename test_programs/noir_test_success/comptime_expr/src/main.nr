@@ -433,6 +433,20 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_slice() {
+        comptime
+        {
+            let expr = quote { &[1, 3, 5] }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let elems = expr.as_slice().unwrap();
+            assert_eq(elems.len(), 3);
+            assert_eq(elems[0].as_integer().unwrap(), (2, false));
+            assert_eq(elems[1].as_integer().unwrap(), (6, false));
+            assert_eq(elems[2].as_integer().unwrap(), (10, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_tuple() {
         comptime
         {
