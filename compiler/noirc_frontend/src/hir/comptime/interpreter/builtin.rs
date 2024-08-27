@@ -102,11 +102,11 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
-            "slice_pop_back" => slice_pop_back(interner, arguments, location),
-            "slice_pop_front" => slice_pop_front(interner, arguments, location),
+            "slice_pop_back" => slice_pop_back(interner, arguments, location, &self.call_stack),
+            "slice_pop_front" => slice_pop_front(interner, arguments, location, &self.call_stack),
             "slice_push_back" => slice_push_back(interner, arguments, location),
             "slice_push_front" => slice_push_front(interner, arguments, location),
-            "slice_remove" => slice_remove(interner, arguments, location),
+            "slice_remove" => slice_remove(interner, arguments, location, &self.call_stack),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
@@ -145,8 +145,11 @@ impl<'local, 'context> Interpreter<'local, 'context> {
     }
 }
 
-fn failing_constraint<T>(message: impl Into<String>, location: Location) -> IResult<T> {
-    let call_stack = Vec::new();
+fn failing_constraint<T>(
+    message: impl Into<String>,
+    location: Location,
+    call_stack: Vec<Location>,
+) -> IResult<T> {
     Err(InterpreterError::FailingConstraint { message: Some(message.into()), location, call_stack })
 }
 
@@ -279,6 +282,7 @@ fn slice_remove(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    call_stack: &Vec<Location>,
 ) -> IResult<Value> {
     let (slice, index) = check_two_arguments(arguments, location)?;
 
@@ -286,7 +290,11 @@ fn slice_remove(
     let index = get_u32(index)? as usize;
 
     if values.is_empty() {
-        return failing_constraint("slice_remove called on empty slice", location);
+        return failing_constraint(
+            "slice_remove called on empty slice",
+            location,
+            call_stack.clone(),
+        );
     }
 
     if index >= values.len() {
@@ -294,7 +302,7 @@ fn slice_remove(
             "slice_remove: index {index} is out of bounds for a slice of length {}",
             values.len()
         );
-        return failing_constraint(message, location);
+        return failing_constraint(message, location, call_stack.clone());
     }
 
     let element = values.remove(index);
@@ -317,13 +325,18 @@ fn slice_pop_front(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    call_stack: &Vec<Location>,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, argument)?;
     match values.pop_front() {
         Some(element) => Ok(Value::Tuple(vec![element, Value::Slice(values, typ)])),
-        None => failing_constraint("slice_pop_front called on empty slice", location),
+        None => failing_constraint(
+            "slice_pop_front called on empty slice",
+            location,
+            call_stack.clone(),
+        ),
     }
 }
 
@@ -331,13 +344,16 @@ fn slice_pop_back(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
+    call_stack: &Vec<Location>,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
     let (mut values, typ) = get_slice(interner, argument)?;
     match values.pop_back() {
         Some(element) => Ok(Value::Tuple(vec![Value::Slice(values, typ), element])),
-        None => failing_constraint("slice_pop_back called on empty slice", location),
+        None => {
+            failing_constraint("slice_pop_back called on empty slice", location, call_stack.clone())
+        }
     }
 }
 
