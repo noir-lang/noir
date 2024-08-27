@@ -350,6 +350,18 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_member_access() {
+        comptime
+        {
+            let expr = quote { 1.bar }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let (expr, name) = expr.as_member_access().unwrap();
+            assert_eq(name, quote { bar });
+            assert_eq(expr.as_integer().unwrap(), (2, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_member_access_with_an_lvalue() {
         comptime
         {

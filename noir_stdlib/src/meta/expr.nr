@@ -122,6 +122,7 @@ impl Expr {
         let result = result.or_else(|| map_if(self, f));
         let result = result.or_else(|| map_index(self, f));
         let result = result.or_else(|| map_function_call(self, f));
+        let result = result.or_else(|| map_member_access(self, f));
         let result = result.or_else(|| map_method_call(self, f));
         result.unwrap_or(self)
     }
@@ -224,6 +225,16 @@ fn map_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> 
     )
 }
 
+fn map_member_access<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_member_access().map(
+        |expr: (Expr, Quoted)| {
+        let (object, name) = expr;
+        let object = object.map(f);
+        new_member_access(object, name)
+    }
+    )
+}
+
 fn map_method_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_method_call().map(
         |expr: (Expr, Quoted, [UnresolvedType], [Expr])| {
@@ -278,6 +289,10 @@ fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr
 
 fn new_index(object: Expr, index: Expr) -> Expr {
     quote { $object[$index] }.as_expr().unwrap()
+}
+
+fn new_member_access(object: Expr, name: Quoted) -> Expr {
+    quote { $object.$name }.as_expr().unwrap()
 }
 
 fn new_function_call(function: Expr, arguments: [Expr]) -> Expr {
