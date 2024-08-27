@@ -32,6 +32,7 @@ async function main() {
     debug_symbols: func.debug_symbols,
     file_map: contractArtifact.file_map,
     names: ["main"],
+    brillig_names: func.brillig_names,
   };
 
   const outputDir = path.dirname(contractArtifactPath);
