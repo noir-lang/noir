@@ -112,31 +112,18 @@ impl Expr {
     // docs:end:is_continue
 
     fn map<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
-        f(self).or_else(
-            || {
-            let result_array = map_array(self, f);
-            let result_assign = map_assign(self, f);
-            let result_binary_op  = map_binary_op(self, f);
-            let result_block  = map_block(self, f);
-            let result_cast  = map_cast(self, f);
-            let result_comptime  = map_comptime(self, f);
-            let result_if = map_if(self, f);
-            let result_function_call = map_function_call(self, f);
-            let result_method_call = map_method_call(self, f);
-
-            let result = result_array;
-            let result = result.or(result_assign);
-            let result = result.or(result_binary_op);
-            let result = result.or(result_block);
-            let result = result.or(result_cast);
-            let result = result.or(result_comptime);
-            let result = result.or(result_if);
-            let result = result.or(result_function_call);
-            let result = result.or(result_method_call);
-
-            result
-        }
-        ).unwrap_or(self)
+        let result = f(self);
+        let result = result.or_else(|| map_array(self, f));
+        let result = result.or_else(|| map_assign(self, f));
+        let result = result.or_else(|| map_binary_op(self, f));
+        let result = result.or_else(|| map_block(self, f));
+        let result = result.or_else(|| map_cast(self, f));
+        let result = result.or_else(|| map_comptime(self, f));
+        let result = result.or_else(|| map_if(self, f));
+        let result = result.or_else(|| map_index(self, f));
+        let result = result.or_else(|| map_function_call(self, f));
+        let result = result.or_else(|| map_method_call(self, f));
+        result.unwrap_or(self)
     }
 
     fn quoted(self) -> Quoted {
@@ -203,6 +190,17 @@ fn map_comptime<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Exp
     )
 }
 
+fn map_function_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_function_call().map(
+        |expr: (Expr, [Expr])| {
+        let (function, arguments) = expr;
+        let function = function.map(f);
+        let arguments = arguments.map(|arg: Expr| arg.map(f));
+        new_function_call(function, arguments)
+    }
+    )
+}
+
 fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_if().map(
         |expr: (Expr, Expr, Option<Expr>)| {
@@ -215,13 +213,13 @@ fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     )
 }
 
-fn map_function_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
-    expr.as_function_call().map(
-        |expr: (Expr, [Expr])| {
-        let (function, arguments) = expr;
-        let function = function.map(f);
-        let arguments = arguments.map(|arg: Expr| arg.map(f));
-        new_function_call(function, arguments)
+fn map_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_index().map(
+        |expr: (Expr, Expr)| {
+        let (object, index) = expr;
+        let object = object.map(f);
+        let index = index.map(f);
+        new_index(object, index)
     }
     )
 }
@@ -276,6 +274,10 @@ fn new_if(condition: Expr, consequence: Expr, alternative: Option<Expr>) -> Expr
     } else {
         quote { if $condition { $consequence } }.as_expr().unwrap()
     }
+}
+
+fn new_index(object: Expr, index: Expr) -> Expr {
+    quote { $object[$index] }.as_expr().unwrap()
 }
 
 fn new_function_call(function: Expr, arguments: [Expr]) -> Expr {

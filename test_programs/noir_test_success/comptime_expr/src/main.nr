@@ -328,6 +328,18 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_index() {
+        comptime
+        {
+            let expr = quote { 1[2] }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+            let (object, index) = expr.as_index().unwrap();
+            assert_eq(object.as_integer().unwrap(), (2, false));
+            assert_eq(index.as_integer().unwrap(), (4, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_member_access() {
         comptime
         {
