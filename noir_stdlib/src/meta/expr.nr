@@ -151,8 +151,10 @@ mod tests {
             assert(get_binary_op(quote { x / y }).is_divide());
             assert(get_binary_op(quote { x == y }).is_equal());
             assert(get_binary_op(quote { x != y }).is_not_equal());
-            assert(get_binary_op(quote { x > y }).is_greater());
-            assert(get_binary_op(quote { x >= y }).is_greater_or_equal());
+            assert(get_binary_op(quote { x < y }).is_less_than());
+            assert(get_binary_op(quote { x <= y }).is_less_than_or_equal());
+            assert(get_binary_op(quote { x > y }).is_greater_than());
+            assert(get_binary_op(quote { x >= y }).is_greater_than_or_equal());
             assert(get_binary_op(quote { x & y }).is_and());
             assert(get_binary_op(quote { x | y }).is_or());
             assert(get_binary_op(quote { x ^ y }).is_xor());
