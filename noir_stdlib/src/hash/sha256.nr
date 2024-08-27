@@ -39,7 +39,11 @@ unconstrained fn build_msg_block_iter<let N: u32>(
     msg_start: u32
 ) -> ([u8; 64], u64) {
     let mut msg_byte_ptr: u64 = 0; // Message byte pointer
-    for k in msg_start..(msg_start + BLOCK_SIZE) {
+    let mut msg_end = msg_start + BLOCK_SIZE;
+    if msg_end > N {
+        msg_end = N;
+    }
+    for k in msg_start..msg_end {
         if k as u64 < message_size {
             msg_block[msg_byte_ptr] = msg[k];
             msg_byte_ptr = msg_byte_ptr + 1;
@@ -56,7 +60,11 @@ fn verify_msg_block<let N: u32>(
     msg_start: u32
 ) -> u64 {
     let mut msg_byte_ptr: u64 = 0; // Message byte pointer
-    for k in msg_start..(msg_start + BLOCK_SIZE) {
+    let mut msg_end = msg_start + BLOCK_SIZE;
+    if msg_end > N {
+        msg_end = N;
+    }
+    for k in msg_start..msg_end {
         if k as u64 < message_size {
             assert_eq(msg_block[msg_byte_ptr], msg[k]);
             msg_byte_ptr = msg_byte_ptr + 1;
@@ -81,19 +89,6 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     let mut h: [u32; 8] = [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]; // Intermediate hash, starting with the canonical initial value
     let mut msg_byte_ptr = 0; // Pointer into msg_block
 
-    if num_blocks == 0 {
-        unsafe {
-            let (new_msg_block, new_msg_byte_ptr)  = build_msg_block_iter(msg, message_size, msg_block, 0);
-            msg_block = new_msg_block;
-            msg_byte_ptr = new_msg_byte_ptr;
-        }
-
-        if !crate::runtime::is_unconstrained() {
-            assert(msg_byte_ptr <= BLOCK_SIZE as u64);
-            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, 0);
-        }
-    }
-
     for i in 0..num_blocks {
         unsafe {
             let (new_msg_block, new_msg_byte_ptr)  = build_msg_block_iter(msg, message_size, msg_block, BLOCK_SIZE * i);
@@ -107,8 +102,25 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
             msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, BLOCK_SIZE * i);
         }
 
-        // Hash the block
+        // Compress the block
         h = sha256_compression(msg_u8_to_u32(msg_block), h);
+    }
+
+    let modulo = N % BLOCK_SIZE;
+    // Handle setup of the final msg block.
+    // This case is only hit if the msg is less than the block size, 
+    // or our message cannot be evenly split into blocks. 
+    if modulo != 0 {
+        unsafe {
+            let (new_msg_block, new_msg_byte_ptr)  = build_msg_block_iter(msg, message_size, msg_block, BLOCK_SIZE * num_blocks);
+            msg_block = new_msg_block;
+            msg_byte_ptr = new_msg_byte_ptr;
+        }
+
+        if !crate::runtime::is_unconstrained() {
+            assert(msg_byte_ptr <= BLOCK_SIZE as u64);
+            msg_byte_ptr = verify_msg_block(msg, message_size, msg_block, BLOCK_SIZE * num_blocks);
+        }
     }
 
     if msg_byte_ptr == BLOCK_SIZE as u64 {
