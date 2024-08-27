@@ -162,7 +162,7 @@ This is used to designate functions as initializers (or constructors) for an Azt
 Key things to keep in mind:
 
 - A contract can have multiple initializer functions defined, but only one initializer function should be called for the lifetime of a contract instance
-- Other functions in the contract will have an initialization check inserted, ie they cannot be called until the contract is initialized, unless they are marked with [`#[aztec(noinitcheck)])`](#aztecnoinitcheck)
+- Other functions in the contract will have an initialization check inserted, ie they cannot be called until the contract is initialized, unless they are marked with [`#[aztec(noinitcheck)]`](#aztecnoinitcheck)
 
 ## #[aztec(noinitcheck)]
 
