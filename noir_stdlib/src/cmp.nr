@@ -7,39 +7,25 @@ trait Eq {
 }
 // docs:end:eq-trait
 
+// docs:start:derive_eq
 comptime fn derive_eq(s: StructDefinition) -> Quoted {
-    let typ = s.as_type();
-
-    let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
-
-    let where_clause = s.generics().map(|name| quote { $name: Eq }).join(quote {,});
-
-    // `(self.a == other.a) & (self.b == other.b) & ...`
-    let equalities = s.fields().map(
-        |f: (Quoted, Type)| {
-        let name = f.0;
-        quote { (self.$name == other.$name) }
-    }
-    );
-    let body = equalities.join(quote { & });
-
-    quote {
-        impl<$impl_generics> Eq for $typ where $where_clause {
-            fn eq(self, other: Self) -> bool {
-                $body
-            }
-        }
-    }
+    let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
+    let for_each_field = |name| quote { (_self.$name == _other.$name) };
+    let body = |fields| fields;
+    crate::meta::make_trait_impl(s, quote { Eq }, signature, for_each_field, quote { & }, body)
 }
+// docs:end:derive_eq
 
 impl Eq for Field { fn eq(self, other: Field) -> bool { self == other } }
 
 impl Eq for u64 { fn eq(self, other: u64) -> bool { self == other } }
 impl Eq for u32 { fn eq(self, other: u32) -> bool { self == other } }
+impl Eq for u16 { fn eq(self, other: u16) -> bool { self == other } }
 impl Eq for u8 { fn eq(self, other: u8) -> bool { self == other } }
 impl Eq for u1 { fn eq(self, other: u1) -> bool { self == other } }
 
 impl Eq for i8 { fn eq(self, other: i8) -> bool { self == other } }
+impl Eq for i16 { fn eq(self, other: i16) -> bool { self == other } }
 impl Eq for i32 { fn eq(self, other: i32) -> bool { self == other } }
 impl Eq for i64 { fn eq(self, other: i64) -> bool { self == other } }
 
@@ -127,11 +113,29 @@ impl Ordering {
     }
 }
 
+#[derive_via(derive_ord)]
 // docs:start:ord-trait
 trait Ord {
     fn cmp(self, other: Self) -> Ordering;
 }
 // docs:end:ord-trait
+
+// docs:start:derive_ord
+comptime fn derive_ord(s: StructDefinition) -> Quoted {
+    let signature = quote { fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering };
+    let for_each_field = |name| quote {
+        if result == std::cmp::Ordering::equal() {
+            result = _self.$name.cmp(_other.$name);
+        }
+    };
+    let body = |fields| quote {
+        let mut result = std::cmp::Ordering::equal();
+        $fields
+        result
+    };
+    crate::meta::make_trait_impl(s, quote { Ord }, signature, for_each_field, quote {}, body)
+}
+// docs:end:derive_ord
 
 // Note: Field deliberately does not implement Ord
 
@@ -159,6 +163,18 @@ impl Ord for u32 {
     }
 }
 
+impl Ord for u16 {
+    fn cmp(self, other: u16) -> Ordering {
+        if self < other {
+            Ordering::less()
+        } else if self > other {
+            Ordering::greater()
+        } else {
+            Ordering::equal()
+        }
+    }
+}
+
 impl Ord for u8 {
     fn cmp(self, other: u8) -> Ordering {
         if self < other {
@@ -173,6 +189,18 @@ impl Ord for u8 {
 
 impl Ord for i8 {
     fn cmp(self, other: i8) -> Ordering {
+        if self < other {
+            Ordering::less()
+        } else if self > other {
+            Ordering::greater()
+        } else {
+            Ordering::equal()
+        }
+    }
+}
+
+impl Ord for i16 {
+    fn cmp(self, other: i16) -> Ordering {
         if self < other {
             Ordering::less()
         } else if self > other {

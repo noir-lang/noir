@@ -12,15 +12,16 @@ use crate::{Generics, Type};
 use crate::hir::resolution::import::{resolve_import, ImportDirective, PathResolution};
 use crate::hir::Context;
 
-use crate::macros_api::{MacroError, MacroProcessor};
+use crate::macros_api::{Expression, MacroError, MacroProcessor};
 use crate::node_interner::{
-    FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId, TypeAliasId,
+    FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
+    TypeAliasId,
 };
 
 use crate::ast::{
-    ExpressionKind, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType,
+    ExpressionKind, GenericTypeArgs, Ident, LetStatement, Literal, NoirFunction, NoirStruct,
+    NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
+    UnresolvedTraitConstraint, UnresolvedType,
 };
 
 use crate::parser::{ParserError, SortedModule};
@@ -74,12 +75,15 @@ pub struct UnresolvedTrait {
 pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub trait_generics: Vec<UnresolvedType>,
+    pub trait_generics: GenericTypeArgs,
     pub trait_path: Path,
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
+
+    pub associated_types: Vec<(Ident, UnresolvedType)>,
+    pub associated_constants: Vec<(Ident, UnresolvedType, Expression)>,
 
     // Every field after this line is filled in later in the elaborator
     pub trait_id: Option<TraitId>,
@@ -269,11 +273,17 @@ impl DefCollector {
                 macro_processors,
             ));
 
-            let dep_def_root =
-                context.def_map(&dep.crate_id).expect("ice: def map was just created").root;
+            let dep_def_map =
+                context.def_map(&dep.crate_id).expect("ice: def map was just created");
+
+            let dep_def_root = dep_def_map.root;
             let module_id = ModuleId { krate: dep.crate_id, local_id: dep_def_root };
             // Add this crate as a dependency by linking it's root module
             def_map.extern_prelude.insert(dep.as_name(), module_id);
+
+            let location = dep_def_map[dep_def_root].location;
+            let attriutes = ModuleAttributes { name: dep.as_name(), location, parent: None };
+            context.def_interner.add_module_attributes(module_id, attriutes);
         }
 
         // At this point, all dependencies are resolved and type checked.
@@ -309,7 +319,7 @@ impl DefCollector {
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let module_id = collected_import.module_id;
             let resolved_import = if context.def_interner.lsp_mode {
-                let mut references: Vec<Option<ReferenceId>> = Vec::new();
+                let mut references: Vec<ReferenceId> = Vec::new();
                 let resolved_import = resolve_import(
                     crate_id,
                     &collected_import,
@@ -322,9 +332,6 @@ impl DefCollector {
 
                 for (referenced, segment) in references.iter().zip(&collected_import.path.segments)
                 {
-                    let Some(referenced) = referenced else {
-                        continue;
-                    };
                     context.def_interner.add_reference(
                         *referenced,
                         Location::new(segment.ident.span(), file_id),

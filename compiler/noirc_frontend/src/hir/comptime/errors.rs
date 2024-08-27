@@ -185,9 +185,20 @@ pub enum InterpreterError {
     FailedToResolveTraitDefinition {
         location: Location,
     },
+    FunctionAlreadyResolved {
+        location: Location,
+    },
+    MultipleMatchingImpls {
+        object_type: Type,
+        candidates: Vec<String>,
+        location: Location,
+    },
 
     Unimplemented {
         item: String,
+        location: Location,
+    },
+    TypeAnnotationsNeededForMethodCall {
         location: Location,
     },
 
@@ -254,7 +265,10 @@ impl InterpreterError {
             | InterpreterError::ContinueNotInLoop { location, .. }
             | InterpreterError::TraitDefinitionMustBeAPath { location }
             | InterpreterError::FailedToResolveTraitDefinition { location }
-            | InterpreterError::FailedToResolveTraitBound { location, .. } => *location,
+            | InterpreterError::FailedToResolveTraitBound { location, .. }
+            | InterpreterError::FunctionAlreadyResolved { location, .. }
+            | InterpreterError::MultipleMatchingImpls { location, .. }
+            | InterpreterError::TypeAnnotationsNeededForMethodCall { location } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -515,6 +529,33 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::FailedToResolveTraitDefinition { location } => {
                 let msg = "Failed to resolve to a trait definition".to_string();
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::FunctionAlreadyResolved { location } => {
+                let msg = "Function already resolved".to_string();
+                let secondary =
+                    "The function was previously called at compile-time or is in another crate"
+                        .to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::MultipleMatchingImpls { object_type, candidates, location } => {
+                let message = format!("Multiple trait impls match the object type `{object_type}`");
+                let secondary = "Ambiguous impl".to_string();
+                let mut error = CustomDiagnostic::simple_error(message, secondary, location.span);
+                for (i, candidate) in candidates.iter().enumerate() {
+                    error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
+                }
+                error
+            }
+            InterpreterError::TypeAnnotationsNeededForMethodCall { location } => {
+                let mut error = CustomDiagnostic::simple_error(
+                    "Object type is unknown in method call".to_string(),
+                    "Type must be known by this point to know which method to call".to_string(),
+                    location.span,
+                );
+                let message =
+                    "Try adding a type annotation for the object type before this method call";
+                error.add_note(message.to_string());
+                error
             }
         }
     }

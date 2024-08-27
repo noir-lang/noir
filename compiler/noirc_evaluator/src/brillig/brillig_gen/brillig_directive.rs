@@ -55,6 +55,7 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
         ],
         assert_messages: Default::default(),
         locations: Default::default(),
+        name: "directive_invert".to_string(),
     }
 }
 
@@ -62,7 +63,7 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
 ///
 /// This is equivalent to the Noir (pseudo)code
 ///
-/// ```ignore
+/// ```text
 /// fn quotient<T>(a: T, b: T) -> (T,T) {
 ///    (a/b, a-a/b*b)
 /// }
@@ -109,5 +110,6 @@ pub(crate) fn directive_quotient<F: AcirField>() -> GeneratedBrillig<F> {
         ],
         assert_messages: Default::default(),
         locations: Default::default(),
+        name: "directive_integer_quotient".to_string(),
     }
 }

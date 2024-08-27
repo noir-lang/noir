@@ -68,12 +68,14 @@ impl Context {
                     let typ = function.dfg.type_of_value(then_value);
                     assert!(!matches!(typ, Type::Numeric(_)));
 
+                    let call_stack = function.dfg.get_call_stack(instruction);
                     let mut value_merger = ValueMerger::new(
                         &mut function.dfg,
                         block,
                         &mut self.slice_sizes,
                         &mut self.array_set_conditionals,
                         Some(current_conditional),
+                        call_stack,
                     );
 
                     let value = value_merger.merge_values(
@@ -126,7 +128,7 @@ impl Context {
                     self.slice_sizes.insert(result, old_capacity);
                     function.dfg[block].instructions_mut().push(instruction);
                 }
-                Instruction::EnableSideEffects { condition } => {
+                Instruction::EnableSideEffectsIf { condition } => {
                     current_conditional = *condition;
                     function.dfg[block].instructions_mut().push(instruction);
                 }
@@ -229,6 +231,7 @@ fn slice_capacity_change(
         | Intrinsic::StaticAssert
         | Intrinsic::ApplyRangeConstraint
         | Intrinsic::ArrayLen
+        | Intrinsic::ArrayAsStrUnchecked
         | Intrinsic::StrAsBytes
         | Intrinsic::BlackBox(_)
         | Intrinsic::FromField

@@ -1,7 +1,11 @@
 use super::{
-    brillig::{BrilligInputs, BrilligOutputs},
+    brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     directives::Directive,
 };
+
+pub mod function_id;
+pub use function_id::AcirFunctionId;
+
 use crate::native_types::{Expression, Witness};
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
@@ -15,13 +19,13 @@ pub use memory_operation::{BlockId, MemOp};
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlockType {
     Memory,
-    CallData,
+    CallData(u32),
     ReturnData,
 }
 
 impl BlockType {
     pub fn is_databus(&self) -> bool {
-        matches!(self, BlockType::CallData | BlockType::ReturnData)
+        matches!(self, BlockType::CallData(_) | BlockType::ReturnData)
     }
 }
 
@@ -111,7 +115,7 @@ pub enum Opcode<F> {
     BrilligCall {
         /// Id for the function being called. It is the responsibility of the executor
         /// to fetch the appropriate Brillig bytecode from this id.
-        id: u32,
+        id: BrilligFunctionId,
         /// Inputs to the function call
         inputs: Vec<BrilligInputs<F>>,
         /// Outputs to the function call
@@ -125,7 +129,7 @@ pub enum Opcode<F> {
     Call {
         /// Id for the function being called. It is the responsibility of the executor
         /// to fetch the appropriate circuit from this id.
-        id: u32,
+        id: AcirFunctionId,
         /// Inputs to the function call
         inputs: Vec<Witness>,
         /// Outputs of the function call
@@ -183,7 +187,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::MemoryInit { block_id, init, block_type: databus } => {
                 match databus {
                     BlockType::Memory => write!(f, "INIT ")?,
-                    BlockType::CallData => write!(f, "INIT CALLDATA ")?,
+                    BlockType::CallData(id) => write!(f, "INIT CALLDATA {} ", id)?,
                     BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
                 }
                 write!(f, "(id: {}, len: {}) ", block_id.0, init.len())

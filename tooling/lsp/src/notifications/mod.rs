@@ -30,7 +30,7 @@ pub(super) fn on_did_change_configuration(
     ControlFlow::Continue(())
 }
 
-pub(super) fn on_did_open_text_document(
+pub(crate) fn on_did_open_text_document(
     state: &mut LspState,
     params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
@@ -153,8 +153,8 @@ pub(crate) fn process_workspace_for_noir_document(
                 Some(&file_path),
             );
             state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
-
-            state.cached_definitions.insert(package_root_dir, context.def_interner);
+            state.cached_definitions.insert(package_root_dir.clone(), context.def_interner);
+            state.cached_def_maps.insert(package_root_dir.clone(), context.def_maps);
 
             let fm = &context.file_manager;
             let files = fm.as_file_map();
@@ -223,7 +223,7 @@ mod notification_tests {
 
     use super::*;
     use lsp_types::{
-        InlayHintLabel, InlayHintParams, Position, TextDocumentContentChangeEvent,
+        InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
         TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
         WorkDoneProgressParams,
     };
@@ -270,9 +270,9 @@ mod notification_tests {
             InlayHintParams {
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
                 text_document: TextDocumentIdentifier { uri: noir_text_document },
-                range: lsp_types::Range {
-                    start: lsp_types::Position { line: 0, character: 0 },
-                    end: lsp_types::Position { line: 1, character: 0 },
+                range: Range {
+                    start: Position { line: 0, character: 0 },
+                    end: Position { line: 1, character: 0 },
                 },
             },
         )

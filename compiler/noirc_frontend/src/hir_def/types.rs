@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     ast::IntegerBitSize,
-    hir::type_check::TypeCheckError,
+    hir::type_check::{generics::TraitGenerics, TypeCheckError},
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
@@ -19,7 +19,10 @@ use crate::{
     node_interner::StructId,
 };
 
-use super::expr::{HirCallExpression, HirExpression, HirIdent};
+use super::{
+    expr::{HirCallExpression, HirExpression, HirIdent},
+    traits::NamedType,
+};
 
 #[derive(PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
 pub enum Type {
@@ -78,7 +81,7 @@ pub enum Type {
     /// `impl Trait` when used in a type position.
     /// These are only matched based on the TraitId. The trait name parameter is only
     /// used for displaying error messages using the name of the trait.
-    TraitAsType(TraitId, /*name:*/ Rc<String>, /*generics:*/ Vec<Type>),
+    TraitAsType(TraitId, Rc<String>, TraitGenerics),
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
@@ -88,7 +91,12 @@ pub enum Type {
     /// the environment should be `Unit` by default,
     /// for closures it should contain a `Tuple` type with the captured
     /// variable types.
-    Function(Vec<Type>, /*return_type:*/ Box<Type>, /*environment:*/ Box<Type>),
+    Function(
+        Vec<Type>,
+        /*return_type:*/ Box<Type>,
+        /*environment:*/ Box<Type>,
+        /*unconstrained*/ bool,
+    ),
 
     /// &mut T
     MutableReference(Box<Type>),
@@ -146,6 +154,8 @@ pub enum QuotedType {
     StructDefinition,
     TraitConstraint,
     TraitDefinition,
+    TraitImpl,
+    UnresolvedType,
     FunctionDefinition,
     Module,
 }
@@ -197,6 +207,12 @@ impl ResolvedGeneric {
     pub fn as_named_generic(self) -> Type {
         Type::NamedGeneric(self.type_var, self.name, self.kind)
     }
+}
+
+enum FunctionCoercionResult {
+    NoCoercion,
+    Coerced(Type),
+    UnconstrainedMismatch(Type),
 }
 
 impl std::hash::Hash for StructType {
@@ -528,7 +544,7 @@ impl TypeVariable {
         };
 
         if binding.occurs(id) {
-            Err(TypeCheckError::TypeAnnotationsNeeded { span })
+            Err(TypeCheckError::CyclicType { span, typ: binding })
         } else {
             *self.1.borrow_mut() = TypeBinding::Bound(binding);
             Ok(())
@@ -634,12 +650,7 @@ impl std::fmt::Display for Type {
                 }
             }
             Type::TraitAsType(_id, name, generics) => {
-                write!(f, "impl {}", name)?;
-                if !generics.is_empty() {
-                    let generics = vecmap(generics, ToString::to_string).join(", ");
-                    write!(f, "<{generics}>")?;
-                }
-                Ok(())
+                write!(f, "impl {}{}", name, generics)
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -662,15 +673,19 @@ impl std::fmt::Display for Type {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    write!(f, "unconstrained ")?;
+                }
+
                 let closure_env_text = match **env {
                     Type::Unit => "".to_string(),
-                    _ => format!(" with env {env}"),
+                    _ => format!("[{env}]"),
                 };
 
                 let args = vecmap(args.iter(), ToString::to_string);
 
-                write!(f, "fn({}) -> {ret}{closure_env_text}", args.join(", "))
+                write!(f, "fn{closure_env_text}({}) -> {ret}", args.join(", "))
             }
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
@@ -727,6 +742,8 @@ impl std::fmt::Display for QuotedType {
             QuotedType::StructDefinition => write!(f, "StructDefinition"),
             QuotedType::TraitDefinition => write!(f, "TraitDefinition"),
             QuotedType::TraitConstraint => write!(f, "TraitConstraint"),
+            QuotedType::TraitImpl => write!(f, "TraitImpl"),
+            QuotedType::UnresolvedType => write!(f, "UnresolvedType"),
             QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
             QuotedType::Module => write!(f, "Module"),
         }
@@ -843,8 +860,9 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_) => false,
 
-            Type::TraitAsType(_, _, args) => {
-                args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
+            Type::TraitAsType(_, _, generics) => {
+                generics.ordered.iter().any(|generic| generic.contains_numeric_typevar(target_id))
+                    || generics.named.iter().any(|typ| typ.typ.contains_numeric_typevar(target_id))
             }
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
@@ -853,7 +871,7 @@ impl Type {
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
-            Type::Function(parameters, return_type, env) => {
+            Type::Function(parameters, return_type, env, _unconstrained) => {
                 parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
                     || return_type.contains_numeric_typevar(target_id)
                     || env.contains_numeric_typevar(target_id)
@@ -919,8 +937,11 @@ impl Type {
             }
 
             Type::TraitAsType(_, _, args) => {
-                for arg in args.iter() {
+                for arg in args.ordered.iter() {
                     arg.find_numeric_type_vars(found_names);
+                }
+                for arg in args.named.iter() {
+                    arg.typ.find_numeric_type_vars(found_names);
                 }
             }
             Type::Array(length, elem) => {
@@ -933,7 +954,7 @@ impl Type {
                     field.find_numeric_type_vars(found_names);
                 }
             }
-            Type::Function(parameters, return_type, env) => {
+            Type::Function(parameters, return_type, env, _unconstrained) => {
                 for parameter in parameters.iter() {
                     parameter.find_numeric_type_vars(found_names);
                 }
@@ -990,7 +1011,7 @@ impl Type {
             Type::FmtString(_, _)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _, _)
-            | Type::Function(_, _, _)
+            | Type::Function(_, _, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Quoted(_)
@@ -1039,7 +1060,7 @@ impl Type {
             Type::FmtString(_, _)
             // To enable this we would need to determine the size of the closure outputs at compile-time.
             // This is possible as long as the output size is not dependent upon a witness condition.
-            | Type::Function(_, _, _)
+            | Type::Function(_, _, _, _)
             | Type::Slice(_)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
@@ -1077,7 +1098,7 @@ impl Type {
             | Type::Slice(_)
             | Type::TypeVariable(_, _)
             | Type::NamedGeneric(_, _, _)
-            | Type::Function(_, _, _)
+            | Type::Function(_, _, _, _)
             | Type::FmtString(_, _)
             | Type::InfixExpr(..)
             | Type::Error => true,
@@ -1208,7 +1229,7 @@ impl Type {
             | Type::TypeVariable(_, _)
             | Type::TraitAsType(..)
             | Type::NamedGeneric(_, _, _)
-            | Type::Function(_, _, _)
+            | Type::Function(_, _, _, _)
             | Type::MutableReference(_)
             | Type::Forall(_, _)
             | Type::Constant(_)
@@ -1576,8 +1597,11 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
-                if params_a.len() == params_b.len() {
+            (
+                Function(params_a, ret_a, env_a, unconstrained_a),
+                Function(params_b, ret_b, env_b, unconstrained_b),
+            ) => {
+                if unconstrained_a == unconstrained_b && params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b.iter()) {
                         a.try_unify(b, bindings)?;
                     }
@@ -1609,6 +1633,15 @@ impl Type {
                     } else {
                         Err(UnificationError)
                     }
+                } else if let InfixExpr(lhs, op, rhs) = other {
+                    if let Some(inverse) = op.inverse() {
+                        // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
+                        let new_type = InfixExpr(Box::new(Constant(*value)), inverse, rhs.clone());
+                        new_type.try_unify(lhs, bindings)?;
+                        Ok(())
+                    } else {
+                        Err(UnificationError)
+                    }
                 } else {
                     Err(UnificationError)
                 }
@@ -1636,12 +1669,17 @@ impl Type {
     pub fn canonicalize(&self) -> Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs) => {
-                if let Some(value) = self.evaluate_to_u32() {
-                    return Type::Constant(value);
+                // evaluate_to_u32 also calls canonicalize so if we just called
+                // `self.evaluate_to_u32()` we'd get infinite recursion.
+                if let (Some(lhs), Some(rhs)) = (lhs.evaluate_to_u32(), rhs.evaluate_to_u32()) {
+                    return Type::Constant(op.function(lhs, rhs));
                 }
 
                 let lhs = lhs.canonicalize();
                 let rhs = rhs.canonicalize();
+                if let Some(result) = Self::try_simplify_addition(&lhs, op, &rhs) {
+                    return result;
+                }
 
                 if let Some(result) = Self::try_simplify_subtraction(&lhs, op, &rhs) {
                     return result;
@@ -1696,6 +1734,26 @@ impl Type {
         } else {
             // Every type must have been a constant
             Type::Constant(constant)
+        }
+    }
+
+    /// Try to simplify an addition expression of `lhs + rhs`.
+    ///
+    /// - Simplifies `(a - b) + b` to `a`.
+    fn try_simplify_addition(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Option<Type> {
+        use BinaryTypeOperator::*;
+        match lhs {
+            Type::InfixExpr(l_lhs, l_op, l_rhs) => {
+                if op == Addition && *l_op == Subtraction {
+                    // TODO: Propagate type bindings. Can do in another PR, this one is large enough.
+                    let unifies = l_rhs.try_unify(rhs, &mut TypeBindings::new());
+                    if unifies.is_ok() {
+                        return Some(l_lhs.as_ref().clone());
+                    }
+                }
+                None
+            }
+            _ => None,
         }
     }
 
@@ -1762,18 +1820,57 @@ impl Type {
         &self,
         expected: &Type,
         expression: ExprId,
+        span: Span,
         interner: &mut NodeInterner,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut bindings = TypeBindings::new();
 
-        if let Err(UnificationError) = self.try_unify(expected, &mut bindings) {
-            if !self.try_array_to_slice_coercion(expected, expression, interner) {
-                errors.push(make_error());
+        if let Ok(()) = self.try_unify(expected, &mut bindings) {
+            Type::apply_type_bindings(bindings);
+            return;
+        }
+
+        if self.try_array_to_slice_coercion(expected, expression, interner) {
+            return;
+        }
+
+        // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
+        match self.try_fn_to_unconstrained_fn_coercion(expected) {
+            FunctionCoercionResult::NoCoercion => errors.push(make_error()),
+            FunctionCoercionResult::Coerced(coerced_self) => {
+                coerced_self
+                    .unify_with_coercions(expected, expression, span, interner, errors, make_error);
+            }
+            FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
+                errors.push(TypeCheckError::UnsafeFn { span });
+
+                coerced_self
+                    .unify_with_coercions(expected, expression, span, interner, errors, make_error);
+            }
+        }
+    }
+
+    // If `self` and `expected` are function types, tries to coerce `self` to `expected`.
+    // Returns None if no coercion can be applied, otherwise returns `self` coerced to `expected`.
+    fn try_fn_to_unconstrained_fn_coercion(&self, expected: &Type) -> FunctionCoercionResult {
+        // If `self` and `expected` are function types, `self` can be coerced to `expected`
+        // if `self` is unconstrained and `expected` is not. The other way around is an error, though.
+        if let (
+            Type::Function(params, ret, env, unconstrained_self),
+            Type::Function(_, _, _, unconstrained_expected),
+        ) = (self.follow_bindings(), expected.follow_bindings())
+        {
+            let coerced_type = Type::Function(params, ret, env, unconstrained_expected);
+
+            match (unconstrained_self, unconstrained_expected) {
+                (true, true) | (false, false) => FunctionCoercionResult::NoCoercion,
+                (false, true) => FunctionCoercionResult::Coerced(coerced_type),
+                (true, false) => FunctionCoercionResult::UnconstrainedMismatch(coerced_type),
             }
         } else {
-            Type::apply_type_bindings(bindings);
+            FunctionCoercionResult::NoCoercion
         }
     }
 
@@ -1789,13 +1886,17 @@ impl Type {
         let target = target.follow_bindings();
 
         if let (Type::Array(_size, element1), Type::Slice(element2)) = (&this, &target) {
-            // Still have to ensure the element types match.
-            // Don't need to issue an error here if not, it will be done in unify_with_coercions
-            let mut bindings = TypeBindings::new();
-            if element1.try_unify(element2, &mut bindings).is_ok() {
-                convert_array_expression_to_slice(expression, this, target, interner);
-                Self::apply_type_bindings(bindings);
-                return true;
+            // We can only do the coercion if the `as_slice` method exists.
+            // This is usually true, but some tests don't have access to the standard library.
+            if let Some(as_slice) = interner.lookup_primitive_method(&this, "as_slice") {
+                // Still have to ensure the element types match.
+                // Don't need to issue an error here if not, it will be done in unify_with_coercions
+                let mut bindings = TypeBindings::new();
+                if element1.try_unify(element2, &mut bindings).is_ok() {
+                    convert_array_expression_to_slice(expression, this, target, as_slice, interner);
+                    Self::apply_type_bindings(bindings);
+                    return true;
+                }
             }
         }
         false
@@ -1818,10 +1919,10 @@ impl Type {
             }
         }
 
-        match self {
-            Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(*size),
+        match self.canonicalize() {
+            Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(size),
             Type::Array(len, _elem) => len.evaluate_to_u32(),
-            Type::Constant(x) => Some(*x),
+            Type::Constant(x) => Some(x),
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.evaluate_to_u32()?;
                 let rhs = rhs.evaluate_to_u32()?;
@@ -1856,11 +1957,13 @@ impl Type {
     /// Retrieves the type of the given field name
     /// Panics if the type is not a struct or tuple.
     pub fn get_field_type(&self, field_name: &str) -> Option<Type> {
-        match self {
-            Type::Struct(def, args) => def.borrow().get_field(field_name, args).map(|(typ, _)| typ),
+        match self.follow_bindings() {
+            Type::Struct(def, args) => {
+                def.borrow().get_field(field_name, &args).map(|(typ, _)| typ)
+            }
             Type::Tuple(fields) => {
-                let mut fields = fields.iter().enumerate();
-                fields.find(|(i, _)| i.to_string() == *field_name).map(|(_, typ)| typ).cloned()
+                let mut fields = fields.into_iter().enumerate();
+                fields.find(|(i, _)| i.to_string() == *field_name).map(|(_, typ)| typ)
             }
             _ => None,
         }
@@ -2070,23 +2173,27 @@ impl Type {
                 let typ = Box::new(typ.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Forall(typevars.clone(), typ)
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| {
                     arg.substitute_helper(type_bindings, substitute_bound_typevars)
                 });
                 let ret = Box::new(ret.substitute_helper(type_bindings, substitute_bound_typevars));
                 let env = Box::new(env.substitute_helper(type_bindings, substitute_bound_typevars));
-                Type::Function(args, ret, env)
+                Type::Function(args, ret, env, *unconstrained)
             }
             Type::MutableReference(element) => Type::MutableReference(Box::new(
                 element.substitute_helper(type_bindings, substitute_bound_typevars),
             )),
 
-            Type::TraitAsType(s, name, args) => {
-                let args = vecmap(args, |arg| {
+            Type::TraitAsType(s, name, generics) => {
+                let ordered = vecmap(&generics.ordered, |arg| {
                     arg.substitute_helper(type_bindings, substitute_bound_typevars)
                 });
-                Type::TraitAsType(*s, name.clone(), args)
+                let named = vecmap(&generics.named, |arg| {
+                    let typ = arg.typ.substitute_helper(type_bindings, substitute_bound_typevars);
+                    NamedType { name: arg.name.clone(), typ }
+                });
+                Type::TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
             }
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.substitute_helper(type_bindings, substitute_bound_typevars);
@@ -2115,10 +2222,12 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::Struct(_, generic_args)
-            | Type::Alias(_, generic_args)
-            | Type::TraitAsType(_, _, generic_args) => {
+            Type::Struct(_, generic_args) | Type::Alias(_, generic_args) => {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
+            }
+            Type::TraitAsType(_, _, args) => {
+                args.ordered.iter().any(|arg| arg.occurs(target_id))
+                    || args.named.iter().any(|arg| arg.typ.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(type_var, _, _) | Type::TypeVariable(type_var, _) => {
@@ -2132,7 +2241,7 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, _unconstrained) => {
                 args.iter().any(|arg| arg.occurs(target_id))
                     || ret.occurs(target_id)
                     || env.occurs(target_id)
@@ -2186,18 +2295,22 @@ impl Type {
                 self.clone()
             }
 
-            Function(args, ret, env) => {
+            Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 let ret = Box::new(ret.follow_bindings());
                 let env = Box::new(env.follow_bindings());
-                Function(args, ret, env)
+                Function(args, ret, env, *unconstrained)
             }
 
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             TraitAsType(s, name, args) => {
-                let args = vecmap(args, |arg| arg.follow_bindings());
-                TraitAsType(*s, name.clone(), args)
+                let ordered = vecmap(&args.ordered, |arg| arg.follow_bindings());
+                let named = vecmap(&args.named, |arg| NamedType {
+                    name: arg.name.clone(),
+                    typ: arg.typ.follow_bindings(),
+                });
+                TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
             }
             InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.follow_bindings();
@@ -2266,8 +2379,11 @@ impl Type {
                 }
             }
             Type::TraitAsType(_, _, generics) => {
-                for generic in generics {
+                for generic in &mut generics.ordered {
                     generic.replace_named_generics_with_type_variables();
+                }
+                for generic in &mut generics.named {
+                    generic.typ.replace_named_generics_with_type_variables();
                 }
             }
             Type::NamedGeneric(var, _, _) => {
@@ -2282,7 +2398,7 @@ impl Type {
                     *self = Type::TypeVariable(var.clone(), TypeVariableKind::Normal);
                 }
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, _unconstrained) => {
                 for arg in args {
                     arg.replace_named_generics_with_type_variables();
                 }
@@ -2311,12 +2427,9 @@ fn convert_array_expression_to_slice(
     expression: ExprId,
     array_type: Type,
     target_type: Type,
+    as_slice_method: crate::node_interner::FuncId,
     interner: &mut NodeInterner,
 ) {
-    let as_slice_method = interner
-        .lookup_primitive_method(&array_type, "as_slice")
-        .expect("Expected 'as_slice' method to be present in Noir's stdlib");
-
     let as_slice_id = interner.function_definition_id(as_slice_method);
     let location = interner.expr_location(&expression);
     let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location), None);
@@ -2337,7 +2450,8 @@ fn convert_array_expression_to_slice(
     interner.push_expr_location(func, location.span, location.file);
     interner.push_expr_type(expression, target_type.clone());
 
-    let func_type = Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit));
+    let func_type =
+        Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit), false);
     interner.push_expr_type(func, func_type);
 }
 
@@ -2355,6 +2469,17 @@ impl BinaryTypeOperator {
 
     fn is_commutative(self) -> bool {
         matches!(self, BinaryTypeOperator::Addition | BinaryTypeOperator::Multiplication)
+    }
+
+    /// Return the operator that will "undo" this operation if applied to the rhs
+    fn inverse(self) -> Option<BinaryTypeOperator> {
+        match self {
+            BinaryTypeOperator::Addition => Some(BinaryTypeOperator::Subtraction),
+            BinaryTypeOperator::Subtraction => Some(BinaryTypeOperator::Addition),
+            BinaryTypeOperator::Multiplication => Some(BinaryTypeOperator::Division),
+            BinaryTypeOperator::Division => Some(BinaryTypeOperator::Multiplication),
+            BinaryTypeOperator::Modulo => None,
+        }
     }
 }
 
@@ -2424,15 +2549,16 @@ impl From<&Type> for PrintableType {
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
             Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
-            Type::TraitAsType(_, _, _) => unreachable!(),
+            Type::TraitAsType(..) => unreachable!(),
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(arguments, return_type, env) => PrintableType::Function {
+            Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
                 arguments: arguments.iter().map(|arg| arg.into()).collect(),
                 return_type: Box::new(return_type.as_ref().into()),
                 env: Box::new(env.as_ref().into()),
+                unconstrained: *unconstrained,
             },
             Type::MutableReference(typ) => {
                 PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
@@ -2485,14 +2611,7 @@ impl std::fmt::Debug for Type {
                     write!(f, "{}<{}>", alias.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(_id, name, generics) => {
-                write!(f, "impl {}", name)?;
-                if !generics.is_empty() {
-                    let generics = vecmap(generics, |arg| format!("{:?}", arg)).join(", ");
-                    write!(f, "<{generics}>")?;
-                }
-                Ok(())
-            }
+            Type::TraitAsType(_id, name, generics) => write!(f, "impl {}{:?}", name, generics),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, |arg| format!("{:?}", arg));
                 write!(f, "({})", elements.join(", "))
@@ -2517,7 +2636,11 @@ impl std::fmt::Debug for Type {
                 let typevars = vecmap(typevars, |var| format!("{:?}", var));
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret, env) => {
+            Type::Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    write!(f, "unconstrained ")?;
+                }
+
                 let closure_env_text = match **env {
                     Type::Unit => "".to_string(),
                     _ => format!(" with env {env:?}"),

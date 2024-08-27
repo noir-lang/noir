@@ -8,37 +8,23 @@ trait Default {
 // docs:end:default-trait
 
 comptime fn derive_default(s: StructDefinition) -> Quoted {
-    let typ = s.as_type();
-
-    let impl_generics = s.generics().map(|g| quote { $g }).join(quote {,});
-
-    let where_clause = s.generics().map(|name| quote { $name: Default }).join(quote {,});
-
-    // `foo: Default::default(), bar: Default::default(), ...`
-    let fields = s.fields().map(
-        |f: (Quoted, Type)| {
-        let name = f.0;
-        quote { $name: Default::default() }
-    }
-    );
-    let fields = fields.join(quote {,});
-
-    quote {
-        impl<$impl_generics> Default for $typ where $where_clause {
-            fn default() -> Self {
-                Self { $fields }
-            }
-        }
-    }
+    let name = quote { Default };
+    let signature = quote { fn default() -> Self };
+    let for_each_field = |name| quote { $name: Default::default() };
+    let body = |fields| quote { Self { $fields } };
+    crate::meta::make_trait_impl(s, name, signature, for_each_field, quote { , }, body)
 }
 
 impl Default for Field { fn default() -> Field { 0 } }
 
+impl Default for u1 { fn default() -> u1 { 0 } }
 impl Default for u8 { fn default() -> u8 { 0 } }
+impl Default for u16 { fn default() -> u16 { 0 } }
 impl Default for u32 { fn default() -> u32 { 0 } }
 impl Default for u64 { fn default() -> u64 { 0 } }
 
 impl Default for i8 { fn default() -> i8 { 0 } }
+impl Default for i16 { fn default() -> i16 { 0 } }
 impl Default for i32 { fn default() -> i32 { 0 } }
 impl Default for i64 { fn default() -> i64 { 0 } }
 

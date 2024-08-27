@@ -168,6 +168,9 @@ pub(crate) fn rewrite(
         ExpressionKind::Comptime(block, block_span) => {
             format!("comptime {}", rewrite_block(visitor, block, block_span))
         }
+        ExpressionKind::Unsafe(block, block_span) => {
+            format!("unsafe {}", rewrite_block(visitor, block, block_span))
+        }
         ExpressionKind::Error => unreachable!(),
         ExpressionKind::Resolved(_) => {
             unreachable!("ExpressionKind::Resolved should only emitted by the comptime interpreter")
@@ -178,6 +181,10 @@ pub(crate) fn rewrite(
             } else {
                 format!("$({})", rewrite_sub_expr(visitor, shape, *expr))
             }
+        }
+        ExpressionKind::AsTraitPath(path) => {
+            let trait_path = rewrite_path(visitor, shape, path.trait_path);
+            format!("<{} as {}>::{}", path.typ, trait_path, path.impl_item)
         }
     }
 }

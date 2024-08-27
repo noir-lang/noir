@@ -1,3 +1,4 @@
+use noirc_errors::Location;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -51,6 +52,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum Intrinsic {
     ArrayLen,
+    ArrayAsStrUnchecked,
     AsSlice,
     AssertConstant,
     StaticAssert,
@@ -76,6 +78,7 @@ impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::ArrayAsStrUnchecked => write!(f, "array_as_str_unchecked"),
             Intrinsic::AsSlice => write!(f, "as_slice"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::StaticAssert => write!(f, "static_assert"),
@@ -116,6 +119,7 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsSlice
             | Intrinsic::SlicePushBack
             | Intrinsic::SlicePushFront
@@ -144,6 +148,7 @@ impl Intrinsic {
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "array_len" => Some(Intrinsic::ArrayLen),
+            "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
             "as_slice" => Some(Intrinsic::AsSlice),
             "assert_constant" => Some(Intrinsic::AssertConstant),
             "static_assert" => Some(Intrinsic::StaticAssert),
@@ -213,13 +218,23 @@ pub(crate) enum Instruction {
     Store { address: ValueId, value: ValueId },
 
     /// Provides a context for all instructions that follow up until the next
-    /// `EnableSideEffects` is encountered, for stating a condition that determines whether
+    /// `EnableSideEffectsIf` is encountered, for stating a condition that determines whether
     /// such instructions are allowed to have side-effects.
+    ///
+    /// For example,
+    /// ```text
+    /// EnableSideEffectsIf condition0;
+    /// code0;
+    /// EnableSideEffectsIf condition1;
+    /// code1;
+    /// ```
+    /// - `code0` will have side effects iff `condition0` evaluates to `true`
+    /// - `code1` will have side effects iff `condition1` evaluates to `true`
     ///
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
     /// instruction regions with an condition that corresponds to their position in the CFG's
     /// if-branching structure.
-    EnableSideEffects { condition: ValueId },
+    EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
     ArrayGet { array: ValueId, index: ValueId },
@@ -244,6 +259,17 @@ pub(crate) enum Instruction {
     DecrementRc { value: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
+    ///
+    /// ```text
+    /// if then_condition {
+    ///     then_value
+    /// } else {   // else_condition = !then_condition
+    ///     else_value
+    /// }
+    /// ```
+    ///
+    /// Where we save the result of !then_condition so that we have the same
+    /// ValueId for it each time.
     IfElse {
         then_condition: ValueId,
         then_value: ValueId,
@@ -274,7 +300,7 @@ impl Instruction {
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
-            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
             Instruction::Allocate { .. }
             | Instruction::Load { .. }
             | Instruction::ArrayGet { .. }
@@ -301,7 +327,7 @@ impl Instruction {
 
         match self {
             // These either have side-effects or interact with memory
-            EnableSideEffects { .. }
+            EnableSideEffectsIf { .. }
             | Allocate
             | Load { .. }
             | Store { .. }
@@ -357,7 +383,7 @@ impl Instruction {
 
             Constrain(..)
             | Store { .. }
-            | EnableSideEffects { .. }
+            | EnableSideEffectsIf { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
             | RangeCheck { .. } => false,
@@ -391,16 +417,12 @@ impl Instruction {
                 true
             }
 
-            // `ArrayGet`s which read from "known good" indices from an array don't need a predicate.
             Instruction::ArrayGet { array, index } => {
-                #[allow(clippy::match_like_matches_macro)]
-                match (dfg.type_of_value(*array), dfg.get_numeric_constant(*index)) {
-                    (Type::Array(_, len), Some(index)) if index.to_u128() < (len as u128) => false,
-                    _ => true,
-                }
+                // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
+                !dfg.is_safe_index(*index, *array)
             }
 
-            Instruction::EnableSideEffects { .. } | Instruction::ArraySet { .. } => true,
+            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(_) => true,
@@ -465,8 +487,8 @@ impl Instruction {
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
             }
-            Instruction::EnableSideEffects { condition } => {
-                Instruction::EnableSideEffects { condition: f(*condition) }
+            Instruction::EnableSideEffectsIf { condition } => {
+                Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
@@ -540,7 +562,7 @@ impl Instruction {
                 f(*index);
                 f(*value);
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 f(*condition);
             }
             Instruction::IncrementRc { value }
@@ -603,16 +625,11 @@ impl Instruction {
                 }
             }
             Instruction::ArrayGet { array, index } => {
-                let array = dfg.get_array_constant(*array);
-                let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, _)), Some(index)) = (array, index) {
-                    let index =
-                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
-                    if index < array.len() {
-                        return SimplifiedTo(array[index]);
-                    }
+                if let Some(index) = dfg.get_numeric_constant(*index) {
+                    try_optimize_array_get_from_previous_set(dfg, *array, index)
+                } else {
+                    None
                 }
-                None
             }
             Instruction::ArraySet { array, index, value, .. } => {
                 let array = dfg.get_array_constant(*array);
@@ -682,11 +699,11 @@ impl Instruction {
             Instruction::Call { func, arguments } => {
                 simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
                     let last = &mut dfg[last];
-                    if matches!(last, Instruction::EnableSideEffects { .. }) {
-                        *last = Instruction::EnableSideEffects { condition: *condition };
+                    if matches!(last, Instruction::EnableSideEffectsIf { .. }) {
+                        *last = Instruction::EnableSideEffectsIf { condition: *condition };
                         return Remove;
                     }
                 }
@@ -737,6 +754,65 @@ impl Instruction {
             }
         }
     }
+}
+
+/// Given a chain of operations like:
+/// v1 = array_set [10, 11, 12], index 1, value: 5
+/// v2 = array_set v1, index 2, value: 6
+/// v3 = array_set v2, index 2, value: 7
+/// v4 = array_get v3, index 1
+///
+/// We want to optimize `v4` to `10`. To do this we need to follow the array value
+/// through several array sets. For each array set:
+/// - If the index is non-constant we fail the optimization since any index may be changed
+/// - If the index is constant and is our target index, we conservatively fail the optimization
+///   in case the array_set is disabled from a previous `enable_side_effects_if` and the array get
+///   was not.
+/// - Otherwise, we check the array value of the array set.
+///   - If the array value is constant, we use that array.
+///   - If the array value is from a previous array-set, we recur.
+fn try_optimize_array_get_from_previous_set(
+    dfg: &DataFlowGraph,
+    mut array_id: Id<Value>,
+    target_index: FieldElement,
+) -> SimplifyResult {
+    let mut elements = None;
+
+    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
+    let max_tries = 5;
+    for _ in 0..max_tries {
+        match &dfg[array_id] {
+            Value::Instruction { instruction, .. } => {
+                match &dfg[*instruction] {
+                    Instruction::ArraySet { array, index, value, .. } => {
+                        if let Some(constant) = dfg.get_numeric_constant(*index) {
+                            if constant == target_index {
+                                return SimplifyResult::SimplifiedTo(*value);
+                            }
+
+                            array_id = *array; // recur
+                        } else {
+                            return SimplifyResult::None;
+                        }
+                    }
+                    _ => return SimplifyResult::None,
+                }
+            }
+            Value::Array { array, typ: _ } => {
+                elements = Some(array.clone());
+                break;
+            }
+            _ => return SimplifyResult::None,
+        }
+    }
+
+    if let (Some(array), Some(index)) = (elements, target_index.try_to_u64()) {
+        let index = index as usize;
+        if index < array.len() {
+            return SimplifyResult::SimplifiedTo(array[index]);
+        }
+    }
+    SimplifyResult::None
 }
 
 pub(crate) type ErrorType = HirType;
@@ -804,7 +880,12 @@ pub(crate) enum TerminatorInstruction {
     ///
     /// If the condition is true: jump to the specified `then_destination`.
     /// Otherwise, jump to the specified `else_destination`.
-    JmpIf { condition: ValueId, then_destination: BasicBlockId, else_destination: BasicBlockId },
+    JmpIf {
+        condition: ValueId,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+        call_stack: CallStack,
+    },
 
     /// Unconditional Jump
     ///
@@ -831,10 +912,11 @@ impl TerminatorInstruction {
     ) -> TerminatorInstruction {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, then_destination, else_destination } => JmpIf {
+            JmpIf { condition, then_destination, else_destination, call_stack } => JmpIf {
                 condition: f(*condition),
                 then_destination: *then_destination,
                 else_destination: *else_destination,
+                call_stack: call_stack.clone(),
             },
             Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
@@ -900,6 +982,14 @@ impl TerminatorInstruction {
                 *destination = f(*destination);
             }
             Return { .. } => (),
+        }
+    }
+
+    pub(crate) fn call_stack(&self) -> im::Vector<Location> {
+        match self {
+            TerminatorInstruction::JmpIf { call_stack, .. }
+            | TerminatorInstruction::Jmp { call_stack, .. }
+            | TerminatorInstruction::Return { call_stack, .. } => call_stack.clone(),
         }
     }
 }
