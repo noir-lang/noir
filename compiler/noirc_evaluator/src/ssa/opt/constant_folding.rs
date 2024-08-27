@@ -29,7 +29,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
-        instruction::{Instruction, InstructionId},
+        instruction::{Binary, BinaryOp, Instruction, InstructionId},
         types::Type,
         value::{Value, ValueId},
     },
@@ -136,18 +136,19 @@ impl Context {
             constraint_simplification_mappings.entry(*side_effects_enabled_var).or_default();
         let instruction = Self::resolve_instruction(id, dfg, constraint_simplification_mapping);
         let old_results = dfg.instruction_results(id).to_vec();
-
+        // dbg!(old_results.clone());
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         if let Some(cached_results) =
             Self::get_cached(dfg, instruction_result_cache, &instruction, *side_effects_enabled_var)
         {
+            // dbg!(cached_results.clone());
             Self::replace_result_ids(dfg, &old_results, cached_results);
             return;
         }
 
         // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
         let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
-
+        // dbg!(new_results.clone());
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
         self.cache_instruction(
@@ -264,18 +265,62 @@ impl Context {
             }
         }
 
-        // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
-        // we cache the results so we can reuse them if the same instruction appears again later in the block.
-        if instruction.can_be_deduplicated(dfg, self.use_constraint_info) {
-            let use_predicate =
-                self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
-            let predicate = use_predicate.then_some(side_effects_enabled_var);
+        fn insert_instruction_into_cache(
+            instruction: Instruction,
+            instruction_results: Vec<ValueId>,
+            dfg: &DataFlowGraph,
+            instruction_result_cache: &mut InstructionResultCache,
+            side_effects_enabled_var: ValueId,
+            use_constraint_info: bool,
+        ) {
+            // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
+            // we cache the results so we can reuse them if the same instruction appears again later in the block.
+            if instruction.can_be_deduplicated(dfg, use_constraint_info) {
+                let use_predicate =
+                    use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+                let predicate = use_predicate.then_some(side_effects_enabled_var);
 
-            instruction_result_cache
-                .entry(instruction)
-                .or_default()
-                .insert(predicate, instruction_results);
+                instruction_result_cache
+                    .entry(instruction)
+                    .or_default()
+                    .insert(predicate, instruction_results.clone());
+            }
         }
+
+        if let Instruction::Binary(binary) = &instruction {
+            match binary.operator {
+                BinaryOp::Add
+                | BinaryOp::Mul
+                | BinaryOp::Eq
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor => {
+                    let commutative_instruction = Instruction::Binary(Binary {
+                        lhs: binary.rhs,
+                        rhs: binary.lhs,
+                        operator: binary.operator,
+                    });
+                    insert_instruction_into_cache(
+                        commutative_instruction,
+                        instruction_results.clone(),
+                        dfg,
+                        instruction_result_cache,
+                        side_effects_enabled_var,
+                        self.use_constraint_info,
+                    );
+                }
+                _ => {}
+            }
+        }
+
+        insert_instruction_into_cache(
+            instruction,
+            instruction_results,
+            dfg,
+            instruction_result_cache,
+            side_effects_enabled_var,
+            self.use_constraint_info,
+        );
     }
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
@@ -295,8 +340,10 @@ impl Context {
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
     ) -> Option<&'a Vec<ValueId>> {
+        // dbg!(instruction_result_cache.clone());
+        // dbg!(instruction.clone());
         let results_for_instruction = instruction_result_cache.get(instruction);
-
+        // dbg!(results_for_instruction.clone());
         // See if there's a cached version with no predicate first
         if let Some(results) = results_for_instruction.and_then(|map| map.get(&None)) {
             return Some(results);
@@ -840,5 +887,66 @@ mod test {
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 10);
+    }
+
+    #[test]
+    fn deduplicated_commutative_instructions() {
+        // acir(inline) fn main f0 {
+        //     b0(v0: u32):
+        //       v2 = mul v0, u32 2
+        //       v3 = mul u32 2, v0
+        //       return v2, v3
+        //   }
+        let main_id = Id::test_new(0);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+
+        let v0 = builder.add_parameter(Type::unsigned(32));
+        let v1 = builder.numeric_constant(2u128, Type::unsigned(32));
+
+        let v3 = builder.insert_binary(v0, BinaryOp::Mul, v1);
+        let v4 = builder.insert_binary(v1, BinaryOp::Mul, v0);
+
+        builder.terminate_with_return(vec![v3, v4]);
+
+        let ssa = builder.finish();
+
+        let main = ssa.main();
+        let entry_block = &main.dfg[main.entry_block()];
+        let instructions = entry_block.instructions();
+        assert_eq!(instructions.len(), 2);
+
+        if let TerminatorInstruction::Return { return_values, .. } = entry_block.unwrap_terminator() {
+            assert!(return_values[0] != return_values[1]);
+        } else {
+            panic!("Should have a return terminator");
+        }
+
+        // Expected output:
+        //
+        // acir(inline) fn main f0 {
+        //     b0(v0: u32):
+        //       v5 = mul v0, u32 2
+        //       return v5, v5
+        //   }
+        let ssa = ssa.fold_constants_using_constraints();
+
+        let main = ssa.main();
+        let entry_block = &main.dfg[main.entry_block()];
+        let instructions = entry_block.instructions();
+        assert_eq!(instructions.len(), 1);
+
+        if let Instruction::Binary(binary) = &main.dfg[instructions[0]] {
+            assert_eq!(binary.lhs, v0);
+            let constant_two = main.dfg.get_numeric_constant(binary.rhs).expect("Should have a numeric constant");
+            assert_eq!(constant_two.to_u128(), 2u128);
+        }
+
+        if let TerminatorInstruction::Return { return_values, .. } = entry_block.unwrap_terminator() {
+            assert_eq!(main.dfg.resolve(return_values[0]), main.dfg.resolve(return_values[1]));
+        } else {
+            panic!("Should have a return terminator");
+        }
     }
 }
