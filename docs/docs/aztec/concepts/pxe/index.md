@@ -49,7 +49,7 @@ The database stores various types of data, including:
 
 - **Notes**: Encrypted representations of assets.
 - **Deferred Notes**: Notes that are intended for a user but cannot yet be decoded due to the associated contract not being present in the database. When new contracts are deployed, there may be some time before it is accessible from the PXE database. When the PXE database is updated, deferred note are decoded.
-- **Authentication Witnesses**: Data used to approve others from executing transactions on your behalf
+- **Authentication Witnesses**: Data used to approve others from executing transactions on your behalf.
 - **Capsules**: External data or data injected into the system via [oracles](#oracles).
 
 ### Note discovery
