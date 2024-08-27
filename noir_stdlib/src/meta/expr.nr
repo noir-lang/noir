@@ -112,20 +112,25 @@ impl Expr {
     // docs:end:is_continue
 
     fn map<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
-        let result_self = f(self);
-        let result_array = map_array(self, f);
-        let result_assign = map_assign(self, f);
-        let result_block  = map_block(self, f);
-        let result_if = map_if(self, f);
-        let result_method_call = map_method_call(self, f);
+        f(self).or_else(
+            || {
+            let result_array = map_array(self, f);
+            let result_assign = map_assign(self, f);
+            let result_binary_op  = map_binary_op(self, f);
+            let result_block  = map_block(self, f);
+            let result_if = map_if(self, f);
+            let result_method_call = map_method_call(self, f);
 
-        let result = result_self;
-        let result = result.or(result_array);
-        let result = result.or(result_assign);
-        let result = result.or(result_block);
-        let result = result.or(result_if);
-        let result = result.or(result_method_call);
-        result.unwrap_or(self)
+            let result = result_array;
+            let result = result.or(result_assign);
+            let result = result.or(result_binary_op);
+            let result = result.or(result_block);
+            let result = result.or(result_if);
+            let result = result.or(result_method_call);
+
+            result
+        }
+        ).unwrap_or(self)
     }
 
     fn quoted(self) -> Quoted {
@@ -149,6 +154,17 @@ fn map_assign<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr>
         let lhs = lhs.map(f);
         let rhs = rhs.map(f);
         new_assign(lhs, rhs)
+    }
+    )
+}
+
+fn map_binary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_binary_op().map(
+        |expr: (Expr, BinaryOp, Expr)| {
+        let (lhs, op, rhs) = expr;
+        let lhs = lhs.map(f);
+        let rhs = rhs.map(f);
+        new_binary_op(lhs, op, rhs)
     }
     )
 }
@@ -196,6 +212,11 @@ fn new_array(exprs: [Expr]) -> Expr {
 
 fn new_assign(lhs: Expr, rhs: Expr) -> Expr {
     quote { $lhs = $rhs }.as_expr().unwrap()
+}
+
+fn new_binary_op(lhs: Expr, op: BinaryOp, rhs: Expr) -> Expr {
+    let op = op.quoted();
+    quote { $lhs $op $rhs }.as_expr().unwrap()
 }
 
 fn new_block(exprs: [Expr]) -> Expr {

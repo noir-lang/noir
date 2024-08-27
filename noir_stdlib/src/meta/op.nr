@@ -128,5 +128,41 @@ impl BinaryOp {
         // docs:end:is_modulo
         self.op == 15
     }
+
+    pub fn quoted(self) -> Quoted {
+        if self.is_add() {
+            quote { + }
+        } else if self.is_subtract() {
+            quote { - }
+        } else if self.is_multiply() {
+            quote { * }
+        } else if self.is_divide() {
+            quote { / }
+        } else if self.is_equal() {
+            quote { == }
+        } else if self.is_not_equal() {
+            quote { != }
+        } else if self.is_less_than() {
+            quote { < }
+        } else if self.is_less_than_or_equal() {
+            quote { <= }
+        } else if self.is_greater_than() {
+            quote { > }
+        } else if self.is_greater_than_or_equal() {
+            quote { >= }
+        } else if self.is_and() {
+            quote { & }
+        } else if self.is_or() {
+            quote { | }
+        } else if self.is_xor() {
+            quote { ^ }
+        } else if self.is_shift_right() {
+            quote { >> }
+        } else if self.is_shift_left() {
+            quote { << }
+        } else {
+            quote { % }
+        }
+    }
 }
 

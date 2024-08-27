@@ -171,6 +171,20 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_map_for_binary_op() {
+        comptime
+        {
+            let expr = quote { 3 + 4 }.as_expr().unwrap();
+            let expr = expr.map(times_two);
+
+            let (lhs, op, rhs) = expr.as_binary_op().unwrap();
+            assert_eq(lhs.as_integer().unwrap(), (6, false));
+            assert(op.is_add());
+            assert_eq(rhs.as_integer().unwrap(), (8, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_bool() {
         comptime
         {
