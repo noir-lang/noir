@@ -56,6 +56,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_array" => expr_as_array(arguments, return_type, location),
             "expr_as_assign" => expr_as_assign(arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
+            "expr_as_block" => expr_as_block(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
             "expr_as_cast" => expr_as_cast(arguments, return_type, location),
             "expr_as_comptime" => expr_as_comptime(arguments, return_type, location),
@@ -75,6 +76,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_tuple" => expr_as_tuple(arguments, return_type, location),
             "expr_as_unary_op" => expr_as_unary_op(arguments, return_type, location),
             "expr_as_unsafe" => expr_as_unsafe(arguments, return_type, location),
+            "expr_has_semicolon" => expr_has_semicolon(arguments, location),
             "expr_is_break" => expr_is_break(arguments, location),
             "expr_is_continue" => expr_is_continue(arguments, location),
             "is_unconstrained" => Ok(Value::Bool(true)),
@@ -1218,6 +1220,13 @@ fn expr_as_unsafe(
             None
         }
     })
+}
+
+// fn as_has_semicolon(self) -> bool
+fn expr_has_semicolon(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let expr_value = get_expr(self_argument)?;
+    Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
 }
 
 // fn is_break(self) -> bool
