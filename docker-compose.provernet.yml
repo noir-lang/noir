@@ -38,10 +38,10 @@ services:
     volumes:
       - ./log/aztec-node/:/usr/src/yarn-project/aztec/log:rw
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/status" ]
+      test: [ "CMD", "curl", "-fSs", "http://127.0.0.1:$AZTEC_PORT/status" ]
       interval: 3s
       timeout: 30s
-      start_period: 10s
+      start_period: 120s
     depends_on:
       - ethereum
     command:
@@ -63,7 +63,7 @@ services:
       L1_CHAIN_ID: 31337
       AZTEC_PORT: 80
       BOT_PRIVATE_KEY: 0xcafe
-      BOT_TX_INTERVAL_SECONDS: 300
+      BOT_TX_INTERVAL_SECONDS: 5
       BOT_PRIVATE_TRANSFERS_PER_TX: 1
       BOT_PUBLIC_TRANSFERS_PER_TX: 0
       BOT_NO_WAIT_FOR_TRANSFERS: true
@@ -80,7 +80,7 @@ services:
       aztec-node:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/status" ]
+      test: [ "CMD", "curl", "-fSs", "http://127.0.0.1:$AZTEC_PORT/status" ]
       interval: 3s
       timeout: 30s
       start_period: 10s
@@ -112,7 +112,7 @@ services:
       aztec-node:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/status" ]
+      test: [ "CMD", "curl", "-fSs", "http://127.0.0.1:$AZTEC_PORT/status" ]
       interval: 3s
       timeout: 30s
       start_period: 10s
