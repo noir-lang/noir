@@ -34,12 +34,8 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16] {
     msg32
 }
 
-unconstrained fn build_msg_block_iter<let N: u32>(
-    msg: [u8; N],
-    message_size: u64,
-    mut msg_block: [u8; 64],
-    msg_start: u32
-) -> ([u8; 64], u64) {
+unconstrained fn build_msg_block_iter<let N: u32>(msg: [u8; N], message_size: u64, msg_start: u32) -> ([u8; 64], u64) {
+    let mut msg_block: [u8; BLOCK_SIZE] = [0; BLOCK_SIZE];
     let mut msg_byte_ptr: u64 = 0; // Message byte pointer
     let mut msg_end = msg_start + BLOCK_SIZE;
     if msg_end > N {
@@ -66,12 +62,20 @@ fn verify_msg_block<let N: u32>(
     if msg_end > N {
         msg_end = N;
     }
+
     for k in msg_start..msg_end {
         if k as u64 < message_size {
             assert_eq(msg_block[msg_byte_ptr], msg[k]);
             msg_byte_ptr = msg_byte_ptr + 1;
         }
     }
+
+    for i in 0..BLOCK_SIZE {
+        if i as u64 >= msg_byte_ptr {
+            assert_eq(msg_block[msg_byte_ptr], 0);
+        }
+    }
+
     msg_byte_ptr
 }
 
@@ -86,7 +90,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 
     for i in 0..num_blocks {
         let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            build_msg_block_iter(msg, message_size, msg_block, BLOCK_SIZE * i)
+            build_msg_block_iter(msg, message_size, BLOCK_SIZE * i)
         };
         msg_block = new_msg_block;
 
@@ -107,7 +111,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     // or our message cannot be evenly split into blocks. 
     if modulo != 0 {
         let (new_msg_block, new_msg_byte_ptr) = unsafe {
-            build_msg_block_iter(msg, message_size, msg_block, BLOCK_SIZE * num_blocks)
+            build_msg_block_iter(msg, message_size, BLOCK_SIZE * num_blocks)
         };
         msg_block = new_msg_block;
 
