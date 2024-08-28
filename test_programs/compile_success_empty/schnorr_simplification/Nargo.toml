@@ -1,5 +1,5 @@
 [package]
-name = "schnorr"
+name = "schnorr_simplification"
 type = "bin"
 authors = [""]
 
