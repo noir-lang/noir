@@ -59,20 +59,23 @@ fn verify_msg_block<let N: u32>(
 ) -> u64 {
     let mut msg_byte_ptr: u64 = 0; // Message byte pointer
     let mut msg_end = msg_start + BLOCK_SIZE;
+    let mut extra_bytes = 0;
     if msg_end > N {
         msg_end = N;
+        extra_bytes = msg_end - N;
     }
 
     for k in msg_start..msg_end {
         if k as u64 < message_size {
-            assert_eq(msg_block[msg_byte_ptr], msg[k]);
             msg_byte_ptr = msg_byte_ptr + 1;
         }
     }
 
     for i in 0..BLOCK_SIZE {
         if i as u64 >= msg_byte_ptr {
-            assert_eq(msg_block[msg_byte_ptr], 0);
+            assert_eq(msg_block[i], 0);
+        } else {
+            assert_eq(msg_block[i], msg[msg_start + i - extra_bytes]);
         }
     }
 
