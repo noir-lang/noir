@@ -73,19 +73,22 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
     ) {
         assert!(source_field.bit_size == F::max_num_bits());
 
+        let size = SingleAddrVariable::new_usize(self.allocate_register());
+        self.usize_const_instruction(size.address, target_array.size.into());
+        self.usize_const_instruction(target_array.rc, 1_usize.into());
+        self.codegen_allocate_array(target_array.pointer, size.address);
+
         self.black_box_op_instruction(BlackBoxOp::ToRadix {
             input: source_field.address,
             radix,
             output: target_array.to_heap_array(),
         });
 
-        let limb_field = SingleAddrVariable::new(self.allocate_register(), F::max_num_bits());
+        let limb_field = SingleAddrVariable::new_field(self.allocate_register());
         let limb_casted = SingleAddrVariable::new(self.allocate_register(), limb_bit_size);
 
         if limb_bit_size != F::max_num_bits() {
-            let size = self.allocate_register();
-            self.usize_const_instruction(size, target_array.size.into());
-            self.codegen_loop(size, |ctx, iterator_register| {
+            self.codegen_loop(size.address, |ctx, iterator_register| {
                 // Read the limb
                 ctx.codegen_array_get(target_array.pointer, iterator_register, limb_field.address);
                 // Cast it
@@ -93,10 +96,10 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
                 // Write it
                 ctx.codegen_array_set(target_array.pointer, iterator_register, limb_casted.address);
             });
-            self.deallocate_register(size);
         }
 
         // Deallocate our temporary registers
+        self.deallocate_single_addr(size);
         self.deallocate_single_addr(limb_field);
         self.deallocate_single_addr(limb_casted);
 
