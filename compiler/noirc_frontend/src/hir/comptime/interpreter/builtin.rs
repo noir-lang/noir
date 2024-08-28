@@ -53,8 +53,6 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         match name {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
-            // We do not allow anything from the non-comptime context into the comptime context.
-            // Thus, we can just return true for `assert_constant`.
             "assert_constant" => Ok(Value::Bool(true)),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_array" => expr_as_array(arguments, return_type, location),
