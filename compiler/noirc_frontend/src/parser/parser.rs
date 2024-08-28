@@ -73,7 +73,9 @@ mod test_helpers;
 
 use literals::literal;
 use path::{maybe_empty_path, path};
-use primitives::{dereference, ident, negation, not, nothing, right_shift_operator, token_kind};
+use primitives::{
+    dereference, ident, interned_expr, negation, not, nothing, right_shift_operator, token_kind,
+};
 use traits::where_clause;
 
 /// Entry function for the parser - also handles lexing internally.
@@ -487,6 +489,7 @@ where
             continue_statement(),
             return_statement(expr_parser.clone()),
             comptime_statement(expr_parser.clone(), expr_no_constructors, statement),
+            interned_statement(),
             expr_parser.map(StatementKind::Expression),
         ))
     })
@@ -524,6 +527,15 @@ where
     .map_with_span(|kind, span| Box::new(Statement { kind, span }));
 
     keyword(Keyword::Comptime).ignore_then(comptime_statement).map(StatementKind::Comptime)
+}
+
+pub(super) fn interned_statement() -> impl NoirParser<StatementKind> {
+    token_kind(TokenKind::InternedStatement).map(|token| match token {
+        Token::InternedStatement(id) => StatementKind::Interned(id),
+        _ => {
+            unreachable!("token_kind(InternedStatement) guarantees we parse an interned statement")
+        }
+    })
 }
 
 /// Comptime in an expression position only accepts entire blocks
@@ -642,7 +654,7 @@ enum LValueRhs {
     Index(Expression, Span),
 }
 
-fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
+pub fn lvalue<'a, P>(expr_parser: P) -> impl NoirParser<LValue> + 'a
 where
     P: ExprParser + 'a,
 {
@@ -655,7 +667,15 @@ where
 
         let parenthesized = lvalue.delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
-        let term = choice((parenthesized, dereferences, l_ident));
+        let interned =
+            token_kind(TokenKind::InternedLValue).map_with_span(|token, span| match token {
+                Token::InternedLValue(id) => LValue::Interned(id, span),
+                _ => unreachable!(
+                    "token_kind(InternedLValue) guarantees we parse an interned lvalue"
+                ),
+            });
+
+        let term = choice((parenthesized, dereferences, l_ident, interned));
 
         let l_member_rhs =
             just(Token::Dot).ignore_then(field_name()).map_with_span(LValueRhs::MemberAccess);
@@ -1154,6 +1174,7 @@ where
         literal(),
         as_trait_path(parse_type()).map(ExpressionKind::AsTraitPath),
         macro_quote_marker(),
+        interned_expr(),
     ))
     .map_with_span(Expression::new)
     .or(parenthesized(expr_parser.clone()).map_with_span(|sub_expr, span| {

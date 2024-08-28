@@ -1,0 +1,6 @@
+[package]
+name = "inject_context_attribute"
+type = "bin"
+authors = [""]
+
+[dependencies]
