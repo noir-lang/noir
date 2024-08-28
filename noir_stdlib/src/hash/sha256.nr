@@ -83,6 +83,7 @@ fn verify_msg_block<let N: u32>(
 }
 
 global BLOCK_SIZE = 64;
+global ZERO = 0;
 
 // Variable size SHA-256 hash
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
@@ -129,11 +130,17 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
         msg_byte_ptr = 0;
     }
 
-    let last_block = msg_block;
+    // This variable is used to get around the compiler under-constrained check giving a warning.
+    // We want to check against a constant zero, but if it does not come from the circuit inputs
+    // or return values the compiler check will issue a warning.
+    let zero = msg_block[0] - msg_block[0];
+
     // Pad the rest such that we have a [u32; 2] block at the end representing the length
     // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).    
     msg_block[msg_byte_ptr] = 1 << 7;
+    let last_block = msg_block;
     msg_byte_ptr = msg_byte_ptr + 1;
+
     unsafe {
         let (new_msg_block, new_msg_byte_ptr) = pad_msg_block(msg_block, msg_byte_ptr);
         msg_block = new_msg_block;
@@ -144,18 +151,15 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
 
     if !crate::runtime::is_unconstrained() {
         for i in 0..64 {
-            if i as u64 < msg_byte_ptr - 1 {
-                assert_eq(msg_block[i], last_block[i]);
-            }
+            assert_eq(msg_block[i], last_block[i]);
         }
-        assert_eq(msg_block[msg_byte_ptr - 1], 1 << 7);
 
         // If i >= 57, there aren't enough bits in the current message block to accomplish this, so
         // the 1 and 0s fill up the current block, which we then compress accordingly.
         // Not enough bits (64) to store length. Fill up with zeros.
         for _i in 57..64 {
             if msg_byte_ptr <= 63 & msg_byte_ptr >= 57 {
-                assert_eq(msg_block[msg_byte_ptr], 0);
+                assert_eq(msg_block[msg_byte_ptr], zero);
                 msg_byte_ptr += 1;
             }
         }
@@ -172,29 +176,18 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     };
 
     if !crate::runtime::is_unconstrained() {
-        if msg_byte_ptr != 0 {
-            for i in 0..64 {
-                if i as u64 < msg_byte_ptr - 1 {
-                    assert_eq(msg_block[i], msg[BLOCK_SIZE * num_blocks + i]);
-                }
+        for i in 0..56 {
+            if i < msg_byte_ptr {
+                assert_eq(msg_block[i], last_block[i]);
+            } else {
+                assert_eq(msg_block[i], zero);
             }
-            assert_eq(msg_block[msg_byte_ptr - 1], 1 << 7);
         }
 
         let len = 8 * message_size;
-        let len_bytes = (len as Field).to_le_bytes(8);
-        // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
-        for _ in 0..64 {
-            if msg_byte_ptr < 56 {
-                assert_eq(msg_block[msg_byte_ptr], 0);
-                msg_byte_ptr = msg_byte_ptr + 1;
-            }
-        }
-
-        let mut block_idx = 0;
+        let len_bytes = (len as Field).to_be_bytes(8);
         for i in 56..64 {
-            assert_eq(msg_block[63 - block_idx], len_bytes[i - 56]);
-            block_idx = block_idx + 1;
+            assert_eq(msg_block[i], len_bytes[i - 56]);
         }
     }
 
@@ -220,7 +213,7 @@ unconstrained fn pad_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64) -
 
 unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; 64], mut msg_byte_ptr: u64, message_size: u64) -> [u8; 64] {
     let len = 8 * message_size;
-    let len_bytes = (len as Field).to_le_bytes(8);
+    let len_bytes = (len as Field).to_be_bytes(8);
     for _i in 0..64 {
         // In any case, fill blocks up with zeros until the last 64 (i.e. until msg_byte_ptr = 56).
         if msg_byte_ptr < 56 {
@@ -228,7 +221,7 @@ unconstrained fn attach_len_to_msg_block(mut msg_block: [u8; 64], mut msg_byte_p
             msg_byte_ptr = msg_byte_ptr + 1;
         } else if msg_byte_ptr < 64 {
             for j in 0..8 {
-                msg_block[63 - j] = len_bytes[j];
+                msg_block[msg_byte_ptr + j] = len_bytes[j];
             }
             msg_byte_ptr += 8;
         }
