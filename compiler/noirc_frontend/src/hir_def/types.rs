@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     ast::IntegerBitSize,
-    hir::type_check::TypeCheckError,
+    hir::type_check::{generics::TraitGenerics, TypeCheckError},
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
@@ -19,7 +19,10 @@ use crate::{
     node_interner::StructId,
 };
 
-use super::expr::{HirCallExpression, HirExpression, HirIdent};
+use super::{
+    expr::{HirCallExpression, HirExpression, HirIdent},
+    traits::NamedType,
+};
 
 #[derive(PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
 pub enum Type {
@@ -78,7 +81,7 @@ pub enum Type {
     /// `impl Trait` when used in a type position.
     /// These are only matched based on the TraitId. The trait name parameter is only
     /// used for displaying error messages using the name of the trait.
-    TraitAsType(TraitId, /*name:*/ Rc<String>, /*generics:*/ Vec<Type>),
+    TraitAsType(TraitId, Rc<String>, TraitGenerics),
 
     /// NamedGenerics are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
@@ -152,6 +155,7 @@ pub enum QuotedType {
     TraitConstraint,
     TraitDefinition,
     TraitImpl,
+    UnresolvedType,
     FunctionDefinition,
     Module,
 }
@@ -540,7 +544,7 @@ impl TypeVariable {
         };
 
         if binding.occurs(id) {
-            Err(TypeCheckError::TypeAnnotationsNeeded { span })
+            Err(TypeCheckError::CyclicType { span, typ: binding })
         } else {
             *self.1.borrow_mut() = TypeBinding::Bound(binding);
             Ok(())
@@ -646,12 +650,7 @@ impl std::fmt::Display for Type {
                 }
             }
             Type::TraitAsType(_id, name, generics) => {
-                write!(f, "impl {}", name)?;
-                if !generics.is_empty() {
-                    let generics = vecmap(generics, ToString::to_string).join(", ");
-                    write!(f, "<{generics}>")?;
-                }
-                Ok(())
+                write!(f, "impl {}{}", name, generics)
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -744,6 +743,7 @@ impl std::fmt::Display for QuotedType {
             QuotedType::TraitDefinition => write!(f, "TraitDefinition"),
             QuotedType::TraitConstraint => write!(f, "TraitConstraint"),
             QuotedType::TraitImpl => write!(f, "TraitImpl"),
+            QuotedType::UnresolvedType => write!(f, "UnresolvedType"),
             QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
             QuotedType::Module => write!(f, "Module"),
         }
@@ -860,8 +860,9 @@ impl Type {
             | Type::Forall(_, _)
             | Type::Quoted(_) => false,
 
-            Type::TraitAsType(_, _, args) => {
-                args.iter().any(|generic| generic.contains_numeric_typevar(target_id))
+            Type::TraitAsType(_, _, generics) => {
+                generics.ordered.iter().any(|generic| generic.contains_numeric_typevar(target_id))
+                    || generics.named.iter().any(|typ| typ.typ.contains_numeric_typevar(target_id))
             }
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
@@ -936,8 +937,11 @@ impl Type {
             }
 
             Type::TraitAsType(_, _, args) => {
-                for arg in args.iter() {
+                for arg in args.ordered.iter() {
                     arg.find_numeric_type_vars(found_names);
+                }
+                for arg in args.named.iter() {
+                    arg.typ.find_numeric_type_vars(found_names);
                 }
             }
             Type::Array(length, elem) => {
@@ -1629,6 +1633,15 @@ impl Type {
                     } else {
                         Err(UnificationError)
                     }
+                } else if let InfixExpr(lhs, op, rhs) = other {
+                    if let Some(inverse) = op.inverse() {
+                        // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
+                        let new_type = InfixExpr(Box::new(Constant(*value)), inverse, rhs.clone());
+                        new_type.try_unify(lhs, bindings)?;
+                        Ok(())
+                    } else {
+                        Err(UnificationError)
+                    }
                 } else {
                     Err(UnificationError)
                 }
@@ -1656,12 +1669,17 @@ impl Type {
     pub fn canonicalize(&self) -> Type {
         match self.follow_bindings() {
             Type::InfixExpr(lhs, op, rhs) => {
-                if let Some(value) = self.evaluate_to_u32() {
-                    return Type::Constant(value);
+                // evaluate_to_u32 also calls canonicalize so if we just called
+                // `self.evaluate_to_u32()` we'd get infinite recursion.
+                if let (Some(lhs), Some(rhs)) = (lhs.evaluate_to_u32(), rhs.evaluate_to_u32()) {
+                    return Type::Constant(op.function(lhs, rhs));
                 }
 
                 let lhs = lhs.canonicalize();
                 let rhs = rhs.canonicalize();
+                if let Some(result) = Self::try_simplify_addition(&lhs, op, &rhs) {
+                    return result;
+                }
 
                 if let Some(result) = Self::try_simplify_subtraction(&lhs, op, &rhs) {
                     return result;
@@ -1716,6 +1734,26 @@ impl Type {
         } else {
             // Every type must have been a constant
             Type::Constant(constant)
+        }
+    }
+
+    /// Try to simplify an addition expression of `lhs + rhs`.
+    ///
+    /// - Simplifies `(a - b) + b` to `a`.
+    fn try_simplify_addition(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Option<Type> {
+        use BinaryTypeOperator::*;
+        match lhs {
+            Type::InfixExpr(l_lhs, l_op, l_rhs) => {
+                if op == Addition && *l_op == Subtraction {
+                    // TODO: Propagate type bindings. Can do in another PR, this one is large enough.
+                    let unifies = l_rhs.try_unify(rhs, &mut TypeBindings::new());
+                    if unifies.is_ok() {
+                        return Some(l_lhs.as_ref().clone());
+                    }
+                }
+                None
+            }
+            _ => None,
         }
     }
 
@@ -1881,10 +1919,10 @@ impl Type {
             }
         }
 
-        match self {
-            Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(*size),
+        match self.canonicalize() {
+            Type::TypeVariable(_, TypeVariableKind::Constant(size)) => Some(size),
             Type::Array(len, _elem) => len.evaluate_to_u32(),
-            Type::Constant(x) => Some(*x),
+            Type::Constant(x) => Some(x),
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.evaluate_to_u32()?;
                 let rhs = rhs.evaluate_to_u32()?;
@@ -1919,11 +1957,13 @@ impl Type {
     /// Retrieves the type of the given field name
     /// Panics if the type is not a struct or tuple.
     pub fn get_field_type(&self, field_name: &str) -> Option<Type> {
-        match self {
-            Type::Struct(def, args) => def.borrow().get_field(field_name, args).map(|(typ, _)| typ),
+        match self.follow_bindings() {
+            Type::Struct(def, args) => {
+                def.borrow().get_field(field_name, &args).map(|(typ, _)| typ)
+            }
             Type::Tuple(fields) => {
-                let mut fields = fields.iter().enumerate();
-                fields.find(|(i, _)| i.to_string() == *field_name).map(|(_, typ)| typ).cloned()
+                let mut fields = fields.into_iter().enumerate();
+                fields.find(|(i, _)| i.to_string() == *field_name).map(|(_, typ)| typ)
             }
             _ => None,
         }
@@ -2145,11 +2185,15 @@ impl Type {
                 element.substitute_helper(type_bindings, substitute_bound_typevars),
             )),
 
-            Type::TraitAsType(s, name, args) => {
-                let args = vecmap(args, |arg| {
+            Type::TraitAsType(s, name, generics) => {
+                let ordered = vecmap(&generics.ordered, |arg| {
                     arg.substitute_helper(type_bindings, substitute_bound_typevars)
                 });
-                Type::TraitAsType(*s, name.clone(), args)
+                let named = vecmap(&generics.named, |arg| {
+                    let typ = arg.typ.substitute_helper(type_bindings, substitute_bound_typevars);
+                    NamedType { name: arg.name.clone(), typ }
+                });
+                Type::TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
             }
             Type::InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.substitute_helper(type_bindings, substitute_bound_typevars);
@@ -2178,10 +2222,12 @@ impl Type {
                 let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
-            Type::Struct(_, generic_args)
-            | Type::Alias(_, generic_args)
-            | Type::TraitAsType(_, _, generic_args) => {
+            Type::Struct(_, generic_args) | Type::Alias(_, generic_args) => {
                 generic_args.iter().any(|arg| arg.occurs(target_id))
+            }
+            Type::TraitAsType(_, _, args) => {
+                args.ordered.iter().any(|arg| arg.occurs(target_id))
+                    || args.named.iter().any(|arg| arg.typ.occurs(target_id))
             }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(type_var, _, _) | Type::TypeVariable(type_var, _) => {
@@ -2259,8 +2305,12 @@ impl Type {
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             TraitAsType(s, name, args) => {
-                let args = vecmap(args, |arg| arg.follow_bindings());
-                TraitAsType(*s, name.clone(), args)
+                let ordered = vecmap(&args.ordered, |arg| arg.follow_bindings());
+                let named = vecmap(&args.named, |arg| NamedType {
+                    name: arg.name.clone(),
+                    typ: arg.typ.follow_bindings(),
+                });
+                TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
             }
             InfixExpr(lhs, op, rhs) => {
                 let lhs = lhs.follow_bindings();
@@ -2329,8 +2379,11 @@ impl Type {
                 }
             }
             Type::TraitAsType(_, _, generics) => {
-                for generic in generics {
+                for generic in &mut generics.ordered {
                     generic.replace_named_generics_with_type_variables();
+                }
+                for generic in &mut generics.named {
+                    generic.typ.replace_named_generics_with_type_variables();
                 }
             }
             Type::NamedGeneric(var, _, _) => {
@@ -2417,6 +2470,17 @@ impl BinaryTypeOperator {
     fn is_commutative(self) -> bool {
         matches!(self, BinaryTypeOperator::Addition | BinaryTypeOperator::Multiplication)
     }
+
+    /// Return the operator that will "undo" this operation if applied to the rhs
+    fn inverse(self) -> Option<BinaryTypeOperator> {
+        match self {
+            BinaryTypeOperator::Addition => Some(BinaryTypeOperator::Subtraction),
+            BinaryTypeOperator::Subtraction => Some(BinaryTypeOperator::Addition),
+            BinaryTypeOperator::Multiplication => Some(BinaryTypeOperator::Division),
+            BinaryTypeOperator::Division => Some(BinaryTypeOperator::Multiplication),
+            BinaryTypeOperator::Modulo => None,
+        }
+    }
 }
 
 impl TypeVariableKind {
@@ -2485,7 +2549,7 @@ impl From<&Type> for PrintableType {
                 PrintableType::Struct { fields, name: struct_type.name.to_string() }
             }
             Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
-            Type::TraitAsType(_, _, _) => unreachable!(),
+            Type::TraitAsType(..) => unreachable!(),
             Type::Tuple(types) => PrintableType::Tuple { types: vecmap(types, |typ| typ.into()) },
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
@@ -2547,14 +2611,7 @@ impl std::fmt::Debug for Type {
                     write!(f, "{}<{}>", alias.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(_id, name, generics) => {
-                write!(f, "impl {}", name)?;
-                if !generics.is_empty() {
-                    let generics = vecmap(generics, |arg| format!("{:?}", arg)).join(", ");
-                    write!(f, "<{generics}>")?;
-                }
-                Ok(())
-            }
+            Type::TraitAsType(_id, name, generics) => write!(f, "impl {}{:?}", name, generics),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, |arg| format!("{:?}", arg));
                 write!(f, "({})", elements.join(", "))

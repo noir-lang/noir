@@ -15,6 +15,11 @@ The BigInt module in the standard library exposes some class of integers which d
 
 The module can currently be considered as `Field`s with fixed modulo sizes used by a set of elliptic curves, in addition to just the native curve. [More work](https://github.com/noir-lang/noir/issues/510) is needed to achieve arbitrarily sized big integers.
 
+:::note
+
+`nargo` can be built with `--profile release-pedantic` to enable extra overflow checks which may affect `BigInt` results in some cases.
+Consider the [`noir-bignum`](https://github.com/noir-lang/noir-bignum) library for an optimized alternative approach.
+
 :::
 
 Currently 6 classes of integers (i.e 'big' prime numbers) are available in the module, namely:

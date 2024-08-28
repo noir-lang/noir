@@ -113,6 +113,7 @@ fn main() {
     }
 }
 
+// docs:start:implements_example
 fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
     comptime
     {
@@ -123,3 +124,4 @@ fn function_with_where<T>(_x: T) where T: SomeTrait<i32> {
         assert(t.get_trait_impl(some_trait_i32).is_none());
     }
 }
+// docs:end:implements_example

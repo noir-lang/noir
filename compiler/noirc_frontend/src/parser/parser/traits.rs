@@ -111,15 +111,10 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
 
 /// trait_type_declaration: 'type' ident generics
 fn trait_type_declaration() -> impl NoirParser<TraitItem> {
-    keyword(Keyword::Type).ignore_then(ident()).then_ignore(just(Token::Semicolon)).validate(
-        |name, span, emit| {
-            emit(ParserError::with_reason(
-                ParserErrorReason::ExperimentalFeature("Associated types"),
-                span,
-            ));
-            TraitItem::Type { name }
-        },
-    )
+    keyword(Keyword::Type)
+        .ignore_then(ident())
+        .then_ignore(just(Token::Semicolon))
+        .map(|name| TraitItem::Type { name })
 }
 
 /// Parses a trait implementation, implementing a particular trait for a type.

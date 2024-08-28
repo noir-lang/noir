@@ -24,3 +24,18 @@ fn main() {
         assert_eq(bar.name(), quote { bar });
     }
 }
+
+// docs:start:as_module_example
+mod baz {
+    mod qux {}
+}
+
+#[test]
+fn as_module_test() {
+    comptime
+    {
+        let my_mod = quote { baz::qux }.as_module().unwrap();
+        assert_eq(my_mod.name(), quote { qux });
+    }
+}
+// docs:end:as_module_example

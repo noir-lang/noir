@@ -83,9 +83,6 @@ impl<'context> Elaborator<'context> {
                 resolver.resolve(self.def_maps, path.clone(), &mut Some(&mut references))?;
 
             for (referenced, segment) in references.iter().zip(path.segments) {
-                let Some(referenced) = referenced else {
-                    continue;
-                };
                 self.interner.add_reference(
                     *referenced,
                     Location::new(segment.ident.span(), self.file),
