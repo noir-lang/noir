@@ -1411,7 +1411,7 @@ fn function_def_set_body(
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
-    let body_argument = get_expr(&interpreter.elaborator.interner, body_argument)?;
+    let body_argument = get_expr(interpreter.elaborator.interner, body_argument)?;
     let statement_kind = match body_argument {
         ExprValue::Expression(expression_kind) => StatementKind::Expression(Expression {
             kind: expression_kind,
