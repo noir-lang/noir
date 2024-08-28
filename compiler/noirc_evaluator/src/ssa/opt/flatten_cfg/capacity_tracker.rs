@@ -71,7 +71,6 @@ impl<'a> SliceCapacityTracker<'a> {
                         // v3, v4, v5, v6, v7, v8 = call slice_pop_front(v1, v2)
                         // where v7 is the slice length and v8 is the popped slice itself.
                         Intrinsic::SlicePopFront => (Some(1), results.len() - 1),
-                        // The slice capacity of these intrinsics is not determined by the arguments of the function.
                         Intrinsic::AsSlice => (Some(0), 1),
                         _ => return,
                     };
