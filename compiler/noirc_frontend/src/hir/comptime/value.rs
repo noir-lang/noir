@@ -613,13 +613,13 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
             Value::Type(typ) => write!(f, "{}", typ),
             Value::Expr(ExprValue::Expression(expr)) => {
-                write!(f, "{}", resolve_expression_kind(self.interner, expr.clone()))
+                write!(f, "{}", remove_interned_in_expression_kind(self.interner, expr.clone()))
             }
             Value::Expr(ExprValue::Statement(statement)) => {
-                write!(f, "{}", resolve_statement_kind(self.interner, statement.clone()))
+                write!(f, "{}", remove_interned_in_statement_kind(self.interner, statement.clone()))
             }
             Value::Expr(ExprValue::LValue(lvalue)) => {
-                write!(f, "{}", resolve_lvalue(self.interner, lvalue.clone()))
+                write!(f, "{}", remove_interned_in_lvalue(self.interner, lvalue.clone()))
             }
             Value::UnresolvedType(typ) => {
                 if let UnresolvedTypeData::Interned(id) = typ {
@@ -639,91 +639,99 @@ fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitCon
 }
 
 // Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
-fn resolve_expression(interner: &NodeInterner, expr: Expression) -> Expression {
-    Expression { kind: resolve_expression_kind(interner, expr.kind), span: expr.span }
+fn remove_interned_in_expression(interner: &NodeInterner, expr: Expression) -> Expression {
+    Expression { kind: remove_interned_in_expression_kind(interner, expr.kind), span: expr.span }
 }
 
 // Returns a new ExpressionKind where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
-fn resolve_expression_kind(interner: &NodeInterner, expr: ExpressionKind) -> ExpressionKind {
+fn remove_interned_in_expression_kind(
+    interner: &NodeInterner,
+    expr: ExpressionKind,
+) -> ExpressionKind {
     match expr {
         ExpressionKind::Literal(literal) => {
-            ExpressionKind::Literal(resolve_literal(interner, literal))
+            ExpressionKind::Literal(remove_interned_in_literal(interner, literal))
         }
         ExpressionKind::Block(block) => {
-            let statements = vecmap(block.statements, |stmt| resolve_statement(interner, stmt));
+            let statements =
+                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
             ExpressionKind::Block(BlockExpression { statements })
         }
         ExpressionKind::Prefix(prefix) => ExpressionKind::Prefix(Box::new(PrefixExpression {
-            rhs: resolve_expression(interner, prefix.rhs),
+            rhs: remove_interned_in_expression(interner, prefix.rhs),
             ..*prefix
         })),
         ExpressionKind::Index(index) => ExpressionKind::Index(Box::new(IndexExpression {
-            collection: resolve_expression(interner, index.collection),
-            index: resolve_expression(interner, index.index),
+            collection: remove_interned_in_expression(interner, index.collection),
+            index: remove_interned_in_expression(interner, index.index),
         })),
         ExpressionKind::Call(call) => ExpressionKind::Call(Box::new(CallExpression {
-            func: Box::new(resolve_expression(interner, *call.func)),
-            arguments: vecmap(call.arguments, |arg| resolve_expression(interner, arg)),
+            func: Box::new(remove_interned_in_expression(interner, *call.func)),
+            arguments: vecmap(call.arguments, |arg| remove_interned_in_expression(interner, arg)),
             ..*call
         })),
         ExpressionKind::MethodCall(call) => {
             ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: resolve_expression(interner, call.object),
-                arguments: vecmap(call.arguments, |arg| resolve_expression(interner, arg)),
+                object: remove_interned_in_expression(interner, call.object),
+                arguments: vecmap(call.arguments, |arg| {
+                    remove_interned_in_expression(interner, arg)
+                }),
                 ..*call
             }))
         }
         ExpressionKind::Constructor(constructor) => {
             ExpressionKind::Constructor(Box::new(ConstructorExpression {
                 fields: vecmap(constructor.fields, |(name, expr)| {
-                    (name, resolve_expression(interner, expr))
+                    (name, remove_interned_in_expression(interner, expr))
                 }),
                 ..*constructor
             }))
         }
         ExpressionKind::MemberAccess(member_access) => {
             ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
-                lhs: resolve_expression(interner, member_access.lhs),
+                lhs: remove_interned_in_expression(interner, member_access.lhs),
                 ..*member_access
             }))
         }
         ExpressionKind::Cast(cast) => ExpressionKind::Cast(Box::new(CastExpression {
-            lhs: resolve_expression(interner, cast.lhs),
+            lhs: remove_interned_in_expression(interner, cast.lhs),
             ..*cast
         })),
         ExpressionKind::Infix(infix) => ExpressionKind::Infix(Box::new(InfixExpression {
-            lhs: resolve_expression(interner, infix.lhs),
-            rhs: resolve_expression(interner, infix.rhs),
+            lhs: remove_interned_in_expression(interner, infix.lhs),
+            rhs: remove_interned_in_expression(interner, infix.rhs),
             ..*infix
         })),
         ExpressionKind::If(if_expr) => ExpressionKind::If(Box::new(IfExpression {
-            condition: resolve_expression(interner, if_expr.condition),
-            consequence: resolve_expression(interner, if_expr.consequence),
+            condition: remove_interned_in_expression(interner, if_expr.condition),
+            consequence: remove_interned_in_expression(interner, if_expr.consequence),
             alternative: if_expr
                 .alternative
-                .map(|alternative| resolve_expression(interner, alternative)),
+                .map(|alternative| remove_interned_in_expression(interner, alternative)),
         })),
         ExpressionKind::Variable(_) => expr,
-        ExpressionKind::Tuple(expressions) => {
-            ExpressionKind::Tuple(vecmap(expressions, |expr| resolve_expression(interner, expr)))
-        }
+        ExpressionKind::Tuple(expressions) => ExpressionKind::Tuple(vecmap(expressions, |expr| {
+            remove_interned_in_expression(interner, expr)
+        })),
         ExpressionKind::Lambda(lambda) => ExpressionKind::Lambda(Box::new(Lambda {
-            body: resolve_expression(interner, lambda.body),
+            body: remove_interned_in_expression(interner, lambda.body),
             ..*lambda
         })),
         ExpressionKind::Parenthesized(expr) => {
-            ExpressionKind::Parenthesized(Box::new(resolve_expression(interner, *expr)))
+            ExpressionKind::Parenthesized(Box::new(remove_interned_in_expression(interner, *expr)))
         }
         ExpressionKind::Quote(_) => expr,
         ExpressionKind::Unquote(expr) => {
-            ExpressionKind::Unquote(Box::new(resolve_expression(interner, *expr)))
+            ExpressionKind::Unquote(Box::new(remove_interned_in_expression(interner, *expr)))
         }
         ExpressionKind::Comptime(block, span) => {
-            let statements = vecmap(block.statements, |stmt| resolve_statement(interner, stmt));
+            let statements =
+                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
             ExpressionKind::Comptime(BlockExpression { statements }, span)
         }
         ExpressionKind::Unsafe(block, span) => {
-            let statements = vecmap(block.statements, |stmt| resolve_statement(interner, stmt));
+            let statements =
+                vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
             ExpressionKind::Unsafe(BlockExpression { statements }, span)
         }
         ExpressionKind::AsTraitPath(_) => expr,
@@ -733,19 +741,19 @@ fn resolve_expression_kind(interner: &NodeInterner, expr: ExpressionKind) -> Exp
         }
         ExpressionKind::Interned(id) => {
             let expr = interner.get_expression_kind(id).clone();
-            resolve_expression_kind(interner, expr)
+            remove_interned_in_expression_kind(interner, expr)
         }
         ExpressionKind::Error => expr,
     }
 }
 
-fn resolve_literal(interner: &NodeInterner, literal: Literal) -> Literal {
+fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Literal {
     match literal {
         Literal::Array(array_literal) => {
-            Literal::Array(resolve_array_literal(interner, array_literal))
+            Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Slice(array_literal) => {
-            Literal::Array(resolve_array_literal(interner, array_literal))
+            Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
         | Literal::Integer(_, _)
@@ -756,85 +764,100 @@ fn resolve_literal(interner: &NodeInterner, literal: Literal) -> Literal {
     }
 }
 
-fn resolve_array_literal(interner: &NodeInterner, literal: ArrayLiteral) -> ArrayLiteral {
+fn remove_interned_in_array_literal(
+    interner: &NodeInterner,
+    literal: ArrayLiteral,
+) -> ArrayLiteral {
     match literal {
         ArrayLiteral::Standard(expressions) => {
-            ArrayLiteral::Standard(vecmap(expressions, |expr| resolve_expression(interner, expr)))
+            ArrayLiteral::Standard(vecmap(expressions, |expr| {
+                remove_interned_in_expression(interner, expr)
+            }))
         }
         ArrayLiteral::Repeated { repeated_element, length } => ArrayLiteral::Repeated {
-            repeated_element: Box::new(resolve_expression(interner, *repeated_element)),
-            length: Box::new(resolve_expression(interner, *length)),
+            repeated_element: Box::new(remove_interned_in_expression(interner, *repeated_element)),
+            length: Box::new(remove_interned_in_expression(interner, *length)),
         },
     }
 }
 
 // Returns a new Statement where all Interned statements have been turned into non-interned StatementKind.
-fn resolve_statement(interner: &NodeInterner, statement: Statement) -> Statement {
-    Statement { kind: resolve_statement_kind(interner, statement.kind), span: statement.span }
+fn remove_interned_in_statement(interner: &NodeInterner, statement: Statement) -> Statement {
+    Statement {
+        kind: remove_interned_in_statement_kind(interner, statement.kind),
+        span: statement.span,
+    }
 }
 
 // Returns a new StatementKind where all Interned statements have been turned into non-interned StatementKind.
-fn resolve_statement_kind(interner: &NodeInterner, statement: StatementKind) -> StatementKind {
+fn remove_interned_in_statement_kind(
+    interner: &NodeInterner,
+    statement: StatementKind,
+) -> StatementKind {
     match statement {
         StatementKind::Let(let_statement) => StatementKind::Let(LetStatement {
-            expression: resolve_expression(interner, let_statement.expression),
+            expression: remove_interned_in_expression(interner, let_statement.expression),
             ..let_statement
         }),
         StatementKind::Constrain(constrain) => StatementKind::Constrain(ConstrainStatement(
-            resolve_expression(interner, constrain.0),
-            constrain.1.map(|expr| resolve_expression(interner, expr)),
+            remove_interned_in_expression(interner, constrain.0),
+            constrain.1.map(|expr| remove_interned_in_expression(interner, expr)),
             constrain.2,
         )),
         StatementKind::Expression(expr) => {
-            StatementKind::Expression(resolve_expression(interner, expr))
+            StatementKind::Expression(remove_interned_in_expression(interner, expr))
         }
         StatementKind::Assign(assign) => StatementKind::Assign(AssignStatement {
             lvalue: assign.lvalue,
-            expression: resolve_expression(interner, assign.expression),
+            expression: remove_interned_in_expression(interner, assign.expression),
         }),
         StatementKind::For(for_loop) => StatementKind::For(ForLoopStatement {
             range: match for_loop.range {
                 ForRange::Range(from, to) => ForRange::Range(
-                    resolve_expression(interner, from),
-                    resolve_expression(interner, to),
+                    remove_interned_in_expression(interner, from),
+                    remove_interned_in_expression(interner, to),
                 ),
-                ForRange::Array(expr) => ForRange::Array(resolve_expression(interner, expr)),
+                ForRange::Array(expr) => {
+                    ForRange::Array(remove_interned_in_expression(interner, expr))
+                }
             },
-            block: resolve_expression(interner, for_loop.block),
+            block: remove_interned_in_expression(interner, for_loop.block),
             ..for_loop
         }),
         StatementKind::Comptime(statement) => {
-            StatementKind::Comptime(Box::new(resolve_statement(interner, *statement)))
+            StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, *statement)))
         }
-        StatementKind::Semi(expr) => StatementKind::Semi(resolve_expression(interner, expr)),
+        StatementKind::Semi(expr) => {
+            StatementKind::Semi(remove_interned_in_expression(interner, expr))
+        }
         StatementKind::Interned(id) => {
             let statement = interner.get_statement_kind(id).clone();
-            resolve_statement_kind(interner, statement)
+            remove_interned_in_statement_kind(interner, statement)
         }
         StatementKind::Break | StatementKind::Continue | StatementKind::Error => statement,
     }
 }
 
 // Returns a new LValue where all Interned LValues have been turned into LValue.
-fn resolve_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
+fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
     match lvalue {
         LValue::Ident(_) => lvalue,
         LValue::MemberAccess { object, field_name, span } => LValue::MemberAccess {
-            object: Box::new(resolve_lvalue(interner, *object)),
+            object: Box::new(remove_interned_in_lvalue(interner, *object)),
             field_name,
             span,
         },
         LValue::Index { array, index, span } => LValue::Index {
-            array: Box::new(resolve_lvalue(interner, *array)),
-            index: resolve_expression(interner, index),
+            array: Box::new(remove_interned_in_lvalue(interner, *array)),
+            index: remove_interned_in_expression(interner, index),
             span,
         },
         LValue::Dereference(lvalue, span) => {
-            LValue::Dereference(Box::new(resolve_lvalue(interner, *lvalue)), span)
+            LValue::Dereference(Box::new(remove_interned_in_lvalue(interner, *lvalue)), span)
         }
         LValue::Interned(id, span) => {
             let lvalue = interner.get_lvalue(id, span);
-            resolve_lvalue(interner, lvalue)
+            remove_interned_in_lvalue(interner, lvalue)
         }
     }
 }
