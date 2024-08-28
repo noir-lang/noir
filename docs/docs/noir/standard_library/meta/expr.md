@@ -161,3 +161,21 @@ comptime {
 #include_code is_continue noir_stdlib/src/meta/expr.nr rust
 
 `true` if this expression is `continue`.
+
+### mutate
+
+#include_code mutate noir_stdlib/src/meta/expr.nr rust
+
+Applies a mapping function to this expression and to all of its sub-expressions.
+`f` will be applied to each sub-expression first, then applied to the expression itself.
+
+This happens recursively for every expression within `self`.
+
+For example, calling `mutate` on `(&[1], &[2, 3])` with an `f` that returns `Option::some`
+for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`.
+
+### quoted
+
+#include_code quoted noir_stdlib/src/meta/expr.nr rust
+
+Returns this expression as a `Quoted` value. It's the same as `quote { $self }`.

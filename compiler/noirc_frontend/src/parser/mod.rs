@@ -25,7 +25,7 @@ use noirc_errors::Span;
 pub use parser::path::path_no_turbofish;
 pub use parser::traits::trait_bound;
 pub use parser::{
-    block, expression, fresh_statement, parse_program, parse_type, pattern, top_level_items,
+    block, expression, fresh_statement, lvalue, parse_program, parse_type, pattern, top_level_items,
 };
 
 #[derive(Debug, Clone)]

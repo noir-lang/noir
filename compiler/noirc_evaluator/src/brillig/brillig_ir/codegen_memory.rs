@@ -263,20 +263,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         let index_at_end_of_array = self.allocate_register();
         let end_value_register = self.allocate_register();
 
+        self.mov_instruction(index_at_end_of_array, vector.size);
+
         self.codegen_loop(iteration_count, |ctx, iterator_register| {
+            // The index at the end of array is size - 1 - iterator
+            ctx.codegen_usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, 1);
+
             // Load both values
             ctx.codegen_array_get(vector.pointer, iterator_register, start_value_register);
-
-            // The index at the end of array is size - 1 - iterator
-            ctx.mov_instruction(index_at_end_of_array, vector.size);
-            ctx.codegen_usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, 1);
-            ctx.memory_op_instruction(
-                index_at_end_of_array,
-                iterator_register.address,
-                index_at_end_of_array,
-                BrilligBinaryOp::Sub,
-            );
-
             ctx.codegen_array_get(
                 vector.pointer,
                 SingleAddrVariable::new_usize(index_at_end_of_array),
