@@ -100,11 +100,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         self.remember_bindings(&instantiation_bindings, &impl_bindings);
-        self.elaborator.interpreter_call_stack.push(location);
+        self.elaborator.interpreter_call_stack.push_back(location);
 
         let result = self.call_function_inner(function, arguments, location);
 
-        self.elaborator.interpreter_call_stack.pop();
+        self.elaborator.interpreter_call_stack.pop_back();
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         self.rebind_generics_from_previous_function();

@@ -149,12 +149,12 @@ impl<'local, 'context> Interpreter<'local, 'context> {
 fn failing_constraint<T>(
     message: impl Into<String>,
     location: Location,
-    call_stack: &[Location],
+    call_stack: &im::Vector<Location>,
 ) -> IResult<T> {
     Err(InterpreterError::FailingConstraint {
         message: Some(message.into()),
         location,
-        call_stack: im::Vector::from(call_stack),
+        call_stack: call_stack.clone(),
     })
 }
 
@@ -287,7 +287,7 @@ fn slice_remove(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
-    call_stack: &[Location],
+    call_stack: &im::Vector<Location>,
 ) -> IResult<Value> {
     let (slice, index) = check_two_arguments(arguments, location)?;
 
@@ -326,7 +326,7 @@ fn slice_pop_front(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
-    call_stack: &[Location],
+    call_stack: &im::Vector<Location>,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
@@ -341,7 +341,7 @@ fn slice_pop_back(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
-    call_stack: &[Location],
+    call_stack: &im::Vector<Location>,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 

@@ -169,7 +169,7 @@ pub struct Elaborator<'context> {
     /// Temporary flag to enable the experimental arithmetic generics feature
     enable_arithmetic_generics: bool,
 
-    pub(crate) interpreter_call_stack: Vec<Location>,
+    pub(crate) interpreter_call_stack: im::Vector<Location>,
 }
 
 #[derive(Default)]
@@ -216,7 +216,7 @@ impl<'context> Elaborator<'context> {
             unresolved_globals: BTreeMap::new(),
             enable_arithmetic_generics,
             current_trait: None,
-            interpreter_call_stack: Vec::new(),
+            interpreter_call_stack: im::Vector::new(),
         }
     }
 
