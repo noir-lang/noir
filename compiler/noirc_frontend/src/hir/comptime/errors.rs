@@ -361,9 +361,12 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 };
                 let mut diagnostic =
                     CustomDiagnostic::simple_error(primary, secondary, location.span);
-                for frame in call_stack {
+
+                // Only take at most 3 frames starting from the top of the stack to avoid producing too much output
+                for frame in call_stack.iter().rev().take(3) {
                     diagnostic.add_secondary_with_file("".to_string(), frame.span, frame.file);
                 }
+
                 diagnostic
             }
             InterpreterError::NoMethodFound { name, typ, location } => {
