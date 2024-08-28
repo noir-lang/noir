@@ -33,9 +33,7 @@ fn run_stdlib_tests() {
     let (mut context, dummy_crate_id) =
         prepare_package(&file_manager, &parsed_files, &dummy_package);
 
-    let error_on_unused_imports = false;
-    let options = &Default::default();
-    let result = check_crate(&mut context, dummy_crate_id, options, error_on_unused_imports);
+    let result = check_crate(&mut context, dummy_crate_id, &Default::default());
     report_errors(result, &context.file_manager, true, false)
         .expect("Error encountered while compiling standard library");
 

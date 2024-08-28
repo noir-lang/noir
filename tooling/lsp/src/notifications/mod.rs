@@ -2,7 +2,7 @@ use std::ops::ControlFlow;
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use noirc_driver::{check_crate, file_manager_with_stdlib};
+use noirc_driver::{check_crate, file_manager_with_stdlib, CheckOptions};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 
 use crate::types::{
@@ -132,13 +132,14 @@ pub(crate) fn process_workspace_for_noir_document(
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-            let error_on_unused_imports = package.error_on_unused_imports();
-            let options = &Default::default();
-            let file_diagnostics =
-                match check_crate(&mut context, crate_id, options, error_on_unused_imports) {
-                    Ok(((), warnings)) => warnings,
-                    Err(errors_and_warnings) => errors_and_warnings,
-                };
+            let options = CheckOptions {
+                error_on_unused_imports: package.error_on_unused_imports(),
+                ..Default::default()
+            };
+            let file_diagnostics = match check_crate(&mut context, crate_id, &options) {
+                Ok(((), warnings)) => warnings,
+                Err(errors_and_warnings) => errors_and_warnings,
+            };
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {

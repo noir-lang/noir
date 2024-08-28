@@ -61,9 +61,7 @@ fn on_test_run_request_inner(
         Some(package) => {
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
-            let error_on_unused_imports = false;
-            let options = &Default::default();
-            if check_crate(&mut context, crate_id, options, error_on_unused_imports).is_err() {
+            if check_crate(&mut context, crate_id, &Default::default()).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),

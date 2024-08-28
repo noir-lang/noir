@@ -131,6 +131,56 @@ pub struct CompileOptions {
     pub skip_underconstrained_check: bool,
 }
 
+/// Similar to CompileOptions but with some extra fields specific for `check_crate`.
+#[derive(Clone, Debug, Default)]
+pub struct CheckOptions {
+    pub expression_width: Option<ExpressionWidth>,
+    pub bounded_codegen: bool,
+    pub force_compile: bool,
+    pub show_ssa: bool,
+    pub emit_ssa: bool,
+    pub show_brillig: bool,
+    pub print_acir: bool,
+    pub benchmark_codegen: bool,
+    pub deny_warnings: bool,
+    pub silence_warnings: bool,
+    pub disable_macros: bool,
+    pub show_monomorphized: bool,
+    pub instrument_debug: bool,
+    pub force_brillig: bool,
+    pub debug_comptime_in_file: Option<String>,
+    pub show_artifact_paths: bool,
+    pub arithmetic_generics: bool,
+    pub skip_underconstrained_check: bool,
+    pub error_on_unused_imports: bool,
+}
+
+impl CheckOptions {
+    pub fn from_compile_options(options: &CompileOptions, error_on_unused_imports: bool) -> Self {
+        Self {
+            expression_width: options.expression_width,
+            bounded_codegen: options.bounded_codegen,
+            force_compile: options.force_compile,
+            show_ssa: options.show_ssa,
+            emit_ssa: options.emit_ssa,
+            show_brillig: options.show_brillig,
+            print_acir: options.print_acir,
+            benchmark_codegen: options.benchmark_codegen,
+            deny_warnings: options.deny_warnings,
+            silence_warnings: options.silence_warnings,
+            disable_macros: options.disable_macros,
+            show_monomorphized: options.show_monomorphized,
+            instrument_debug: options.instrument_debug,
+            force_brillig: options.force_brillig,
+            debug_comptime_in_file: options.debug_comptime_in_file.clone(),
+            show_artifact_paths: options.show_artifact_paths,
+            arithmetic_generics: options.arithmetic_generics,
+            skip_underconstrained_check: options.skip_underconstrained_check,
+            error_on_unused_imports,
+        }
+    }
+}
+
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
     use std::io::{Error, ErrorKind};
     let width = input
@@ -278,8 +328,7 @@ pub fn add_dep(
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
-    options: &CompileOptions,
-    error_on_unused_imports: bool,
+    options: &CheckOptions,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro] };
@@ -290,7 +339,7 @@ pub fn check_crate(
         context,
         options.debug_comptime_in_file.as_deref(),
         options.arithmetic_generics,
-        error_on_unused_imports,
+        options.error_on_unused_imports,
         macros,
     );
     errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
@@ -325,7 +374,9 @@ pub fn compile_main(
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
     let error_on_unused_imports = true;
-    let (_, mut warnings) = check_crate(context, crate_id, options, error_on_unused_imports)?;
+    let check_options = CheckOptions::from_compile_options(options, error_on_unused_imports);
+
+    let (_, mut warnings) = check_crate(context, crate_id, &check_options)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -361,7 +412,8 @@ pub fn compile_contract(
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
     let error_on_unused_imports = true;
-    let (_, warnings) = check_crate(context, crate_id, options, error_on_unused_imports)?;
+    let check_options = CheckOptions::from_compile_options(options, error_on_unused_imports);
+    let (_, warnings) = check_crate(context, crate_id, &check_options)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
