@@ -154,7 +154,7 @@ fn failing_constraint<T>(
     Err(InterpreterError::FailingConstraint {
         message: Some(message.into()),
         location,
-        call_stack: call_stack.to_vec(),
+        call_stack: im::Vector::from(call_stack),
     })
 }
 

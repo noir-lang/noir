@@ -56,7 +56,7 @@ pub enum InterpreterError {
     FailingConstraint {
         message: Option<String>,
         location: Location,
-        call_stack: Vec<Location>,
+        call_stack: im::Vector<Location>,
     },
     NoMethodFound {
         name: String,

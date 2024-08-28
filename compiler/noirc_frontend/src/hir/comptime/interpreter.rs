@@ -1466,7 +1466,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
                 let message =
                     message.map(|value| value.display(self.elaborator.interner).to_string());
-                let call_stack = self.elaborator.interpreter_call_stack.clone();
+                let call_stack = im::Vector::from(self.elaborator.interpreter_call_stack.clone());
                 Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
             value => {
