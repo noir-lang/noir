@@ -330,7 +330,7 @@ fn new_assign(lhs: Expr, rhs: Expr) -> Expr {
 
 fn new_binary_op(lhs: Expr, op: BinaryOp, rhs: Expr) -> Expr {
     let op = op.quoted();
-    quote { $lhs $op $rhs }.as_expr().unwrap()
+    quote { ($lhs) $op ($rhs) }.as_expr().unwrap()
 }
 
 fn new_block(exprs: [Expr]) -> Expr {
@@ -339,7 +339,7 @@ fn new_block(exprs: [Expr]) -> Expr {
 }
 
 fn new_cast(expr: Expr, typ: UnresolvedType) -> Expr {
-    quote { $expr as $typ }.as_expr().unwrap()
+    quote { ($expr) as $typ }.as_expr().unwrap()
 }
 
 fn new_comptime(exprs: [Expr]) -> Expr {
@@ -401,7 +401,7 @@ fn new_tuple(exprs: [Expr]) -> Expr {
 
 fn new_unary_op(op: UnaryOp, rhs: Expr) -> Expr {
     let op = op.quoted();
-    quote { $op $rhs }.as_expr().unwrap()
+    quote { $op($rhs) }.as_expr().unwrap()
 }
 
 fn new_unsafe(exprs: [Expr]) -> Expr {
