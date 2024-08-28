@@ -117,7 +117,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
-            "to_le_radix" => to_le_radix(arguments, location),
+            "to_le_radix" => to_le_radix(arguments, return_type, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -429,12 +429,24 @@ fn quoted_as_type(
     Ok(Value::Type(typ))
 }
 
-fn to_le_radix(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (value, radix, limb_count) = check_three_arguments(arguments, location)?;
+fn to_le_radix(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    let (value, radix) = check_two_arguments(arguments, location)?;
 
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
-    let limb_count = get_u32(limb_count)?;
+    let limb_count = if let Type::Array(length, _) = return_type {
+        if let Type::Constant(limb_count) = *length {
+            limb_count
+        } else {
+            return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
+        }
+    } else {
+        return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
+    };
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix(value, radix);
