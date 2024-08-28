@@ -1,5 +1,5 @@
 import {
-  type ProofAndVerificationKey,
+  type AvmProofAndVerificationKey,
   type PublicInputsAndRecursiveProof,
   type PublicInputsAndTubeProof,
   type PublicKernelNonTailRequest,
@@ -149,7 +149,11 @@ export interface ServerCircuitProver {
    * Create a proof for the AVM circuit.
    * @param inputs - Inputs to the AVM circuit.
    */
-  getAvmProof(inputs: AvmCircuitInputs, signal?: AbortSignal, epochNumber?: number): Promise<ProofAndVerificationKey>;
+  getAvmProof(
+    inputs: AvmCircuitInputs,
+    signal?: AbortSignal,
+    epochNumber?: number,
+  ): Promise<AvmProofAndVerificationKey>;
 }
 
 /**

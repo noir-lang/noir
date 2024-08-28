@@ -1,5 +1,5 @@
 import {
-  type ProofAndVerificationKey,
+  type AvmProofAndVerificationKey,
   type ProvingJob,
   type ProvingJobSource,
   type ProvingRequest,
@@ -408,7 +408,11 @@ export class MemoryProvingQueue implements ServerCircuitProver, ProvingJobSource
   /**
    * Creates an AVM proof.
    */
-  getAvmProof(inputs: AvmCircuitInputs, signal?: AbortSignal, epochNumber?: number): Promise<ProofAndVerificationKey> {
+  getAvmProof(
+    inputs: AvmCircuitInputs,
+    signal?: AbortSignal,
+    epochNumber?: number,
+  ): Promise<AvmProofAndVerificationKey> {
     return this.enqueue({ type: ProvingRequestType.PUBLIC_VM, inputs }, signal, epochNumber);
   }
 

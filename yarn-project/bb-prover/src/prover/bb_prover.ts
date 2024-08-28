@@ -1,6 +1,6 @@
 /* eslint-disable require-await */
 import {
-  type ProofAndVerificationKey,
+  type AvmProofAndVerificationKey,
   type PublicInputsAndRecursiveProof,
   type PublicKernelNonTailRequest,
   type PublicKernelTailRequest,
@@ -11,6 +11,7 @@ import { type CircuitProvingStats, type CircuitWitnessGenerationStats } from '@a
 import {
   AGGREGATION_OBJECT_LENGTH,
   type AvmCircuitInputs,
+  type AvmVerificationKeyData,
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
@@ -94,7 +95,7 @@ import type { ACVMConfig, BBConfig } from '../config.js';
 import { ProverInstrumentation } from '../instrumentation.js';
 import { PublicKernelArtifactMapping } from '../mappings/mappings.js';
 import { mapProtocolArtifactNameToCircuitName } from '../stats.js';
-import { extractVkData } from '../verification_key/verification_key_data.js';
+import { extractAvmVkData, extractVkData } from '../verification_key/verification_key_data.js';
 
 const logger = createDebugLogger('aztec:bb-prover');
 
@@ -202,7 +203,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
   @trackSpan('BBNativeRollupProver.getAvmProof', inputs => ({
     [Attributes.APP_CIRCUIT_NAME]: inputs.functionName,
   }))
-  public async getAvmProof(inputs: AvmCircuitInputs): Promise<ProofAndVerificationKey> {
+  public async getAvmProof(inputs: AvmCircuitInputs): Promise<AvmProofAndVerificationKey> {
     const proofAndVk = await this.createAvmProof(inputs);
     await this.verifyAvmProof(proofAndVk.proof, proofAndVk.verificationKey);
     return proofAndVk;
@@ -626,14 +627,14 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     return provingResult;
   }
 
-  private async createAvmProof(input: AvmCircuitInputs): Promise<ProofAndVerificationKey> {
-    const operation = async (bbWorkingDirectory: string): Promise<ProofAndVerificationKey> => {
+  private async createAvmProof(input: AvmCircuitInputs): Promise<AvmProofAndVerificationKey> {
+    const operation = async (bbWorkingDirectory: string): Promise<AvmProofAndVerificationKey> => {
       const provingResult = await this.generateAvmProofWithBB(input, bbWorkingDirectory);
 
       const rawProof = await fs.readFile(provingResult.proofPath!);
       // TODO(https://github.com/AztecProtocol/aztec-packages/issues/6773): this VK data format is wrong.
       // In particular, the number of public inputs, etc will be wrong.
-      const verificationKey = await extractVkData(provingResult.vkPath!);
+      const verificationKey = await extractAvmVkData(provingResult.vkPath!);
       const proof = new Proof(rawProof, verificationKey.numPublicInputs);
 
       const circuitType = 'avm-circuit' as const;
@@ -765,7 +766,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
     return await this.verifyWithKey(verificationKey, proof);
   }
 
-  public async verifyAvmProof(proof: Proof, verificationKey: VerificationKeyData) {
+  public async verifyAvmProof(proof: Proof, verificationKey: AvmVerificationKeyData) {
     return await this.verifyWithKeyInternal(proof, verificationKey, verifyAvmProof);
   }
 
@@ -775,7 +776,7 @@ export class BBNativeRollupProver implements ServerCircuitProver {
 
   private async verifyWithKeyInternal(
     proof: Proof,
-    verificationKey: VerificationKeyData,
+    verificationKey: { keyAsBytes: Buffer },
     verificationFunction: VerificationFunction,
   ) {
     const operation = async (bbWorkingDirectory: string) => {

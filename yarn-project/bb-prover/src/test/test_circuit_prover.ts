@@ -1,5 +1,5 @@
 import {
-  type ProofAndVerificationKey,
+  type AvmProofAndVerificationKey,
   type PublicInputsAndRecursiveProof,
   type PublicKernelNonTailRequest,
   type PublicKernelTailRequest,
@@ -8,6 +8,7 @@ import {
 } from '@aztec/circuit-types';
 import {
   type AvmCircuitInputs,
+  AvmVerificationKeyData,
   type BaseOrMergeRollupPublicInputs,
   type BaseParityInputs,
   type BaseRollupInputs,
@@ -475,12 +476,12 @@ export class TestCircuitProver implements ServerCircuitProver {
     );
   }
 
-  public async getAvmProof(_inputs: AvmCircuitInputs): Promise<ProofAndVerificationKey> {
+  public async getAvmProof(_inputs: AvmCircuitInputs): Promise<AvmProofAndVerificationKey> {
     // We can't simulate the AVM because we don't have enough context to do so (e.g., DBs).
     // We just return an empty proof and VK data.
     this.logger.debug('Skipping AVM simulation in TestCircuitProver.');
     await this.delay();
-    return { proof: makeEmptyProof(), verificationKey: VerificationKeyData.makeFake() };
+    return { proof: makeEmptyProof(), verificationKey: AvmVerificationKeyData.makeFake() };
   }
 
   private async delay(): Promise<void> {

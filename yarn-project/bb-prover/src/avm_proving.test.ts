@@ -1,5 +1,6 @@
 import {
   AvmCircuitInputs,
+  AvmVerificationKeyData,
   AztecAddress,
   ContractStorageRead,
   ContractStorageUpdateRequest,
@@ -49,7 +50,7 @@ import path from 'path';
 import { PublicSideEffectTrace } from '../../simulator/src/public/side_effect_trace.js';
 import { SerializableContractInstance } from '../../types/src/contracts/contract_instance.js';
 import { type BBSuccess, BB_RESULT, generateAvmProof, verifyAvmProof } from './bb/execute.js';
-import { extractVkData } from './verification_key/verification_key_data.js';
+import { extractAvmVkData } from './verification_key/verification_key_data.js';
 
 const TIMEOUT = 60_000;
 const TIMESTAMP = new Fr(99833);
@@ -279,18 +280,10 @@ const proveAndVerifyAvmTestContract = async (
   const proofRes = await generateAvmProof(bbPath, bbWorkingDirectory, avmCircuitInputs, logger);
   expect(proofRes.status).toEqual(BB_RESULT.SUCCESS);
 
-  // Then we test VK extraction.
+  // Then we test VK extraction and serialization.
   const succeededRes = proofRes as BBSuccess;
-  const verificationKey = await extractVkData(succeededRes.vkPath!);
-
-  // VK is composed of
-  // - circuit size encoded as a fr field element (32 bytes)
-  // - num of inputs encoded as a fr field element (32 bytes)
-  // - 16 affine elements (curve base field fq) encoded as fr elements takes (16 * 4 * 32 bytes)
-  // 16 above refers to the constant AvmFlavor::NUM_PRECOMPUTED_ENTITIES
-  // Total number of bytes = 2112
-  const NUM_PRECOMPUTED_ENTITIES = 16;
-  expect(verificationKey.keyAsBytes).toHaveLength(NUM_PRECOMPUTED_ENTITIES * 4 * 32 + 2 * 32);
+  const vkData = await extractAvmVkData(succeededRes.vkPath!);
+  AvmVerificationKeyData.fromBuffer(vkData.toBuffer());
 
   // Then we verify.
   const rawVkPath = path.join(succeededRes.vkPath!, 'vk');
