@@ -1,6 +1,6 @@
 pub(crate) mod data_bus;
 
-use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
+use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
 use acvm::{acir::circuit::ErrorSelector, FieldElement};
 use noirc_errors::Location;
@@ -189,7 +189,7 @@ impl FunctionBuilder {
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self, element_type: Type) -> ValueId {
-        let reference_type = Type::Reference(Rc::new(element_type));
+        let reference_type = Type::Reference(Arc::new(element_type));
         self.insert_instruction(Instruction::Allocate, Some(vec![reference_type])).first()
     }
 
@@ -516,7 +516,7 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use acvm::{acir::AcirField, FieldElement};
 
@@ -542,7 +542,7 @@ mod tests {
         let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
         let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
         let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
-        let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), 8)];
+        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), 8)];
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 

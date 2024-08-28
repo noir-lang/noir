@@ -26,6 +26,7 @@ serde_json.workspace = true
 serde_with = "3.2.0"
 tracing.workspace = true
 chrono = "0.4.37"
+rayon = "1.8.0"
 
 [dev-dependencies]
 proptest.workspace = true

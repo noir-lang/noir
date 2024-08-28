@@ -22,7 +22,7 @@ use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use super::brillig_black_box::convert_black_box_call;
 use super::brillig_block_variables::BlockVariables;
@@ -1701,7 +1701,7 @@ impl<'block> BrilligBlock<'block> {
 
     fn initialize_constant_array_runtime(
         &mut self,
-        item_types: Rc<Vec<Type>>,
+        item_types: Arc<Vec<Type>>,
         item_to_repeat: Vec<ValueId>,
         item_count: usize,
         pointer: MemoryAddress,
