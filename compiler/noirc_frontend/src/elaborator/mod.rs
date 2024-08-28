@@ -17,7 +17,7 @@ use crate::{
     },
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
-        function::{FunctionBody, Parameters},
+        function::FunctionBody,
         traits::TraitConstraint,
         types::{Generics, Kind, ResolvedGeneric},
     },
@@ -891,51 +891,6 @@ impl<'context> Elaborator<'context> {
             func.name() == MAIN_FUNCTION
         }
     }
-
-    // // TODO: cleanup
-    // fn declare_numeric_generics(&mut self, params: &Parameters, return_type: &Type) {
-    //     // TODO
-    //     // if self.generics.is_empty() {
-    //     //     return;
-    //     // }
-    //     //
-    //     // for (name_to_find, type_variable) in Self::find_numeric_generics(params, return_type) {
-    //     //     // TODO: cleanup comments
-    //     //     //
-    //     //     // Declare any generics to let users use numeric generics in scope.
-    //     //     // Don't issue a warning if these are unused
-    //     //     //
-    //     //     // We can fail to find the generic in self.generics if it is an implicit one created
-    //     //     // by the compiler. This can happen when, e.g. eliding array lengths using the slice
-    //     //     // syntax [T].
-    //     //     if let Some(ResolvedGeneric { name, span, kind, .. }) =
-    //     //         self.generics.iter_mut().find(|generic| generic.name.as_ref() == &name_to_find)
-    //     //     {
-    //     //         // TODO: cleanup comments
-    //     //         //
-    //     //         let scope = self.scopes.get_mut_scope();
-    //     //         let value = scope.find(&name_to_find);
-    //     //         if value.is_some() {
-    //     //             // With the addition of explicit numeric generics we do not want to introduce numeric generics in this manner
-    //     //             // However, this is going to be a big breaking change so for now we simply issue a warning while users have time
-    //     //             // to transition to the new syntax
-    //     //             // e.g. this code would break with a duplicate definition error:
-    //     //             // ```
-    //     //             // fn foo<let N: u8>(arr: [Field; N]) { }
-    //     //             // ```
-    //     //             continue;
-    //     //         }
-    //     //         *kind = Kind::Numeric(Box::new(Type::default_int_type()));
-    //     //         let ident = Ident::new(name.to_string(), *span);
-    //     //
-    //     //         // TODO
-    //     //         // let definition = DefinitionKind::GenericType(type_variable);
-    //     //         // self.add_variable_decl_inner(ident.clone(), false, false, false, definition);
-    //     //
-    //     //         self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
-    //     //     }
-    //     // }
-    // }
 
     fn add_trait_constraints_to_scope(&mut self, func_meta: &FuncMeta) {
         for constraint in &func_meta.trait_constraints {

@@ -136,6 +136,12 @@ pub enum Kind {
     Numeric(Box<Type>),
 }
 
+impl Kind {
+    pub(crate) fn is_numeric(&self) -> bool {
+        matches!(self, Self::Numeric { .. })
+    }
+}
+
 impl std::fmt::Display for Kind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -209,7 +215,7 @@ impl ResolvedGeneric {
     }
 
     fn is_numeric(&self) -> bool {
-        matches!(self.kind, Kind::Numeric { .. })
+        self.kind.is_numeric()
     }
 }
 
@@ -837,77 +843,6 @@ impl Type {
             self.follow_bindings(),
             FieldElement | Integer(..) | Bool | TypeVariable(_, K::Integer | K::IntegerOrField)
         )
-    }
-
-    fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
-        // True if the given type is a NamedGeneric with the target_id
-        let named_generic_id_matches_target = |typ: &Type| {
-            if let Type::NamedGeneric(type_variable, _, _) = typ {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(_) => {
-                        unreachable!("Named generics should not be bound until monomorphization")
-                    }
-                    TypeBinding::Unbound(id) => target_id == *id,
-                }
-            } else {
-                false
-            }
-        };
-
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::TypeVariable(_, _)
-            | Type::Constant(_)
-            | Type::NamedGeneric(_, _, _)
-            | Type::Forall(_, _)
-            | Type::Quoted(_) => false,
-
-            Type::TraitAsType(_, _, generics) => {
-                generics.ordered.iter().any(|generic| generic.contains_numeric_typevar(target_id))
-                    || generics.named.iter().any(|typ| typ.typ.contains_numeric_typevar(target_id))
-            }
-            Type::Array(length, elem) => {
-                elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
-            }
-            Type::Slice(elem) => elem.contains_numeric_typevar(target_id),
-            Type::Tuple(fields) => {
-                fields.iter().any(|field| field.contains_numeric_typevar(target_id))
-            }
-            Type::Function(parameters, return_type, env, _unconstrained) => {
-                parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
-                    || return_type.contains_numeric_typevar(target_id)
-                    || env.contains_numeric_typevar(target_id)
-            }
-            Type::Struct(struct_type, generics) => {
-                generics.iter().enumerate().any(|(i, generic)| {
-                    if named_generic_id_matches_target(generic) {
-                        struct_type.borrow().generic_is_numeric(i)
-                    } else {
-                        generic.contains_numeric_typevar(target_id)
-                    }
-                })
-            }
-            Type::Alias(alias, generics) => generics.iter().enumerate().any(|(i, generic)| {
-                if named_generic_id_matches_target(generic) {
-                    alias.borrow().generic_is_numeric(i)
-                } else {
-                    generic.contains_numeric_typevar(target_id)
-                }
-            }),
-            Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
-            Type::String(length) => named_generic_id_matches_target(length),
-            Type::FmtString(length, elements) => {
-                elements.contains_numeric_typevar(target_id)
-                    || named_generic_id_matches_target(length)
-            }
-            Type::InfixExpr(lhs, _op, rhs) => {
-                lhs.contains_numeric_typevar(target_id) || rhs.contains_numeric_typevar(target_id)
-            }
-        }
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/5156)

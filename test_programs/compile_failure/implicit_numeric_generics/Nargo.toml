@@ -1,0 +1,7 @@
+[package]
+name = "implicit_numeric_generics"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]
