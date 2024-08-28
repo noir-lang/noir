@@ -422,10 +422,7 @@ fn quoted_as_type(
     Ok(Value::Type(typ))
 }
 
-fn to_le_radix(
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
+fn to_le_radix(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (value, radix, limb_count) = check_three_arguments(arguments, location)?;
 
     let value = get_field(value)?;
