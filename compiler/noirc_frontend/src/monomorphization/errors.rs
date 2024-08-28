@@ -34,7 +34,7 @@ impl MonomorphizationError {
     fn into_diagnostic(self) -> CustomDiagnostic {
         let message = match &self {
             MonomorphizationError::UnknownArrayLength { length, .. } => {
-                format!("ICE: Could not determine array length `{length}`")
+                format!("Could not determine array length `{length}`")
             }
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();
