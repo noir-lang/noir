@@ -44,11 +44,11 @@ pub fn get_order_hints<T, let N: u32>(
     hints
 }
 
-pub fn get_order_hints_asc<T, S, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
+pub fn get_order_hints_asc<T, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
     get_order_hints(array, compare_by_counter_empty_padded_asc)
 }
 
-pub fn get_order_hints_desc<T, S, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
+pub fn get_order_hints_desc<T, let N: u32>(array: [T; N]) -> [OrderHint; N] where T: Ordered + Eq + Empty {
     get_order_hints(array, compare_by_counter_empty_padded_desc)
 }
 

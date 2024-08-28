@@ -30,7 +30,7 @@ unconstrained fn count_private_items<T, let N: u32>(array: [T; N]) -> u32 where 
     length
 }
 
-pub fn get_combined_order_hints_asc<T, S, let N: u32>(
+pub fn get_combined_order_hints_asc<T, let N: u32>(
     array_lt: [T; N],
     array_gte: [T; N]
 ) -> [CombinedOrderHint; N] where T: Ordered + Eq + Empty {
