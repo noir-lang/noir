@@ -13,7 +13,7 @@ import { type DebugLogger, type LogFn } from '@aztec/foundation/log';
 import { getContract } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
-import { FeeJuicePortalManager } from '../../utils/portal_manager.js';
+// import { FeeJuicePortalManager } from '../../utils/portal_manager.js';
 
 type ContractDeploymentInfo = {
   address: AztecAddress;
@@ -52,7 +52,8 @@ export async function bootstrapNetwork(
   const fpc = await deployFPC(wallet, token.address);
 
   const counter = await deployCounter(wallet);
-  await fundFPC(counter.address, wallet, l1Clients, fpc.address, debugLog);
+  // NOTE: Disabling for now in order to get devnet running
+  // await fundFPC(counter.address, wallet, l1Clients, fpc.address, debugLog);
 
   if (json) {
     log(
@@ -215,47 +216,48 @@ async function deployCounter(wallet: Wallet): Promise<ContractDeploymentInfo> {
   return info;
 }
 
-async function fundFPC(
-  counterAddress: AztecAddress,
-  wallet: Wallet,
-  l1Clients: L1Clients,
-  fpcAddress: AztecAddress,
-  debugLog: DebugLogger,
-) {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
-  const { FeeJuiceContract, CounterContract } = await import('@aztec/noir-contracts.js');
-  const {
-    protocolContractAddresses: { feeJuice },
-  } = await wallet.getPXEInfo();
+// NOTE: Disabling for now in order to get devnet running
+// async function fundFPC(
+//   counterAddress: AztecAddress,
+//   wallet: Wallet,
+//   l1Clients: L1Clients,
+//   fpcAddress: AztecAddress,
+//   debugLog: DebugLogger,
+// ) {
+//   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+//   // @ts-ignore - Importing noir-contracts.js even in devDeps results in a circular dependency error. Need to ignore because this line doesn't cause an error in a dev environment
+//   const { FeeJuiceContract, CounterContract } = await import('@aztec/noir-contracts.js');
+//   const {
+//     protocolContractAddresses: { feeJuice },
+//   } = await wallet.getPXEInfo();
 
-  const feeJuiceContract = await FeeJuiceContract.at(feeJuice, wallet);
+//   const feeJuiceContract = await FeeJuiceContract.at(feeJuice, wallet);
 
-  const feeJuicePortal = await FeeJuicePortalManager.new(
-    wallet,
-    l1Clients.publicClient,
-    l1Clients.walletClient,
-    debugLog,
-  );
+//   const feeJuicePortal = await FeeJuicePortalManager.new(
+//     wallet,
+//     l1Clients.publicClient,
+//     l1Clients.walletClient,
+//     debugLog,
+//   );
 
-  const amount = 10n ** 21n;
-  const { claimAmount, claimSecret } = await feeJuicePortal.bridgeTokensPublic(fpcAddress, amount, true);
+//   const amount = 10n ** 21n;
+//   const { claimAmount, claimSecret } = await feeJuicePortal.bridgeTokensPublic(fpcAddress, amount, true);
 
-  const counter = await CounterContract.at(counterAddress, wallet);
+//   const counter = await CounterContract.at(counterAddress, wallet);
 
-  // TODO (alexg) remove this once sequencer builds blocks continuously
-  // advance the chain
-  await counter.methods
-    .increment(wallet.getAddress(), wallet.getAddress())
-    .send()
-    .wait({ proven: true, provenTimeout: 600 });
-  await counter.methods
-    .increment(wallet.getAddress(), wallet.getAddress())
-    .send()
-    .wait({ proven: true, provenTimeout: 600 });
+//   // TODO (alexg) remove this once sequencer builds blocks continuously
+//   // advance the chain
+//   await counter.methods
+//     .increment(wallet.getAddress(), wallet.getAddress())
+//     .send()
+//     .wait({ proven: true, provenTimeout: 600 });
+//   await counter.methods
+//     .increment(wallet.getAddress(), wallet.getAddress())
+//     .send()
+//     .wait({ proven: true, provenTimeout: 600 });
 
-  await feeJuiceContract.methods
-    .claim(fpcAddress, claimAmount, claimSecret)
-    .send()
-    .wait({ proven: true, provenTimeout: 600 });
-}
+//   await feeJuiceContract.methods
+//     .claim(fpcAddress, claimAmount, claimSecret)
+//     .send()
+//     .wait({ proven: true, provenTimeout: 600 });
+// }
