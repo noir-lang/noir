@@ -1073,7 +1073,6 @@ impl<'a> Context<'a> {
 
         match self.convert_value(array_id, dfg) {
             AcirValue::Var(acir_var, _) => {
-                println!("{array}[{index}]");
                 Err(RuntimeError::InternalError(InternalError::Unexpected {
                     expected: "an array value".to_string(),
                     found: format!("{acir_var:?}"),
@@ -2199,7 +2198,6 @@ impl<'a> Context<'a> {
 
                 let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
                 else {
-
                     unreachable!("ICE: ToRadix result must be an array");
                 };
 
