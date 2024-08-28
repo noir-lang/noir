@@ -301,6 +301,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let meta = self.interner.function_meta(&f).clone();
+
         let mut func_sig = meta.function_signature();
         // Follow the bindings of the function signature for entry points
         // which are not `main` such as foldable functions.
@@ -1958,6 +1959,7 @@ pub fn resolve_trait_method(
         TraitImplKind::Normal(impl_id) => impl_id,
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
+
             match interner.lookup_trait_implementation(
                 &object_type,
                 method.trait_id,

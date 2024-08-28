@@ -436,14 +436,19 @@ impl<'context> Elaborator<'context> {
                 })
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
-            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs);
                 let rhs = self.convert_expression_type(*rhs);
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs), Type::Constant(rhs)) => {
-                        Type::Constant(op.function(lhs, rhs))
+                        if let Some(result) = op.function(lhs, rhs) {
+                            Type::Constant(result)
+                        } else {
+                            self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
+                            Type::Error
+                        }
                     }
                     (lhs, rhs) => {
                         if !self.enable_arithmetic_generics {

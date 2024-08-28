@@ -160,6 +160,7 @@ fn fmt_trait_generics(
                 write!(f, "{} = {}", named.name, named.typ)?;
             }
         }
+        write!(f, ">")?;
     }
     Ok(())
 }
