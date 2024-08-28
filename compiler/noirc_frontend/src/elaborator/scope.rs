@@ -61,8 +61,9 @@ impl<'context> Elaborator<'context> {
         let mut path = path;
 
         if path.kind == PathKind::Plain {
-            self.def_maps.get_mut(&self.crate_id).unwrap().modules[module_id.local_id.0]
-                .use_import(&path.segments[0].ident);
+            let def_map = self.def_maps.get_mut(&self.crate_id).unwrap();
+            let module_data = &mut def_map.modules[module_id.local_id.0];
+            module_data.use_import(&path.segments[0].ident);
         }
 
         if path.kind == PathKind::Plain && path.first_name() == SELF_TYPE_NAME {
