@@ -263,33 +263,20 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         let index_at_end_of_array = self.allocate_register();
         let end_value_register = self.allocate_register();
 
+        self.usize_const_instruction(index_at_end_of_array, array.size.into());
+
         self.codegen_loop(iteration_count, |ctx, iterator_register| {
+            // The index at the end of array is size - 1 - iterator
+            ctx.codegen_usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, 1);
+            let index_at_end_of_array_var = SingleAddrVariable::new_usize(index_at_end_of_array);
+
             // Load both values
             ctx.codegen_array_get(array.pointer, iterator_register, start_value_register);
-
-            // The index at the end of array is size - 1 - iterator
-            ctx.usize_const_instruction(index_at_end_of_array, array.size.into());
-            ctx.codegen_usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, 1);
-            ctx.memory_op_instruction(
-                index_at_end_of_array,
-                iterator_register.address,
-                index_at_end_of_array,
-                BrilligBinaryOp::Sub,
-            );
-
-            ctx.codegen_array_get(
-                array.pointer,
-                SingleAddrVariable::new_usize(index_at_end_of_array),
-                end_value_register,
-            );
+            ctx.codegen_array_get(array.pointer, index_at_end_of_array_var, end_value_register);
 
             // Write both values
             ctx.codegen_array_set(array.pointer, iterator_register, end_value_register);
-            ctx.codegen_array_set(
-                array.pointer,
-                SingleAddrVariable::new_usize(index_at_end_of_array),
-                start_value_register,
-            );
+            ctx.codegen_array_set(array.pointer, index_at_end_of_array_var, start_value_register);
         });
 
         self.deallocate_register(iteration_count);
