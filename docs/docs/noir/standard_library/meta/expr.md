@@ -166,13 +166,13 @@ comptime {
 
 #include_code mutate noir_stdlib/src/meta/expr.nr rust
 
-Applies a mutating function to this expression or to all of its sub-expressions.
+Applies a mapping function to this expression and to all of its sub-expressions.
+`f` will be applied to each sub-expression first, then applied to the expression itself.
 
-If `f` returns `Option::some`, that's the return value of this method. Otherwise,
-`f` will be recursively called on each of this expression sub-expressions.
+This happens recursively for every expression within `self`.
 
-For example, calling `mutate` on `[1, 2, [3, 4]]` with an `f` that returns `Option::some`
-for expressions that are integers, doubling them, would return `[2, 4, [6, 8]]`.
+For example, calling `mutate` on `(&[1], &[2, 3])` with an `f` that returns `Option::some`
+for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`.
 
 ### quoted
 
