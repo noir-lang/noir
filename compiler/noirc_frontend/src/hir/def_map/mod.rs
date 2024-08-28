@@ -314,16 +314,13 @@ impl CrateDefMap {
         crate_id: CrateId,
         errors: &mut Vec<(CompilationError, FileId)>,
     ) {
-        for module in context.def_maps[&crate_id].modules() {
-            for ident in module.unused_imports() {
-                errors.push((
-                    CompilationError::ResolverError(ResolverError::UnusedImport {
-                        ident: ident.clone(),
-                    }),
-                    module.location.file,
-                ));
-            }
-        }
+        errors.extend(context.def_maps[&crate_id].modules().iter().flat_map(|(_, module)| {
+            module.unused_imports().iter().map(|ident| {
+                let ident = ident.clone();
+                let error = CompilationError::ResolverError(ResolverError::UnusedImport { ident });
+                (error, module.location.file)
+            })
+        }));
     }
 }
 
