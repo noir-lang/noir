@@ -103,7 +103,7 @@ extern {
 
 pub(crate) TopLevelStatement: TopLevelStatement = {
     "use" r"[\t\r\n ]+" <use_tree:UseTree> ";" <trailing_spaces:r"[\t\r\n ]+"?> EOF => {
-        TopLevelStatement::Import(use_tree)
+        TopLevelStatement::Import(use_tree, crate::ast::ItemVisibility::Private)
     }
 }
 
