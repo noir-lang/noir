@@ -24,7 +24,9 @@ use super::{
     traits::NamedType,
 };
 
-#[derive(PartialEq, Eq, Clone, Hash, Ord, PartialOrd)]
+mod arithmetic;
+
+#[derive(Eq, Clone, Ord, PartialOrd)]
 pub enum Type {
     /// A primitive Field type
     FieldElement,
@@ -1657,171 +1659,6 @@ impl Type {
         }
     }
 
-    /// Try to canonicalize the representation of this type.
-    /// Currently the only type with a canonical representation is
-    /// `Type::Infix` where for each consecutive commutative operator
-    /// we sort the non-constant operands by `Type: Ord` and place all constant
-    /// operands at the end, constant folded.
-    ///
-    /// For example:
-    /// - `canonicalize[((1 + N) + M) + 2] = (M + N) + 3`
-    /// - `canonicalize[A + 2 * B + 3 - 2] = A + (B * 2) + 3 - 2`
-    pub fn canonicalize(&self) -> Type {
-        match self.follow_bindings() {
-            Type::InfixExpr(lhs, op, rhs) => {
-                // evaluate_to_u32 also calls canonicalize so if we just called
-                // `self.evaluate_to_u32()` we'd get infinite recursion.
-                if let (Some(lhs), Some(rhs)) = (lhs.evaluate_to_u32(), rhs.evaluate_to_u32()) {
-                    if let Some(result) = op.function(lhs, rhs) {
-                        return Type::Constant(result);
-                    }
-                }
-
-                let lhs = lhs.canonicalize();
-                let rhs = rhs.canonicalize();
-                if let Some(result) = Self::try_simplify_non_constants(&lhs, op, &rhs) {
-                    return result;
-                }
-
-                // Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
-                // where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
-                if let Some(result) = Self::try_simplify_partial_constants(&lhs, op, &rhs) {
-                    return result;
-                }
-
-                if op.is_commutative() {
-                    return Self::sort_commutative(&lhs, op, &rhs);
-                }
-
-                Type::InfixExpr(Box::new(lhs), op, Box::new(rhs))
-            }
-            other => other,
-        }
-    }
-
-    fn sort_commutative(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
-        let mut queue = vec![lhs.clone(), rhs.clone()];
-
-        let mut sorted = BTreeSet::new();
-
-        let zero_value = if op == BinaryTypeOperator::Addition { 0 } else { 1 };
-        let mut constant = zero_value;
-
-        // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
-        while let Some(item) = queue.pop() {
-            match item.canonicalize() {
-                Type::InfixExpr(lhs, new_op, rhs) if new_op == op => {
-                    queue.push(*lhs);
-                    queue.push(*rhs);
-                }
-                Type::Constant(new_constant) => {
-                    if let Some(result) = op.function(constant, new_constant) {
-                        constant = result;
-                    } else {
-                        sorted.insert(Type::Constant(new_constant));
-                    }
-                }
-                other => {
-                    sorted.insert(other);
-                }
-            }
-        }
-
-        if let Some(first) = sorted.pop_first() {
-            let mut typ = first.clone();
-
-            for rhs in sorted {
-                typ = Type::InfixExpr(Box::new(typ), op, Box::new(rhs.clone()));
-            }
-
-            if constant != zero_value {
-                typ = Type::InfixExpr(Box::new(typ), op, Box::new(Type::Constant(constant)));
-            }
-
-            typ
-        } else {
-            // Every type must have been a constant
-            Type::Constant(constant)
-        }
-    }
-
-    /// Try to simplify non-constant expressions in the form `(N op1 M) op2 M`
-    /// where the two `M` terms are expected to cancel out.
-    ///
-    /// - Simplifies `(N +/- M) -/+ M` to `a`
-    /// - Simplifies `(N */÷ M) ÷/* M` to `a`
-    fn try_simplify_non_constants(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Option<Type> {
-        let Type::InfixExpr(l_type, l_op, l_rhs) = lhs.follow_bindings() else {
-            return None;
-        };
-
-        // Note that this is exact, syntactic equality, not unification.
-        if l_op.inverse() != Some(op) || l_rhs.canonicalize() != rhs.canonicalize() {
-            return None;
-        }
-
-        Some(*l_type)
-    }
-
-    /// Given:
-    ///   lhs = `N op C1`
-    ///   rhs = C2
-    /// Returns: `(N, op, C1, C2)` if C1 and C2 are constants.
-    ///   Note that the operator here is within the `lhs` term, the operator
-    ///   separating lhs and rhs is not needed.
-    fn parse_constant_expr(
-        lhs: &Type,
-        rhs: &Type,
-    ) -> Option<(Box<Type>, BinaryTypeOperator, u32, u32)> {
-        let rhs = rhs.evaluate_to_u32()?;
-
-        let Type::InfixExpr(l_type, l_op, l_rhs) = lhs.follow_bindings() else {
-            return None;
-        };
-
-        let l_rhs = l_rhs.evaluate_to_u32()?;
-        Some((l_type, l_op, l_rhs, rhs))
-    }
-
-    /// Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
-    /// where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
-    ///
-    /// - Simplifies `(N +/- C1) +/- C2` to `N +/- (C1 +/- C2)` if C1 and C2 are constants.
-    /// - Simplifies `(N */÷ C1) */÷ C2` to `N */÷ (C1 */÷ C2)` if C1 and C2 are constants.
-    fn try_simplify_partial_constants(
-        lhs: &Type,
-        mut op: BinaryTypeOperator,
-        rhs: &Type,
-    ) -> Option<Type> {
-        use BinaryTypeOperator::*;
-        let (l_type, l_op, l_const, r_const) = Type::parse_constant_expr(lhs, rhs)?;
-
-        match (l_op, op) {
-            (Addition | Subtraction, Addition | Subtraction) => {
-                // If l_op is a subtraction we want to inverse the rhs operator.
-                if l_op == Subtraction {
-                    op = op.inverse()?;
-                }
-                let result = op.function(l_const, r_const)?;
-                Some(Type::InfixExpr(l_type, l_op, Box::new(Type::Constant(result))))
-            }
-            (Multiplication | Division, Multiplication | Division) => {
-                // If l_op is a division we want to inverse the rhs operator.
-                if l_op == Division {
-                    op = op.inverse()?;
-                }
-                // If op is a division we need to ensure it divides evenly
-                if op == Division && (r_const == 0 || l_const % r_const != 0) {
-                    None
-                } else {
-                    let result = op.function(l_const, r_const)?;
-                    Some(Type::InfixExpr(l_type, l_op, Box::new(Type::Constant(result))))
-                }
-            }
-            _ => None,
-        }
-    }
-
     /// Try to unify a type variable to `self`.
     /// This is a helper function factored out from try_unify.
     fn try_unify_to_type_variable(
@@ -2714,5 +2551,138 @@ impl std::fmt::Debug for TypeVariable {
 impl std::fmt::Debug for StructType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
+    }
+}
+
+impl std::hash::Hash for Type {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        if let Some(variable) = self.get_inner_type_variable() {
+            if let TypeBinding::Bound(typ) = &*variable.borrow() {
+                typ.hash(state);
+                return;
+            }
+        }
+
+        if !matches!(self, Type::TypeVariable(..) | Type::NamedGeneric(..)) {
+            std::mem::discriminant(self).hash(state);
+        }
+
+        match self {
+            Type::FieldElement | Type::Bool | Type::Unit | Type::Error => (),
+            Type::Array(len, elem) => {
+                len.hash(state);
+                elem.hash(state);
+            }
+            Type::Slice(elem) => elem.hash(state),
+            Type::Integer(sign, bits) => {
+                sign.hash(state);
+                bits.hash(state);
+            }
+            Type::String(len) => len.hash(state),
+            Type::FmtString(len, env) => {
+                len.hash(state);
+                env.hash(state);
+            }
+            Type::Tuple(elems) => elems.hash(state),
+            Type::Struct(def, args) => {
+                def.hash(state);
+                args.hash(state);
+            }
+            Type::Alias(alias, args) => {
+                alias.hash(state);
+                args.hash(state);
+            }
+            Type::TypeVariable(var, _) | Type::NamedGeneric(var, ..) => var.hash(state),
+            Type::TraitAsType(trait_id, _, args) => {
+                trait_id.hash(state);
+                args.hash(state);
+            }
+            Type::Function(args, ret, env, is_unconstrained) => {
+                args.hash(state);
+                ret.hash(state);
+                env.hash(state);
+                is_unconstrained.hash(state);
+            }
+            Type::MutableReference(elem) => elem.hash(state),
+            Type::Forall(vars, typ) => {
+                vars.hash(state);
+                typ.hash(state);
+            }
+            Type::Constant(value) => value.hash(state),
+            Type::Quoted(typ) => typ.hash(state),
+            Type::InfixExpr(lhs, op, rhs) => {
+                lhs.hash(state);
+                op.hash(state);
+                rhs.hash(state);
+            }
+        }
+    }
+}
+
+impl PartialEq for Type {
+    fn eq(&self, other: &Self) -> bool {
+        if let Some(variable) = self.get_inner_type_variable() {
+            if let TypeBinding::Bound(typ) = &*variable.borrow() {
+                return typ == other;
+            }
+        }
+
+        if let Some(variable) = other.get_inner_type_variable() {
+            if let TypeBinding::Bound(typ) = &*variable.borrow() {
+                return self == typ;
+            }
+        }
+
+        use Type::*;
+        match (self, other) {
+            (FieldElement, FieldElement) | (Bool, Bool) | (Unit, Unit) | (Error, Error) => true,
+            (Array(lhs_len, lhs_elem), Array(rhs_len, rhs_elem)) => {
+                lhs_len == rhs_len && lhs_elem == rhs_elem
+            }
+            (Slice(lhs_elem), Slice(rhs_elem)) => lhs_elem == rhs_elem,
+            (Integer(lhs_sign, lhs_bits), Integer(rhs_sign, rhs_bits)) => {
+                lhs_sign == rhs_sign && lhs_bits == rhs_bits
+            }
+            (String(lhs_len), String(rhs_len)) => lhs_len == rhs_len,
+            (FmtString(lhs_len, lhs_env), FmtString(rhs_len, rhs_env)) => {
+                lhs_len == rhs_len && lhs_env == rhs_env
+            }
+            (Tuple(lhs_types), Tuple(rhs_types)) => lhs_types == rhs_types,
+            (Struct(lhs_struct, lhs_generics), Struct(rhs_struct, rhs_generics)) => {
+                lhs_struct == rhs_struct && lhs_generics == rhs_generics
+            }
+            (Alias(lhs_alias, lhs_generics), Alias(rhs_alias, rhs_generics)) => {
+                lhs_alias == rhs_alias && lhs_generics == rhs_generics
+            }
+            (TraitAsType(lhs_trait, _, lhs_generics), TraitAsType(rhs_trait, _, rhs_generics)) => {
+                lhs_trait == rhs_trait && lhs_generics == rhs_generics
+            }
+            (
+                Function(lhs_args, lhs_ret, lhs_env, lhs_unconstrained),
+                Function(rhs_args, rhs_ret, rhs_env, rhs_unconstrained),
+            ) => {
+                let args_and_ret_eq = lhs_args == rhs_args && lhs_ret == rhs_ret;
+                args_and_ret_eq && lhs_env == rhs_env && lhs_unconstrained == rhs_unconstrained
+            }
+            (MutableReference(lhs_elem), MutableReference(rhs_elem)) => lhs_elem == rhs_elem,
+            (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) => {
+                lhs_vars == rhs_vars && lhs_type == rhs_type
+            }
+            (Constant(lhs), Constant(rhs)) => lhs == rhs,
+            (Quoted(lhs), Quoted(rhs)) => lhs == rhs,
+            (InfixExpr(l_lhs, l_op, l_rhs), InfixExpr(r_lhs, r_op, r_rhs)) => {
+                l_lhs == r_lhs && l_op == r_op && l_rhs == r_rhs
+            }
+            // Special case: we consider unbound named generics and type variables to be equal to each
+            // other if their type variable ids match. This is important for some corner cases in
+            // monomorphization where we call `replace_named_generics_with_type_variables` but
+            // still want them to be equal for canonicalization checks in arithmetic generics.
+            // Without this we'd fail the `serialize` test.
+            (
+                NamedGeneric(lhs_var, _, _) | TypeVariable(lhs_var, _),
+                NamedGeneric(rhs_var, _, _) | TypeVariable(rhs_var, _),
+            ) => lhs_var.id() == rhs_var.id(),
+            _ => false,
+        }
     }
 }
