@@ -36,15 +36,14 @@ fn inject_context(f: FunctionDefinition) {
 }
 
 fn mapping_function(expr: Expr) -> Option<Expr> {
-    let func_call = expr.as_function_call();
-    if func_call.is_some() {
-        let (name, arguments) = func_call.unwrap();
+    expr.as_function_call().map(
+        |func_call: (Expr, [Expr])| {
+        let (name, arguments) = func_call;
         let arguments = arguments.push_front(quote { _context }.as_expr().unwrap());
         let arguments = arguments.map(|arg: Expr| arg.quoted()).join(quote { , });
-        Option::some(quote { $name($arguments) }.as_expr().unwrap())
-    } else {
-        Option::none()
+        quote { $name($arguments) }.as_expr().unwrap()
     }
+    )
 }
 
 fn main() {
