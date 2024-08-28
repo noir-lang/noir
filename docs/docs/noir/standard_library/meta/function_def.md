@@ -41,8 +41,6 @@ Mutate the function body to a new expression. This is only valid
 on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
 
-Requires the new body to be a valid expression.
-
 ### set_parameters
 
 #include_code set_parameters noir_stdlib/src/meta/function_def.nr rust

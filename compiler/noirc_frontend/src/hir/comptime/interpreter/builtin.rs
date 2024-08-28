@@ -9,8 +9,7 @@ use builtin_helpers::{
     check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_function_def,
     get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
     get_trait_impl, get_tuple, get_type, get_u32, get_unresolved_type, hir_pattern_to_tokens,
-    mutate_func_meta_type, parse, parse_tokens, replace_func_meta_parameters,
-    replace_func_meta_return_type,
+    mutate_func_meta_type, parse, replace_func_meta_parameters, replace_func_meta_return_type,
 };
 use chumsky::{prelude::choice, Parser};
 use im::Vector;
@@ -20,19 +19,16 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ArrayLiteral, Expression, ExpressionKind, FunctionKind, FunctionReturnType, IntegerBitSize,
-        LValue, Literal, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData, Visibility,
+        ArrayLiteral, BlockExpression, Expression, ExpressionKind, FunctionKind,
+        FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
+        UnresolvedType, UnresolvedTypeData, Visibility,
     },
-    hir::comptime::{
-        errors::IResult,
-        value::{add_token_spans, ExprValue},
-        InterpreterError, Value,
-    },
+    hir::comptime::{errors::IResult, value::ExprValue, InterpreterError, Value},
     hir_def::function::FunctionBody,
     macros_api::{HirExpression, HirLiteral, ModuleDefId, NodeInterner, Signedness},
     node_interner::{DefinitionKind, TraitImplKind},
     parser::{self},
-    token::{SpannedToken, Token},
+    token::Token,
     QuotedType, Shared, Type,
 };
 
@@ -1403,32 +1399,30 @@ fn function_def_return_type(
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
 }
 
-// fn set_body(self, body: Quoted)
+// fn set_body(self, body: Expr)
 fn function_def_set_body(
     interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, body_argument) = check_two_arguments(arguments, location)?;
-    let body_argument_location = body_argument.1;
+    let body_location = body_argument.1;
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
-    let body_tokens = get_quoted(body_argument)?;
-    let mut body_quoted = add_token_spans(body_tokens.clone(), body_argument_location.span);
+    let body_argument = get_expr(&interpreter.elaborator.interner, body_argument)?;
+    let statement_kind = match body_argument {
+        ExprValue::Expression(expression_kind) => StatementKind::Expression(Expression {
+            kind: expression_kind,
+            span: body_location.span,
+        }),
+        ExprValue::Statement(statement_kind) => statement_kind,
+        ExprValue::LValue(lvalue) => StatementKind::Expression(lvalue.as_expression()),
+    };
 
-    // Surround the body in `{ ... }` so we can parse it as a block
-    body_quoted.0.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
-    body_quoted.0.push(SpannedToken::new(Token::RightBrace, location.span));
-
-    let body = parse_tokens(
-        body_tokens,
-        body_quoted,
-        body_argument_location,
-        parser::block(parser::fresh_statement()),
-        "a block",
-    )?;
+    let statement = Statement { kind: statement_kind, span: body_location.span };
+    let body = BlockExpression { statements: vec![statement] };
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.has_body = true;
