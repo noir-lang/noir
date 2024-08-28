@@ -1811,7 +1811,7 @@ impl Type {
                     op = op.inverse()?;
                 }
                 // If op is a division we need to ensure it divides evenly
-                if op == Division && l_const % r_const != 0 {
+                if op == Division && &&(r_const == 0 || l_const % r_const != 0) {
                     None
                 } else {
                     let result = op.function(l_const, r_const)?;
