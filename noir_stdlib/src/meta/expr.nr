@@ -114,8 +114,7 @@ impl Expr {
     // docs:start:mutate
     fn mutate<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
         // docs:end:mutate
-        let result = f(self);
-        let result = result.or_else(|| mutate_array(self, f));
+        let result = mutate_array(self, f);
         let result = result.or_else(|| mutate_assign(self, f));
         let result = result.or_else(|| mutate_binary_op(self, f));
         let result = result.or_else(|| mutate_block(self, f));
@@ -132,7 +131,13 @@ impl Expr {
         let result = result.or_else(|| mutate_tuple(self, f));
         let result = result.or_else(|| mutate_unary_op(self, f));
         let result = result.or_else(|| mutate_unsafe(self, f));
-        result.unwrap_or(self)
+        if result.is_some() {
+            let result = result.unwrap_unchecked();
+            let modified = f(result);
+            modified.unwrap_or(result)
+        } else {
+            self
+        }
     }
 
     // docs:start:quoted
