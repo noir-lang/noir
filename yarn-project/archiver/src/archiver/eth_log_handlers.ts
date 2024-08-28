@@ -16,6 +16,8 @@ import {
   slice,
 } from 'viem';
 
+import { type L1PublishedData } from './structs/published.js';
+
 /**
  * Processes newly received MessageSent (L1 to L2) logs.
  * @param logs - MessageSent logs.
@@ -43,8 +45,8 @@ export async function processL2BlockProcessedLogs(
   publicClient: PublicClient,
   expectedL2BlockNumber: bigint,
   logs: Log<bigint, number, false, undefined, true, typeof RollupAbi, 'L2BlockProcessed'>[],
-): Promise<[Header, AppendOnlyTreeSnapshot][]> {
-  const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot][] = [];
+): Promise<[Header, AppendOnlyTreeSnapshot, L1PublishedData][]> {
+  const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot, L1PublishedData][] = [];
   for (const log of logs) {
     const blockNum = log.args.blockNumber;
     if (blockNum !== expectedL2BlockNumber) {
@@ -57,11 +59,22 @@ export async function processL2BlockProcessedLogs(
       log.args.blockNumber,
     );
 
-    retrievedBlockMetadata.push([header, archive]);
+    const l1: L1PublishedData = {
+      blockNumber: log.blockNumber,
+      blockHash: log.blockHash,
+      timestamp: await getL1BlockTime(publicClient, log.blockNumber),
+    };
+
+    retrievedBlockMetadata.push([header, archive, l1]);
     expectedL2BlockNumber++;
   }
 
   return retrievedBlockMetadata;
+}
+
+export async function getL1BlockTime(publicClient: PublicClient, blockNumber: bigint): Promise<bigint> {
+  const block = await publicClient.getBlock({ blockNumber, includeTransactions: false });
+  return block.timestamp;
 }
 
 export async function processTxsPublishedLogs(

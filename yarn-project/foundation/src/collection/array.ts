@@ -82,3 +82,21 @@ export function arraySerializedSizeOfNonEmpty(
     .map(x => x!.toBuffer().length)
     .reduce((a, b) => a + b, 0);
 }
+
+/**
+ * Removes duplicates from the given array.
+ * @param arr - The array.
+ * @returns A new array.
+ */
+export function unique<T>(arr: T[]): T[] {
+  return [...new Set(arr)];
+}
+
+/**
+ * Removes all undefined elements from the array.
+ * @param arr - The array.
+ * @returns A new array.
+ */
+export function compactArray<T>(arr: (T | undefined)[]): T[] {
+  return arr.filter((x: T | undefined): x is T => x !== undefined);
+}

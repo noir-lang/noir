@@ -14,20 +14,8 @@ import {
   processMessageSentLogs,
   processTxsPublishedLogs,
 } from './eth_log_handlers.js';
-
-/**
- * Data retrieved from logs
- */
-export type DataRetrieval<T> = {
-  /**
-   * Blocknumber of the last L1 block from which we obtained data.
-   */
-  lastProcessedL1BlockNumber: bigint;
-  /**
-   * The data returned.
-   */
-  retrievedData: T[];
-};
+import { type DataRetrieval } from './structs/data_retrieval.js';
+import { type L1PublishedData } from './structs/published.js';
 
 /**
  * Fetches new L2 block metadata (header, archive snapshot).
@@ -47,8 +35,8 @@ export async function retrieveBlockMetadataFromRollup(
   searchEndBlock: bigint,
   expectedNextL2BlockNum: bigint,
   logger: DebugLogger = createDebugLogger('aztec:archiver'),
-): Promise<DataRetrieval<[Header, AppendOnlyTreeSnapshot]>> {
-  const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot][] = [];
+): Promise<[Header, AppendOnlyTreeSnapshot, L1PublishedData][]> {
+  const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot, L1PublishedData][] = [];
   do {
     if (searchStartBlock > searchEndBlock) {
       break;
@@ -77,7 +65,7 @@ export async function retrieveBlockMetadataFromRollup(
     searchStartBlock = lastLog.blockNumber! + 1n;
     expectedNextL2BlockNum += BigInt(newBlockMetadata.length);
   } while (blockUntilSynced && searchStartBlock <= searchEndBlock);
-  return { lastProcessedL1BlockNumber: searchStartBlock - 1n, retrievedData: retrievedBlockMetadata };
+  return retrievedBlockMetadata;
 }
 
 /**

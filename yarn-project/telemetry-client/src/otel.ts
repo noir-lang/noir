@@ -66,6 +66,10 @@ export class OpenTelemetryClient implements TelemetryClient {
     this.hostMetrics.start();
   }
 
+  public isEnabled() {
+    return true;
+  }
+
   public async stop() {
     await Promise.all([this.meterProvider.shutdown()]);
   }

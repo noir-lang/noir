@@ -15,7 +15,8 @@ import {
 } from '@aztec/types/contracts';
 
 import { type ArchiverDataStore, type ArchiverL1SynchPoint } from './archiver_store.js';
-import { type DataRetrieval } from './data_retrieval.js';
+import { type DataRetrieval } from './structs/data_retrieval.js';
+import { type L1Published } from './structs/published.js';
 
 /**
  * @param testName - The name of the test suite.
@@ -24,24 +25,24 @@ import { type DataRetrieval } from './data_retrieval.js';
 export function describeArchiverDataStore(testName: string, getStore: () => ArchiverDataStore) {
   describe(testName, () => {
     let store: ArchiverDataStore;
-    let blocks: DataRetrieval<L2Block>;
+    let blocks: L1Published<L2Block>[];
     let blockBodies: DataRetrieval<Body>;
-    const blockTests: [number, number, () => L2Block[]][] = [
-      [1, 1, () => blocks.retrievedData.slice(0, 1)],
-      [10, 1, () => blocks.retrievedData.slice(9, 10)],
-      [1, 10, () => blocks.retrievedData.slice(0, 10)],
-      [2, 5, () => blocks.retrievedData.slice(1, 6)],
-      [5, 2, () => blocks.retrievedData.slice(4, 6)],
+    const blockTests: [number, number, () => L1Published<L2Block>[]][] = [
+      [1, 1, () => blocks.slice(0, 1)],
+      [10, 1, () => blocks.slice(9, 10)],
+      [1, 10, () => blocks.slice(0, 10)],
+      [2, 5, () => blocks.slice(1, 6)],
+      [5, 2, () => blocks.slice(4, 6)],
     ];
 
     beforeEach(() => {
       store = getStore();
-      blocks = {
-        lastProcessedL1BlockNumber: 5n,
-        retrievedData: Array.from({ length: 10 }).map((_, i) => L2Block.random(i + 1)),
-      };
+      blocks = times(10, i => ({
+        data: L2Block.random(i + 1),
+        l1: { blockNumber: BigInt(i + 10), blockHash: `0x${i}`, timestamp: BigInt(i * 1000) },
+      }));
       blockBodies = {
-        retrievedData: blocks.retrievedData.map(block => block.body),
+        retrievedData: blocks.map(block => block.data.body),
         lastProcessedL1BlockNumber: 4n,
       };
     });
@@ -80,7 +81,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       });
 
       it('resets `from` to the first block if it is out of range', async () => {
-        await expect(store.getBlocks(INITIAL_L2_BLOCK_NUM - 100, 1)).resolves.toEqual(blocks.retrievedData.slice(0, 1));
+        await expect(store.getBlocks(INITIAL_L2_BLOCK_NUM - 100, 1)).resolves.toEqual(blocks.slice(0, 1));
       });
     });
 
@@ -91,7 +92,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
 
       it("returns the most recently added block's number", async () => {
         await store.addBlocks(blocks);
-        await expect(store.getSynchedL2BlockNumber()).resolves.toEqual(blocks.retrievedData.at(-1)!.number);
+        await expect(store.getSynchedL2BlockNumber()).resolves.toEqual(blocks.at(-1)!.data.number);
       });
     });
 
@@ -101,15 +102,17 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           blocksSynchedTo: 0n,
           messagesSynchedTo: 0n,
           blockBodiesSynchedTo: 0n,
+          provenLogsSynchedTo: 0n,
         } satisfies ArchiverL1SynchPoint);
       });
 
       it('returns the L1 block number in which the most recent L2 block was published', async () => {
         await store.addBlocks(blocks);
         await expect(store.getSynchPoint()).resolves.toEqual({
-          blocksSynchedTo: blocks.lastProcessedL1BlockNumber,
+          blocksSynchedTo: 19n,
           messagesSynchedTo: 0n,
           blockBodiesSynchedTo: 0n,
+          provenLogsSynchedTo: 0n,
         } satisfies ArchiverL1SynchPoint);
       });
 
@@ -119,6 +122,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           blocksSynchedTo: 0n,
           messagesSynchedTo: 0n,
           blockBodiesSynchedTo: blockBodies.lastProcessedL1BlockNumber,
+          provenLogsSynchedTo: 0n,
         } satisfies ArchiverL1SynchPoint);
       });
 
@@ -131,18 +135,30 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
           blocksSynchedTo: 0n,
           messagesSynchedTo: 1n,
           blockBodiesSynchedTo: 0n,
+          provenLogsSynchedTo: 0n,
+        } satisfies ArchiverL1SynchPoint);
+      });
+
+      it('returns the L1 block number that most recently logged a proven block', async () => {
+        await store.setProvenL2BlockNumber({ lastProcessedL1BlockNumber: 3n, retrievedData: 5 });
+        await expect(store.getSynchPoint()).resolves.toEqual({
+          blocksSynchedTo: 0n,
+          messagesSynchedTo: 0n,
+          blockBodiesSynchedTo: 0n,
+          provenLogsSynchedTo: 3n,
         } satisfies ArchiverL1SynchPoint);
       });
     });
 
     describe('addLogs', () => {
       it('adds encrypted & unencrypted logs', async () => {
+        const block = blocks[0].data;
         await expect(
           store.addLogs(
-            blocks.retrievedData[0].body.noteEncryptedLogs,
-            blocks.retrievedData[0].body.encryptedLogs,
-            blocks.retrievedData[0].body.unencryptedLogs,
-            blocks.retrievedData[0].number,
+            block.body.noteEncryptedLogs,
+            block.body.encryptedLogs,
+            block.body.unencryptedLogs,
+            block.number,
           ),
         ).resolves.toEqual(true);
       });
@@ -155,12 +171,12 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
     ])('getLogs (%s)', (_, logType) => {
       beforeEach(async () => {
         await Promise.all(
-          blocks.retrievedData.map(block =>
+          blocks.map(block =>
             store.addLogs(
-              block.body.noteEncryptedLogs,
-              block.body.encryptedLogs,
-              block.body.unencryptedLogs,
-              block.number,
+              block.data.body.noteEncryptedLogs,
+              block.data.body.encryptedLogs,
+              block.data.body.unencryptedLogs,
+              block.data.number,
             ),
           ),
         );
@@ -170,12 +186,12 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         const expectedLogs = getExpectedBlocks().map(block => {
           switch (logType) {
             case LogType.ENCRYPTED:
-              return block.body.encryptedLogs;
+              return block.data.body.encryptedLogs;
             case LogType.NOTEENCRYPTED:
-              return block.body.noteEncryptedLogs;
+              return block.data.body.noteEncryptedLogs;
             case LogType.UNENCRYPTED:
             default:
-              return block.body.unencryptedLogs;
+              return block.data.body.unencryptedLogs;
           }
         });
         const actualLogs = await store.getLogs(from, limit, logType);
@@ -186,12 +202,12 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
     describe('getTxEffect', () => {
       beforeEach(async () => {
         await Promise.all(
-          blocks.retrievedData.map(block =>
+          blocks.map(block =>
             store.addLogs(
-              block.body.noteEncryptedLogs,
-              block.body.encryptedLogs,
-              block.body.unencryptedLogs,
-              block.number,
+              block.data.body.noteEncryptedLogs,
+              block.data.body.encryptedLogs,
+              block.data.body.unencryptedLogs,
+              block.data.number,
             ),
           ),
         );
@@ -200,11 +216,11 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       });
 
       it.each([
-        () => blocks.retrievedData[0].body.txEffects[0],
-        () => blocks.retrievedData[9].body.txEffects[3],
-        () => blocks.retrievedData[3].body.txEffects[1],
-        () => blocks.retrievedData[5].body.txEffects[2],
-        () => blocks.retrievedData[1].body.txEffects[0],
+        () => blocks[0].data.body.txEffects[0],
+        () => blocks[9].data.body.txEffects[3],
+        () => blocks[3].data.body.txEffects[1],
+        () => blocks[5].data.body.txEffects[2],
+        () => blocks[1].data.body.txEffects[0],
       ])('retrieves a previously stored transaction', async getExpectedTx => {
         const expectedTx = getExpectedTx();
         const actualTx = await store.getTxEffect(expectedTx.txHash);
@@ -339,28 +355,24 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
       const numPublicFunctionCalls = 3;
       const numUnencryptedLogs = 2;
       const numBlocks = 10;
-      let blocks: DataRetrieval<L2Block>;
+      let blocks: L1Published<L2Block>[];
 
       beforeEach(async () => {
-        blocks = {
-          lastProcessedL1BlockNumber: 4n,
-          retrievedData: Array(numBlocks)
-            .fill(0)
-            .map((_, index: number) =>
-              L2Block.random(index + 1, txsPerBlock, 2, numPublicFunctionCalls, 2, numUnencryptedLogs),
-            ),
-        };
+        blocks = times(numBlocks, (index: number) => ({
+          data: L2Block.random(index + 1, txsPerBlock, 2, numPublicFunctionCalls, 2, numUnencryptedLogs),
+          l1: { blockNumber: BigInt(index), blockHash: `0x${index}`, timestamp: BigInt(index) },
+        }));
 
         await store.addBlocks(blocks);
         await store.addBlockBodies(blockBodies);
 
         await Promise.all(
-          blocks.retrievedData.map(block =>
+          blocks.map(block =>
             store.addLogs(
-              block.body.noteEncryptedLogs,
-              block.body.encryptedLogs,
-              block.body.unencryptedLogs,
-              block.number,
+              block.data.body.noteEncryptedLogs,
+              block.data.body.encryptedLogs,
+              block.data.body.unencryptedLogs,
+              block.data.number,
             ),
           ),
         );
@@ -370,7 +382,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         // get random tx
         const targetBlockIndex = randomInt(numBlocks);
         const targetTxIndex = randomInt(txsPerBlock);
-        const targetTxHash = blocks.retrievedData[targetBlockIndex].body.txEffects[targetTxIndex].txHash;
+        const targetTxHash = blocks[targetBlockIndex].data.body.txEffects[targetTxIndex].txHash;
 
         const response = await store.getUnencryptedLogs({ txHash: targetTxHash });
         const logs = response.logs;
@@ -414,7 +426,7 @@ export function describeArchiverDataStore(testName: string, getStore: () => Arch
         const targetFunctionLogIndex = randomInt(numPublicFunctionCalls);
         const targetLogIndex = randomInt(numUnencryptedLogs);
         const targetContractAddress =
-          blocks.retrievedData[targetBlockIndex].body.txEffects[targetTxIndex].unencryptedLogs.functionLogs[
+          blocks[targetBlockIndex].data.body.txEffects[targetTxIndex].unencryptedLogs.functionLogs[
             targetFunctionLogIndex
           ].logs[targetLogIndex].contractAddress;
 

@@ -121,7 +121,7 @@ export class TxProver implements ProverClient {
       ? new NativeACVMSimulator(config.acvmWorkingDirectory, config.acvmBinaryPath)
       : undefined;
 
-    return new TestCircuitProver(telemetry, simulationProvider);
+    return new TestCircuitProver(telemetry, simulationProvider, config);
   }
 
   public getProvingJobSource(): ProvingJobSource {

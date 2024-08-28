@@ -14,6 +14,10 @@ export class NoopTelemetryClient implements TelemetryClient {
   stop(): Promise<void> {
     return Promise.resolve();
   }
+
+  isEnabled() {
+    return false;
+  }
 }
 
 // @opentelemetry/api internally uses NoopTracer and NoopSpan but they're not exported

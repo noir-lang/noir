@@ -1,4 +1,4 @@
-import { removeArrayPaddingEnd, times } from './array.js';
+import { compactArray, removeArrayPaddingEnd, times, unique } from './array.js';
 
 describe('times', () => {
   it('should return an array with the result from all executions', () => {
@@ -31,5 +31,33 @@ describe('removeArrayPaddingEnd', () => {
 
   it('handles array with empty items', () => {
     expect(removeArrayPaddingEnd([0, 0, 0], i => i === 0)).toEqual([]);
+  });
+});
+
+describe('compactArray', () => {
+  it('works as expected', () => {
+    expect(compactArray([3, undefined, 4, undefined])).toEqual([3, 4]);
+  });
+
+  it('handles an empty array', () => {
+    expect(compactArray([])).toEqual([]);
+  });
+
+  it('handles an array with just undefineds', () => {
+    expect(compactArray([undefined, undefined])).toEqual([]);
+  });
+
+  it('handles an array with no undefineds', () => {
+    expect(compactArray([2, 3])).toEqual([2, 3]);
+  });
+
+  it('does not remove falsey values', () => {
+    expect(compactArray([0, null, false, '', [], undefined])).toEqual([0, null, false, '', []]);
+  });
+});
+
+describe('unique', () => {
+  it('works with bigints', () => {
+    expect(unique([1n, 2n, 1n])).toEqual([1n, 2n]);
   });
 });

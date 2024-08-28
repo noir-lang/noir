@@ -27,7 +27,8 @@ import {
 } from '@aztec/types/contracts';
 
 import { type ArchiverDataStore, type ArchiverL1SynchPoint } from '../archiver_store.js';
-import { type DataRetrieval } from '../data_retrieval.js';
+import { type DataRetrieval, type SingletonDataRetrieval } from '../structs/data_retrieval.js';
+import { type L1Published } from '../structs/published.js';
 import { BlockBodyStore } from './block_body_store.js';
 import { BlockStore } from './block_store.js';
 import { ContractArtifactsStore } from './contract_artifacts_store.js';
@@ -35,13 +36,15 @@ import { ContractClassStore } from './contract_class_store.js';
 import { ContractInstanceStore } from './contract_instance_store.js';
 import { LogStore } from './log_store.js';
 import { MessageStore } from './message_store.js';
+import { ProvenStore } from './proven_store.js';
 
 /**
  * LMDB implementation of the ArchiverDataStore interface.
  */
 export class KVArchiverDataStore implements ArchiverDataStore {
-  #blockStore: BlockStore;
   #blockBodyStore: BlockBodyStore;
+  #blockStore: BlockStore;
+  #provenStore: ProvenStore;
   #logStore: LogStore;
   #messageStore: MessageStore;
   #contractClassStore: ContractClassStore;
@@ -53,6 +56,7 @@ export class KVArchiverDataStore implements ArchiverDataStore {
   constructor(db: AztecKVStore, logsMaxPageSize: number = 1000) {
     this.#blockBodyStore = new BlockBodyStore(db);
     this.#blockStore = new BlockStore(db, this.#blockBodyStore);
+    this.#provenStore = new ProvenStore(db);
     this.#logStore = new LogStore(db, this.#blockStore, logsMaxPageSize);
     this.#messageStore = new MessageStore(db);
     this.#contractClassStore = new ContractClassStore(db);
@@ -120,7 +124,7 @@ export class KVArchiverDataStore implements ArchiverDataStore {
    * @param blocks - The L2 blocks to be added to the store and the last processed L1 block.
    * @returns True if the operation is successful.
    */
-  addBlocks(blocks: DataRetrieval<L2Block>): Promise<boolean> {
+  addBlocks(blocks: L1Published<L2Block>[]): Promise<boolean> {
     return this.#blockStore.addBlocks(blocks);
   }
 
@@ -131,7 +135,7 @@ export class KVArchiverDataStore implements ArchiverDataStore {
    * @param limit - The number of blocks to return.
    * @returns The requested L2 blocks
    */
-  getBlocks(start: number, limit: number): Promise<L2Block[]> {
+  getBlocks(start: number, limit: number): Promise<L1Published<L2Block>[]> {
     try {
       return Promise.resolve(Array.from(this.#blockStore.getBlocks(start, limit)));
     } catch (err) {
@@ -247,11 +251,11 @@ export class KVArchiverDataStore implements ArchiverDataStore {
   }
 
   getProvenL2BlockNumber(): Promise<number> {
-    return Promise.resolve(this.#blockStore.getProvenL2BlockNumber());
+    return Promise.resolve(this.#provenStore.getProvenL2BlockNumber());
   }
 
-  async setProvenL2BlockNumber(blockNumber: number) {
-    await this.#blockStore.setProvenL2BlockNumber(blockNumber);
+  async setProvenL2BlockNumber(blockNumber: SingletonDataRetrieval<number>) {
+    await this.#provenStore.setProvenL2BlockNumber(blockNumber);
   }
 
   /**
@@ -262,6 +266,7 @@ export class KVArchiverDataStore implements ArchiverDataStore {
       blocksSynchedTo: this.#blockStore.getSynchedL1BlockNumber(),
       blockBodiesSynchedTo: this.#blockBodyStore.getSynchedL1BlockNumber(),
       messagesSynchedTo: this.#messageStore.getSynchedL1BlockNumber(),
+      provenLogsSynchedTo: this.#provenStore.getSynchedL1BlockNumber(),
     });
   }
 }

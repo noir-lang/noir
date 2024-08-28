@@ -80,6 +80,10 @@ export interface Meter {
  */
 export interface TelemetryClient {
   /**
+   * Whether the client is enabled and reporting metrics.
+   **/
+  isEnabled(): boolean;
+  /**
    * Creates a new meter
    * @param name - The name of the meter.
    */

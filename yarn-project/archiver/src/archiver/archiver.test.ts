@@ -10,7 +10,6 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
 import { AvailabilityOracleAbi, type InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
-import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
 
 import { type MockProxy, mock } from 'jest-mock-extended';
 import {
@@ -25,6 +24,7 @@ import {
 
 import { Archiver } from './archiver.js';
 import { type ArchiverDataStore } from './archiver_store.js';
+import { type ArchiverInstrumentation } from './instrumentation.js';
 import { MemoryArchiverStore } from './memory_archiver_store/memory_archiver_store.js';
 
 describe('Archiver', () => {
@@ -35,17 +35,31 @@ describe('Archiver', () => {
   const blockNumbers = [1, 2, 3];
 
   let publicClient: MockProxy<PublicClient<HttpTransport, Chain>>;
+  let instrumentation: MockProxy<ArchiverInstrumentation>;
   let archiverStore: ArchiverDataStore;
   let proverId: Fr;
+  let now: number;
+
+  let archiver: Archiver;
 
   beforeEach(() => {
-    publicClient = mock<PublicClient<HttpTransport, Chain>>();
+    now = +new Date();
+    publicClient = mock<PublicClient<HttpTransport, Chain>>({
+      getBlock: ((args: any) => ({
+        timestamp: args.blockNumber * 1000n + BigInt(now),
+      })) as any,
+    });
+    instrumentation = mock({ isEnabled: () => true });
     archiverStore = new MemoryArchiverStore(1000);
     proverId = Fr.random();
   });
 
+  afterEach(async () => {
+    await archiver?.stop();
+  });
+
   it('can start, sync and stop and handle l1 to l2 messages and logs', async () => {
-    const archiver = new Archiver(
+    archiver = new Archiver(
       publicClient,
       rollupAddress,
       availabilityOracleAddress,
@@ -53,13 +67,14 @@ describe('Archiver', () => {
       registryAddress,
       archiverStore,
       1000,
-      new NoopTelemetryClient(),
+      instrumentation,
     );
 
     let latestBlockNum = await archiver.getBlockNumber();
     expect(latestBlockNum).toEqual(0);
 
     const blocks = blockNumbers.map(x => L2Block.random(x, 4, x, x + 1, 2, 2));
+    blocks.forEach((b, i) => (b.header.globalVariables.timestamp = new Fr(now + 1000 * (i + 1))));
     const publishTxs = blocks.map(block => block.body).map(makePublishTx);
     const rollupTxs = blocks.map(makeRollupTx);
 
@@ -157,12 +172,15 @@ describe('Archiver', () => {
     expect((await archiver.getBlocks(1, 100)).map(b => b.number)).toEqual([1, 2, 3]);
     expect((await archiver.getBlocks(1, 100, true)).map(b => b.number)).toEqual([1]);
 
-    await archiver.stop();
+    // Check instrumentation of proven blocks
+    expect(instrumentation.processProofsVerified).toHaveBeenCalledWith([
+      { delay: 1000n, l1BlockNumber: 102n, l2BlockNumber: 1n, proverId: proverId.toString() },
+    ]);
   }, 10_000);
 
   it('does not sync past current block number', async () => {
     const numL2BlocksInTest = 2;
-    const archiver = new Archiver(
+    archiver = new Archiver(
       publicClient,
       rollupAddress,
       availabilityOracleAddress,
@@ -170,7 +188,7 @@ describe('Archiver', () => {
       registryAddress,
       archiverStore,
       1000,
-      new NoopTelemetryClient(),
+      instrumentation,
     );
 
     let latestBlockNum = await archiver.getBlockNumber();
@@ -207,8 +225,6 @@ describe('Archiver', () => {
 
     latestBlockNum = await archiver.getBlockNumber();
     expect(latestBlockNum).toEqual(numL2BlocksInTest);
-
-    await archiver.stop();
   }, 10_000);
 
   // logs should be created in order of how archiver syncs.

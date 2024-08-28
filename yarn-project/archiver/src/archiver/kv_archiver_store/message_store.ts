@@ -8,7 +8,7 @@ import {
 import { createDebugLogger } from '@aztec/foundation/log';
 import { type AztecKVStore, type AztecMap, type AztecSingleton } from '@aztec/kv-store';
 
-import { type DataRetrieval } from '../data_retrieval.js';
+import { type DataRetrieval } from '../structs/data_retrieval.js';
 
 /**
  * LMDB implementation of the ArchiverDataStore interface.
