@@ -204,6 +204,7 @@ jobs:
   build-check:
     name: Check builds are successful
     needs: [build-x86_64-linux-gnu, build-mac-intel, build-mac-m1,build-wasm-ts]
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - name: Report overall success
