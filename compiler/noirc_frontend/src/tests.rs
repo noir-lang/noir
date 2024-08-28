@@ -2430,10 +2430,10 @@ fn use_super() {
 
     mod foo {
         use super::some_func;
-    }
 
-    fn main() {
-        some_func();
+        fn bar() {
+            some_func();
+        }
     }
     "#;
     assert_no_errors(src);
