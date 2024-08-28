@@ -73,4 +73,11 @@ impl Package {
     pub fn is_library(&self) -> bool {
         self.package_type == PackageType::Library
     }
+
+    pub fn error_on_unused_imports(&self) -> bool {
+        match self.package_type {
+            PackageType::Library => false,
+            PackageType::Binary | PackageType::Contract => true,
+        }
+    }
 }

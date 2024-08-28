@@ -2,35 +2,85 @@ mod bn254;
 use bn254::lt as bn254_lt;
 
 impl Field {
-    pub fn to_le_bits(self: Self, bit_size: u32) -> [u1] {
-        crate::assert_constant(bit_size);
-        self.__to_le_bits(bit_size)
-    }
-
-    pub fn to_be_bits(self: Self, bit_size: u32) -> [u1] {
-        crate::assert_constant(bit_size);
-        self.__to_be_bits(bit_size)
-    }
-
-    #[builtin(to_le_bits)]
-    fn __to_le_bits(self, _bit_size: u32) -> [u1] {}
-
-    #[builtin(to_be_bits)]
-    fn __to_be_bits(self, bit_size: u32) -> [u1] {}
-
-    #[builtin(apply_range_constraint)]
-    fn __assert_max_bit_size(self, bit_size: u32) {}
-
-    pub fn assert_max_bit_size(self: Self, bit_size: u32) {
+    /// Asserts that `self` can be represented in `bit_size` bits.
+    ///
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^{bit_size}`.
+    pub fn assert_max_bit_size(self, bit_size: u32) {
         crate::assert_constant(bit_size);
         assert(bit_size < modulus_num_bits() as u32);
         self.__assert_max_bit_size(bit_size);
     }
 
+    #[builtin(apply_range_constraint)]
+    fn __assert_max_bit_size(self, bit_size: u32) {}
+
+    /// Decomposes `self` into its little endian bit decomposition as a `[u1]` slice of length `bit_size`.
+    /// This slice will be zero padded should not all bits be necessary to represent `self`.
+    /// 
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^{bit_size}` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// Values of `bit_size` equal to or greater than the number of bits necessary to represent the `Field` modulus
+    /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
+    /// wrap around due to overflow when verifying the decomposition.
+    pub fn to_le_bits(self: Self, bit_size: u32) -> [u1] {
+        crate::assert_constant(bit_size);
+        self.__to_le_bits(bit_size)
+    }
+
+    /// Decomposes `self` into its big endian bit decomposition as a `[u1]` slice of length `bit_size`.
+    /// This slice will be zero padded should not all bits be necessary to represent `self`.
+    /// 
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^{bit_size}` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// Values of `bit_size` equal to or greater than the number of bits necessary to represent the `Field` modulus
+    /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
+    /// wrap around due to overflow when verifying the decomposition.
+    pub fn to_be_bits(self: Self, bit_size: u32) -> [u1] {
+        crate::assert_constant(bit_size);
+        self.__to_be_bits(bit_size)
+    }
+
+    /// See `Field.to_be_bits`
+    #[builtin(to_le_bits)]
+    fn __to_le_bits(self, _bit_size: u32) -> [u1] {}
+
+    /// See `Field.to_le_bits`
+    #[builtin(to_be_bits)]
+    fn __to_be_bits(self, bit_size: u32) -> [u1] {}
+
+    /// Decomposes `self` into its little endian byte decomposition as a `[u8]` slice of length `byte_size`.
+    /// This slice will be zero padded should not all bytes be necessary to represent `self`.
+    /// 
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^{8*byte_size}` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// Values of `byte_size` equal to or greater than the number of bytes necessary to represent the `Field` modulus
+    /// (e.g. 32 for the BN254 field) allow for multiple byte decompositions. This is due to how the `Field` will
+    /// wrap around due to overflow when verifying the decomposition.
     pub fn to_le_bytes(self: Self, byte_size: u32) -> [u8] {
         self.to_le_radix(256, byte_size)
     }
 
+    /// Decomposes `self` into its big endian byte decomposition as a `[u8]` slice of length `byte_size`.
+    /// This slice will be zero padded should not all bytes be necessary to represent `self`.
+    /// 
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^{8*byte_size}` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// Values of `byte_size` equal to or greater than the number of bytes necessary to represent the `Field` modulus
+    /// (e.g. 32 for the BN254 field) allow for multiple byte decompositions. This is due to how the `Field` will
+    /// wrap around due to overflow when verifying the decomposition.
     pub fn to_be_bytes(self: Self, byte_size: u32) -> [u8] {
         self.to_be_radix(256, byte_size)
     }
@@ -47,7 +97,6 @@ impl Field {
         self.__to_be_radix(radix, result_len)
     }
 
-    // decompose `_self` into a `_result_len` vector over the `_radix` basis
     // `_radix` must be less than 256
     #[builtin(to_le_radix)]
     fn __to_le_radix(self, radix: u32, result_len: u32) -> [u8] {}
