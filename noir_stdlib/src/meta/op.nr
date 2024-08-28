@@ -39,7 +39,7 @@ impl UnaryOp {
         } else if self.is_dereference() {
             quote { * }
         } else {
-            std::mem::zeroed()
+            crate::mem::zeroed()
         }
     }
 }
@@ -181,7 +181,7 @@ impl BinaryOp {
         } else if self.is_modulo() {
             quote { % }
         } else {
-            std::mem::zeroed()
+            crate::mem::zeroed()
         }
     }
 }
