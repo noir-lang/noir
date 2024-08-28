@@ -4,7 +4,10 @@ use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::{
     lexer::errors::LexerErrorKind,
-    node_interner::{ExprId, QuotedTypeId},
+    node_interner::{
+        ExprId, InternedExpressionKind, InternedStatementKind, InternedUnresolvedTypeData,
+        QuotedTypeId,
+    },
 };
 
 /// Represents a token in noir's grammar - a word, number,
@@ -28,6 +31,10 @@ pub enum BorrowedToken<'input> {
     BlockComment(&'input str, Option<DocStyle>),
     Quote(&'input Tokens),
     QuotedType(QuotedTypeId),
+    InternedExpression(InternedExpressionKind),
+    InternedStatement(InternedStatementKind),
+    InternedLValue(InternedExpressionKind),
+    InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     /// <
     Less,
     /// <=
@@ -134,6 +141,14 @@ pub enum Token {
     /// to avoid having to tokenize it, re-parse it, and re-resolve it which
     /// may change the underlying type.
     QuotedType(QuotedTypeId),
+    /// A reference to an interned `ExpressionKind`.
+    InternedExpr(InternedExpressionKind),
+    /// A reference to an interned `StatementKind`.
+    InternedStatement(InternedStatementKind),
+    /// A reference to an interned `LValue`.
+    InternedLValue(InternedExpressionKind),
+    /// A reference to an interned `UnresolvedTypeData`.
+    InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     /// <
     Less,
     /// <=
@@ -233,6 +248,10 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
         Token::Quote(stream) => BorrowedToken::Quote(stream),
         Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
+        Token::InternedExpr(id) => BorrowedToken::InternedExpression(*id),
+        Token::InternedStatement(id) => BorrowedToken::InternedStatement(*id),
+        Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
+        Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -353,8 +372,12 @@ impl fmt::Display for Token {
                 }
                 write!(f, "}}")
             }
-            // Quoted types only have an ID so there is nothing to display
+            // Quoted types and exprs only have an ID so there is nothing to display
             Token::QuotedType(_) => write!(f, "(type)"),
+            Token::InternedExpr(_) | Token::InternedStatement(_) | Token::InternedLValue(_) => {
+                write!(f, "(expr)")
+            }
+            Token::InternedUnresolvedTypeData(_) => write!(f, "(type)"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -407,6 +430,10 @@ pub enum TokenKind {
     Attribute,
     Quote,
     QuotedType,
+    InternedExpr,
+    InternedStatement,
+    InternedLValue,
+    InternedUnresolvedTypeData,
     UnquoteMarker,
 }
 
@@ -420,6 +447,10 @@ impl fmt::Display for TokenKind {
             TokenKind::Attribute => write!(f, "attribute"),
             TokenKind::Quote => write!(f, "quote"),
             TokenKind::QuotedType => write!(f, "quoted type"),
+            TokenKind::InternedExpr => write!(f, "interned expr"),
+            TokenKind::InternedStatement => write!(f, "interned statement"),
+            TokenKind::InternedLValue => write!(f, "interned lvalue"),
+            TokenKind::InternedUnresolvedTypeData => write!(f, "interned unresolved type"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
@@ -439,6 +470,10 @@ impl Token {
             Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
             Token::Quote(_) => TokenKind::Quote,
             Token::QuotedType(_) => TokenKind::QuotedType,
+            Token::InternedExpr(_) => TokenKind::InternedExpr,
+            Token::InternedStatement(_) => TokenKind::InternedStatement,
+            Token::InternedLValue(_) => TokenKind::InternedLValue,
+            Token::InternedUnresolvedTypeData(_) => TokenKind::InternedUnresolvedTypeData,
             tok => TokenKind::Token(tok.clone()),
         }
     }
