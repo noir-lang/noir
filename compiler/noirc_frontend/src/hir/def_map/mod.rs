@@ -19,6 +19,7 @@ mod namespace;
 pub use namespace::*;
 
 use super::def_collector::errors::DefCollectorErrorKind;
+use super::resolution::errors::ResolverError;
 
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
@@ -77,6 +78,7 @@ impl CrateDefMap {
         context: &mut Context,
         debug_comptime_in_file: Option<&str>,
         enable_arithmetic_generics: bool,
+        error_on_unused_imports: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
@@ -133,6 +135,11 @@ impl CrateDefMap {
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
         );
+
+        if error_on_unused_imports {
+            Self::check_unused_imports(context, crate_id, &mut errors);
+        }
+
         errors
     }
 
@@ -296,6 +303,23 @@ impl CrateDefMap {
             }
         } else {
             String::new()
+        }
+    }
+
+    fn check_unused_imports(
+        context: &mut Context,
+        crate_id: CrateId,
+        errors: &mut Vec<(CompilationError, FileId)>,
+    ) {
+        for module in context.def_maps[&crate_id].modules() {
+            for ident in module.unused_imports() {
+                errors.push((
+                    CompilationError::ResolverError(ResolverError::UnusedImport {
+                        ident: ident.clone(),
+                    }),
+                    module.location.file,
+                ));
+            }
         }
     }
 }

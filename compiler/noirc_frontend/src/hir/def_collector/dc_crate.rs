@@ -263,6 +263,7 @@ impl DefCollector {
         // Then added these to the context of DefMaps once they are resolved
         //
         let crate_graph = &context.crate_graph[crate_id];
+        let error_on_unused_imports = false;
 
         for dep in crate_graph.dependencies.clone() {
             errors.extend(CrateDefMap::collect_defs(
@@ -270,6 +271,7 @@ impl DefCollector {
                 context,
                 debug_comptime_in_file,
                 enable_arithmetic_generics,
+                error_on_unused_imports,
                 macro_processors,
             ));
 

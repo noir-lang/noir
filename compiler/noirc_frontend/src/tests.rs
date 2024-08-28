@@ -3187,3 +3187,37 @@ fn as_trait_path_syntax_no_impl() {
     use CompilationError::TypeError;
     assert!(matches!(&errors[0].0, TypeError(TypeCheckError::NoMatchingImplFound { .. })));
 }
+
+#[test]
+fn errors_on_unused_import() {
+    let src = r#"
+    mod foo {
+        pub fn bar() {}
+        pub fn baz() {}
+
+        trait Foo {
+        }
+    }
+
+    use foo::bar;
+    use foo::baz;
+    use foo::Foo;
+
+    impl Foo for Field {
+    }
+
+    fn main() {
+        baz();
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedImport { ident }) = &errors[0].0
+    else {
+        panic!("Expected an unused import error");
+    };
+
+    assert_eq!(ident.to_string(), "bar");
+}
