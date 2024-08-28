@@ -50,7 +50,7 @@ fn empty_item(item: &mut Item) {
             empty_parsed_submodule(parsed_submodule);
         }
         ItemKind::ModuleDecl(module_declaration) => empty_module_declaration(module_declaration),
-        ItemKind::Import(use_tree) => empty_use_tree(use_tree),
+        ItemKind::Import(use_tree, _) => empty_use_tree(use_tree),
         ItemKind::Struct(noir_struct) => empty_noir_struct(noir_struct),
         ItemKind::TypeAlias(noir_type_alias) => empty_noir_type_alias(noir_type_alias),
     }

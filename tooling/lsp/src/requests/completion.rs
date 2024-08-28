@@ -193,7 +193,7 @@ impl<'a> NodeFinder<'a> {
         }
 
         match &item.kind {
-            ItemKind::Import(use_tree) => {
+            ItemKind::Import(use_tree, _) => {
                 let mut prefixes = Vec::new();
                 self.find_in_use_tree(use_tree, &mut prefixes);
             }

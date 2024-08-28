@@ -127,7 +127,7 @@ impl<'a> InlayHintCollector<'a> {
                 });
             }
             ItemKind::ModuleDecl(_) => (),
-            ItemKind::Import(_) => (),
+            ItemKind::Import(..) => (),
             ItemKind::Struct(_) => (),
             ItemKind::TypeAlias(_) => (),
         }

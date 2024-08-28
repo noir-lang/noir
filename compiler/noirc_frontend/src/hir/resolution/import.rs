@@ -13,6 +13,7 @@ use super::errors::ResolverError;
 
 #[derive(Debug, Clone)]
 pub struct ImportDirective {
+    pub visibility: ItemVisibility,
     pub module_id: LocalModuleId,
     pub path: Path,
     pub alias: Option<Ident>,
@@ -262,7 +263,9 @@ fn resolve_name_in_module(
     }
 
     let mut warning: Option<PathResolutionError> = None;
-    for (last_segment, current_segment) in import_path.iter().zip(import_path.iter().skip(1)) {
+    for (index, (last_segment, current_segment)) in
+        import_path.iter().zip(import_path.iter().skip(1)).enumerate()
+    {
         let last_segment = &last_segment.ident;
         let current_segment = &current_segment.ident;
 
@@ -298,13 +301,15 @@ fn resolve_name_in_module(
         };
 
         warning = warning.or_else(|| {
-            if can_reference_module_id(
-                def_maps,
-                importing_crate,
-                starting_mod,
-                current_mod_id,
-                visibility,
-            ) {
+            if index == 0
+                || can_reference_module_id(
+                    def_maps,
+                    importing_crate,
+                    starting_mod,
+                    current_mod_id,
+                    visibility,
+                )
+            {
                 None
             } else {
                 Some(PathResolutionError::Private(last_segment.clone()))
@@ -365,6 +370,7 @@ fn resolve_external_dep(
         span: Span::default(),
     };
     let dep_directive = ImportDirective {
+        visibility: ItemVisibility::Private,
         module_id: dep_module.local_id,
         path,
         alias: directive.alias.clone(),

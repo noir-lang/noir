@@ -19,8 +19,8 @@ use crate::node_interner::{
 };
 
 use crate::ast::{
-    ExpressionKind, GenericTypeArgs, Ident, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
+    ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, LetStatement, Literal, NoirFunction,
+    NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType,
 };
 
@@ -360,9 +360,11 @@ impl DefCollector {
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
 
                     let name = resolved_import.name;
+                    let visibility = collected_import.visibility;
+                    let is_prelude = resolved_import.is_prelude;
                     for ns in resolved_import.resolved_namespace.iter_defs() {
                         let result = current_def_map.modules[resolved_import.module_scope.0]
-                            .import(name.clone(), ns, resolved_import.is_prelude);
+                            .import(name.clone(), visibility, ns, is_prelude);
 
                         let file_id = current_def_map.file_id(module_id);
                         let last_segment = collected_import.path.last_ident();
@@ -494,6 +496,7 @@ fn inject_prelude(
                 collected_imports.insert(
                     0,
                     ImportDirective {
+                        visibility: ItemVisibility::Private,
                         module_id: crate_root,
                         path: Path { segments, kind: PathKind::Plain, span: Span::default() },
                         alias: None,

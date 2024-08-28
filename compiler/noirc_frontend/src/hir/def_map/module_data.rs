@@ -123,15 +123,16 @@ impl ModuleData {
     pub fn import(
         &mut self,
         name: Ident,
+        visibility: ItemVisibility,
         id: ModuleDefId,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
         // Empty spans could come from implicitly injected imports, and we don't want to track those
-        if name.span().start() < name.span().end() {
+        if visibility == ItemVisibility::Private && name.span().start() < name.span().end() {
             self.unused_imports.insert(name.clone());
         }
 
-        self.scope.add_item_to_namespace(name, ItemVisibility::Public, id, None, is_prelude)
+        self.scope.add_item_to_namespace(name, visibility, id, None, is_prelude)
     }
 
     pub fn find_name(&self, name: &Ident) -> PerNs {
