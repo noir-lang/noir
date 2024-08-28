@@ -1,4 +1,4 @@
-use acvm::blackbox_solver::{keccakf1600, BlackBoxFunctionSolver};
+use acvm::blackbox_solver::BlackBoxFunctionSolver;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use im::Vector;
 use iter_extended::try_vecmap;
@@ -21,7 +21,7 @@ pub(super) fn call_foreign(
 ) -> IResult<Value> {
     match name {
         "poseidon2_permutation" => poseidon2_permutation(interner, arguments, location),
-        "keccakf1600" => comptime_keccakf1600(interner, arguments, location),
+        "keccakf1600" => keccakf1600(interner, arguments, location),
         _ => {
             let item = format!("Comptime evaluation for builtin function {name}");
             Err(InterpreterError::Unimplemented { item, location })
@@ -52,7 +52,7 @@ fn poseidon2_permutation(
     Ok(Value::Array(array, typ))
 }
 
-fn comptime_keccakf1600(
+fn keccakf1600(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -68,8 +68,8 @@ fn comptime_keccakf1600(
     for (it, input_value) in state.iter_mut().zip(input.iter()) {
         *it = *input_value;
     }
-    let result_lanes =
-        keccakf1600(state).map_err(|error| InterpreterError::BlackBoxError(error, location))?;
+    let result_lanes = acvm::blackbox_solver::keccakf1600(state)
+        .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
     let array: Vector<Value> = result_lanes.into_iter().map(Value::U64).collect();
     Ok(Value::Array(array, typ))

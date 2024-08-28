@@ -114,7 +114,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
-            "to_le_radix" => to_le_radix(arguments, location), // TODO
+            "to_le_radix" => to_le_radix(arguments, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
             "trait_def_as_trait_constraint" => {
