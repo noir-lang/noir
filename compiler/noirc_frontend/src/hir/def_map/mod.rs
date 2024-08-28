@@ -77,6 +77,7 @@ impl CrateDefMap {
         context: &mut Context,
         debug_comptime_in_file: Option<&str>,
         enable_arithmetic_generics: bool,
+        error_on_unused_imports: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
@@ -127,12 +128,14 @@ impl CrateDefMap {
             root_file_id,
             debug_comptime_in_file,
             enable_arithmetic_generics,
+            error_on_unused_imports,
             macro_processors,
         ));
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
         );
+
         errors
     }
 

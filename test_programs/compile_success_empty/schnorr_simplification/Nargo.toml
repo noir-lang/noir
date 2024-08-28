@@ -1,0 +1,6 @@
+[package]
+name = "schnorr_simplification"
+type = "bin"
+authors = [""]
+
+[dependencies]

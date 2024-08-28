@@ -130,7 +130,7 @@ criterion = "0.5.0"
 # https://github.com/tikv/pprof-rs/pull/172
 pprof = { version = "0.13", features = ["flamegraph", "criterion"] }
 
-
+cfg-if = "1.0.0"
 dirs = "4"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0"

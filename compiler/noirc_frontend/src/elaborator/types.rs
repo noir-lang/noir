@@ -412,7 +412,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.resolve_path(path.clone()) {
+        match self.resolve_path_or_error(path.clone()) {
             Ok(ModuleDefId::GlobalId(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);

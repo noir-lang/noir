@@ -20,6 +20,8 @@ pub enum ResolverError {
     DuplicateDefinition { name: String, first_span: Span, second_span: Span },
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
+    #[error("Unused import")]
+    UnusedImport { ident: Ident },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, span: Span },
     #[error("path is not an identifier")]
@@ -149,6 +151,15 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_warning(
                     format!("unused variable {name}"),
                     "unused variable ".to_string(),
+                    ident.span(),
+                )
+            }
+            ResolverError::UnusedImport { ident } => {
+                let name = &ident.0.contents;
+
+                Diagnostic::simple_warning(
+                    format!("unused import {name}"),
+                    "unused import ".to_string(),
                     ident.span(),
                 )
             }

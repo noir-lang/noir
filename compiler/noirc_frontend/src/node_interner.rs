@@ -1289,6 +1289,10 @@ impl NodeInterner {
         &self.instantiation_bindings[&expr_id]
     }
 
+    pub fn try_get_instantiation_bindings(&self, expr_id: ExprId) -> Option<&TypeBindings> {
+        self.instantiation_bindings.get(&expr_id)
+    }
+
     pub fn get_field_index(&self, expr_id: ExprId) -> usize {
         self.field_indices[&expr_id]
     }
