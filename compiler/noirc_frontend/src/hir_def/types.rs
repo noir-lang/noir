@@ -338,11 +338,8 @@ impl StructType {
     /// True if the given index is the same index as a generic type of this struct
     /// which is expected to be a numeric generic.
     /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
-    /// TODO(https://github.com/noir-lang/noir/issues/5156): This is outdated and we should remove this implicit searching for numeric generics
     pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
         self.generics[index_of_generic].is_numeric()
-        // let target_id = self.generics[index_of_generic].type_var.id();
-        // self.fields.iter().any(|(_, field)| field.contains_numeric_typevar(target_id))
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
@@ -432,9 +429,6 @@ impl TypeAlias {
     /// which is a numeric generic.
     pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
         self.generics[index_of_generic].is_numeric()
-        // TODO
-        // let target_id = self.generics[index_of_generic].type_var.id();
-        // self.typ.contains_numeric_typevar(target_id)
     }
 }
 
@@ -845,8 +839,6 @@ impl Type {
         )
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5156)
-    // TODO: fix for no implicit numeric generics
     pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
         // Return whether the named generic has a TypeKind::Numeric and save its name
         let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
@@ -1113,7 +1105,6 @@ impl Type {
         }
     }
 
-    // TODO: where to use this?
     pub(crate) fn kind(&self) -> Kind {
         match self {
             Type::NamedGeneric(_, _, kind) => kind.clone(),

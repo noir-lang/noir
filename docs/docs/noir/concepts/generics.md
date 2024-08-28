@@ -122,15 +122,8 @@ fn main() {
     let array = slice.as_array::<2>();
 }
 ```
-```rust
-fn double<let N: u32>() -> u32 {
-    N * 2
-}
-fn example() {
-    assert(double::<9>() == 18);
-    assert(double::<7 + 8>() == 30);
-}
-```
+
+
 ```rust
 trait MyTrait {
     fn ten() -> Self;
@@ -161,3 +154,20 @@ fn example() {
     assert(10 as u32 == foo.generic_method::<Field>());
 }
 ```
+
+### Numeric Generics
+
+Numeric generics are specified using the `let NAME: TYPE` syntax, and are
+required when a generic `N` is used for the size of an array (`[T; N]`) or string (`str<N>`):
+
+```rust
+fn double<let N: u32>() -> u32 {
+    N * 2
+}
+
+fn example() {
+    assert(double::<9>() == 18);
+    assert(double::<7 + 8>() == 30);
+}
+```
+
