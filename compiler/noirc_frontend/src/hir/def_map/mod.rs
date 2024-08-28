@@ -19,7 +19,6 @@ mod namespace;
 pub use namespace::*;
 
 use super::def_collector::errors::DefCollectorErrorKind;
-use super::resolution::errors::ResolverError;
 
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
@@ -121,8 +120,6 @@ impl CrateDefMap {
             extern_prelude: BTreeMap::new(),
         };
 
-        let error_on_unused_imports_in_dependencies = false;
-
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
@@ -131,17 +128,13 @@ impl CrateDefMap {
             root_file_id,
             debug_comptime_in_file,
             enable_arithmetic_generics,
-            error_on_unused_imports_in_dependencies,
+            error_on_unused_imports,
             macro_processors,
         ));
 
         errors.extend(
             parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
         );
-
-        if error_on_unused_imports {
-            Self::check_unused_imports(context, crate_id, &mut errors);
-        }
 
         errors
     }
@@ -307,20 +300,6 @@ impl CrateDefMap {
         } else {
             String::new()
         }
-    }
-
-    fn check_unused_imports(
-        context: &mut Context,
-        crate_id: CrateId,
-        errors: &mut Vec<(CompilationError, FileId)>,
-    ) {
-        errors.extend(context.def_maps[&crate_id].modules().iter().flat_map(|(_, module)| {
-            module.unused_imports().iter().map(|ident| {
-                let ident = ident.clone();
-                let error = CompilationError::ResolverError(ResolverError::UnusedImport { ident });
-                (error, module.location.file)
-            })
-        }));
     }
 }
 

@@ -267,6 +267,7 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
+            let error_on_unused_imports = false;
             errors.extend(CrateDefMap::collect_defs(
                 dep.crate_id,
                 context,
@@ -416,7 +417,25 @@ impl DefCollector {
             );
         }
 
+        if error_on_unused_imports {
+            Self::check_unused_imports(context, crate_id, &mut errors);
+        }
+
         errors
+    }
+
+    fn check_unused_imports(
+        context: &Context,
+        crate_id: CrateId,
+        errors: &mut Vec<(CompilationError, FileId)>,
+    ) {
+        errors.extend(context.def_maps[&crate_id].modules().iter().flat_map(|(_, module)| {
+            module.unused_imports().iter().map(|ident| {
+                let ident = ident.clone();
+                let error = CompilationError::ResolverError(ResolverError::UnusedImport { ident });
+                (error, module.location.file)
+            })
+        }));
     }
 }
 
