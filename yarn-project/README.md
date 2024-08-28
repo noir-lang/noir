@@ -85,7 +85,7 @@ COMMIT_TAG=<RELEASE_TAG_NUMBER_YOU_WANT e.g. aztec-packages-v0.8.8>
     - Best to run the `deploy_package()` method line by line by manually setting `REPOSITORY` var.
     - Extract `VERSION` as the script shows (in the eg it should be 0.8.8)
     - Skip the version existing checks like `if [ "$VERSION" == "$PUBLISHED_VERSION" ]` and `if [ "$VERSION" != "$HIGHER_VERSION" ]`. Since this is our first time deploying the package, `PUBLISHED_VERSION` and `HIGHER_VERSION` will be empty and hence these checks would fail. These checks are necessary in the CI for continual releases.
-    - Locally update the package version in package.json using `jq` as shown in the script
+    - Locally update the package version in package.json using `jq` as shown in the script.
     - Do a dry-run
     - If dry run succeeds, publish the package!
 5. Create a PR by adding your package into the `deploy-npm` script so next release onwards, CI can cut releases for your package.
