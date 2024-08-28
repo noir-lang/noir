@@ -132,10 +132,6 @@ pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
     crate::hash::keccak::keccak256(input, message_size)
 }
 
-pub comptime fn keccak256_comptime<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
-    crate::hash::keccak::keccak256(input, message_size)
-}
-
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
 
