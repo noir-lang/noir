@@ -2127,14 +2127,10 @@ fn execute_brillig<F: AcirField>(
     }
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
-
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "bn254")] {
-            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
-        } else {
-            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
-        }
-    };
+    //
+    // We pass a stubbed solver here as we a concrete solver implies a field choice which conflicts with this function
+    // being generic.
+    let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
     let mut vm = VM::new(calldata, code, Vec::new(), &solver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
