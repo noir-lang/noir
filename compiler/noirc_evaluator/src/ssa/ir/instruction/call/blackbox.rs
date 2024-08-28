@@ -55,60 +55,14 @@ pub(super) fn simplify_ec_add(
     }
 }
 
-pub(super) fn simplify_msm(
-    dfg: &mut DataFlowGraph,
-    solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
-) -> SimplifyResult {
-    match (dfg.get_array_constant(arguments[0]), dfg.get_array_constant(arguments[1])) {
-        (Some((points, _)), Some((scalars, _)))
-            if array_is_constant(dfg, &points) && array_is_constant(dfg, &scalars) =>
-        {
-            let points: Vec<_> = points
-                .iter()
-                .map(|id| {
-                    dfg.get_numeric_constant(*id)
-                        .expect("value id from array should point at constant")
-                })
-                .collect();
-
-            let mut scalars_lo = Vec::new();
-            let mut scalars_hi = Vec::new();
-            for (i, scalar) in scalars.into_iter().enumerate() {
-                let scalar = dfg
-                    .get_numeric_constant(scalar)
-                    .expect("value id from array should point at constant");
-                if i % 2 == 0 {
-                    scalars_lo.push(scalar);
-                } else {
-                    scalars_hi.push(scalar);
-                }
-            }
-
-            let Ok((result_x, result_y, result_is_infinity)) =
-                solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
-            else {
-                return SimplifyResult::None;
-            };
-
-            let result_x = dfg.make_constant(result_x, Type::field());
-            let result_y = dfg.make_constant(result_y, Type::field());
-            let result_is_infinity = dfg.make_constant(result_is_infinity, Type::bool());
-
-            SimplifyResult::SimplifiedToMultiple(vec![result_x, result_y, result_is_infinity])
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-pub(super) fn simplify_pedersen_commitment(
+pub(super) fn simplify_poseidon2_permutation(
     dfg: &mut DataFlowGraph,
     solver: impl BlackBoxFunctionSolver<FieldElement>,
     arguments: &[ValueId],
 ) -> SimplifyResult {
     match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
-        (Some((inputs, _)), Some(domain_separator)) if array_is_constant(dfg, &inputs) => {
-            let input_fields: Vec<_> = inputs
+        (Some((state, _)), Some(state_length)) if array_is_constant(dfg, &state) => {
+            let state: Vec<FieldElement> = state
                 .iter()
                 .map(|id| {
                     dfg.get_numeric_constant(*id)
@@ -116,46 +70,17 @@ pub(super) fn simplify_pedersen_commitment(
                 })
                 .collect();
 
-            let Ok((result_x, result_y)) =
-                solver.pedersen_commitment(&input_fields, domain_separator.to_u128() as u32)
-            else {
+            let Some(state_length) = state_length.try_to_u32() else {
                 return SimplifyResult::None;
             };
 
-            let result_x = dfg.make_constant(result_x, Type::field());
-            let result_y = dfg.make_constant(result_y, Type::field());
+            let Ok(new_state) = solver.poseidon2_permutation(&state, state_length) else {
+                return SimplifyResult::None;
+            };
 
-            let typ = Type::Array(Rc::new(vec![Type::field()]), 2);
-            let result_array = dfg.make_array(im::vector![result_x, result_y], typ);
+            let result_array = make_constant_array(dfg, new_state, Type::field());
 
             SimplifyResult::SimplifiedTo(result_array)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-pub(super) fn simplify_pedersen_hash(
-    dfg: &mut DataFlowGraph,
-    solver: impl BlackBoxFunctionSolver<FieldElement>,
-    arguments: &[ValueId],
-) -> SimplifyResult {
-    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
-        (Some((inputs, _)), Some(domain_separator)) if array_is_constant(dfg, &inputs) => {
-            let input_fields: Vec<_> = inputs
-                .iter()
-                .map(|id| {
-                    dfg.get_numeric_constant(*id)
-                        .expect("value id from array should point at constant")
-                })
-                .collect();
-
-            let Ok(hash) = solver.pedersen_hash(&input_fields, domain_separator.to_u128() as u32)
-            else {
-                return SimplifyResult::None;
-            };
-
-            let hash_value = dfg.make_constant(hash, Type::field());
-            SimplifyResult::SimplifiedTo(hash_value)
         }
         _ => SimplifyResult::None,
     }

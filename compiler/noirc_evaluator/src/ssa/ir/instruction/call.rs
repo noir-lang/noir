@@ -514,7 +514,9 @@ fn simplify_black_box_func(
         BlackBoxFunc::Keccak256 => {
             unreachable!("Keccak256 should have been replaced by calls to Keccakf1600")
         }
-        BlackBoxFunc::Poseidon2Permutation => SimplifyResult::None, //TODO(Guillaume)
+        BlackBoxFunc::Poseidon2Permutation => {
+            blackbox::simplify_poseidon2_permutation(dfg, solver, arguments)
+        }
         BlackBoxFunc::EcdsaSecp256k1 => blackbox::simplify_signature(
             dfg,
             arguments,
@@ -526,12 +528,10 @@ fn simplify_black_box_func(
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
 
-        BlackBoxFunc::PedersenCommitment => {
-            blackbox::simplify_pedersen_commitment(dfg, solver, arguments)
-        }
-        BlackBoxFunc::PedersenHash => blackbox::simplify_pedersen_hash(dfg, solver, arguments),
+        BlackBoxFunc::PedersenCommitment
+        | BlackBoxFunc::PedersenHash
+        | BlackBoxFunc::MultiScalarMul => SimplifyResult::None,
         BlackBoxFunc::EmbeddedCurveAdd => blackbox::simplify_ec_add(dfg, solver, arguments),
-        BlackBoxFunc::MultiScalarMul => blackbox::simplify_msm(dfg, solver, arguments),
         BlackBoxFunc::SchnorrVerify => blackbox::simplify_schnorr_verify(dfg, solver, arguments),
 
         BlackBoxFunc::BigIntAdd

@@ -71,7 +71,7 @@ fn pedersen_hash_with_separator_noir<let N: u32>(input: [Field; N], separator: u
     }
     let length_generator : [EmbeddedCurvePoint; 1] = derive_generators("pedersen_hash_length".as_bytes(), 0);
     vec_generators.push(length_generator[0]);
-    multi_scalar_mul_slice(vec_generators.slice, scalars.slice).x
+    multi_scalar_mul_slice(vec_generators.slice, scalars.slice)[0]
 }
 
 // docs:start:pedersen_hash
