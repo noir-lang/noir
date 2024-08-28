@@ -2199,9 +2199,6 @@ impl<'a> Context<'a> {
 
                 let Type::Array(result_type, array_length) = dfg.type_of_value(result_ids[0])
                 else {
-                    println!("{:?}", result_ids);
-                    println!("{:?}", dfg.type_of_value(result_ids[0]));
-                    println!("{:?}", dfg.type_of_value(result_ids[1]));
 
                     unreachable!("ICE: ToRadix result must be an array");
                 };
