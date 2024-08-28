@@ -5,6 +5,7 @@
 #include "barretenberg/stdlib/primitives/field/field_conversion.hpp"
 #include "barretenberg/stdlib_circuit_builders/mega_circuit_builder.hpp"
 #include "barretenberg/stdlib_circuit_builders/ultra_circuit_builder.hpp"
+#include "proof_surgeon.hpp"
 #include <cstddef>
 
 namespace acir_format {
@@ -333,26 +334,13 @@ void process_honk_recursion_constraints(Builder& builder,
         stdlib::recursion::init_default_agg_obj_indices<Builder>(builder);
 
     // Add recursion constraints
-    for (size_t i = 0; i < constraint_system.honk_recursion_constraints.size(); ++i) {
-        auto& constraint = constraint_system.honk_recursion_constraints.at(i);
-        // A proof passed into the constraint should be stripped of its inner public inputs, but not the nested
-        // aggregation object itself. The verifier circuit requires that the indices to a nested proof aggregation
-        // state are a circuit constant. The user tells us they how they want these constants set by keeping the
-        // nested aggregation object attached to the proof as public inputs.
-        for (size_t i = 0; i < bb::AGGREGATION_OBJECT_SIZE; ++i) {
-            // Adding the nested aggregation object to the constraint's public inputs
-            constraint.public_inputs.emplace_back(constraint.proof[HONK_RECURSION_PUBLIC_INPUT_OFFSET + i]);
-        }
-        // Remove the aggregation object so that they can be handled as normal public inputs
-        // in they way that the recursion constraint expects
-        constraint.proof.erase(
-            constraint.proof.begin() + HONK_RECURSION_PUBLIC_INPUT_OFFSET,
-            constraint.proof.begin() +
-                static_cast<std::ptrdiff_t>(HONK_RECURSION_PUBLIC_INPUT_OFFSET + bb::AGGREGATION_OBJECT_SIZE));
+    size_t idx = 0;
+    for (auto& constraint : constraint_system.honk_recursion_constraints) {
         current_aggregation_object = create_honk_recursion_constraints(
             builder, constraint, current_aggregation_object, has_valid_witness_assignments);
+
         gate_counter.track_diff(constraint_system.gates_per_opcode,
-                                constraint_system.original_opcode_indices.honk_recursion_constraints.at(i));
+                                constraint_system.original_opcode_indices.honk_recursion_constraints.at(idx++));
     }
 
     // Now that the circuit has been completely built, we add the output aggregation as public

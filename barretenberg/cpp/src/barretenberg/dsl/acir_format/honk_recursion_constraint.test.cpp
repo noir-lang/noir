@@ -4,6 +4,7 @@
 #include "barretenberg/sumcheck/instance/prover_instance.hpp"
 #include "barretenberg/ultra_honk/ultra_prover.hpp"
 #include "barretenberg/ultra_honk/ultra_verifier.hpp"
+#include "proof_surgeon.hpp"
 
 #include <gtest/gtest.h>
 #include <vector>
@@ -140,7 +141,6 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
     {
         std::vector<RecursionConstraint> honk_recursion_constraints;
 
-        size_t witness_offset = 0;
         SlabVector<fr> witness;
 
         for (auto& inner_circuit : inner_circuits) {
@@ -151,60 +151,12 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
             Verifier verifier(verification_key);
             auto inner_proof = prover.construct_proof();
 
-            const size_t num_inner_public_inputs = inner_circuit.get_public_inputs().size();
-
-            std::vector<fr> proof_witnesses = inner_proof;
-            // where the inner public inputs start (after circuit_size, num_pub_inputs, pub_input_offset)
-            const size_t inner_public_input_offset = HONK_RECURSION_PUBLIC_INPUT_OFFSET;
-            // - Save the public inputs so that we can set their values.
-            // - Then truncate them from the proof because the ACIR API expects proofs without public inputs
-            std::vector<fr> inner_public_input_values(
-                proof_witnesses.begin() + static_cast<std::ptrdiff_t>(inner_public_input_offset),
-                proof_witnesses.begin() +
-                    static_cast<std::ptrdiff_t>(inner_public_input_offset + num_inner_public_inputs -
-                                                bb::AGGREGATION_OBJECT_SIZE));
-
-            // We want to make sure that we do not remove the nested aggregation object.
-            proof_witnesses.erase(proof_witnesses.begin() + static_cast<std::ptrdiff_t>(inner_public_input_offset),
-                                  proof_witnesses.begin() +
-                                      static_cast<std::ptrdiff_t>(inner_public_input_offset + num_inner_public_inputs -
-                                                                  bb::AGGREGATION_OBJECT_SIZE));
-
             std::vector<bb::fr> key_witnesses = verification_key->to_field_elements();
+            std::vector<fr> proof_witnesses = inner_proof;
+            const size_t num_public_inputs = inner_circuit.get_public_inputs().size();
 
-            // This is the structure of proof_witnesses and key_witnesses concatenated, which is what we end up putting
-            // in witness:
-            // [ circuit size, num_pub_inputs, pub_input_offset, public_input_0, public_input_1, agg_obj_0,
-            // agg_obj_1, ..., agg_obj_15, rest of proof..., vkey_0, vkey_1, vkey_2, vkey_3...]
-            const uint32_t public_input_start_idx =
-                static_cast<uint32_t>(inner_public_input_offset + witness_offset); // points to public_input_0
-            const uint32_t proof_indices_start_idx = static_cast<uint32_t>(
-                public_input_start_idx + num_inner_public_inputs - bb::AGGREGATION_OBJECT_SIZE); // points to agg_obj_0
-            const uint32_t key_indices_start_idx =
-                static_cast<uint32_t>(proof_indices_start_idx + proof_witnesses.size() -
-                                      inner_public_input_offset); // would point to vkey_3 without the -
-                                                                  // inner_public_input_offset, points to vkey_0
-
-            std::vector<uint32_t> proof_indices;
-            std::vector<uint32_t> key_indices;
-            std::vector<uint32_t> inner_public_inputs;
-            for (size_t i = 0; i < inner_public_input_offset; ++i) { // go over circuit size, num_pub_inputs, pub_offset
-                proof_indices.emplace_back(static_cast<uint32_t>(i + witness_offset));
-            }
-            for (size_t i = 0; i < proof_witnesses.size() - inner_public_input_offset;
-                 ++i) { // goes over agg_obj_0, agg_obj_1, ..., agg_obj_15 and rest of proof
-                proof_indices.emplace_back(static_cast<uint32_t>(i + proof_indices_start_idx));
-            }
-            const size_t key_size = key_witnesses.size();
-            for (size_t i = 0; i < key_size; ++i) {
-                key_indices.emplace_back(static_cast<uint32_t>(i + key_indices_start_idx));
-            }
-            // We keep the nested aggregation object attached to the proof,
-            // thus we do not explicitly have to keep the public inputs while setting up the initial recursion
-            // constraint. They will later be attached as public inputs when creating the circuit.
-            for (size_t i = 0; i < num_inner_public_inputs - bb::AGGREGATION_OBJECT_SIZE; ++i) {
-                inner_public_inputs.push_back(static_cast<uint32_t>(i + public_input_start_idx));
-            }
+            auto [key_indices, proof_indices, inner_public_inputs] = ProofSurgeon::populate_recursion_witness_data(
+                witness, proof_witnesses, key_witnesses, num_public_inputs);
 
             RecursionConstraint honk_recursion_constraint{
                 .key = key_indices,
@@ -214,40 +166,6 @@ class AcirHonkRecursionConstraint : public ::testing::Test {
                 .proof_type = HONK_RECURSION,
             };
             honk_recursion_constraints.push_back(honk_recursion_constraint);
-
-            // Setting the witness vector which just appends proof witnesses and key witnesses.
-            // We need to reconstruct the proof witnesses in the same order as the proof indices, with this structure:
-            // [ circuit size, num_pub_inputs, pub_input_offset, public_input_0, public_input_1, agg_obj_0,
-            // agg_obj_1, ..., agg_obj_15, rest of proof..., vkey_0, vkey_1, vkey_2, vkey_3...]
-            size_t idx = 0;
-            for (const auto& wit : proof_witnesses) {
-                witness.emplace_back(wit);
-                idx++;
-                if (idx ==
-                    inner_public_input_offset) { // before this is true, the loop adds the first three into witness
-                    for (size_t i = 0; i < proof_indices_start_idx - public_input_start_idx;
-                         ++i) { // adds the inner public inputs
-                        witness.emplace_back(0);
-                    }
-                } // after this, it adds the agg obj and rest of proof
-            }
-
-            for (const auto& wit : key_witnesses) {
-                witness.emplace_back(wit);
-            }
-
-            // Set the values for the inner public inputs
-            // TODO(maxim): check this is wrong I think
-            // Note: this is confusing, but we minus one here due to the fact that the
-            // witness values have not taken into account that zero is taken up by the zero_idx
-            //
-            // We once again have to check whether we have a nested proof, because if we do have one
-            // then we could get a segmentation fault as `inner_public_inputs` was never filled with values.
-            for (size_t i = 0; i < num_inner_public_inputs - bb::AGGREGATION_OBJECT_SIZE; ++i) {
-                witness[inner_public_inputs[i]] = inner_public_input_values[i];
-            }
-
-            witness_offset = key_indices_start_idx + key_witnesses.size();
         }
 
         std::vector<size_t> honk_recursion_opcode_indices(honk_recursion_constraints.size());
