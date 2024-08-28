@@ -8,8 +8,9 @@ use builtin_helpers::{
     block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
     check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_function_def,
     get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
-    get_trait_impl, get_tuple, get_type, get_u32, hir_pattern_to_tokens, mutate_func_meta_type,
-    parse, parse_tokens, replace_func_meta_parameters, replace_func_meta_return_type,
+    get_trait_impl, get_tuple, get_type, get_u32, get_unresolved_type, hir_pattern_to_tokens,
+    mutate_func_meta_type, parse, parse_tokens, replace_func_meta_parameters,
+    replace_func_meta_return_type,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -53,6 +54,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_len" => array_len(interner, arguments, location),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_array" => expr_as_array(arguments, return_type, location),
+            "expr_as_assign" => expr_as_assign(arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(arguments, return_type, location),
             "expr_as_block" => expr_as_block(arguments, return_type, location),
             "expr_as_bool" => expr_as_bool(arguments, return_type, location),
@@ -63,6 +65,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "expr_as_index" => expr_as_index(arguments, return_type, location),
             "expr_as_integer" => expr_as_integer(arguments, return_type, location),
             "expr_as_member_access" => expr_as_member_access(arguments, return_type, location),
+            "expr_as_method_call" => expr_as_method_call(arguments, return_type, location),
             "expr_as_repeated_element_array" => {
                 expr_as_repeated_element_array(arguments, return_type, location)
             }
@@ -132,6 +135,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "type_is_bool" => type_is_bool(arguments, location),
             "type_is_field" => type_is_field(arguments, location),
             "type_of" => type_of(arguments, location),
+            "unresolved_type_is_field" => unresolved_type_is_field(arguments, location),
             "zeroed" => zeroed(return_type),
             _ => {
                 let item = format!("Comptime evaluation for builtin function {name}");
@@ -705,6 +709,16 @@ fn trait_impl_trait_generic_args(
     Ok(Value::Slice(trait_generics, slice_type))
 }
 
+// fn is_field(self) -> bool
+fn unresolved_type_is_field(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let typ = get_unresolved_type(self_argument)?;
+    Ok(Value::Bool(matches!(typ, UnresolvedTypeData::FieldElement)))
+}
+
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type) -> IResult<Value> {
     match return_type {
@@ -800,6 +814,23 @@ fn expr_as_array(
             let exprs = exprs.into_iter().map(|expr| Value::expression(expr.kind)).collect();
             let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
             Some(Value::Slice(exprs, typ))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_assign(self) -> Option<(Expr, Expr)>
+fn expr_as_assign(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Statement(StatementKind::Assign(assign)) = expr {
+            let lhs = Value::lvalue(assign.lvalue);
+            let rhs = Value::expression(assign.expression.kind);
+            Some(Value::Tuple(vec![lhs, rhs]))
         } else {
             None
         }
@@ -1010,13 +1041,49 @@ fn expr_as_member_access(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(arguments, return_type, location, |expr| {
-        if let ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) = expr {
+    expr_as(arguments, return_type, location, |expr| match expr {
+        ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
             let tokens = Rc::new(vec![Token::Ident(member_access.rhs.0.contents.clone())]);
             Some(Value::Tuple(vec![
                 Value::expression(member_access.lhs.kind),
                 Value::Quoted(tokens),
             ]))
+        }
+        ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
+            let tokens = Rc::new(vec![Token::Ident(field_name.0.contents.clone())]);
+            Some(Value::Tuple(vec![Value::lvalue(*object), Value::Quoted(tokens)]))
+        }
+        _ => None,
+    })
+}
+
+// fn as_method_call(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])>
+fn expr_as_method_call(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(arguments, return_type, location, |expr| {
+        if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
+            let object = Value::expression(method_call.object.kind);
+
+            let name_tokens =
+                Rc::new(vec![Token::Ident(method_call.method_name.0.contents.clone())]);
+            let name = Value::Quoted(name_tokens);
+
+            let generics = method_call.generics.unwrap_or_default().into_iter();
+            let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
+            let generics = Value::Slice(
+                generics,
+                Type::Slice(Box::new(Type::Quoted(QuotedType::UnresolvedType))),
+            );
+
+            let arguments = method_call.arguments.into_iter();
+            let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
+            let arguments =
+                Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
+
+            Some(Value::Tuple(vec![object, name, generics, arguments]))
         } else {
             None
         }

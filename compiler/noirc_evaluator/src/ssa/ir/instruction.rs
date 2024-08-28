@@ -218,13 +218,23 @@ pub(crate) enum Instruction {
     Store { address: ValueId, value: ValueId },
 
     /// Provides a context for all instructions that follow up until the next
-    /// `EnableSideEffects` is encountered, for stating a condition that determines whether
+    /// `EnableSideEffectsIf` is encountered, for stating a condition that determines whether
     /// such instructions are allowed to have side-effects.
+    ///
+    /// For example,
+    /// ```text
+    /// EnableSideEffectsIf condition0;
+    /// code0;
+    /// EnableSideEffectsIf condition1;
+    /// code1;
+    /// ```
+    /// - `code0` will have side effects iff `condition0` evaluates to `true`
+    /// - `code1` will have side effects iff `condition1` evaluates to `true`
     ///
     /// This instruction is only emitted after the cfg flattening pass, and is used to annotate
     /// instruction regions with an condition that corresponds to their position in the CFG's
     /// if-branching structure.
-    EnableSideEffects { condition: ValueId },
+    EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
     ArrayGet { array: ValueId, index: ValueId },
@@ -249,6 +259,17 @@ pub(crate) enum Instruction {
     DecrementRc { value: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
+    ///
+    /// ```text
+    /// if then_condition {
+    ///     then_value
+    /// } else {   // else_condition = !then_condition
+    ///     else_value
+    /// }
+    /// ```
+    ///
+    /// Where we save the result of !then_condition so that we have the same
+    /// ValueId for it each time.
     IfElse {
         then_condition: ValueId,
         then_value: ValueId,
@@ -279,7 +300,7 @@ impl Instruction {
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. }
             | Instruction::RangeCheck { .. }
-            | Instruction::EnableSideEffects { .. } => InstructionResultType::None,
+            | Instruction::EnableSideEffectsIf { .. } => InstructionResultType::None,
             Instruction::Allocate { .. }
             | Instruction::Load { .. }
             | Instruction::ArrayGet { .. }
@@ -306,7 +327,7 @@ impl Instruction {
 
         match self {
             // These either have side-effects or interact with memory
-            EnableSideEffects { .. }
+            EnableSideEffectsIf { .. }
             | Allocate
             | Load { .. }
             | Store { .. }
@@ -362,7 +383,7 @@ impl Instruction {
 
             Constrain(..)
             | Store { .. }
-            | EnableSideEffects { .. }
+            | EnableSideEffectsIf { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
             | RangeCheck { .. } => false,
@@ -401,7 +422,7 @@ impl Instruction {
                 !dfg.is_safe_index(*index, *array)
             }
 
-            Instruction::EnableSideEffects { .. } | Instruction::ArraySet { .. } => true,
+            Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(_) => true,
@@ -466,8 +487,8 @@ impl Instruction {
             Instruction::Store { address, value } => {
                 Instruction::Store { address: f(*address), value: f(*value) }
             }
-            Instruction::EnableSideEffects { condition } => {
-                Instruction::EnableSideEffects { condition: f(*condition) }
+            Instruction::EnableSideEffectsIf { condition } => {
+                Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
@@ -541,7 +562,7 @@ impl Instruction {
                 f(*index);
                 f(*value);
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 f(*condition);
             }
             Instruction::IncrementRc { value }
@@ -678,11 +699,11 @@ impl Instruction {
             Instruction::Call { func, arguments } => {
                 simplify_call(*func, arguments, dfg, block, ctrl_typevars, call_stack)
             }
-            Instruction::EnableSideEffects { condition } => {
+            Instruction::EnableSideEffectsIf { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
                     let last = &mut dfg[last];
-                    if matches!(last, Instruction::EnableSideEffects { .. }) {
-                        *last = Instruction::EnableSideEffects { condition: *condition };
+                    if matches!(last, Instruction::EnableSideEffectsIf { .. }) {
+                        *last = Instruction::EnableSideEffectsIf { condition: *condition };
                         return Remove;
                     }
                 }

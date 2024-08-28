@@ -232,6 +232,7 @@ The following is an incomplete list of some `comptime` types along with some use
     - `fn fields(self) -> [(Quoted, Type)]`
       - Return the name and type of each field
 - `TraitConstraint`: A trait constraint such as `From<Field>`
+- `UnresolvedType`: A syntactic notation that refers to a Noir type that hasn't been resolved yet
 
 There are many more functions available by exploring the `std::meta` module and its submodules.
 Using these methods is the key to writing powerful metaprogramming libraries.
@@ -245,7 +246,7 @@ From the user's perspective it will look like this:
 
 ```rust
 // Example usage
-#[derive(Default, Eq, Cmp)]
+#[derive(Default, Eq, Ord)]
 struct MyStruct { my_field: u32 }
 ```
 

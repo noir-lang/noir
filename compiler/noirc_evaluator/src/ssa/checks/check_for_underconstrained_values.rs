@@ -252,7 +252,7 @@ impl Context {
                 }
                 Instruction::Allocate { .. }
                 | Instruction::DecrementRc { .. }
-                | Instruction::EnableSideEffects { .. }
+                | Instruction::EnableSideEffectsIf { .. }
                 | Instruction::IncrementRc { .. }
                 | Instruction::RangeCheck { .. } => {}
             }

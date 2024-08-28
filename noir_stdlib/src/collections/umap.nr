@@ -76,10 +76,10 @@ impl<K, V> Slot<K, V> {
 // While conducting lookup, we iterate attempt from 0 to N - 1 due to heuristic,
 // that if we have went that far without finding desired, 
 // it is very unlikely to be after - performance will be heavily degraded.
-impl<K, V, B, H> UHashMap<K, V, B> {
+impl<K, V, B> UHashMap<K, V, B> {
     // Creates a new instance of UHashMap with specified BuildHasher.
     // docs:start:with_hasher
-    pub fn with_hasher(_build_hasher: B) -> Self
+    pub fn with_hasher<H>(_build_hasher: B) -> Self
     where
         B: BuildHasher<H> {
         // docs:end:with_hasher
@@ -88,7 +88,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
         Self { _table, _len, _build_hasher }
     }
 
-    pub fn with_hasher_and_capacity(_build_hasher: B, capacity: u32) -> Self
+    pub fn with_hasher_and_capacity<H>(_build_hasher: B, capacity: u32) -> Self
     where
         B: BuildHasher<H> {
         // docs:end:with_hasher
@@ -110,7 +110,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
 
     // Returns true if the map contains a value for the specified key.
     // docs:start:contains_key
-    pub fn contains_key(
+    pub fn contains_key<H>(
         self,
         key: K
     ) -> bool
@@ -194,7 +194,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
 
     // For each key-value entry applies mutator function.
     // docs:start:iter_mut
-    unconstrained pub fn iter_mut(
+    unconstrained pub fn iter_mut<H>(
         &mut self,
         f: fn(K, V) -> (K, V)
     )
@@ -216,7 +216,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
 
     // For each key applies mutator function.
     // docs:start:iter_keys_mut
-    unconstrained pub fn iter_keys_mut(
+    unconstrained pub fn iter_keys_mut<H>(
         &mut self,
         f: fn(K) -> K
     ) 
@@ -283,7 +283,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
 
     // Get the value by key. If it does not exist, returns none().
     // docs:start:get
-    unconstrained pub fn get(
+    unconstrained pub fn get<H>(
         self,
         key: K
     ) -> Option<V>
@@ -315,7 +315,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
 
     // Insert key-value entry. In case key was already present, value is overridden. 
     // docs:start:insert
-    unconstrained pub fn insert(
+    unconstrained pub fn insert<H>(
         &mut self,
         key: K,
         value: V
@@ -353,7 +353,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
         }
     }
 
-    unconstrained fn try_resize(&mut self)
+    unconstrained fn try_resize<H>(&mut self)
         where B: BuildHasher<H>, K: Eq + Hash, H: Hasher {
         if self.len() + 1 >= self.capacity() / 2 {
             let capacity = self.capacity() * 2;
@@ -368,7 +368,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
 
     // Removes a key-value entry. If key is not present, UHashMap remains unchanged.
     // docs:start:remove
-    unconstrained pub fn remove(
+    unconstrained pub fn remove<H>(
         &mut self,
         key: K
     )
@@ -397,7 +397,7 @@ impl<K, V, B, H> UHashMap<K, V, B> {
     }
 
     // Apply UHashMap's hasher onto key to obtain pre-hash for probing.
-    fn hash(
+    fn hash<H>(
         self,
         key: K
     ) -> u32

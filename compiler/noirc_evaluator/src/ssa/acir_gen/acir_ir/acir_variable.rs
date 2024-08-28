@@ -492,7 +492,7 @@ impl<F: AcirField> AcirContext<F> {
             self.sub_var(sum, mul)
         } else {
             // Implement OR in terms of AND
-            // (NOT a) NAND (NOT b) => a OR b
+            // (NOT a) AND (NOT b) => NOT (a OR b)
             let a = self.not_var(lhs, typ.clone())?;
             let b = self.not_var(rhs, typ.clone())?;
             let a_and_b = self.and_var(a, b, typ.clone())?;

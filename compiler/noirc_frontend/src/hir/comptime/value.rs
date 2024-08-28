@@ -9,8 +9,8 @@ use strum_macros::Display;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, Signedness,
-        Statement, StatementKind, UnresolvedTypeData,
+        ArrayLiteral, BlockExpression, ConstructorExpression, Ident, IntegerBitSize, LValue,
+        Signedness, Statement, StatementKind, UnresolvedTypeData,
     },
     hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
     hir_def::{
@@ -73,6 +73,7 @@ pub enum Value {
 pub enum ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),
+    LValue(LValue),
 }
 
 impl Value {
@@ -82,6 +83,10 @@ impl Value {
 
     pub(crate) fn statement(statement: StatementKind) -> Self {
         Value::Expr(ExprValue::Statement(statement))
+    }
+
+    pub(crate) fn lvalue(lvaue: LValue) -> Self {
+        Value::Expr(ExprValue::LValue(lvaue))
     }
 
     pub(crate) fn get_type(&self) -> Cow<Type> {
@@ -256,7 +261,8 @@ impl Value {
                     statements: vec![Statement { kind: statement, span: location.span }],
                 })
             }
-            Value::Pointer(..)
+            Value::Expr(ExprValue::LValue(_))
+            | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
@@ -593,6 +599,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::Type(typ) => write!(f, "{}", typ),
             Value::Expr(ExprValue::Expression(expr)) => write!(f, "{}", expr),
             Value::Expr(ExprValue::Statement(statement)) => write!(f, "{}", statement),
+            Value::Expr(ExprValue::LValue(lvalue)) => write!(f, "{}", lvalue),
             Value::UnresolvedType(typ) => write!(f, "{}", typ),
         }
     }

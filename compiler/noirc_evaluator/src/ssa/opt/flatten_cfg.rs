@@ -11,7 +11,7 @@
 //! elimination (DIE) pass.
 //!
 //! Though CFG information is lost during this pass, some key information is retained in the form
-//! of `EnableSideEffect` instructions. Each time the flattening pass enters and exits a branch of
+//! of `EnableSideEffectsIf` instructions. Each time the flattening pass enters and exits a branch of
 //! a jmpif, an instruction is inserted to capture a condition that is analogous to the activeness
 //! of the program point. For example:
 //!
@@ -573,7 +573,7 @@ impl<'f> Context<'f> {
     }
 
     /// Checks the branch condition on the top of the stack and uses it to build and insert an
-    /// `EnableSideEffects` instruction into the entry block.
+    /// `EnableSideEffectsIf` instruction into the entry block.
     ///
     /// If the stack is empty, a "true" u1 constant is taken to be the active condition. This is
     /// necessary for re-enabling side-effects when re-emerging to a branch depth of 0.
@@ -584,7 +584,7 @@ impl<'f> Context<'f> {
                 self.inserter.function.dfg.make_constant(FieldElement::one(), Type::unsigned(1))
             }
         };
-        let enable_side_effects = Instruction::EnableSideEffects { condition };
+        let enable_side_effects = Instruction::EnableSideEffectsIf { condition };
         let call_stack = self.inserter.function.dfg.get_value_call_stack(condition);
         self.insert_instruction_with_typevars(enable_side_effects, None, call_stack);
     }

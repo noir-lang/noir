@@ -8,6 +8,7 @@ mod trait_def;
 mod trait_impl;
 mod typ;
 mod quoted;
+mod unresolved_type;
 
 /// Calling unquote as a macro (via `unquote!(arg)`) will unquote
 /// its argument. Since this is the effect `!` already does, `unquote`
@@ -163,7 +164,7 @@ mod tests {
     }
     // docs:end:annotation-arguments-example
 
-    // docs:end:annotation-varargs-example
+    // docs:start:annotation-varargs-example
     #[assert_three_args(1, 2, 3)]
     struct MyOtherStruct { my_other_field: u32 }
 
