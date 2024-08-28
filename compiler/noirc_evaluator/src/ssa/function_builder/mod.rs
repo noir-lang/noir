@@ -533,7 +533,7 @@ mod tests {
     fn insert_constant_call() {
         // `bits` should be an array of constants [1, 1, 1, 0...] of length 8:
         // let x = 7;
-        // let bits = x.to_le_bits(8);
+        // let bits: [u1; 8] = x.to_le_bits();
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let one = builder.numeric_constant(FieldElement::one(), Type::bool());
@@ -546,13 +546,7 @@ mod tests {
         let call_results =
             builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
-        let slice_len = match &builder.current_function.dfg[call_results[0]] {
-            Value::NumericConstant { constant, .. } => *constant,
-            _ => panic!(),
-        };
-        assert_eq!(slice_len, FieldElement::from(8_u128));
-
-        let slice = match &builder.current_function.dfg[call_results[1]] {
+        let slice = match &builder.current_function.dfg[call_results[0]] {
             Value::Array { array, .. } => array,
             _ => panic!(),
         };
