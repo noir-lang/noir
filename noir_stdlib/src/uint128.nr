@@ -45,8 +45,8 @@ impl U128 {
     }
 
     pub fn to_be_bytes(self: Self) -> [u8; 16] {
-        let lo = self.lo.to_be_bytes(8);
-        let hi = self.hi.to_be_bytes(8);
+        let lo: [u8; 8] = self.lo.to_be_bytes();
+        let hi: [u8; 8] = self.hi.to_be_bytes();
         let mut bytes = [0; 16];
         for i in 0..8 {
             bytes[i] = hi[i];
@@ -56,8 +56,8 @@ impl U128 {
     }
 
     pub fn to_le_bytes(self: Self) -> [u8; 16] {
-        let lo = self.lo.to_le_bytes(8);
-        let hi = self.hi.to_le_bytes(8);
+        let lo: [u8; 8] = self.lo.to_le_bytes();
+        let hi: [u8; 8] = self.hi.to_le_bytes();
         let mut bytes = [0; 16];
         for i in 0..8 {
             bytes[i] = lo[i];
@@ -295,12 +295,13 @@ impl BitXor for U128 {
 impl Shl for U128 { 
     fn shl(self, other: u8) -> U128 { 
         assert(other < 128, "attempt to shift left with overflow");
-        let exp_bits = (other as Field).to_be_bits(7);
+        let exp_bits: [u1; 7] = (other as Field).to_be_bits();
 
         let mut r: Field = 2;
         let mut y: Field = 1;
         for i in 1..8 {
-            y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
+            let bit = exp_bits[7-i] as Field;
+            y = bit * (r * y) + (1 - bit) * y;
             r *= r;
         }
         self.wrapping_mul(U128::from_integer(y))
@@ -310,12 +311,13 @@ impl Shl for U128 {
 impl Shr for U128 { 
     fn shr(self, other: u8) -> U128 { 
         assert(other < 128, "attempt to shift right with overflow");
-        let exp_bits = (other as Field).to_be_bits(7);
+        let exp_bits: [u1; 7] = (other as Field).to_be_bits();
 
         let mut r: Field = 2;
         let mut y: Field = 1;
         for i in 1..8 {
-            y = (exp_bits[7-i] as Field) * (r * y) + (1 - exp_bits[7-i] as Field) * y;
+            let bit = exp_bits[7-i] as Field;
+            y = bit * (r * y) + (1 - bit) * y;
             r *= r;
         }
         self / U128::from_integer(y)
@@ -435,7 +437,7 @@ mod tests {
         // but in the past it was possible to create a value > (1<<128)
         let a = U128::from_hex("0x~fffffffffffffffffffffffffffffff");
         let b:Field= a.to_integer();
-        let c= b.to_le_bytes(17);
+        let c: [u8; 17]= b.to_le_bytes();
         assert(c[16] != 0);
     }
 

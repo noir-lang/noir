@@ -1,12 +1,12 @@
 use acvm::acir::{
-    brillig::{BlackBoxOp, HeapArray, IntegerBitSize},
+    brillig::{BlackBoxOp, IntegerBitSize},
     AcirField,
 };
 
 use crate::brillig::brillig_ir::BrilligBinaryOp;
 
 use super::{
-    brillig_variable::{BrilligVector, SingleAddrVariable},
+    brillig_variable::{BrilligArray, SingleAddrVariable},
     debug_show::DebugToString,
     BrilligContext,
 };
@@ -66,40 +66,34 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
     pub(crate) fn codegen_to_radix(
         &mut self,
         source_field: SingleAddrVariable,
-        target_vector: BrilligVector,
+        target_array: BrilligArray,
         radix: u32,
-        limb_count: usize,
         big_endian: bool,
         limb_bit_size: u32,
     ) {
         assert!(source_field.bit_size == F::max_num_bits());
 
-        self.usize_const_instruction(target_vector.size, limb_count.into());
-        self.usize_const_instruction(target_vector.rc, 1_usize.into());
-        self.codegen_allocate_array(target_vector.pointer, target_vector.size);
-
         self.black_box_op_instruction(BlackBoxOp::ToRadix {
             input: source_field.address,
             radix,
-            output: HeapArray { pointer: target_vector.pointer, size: limb_count },
+            output: target_array.to_heap_array(),
         });
 
         let limb_field = SingleAddrVariable::new(self.allocate_register(), F::max_num_bits());
         let limb_casted = SingleAddrVariable::new(self.allocate_register(), limb_bit_size);
 
         if limb_bit_size != F::max_num_bits() {
-            self.codegen_loop(target_vector.size, |ctx, iterator_register| {
+            let size = self.allocate_register();
+            self.usize_const_instruction(size, target_array.size.into());
+            self.codegen_loop(size, |ctx, iterator_register| {
                 // Read the limb
-                ctx.codegen_array_get(target_vector.pointer, iterator_register, limb_field.address);
+                ctx.codegen_array_get(target_array.pointer, iterator_register, limb_field.address);
                 // Cast it
                 ctx.cast_instruction(limb_casted, limb_field);
                 // Write it
-                ctx.codegen_array_set(
-                    target_vector.pointer,
-                    iterator_register,
-                    limb_casted.address,
-                );
+                ctx.codegen_array_set(target_array.pointer, iterator_register, limb_casted.address);
             });
+            self.deallocate_register(size);
         }
 
         // Deallocate our temporary registers
@@ -107,7 +101,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         self.deallocate_single_addr(limb_casted);
 
         if big_endian {
-            self.codegen_reverse_vector_in_place(target_vector);
+            self.codegen_reverse_array_in_place(target_array);
         }
     }
 }

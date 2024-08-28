@@ -15,45 +15,33 @@ impl Field {
     #[builtin(apply_range_constraint)]
     fn __assert_max_bit_size(self, bit_size: u32) {}
 
-    /// Decomposes `self` into its little endian bit decomposition as a `[u1]` slice of length `bit_size`.
+    /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
     /// This slice will be zero padded should not all bits be necessary to represent `self`.
     /// 
     /// # Failures
-    /// Causes a constraint failure for `Field` values exceeding `2^{bit_size}` as the resulting slice will not
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
     /// be able to represent the original `Field`.
     ///
     /// # Safety
-    /// Values of `bit_size` equal to or greater than the number of bits necessary to represent the `Field` modulus
+    /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
-    pub fn to_le_bits(self: Self, bit_size: u32) -> [u1] {
-        crate::assert_constant(bit_size);
-        self.__to_le_bits(bit_size)
-    }
-
-    /// Decomposes `self` into its big endian bit decomposition as a `[u1]` slice of length `bit_size`.
-    /// This slice will be zero padded should not all bits be necessary to represent `self`.
-    /// 
-    /// # Failures
-    /// Causes a constraint failure for `Field` values exceeding `2^{bit_size}` as the resulting slice will not
-    /// be able to represent the original `Field`.
-    ///
-    /// # Safety
-    /// Values of `bit_size` equal to or greater than the number of bits necessary to represent the `Field` modulus
-    /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
-    /// wrap around due to overflow when verifying the decomposition.
-    pub fn to_be_bits(self: Self, bit_size: u32) -> [u1] {
-        crate::assert_constant(bit_size);
-        self.__to_be_bits(bit_size)
-    }
-
-    /// See `Field.to_be_bits`
     #[builtin(to_le_bits)]
-    fn __to_le_bits(self, _bit_size: u32) -> [u1] {}
+    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
 
-    /// See `Field.to_le_bits`
+    /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
+    /// This array will be zero padded should not all bits be necessary to represent `self`.
+    /// 
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// Values of `N` equal to or greater than the number of bits necessary to represent the `Field` modulus
+    /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
+    /// wrap around due to overflow when verifying the decomposition.
     #[builtin(to_be_bits)]
-    fn __to_be_bits(self, bit_size: u32) -> [u1] {}
+    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
 
     /// Decomposes `self` into its little endian byte decomposition as a `[u8]` slice of length `byte_size`.
     /// This slice will be zero padded should not all bytes be necessary to represent `self`.
@@ -66,8 +54,8 @@ impl Field {
     /// Values of `byte_size` equal to or greater than the number of bytes necessary to represent the `Field` modulus
     /// (e.g. 32 for the BN254 field) allow for multiple byte decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
-    pub fn to_le_bytes(self: Self, byte_size: u32) -> [u8] {
-        self.to_le_radix(256, byte_size)
+    pub fn to_le_bytes<let N: u32>(self: Self) -> [u8; N] {
+        self.to_le_radix(256)
     }
 
     /// Decomposes `self` into its big endian byte decomposition as a `[u8]` slice of length `byte_size`.
@@ -81,35 +69,33 @@ impl Field {
     /// Values of `byte_size` equal to or greater than the number of bytes necessary to represent the `Field` modulus
     /// (e.g. 32 for the BN254 field) allow for multiple byte decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
-    pub fn to_be_bytes(self: Self, byte_size: u32) -> [u8] {
-        self.to_be_radix(256, byte_size)
+    pub fn to_be_bytes<let N: u32>(self: Self) -> [u8; N] {
+        self.to_be_radix(256)
     }
 
-    pub fn to_le_radix(self: Self, radix: u32, result_len: u32) -> [u8] {
+    pub fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         crate::assert_constant(radix);
-        crate::assert_constant(result_len);
-        self.__to_le_radix(radix, result_len)
+        self.__to_le_radix(radix)
     }
 
-    pub fn to_be_radix(self: Self, radix: u32, result_len: u32) -> [u8] {
+    pub fn to_be_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         crate::assert_constant(radix);
-        crate::assert_constant(result_len);
-        self.__to_be_radix(radix, result_len)
+        self.__to_be_radix(radix)
     }
 
     // `_radix` must be less than 256
     #[builtin(to_le_radix)]
-    fn __to_le_radix(self, radix: u32, result_len: u32) -> [u8] {}
+    fn __to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
 
     #[builtin(to_be_radix)]
-    fn __to_be_radix(self, radix: u32, result_len: u32) -> [u8] {}
+    fn __to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {}
 
     // Returns self to the power of the given exponent value.
     // Caution: we assume the exponent fits into 32 bits
     // using a bigger bit size impacts negatively the performance and should be done only if the exponent does not fit in 32 bits
     pub fn pow_32(self, exponent: Field) -> Field {
         let mut r: Field = 1;
-        let b = exponent.to_le_bits(32);
+        let b: [u1; 32] = exponent.to_le_bits();
 
         for i in 1..33 {
             r *= r;
@@ -165,8 +151,8 @@ pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
 
 fn lt_fallback(x: Field, y: Field) -> bool {
     let num_bytes = (modulus_num_bits() as u32 + 7) / 8;
-    let x_bytes = x.to_le_bytes(num_bytes);
-    let y_bytes = y.to_le_bytes(num_bytes);
+    let x_bytes = x.to_le_bytes();
+    let y_bytes = y.to_le_bytes();
     let mut x_is_lt = false;
     let mut done = false;
     for i in 0..num_bytes {

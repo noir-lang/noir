@@ -72,7 +72,6 @@ impl<'a> SliceCapacityTracker<'a> {
                         // where v7 is the slice length and v8 is the popped slice itself.
                         Intrinsic::SlicePopFront => (Some(1), results.len() - 1),
                         // The slice capacity of these intrinsics is not determined by the arguments of the function.
-                        Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => (None, 1),
                         Intrinsic::AsSlice => (Some(0), 1),
                         _ => return,
                     };
