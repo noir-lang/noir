@@ -10,7 +10,7 @@ use completion_items::{
 };
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
-use kinds::{FunctionCompletionKind, FunctionKind, ModuleCompletionKind, RequestedItems};
+use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
@@ -815,12 +815,6 @@ impl<'a> NodeFinder<'a> {
         let is_single_segment = !after_colons && idents.is_empty() && path.kind == PathKind::Plain;
         let module_id;
 
-        let module_completion_kind = if after_colons || !idents.is_empty() {
-            ModuleCompletionKind::DirectChildren
-        } else {
-            ModuleCompletionKind::AllVisibleItems
-        };
-
         // When completing in the middle of an ident, we don't want to complete
         // with function parameters because there might already be function parameters,
         // and in the middle of a path it leads to code that won't compile
@@ -883,7 +877,6 @@ impl<'a> NodeFinder<'a> {
             &prefix,
             path.kind,
             at_root,
-            module_completion_kind,
             function_completion_kind,
             requested_items,
         );
@@ -984,7 +977,6 @@ impl<'a> NodeFinder<'a> {
             }
         }
 
-        let module_completion_kind = ModuleCompletionKind::DirectChildren;
         let function_completion_kind = FunctionCompletionKind::Name;
         let requested_items = RequestedItems::AnyItems;
 
@@ -1000,7 +992,6 @@ impl<'a> NodeFinder<'a> {
                     prefix,
                     path_kind,
                     at_root,
-                    module_completion_kind,
                     function_completion_kind,
                     requested_items,
                 );
@@ -1015,7 +1006,6 @@ impl<'a> NodeFinder<'a> {
                     &prefix,
                     path_kind,
                     at_root,
-                    module_completion_kind,
                     function_completion_kind,
                     requested_items,
                 );
@@ -1026,7 +1016,6 @@ impl<'a> NodeFinder<'a> {
                     &prefix,
                     path_kind,
                     at_root,
-                    module_completion_kind,
                     function_completion_kind,
                     requested_items,
                 );
@@ -1198,7 +1187,6 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         path_kind: PathKind,
         at_root: bool,
-        module_completion_kind: ModuleCompletionKind,
         function_completion_kind: FunctionCompletionKind,
         requested_items: RequestedItems,
     ) {
@@ -1231,12 +1219,7 @@ impl<'a> NodeFinder<'a> {
 
         let function_kind = FunctionKind::Any;
 
-        let items = match module_completion_kind {
-            ModuleCompletionKind::DirectChildren => module_data.definitions(),
-            ModuleCompletionKind::AllVisibleItems => module_data.scope(),
-        };
-
-        for ident in items.names() {
+        for ident in module_data.scope().names() {
             let name = &ident.0.contents;
 
             if name_matches(name, prefix) {

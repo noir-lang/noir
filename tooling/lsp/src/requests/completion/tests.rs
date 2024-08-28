@@ -119,14 +119,14 @@ mod completion_tests {
     #[test]
     async fn test_use_first_segment() {
         let src = r#"
-            mod foo {}
+            mod foobaz {}
             mod foobar {}
-            use f>|<
+            use foob>|<
         "#;
 
         assert_completion(
             src,
-            vec![module_completion_item("foo"), module_completion_item("foobar")],
+            vec![module_completion_item("foobaz"), module_completion_item("foobar")],
         )
         .await;
     }
@@ -218,7 +218,7 @@ mod completion_tests {
     #[test]
     async fn test_use_suggests_hardcoded_crate() {
         let src = r#"
-            use c>|<
+            use cr>|<
         "#;
 
         assert_completion(
@@ -291,16 +291,16 @@ mod completion_tests {
     #[test]
     async fn test_use_after_super() {
         let src = r#"
-            mod foo {}
+            mod foobar {}
 
             mod bar {
                 mod something {}
 
-                use super::f>|<
+                use super::foob>|<
             }
         "#;
 
-        assert_completion(src, vec![module_completion_item("foo")]).await;
+        assert_completion(src, vec![module_completion_item("foobar")]).await;
     }
 
     #[test]
@@ -1790,5 +1790,23 @@ mod completion_tests {
             )],
         )
         .await;
+    }
+
+    #[test]
+    async fn test_suggests_pub_use() {
+        let src = r#"
+            mod bar {
+                mod baz {
+                    mod coco {}
+                }
+
+                pub use baz::coco;
+            }
+
+            fn main() {
+                bar::c>|<
+            }
+        "#;
+        assert_completion(src, vec![module_completion_item("coco")]).await;
     }
 }

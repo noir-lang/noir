@@ -227,11 +227,12 @@ fn resolve_path_from_crate_root(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
+    let starting_mod = def_maps[&crate_id].root;
     resolve_name_in_module(
         crate_id,
         importing_crate,
         import_path,
-        def_maps[&crate_id].root,
+        starting_mod,
         def_maps,
         false,
         path_references,
