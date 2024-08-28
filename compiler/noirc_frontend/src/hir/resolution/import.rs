@@ -158,6 +158,7 @@ fn resolve_path_to_ns(
                     import_path,
                     import_directive.module_id,
                     def_maps,
+                    true,
                     path_references,
                 );
             }
@@ -183,6 +184,7 @@ fn resolve_path_to_ns(
                 import_path,
                 import_directive.module_id,
                 def_maps,
+                true,
                 path_references,
             )
         }
@@ -205,6 +207,7 @@ fn resolve_path_to_ns(
                     import_path,
                     parent_module_id,
                     def_maps,
+                    false,
                     path_references,
                 )
             } else {
@@ -230,6 +233,7 @@ fn resolve_path_from_crate_root(
         import_path,
         def_maps[&crate_id].root,
         def_maps,
+        false,
         path_references,
     )
 }
@@ -240,6 +244,7 @@ fn resolve_name_in_module(
     import_path: &[PathSegment],
     starting_mod: LocalModuleId,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    plain: bool,
     path_references: &mut Option<&mut Vec<ReferenceId>>,
 ) -> NamespaceResolutionResult {
     let def_map = &def_maps[&krate];
@@ -301,7 +306,9 @@ fn resolve_name_in_module(
         };
 
         warning = warning.or_else(|| {
-            if index == 0
+            // If the path is plain, the first segment will always refer to
+            // something that's visible from the current module.
+            if (plain && index == 0)
                 || can_reference_module_id(
                     def_maps,
                     importing_crate,
