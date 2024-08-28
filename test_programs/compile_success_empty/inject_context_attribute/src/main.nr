@@ -31,7 +31,7 @@ fn inject_context(f: FunctionDefinition) {
     f.set_parameters(parameters);
 
     // Create a new body where every function call has `_context` added to the list of arguments.
-    let body = f.body().map(mapping_function).quoted();
+    let body = f.body().mutate(mapping_function).quoted();
     f.set_body(body);
 }
 
@@ -39,7 +39,7 @@ fn mapping_function(expr: Expr) -> Option<Expr> {
     let func_call = expr.as_function_call();
     if func_call.is_some() {
         let (name, arguments) = func_call.unwrap();
-        let arguments = arguments.map(|arg: Expr| arg.map(mapping_function));
+        let arguments = arguments.map(|arg: Expr| arg.mutate(mapping_function));
         let arguments = arguments.push_front(quote { _context }.as_expr().unwrap());
         let arguments = arguments.map(|arg: Expr| arg.quoted()).join(quote { , });
         Option::some(quote { $name($arguments) }.as_expr().unwrap())
