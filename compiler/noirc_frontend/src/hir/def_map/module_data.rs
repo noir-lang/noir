@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use noirc_errors::Location;
 
@@ -24,6 +24,10 @@ pub struct ModuleData {
 
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
+
+    /// List of all unused imports. Each time something is imported into this module it's added
+    /// to this set. When it's used, it's removed. At the end of the program only unused imports remain.
+    unused_imports: HashSet<Ident>,
 }
 
 impl ModuleData {
@@ -35,6 +39,7 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
+            unused_imports: HashSet::new(),
         }
     }
 
@@ -121,6 +126,11 @@ impl ModuleData {
         id: ModuleDefId,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
+        // Empty spans could come from implicitly injected imports, and we don't want to track those
+        if name.span().start() < name.span().end() {
+            self.unused_imports.insert(name.clone());
+        }
+
         self.scope.add_item_to_namespace(name, ItemVisibility::Public, id, None, is_prelude)
     }
 
@@ -136,5 +146,15 @@ impl ModuleData {
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
         self.definitions.values().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
+    }
+
+    /// Marks an ident as being used by an import.
+    pub fn use_import(&mut self, ident: &Ident) {
+        self.unused_imports.remove(ident);
+    }
+
+    /// Returns the list of all unused imports at this moment.
+    pub fn unused_imports(&self) -> &HashSet<Ident> {
+        &self.unused_imports
     }
 }
