@@ -139,7 +139,7 @@ impl<'context> Elaborator<'context> {
             return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
         };
 
-        let mut interpreter = self.setup_interpreter(location);
+        let mut interpreter = self.setup_interpreter();
         let mut arguments =
             Self::handle_attribute_arguments(&mut interpreter, function, arguments, location)
                 .map_err(|error| {
@@ -345,15 +345,12 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn setup_interpreter<'local>(
-        &'local mut self,
-        location: Location,
-    ) -> Interpreter<'local, 'context> {
+    pub fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
         let current_function = match self.current_item {
             Some(DependencyId::Function(function)) => Some(function),
             _ => None,
         };
-        Interpreter::new(self, self.crate_id, current_function, location)
+        Interpreter::new(self, self.crate_id, current_function)
     }
 
     pub(super) fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(

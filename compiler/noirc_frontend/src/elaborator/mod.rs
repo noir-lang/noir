@@ -168,6 +168,8 @@ pub struct Elaborator<'context> {
 
     /// Temporary flag to enable the experimental arithmetic generics feature
     enable_arithmetic_generics: bool,
+
+    pub(crate) interpreter_call_stack: Vec<Location>,
 }
 
 #[derive(Default)]
@@ -214,6 +216,7 @@ impl<'context> Elaborator<'context> {
             unresolved_globals: BTreeMap::new(),
             enable_arithmetic_generics,
             current_trait: None,
+            interpreter_call_stack: Vec::new(),
         }
     }
 
@@ -1313,7 +1316,7 @@ impl<'context> Elaborator<'context> {
         let global = self.interner.get_global(global_id);
         let definition_id = global.definition_id;
         let location = global.location;
-        let mut interpreter = self.setup_interpreter(location);
+        let mut interpreter = self.setup_interpreter();
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
             self.errors.push(error.into_compilation_error_pair());

@@ -49,6 +49,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         location: Location,
     ) -> IResult<Value> {
         let interner = &mut self.elaborator.interner;
+        let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
@@ -102,11 +103,11 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
-            "slice_pop_back" => slice_pop_back(interner, arguments, location, &self.call_stack),
-            "slice_pop_front" => slice_pop_front(interner, arguments, location, &self.call_stack),
+            "slice_pop_back" => slice_pop_back(interner, arguments, location, call_stack),
+            "slice_pop_front" => slice_pop_front(interner, arguments, location, call_stack),
             "slice_push_back" => slice_push_back(interner, arguments, location),
             "slice_push_front" => slice_push_front(interner, arguments, location),
-            "slice_remove" => slice_remove(interner, arguments, location, &self.call_stack),
+            "slice_remove" => slice_remove(interner, arguments, location, call_stack),
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
