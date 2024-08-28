@@ -23,9 +23,14 @@ fn stdlib_does_not_produce_constant_warnings() -> Result<(), ErrorsAndWarnings> 
 
     let mut context = Context::new(file_manager, parsed_files);
     let root_crate_id = prepare_crate(&mut context, file_name);
+    let error_on_unused_imports = true;
 
-    let ((), warnings) =
-        noirc_driver::check_crate(&mut context, root_crate_id, &Default::default())?;
+    let ((), warnings) = noirc_driver::check_crate(
+        &mut context,
+        root_crate_id,
+        &Default::default(),
+        error_on_unused_imports,
+    )?;
 
     assert_eq!(warnings, Vec::new(), "stdlib is producing {} warnings", warnings.len());
 

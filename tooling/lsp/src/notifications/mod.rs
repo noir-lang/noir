@@ -132,10 +132,13 @@ pub(crate) fn process_workspace_for_noir_document(
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-            let file_diagnostics = match check_crate(&mut context, crate_id, &Default::default()) {
-                Ok(((), warnings)) => warnings,
-                Err(errors_and_warnings) => errors_and_warnings,
-            };
+            let error_on_unused_imports = package.error_on_unused_imports();
+            let options = &Default::default();
+            let file_diagnostics =
+                match check_crate(&mut context, crate_id, options, error_on_unused_imports) {
+                    Ok(((), warnings)) => warnings,
+                    Err(errors_and_warnings) => errors_and_warnings,
+                };
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {

@@ -279,11 +279,11 @@ pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    error_on_unused_imports: bool,
 ) -> CompilationResult<()> {
     let macros: &[&dyn MacroProcessor] =
         if options.disable_macros { &[] } else { &[&aztec_macros::AztecMacro] };
 
-    let error_on_unused_imports = true;
     let mut errors = vec![];
     let diagnostics = CrateDefMap::collect_defs(
         crate_id,
@@ -324,7 +324,8 @@ pub fn compile_main(
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate(context, crate_id, options)?;
+    let error_on_unused_imports = true;
+    let (_, mut warnings) = check_crate(context, crate_id, options, error_on_unused_imports)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -359,7 +360,8 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(context, crate_id, options)?;
+    let error_on_unused_imports = true;
+    let (_, warnings) = check_crate(context, crate_id, options, error_on_unused_imports)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);

@@ -180,7 +180,8 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     // We then need to construct a separate copy for each test.
 
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate(&mut context, crate_id, compile_options)
+    let error_on_unused_imports = package.error_on_unused_imports();
+    check_crate(&mut context, crate_id, compile_options, error_on_unused_imports)
         .expect("Any errors should have occurred when collecting test functions");
 
     let test_functions = context
@@ -206,10 +207,11 @@ fn get_tests_in_package(
     parsed_files: &ParsedFiles,
     package: &Package,
     fn_name: FunctionNameMatch,
-    compile_options: &CompileOptions,
+    options: &CompileOptions,
 ) -> Result<Vec<String>, CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    let error_on_unused_imports = package.error_on_unused_imports();
+    check_crate_and_report_errors(&mut context, crate_id, options, error_on_unused_imports)?;
 
     Ok(context
         .get_all_test_functions_in_crate_matching(&crate_id, fn_name)

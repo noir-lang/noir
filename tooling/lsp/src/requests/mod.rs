@@ -443,7 +443,9 @@ where
         def_maps = state.cached_def_maps.get(&package_root_path).unwrap();
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
+        let error_on_unused_imports = false;
+        let options = &Default::default();
+        let _ = noirc_driver::check_crate(&mut context, crate_id, options, error_on_unused_imports);
         interner = &context.def_interner;
         def_maps = &context.def_maps;
     }

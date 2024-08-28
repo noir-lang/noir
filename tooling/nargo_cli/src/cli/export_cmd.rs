@@ -80,10 +80,11 @@ fn compile_exported_functions(
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
     package: &Package,
-    compile_options: &CompileOptions,
+    options: &CompileOptions,
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    let error_on_unused_imports = package.error_on_unused_imports();
+    check_crate_and_report_errors(&mut context, crate_id, options, error_on_unused_imports)?;
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 
@@ -91,14 +92,14 @@ fn compile_exported_functions(
         exported_functions,
         |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
-            let program = compile_no_check(&mut context, compile_options, function_id, None, false)
+            let program = compile_no_check(&mut context, options, function_id, None, false)
                 .map_err(|error| vec![FileDiagnostic::from(error)]);
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),
                 file_manager,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
+                options.deny_warnings,
+                options.silence_warnings,
             )?;
 
             Ok((function_name, program))

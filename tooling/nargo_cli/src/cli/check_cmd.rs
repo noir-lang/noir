@@ -77,11 +77,13 @@ fn check_package(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
-    compile_options: &CompileOptions,
+    options: &CompileOptions,
     allow_overwrite: bool,
 ) -> Result<bool, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    let error_on_unused_imports = package.error_on_unused_imports();
+
+    check_crate_and_report_errors(&mut context, crate_id, options, error_on_unused_imports)?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
@@ -151,8 +153,9 @@ pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    error_on_unused_imports: bool,
 ) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, options);
+    let result = check_crate(context, crate_id, options, error_on_unused_imports);
     report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
 }
 

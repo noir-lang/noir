@@ -65,7 +65,9 @@ fn on_tests_request_inner(
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
             // We ignore the warnings and errors produced by compilation for producing tests
             // because we can still get the test functions even if compilation fails
-            let _ = check_crate(&mut context, crate_id, &Default::default());
+            let options = &Default::default();
+            let error_on_unused_imports = false;
+            let _ = check_crate(&mut context, crate_id, options, error_on_unused_imports);
 
             // We don't add test headings for a package if it contains no `#[test]` functions
             get_package_tests_in_crate(&context, &crate_id, &package.name)

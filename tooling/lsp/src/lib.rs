@@ -415,7 +415,13 @@ fn prepare_package_from_source_string() {
     let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
 
     let (mut context, crate_id) = prepare_source(source.to_string(), &mut state);
-    let _check_result = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
+    let error_on_unused_imports = true;
+    let _check_result = noirc_driver::check_crate(
+        &mut context,
+        crate_id,
+        &Default::default(),
+        error_on_unused_imports,
+    );
     let main_func_id = context.get_main_function(&crate_id);
     assert!(main_func_id.is_some());
 }
