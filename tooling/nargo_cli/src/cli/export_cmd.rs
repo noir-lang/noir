@@ -84,8 +84,7 @@ fn compile_exported_functions(
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     let error_on_unused_imports = package.error_on_unused_imports();
-    let check_options =
-        CheckOptions::from_compile_options(compile_options, error_on_unused_imports);
+    let check_options = CheckOptions::new(compile_options, error_on_unused_imports);
     check_crate_and_report_errors(&mut context, crate_id, &check_options)?;
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);

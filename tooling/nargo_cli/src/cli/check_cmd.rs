@@ -82,8 +82,7 @@ fn check_package(
 ) -> Result<bool, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     let error_on_unused_imports = package.error_on_unused_imports();
-    let check_options =
-        CheckOptions::from_compile_options(compile_options, error_on_unused_imports);
+    let check_options = CheckOptions::new(compile_options, error_on_unused_imports);
     check_crate_and_report_errors(&mut context, crate_id, &check_options)?;
 
     if package.is_library() || package.is_contract() {
@@ -153,9 +152,10 @@ fn create_input_toml_template(
 pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
-    options: &CheckOptions,
+    check_options: &CheckOptions,
 ) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, options);
+    let options = &check_options.compile_options;
+    let result = check_crate(context, crate_id, check_options);
     report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
 }
 

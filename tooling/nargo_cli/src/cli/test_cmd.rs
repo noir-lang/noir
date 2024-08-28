@@ -182,8 +182,7 @@ fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
 
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     let error_on_unused_imports = package.error_on_unused_imports();
-    let check_options =
-        CheckOptions::from_compile_options(compile_options, error_on_unused_imports);
+    let check_options = CheckOptions::new(compile_options, error_on_unused_imports);
     check_crate(&mut context, crate_id, &check_options)
         .expect("Any errors should have occurred when collecting test functions");
 
@@ -214,7 +213,7 @@ fn get_tests_in_package(
 ) -> Result<Vec<String>, CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     let error_on_unused_imports = package.error_on_unused_imports();
-    let check_options = CheckOptions::from_compile_options(options, error_on_unused_imports);
+    let check_options = CheckOptions::new(options, error_on_unused_imports);
     check_crate_and_report_errors(&mut context, crate_id, &check_options)?;
 
     Ok(context
