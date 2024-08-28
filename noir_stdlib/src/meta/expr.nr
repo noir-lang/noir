@@ -136,7 +136,7 @@ impl Expr {
             let modified = f(result);
             modified.unwrap_or(result)
         } else {
-            self
+            f(self).unwrap_or(self)
         }
     }
 
