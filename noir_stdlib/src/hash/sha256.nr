@@ -135,7 +135,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> [u8; 32] {
     msg_block[msg_byte_ptr] = 1 << 7;
     msg_byte_ptr = msg_byte_ptr + 1;
     unsafe {
-        let (new_msg_block, new_msg_byte_ptr)= pad_msg_block(msg_block, msg_byte_ptr);
+        let (new_msg_block, new_msg_byte_ptr) = pad_msg_block(msg_block, msg_byte_ptr);
         msg_block = new_msg_block;
         if crate::runtime::is_unconstrained() {
             msg_byte_ptr = new_msg_byte_ptr;
