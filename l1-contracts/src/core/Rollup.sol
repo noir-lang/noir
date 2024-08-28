@@ -110,6 +110,10 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    * @dev     Will revert if there is nothing to prune or if the chain is not ready to be pruned
    */
   function prune() external override(IRollup) {
+    if (isDevNet) {
+      revert Errors.DevNet__NoPruningAllowed();
+    }
+
     if (pendingBlockCount == provenBlockCount) {
       revert Errors.Rollup__NothingToPrune();
     }
@@ -159,7 +163,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @param _devNet - Whether or not the contract is in devnet mode
    */
-  function setDevNet(bool _devNet) external override(ITestRollup) {
+  function setDevNet(bool _devNet) external override(ITestRollup) onlyOwner {
     isDevNet = _devNet;
   }
 
@@ -170,7 +174,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @param _verifier - The new verifier contract
    */
-  function setVerifier(address _verifier) external override(ITestRollup) {
+  function setVerifier(address _verifier) external override(ITestRollup) onlyOwner {
     verifier = IVerifier(_verifier);
   }
 
@@ -181,7 +185,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @param _vkTreeRoot - The new vkTreeRoot to be used by proofs
    */
-  function setVkTreeRoot(bytes32 _vkTreeRoot) external override(ITestRollup) {
+  function setVkTreeRoot(bytes32 _vkTreeRoot) external override(ITestRollup) onlyOwner {
     vkTreeRoot = _vkTreeRoot;
   }
 

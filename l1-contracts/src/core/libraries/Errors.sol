@@ -10,6 +10,9 @@ pragma solidity >=0.8.18;
  * when there are multiple contracts that could have thrown the error.
  */
 library Errors {
+  // DEVNET related
+  error DevNet__NoPruningAllowed(); // 0x6984c590
+
   // Inbox
   error Inbox__Unauthorized(); // 0xe5336a6b
   error Inbox__ActorTooLarge(bytes32 actor); // 0xa776a06e
