@@ -36,8 +36,10 @@ impl UnaryOp {
             quote { ! }
         } else if self.is_mutable_reference() {
             quote { &mut }
-        } else {
+        } else if self.is_dereference() {
             quote { * }
+        } else {
+            std::mem::zeroed()
         }
     }
 }
@@ -176,8 +178,10 @@ impl BinaryOp {
             quote { >> }
         } else if self.is_shift_left() {
             quote { << }
-        } else {
+        } else if self.is_modulo() {
             quote { % }
+        } else {
+            std::mem::zeroed()
         }
     }
 }
