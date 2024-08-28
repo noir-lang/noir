@@ -1658,8 +1658,6 @@ fn normal_generic_as_array_length() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error rather than
-    // the `UseExplicitNumericGeneric` once implicit numeric generics are removed.
     assert!(matches!(
         errors[0].0,
         CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
@@ -1724,8 +1722,11 @@ fn normal_generic_used_in_nested_array_length_fail() {
     }
     "#;
     let errors = get_program_errors(src);
-    // TODO(https://github.com/noir-lang/noir/issues/5156): This should be switched to a hard type error once implicit numeric generics are removed.
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
+    ));
 }
 
 #[test]
@@ -1895,7 +1896,6 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     ));
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/5156): Remove this test once we ban implicit numeric generics
 #[test]
 fn implicit_numeric_generics_elaborator() {
     let src = r#"

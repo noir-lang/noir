@@ -207,6 +207,10 @@ impl ResolvedGeneric {
     pub fn as_named_generic(self) -> Type {
         Type::NamedGeneric(self.type_var, self.name, self.kind)
     }
+
+    fn is_numeric(&self) -> bool {
+        matches!(self.kind, Kind::Numeric { .. })
+    }
 }
 
 enum FunctionCoercionResult {
@@ -330,8 +334,9 @@ impl StructType {
     /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
     /// TODO(https://github.com/noir-lang/noir/issues/5156): This is outdated and we should remove this implicit searching for numeric generics
     pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        let target_id = self.generics[index_of_generic].type_var.id();
-        self.fields.iter().any(|(_, field)| field.contains_numeric_typevar(target_id))
+        self.generics[index_of_generic].is_numeric()
+        // let target_id = self.generics[index_of_generic].type_var.id();
+        // self.fields.iter().any(|(_, field)| field.contains_numeric_typevar(target_id))
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
@@ -418,11 +423,12 @@ impl TypeAlias {
     }
 
     /// True if the given index is the same index as a generic type of this alias
-    /// which is expected to be a numeric generic.
-    /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
+    /// which is a numeric generic.
     pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        let target_id = self.generics[index_of_generic].type_var.id();
-        self.typ.contains_numeric_typevar(target_id)
+        self.generics[index_of_generic].is_numeric()
+        // TODO
+        // let target_id = self.generics[index_of_generic].type_var.id();
+        // self.typ.contains_numeric_typevar(target_id)
     }
 }
 
@@ -904,7 +910,8 @@ impl Type {
         }
     }
 
-    /// TODO(https://github.com/noir-lang/noir/issues/5156): Remove with explicit numeric generics
+    // TODO(https://github.com/noir-lang/noir/issues/5156)
+    // TODO: fix for no implicit numeric generics
     pub fn find_numeric_type_vars(&self, found_names: &mut Vec<String>) {
         // Return whether the named generic has a TypeKind::Numeric and save its name
         let named_generic_is_numeric = |typ: &Type, found_names: &mut Vec<String>| {
@@ -1171,35 +1178,35 @@ impl Type {
         }
     }
 
-    // TODO(https://github.com/noir-lang/noir/issues/5156): Bring back this method when we remove implicit numeric generics
-    // It has been commented out as to not trigger clippy for an unused method
-    // pub(crate) fn kind(&self) -> Kind {
-    //     match self {
-    //         Type::NamedGeneric(_, _, kind) => kind.clone(),
-    //         Type::Constant(_) => Kind::Numeric(Box::new(Type::Integer(
-    //             Signedness::Unsigned,
-    //             IntegerBitSize::ThirtyTwo,
-    //         ))),
-    //         Type::FieldElement
-    //         | Type::Array(_, _)
-    //         | Type::Slice(_)
-    //         | Type::Integer(_, _)
-    //         | Type::Bool
-    //         | Type::String(_)
-    //         | Type::FmtString(_, _)
-    //         | Type::Unit
-    //         | Type::Tuple(_)
-    //         | Type::Struct(_, _)
-    //         | Type::Alias(_, _)
-    //         | Type::TypeVariable(_, _)
-    //         | Type::TraitAsType(_, _, _)
-    //         | Type::Function(_, _, _)
-    //         | Type::MutableReference(_)
-    //         | Type::Forall(_, _)
-    //         | Type::Quoted(_)
-    //         | Type::Error => Kind::Normal,
-    //     }
-    // }
+    // TODO: where to use this?
+    pub(crate) fn kind(&self) -> Kind {
+        match self {
+            Type::NamedGeneric(_, _, kind) => kind.clone(),
+            Type::Constant(..) => Kind::Numeric(Box::new(Type::Integer(
+                Signedness::Unsigned,
+                IntegerBitSize::ThirtyTwo,
+            ))),
+            Type::FieldElement
+            | Type::Array(..)
+            | Type::Slice(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(..)
+            | Type::FmtString(..)
+            | Type::Unit
+            | Type::Tuple(..)
+            | Type::Struct(..)
+            | Type::Alias(..)
+            | Type::TypeVariable(..)
+            | Type::TraitAsType(..)
+            | Type::Function(..)
+            | Type::MutableReference(..)
+            | Type::Forall(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => Kind::Normal,
+        }
+    }
 
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {

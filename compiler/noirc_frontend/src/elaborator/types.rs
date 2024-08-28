@@ -78,11 +78,11 @@ impl<'context> Elaborator<'context> {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 let mut size = self.convert_expression_type(size);
                 // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
-                if let Type::NamedGeneric(type_var, name, _) = size {
+                if let Type::NamedGeneric(type_var, name, kind) = size {
                     size = Type::NamedGeneric(
                         type_var,
                         name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
+                        kind, // Kind::Numeric(Box::new(Type::default_int_type())),
                     );
                 }
                 Type::Array(Box::new(size), elem)
@@ -97,11 +97,11 @@ impl<'context> Elaborator<'context> {
             String(size) => {
                 let mut resolved_size = self.convert_expression_type(size);
                 // TODO(https://github.com/noir-lang/noir/issues/5156): Remove this once we only have explicit numeric generics
-                if let Type::NamedGeneric(type_var, name, _) = resolved_size {
+                if let Type::NamedGeneric(type_var, name, kind) = resolved_size {
                     resolved_size = Type::NamedGeneric(
                         type_var,
                         name,
-                        Kind::Numeric(Box::new(Type::default_int_type())),
+                        kind,
                     );
                 }
                 Type::String(Box::new(resolved_size))
@@ -193,12 +193,25 @@ impl<'context> Elaborator<'context> {
         //     return Type::Error;
         // }
         if let Type::NamedGeneric(_, name, resolved_kind) = &resolved_type {
-            if matches!(resolved_kind, Kind::Numeric { .. }) && matches!(kind, Kind::Normal) {
-                let expected_typ_err =
-                    ResolverError::NumericGenericUsedForType { name: name.to_string(), span };
-                self.push_err(expected_typ_err);
+            if resolved_type.kind() != kind.clone() {
+
+                // TODO: import CompilationError
+                let expected_typ_err = crate::hir::def_collector::dc_crate::CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
+                    expected_kind: kind.to_string(),
+                    expr_kind: resolved_type.kind().to_string(),
+                                     // TODO
+                    expr_span: span, // .expect("Type should have span"),
+                });
+                self.errors.push((expected_typ_err, self.file));
                 return Type::Error;
             }
+
+            // if matches!(resolved_kind, Kind::Numeric { .. }) && matches!(kind, Kind::Normal) {
+            //     let expected_typ_err =
+            //         ResolverError::NumericGenericUsedForType { name: name.to_string(), span };
+            //     self.push_err(expected_typ_err);
+            //     return Type::Error;
+            // }
         }
 
         resolved_type
