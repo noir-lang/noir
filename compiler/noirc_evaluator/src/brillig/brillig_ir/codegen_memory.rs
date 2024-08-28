@@ -257,7 +257,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
     /// This instruction will reverse the order of the elements in a array.
     pub(crate) fn codegen_reverse_array_in_place(&mut self, array: BrilligArray) {
         let iteration_count = self.allocate_register();
-        self.usize_const_instruction(iteration_count, array.size.into());
+        self.usize_const_instruction(iteration_count, (array.size / 2).into());
 
         let start_value_register = self.allocate_register();
         let index_at_end_of_array = self.allocate_register();
