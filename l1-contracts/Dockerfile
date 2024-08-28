@@ -14,6 +14,10 @@ RUN foundryup --version nightly-de33b6af53005037b463318d2628b5cfcaf39916
 
 WORKDIR /usr/src/l1-contracts
 COPY . .
+
+# Cleanup CI/CD files
+RUN rm -rf terraform scripts
+
 #RUN git init
 RUN forge clean && forge fmt --check && forge build && forge test --no-match-contract UniswapPortalTest
 
