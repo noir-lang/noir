@@ -111,27 +111,27 @@ impl Expr {
     fn is_continue(self) -> bool {}
     // docs:end:is_continue
 
-    // docs:start:map
-    fn map<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
-        // docs:end:map
+    // docs:start:mutate
+    fn mutate<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
+        // docs:end:mutate
         let result = f(self);
-        let result = result.or_else(|| map_array(self, f));
-        let result = result.or_else(|| map_assign(self, f));
-        let result = result.or_else(|| map_binary_op(self, f));
-        let result = result.or_else(|| map_block(self, f));
-        let result = result.or_else(|| map_cast(self, f));
-        let result = result.or_else(|| map_comptime(self, f));
-        let result = result.or_else(|| map_if(self, f));
-        let result = result.or_else(|| map_index(self, f));
-        let result = result.or_else(|| map_function_call(self, f));
-        let result = result.or_else(|| map_member_access(self, f));
-        let result = result.or_else(|| map_method_call(self, f));
-        let result = result.or_else(|| map_repeated_element_array(self, f));
-        let result = result.or_else(|| map_repeated_element_slice(self, f));
-        let result = result.or_else(|| map_slice(self, f));
-        let result = result.or_else(|| map_tuple(self, f));
-        let result = result.or_else(|| map_unary_op(self, f));
-        let result = result.or_else(|| map_unsafe(self, f));
+        let result = result.or_else(|| mutate_array(self, f));
+        let result = result.or_else(|| mutate_assign(self, f));
+        let result = result.or_else(|| mutate_binary_op(self, f));
+        let result = result.or_else(|| mutate_block(self, f));
+        let result = result.or_else(|| mutate_cast(self, f));
+        let result = result.or_else(|| mutate_comptime(self, f));
+        let result = result.or_else(|| mutate_if(self, f));
+        let result = result.or_else(|| mutate_index(self, f));
+        let result = result.or_else(|| mutate_function_call(self, f));
+        let result = result.or_else(|| mutate_member_access(self, f));
+        let result = result.or_else(|| mutate_method_call(self, f));
+        let result = result.or_else(|| mutate_repeated_element_array(self, f));
+        let result = result.or_else(|| mutate_repeated_element_slice(self, f));
+        let result = result.or_else(|| mutate_slice(self, f));
+        let result = result.or_else(|| mutate_tuple(self, f));
+        let result = result.or_else(|| mutate_unary_op(self, f));
+        let result = result.or_else(|| mutate_unsafe(self, f));
         result.unwrap_or(self)
     }
 
@@ -142,181 +142,181 @@ impl Expr {
     }
 }
 
-fn map_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_array().map(
         |exprs: [Expr]| {
-        let exprs = map_expressions(exprs, f);
+        let exprs = mutate_expressions(exprs, f);
         new_array(exprs)
     }
     )
 }
 
-fn map_assign<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_assign<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_assign().map(
         |expr: (Expr, Expr)| {
         let (lhs, rhs) = expr;
-        let lhs = lhs.map(f);
-        let rhs = rhs.map(f);
+        let lhs = lhs.mutate(f);
+        let rhs = rhs.mutate(f);
         new_assign(lhs, rhs)
     }
     )
 }
 
-fn map_binary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_binary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_binary_op().map(
         |expr: (Expr, BinaryOp, Expr)| {
         let (lhs, op, rhs) = expr;
-        let lhs = lhs.map(f);
-        let rhs = rhs.map(f);
+        let lhs = lhs.mutate(f);
+        let rhs = rhs.mutate(f);
         new_binary_op(lhs, op, rhs)
     }
     )
 }
 
-fn map_block<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_block<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_block().map(
         |exprs: [Expr]| {
-        let exprs = map_expressions(exprs, f);
+        let exprs = mutate_expressions(exprs, f);
         new_block(exprs)
     }
     )
 }
 
-fn map_cast<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_cast<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_cast().map(
         |expr: (Expr, UnresolvedType)| {
         let (expr, typ) = expr;
-        let expr = expr.map(f);
+        let expr = expr.mutate(f);
         new_cast(expr, typ)
     }
     )
 }
 
-fn map_comptime<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_comptime<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_comptime().map(
         |exprs: [Expr]| {
-        let exprs = exprs.map(|expr: Expr| expr.map(f));
+        let exprs = exprs.map(|expr: Expr| expr.mutate(f));
         new_comptime(exprs)
     }
     )
 }
 
-fn map_function_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_function_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_function_call().map(
         |expr: (Expr, [Expr])| {
         let (function, arguments) = expr;
-        let function = function.map(f);
-        let arguments = arguments.map(|arg: Expr| arg.map(f));
+        let function = function.mutate(f);
+        let arguments = arguments.map(|arg: Expr| arg.mutate(f));
         new_function_call(function, arguments)
     }
     )
 }
 
-fn map_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_if<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_if().map(
         |expr: (Expr, Expr, Option<Expr>)| {
         let (condition, consequence, alternative) = expr;
-        let condition = condition.map(f);
-        let consequence = consequence.map(f);
-        let alternative = alternative.map(|alternative: Expr| alternative.map(f));
+        let condition = condition.mutate(f);
+        let consequence = consequence.mutate(f);
+        let alternative = alternative.map(|alternative: Expr| alternative.mutate(f));
         new_if(condition, consequence, alternative)
     }
     )
 }
 
-fn map_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_index<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_index().map(
         |expr: (Expr, Expr)| {
         let (object, index) = expr;
-        let object = object.map(f);
-        let index = index.map(f);
+        let object = object.mutate(f);
+        let index = index.mutate(f);
         new_index(object, index)
     }
     )
 }
 
-fn map_member_access<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_member_access<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_member_access().map(
         |expr: (Expr, Quoted)| {
         let (object, name) = expr;
-        let object = object.map(f);
+        let object = object.mutate(f);
         new_member_access(object, name)
     }
     )
 }
 
-fn map_method_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_method_call<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_method_call().map(
         |expr: (Expr, Quoted, [UnresolvedType], [Expr])| {
         let (object, name, generics, arguments) = expr;
-        let object = object.map(f);
-        let arguments = arguments.map(|arg: Expr| arg.map(f));
+        let object = object.mutate(f);
+        let arguments = arguments.map(|arg: Expr| arg.mutate(f));
         new_method_call(object, name, generics, arguments)
     }
     )
 }
 
-fn map_repeated_element_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_repeated_element_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_repeated_element_array().map(
         |expr: (Expr, Expr)| {
         let (expr, length) = expr;
-        let expr = expr.map(f);
-        let length = length.map(f);
+        let expr = expr.mutate(f);
+        let length = length.mutate(f);
         new_repeated_element_array(expr, length)
     }
     )
 }
 
-fn map_repeated_element_slice<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_repeated_element_slice<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_repeated_element_slice().map(
         |expr: (Expr, Expr)| {
         let (expr, length) = expr;
-        let expr = expr.map(f);
-        let length = length.map(f);
+        let expr = expr.mutate(f);
+        let length = length.mutate(f);
         new_repeated_element_slice(expr, length)
     }
     )
 }
 
-fn map_slice<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_slice<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_slice().map(
         |exprs: [Expr]| {
-        let exprs = map_expressions(exprs, f);
+        let exprs = mutate_expressions(exprs, f);
         new_slice(exprs)
     }
     )
 }
 
-fn map_tuple<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_tuple<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_tuple().map(
         |exprs: [Expr]| {
-        let exprs = map_expressions(exprs, f);
+        let exprs = mutate_expressions(exprs, f);
         new_tuple(exprs)
     }
     )
 }
 
-fn map_unary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_unary_op<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_unary_op().map(
         |expr: (UnaryOp, Expr)| {
         let (op, rhs) = expr;
-        let rhs = rhs.map(f);
+        let rhs = rhs.mutate(f);
         new_unary_op(op, rhs)
     }
     )
 }
 
-fn map_unsafe<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+fn mutate_unsafe<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
     expr.as_unsafe().map(
         |exprs: [Expr]| {
-        let exprs = exprs.map(|expr: Expr| expr.map(f));
+        let exprs = exprs.map(|expr: Expr| expr.mutate(f));
         new_unsafe(exprs)
     }
     )
 }
 
-fn map_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
-    exprs.map(|expr: Expr| expr.map(f))
+fn mutate_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [Expr] {
+    exprs.map(|expr: Expr| expr.mutate(f))
 }
 
 fn new_array(exprs: [Expr]) -> Expr {
