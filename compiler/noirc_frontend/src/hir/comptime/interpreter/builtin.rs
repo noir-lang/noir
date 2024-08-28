@@ -6,15 +6,17 @@ use std::{
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, check_argument_count, check_function_not_yet_resolved,
-    check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_function_def,
-    get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
-    get_trait_impl, get_tuple, get_type, get_u32, get_unresolved_type, hir_pattern_to_tokens,
-    mutate_func_meta_type, parse, replace_func_meta_parameters, replace_func_meta_return_type,
+    check_one_argument, check_three_arguments, check_two_arguments, get_expr, get_field,
+    get_function_def, get_module, get_quoted, get_slice, get_struct, get_trait_constraint,
+    get_trait_def, get_trait_impl, get_tuple, get_type, get_u32, get_unresolved_type,
+    hir_pattern_to_tokens, mutate_func_meta_type, parse, replace_func_meta_parameters,
+    replace_func_meta_return_type,
 };
 use chumsky::{prelude::choice, Parser};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
+use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -49,6 +51,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
         match name {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
+            "assert_constant" => Ok(Value::Bool(true)),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
             "expr_as_assign" => expr_as_assign(interner, arguments, return_type, location),
@@ -114,6 +117,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
             "struct_def_fields" => struct_def_fields(interner, arguments, location),
             "struct_def_generics" => struct_def_generics(interner, arguments, location),
+            "to_le_radix" => to_le_radix(arguments, location),
             "trait_constraint_eq" => trait_constraint_eq(interner, arguments, location),
             "trait_constraint_hash" => trait_constraint_hash(interner, arguments, location),
             "trait_def_as_trait_constraint" => {
@@ -423,6 +427,35 @@ fn quoted_as_type(
     let typ =
         interpreter.elaborate_item(interpreter.current_function, |elab| elab.resolve_type(typ));
     Ok(Value::Type(typ))
+}
+
+fn to_le_radix(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    let (value, radix, limb_count) = check_three_arguments(arguments, location)?;
+
+    let value = get_field(value)?;
+    let radix = get_u32(radix)?;
+    let limb_count = get_u32(limb_count)?;
+
+    // Decompose the integer into its radix digits in little endian form.
+    let decomposed_integer = compute_to_radix(value, radix);
+    let decomposed_integer = vecmap(0..limb_count as usize, |i| match decomposed_integer.get(i) {
+        Some(digit) => Value::U8(*digit),
+        None => Value::U8(0),
+    });
+    Ok(Value::Array(
+        decomposed_integer.into(),
+        Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+    ))
+}
+
+fn compute_to_radix(field: FieldElement, radix: u32) -> Vec<u8> {
+    let bit_size = u32::BITS - (radix - 1).leading_zeros();
+    let radix_big = BigUint::from(radix);
+    assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
+    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
+
+    // Decompose the integer into its radix digits in little endian form.
+    big_integer.to_radix_le(radix)
 }
 
 // fn as_array(self) -> Option<(Type, Type)>

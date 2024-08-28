@@ -145,6 +145,16 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     }
 }
 
+pub(crate) fn get_u64((value, location): (Value, Location)) -> IResult<u64> {
+    match value {
+        Value::U64(value) => Ok(value),
+        value => {
+            let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
+            type_mismatch(value, expected, location)
+        }
+    }
+}
+
 pub(crate) fn get_expr(
     interner: &NodeInterner,
     (value, location): (Value, Location),
