@@ -1806,7 +1806,7 @@ impl Type {
                 Some(Type::InfixExpr(l_type, l_op, Box::new(Type::Constant(result))))
             }
             (Multiplication | Division, Multiplication | Division) => {
-                // If l_op is a subtraction we want to inverse the rhs operator.
+                // If l_op is a division we want to inverse the rhs operator.
                 if l_op == Division {
                     op = op.inverse()?;
                 }
