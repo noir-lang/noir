@@ -143,9 +143,9 @@ export class ProverAgent {
       const type = ProvingRequestType[job.request.type];
       if (this.isRunning()) {
         if (job.request.type === ProvingRequestType.PUBLIC_VM && !process.env.AVM_PROVING_STRICT) {
-          this.log.error(`Error processing proving job id=${job.id} type=${type}: ${err}`, err);
+          this.log.warn(`Expected error processing VM proving job id=${job.id} type=${type}: ${err}`);
         } else {
-          this.log.warn(`Ignoring error processing proving job id=${job.id} type=${type}: ${err}`);
+          this.log.error(`Error processing proving job id=${job.id} type=${type}: ${err}`, err);
         }
         await jobSource.rejectProvingJob(job.id, new ProvingError((err as any)?.message ?? String(err)));
       } else {
