@@ -121,6 +121,8 @@ impl CrateDefMap {
             extern_prelude: BTreeMap::new(),
         };
 
+        let error_on_unused_imports_in_dependencies = false;
+
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
@@ -129,6 +131,7 @@ impl CrateDefMap {
             root_file_id,
             debug_comptime_in_file,
             enable_arithmetic_generics,
+            error_on_unused_imports_in_dependencies,
             macro_processors,
         ));
 

@@ -76,15 +76,21 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             extern_prelude: BTreeMap::new(),
         };
 
+        let debug_comptime_in_file = None;
+        let enable_arithmetic_generics = false;
+        let error_on_unused_imports = true;
+        let macro_processors = &[];
+
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            None,  // No debug_comptime_in_file
-            false, // Disallow arithmetic generics
-            &[],   // No macro processors
+            debug_comptime_in_file,
+            enable_arithmetic_generics,
+            error_on_unused_imports,
+            macro_processors,
         ));
     }
     (program, context, errors)

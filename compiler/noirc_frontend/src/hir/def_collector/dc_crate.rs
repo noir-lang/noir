@@ -245,6 +245,7 @@ impl DefCollector {
     /// Collect all of the definitions in a given crate into a CrateDefMap
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
+    #[allow(clippy::too_many_arguments)]
     pub fn collect_crate_and_dependencies(
         mut def_map: CrateDefMap,
         context: &mut Context,
@@ -252,6 +253,7 @@ impl DefCollector {
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
         enable_arithmetic_generics: bool,
+        error_on_unused_imports: bool,
         macro_processors: &[&dyn MacroProcessor],
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
@@ -263,7 +265,6 @@ impl DefCollector {
         // Then added these to the context of DefMaps once they are resolved
         //
         let crate_graph = &context.crate_graph[crate_id];
-        let error_on_unused_imports = false;
 
         for dep in crate_graph.dependencies.clone() {
             errors.extend(CrateDefMap::collect_defs(
