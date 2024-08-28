@@ -53,6 +53,10 @@ export class ProverAgent {
     return this.runningPromise?.isRunning() ?? false;
   }
 
+  getCurrentJobs(): { id: string; type: string }[] {
+    return Array.from(this.inFlightPromises.values()).map(({ id, type }) => ({ id, type: ProvingRequestType[type] }));
+  }
+
   start(jobSource: ProvingJobSource): void {
     if (this.runningPromise) {
       throw new Error('Agent is already running');

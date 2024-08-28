@@ -145,6 +145,11 @@ services:
         condition: service_healthy
     command: [ "start", "--prover" ]
     restart: on-failure:5
+    healthcheck:
+      test: [ "CMD", "curl", "-fSs", "http://127.0.0.1:$AZTEC_PORT/status" ]
+      interval: 3s
+      timeout: 30s
+      start_period: 20s
 
   # Simple watcher that logs the latest block numbers every few seconds using the CLI and the bot's PXE
   aztec-block-watcher:

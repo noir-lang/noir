@@ -1,7 +1,11 @@
 import { BBNativeRollupProver, TestCircuitProver } from '@aztec/bb-prover';
 import { type ServerCircuitProver } from '@aztec/circuit-types';
 import { type ProverClientConfig, proverClientConfigMappings } from '@aztec/prover-client';
-import { ProverAgent, createProvingJobSourceClient } from '@aztec/prover-client/prover-agent';
+import {
+  ProverAgent,
+  createProverAgentRpcServer,
+  createProvingJobSourceClient,
+} from '@aztec/prover-client/prover-agent';
 import {
   type TelemetryClientConfig,
   createAndStartTelemetryClient,
@@ -43,5 +47,5 @@ export const startProverAgent: ServiceStarter = async (options, signalHandlers, 
 
   signalHandlers.push(() => agent.stop());
 
-  return Promise.resolve([]);
+  return [{ prover: createProverAgentRpcServer(agent) }];
 };
