@@ -150,15 +150,14 @@ pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
 }
 
 fn lt_fallback(x: Field, y: Field) -> bool {
-    let num_bytes = (modulus_num_bits() as u32 + 7) / 8;
-    let x_bytes = x.to_le_bytes();
-    let y_bytes = y.to_le_bytes();
+    let x_bytes: [u8; 32] = x.to_le_bytes();
+    let y_bytes: [u8; 32] = y.to_le_bytes();
     let mut x_is_lt = false;
     let mut done = false;
-    for i in 0..num_bytes {
+    for i in 0..32 {
         if (!done) {
-            let x_byte = x_bytes[num_bytes - 1 - i] as u8;
-            let y_byte = y_bytes[num_bytes - 1 - i] as u8;
+            let x_byte = x_bytes[32 - 1 - i] as u8;
+            let y_byte = y_bytes[32 - 1 - i] as u8;
             let bytes_match = x_byte == y_byte;
             if !bytes_match {
                 x_is_lt = x_byte < y_byte;
