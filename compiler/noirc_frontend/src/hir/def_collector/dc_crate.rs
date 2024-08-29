@@ -357,31 +357,55 @@ impl DefCollector {
 
                     // Populate module namespaces according to the imports used
                     let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
+                    let file_id = current_def_map.file_id(module_id);
 
                     let name = resolved_import.name;
                     let visibility = collected_import.visibility;
                     let is_prelude = resolved_import.is_prelude;
-                    for ns in resolved_import.resolved_namespace.iter_defs() {
+                    for (module_def_id, item_visibility, _) in
+                        resolved_import.resolved_namespace.iter_items()
+                    {
+                        if item_visibility < visibility {
+                            errors.push((
+                                DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
+                                    item_name: name.clone(),
+                                    desired_visibility: visibility,
+                                }
+                                .into(),
+                                file_id,
+                            ));
+                        }
+                        let visibility = visibility.min(item_visibility);
+
                         let result = current_def_map.modules[resolved_import.module_scope.0]
-                            .import(name.clone(), visibility, ns, is_prelude);
+                            .import(name.clone(), visibility, module_def_id, is_prelude);
 
                         if visibility != ItemVisibility::Private {
                             let local_id = resolved_import.module_scope;
                             let defining_module = ModuleId { krate: crate_id, local_id };
                             context.def_interner.register_name_for_auto_import(
                                 name.to_string(),
-                                ns,
+                                module_def_id,
                                 visibility,
                                 Some(defining_module),
                             );
                         }
 
-                        let file_id = current_def_map.file_id(module_id);
                         let last_segment = collected_import.path.last_ident();
 
-                        add_import_reference(ns, &last_segment, &mut context.def_interner, file_id);
+                        add_import_reference(
+                            module_def_id,
+                            &last_segment,
+                            &mut context.def_interner,
+                            file_id,
+                        );
                         if let Some(ref alias) = collected_import.alias {
-                            add_import_reference(ns, alias, &mut context.def_interner, file_id);
+                            add_import_reference(
+                                module_def_id,
+                                alias,
+                                &mut context.def_interner,
+                                file_id,
+                            );
                         }
 
                         if let Err((first_def, second_def)) = result {
