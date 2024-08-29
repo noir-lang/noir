@@ -30,6 +30,40 @@ mod tests {
     }
 
     #[test]
+    fn test_expr_as_assert() {
+        comptime
+        {
+            let expr = quote { assert(true) }.as_expr().unwrap();
+            let (predicate, msg) = expr.as_assert().unwrap();
+            assert_eq(predicate.as_bool().unwrap(), true);
+            assert(msg.is_none());
+
+            let expr = quote { assert(false, "oops") }.as_expr().unwrap();
+            let (predicate, msg) = expr.as_assert().unwrap();
+            assert_eq(predicate.as_bool().unwrap(), false);
+            assert(msg.is_some());
+        }
+    }
+
+    #[test]
+    fn test_expr_mutate_for_assert() {
+        comptime
+        {
+            let expr = quote { assert(1) }.as_expr().unwrap();
+            let expr = expr.mutate(times_two);
+            let (predicate, msg) = expr.as_assert().unwrap();
+            assert_eq(predicate.as_integer().unwrap(), (2, false));
+            assert(msg.is_none());
+
+            let expr = quote { assert(1, 2) }.as_expr().unwrap();
+            let expr = expr.mutate(times_two);
+            let (predicate, msg) = expr.as_assert().unwrap();
+            assert_eq(predicate.as_integer().unwrap(), (2, false));
+            assert_eq(msg.unwrap().as_integer().unwrap(), (4, false));
+        }
+    }
+
+    #[test]
     fn test_expr_as_assign() {
         comptime
         {

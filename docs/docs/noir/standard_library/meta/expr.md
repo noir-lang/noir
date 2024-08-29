@@ -12,6 +12,12 @@ title: Expr
 
 If this expression is an array, this returns a slice of each element in the array.
 
+### as_assert
+
+#include_code as_assert noir_stdlib/src/meta/expr.nr rust
+
+If this expression is an assert, this returns the assert expression and the optional message.
+
 ### as_assign
 
 #include_code as_assign noir_stdlib/src/meta/expr.nr rust

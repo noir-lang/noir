@@ -8,6 +8,11 @@ impl Expr {
     fn as_array(self) -> Option<[Expr]> {}
     // docs:end:as_array
 
+    #[builtin(expr_as_assert)]
+    // docs:start:as_assert
+    fn as_assert(self) -> Option<(Expr, Option<Expr>)> {}
+    // docs:end:as_assert
+
     #[builtin(expr_as_assign)]
     // docs:start:as_assign
     fn as_assign(self) -> Option<(Expr, Expr)> {}
@@ -115,6 +120,7 @@ impl Expr {
     fn mutate<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
         // docs:end:mutate
         let result = mutate_array(self, f);
+        let result = result.or_else(|| mutate_assert(self, f));
         let result = result.or_else(|| mutate_assign(self, f));
         let result = result.or_else(|| mutate_binary_op(self, f));
         let result = result.or_else(|| mutate_block(self, f));
@@ -152,6 +158,17 @@ fn mutate_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Exp
         |exprs: [Expr]| {
         let exprs = mutate_expressions(exprs, f);
         new_array(exprs)
+    }
+    )
+}
+
+fn mutate_assert<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
+    expr.as_assert().map(
+        |expr: (Expr, Option<Expr>)| {
+        let (predicate, msg) = expr;
+        let predicate = predicate.mutate(f);
+        let msg = msg.map(|msg: Expr| msg.mutate(f));
+        new_assert(predicate, msg)
     }
     )
 }
@@ -327,6 +344,15 @@ fn mutate_expressions<Env>(exprs: [Expr], f: fn[Env](Expr) -> Option<Expr>) -> [
 fn new_array(exprs: [Expr]) -> Expr {
     let exprs = join_expressions(exprs, quote { , });
     quote { [$exprs]}.as_expr().unwrap()
+}
+
+fn new_assert(predicate: Expr, msg: Option<Expr>) -> Expr {
+    if msg.is_some() {
+        let msg = msg.unwrap();
+        quote { assert($predicate, $msg) }.as_expr().unwrap()
+    } else {
+        quote { assert($predicate) }.as_expr().unwrap()
+    }
 }
 
 fn new_assign(lhs: Expr, rhs: Expr) -> Expr {

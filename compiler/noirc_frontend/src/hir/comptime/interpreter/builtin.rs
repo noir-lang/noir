@@ -21,7 +21,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, Expression, ExpressionKind, FunctionKind,
+        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, FunctionKind,
         FunctionReturnType, IntegerBitSize, LValue, Literal, Statement, StatementKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, Visibility,
     },
@@ -54,6 +54,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "assert_constant" => Ok(Value::Bool(true)),
             "as_slice" => as_slice(interner, arguments, location),
             "expr_as_array" => expr_as_array(interner, arguments, return_type, location),
+            "expr_as_assert" => expr_as_assert(interner, arguments, return_type, location),
             "expr_as_assign" => expr_as_assign(interner, arguments, return_type, location),
             "expr_as_binary_op" => expr_as_binary_op(interner, arguments, return_type, location),
             "expr_as_block" => expr_as_block(interner, arguments, return_type, location),
@@ -857,6 +858,38 @@ fn expr_as_array(
             let exprs = exprs.into_iter().map(|expr| Value::expression(expr.kind)).collect();
             let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
             Some(Value::Slice(exprs, typ))
+        } else {
+            None
+        }
+    })
+}
+
+// fn as_assert(self) -> Option<(Expr, Option<Expr>)>
+fn expr_as_assert(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+) -> IResult<Value> {
+    expr_as(interner, arguments, return_type.clone(), location, |expr| {
+        if let ExprValue::Statement(StatementKind::Constrain(constrain)) = expr {
+            if constrain.2 == ConstrainKind::Assert {
+                let predicate = Value::expression(constrain.0.kind);
+
+                let option_type = extract_option_generic_type(return_type);
+                let Type::Tuple(mut tuple_types) = option_type else {
+                    panic!("Expected the return type option generic arg to be a tuple");
+                };
+                assert_eq!(tuple_types.len(), 2);
+
+                let option_type = tuple_types.pop().unwrap();
+                let message = constrain.1.map(|message| Value::expression(message.kind));
+                let message = option(option_type, message).ok()?;
+
+                Some(Value::Tuple(vec![predicate, message]))
+            } else {
+                None
+            }
         } else {
             None
         }
