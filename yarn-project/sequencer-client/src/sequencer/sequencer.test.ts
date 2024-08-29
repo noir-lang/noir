@@ -41,7 +41,7 @@ import { type MockProxy, mock, mockFn } from 'jest-mock-extended';
 
 import { type BlockBuilderFactory } from '../block_builder/index.js';
 import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
-import { type L1Publisher, type MetadataForSlot } from '../publisher/l1-publisher.js';
+import { type L1Publisher } from '../publisher/l1-publisher.js';
 import { TxValidatorFactory } from '../tx_validator/tx_validator_factory.js';
 import { Sequencer } from './sequencer.js';
 
@@ -89,24 +89,19 @@ describe('sequencer', () => {
   };
 
   let block: L2Block;
-  let metadata: MetadataForSlot;
 
   beforeEach(() => {
     lastBlockNumber = 0;
 
     block = L2Block.random(lastBlockNumber + 1);
 
-    metadata = {
-      proposer: EthAddress.ZERO,
-      slot: block.header.globalVariables.slotNumber.toBigInt(),
-      pendingBlockNumber: BigInt(lastBlockNumber),
-      archive: block.header.lastArchive.toBuffer(),
-    };
-
     publisher = mock<L1Publisher>();
     publisher.getCurrentEpochCommittee.mockResolvedValue(committee);
-    publisher.getMetadataForSlotAtNextEthBlock.mockResolvedValue(metadata);
-    publisher.getValidatorCount.mockResolvedValue(0n);
+    publisher.canProposeAtNextEthBlock.mockResolvedValue([
+      block.header.globalVariables.slotNumber.toBigInt(),
+      block.header.globalVariables.blockNumber.toBigInt(),
+    ]);
+    publisher.validateBlockForSubmission.mockResolvedValue(true);
 
     globalVariableBuilder = mock<GlobalVariableBuilder>();
     merkleTreeOps = mock<MerkleTreeOperations>();
@@ -212,6 +207,7 @@ describe('sequencer', () => {
       mockedGlobalVariables,
       Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n)),
     );
+    // Ok, we have an issue that we never actually call the process L2 block
     expect(publisher.processL2Block).toHaveBeenCalledTimes(1);
     expect(publisher.processL2Block).toHaveBeenCalledWith(block, getSignatures());
     expect(blockSimulator.cancelBlock).toHaveBeenCalledTimes(0);
@@ -227,7 +223,7 @@ describe('sequencer', () => {
       provingPromise: Promise.resolve(result),
     };
 
-    p2p.getTxs.mockReturnValueOnce([tx]);
+    p2p.getTxs.mockReturnValue([tx]);
     blockSimulator.startNewBlock.mockResolvedValueOnce(ticket);
     blockSimulator.finaliseBlock.mockResolvedValue({ block });
     publisher.processL2Block.mockResolvedValueOnce(true);
@@ -243,21 +239,28 @@ describe('sequencer', () => {
       gasFees,
     );
 
-    globalVariableBuilder.buildGlobalVariables.mockResolvedValueOnce(mockedGlobalVariables);
+    globalVariableBuilder.buildGlobalVariables.mockResolvedValue(mockedGlobalVariables);
 
     // Not your turn!
-    const publisherAddress = EthAddress.random();
-    publisher.getSenderAddress.mockResolvedValue(publisherAddress);
-    publisher.getMetadataForSlotAtNextEthBlock.mockResolvedValue({ ...metadata, proposer: EthAddress.random() });
-    // Specify that there is a validator, such that we don't allow everyone to publish
-    publisher.getValidatorCount.mockResolvedValueOnce(1n);
+    publisher.canProposeAtNextEthBlock.mockRejectedValue(new Error());
+    publisher.validateBlockForSubmission.mockResolvedValue(false);
 
     await sequencer.initialSync();
     await sequencer.work();
     expect(blockSimulator.startNewBlock).not.toHaveBeenCalled();
 
+    // Now we can propose, but lets assume that the content is still "bad" (missing sigs etc)
+    publisher.canProposeAtNextEthBlock.mockResolvedValue([
+      block.header.globalVariables.slotNumber.toBigInt(),
+      block.header.globalVariables.blockNumber.toBigInt(),
+    ]);
+
+    await sequencer.work();
+    expect(blockSimulator.startNewBlock).not.toHaveBeenCalled();
+
     // Now it is!
-    publisher.getMetadataForSlotAtNextEthBlock.mockResolvedValue({ ...metadata, proposer: publisherAddress });
+    publisher.validateBlockForSubmission.mockClear();
+    publisher.validateBlockForSubmission.mockResolvedValue(true);
 
     await sequencer.work();
     expect(blockSimulator.startNewBlock).toHaveBeenCalledWith(
@@ -627,13 +630,11 @@ describe('sequencer', () => {
 
     await sequencer.initialSync();
 
-    l2BlockSource.getBlockNumber
-      // let it work for a bit
-      .mockResolvedValueOnce(lastBlockNumber)
-      .mockResolvedValueOnce(lastBlockNumber)
-      .mockResolvedValueOnce(lastBlockNumber)
-      // then tell it to abort
-      .mockResolvedValue(lastBlockNumber + 1);
+    // This could practically be for any reason, e.g., could also be that we have entered a new slot.
+    publisher.validateBlockForSubmission
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
 
     await sequencer.work();
 

@@ -10,7 +10,16 @@ import {
 } from '@aztec/circuit-types';
 import { type AllowedElement, BlockProofError, PROVING_STATUS } from '@aztec/circuit-types/interfaces';
 import { type L2BlockBuiltStats } from '@aztec/circuit-types/stats';
-import { AztecAddress, EthAddress, type GlobalVariables, type Header, IS_DEV_NET } from '@aztec/circuits.js';
+import {
+  AppendOnlyTreeSnapshot,
+  AztecAddress,
+  ContentCommitment,
+  EthAddress,
+  GENESIS_ARCHIVE_ROOT,
+  Header,
+  IS_DEV_NET,
+  StateReference,
+} from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
@@ -20,6 +29,8 @@ import { type PublicProcessorFactory } from '@aztec/simulator';
 import { Attributes, type TelemetryClient, type Tracer, trackSpan } from '@aztec/telemetry-client';
 import { type ValidatorClient } from '@aztec/validator-client';
 import { type WorldStateStatus, type WorldStateSynchronizer } from '@aztec/world-state';
+
+import { BaseError, ContractFunctionRevertedError } from 'viem';
 
 import { type BlockBuilderFactory } from '../block_builder/index.js';
 import { type GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
@@ -197,11 +208,13 @@ export class Sequencer {
           ? await this.l2BlockSource.getBlockNumber()
           : Number(historicalHeader.globalVariables.blockNumber.toBigInt())) + 1;
 
-      const chainTipArchive = chainTip?.archive.root.toBuffer();
+      // If we cannot find a tip archive, assume genesis.
+      const chainTipArchive =
+        chainTip == undefined ? new Fr(GENESIS_ARCHIVE_ROOT).toBuffer() : chainTip?.archive.root.toBuffer();
 
       let slot: bigint;
       try {
-        slot = await this.canProposeBlock(historicalHeader, undefined, chainTipArchive);
+        slot = await this.mayProposeBlock(chainTipArchive, BigInt(newBlockNumber));
       } catch (err) {
         this.log.debug(`Cannot propose for block ${newBlockNumber}`);
         return;
@@ -228,6 +241,15 @@ export class Sequencer {
         slot,
       );
 
+      // If I created a "partial" header here that should make our job much easier.
+      const proposalHeader = new Header(
+        new AppendOnlyTreeSnapshot(Fr.fromBuffer(chainTipArchive), 1),
+        ContentCommitment.empty(),
+        StateReference.empty(),
+        newGlobalVariables,
+        Fr.ZERO,
+      );
+
       // TODO: It should be responsibility of the P2P layer to validate txs before passing them on here
       const allValidTxs = await this.takeValidTxs(
         pendingTxs,
@@ -246,7 +268,7 @@ export class Sequencer {
         return;
       }
 
-      await this.buildBlockAndPublish(validTxs, newGlobalVariables, historicalHeader, chainTipArchive);
+      await this.buildBlockAndPublish(validTxs, proposalHeader, historicalHeader);
     } catch (err) {
       if (BlockProofError.isBlockProofError(err)) {
         const txHashes = err.txHashes.filter(h => !h.isZero());
@@ -267,109 +289,28 @@ export class Sequencer {
     return this.maxSecondsBetweenBlocks > 0 && elapsed >= this.maxSecondsBetweenBlocks;
   }
 
-  async canProposeBlock(
-    historicalHeader?: Header,
-    globalVariables?: GlobalVariables,
-    tipArchive?: Buffer,
-  ): Promise<bigint> {
-    // @note  In order to be able to propose a block, a few conditions must be met:
-    //        - We must be caught up to the pending chain
-    //          - The tip archive must match the one from the L1
-    //          - The block number should match the one from the L1
-    //        - If we have built a block, the block number must match the next pending block
-    //        - There cannot already be a block for the slot
-    //        - If we are NOT in devnet, then the active slot must match the slot number of the block
-    //        - The proposer must either be free for all or specifically us.
-    //
-    //        Note that the ordering of these checks are NOT optimised for performance, but to resemble the ordering
-    //        that is used in the Rollup contract:
-    //        - _validateHeaderForSubmissionBase
-    //        - _validateHeaderForSubmissionSequencerSelection
-    //
-    //        Also, we are logging debug messages for checks that fail to make it easier to debug, as we are usually
-    //        catching the errors.
+  async mayProposeBlock(tipArchive: Buffer, proposalBlockNumber: bigint): Promise<bigint> {
+    // This checks that we can propose, and gives us the slot that we are to propose for
+    try {
+      const [slot, blockNumber] = await this.publisher.canProposeAtNextEthBlock(tipArchive);
 
-    const { proposer, slot, pendingBlockNumber, archive } = await this.publisher.getMetadataForSlotAtNextEthBlock();
-
-    if (await this.publisher.willSimulationFail(slot)) {
-      // @note  See comment in willSimulationFail for more information
-      const msg = `Simulation will fail for slot ${slot}`;
-      this.log.debug(msg);
-      throw new Error(msg);
-    }
-
-    // If our tip of the chain is different from the tip on L1, we should not propose a block
-    // @note  This will change along with the data publication changes.
-    if (tipArchive && !archive.equals(tipArchive)) {
-      const msg = `Tip archive does not match the one from the L1`;
-      this.log.debug(msg);
-      throw new Error(msg);
-    }
-
-    // Make sure I'm caught up to the pending chain
-    if (
-      pendingBlockNumber > 0 &&
-      (historicalHeader == undefined || historicalHeader.globalVariables.blockNumber.toBigInt() != pendingBlockNumber)
-    ) {
-      const msg = `Not caught up to pending block ${pendingBlockNumber}`;
-      this.log.debug(msg);
-      throw new Error(msg);
-    }
-
-    // If I have constructed a block, make sure that the block number matches the next pending block number
-    if (globalVariables) {
-      if (globalVariables.blockNumber.toBigInt() !== pendingBlockNumber + 1n) {
-        const msg = `Block number mismatch. Expected ${
-          pendingBlockNumber + 1n
-        } but got ${globalVariables.blockNumber.toBigInt()}`;
+      if (proposalBlockNumber !== blockNumber) {
+        const msg = `Block number mismatch. Expected ${proposalBlockNumber} but got ${blockNumber}`;
         this.log.debug(msg);
         throw new Error(msg);
       }
 
-      const currentBlockNumber = await this.l2BlockSource.getBlockNumber();
-      if (currentBlockNumber + 1 !== globalVariables.blockNumber.toNumber()) {
-        this.metrics.recordCancelledBlock();
-        const msg = 'New block was emitted while building block';
-        this.log.debug(msg);
-        throw new Error(msg);
-      }
-    }
-
-    // Do not go forward if there was already a block for the slot
-    if (historicalHeader && historicalHeader.globalVariables.slotNumber.toBigInt() === slot) {
-      const msg = `Block already exists for slot ${slot}`;
-      this.log.debug(msg);
-      throw new Error(msg);
-    }
-
-    // Related to _validateHeaderForSubmissionSequencerSelection
-
-    if (IS_DEV_NET) {
-      // If we are in devnet, make sure that we are a validator
-      if ((await this.publisher.getValidatorCount()) != 0n && !(await this.publisher.amIAValidator())) {
-        const msg = 'Not a validator in devnet';
-        this.log.debug(msg);
-        throw new Error(msg);
-      }
-    } else {
-      // If I have a constructed a block, make sure that the slot matches the current slot number
-      if (globalVariables) {
-        if (slot !== globalVariables.slotNumber.toBigInt()) {
-          const msg = `Slot number mismatch. Expected ${slot} but got ${globalVariables.slotNumber.toBigInt()}`;
-          this.log.debug(msg);
-          throw new Error(msg);
+      return slot;
+    } catch (err) {
+      if (err instanceof BaseError) {
+        const revertError = err.walk(err => err instanceof ContractFunctionRevertedError);
+        if (revertError instanceof ContractFunctionRevertedError) {
+          const errorName = revertError.data?.errorName ?? '';
+          this.log.debug(`canProposeAtTime failed with "${errorName}"`);
         }
       }
-
-      // Do not go forward with new block if not free for all or my turn
-      if (!proposer.isZero() && !proposer.equals(await this.publisher.getSenderAddress())) {
-        const msg = 'Not my turn to submit block';
-        this.log.debug(msg);
-        throw new Error(msg);
-      }
+      throw err;
     }
-
-    return slot;
   }
 
   shouldProposeBlock(historicalHeader: Header | undefined, args: ShouldProposeArgs): boolean {
@@ -440,18 +381,20 @@ export class Sequencer {
     return true;
   }
 
-  @trackSpan(
-    'Sequencer.buildBlockAndPublish',
-    (_validTxs, newGlobalVariables, _historicalHeader, _chainTipArchive) => ({
-      [Attributes.BLOCK_NUMBER]: newGlobalVariables.blockNumber.toNumber(),
-    }),
-  )
+  @trackSpan('Sequencer.buildBlockAndPublish', (_validTxs, proposalHeader, _historicalHeader) => ({
+    [Attributes.BLOCK_NUMBER]: proposalHeader.globalVariables.blockNumber.toNumber(),
+  }))
   private async buildBlockAndPublish(
     validTxs: Tx[],
-    newGlobalVariables: GlobalVariables,
+    proposalHeader: Header,
     historicalHeader: Header | undefined,
-    chainTipArchive: Buffer | undefined,
   ): Promise<void> {
+    if (!(await this.publisher.validateBlockForSubmission(proposalHeader))) {
+      return;
+    }
+
+    const newGlobalVariables = proposalHeader.globalVariables;
+
     this.metrics.recordNewBlock(newGlobalVariables.blockNumber.toNumber(), validTxs.length);
     const workTimer = new Timer();
     this.state = SequencerState.CREATING_BLOCK;
@@ -483,8 +426,8 @@ export class Sequencer {
       await this.p2pClient.deleteTxs(Tx.getHashes(failedTxData));
     }
 
-    await this.canProposeBlock(historicalHeader, newGlobalVariables, chainTipArchive);
     if (
+      !(await this.publisher.validateBlockForSubmission(proposalHeader)) ||
       !this.shouldProposeBlock(historicalHeader, {
         validTxsCount: validTxs.length,
         processedTxsCount: processedTxs.length,
@@ -508,7 +451,9 @@ export class Sequencer {
     // Block is ready, now finalise
     const { block } = await blockBuilder.finaliseBlock();
 
-    await this.canProposeBlock(historicalHeader, newGlobalVariables, chainTipArchive);
+    if (!(await this.publisher.validateBlockForSubmission(block.header))) {
+      return;
+    }
 
     const workDuration = workTimer.ms();
     this.log.verbose(
@@ -530,7 +475,6 @@ export class Sequencer {
 
     this.isFlushing = false;
     const attestations = await this.collectAttestations(block);
-    await this.canProposeBlock(historicalHeader, newGlobalVariables, chainTipArchive);
 
     try {
       await this.publishL2Block(block, attestations);
@@ -565,6 +509,7 @@ export class Sequencer {
     //                ;   ;
     //                /   \
     //  _____________/_ __ \_____________
+
     if (IS_DEV_NET || !this.validatorClient) {
       return undefined;
     }

@@ -12,6 +12,7 @@ pragma solidity >=0.8.18;
 library Errors {
   // DEVNET related
   error DevNet__NoPruningAllowed(); // 0x6984c590
+  error DevNet__InvalidProposer(address expected, address actual); // 0x11e6e6f7
 
   // Inbox
   error Inbox__Unauthorized(); // 0xe5336a6b
@@ -55,7 +56,7 @@ library Errors {
   error Rollup__InvalidChainId(uint256 expected, uint256 actual); // 0x37b5bc12
   error Rollup__InvalidVersion(uint256 expected, uint256 actual); // 0x9ef30794
   error Rollup__InvalidTimestamp(uint256 expected, uint256 actual); // 0x3132e895
-  error Rollup__TimestampInFuture(); // 0xbc1ce916
+  error Rollup__TimestampInFuture(uint256 max, uint256 actual); // 0x89f30690
   error Rollup__TimestampTooOld(); // 0x72ed9c81
   error Rollup__UnavailableTxs(bytes32 txsHash); // 0x414906c3
   error Rollup__NothingToPrune(); // 0x850defd3

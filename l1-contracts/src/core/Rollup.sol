@@ -17,6 +17,8 @@ import {Errors} from "./libraries/Errors.sol";
 import {Constants} from "./libraries/ConstantsGen.sol";
 import {MerkleLib} from "./libraries/MerkleLib.sol";
 import {SignatureLib} from "./sequencer_selection/SignatureLib.sol";
+import {SafeCast} from "@oz/utils/math/SafeCast.sol";
+import {DataStructures} from "./libraries/DataStructures.sol";
 
 // Contracts
 import {MockVerifier} from "../mock/MockVerifier.sol";
@@ -31,6 +33,8 @@ import {Leonidas} from "./sequencer_selection/Leonidas.sol";
  * not giving a damn about gas costs.
  */
 contract Rollup is Leonidas, IRollup, ITestRollup {
+  using SafeCast for uint256;
+
   struct BlockLog {
     bytes32 archive;
     bytes32 blockHash;
@@ -382,6 +386,69 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   }
 
   /**
+   * @notice  Check if a proposer can propose at a given time
+   *
+   * @param _ts - The timestamp to check
+   * @param _proposer - The proposer to check
+   * @param _archive - The archive to check (should be the latest archive)
+   *
+   * @return uint256 - The slot at the given timestamp
+   * @return uint256 - The block number at the given timestamp
+   */
+  function canProposeAtTime(uint256 _ts, address _proposer, bytes32 _archive)
+    external
+    view
+    override(IRollup)
+    returns (uint256, uint256)
+  {
+    uint256 slot = getSlotAt(_ts);
+
+    uint256 lastSlot = uint256(blocks[pendingBlockCount - 1].slotNumber);
+    if (slot <= lastSlot) {
+      revert Errors.Rollup__SlotAlreadyInChain(lastSlot, slot);
+    }
+
+    bytes32 tipArchive = archive();
+    if (tipArchive != _archive) {
+      revert Errors.Rollup__InvalidArchive(tipArchive, _archive);
+    }
+
+    if (isDevNet) {
+      _devnetSequencerSubmissionChecks(_proposer);
+    } else {
+      address proposer = getProposerAt(_ts);
+      if (proposer != address(0) && proposer != _proposer) {
+        revert Errors.Leonidas__InvalidProposer(proposer, _proposer);
+      }
+    }
+
+    return (slot, pendingBlockCount);
+  }
+
+  /**
+   * @notice  Validate a header for submission
+   *
+   * @dev     This is a convenience function that can be used by the sequencer to validate a "partial" header
+   *          without having to deal with viem or anvil for simulating timestamps in the future.
+   *
+   * @param _header - The header to validate
+   * @param _signatures - The signatures to validate
+   * @param _digest - The digest to validate
+   * @param _currentTime - The current time
+   * @param _flags - The flags to validate
+   */
+  function validateHeader(
+    bytes calldata _header,
+    SignatureLib.Signature[] memory _signatures,
+    bytes32 _digest,
+    uint256 _currentTime,
+    DataStructures.ExecutionFlags memory _flags
+  ) external view override(IRollup) {
+    HeaderLib.Header memory header = HeaderLib.decode(_header);
+    _validateHeader(header, _signatures, _digest, _currentTime, _flags);
+  }
+
+  /**
    * @notice Processes an incoming L2 block with signatures
    *
    * @param _header - The L2 block header
@@ -397,15 +464,19 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   ) public override(IRollup) {
     // Decode and validate header
     HeaderLib.Header memory header = HeaderLib.decode(_header);
-    _validateHeaderForSubmissionBase(header);
-    _validateHeaderForSubmissionSequencerSelection(header, _signatures, _archive);
+    setupEpoch();
+    _validateHeader({
+      _header: header,
+      _signatures: _signatures,
+      _digest: _archive,
+      _currentTime: block.timestamp,
+      _flags: DataStructures.ExecutionFlags({ignoreDA: false, ignoreSignatures: false})
+    });
 
-    // As long as the header is passing validity check in `_validateHeaderForSubmissionBase` we can safely cast
-    // the slot number to uint128
     blocks[pendingBlockCount++] = BlockLog({
       archive: _archive,
       blockHash: _blockHash,
-      slotNumber: uint128(header.globalVariables.slotNumber),
+      slotNumber: header.globalVariables.slotNumber.toUint128(),
       isProven: false
     });
 
@@ -498,6 +569,29 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   }
 
   /**
+   * @notice  Validates the header for submission
+   *
+   * @param _header - The proposed block header
+   * @param _signatures - The signatures for the attestations
+   * @param _digest - The digest that signatures signed
+   * @param _currentTime - The time of execution
+   * @dev                - This value is provided to allow for simple simulation of future
+   * @param _flags - Flags specific to the execution, whether certain checks should be skipped
+   */
+  function _validateHeader(
+    HeaderLib.Header memory _header,
+    SignatureLib.Signature[] memory _signatures,
+    bytes32 _digest,
+    uint256 _currentTime,
+    DataStructures.ExecutionFlags memory _flags
+  ) internal view {
+    _validateHeaderForSubmissionBase(_header, _currentTime, _flags);
+    _validateHeaderForSubmissionSequencerSelection(
+      _header.globalVariables.slotNumber, _signatures, _digest, _currentTime, _flags
+    );
+  }
+
+  /**
    * @notice  Validate a header for submission to the pending chain (sequencer selection checks)
    *
    *          These validation checks are directly related to Leonidas.
@@ -511,15 +605,17 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @dev     While in isDevNet, we allow skipping all of the checks as we simply assume only TRUSTED sequencers
    *
-   * @param _header - The header to validate
+   * @param _slot - The slot of the header to validate
    * @param _signatures - The signatures to validate
-   * @param _archive - The archive root of the block
+   * @param _digest - The digest that signatures sign over
    */
   function _validateHeaderForSubmissionSequencerSelection(
-    HeaderLib.Header memory _header,
+    uint256 _slot,
     SignatureLib.Signature[] memory _signatures,
-    bytes32 _archive
-  ) internal {
+    bytes32 _digest,
+    uint256 _currentTime,
+    DataStructures.ExecutionFlags memory _flags
+  ) internal view {
     if (isDevNet) {
       // @note  If we are running in a devnet, we don't want to perform all the consensus
       //        checks, we instead simply require that either there are NO validators or
@@ -528,22 +624,15 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       //        This means that we relaxes the condition that the block must land in the
       //        correct slot and epoch to make it more fluid for the devnet launch
       //        or for testing.
-      if (getValidatorCount() == 0) {
-        return;
-      }
 
-      if (!isValidator(msg.sender)) {
-        revert Errors.Leonidas__InvalidProposer(getValidatorAt(0), msg.sender);
-      }
+      _devnetSequencerSubmissionChecks(msg.sender);
       return;
     }
 
-    uint256 slot = _header.globalVariables.slotNumber;
-
     // Ensure that the slot proposed is NOT in the future
-    uint256 currentSlot = getCurrentSlot();
-    if (slot != currentSlot) {
-      revert Errors.HeaderLib__InvalidSlotNumber(currentSlot, slot);
+    uint256 currentSlot = getSlotAt(_currentTime);
+    if (_slot != currentSlot) {
+      revert Errors.HeaderLib__InvalidSlotNumber(currentSlot, _slot);
     }
 
     // @note  We are currently enforcing that the slot is in the current epoch
@@ -551,13 +640,13 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     //        of an entire epoch if no-one from the new epoch committee have seen
     //        those blocks or behaves as if they did not.
 
-    uint256 epochNumber = getEpochAt(getTimestampForSlot(slot));
-    uint256 currentEpoch = getCurrentEpoch();
+    uint256 epochNumber = getEpochAt(getTimestampForSlot(_slot));
+    uint256 currentEpoch = getEpochAt(_currentTime);
     if (epochNumber != currentEpoch) {
       revert Errors.Rollup__InvalidEpoch(currentEpoch, epochNumber);
     }
 
-    _processPendingBlock(epochNumber, slot, _signatures, _archive);
+    _processPendingBlock(_slot, _signatures, _digest, _flags);
   }
 
   /**
@@ -577,7 +666,11 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    *
    * @param _header - The header to validate
    */
-  function _validateHeaderForSubmissionBase(HeaderLib.Header memory _header) internal view {
+  function _validateHeaderForSubmissionBase(
+    HeaderLib.Header memory _header,
+    uint256 _currentTime,
+    DataStructures.ExecutionFlags memory _flags
+  ) internal view {
     if (block.chainid != _header.globalVariables.chainId) {
       revert Errors.Rollup__InvalidChainId(block.chainid, _header.globalVariables.chainId);
     }
@@ -612,9 +705,32 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       revert Errors.Rollup__InvalidTimestamp(timestamp, _header.globalVariables.timestamp);
     }
 
+    if (timestamp > _currentTime) {
+      // @note  If you are hitting this error, it is likely because the chain you use have a blocktime that differs
+      //        from the value that we have in the constants.
+      //        When you are encountering this, it will likely be as the sequencer expects to be able to include
+      //        an Aztec block in the "next" ethereum block based on a timestamp that is 12 seconds in the future
+      //        from the last block. However, if the actual will only be 1 second in the future, you will end up
+      //        expecting this value to be in the future.
+      revert Errors.Rollup__TimestampInFuture(_currentTime, timestamp);
+    }
+
     // Check if the data is available using availability oracle (change availability oracle if you want a different DA layer)
-    if (!AVAILABILITY_ORACLE.isAvailable(_header.contentCommitment.txsEffectsHash)) {
+    if (
+      !_flags.ignoreDA && !AVAILABILITY_ORACLE.isAvailable(_header.contentCommitment.txsEffectsHash)
+    ) {
       revert Errors.Rollup__UnavailableTxs(_header.contentCommitment.txsEffectsHash);
     }
+  }
+
+  function _devnetSequencerSubmissionChecks(address _proposer) internal view {
+    if (getValidatorCount() == 0) {
+      return;
+    }
+
+    if (!isValidator(_proposer)) {
+      revert Errors.DevNet__InvalidProposer(getValidatorAt(0), _proposer);
+    }
+    return;
   }
 }

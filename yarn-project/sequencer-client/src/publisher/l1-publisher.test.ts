@@ -1,4 +1,4 @@
-import { L2Block } from '@aztec/circuit-types';
+import { L2Block, type ViemSignature } from '@aztec/circuit-types';
 import { EthAddress } from '@aztec/circuits.js';
 import { sleep } from '@aztec/foundation/sleep';
 import { NoopTelemetryClient } from '@aztec/telemetry-client/noop';
@@ -27,7 +27,7 @@ class MockAvailabilityOracle {
 
 interface MockPublicClient {
   getTransactionReceipt: ({ hash }: { hash: '0x${string}' }) => Promise<GetTransactionReceiptReturnType>;
-  getBlock(): Promise<{ timestamp: number }>;
+  getBlock(): Promise<{ timestamp: bigint }>;
   getTransaction: ({ hash }: { hash: '0x${string}' }) => Promise<{ input: `0x${string}`; hash: `0x${string}` }>;
 }
 
@@ -46,6 +46,15 @@ interface MockRollupContractWrite {
 interface MockRollupContractRead {
   archive: () => Promise<`0x${string}`>;
   getCurrentSlot(): Promise<bigint>;
+  validateHeader: (
+    args: readonly [
+      `0x${string}`,
+      ViemSignature[],
+      `0x${string}`,
+      bigint,
+      { ignoreDA: boolean; ignoreSignatures: boolean },
+    ],
+  ) => Promise<void>;
 }
 
 class MockRollupContract {
@@ -131,7 +140,6 @@ describe('L1Publisher', () => {
         rollupAddress: EthAddress.ZERO.toString(),
       },
       l1PublishRetryIntervalMS: 1,
-      timeTraveller: false,
     } as unknown as TxSenderConfig & PublisherConfig;
 
     publisher = new L1Publisher(config, new NoopTelemetryClient());
@@ -143,6 +151,7 @@ describe('L1Publisher', () => {
     account = (publisher as any)['account'];
 
     rollupContractRead.getCurrentSlot.mockResolvedValue(l2Block.header.globalVariables.slotNumber.toBigInt());
+    publicClient.getBlock.mockResolvedValue({ timestamp: 12n });
   });
 
   it('publishes and process l2 block to l1', async () => {
@@ -161,7 +170,9 @@ describe('L1Publisher', () => {
       `0x${blockHash.toString('hex')}`,
       `0x${body.toString('hex')}`,
     ] as const;
-    expect(rollupContractSimulate.publishAndProcess).toHaveBeenCalledWith(args, { account: account });
+    if (!L1Publisher.SKIP_SIMULATION) {
+      expect(rollupContractSimulate.publishAndProcess).toHaveBeenCalledWith(args, { account: account });
+    }
     expect(rollupContractWrite.publishAndProcess).toHaveBeenCalledWith(args, { account: account });
     expect(publicClient.getTransactionReceipt).toHaveBeenCalledWith({ hash: publishAndProcessTxHash });
   });
@@ -181,7 +192,9 @@ describe('L1Publisher', () => {
       `0x${archive.toString('hex')}`,
       `0x${blockHash.toString('hex')}`,
     ] as const;
-    expect(rollupContractSimulate.process).toHaveBeenCalledWith(args, { account });
+    if (!L1Publisher.SKIP_SIMULATION) {
+      expect(rollupContractSimulate.process).toHaveBeenCalledWith(args, { account });
+    }
     expect(rollupContractWrite.process).toHaveBeenCalledWith(args, { account });
     expect(publicClient.getTransactionReceipt).toHaveBeenCalledWith({ hash: processTxHash });
   });
@@ -208,10 +221,18 @@ describe('L1Publisher', () => {
     rollupContractRead.archive.mockResolvedValue(l2Block.header.lastArchive.root.toString() as `0x${string}`);
     rollupContractSimulate.publishAndProcess.mockRejectedValueOnce(new Error());
 
+    if (L1Publisher.SKIP_SIMULATION) {
+      rollupContractRead.validateHeader.mockRejectedValueOnce(new Error('Test error'));
+    }
+
     const result = await publisher.processL2Block(l2Block);
 
     expect(result).toEqual(false);
-    expect(rollupContractSimulate.publishAndProcess).toHaveBeenCalledTimes(1);
+    if (!L1Publisher.SKIP_SIMULATION) {
+      expect(rollupContractSimulate.publishAndProcess).toHaveBeenCalledTimes(1);
+    }
+    expect(rollupContractRead.validateHeader).toHaveBeenCalledTimes(1);
+
     expect(rollupContractWrite.publishAndProcess).toHaveBeenCalledTimes(0);
   });
 

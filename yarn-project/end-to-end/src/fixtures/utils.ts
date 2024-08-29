@@ -87,6 +87,7 @@ import { MNEMONIC } from './fixtures.js';
 import { getACVMConfig } from './get_acvm_config.js';
 import { getBBConfig } from './get_bb_config.js';
 import { isMetricsLoggingRequested, setupMetricsLogger } from './logging.js';
+import { Watcher } from './watcher.js';
 
 export { deployAndInitializeTokenAndBridgeContracts } from '../shared/cross_chain_test_harness.js';
 
@@ -451,6 +452,13 @@ export async function setup(
     }
   }
 
+  const watcher = new Watcher(
+    new EthCheatCodes(config.l1RpcUrl),
+    deployL1ContractsValues.l1ContractAddresses.rollupAddress,
+    deployL1ContractsValues.publicClient,
+  );
+  watcher.start();
+
   const wallets = numberOfAccounts > 0 ? await createAccounts(pxe, numberOfAccounts) : [];
   const cheatCodes = CheatCodes.create(config.l1RpcUrl, pxe!);
 
@@ -469,6 +477,7 @@ export async function setup(
     }
 
     await anvil?.stop();
+    await watcher.stop();
   };
 
   return {

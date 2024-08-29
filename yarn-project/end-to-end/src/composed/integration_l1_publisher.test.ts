@@ -170,7 +170,6 @@ describe('L1Publisher integration', () => {
         publisherPrivateKey: sequencerPK,
         l1PublishRetryIntervalMS: 100,
         l1ChainId: 31337,
-        timeTraveler: true,
       },
       new NoopTelemetryClient(),
     );

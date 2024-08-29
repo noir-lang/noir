@@ -166,7 +166,7 @@ contract DevNetTest is DecoderBase {
       // Why don't we end up here?
       vm.expectRevert(
         abi.encodeWithSelector(
-          Errors.Leonidas__InvalidProposer.selector, rollup.getValidatorAt(0), ree.proposer
+          Errors.DevNet__InvalidProposer.selector, rollup.getValidatorAt(0), ree.proposer
         )
       );
       ree.shouldRevert = true;

@@ -78,6 +78,19 @@ contract RollupTest is DecoderBase {
     _;
   }
 
+  function testTimestamp() public setUpFor("mixed_block_1") {
+    // Ensure that the timestamp of the current slot is never in the future.
+    for (uint256 i = 0; i < 100; i++) {
+      uint256 slot = rollup.getCurrentSlot();
+      uint256 ts = rollup.getTimestampForSlot(slot);
+
+      assertLe(ts, block.timestamp, "Invalid timestamp");
+
+      vm.warp(block.timestamp + 12);
+      vm.roll(block.number + 1);
+    }
+  }
+
   function testRevertPrune() public setUpFor("mixed_block_1") {
     if (rollup.isDevNet()) {
       vm.expectRevert(abi.encodeWithSelector(Errors.DevNet__NoPruningAllowed.selector));
@@ -181,6 +194,9 @@ contract RollupTest is DecoderBase {
     assertEq(portalERC20.balanceOf(address(rollup)), 0, "invalid rollup balance");
 
     uint256 portalBalance = portalERC20.balanceOf(address(feeJuicePortal));
+
+    // We jump to the time of the block. (unless it is in the past)
+    vm.warp(max(block.timestamp, data.decodedHeader.globalVariables.timestamp));
 
     vm.expectRevert(
       abi.encodeWithSelector(

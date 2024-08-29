@@ -74,4 +74,9 @@ library DataStructures {
     uint256 blockNumber;
   }
   // docs:end:registry_snapshot
+
+  struct ExecutionFlags {
+    bool ignoreDA;
+    bool ignoreSignatures;
+  }
 }

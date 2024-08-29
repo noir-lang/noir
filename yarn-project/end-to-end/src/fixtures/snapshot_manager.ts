@@ -41,6 +41,7 @@ import { getACVMConfig } from './get_acvm_config.js';
 import { getBBConfig } from './get_bb_config.js';
 import { setupL1Contracts } from './setup_l1_contracts.js';
 import { deployCanonicalAuthRegistry, deployCanonicalKeyRegistry, getPrivateKeyFromIndex } from './utils.js';
+import { Watcher } from './watcher.js';
 
 export type SubsystemsContext = {
   anvil: Anvil;
@@ -51,6 +52,7 @@ export type SubsystemsContext = {
   pxe: PXEService;
   deployL1ContractsValues: DeployL1Contracts;
   proverNode: ProverNode;
+  watcher: Watcher;
 };
 
 type SnapshotEntry = {
@@ -229,6 +231,7 @@ async function teardown(context: SubsystemsContext | undefined) {
   await context.pxe.stop();
   await context.acvmConfig?.cleanup();
   await context.anvil.stop();
+  await context.watcher.stop();
 }
 
 export async function createAndSyncProverNode(
@@ -338,6 +341,13 @@ async function setupFromFresh(
     aztecNode,
   );
 
+  const watcher = new Watcher(
+    new EthCheatCodes(aztecNodeConfig.l1RpcUrl),
+    deployL1ContractsValues.l1ContractAddresses.rollupAddress,
+    deployL1ContractsValues.publicClient,
+  );
+  watcher.start();
+
   logger.verbose('Creating pxe...');
   const pxeConfig = getPXEServiceConfig();
   pxeConfig.dataDirectory = statePath;
@@ -365,6 +375,7 @@ async function setupFromFresh(
     bbConfig,
     deployL1ContractsValues,
     proverNode,
+    watcher,
   };
 }
 
@@ -408,6 +419,13 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
   logger.verbose('Creating ETH clients...');
   const { publicClient, walletClient } = createL1Clients(aztecNodeConfig.l1RpcUrl, mnemonicToAccount(MNEMONIC));
 
+  const watcher = new Watcher(
+    new EthCheatCodes(aztecNodeConfig.l1RpcUrl),
+    aztecNodeConfig.l1Contracts.rollupAddress,
+    publicClient,
+  );
+  watcher.start();
+
   logger.verbose('Creating aztec node...');
   const telemetry = await createAndStartTelemetryClient(getTelemetryConfig());
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig, telemetry);
@@ -440,6 +458,7 @@ async function setupFromState(statePath: string, logger: Logger): Promise<Subsys
       publicClient,
       l1ContractAddresses: aztecNodeConfig.l1Contracts,
     },
+    watcher,
   };
 }
 
