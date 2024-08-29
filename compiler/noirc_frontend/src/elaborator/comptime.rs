@@ -46,6 +46,7 @@ impl<'context> Elaborator<'context> {
             self.crate_id,
             self.debug_comptime_in_file,
             self.enable_arithmetic_generics,
+            self.interpreter_call_stack,
         );
 
         elaborator.function_context.push(FunctionContext::default());
