@@ -37,7 +37,7 @@ export const startNode = async (
   }
 
   // Deploy contracts if needed
-  if (nodeSpecificOptions.deployAztecContracts) {
+  if (nodeSpecificOptions.deployAztecContracts || nodeSpecificOptions.deployAztecContractsSalt) {
     let account;
     if (nodeSpecificOptions.publisherPrivateKey) {
       account = privateKeyToAccount(nodeSpecificOptions.publisherPrivateKey);
@@ -48,6 +48,7 @@ export const startNode = async (
     }
     await deployContractsToL1(nodeConfig, account!, undefined, {
       assumeProvenUntilBlockNumber: nodeSpecificOptions.assumeProvenUntilBlockNumber,
+      salt: nodeSpecificOptions.deployAztecContractsSalt,
     });
   }
 

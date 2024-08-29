@@ -82,16 +82,26 @@ export async function deployAndInitializeTokenAndBridgeContracts(
   underlyingERC20: any;
 }> {
   if (!underlyingERC20Address) {
-    underlyingERC20Address = await deployL1Contract(walletClient, publicClient, PortalERC20Abi, PortalERC20Bytecode);
+    underlyingERC20Address = await deployL1Contract(
+      walletClient,
+      publicClient,
+      PortalERC20Abi,
+      PortalERC20Bytecode,
+    ).then(({ address }) => address);
   }
   const underlyingERC20 = getContract({
-    address: underlyingERC20Address.toString(),
+    address: underlyingERC20Address!.toString(),
     abi: PortalERC20Abi,
     client: walletClient,
   });
 
   // deploy the token portal
-  const tokenPortalAddress = await deployL1Contract(walletClient, publicClient, TokenPortalAbi, TokenPortalBytecode);
+  const { address: tokenPortalAddress } = await deployL1Contract(
+    walletClient,
+    publicClient,
+    TokenPortalAbi,
+    TokenPortalBytecode,
+  );
   const tokenPortal = getContract({
     address: tokenPortalAddress.toString(),
     abi: TokenPortalAbi,
@@ -120,7 +130,7 @@ export async function deployAndInitializeTokenAndBridgeContracts(
 
   // initialize portal
   await tokenPortal.write.initialize(
-    [rollupRegistryAddress.toString(), underlyingERC20Address.toString(), bridge.address.toString()],
+    [rollupRegistryAddress.toString(), underlyingERC20Address!.toString(), bridge.address.toString()],
     {} as any,
   );
 

@@ -172,9 +172,17 @@ export const aztecStartOptions: { [key: string]: AztecStartOption[] } = {
     },
     {
       flag: '--node.deployAztecContracts',
-      description: 'Deploys L1 Aztec contracts before starting the node. Needs mnemonic or private key to be set',
+      description: 'Deploys L1 Aztec contracts before starting the node. Needs mnemonic or private key to be set.',
       envVar: 'DEPLOY_AZTEC_CONTRACTS',
       ...booleanConfigHelper(),
+    },
+    {
+      flag: '--node.deployAztecContractsSalt',
+      description:
+        'Numeric salt for deploying L1 Aztec contracts before starting the node. Needs mnemonic or private key to be set. Implies --node.deployAztecContracts.',
+      envVar: 'DEPLOY_AZTEC_CONTRACTS_SALT',
+      defaultValue: undefined,
+      parseVal: (val: string) => (val ? parseInt(val) : undefined),
     },
     {
       flag: '--node.assumeProvenUntilBlockNumber',

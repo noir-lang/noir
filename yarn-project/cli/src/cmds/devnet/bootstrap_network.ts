@@ -113,8 +113,18 @@ async function deployERC20({ walletClient, publicClient }: L1Clients) {
     contractBytecode: TokenPortalBytecode,
   };
 
-  const erc20Address = await deployL1Contract(walletClient, publicClient, erc20.contractAbi, erc20.contractBytecode);
-  const portalAddress = await deployL1Contract(walletClient, publicClient, portal.contractAbi, portal.contractBytecode);
+  const { address: erc20Address } = await deployL1Contract(
+    walletClient,
+    publicClient,
+    erc20.contractAbi,
+    erc20.contractBytecode,
+  );
+  const { address: portalAddress } = await deployL1Contract(
+    walletClient,
+    publicClient,
+    portal.contractAbi,
+    portal.contractBytecode,
+  );
 
   return {
     erc20Address,

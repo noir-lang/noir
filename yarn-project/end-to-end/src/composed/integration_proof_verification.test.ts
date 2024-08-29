@@ -98,7 +98,7 @@ describe('proof_verification', () => {
     const abi = output.contracts['UltraHonkVerifier.sol']['HonkVerifier'].abi;
     const bytecode: string = output.contracts['UltraHonkVerifier.sol']['HonkVerifier'].evm.bytecode.object;
 
-    const verifierAddress = await deployL1Contract(walletClient, publicClient, abi, `0x${bytecode}`);
+    const { address: verifierAddress } = await deployL1Contract(walletClient, publicClient, abi, `0x${bytecode}`);
     verifierContract = getContract({
       address: verifierAddress.toString(),
       client: publicClient,

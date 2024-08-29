@@ -383,7 +383,7 @@ export class FullProverTest {
     const abi = output.contracts['UltraHonkVerifier.sol']['HonkVerifier'].abi;
     const bytecode: string = output.contracts['UltraHonkVerifier.sol']['HonkVerifier'].evm.bytecode.object;
 
-    const verifierAddress = await deployL1Contract(walletClient, publicClient, abi, `0x${bytecode}`);
+    const { address: verifierAddress } = await deployL1Contract(walletClient, publicClient, abi, `0x${bytecode}`);
 
     this.logger.info(`Deployed Real verifier at ${verifierAddress}`);
 

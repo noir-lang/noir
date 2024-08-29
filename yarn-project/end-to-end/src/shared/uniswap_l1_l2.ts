@@ -148,7 +148,7 @@ export const uniswapL1L2TestSuite = (
         publicClient,
         UniswapPortalAbi,
         UniswapPortalBytecode,
-      );
+      ).then(({ address }) => address);
 
       uniswapPortal = getContract({
         address: uniswapPortalAddress.toString(),

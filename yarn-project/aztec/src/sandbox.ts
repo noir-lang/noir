@@ -90,7 +90,7 @@ export async function deployContractsToL1(
   aztecNodeConfig: AztecNodeConfig,
   hdAccount: HDAccount | PrivateKeyAccount,
   contractDeployLogger = logger,
-  opts: { assumeProvenUntilBlockNumber?: number } = {},
+  opts: { assumeProvenUntilBlockNumber?: number; salt?: number } = {},
 ) {
   const l1Artifacts: L1ContractArtifactsForDeployment = {
     registry: {
@@ -132,7 +132,7 @@ export async function deployContractsToL1(
       l2FeeJuiceAddress: FeeJuiceAddress,
       vkTreeRoot: getVKTreeRoot(),
       assumeProvenUntil: opts.assumeProvenUntilBlockNumber,
-      salt: undefined,
+      salt: opts.salt,
     }),
   );
 
