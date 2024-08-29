@@ -184,7 +184,7 @@ impl<'context> Elaborator<'context> {
 
         if let Type::NamedGeneric(_type_var, _name, resolved_kind) = &resolved_type {
             assert_eq!(&resolved_type.kind(), resolved_kind);
-            if resolved_type.kind() != kind.clone() {
+            if resolved_type.kind() != *kind {
                 let expected_typ_err =
                     CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
                         expected_kind: kind.to_string(),
