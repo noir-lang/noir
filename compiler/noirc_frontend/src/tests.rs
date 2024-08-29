@@ -3241,6 +3241,10 @@ fn warns_on_use_of_private_exported_item() {
         }
 
         use bar::baz;
+
+        fn qux() {
+            baz();
+        }
     }
 
     fn main() {
