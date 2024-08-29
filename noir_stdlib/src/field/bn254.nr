@@ -142,7 +142,7 @@ pub fn lt(a: Field, b: Field) -> bool {
 
 mod tests {
     // TODO: Allow imports from "super"
-    use crate::field::bn254::{decompose_hint, decompose, compute_lt, assert_gt, gt, lt, TWO_POW_128, compute_lte, PLO, PHI};
+    use crate::field::bn254::{decompose, compute_lt, assert_gt, gt, TWO_POW_128, compute_lte, PLO, PHI};
 
     #[test]
     fn check_decompose() {

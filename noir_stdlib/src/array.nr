@@ -1,5 +1,4 @@
 use crate::cmp::Ord;
-use crate::option::Option;
 use crate::convert::From;
 
 impl<T, let N: u32> [T; N] {
