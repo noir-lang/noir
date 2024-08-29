@@ -1,6 +1,7 @@
 #include "sha256_constraint.hpp"
 #include "barretenberg/stdlib/hash/sha256/sha256.hpp"
 #include "barretenberg/stdlib/hash/sha256/sha256_plookup.hpp"
+#include "msgpack/v3/unpack_decl.hpp"
 #include "round.hpp"
 
 namespace acir_format {
@@ -39,7 +40,12 @@ template <typename Builder> void create_sha256_constraints(Builder& builder, con
     auto bytes = output_bytes.bytes();
 
     for (size_t i = 0; i < bytes.size(); ++i) {
-        builder.assert_equal(bytes[i].normalize().witness_index, constraint.result[i]);
+        auto normalised = bytes[i].normalize();
+        if (normalised.is_constant()) {
+            builder.fix_witness(constraint.result[i], normalised.get_value());
+        } else {
+            builder.assert_equal(bytes[i].normalize().witness_index, constraint.result[i]);
+        }
     }
 }
 
@@ -69,17 +75,22 @@ void create_sha256_compression_constraints(Builder& builder, const Sha256Compres
     auto output_bytes = stdlib::sha256_plookup::sha256_block<Builder>(hash_inputs, inputs);
 
     for (size_t i = 0; i < 8; ++i) {
-        poly_triple assert_equal{
-            .a = output_bytes[i].normalize().witness_index,
-            .b = constraint.result[i],
-            .c = 0,
-            .q_m = 0,
-            .q_l = 1,
-            .q_r = -1,
-            .q_o = 0,
-            .q_c = 0,
-        };
-        builder.create_poly_gate(assert_equal);
+        auto normalised_output = output_bytes[i].normalize();
+        if (normalised_output.is_constant()) {
+            builder.fix_witness(constraint.result[i], normalised_output.get_value());
+        } else {
+            poly_triple assert_equal{
+                .a = normalised_output.witness_index,
+                .b = constraint.result[i],
+                .c = 0,
+                .q_m = 0,
+                .q_l = 1,
+                .q_r = -1,
+                .q_o = 0,
+                .q_c = 0,
+            };
+            builder.create_poly_gate(assert_equal);
+        }
     }
 }
 
