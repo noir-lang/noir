@@ -3,7 +3,7 @@
 Archiver is a service which is used to fetch data on-chain data and present them in a nice-to-consume form.
 The on-chain data specifically are the following events:
 
-1. `L2BlockProcessed` event emitted on Rollup contract,
+1. `L2BlockProposed` event emitted on Rollup contract,
 2. `MessageAdded` event emitted on Inbox contract,
 
 The interfaces defining how the data can be consumed from the archiver are `L2BlockSource`, `L2LogsSource` and `ContractDataSource`.

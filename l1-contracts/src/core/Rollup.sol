@@ -188,7 +188,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   }
 
   /**
-   * @notice  Published the body and processes the block
+   * @notice  Published the body and propose the block
    * @dev     This should likely be purged in the future as it is a convenience method
    * @dev     `eth_log_handlers` rely on this function
    *
@@ -198,7 +198,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    * @param _signatures - Signatures from the validators
    * @param _body - The body of the L2 block
    */
-  function publishAndProcess(
+  function propose(
     bytes calldata _header,
     bytes32 _archive,
     bytes32 _blockHash,
@@ -206,11 +206,11 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
     bytes calldata _body
   ) external override(IRollup) {
     AVAILABILITY_ORACLE.publish(_body);
-    process(_header, _archive, _blockHash, _signatures);
+    propose(_header, _archive, _blockHash, _signatures);
   }
 
   /**
-   * @notice  Published the body and processes the block
+   * @notice  Published the body and propose the block
    * @dev     This should likely be purged in the future as it is a convenience method
    * @dev     `eth_log_handlers` rely on this function
    * @param _header - The L2 block header
@@ -218,14 +218,14 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
    * @param _blockHash - The poseidon2 hash of the header added to the archive tree in the rollup circuit
    * @param _body - The body of the L2 block
    */
-  function publishAndProcess(
+  function propose(
     bytes calldata _header,
     bytes32 _archive,
     bytes32 _blockHash,
     bytes calldata _body
   ) external override(IRollup) {
     AVAILABILITY_ORACLE.publish(_body);
-    process(_header, _archive, _blockHash);
+    propose(_header, _archive, _blockHash);
   }
 
   /**
@@ -447,14 +447,14 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   }
 
   /**
-   * @notice Processes an incoming L2 block with signatures
+   * @notice propose an incoming L2 block with signatures
    *
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
    * @param _blockHash - The poseidon2 hash of the header added to the archive tree in the rollup circuit
    * @param _signatures - Signatures from the validators
    */
-  function process(
+  function propose(
     bytes calldata _header,
     bytes32 _archive,
     bytes32 _blockHash,
@@ -491,7 +491,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       header.globalVariables.blockNumber, header.contentCommitment.outHash, l2ToL1TreeMinHeight
     );
 
-    emit L2BlockProcessed(header.globalVariables.blockNumber);
+    emit L2BlockProposed(header.globalVariables.blockNumber);
 
     // Automatically flag the block as proven if we have cheated and set assumeProvenUntilBlockNumber.
     if (header.globalVariables.blockNumber < assumeProvenUntilBlockNumber) {
@@ -509,18 +509,18 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
   }
 
   /**
-   * @notice Processes an incoming L2 block without signatures
+   * @notice Propose a L2 block without signatures
    *
    * @param _header - The L2 block header
    * @param _archive - A root of the archive tree after the L2 block is applied
    * @param _blockHash - The poseidon2 hash of the header added to the archive tree in the rollup circuit
    */
-  function process(bytes calldata _header, bytes32 _archive, bytes32 _blockHash)
+  function propose(bytes calldata _header, bytes32 _archive, bytes32 _blockHash)
     public
     override(IRollup)
   {
     SignatureLib.Signature[] memory emptySignatures = new SignatureLib.Signature[](0);
-    process(_header, _archive, _blockHash, emptySignatures);
+    propose(_header, _archive, _blockHash, emptySignatures);
   }
 
   /**
@@ -610,7 +610,7 @@ contract Rollup is Leonidas, IRollup, ITestRollup {
       revert Errors.Rollup__InvalidEpoch(currentEpoch, epochNumber);
     }
 
-    _processPendingBlock(_slot, _signatures, _digest, _flags);
+    _proposePendingBlock(_slot, _signatures, _digest, _flags);
   }
 
   /**

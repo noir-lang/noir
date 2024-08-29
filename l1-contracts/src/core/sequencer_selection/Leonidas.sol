@@ -339,7 +339,7 @@ contract Leonidas is Ownable, ILeonidas {
   }
 
   /**
-   * @notice  Process a pending block from the point-of-view of sequencer selection. Will:
+   * @notice  Propose a pending block from the point-of-view of sequencer selection. Will:
    *          - Setup the epoch if needed (if epoch committee is empty skips the rest)
    *          - Validate that the proposer is the proposer of the slot
    *          - Validate that the signatures for attestations are indeed from the validatorset
@@ -354,7 +354,7 @@ contract Leonidas is Ownable, ILeonidas {
    * @param _signatures - The signatures of the committee members
    * @param _digest - The digest of the block
    */
-  function _processPendingBlock(
+  function _proposePendingBlock(
     uint256 _slot,
     SignatureLib.Signature[] memory _signatures,
     bytes32 _digest,

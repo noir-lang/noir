@@ -91,7 +91,7 @@ contract RollupTest is DecoderBase {
     // We jump to the time of the block. (unless it is in the past)
     vm.warp(max(block.timestamp, data.decodedHeader.globalVariables.timestamp));
 
-    rollup.process(header, archive, bytes32(0));
+    rollup.propose(header, archive, bytes32(0));
 
     rollup.submitBlockRootProof(header, archive, bytes32(0), "", "");
 
@@ -224,7 +224,7 @@ contract RollupTest is DecoderBase {
     assertEq(coinbaseBalance, 0, "invalid initial coinbase balance");
 
     // Assert that balance have NOT been increased by proposing the block
-    rollup.process(header, archive, bytes32(0));
+    rollup.propose(header, archive, bytes32(0));
     assertEq(portalERC20.balanceOf(coinbase), 0, "invalid coinbase balance");
 
     vm.expectRevert(
@@ -272,7 +272,7 @@ contract RollupTest is DecoderBase {
 
     vm.warp(max(block.timestamp, data.decodedHeader.globalVariables.timestamp));
     availabilityOracle.publish(body);
-    rollup.process(header, archive, bytes32(0));
+    rollup.propose(header, archive, bytes32(0));
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__NonSequentialProving.selector));
     rollup.submitBlockRootProof(header, archive, bytes32(0), "", "");
@@ -310,7 +310,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidBlockNumber.selector, 1, 0x420));
-    rollup.process(header, archive, bytes32(0));
+    rollup.propose(header, archive, bytes32(0));
   }
 
   function testRevertInvalidChainId() public setUpFor("empty_block_1") {
@@ -327,7 +327,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidChainId.selector, 31337, 0x420));
-    rollup.process(header, archive, bytes32(0));
+    rollup.propose(header, archive, bytes32(0));
   }
 
   function testRevertInvalidVersion() public setUpFor("empty_block_1") {
@@ -343,7 +343,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidVersion.selector, 1, 0x420));
-    rollup.process(header, archive, bytes32(0));
+    rollup.propose(header, archive, bytes32(0));
   }
 
   function testRevertInvalidTimestamp() public setUpFor("empty_block_1") {
@@ -364,7 +364,7 @@ contract RollupTest is DecoderBase {
     availabilityOracle.publish(body);
 
     vm.expectRevert(abi.encodeWithSelector(Errors.Rollup__InvalidTimestamp.selector, realTs, badTs));
-    rollup.process(header, archive, bytes32(0));
+    rollup.propose(header, archive, bytes32(0));
   }
 
   function testBlocksWithAssumeProven() public setUpFor("mixed_block_1") {
@@ -465,7 +465,7 @@ contract RollupTest is DecoderBase {
 
     availabilityOracle.publish(body);
 
-    rollup.process(header, archive, bytes32(0));
+    rollup.propose(header, archive, bytes32(0));
 
     if (_submitProof) {
       uint256 pre = rollup.provenBlockCount();

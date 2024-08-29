@@ -83,7 +83,7 @@ describe('Archiver', () => {
     mockGetLogs({
       messageSent: [makeMessageSentEvent(98n, 1n, 0n), makeMessageSentEvent(99n, 1n, 1n)],
       txPublished: [makeTxsPublishedEvent(101n, blocks[0].body.getTxsEffectsHash())],
-      l2BlockProcessed: [makeL2BlockProcessedEvent(101n, 1n)],
+      L2BlockProposed: [makeL2BlockProposedEvent(101n, 1n)],
       proofVerified: [makeProofVerifiedEvent(102n, 1n, proverId)],
     });
 
@@ -98,7 +98,7 @@ describe('Archiver', () => {
         makeTxsPublishedEvent(2510n, blocks[1].body.getTxsEffectsHash()),
         makeTxsPublishedEvent(2520n, blocks[2].body.getTxsEffectsHash()),
       ],
-      l2BlockProcessed: [makeL2BlockProcessedEvent(2510n, 2n), makeL2BlockProcessedEvent(2520n, 3n)],
+      L2BlockProposed: [makeL2BlockProposedEvent(2510n, 2n), makeL2BlockProposedEvent(2520n, 3n)],
     });
 
     publicClient.getTransaction.mockResolvedValueOnce(publishTxs[0]);
@@ -208,7 +208,7 @@ describe('Archiver', () => {
         makeTxsPublishedEvent(70n, blocks[0].body.getTxsEffectsHash()),
         makeTxsPublishedEvent(80n, blocks[1].body.getTxsEffectsHash()),
       ],
-      l2BlockProcessed: [makeL2BlockProcessedEvent(70n, 1n), makeL2BlockProcessedEvent(80n, 2n)],
+      L2BlockProposed: [makeL2BlockProposedEvent(70n, 1n), makeL2BlockProposedEvent(80n, 2n)],
     });
 
     mockGetLogs({});
@@ -231,29 +231,29 @@ describe('Archiver', () => {
   const mockGetLogs = (logs: {
     messageSent?: ReturnType<typeof makeMessageSentEvent>[];
     txPublished?: ReturnType<typeof makeTxsPublishedEvent>[];
-    l2BlockProcessed?: ReturnType<typeof makeL2BlockProcessedEvent>[];
+    L2BlockProposed?: ReturnType<typeof makeL2BlockProposedEvent>[];
     proofVerified?: ReturnType<typeof makeProofVerifiedEvent>[];
   }) => {
     publicClient.getLogs
       .mockResolvedValueOnce(logs.messageSent ?? [])
       .mockResolvedValueOnce(logs.txPublished ?? [])
-      .mockResolvedValueOnce(logs.l2BlockProcessed ?? [])
+      .mockResolvedValueOnce(logs.L2BlockProposed ?? [])
       .mockResolvedValueOnce(logs.proofVerified ?? []);
   };
 });
 
 /**
- * Makes a fake L2BlockProcessed event for testing purposes.
+ * Makes a fake L2BlockProposed event for testing purposes.
  * @param l1BlockNum - L1 block number.
  * @param l2BlockNum - L2 Block number.
- * @returns An L2BlockProcessed event log.
+ * @returns An L2BlockProposed event log.
  */
-function makeL2BlockProcessedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
+function makeL2BlockProposedEvent(l1BlockNum: bigint, l2BlockNum: bigint) {
   return {
     blockNumber: l1BlockNum,
     args: { blockNumber: l2BlockNum },
     transactionHash: `0x${l2BlockNum}`,
-  } as Log<bigint, number, false, undefined, true, typeof RollupAbi, 'L2BlockProcessed'>;
+  } as Log<bigint, number, false, undefined, true, typeof RollupAbi, 'L2BlockProposed'>;
 }
 
 /**
@@ -310,7 +310,7 @@ function makeRollupTx(l2Block: L2Block) {
   const blockHash = toHex(l2Block.header.hash().toBuffer());
   const input = encodeFunctionData({
     abi: RollupAbi,
-    functionName: 'process',
+    functionName: 'propose',
     args: [header, archive, blockHash],
   });
   return { input } as Transaction<bigint, number>;

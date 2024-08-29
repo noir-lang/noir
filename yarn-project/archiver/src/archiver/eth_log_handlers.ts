@@ -35,16 +35,16 @@ export function processMessageSentLogs(
 }
 
 /**
- * Processes newly received L2BlockProcessed logs.
+ * Processes newly received L2BlockProposed logs.
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param expectedL2BlockNumber - The next expected L2 block number.
- * @param logs - L2BlockProcessed logs.
+ * @param logs - L2BlockProposed logs.
  * @returns - An array of tuples representing block metadata including the header, archive tree snapshot.
  */
-export async function processL2BlockProcessedLogs(
+export async function processL2BlockProposedLogs(
   publicClient: PublicClient,
   expectedL2BlockNumber: bigint,
-  logs: Log<bigint, number, false, undefined, true, typeof RollupAbi, 'L2BlockProcessed'>[],
+  logs: Log<bigint, number, false, undefined, true, typeof RollupAbi, 'L2BlockProposed'>[],
 ): Promise<[Header, AppendOnlyTreeSnapshot, L1PublishedData][]> {
   const retrievedBlockMetadata: [Header, AppendOnlyTreeSnapshot, L1PublishedData][] = [];
   for (const log of logs) {
@@ -110,7 +110,7 @@ async function getBlockMetadataFromRollupTx(
     data,
   });
 
-  if (!(functionName === 'process' || functionName === 'publishAndProcess')) {
+  if (!(functionName === 'propose')) {
     throw new Error(`Unexpected method called ${functionName}`);
   }
   const [headerHex, archiveRootHex, _] = args! as readonly [Hex, Hex, Hex];
@@ -135,7 +135,7 @@ async function getBlockMetadataFromRollupTx(
 
 /**
  * Gets block bodies from calldata of an L1 transaction, and deserializes them into Body objects.
- * @note Assumes that the block was published using `publishAndProcess` or `publish`.
+ * @note Assumes that the block was published using `propose` or `publish`.
  * TODO: Add retries and error management.
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param txHash - Hash of the tx that published it.
@@ -146,16 +146,16 @@ async function getBlockBodiesFromAvailabilityOracleTx(
   txHash: `0x${string}`,
 ): Promise<Body> {
   const { input: data } = await publicClient.getTransaction({ hash: txHash });
-  const DATA_INDEX = [4, 3, 0];
 
   // @note  Use `forge inspect Rollup methodIdentifiers to get this,
   //        If using `forge sig` you will get an INVALID value for the case with a struct.
   // [
-  //   "publishAndProcess(bytes calldata _header,bytes32 _archive,bytes32 _blockHash,SignatureLib.Signature[] memory _signatures,bytes calldata _body)",
-  //   "publishAndProcess(bytes calldata _header,bytes32 _archive,bytes32 _blockHash,bytes calldata _body)",
+  //   "propose(bytes,bytes32,bytes32,(bool,uint8,bytes32,bytes32)[],bytes)": "08978fe9",
+  //   "propose(bytes,bytes32,bytes32,bytes)": "81e6f472",
   //   "publish(bytes calldata _body)"
   // ]
-  const SUPPORTED_SIGS = ['0x64450c6c', '0xde36c478', '0x7fd28346'];
+  const DATA_INDEX = [4, 3, 0];
+  const SUPPORTED_SIGS = ['0x08978fe9', '0x81e6f472', '0x7fd28346'];
 
   const signature = slice(data, 0, 4);
 
@@ -163,7 +163,7 @@ async function getBlockBodiesFromAvailabilityOracleTx(
     throw new Error(`Unexpected method called ${signature}`);
   }
 
-  if (signature === SUPPORTED_SIGS[2]) {
+  if (signature === SUPPORTED_SIGS[SUPPORTED_SIGS.length - 1]) {
     const { args } = decodeFunctionData({
       abi: AvailabilityOracleAbi,
       data,
@@ -184,24 +184,24 @@ async function getBlockBodiesFromAvailabilityOracleTx(
 }
 
 /**
- * Gets relevant `L2BlockProcessed` logs from chain.
+ * Gets relevant `L2BlockProposed` logs from chain.
  * @param publicClient - The viem public client to use for transaction retrieval.
  * @param rollupAddress - The address of the rollup contract.
  * @param fromBlock - First block to get logs from (inclusive).
  * @param toBlock - Last block to get logs from (inclusive).
- * @returns An array of `L2BlockProcessed` logs.
+ * @returns An array of `L2BlockProposed` logs.
  */
-export function getL2BlockProcessedLogs(
+export function getL2BlockProposedLogs(
   publicClient: PublicClient,
   rollupAddress: EthAddress,
   fromBlock: bigint,
   toBlock: bigint,
-): Promise<Log<bigint, number, false, undefined, true, typeof RollupAbi, 'L2BlockProcessed'>[]> {
+): Promise<Log<bigint, number, false, undefined, true, typeof RollupAbi, 'L2BlockProposed'>[]> {
   return publicClient.getLogs({
     address: getAddress(rollupAddress.toString()),
     event: getAbiItem({
       abi: RollupAbi,
-      name: 'L2BlockProcessed',
+      name: 'L2BlockProposed',
     }),
     fromBlock,
     toBlock: toBlock + 1n, // the toBlock argument in getLogs is exclusive

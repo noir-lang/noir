@@ -16,7 +16,7 @@ interface ITestRollup {
 }
 
 interface IRollup {
-  event L2BlockProcessed(uint256 indexed blockNumber);
+  event L2BlockProposed(uint256 indexed blockNumber);
   event L2ProofVerified(uint256 indexed blockNumber, bytes32 indexed proverId);
   event PrunedPending(uint256 provenBlockCount, uint256 pendingBlockCount);
 
@@ -38,21 +38,21 @@ interface IRollup {
 
   function OUTBOX() external view returns (IOutbox);
 
-  function publishAndProcess(
+  function propose(
     bytes calldata _header,
     bytes32 _archive,
     bytes32 _blockHash,
     SignatureLib.Signature[] memory _signatures,
     bytes calldata _body
   ) external;
-  function publishAndProcess(
+  function propose(
     bytes calldata _header,
     bytes32 _archive,
     bytes32 _blockHash,
     bytes calldata _body
   ) external;
-  function process(bytes calldata _header, bytes32 _archive, bytes32 _blockHash) external;
-  function process(
+  function propose(bytes calldata _header, bytes32 _archive, bytes32 _blockHash) external;
+  function propose(
     bytes calldata _header,
     bytes32 _archive,
     bytes32 _blockHash,

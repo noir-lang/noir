@@ -173,7 +173,7 @@ contract DevNetTest is DecoderBase {
     }
 
     vm.prank(ree.proposer);
-    rollup.process(header, archive, bytes32(0));
+    rollup.propose(header, archive, bytes32(0));
 
     assertEq(_expectRevert, ree.shouldRevert, "Invalid revert expectation");
 
