@@ -9,7 +9,7 @@ use color_eyre::eyre;
 mod fs;
 
 mod check_cmd;
-mod compile_cmd;
+pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
 mod execute_cmd;
@@ -44,11 +44,11 @@ struct NargoCli {
 }
 
 #[non_exhaustive]
-#[derive(Args, Clone, Debug)]
-pub(crate) struct NargoConfig {
+#[derive(Args, Clone, Debug, Default)]
+pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
     #[arg(long, hide = true, global = true, default_value = "./")]
-    program_dir: PathBuf,
+    pub program_dir: PathBuf,
 }
 
 #[non_exhaustive]
@@ -72,7 +72,7 @@ enum NargoCommand {
 }
 
 #[cfg(not(feature = "codegen-docs"))]
-pub(crate) fn start_cli() -> eyre::Result<()> {
+pub fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
@@ -80,12 +80,22 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         config.program_dir = std::env::current_dir().unwrap().join(config.program_dir);
     }
 
+    // TODO
+    // if config.debug_compile_stdin && !matches!(command, NargoCommand::Compile(_)) {
+    //     ERROR
+    // }
+
     // Search through parent directories to find package root if necessary.
     if !matches!(
         command,
-        NargoCommand::New(_) | NargoCommand::Init(_) | NargoCommand::Lsp(_) | NargoCommand::Dap(_)
+        NargoCommand::New(_)
+            | NargoCommand::Init(_)
+            | NargoCommand::Lsp(_)
+            | NargoCommand::Dap(_)
+            | NargoCommand::Compile(_)
     ) {
-        config.program_dir = find_package_root(&config.program_dir)?;
+        let no_debug_compile_stdin = false;
+        config.program_dir = find_package_root(&config.program_dir, no_debug_compile_stdin)?;
     }
 
     match command {
@@ -107,7 +117,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 }
 
 #[cfg(feature = "codegen-docs")]
-pub(crate) fn start_cli() -> eyre::Result<()> {
+pub fn start_cli() -> eyre::Result<()> {
     let markdown: String = clap_markdown::help_markdown::<NargoCli>();
     println!("{markdown}");
     Ok(())

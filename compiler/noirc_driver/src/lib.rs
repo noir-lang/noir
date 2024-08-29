@@ -116,6 +116,11 @@ pub struct CompileOptions {
     #[arg(long)]
     pub debug_comptime_in_file: Option<String>,
 
+    /// Accept a single '.nr' file through STDIN instead of reading from the
+    /// root directory
+    #[clap(long, hide = true)]
+    pub debug_compile_stdin: bool,
+
     /// Outputs the paths to any modified artifacts
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
