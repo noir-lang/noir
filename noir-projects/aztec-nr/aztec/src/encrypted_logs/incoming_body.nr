@@ -59,7 +59,7 @@ mod test {
     global ADDRESS_NOTE_BYTES_LEN = 32 * 3 + 64;
 
     impl NoteInterface<ADDRESS_NOTE_LEN, ADDRESS_NOTE_BYTES_LEN> for AddressNote {
-        fn compute_note_hiding_point(self) -> Point {
+        fn compute_note_hiding_point(_self: Self) -> Point {
             crate::generators::Ga1
         }
 

@@ -2,7 +2,7 @@ use crate::{abis::side_effect::{Positioned, Ordered}, traits::Empty, utils::arra
 
 /*
     The sorted_array here needs to be sorted based on the `position` field of the container,
-    *and* a secondary sort based on the `counter` field of the container. 
+    *and* a secondary sort based on the `counter` field of the container.
 
     For example, the storage slot in the case of public data update requests.
     The run_lengths array should contain the length of each run of the sorted_array.
@@ -25,13 +25,13 @@ use crate::{abis::side_effect::{Positioned, Ordered}, traits::Empty, utils::arra
     then the deduped_array should be:
     [ (1,2,4), (2,3,3), (3,6,6), (4,8,9), (5,9,7), (0,0,0), ... padding with zeros ]
 */
-pub fn assert_deduped_array<T, let N: u32, Env>(
+pub fn assert_deduped_array<T, let N: u32>(
     sorted_array: [T; N],
     deduped_array: [T; N],
     run_lengths: [u32; N]
 ) where T: Positioned + Ordered + Empty + Eq {
     let num_non_empty_items = array_length(sorted_array);
-    let deduped_len = validate_array(deduped_array); // This makes sure that the array is padded with empty items.  
+    let deduped_len = validate_array(deduped_array); // This makes sure that the array is padded with empty items.
 
     // container at the start of the current run
     let mut start_run_container = sorted_array[0];

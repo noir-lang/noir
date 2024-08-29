@@ -31,9 +31,9 @@ struct PrivateKernelResetCircuitPrivateInputs<let NH_RR_PENDING: u32, let NH_RR_
 }
 
 impl<
-    let NH_RR_PENDING: u32, 
-    let NH_RR_SETTLED: u32, 
-    let NLL_RR_PENDING: u32, 
+    let NH_RR_PENDING: u32,
+    let NH_RR_SETTLED: u32,
+    let NLL_RR_PENDING: u32,
     let NLL_RR_SETTLED: u32,
     let KEY_VALIDATION_REQUESTS: u32,
     let TRANSIENT_DATA_AMOUNT: u32
