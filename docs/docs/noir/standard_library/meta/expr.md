@@ -12,6 +12,12 @@ title: Expr
 
 If this expression is an array, this returns a slice of each element in the array.
 
+### as_assert
+
+#include_code as_assert noir_stdlib/src/meta/expr.nr rust
+
+If this expression is an assert, this returns the assert expression and the optional message.
+
 ### as_assign
 
 #include_code as_assign noir_stdlib/src/meta/expr.nr rust
@@ -162,16 +168,16 @@ comptime {
 
 `true` if this expression is `continue`.
 
-### mutate
+### modify
 
-#include_code mutate noir_stdlib/src/meta/expr.nr rust
+#include_code modify noir_stdlib/src/meta/expr.nr rust
 
 Applies a mapping function to this expression and to all of its sub-expressions.
 `f` will be applied to each sub-expression first, then applied to the expression itself.
 
 This happens recursively for every expression within `self`.
 
-For example, calling `mutate` on `(&[1], &[2, 3])` with an `f` that returns `Option::some`
+For example, calling `modify` on `(&[1], &[2, 3])` with an `f` that returns `Option::some`
 for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`.
 
 ### quoted
