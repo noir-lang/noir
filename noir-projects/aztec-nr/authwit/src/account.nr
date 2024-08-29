@@ -1,5 +1,6 @@
 use dep::aztec::{
-    context::PrivateContext, protocol_types::constants::GENERATOR_INDEX__COMBINED_PAYLOAD,
+    context::PrivateContext,
+    protocol_types::constants::{GENERATOR_INDEX__COMBINED_PAYLOAD, GENERATOR_INDEX__TX_NULLIFIER},
     hash::poseidon2_hash_with_separator
 };
 
@@ -34,7 +35,7 @@ impl AccountActions<&mut PrivateContext> {
      * @param fee_payload The payload that contains the calls to be executed in the setup phase.
      */
     // docs:start:entrypoint
-    pub fn entrypoint(self, app_payload: AppPayload, fee_payload: FeePayload) {
+    pub fn entrypoint(self, app_payload: AppPayload, fee_payload: FeePayload, cancellable: bool) {
         let valid_fn = self.is_valid_impl;
 
         let combined_payload_hash = poseidon2_hash_with_separator(
@@ -46,6 +47,10 @@ impl AccountActions<&mut PrivateContext> {
         fee_payload.execute_calls(self.context);
         self.context.end_setup();
         app_payload.execute_calls(self.context);
+        if cancellable {
+            let tx_nullifier = poseidon2_hash_with_separator([app_payload.nonce], GENERATOR_INDEX__TX_NULLIFIER);
+            self.context.push_nullifier(tx_nullifier);
+        }
     }
     // docs:end:entrypoint
 

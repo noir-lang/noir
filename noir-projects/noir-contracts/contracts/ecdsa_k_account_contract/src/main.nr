@@ -36,11 +36,11 @@ contract EcdsaKAccount {
         storage.public_key.initialize(&mut pub_key_note).emit(encode_and_encrypt_note_with_keys(&mut context, this_keys.ovpk_m, this_keys.ivpk_m, this));
     }
 
-    // Note: If you globally change the entrypoint signature don't forget to update default_entrypoint.ts
+    // Note: If you globally change the entrypoint signature don't forget to update account_entrypoint.ts
     #[aztec(private)]
-    fn entrypoint(app_payload: AppPayload, fee_payload: FeePayload) {
+    fn entrypoint(app_payload: AppPayload, fee_payload: FeePayload, cancellable: bool) {
         let actions = AccountActions::init(&mut context, is_valid_impl);
-        actions.entrypoint(app_payload, fee_payload);
+        actions.entrypoint(app_payload, fee_payload, cancellable);
     }
 
     #[aztec(private)]

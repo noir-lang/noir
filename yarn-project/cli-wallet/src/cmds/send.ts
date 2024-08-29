@@ -1,4 +1,5 @@
-import { type AccountWalletWithSecretKey, type AztecAddress, Contract } from '@aztec/aztec.js';
+import { type AccountWalletWithSecretKey, type AztecAddress, Contract, Fr } from '@aztec/aztec.js';
+import { GasSettings } from '@aztec/circuits.js';
 import { prepTx } from '@aztec/cli/utils';
 import { type LogFn } from '@aztec/foundation/log';
 
@@ -11,6 +12,7 @@ export async function send(
   contractArtifactPath: string,
   contractAddress: AztecAddress,
   wait: boolean,
+  cancellable: boolean,
   feeOpts: IFeeOpts,
   log: LogFn,
 ) {
@@ -19,27 +21,43 @@ export async function send(
   const contract = await Contract.at(contractAddress, contractArtifact, wallet);
   const call = contract.methods[functionName](...functionArgs);
 
+  const gasLimits = await call.estimateGas({ ...(await feeOpts.toSendOpts(wallet)) });
+  printGasEstimates(feeOpts, gasLimits, log);
+
   if (feeOpts.estimateOnly) {
-    const gas = await call.estimateGas({ ...(await feeOpts.toSendOpts(wallet)) });
-    printGasEstimates(feeOpts, gas, log);
     return;
   }
 
-  const tx = call.send({ ...(await feeOpts.toSendOpts(wallet)) });
-  const txHash = (await tx.getTxHash()).toString();
-  log(`\nTransaction hash: ${txHash}`);
+  const nonce = Fr.random();
+  const tx = call.send({ ...(await feeOpts.toSendOpts(wallet)), nonce, cancellable });
+  const txHash = await tx.getTxHash();
+  log(`\nTransaction hash: ${txHash.toString()}`);
   if (wait) {
-    await tx.wait();
+    try {
+      await tx.wait();
 
-    log('Transaction has been mined');
+      log('Transaction has been mined');
 
-    const receipt = await tx.getReceipt();
-    log(` Tx fee: ${receipt.transactionFee}`);
-    log(` Status: ${receipt.status}`);
-    log(` Block number: ${receipt.blockNumber}`);
-    log(` Block hash: ${receipt.blockHash?.toString('hex')}`);
+      const receipt = await tx.getReceipt();
+      log(` Tx fee: ${receipt.transactionFee}`);
+      log(` Status: ${receipt.status}`);
+      log(` Block number: ${receipt.blockNumber}`);
+      log(` Block hash: ${receipt.blockHash?.toString('hex')}`);
+    } catch (err: any) {
+      log(`Transaction failed\n ${err.message}`);
+    }
   } else {
-    log('Transaction pending. Check status with get-tx-receipt');
+    log('Transaction pending. Check status with check-tx');
   }
-  return txHash;
+  const gasSettings = GasSettings.from({
+    ...gasLimits,
+    maxFeesPerGas: feeOpts.gasSettings.maxFeesPerGas,
+    inclusionFee: feeOpts.gasSettings.inclusionFee,
+  });
+  return {
+    txHash,
+    nonce,
+    cancellable,
+    gasSettings,
+  };
 }

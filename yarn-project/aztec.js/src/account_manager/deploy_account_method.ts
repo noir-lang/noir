@@ -57,7 +57,7 @@ export class DeployAccountMethod extends DeployMethod {
       exec.calls.push({
         name: this.#feePaymentArtifact.name,
         to: address,
-        args: encodeArguments(this.#feePaymentArtifact, [emptyAppPayload, feePayload]),
+        args: encodeArguments(this.#feePaymentArtifact, [emptyAppPayload, feePayload, false]),
         selector: FunctionSelector.fromNameAndParameters(
           this.#feePaymentArtifact.name,
           this.#feePaymentArtifact.parameters,

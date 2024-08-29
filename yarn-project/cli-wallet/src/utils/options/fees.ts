@@ -74,14 +74,18 @@ export class FeeOpts implements IFeeOpts {
     };
   }
 
+  static paymentMethodOption() {
+    return new Option(
+      '--payment <method=name,asset=address,fpc=address,claimSecret=string,claimAmount=string,rebateSecret=string>',
+      'Fee payment method and arguments. Valid methods are: none, fee_juice, fpc-public, fpc-private.',
+    );
+  }
+
   static getOptions() {
     return [
       new Option('--inclusion-fee <value>', 'Inclusion fee to pay for the tx.').argParser(parseBigint),
       new Option('--gas-limits <da=100,l2=100,teardownDA=10,teardownL2=10>', 'Gas limits for the tx.'),
-      new Option(
-        '--payment <method=name,asset=address,fpc=address,claimSecret=string,claimAmount=string,rebateSecret=string>',
-        'Fee payment method and arguments. Valid methods are: none, fee_juice, fpc-public, fpc-private.',
-      ),
+      FeeOpts.paymentMethodOption(),
       new Option('--no-estimate-gas', 'Whether to automatically estimate gas limits for the tx.'),
       new Option('--estimate-gas-only', 'Only report gas estimation for the tx, do not send it.'),
     ];
@@ -119,7 +123,7 @@ class NoFeeOpts implements IFeeOpts {
   }
 }
 
-function parsePaymentMethod(
+export function parsePaymentMethod(
   payment: string,
   log: LogFn,
   db?: WalletDB,

@@ -12,11 +12,11 @@ contract SchnorrHardcodedAccount {
     global public_key_x: Field = 0x16b93f4afae55cab8507baeb8e7ab4de80f5ab1e9e1f5149bf8cd0d375451d90;
     global public_key_y: Field = 0x208d44b36eb6e73b254921134d002da1a90b41131024e3b1d721259182106205;
 
-    // Note: If you globally change the entrypoint signature don't forget to update default_entrypoint.ts
+    // Note: If you globally change the entrypoint signature don't forget to update account_entrypoint.ts
     #[aztec(private)]
-    fn entrypoint(app_payload: AppPayload, fee_payload: FeePayload) {
+    fn entrypoint(app_payload: AppPayload, fee_payload: FeePayload, cancellable: bool) {
         let actions = AccountActions::init(&mut context, is_valid_impl);
-        actions.entrypoint(app_payload, fee_payload);
+        actions.entrypoint(app_payload, fee_payload, cancellable);
     }
 
     #[aztec(private)]

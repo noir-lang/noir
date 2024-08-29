@@ -1,5 +1,5 @@
 import { getIdentities } from '@aztec/accounts/utils';
-import { createCompatibleClient } from '@aztec/aztec.js';
+import { TxHash, createCompatibleClient } from '@aztec/aztec.js';
 import { Fr, PublicKeys } from '@aztec/circuits.js';
 import {
   ETHEREUM_HOST,
@@ -35,6 +35,8 @@ import {
   createArtifactOption,
   createContractAddressOption,
   createTypeOption,
+  integerArgParser,
+  parsePaymentMethod,
 } from '../utils/options/index.js';
 
 export function injectCommands(program: Command, log: LogFn, debugLogger: DebugLogger, db?: WalletDB) {
@@ -229,7 +231,8 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
     )
     .addOption(createAccountOption('Alias or address of the account to send the transaction from', !db, db))
     .addOption(createTypeOption(false))
-    .option('--no-wait', 'Print transaction hash without waiting for it to be mined');
+    .option('--no-wait', 'Print transaction hash without waiting for it to be mined')
+    .option('--no-cancel', 'Do not allow the transaction to be cancelled. This makes for cheaper transactions.');
 
   addOptions(sendCommand, FeeOpts.getOptions()).action(async (functionName, _options, command) => {
     const { send } = await import('./send.js');
@@ -239,12 +242,13 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       contractArtifact: artifactPathPromise,
       contractAddress,
       from: parsedFromAddress,
-      noWait,
+      wait,
       rpcUrl,
       type,
       secretKey,
       publicKey,
       alias,
+      cancel,
     } = options;
     const client = await createCompatibleClient(rpcUrl, debugLogger);
     const account = await createOrRetrieveAccount(client, parsedFromAddress, db, type, secretKey, Fr.ZERO, publicKey);
@@ -253,18 +257,20 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
 
     debugLogger.info(`Using wallet with address ${wallet.getCompleteAddress().address.toString()}`);
 
-    const txHash = await send(
+    const sentTx = await send(
       wallet,
       functionName,
       args,
       artifactPath,
       contractAddress,
-      !noWait,
+      wait,
+      cancel,
       FeeOpts.fromCli(options, log, db),
       log,
     );
-    if (db && txHash) {
-      await db.storeTxHash(txHash, log, alias);
+    if (db && sentTx) {
+      const txAlias = alias ? alias : `${functionName}-${sentTx.nonce.toString().slice(-4)}`;
+      await db.storeTx(sentTx, log, txAlias);
     }
   });
 
@@ -526,6 +532,80 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
       const wallet = await getWalletWithScopes(account, db);
       await addAuthwit(wallet, authwit, authorizer, log);
       await addScopeToWallet(wallet, authorizer, db);
+    });
+
+  program
+    .command('get-tx')
+    .description('Gets the status of the recent txs, or a detailed view if a specific transaction hash is provided')
+    .argument('[txHash]', 'A transaction hash to get the receipt for.', txHash => aliasedTxHashParser(txHash, db))
+    .addOption(pxeOption)
+    .option('-p, --page <number>', 'The page number to display', value => integerArgParser(value, '--page', 1), 1)
+    .option(
+      '-s, --page-size <number>',
+      'The number of transactions to display per page',
+      value => integerArgParser(value, '--page-size', 1),
+      10,
+    )
+    .action(async (txHash, options) => {
+      const { checkTx } = await import('./check_tx.js');
+      const { rpcUrl, pageSize } = options;
+      let { page } = options;
+      const client = await createCompatibleClient(rpcUrl, debugLogger);
+
+      if (txHash) {
+        await checkTx(client, txHash, false, log);
+      } else if (db) {
+        const aliases = db.listAliases('transactions');
+        const totalPages = Math.ceil(aliases.length / pageSize);
+        page = Math.min(page - 1, totalPages - 1);
+        const dataRows = await Promise.all(
+          aliases.slice(page * pageSize, pageSize * (1 + page)).map(async ({ key, value }) => ({
+            alias: key,
+            txHash: value,
+            cancellable: db.retrieveTxData(TxHash.fromString(value)).cancellable,
+            status: await checkTx(client, TxHash.fromString(value), true, log),
+          })),
+        );
+        log(`Recent transactions:`);
+        log('');
+        log(`${'Alias'.padEnd(32, ' ')} | ${'TxHash'.padEnd(64, ' ')} | ${'Cancellable'.padEnd(12, ' ')} | Status`);
+        log(''.padEnd(32 + 64 + 12 + 20, '-'));
+        for (const { alias, txHash, status, cancellable } of dataRows) {
+          log(`${alias.padEnd(32, ' ')} | ${txHash} | ${cancellable.toString()?.padEnd(12, ' ')} | ${status}`);
+          log(''.padEnd(32 + 64 + 12 + 20, '-'));
+        }
+        log(`Displaying ${Math.min(pageSize, aliases.length)} rows, page ${page + 1}/${totalPages}`);
+      } else {
+        log('Recent transactions are not available, please provide a specific transaction hash');
+      }
+    });
+
+  program
+    .command('cancel-tx')
+    .description('Cancels a peding tx by reusing its nonce with a higher fee and an empty payload')
+    .argument('<txHash>', 'A transaction hash to cancel.', txHash => aliasedTxHashParser(txHash, db))
+    .addOption(pxeOption)
+    .addOption(
+      createSecretKeyOption("The sender's secret key", !db, sk => aliasedSecretKeyParser(sk, db)).conflicts('account'),
+    )
+    .addOption(createAccountOption('Alias or address of the account to simulate from', !db, db))
+    .addOption(createTypeOption(false))
+    .addOption(FeeOpts.paymentMethodOption().default('method=none'))
+    .action(async (txHash, options) => {
+      const { cancelTx } = await import('./cancel_tx.js');
+      const { from: parsedFromAddress, rpcUrl, type, secretKey, publicKey, payment } = options;
+      const client = await createCompatibleClient(rpcUrl, debugLogger);
+      const account = await createOrRetrieveAccount(client, parsedFromAddress, db, type, secretKey, Fr.ZERO, publicKey);
+      const wallet = await getWalletWithScopes(account, db);
+
+      const txData = db?.retrieveTxData(txHash);
+
+      if (!txData) {
+        throw new Error('Transaction data not found in the database, cannnot reuse nonce');
+      }
+      const paymentMethod = await parsePaymentMethod(payment, log, db)(wallet);
+
+      await cancelTx(wallet, txData, paymentMethod, log);
     });
 
   return program;

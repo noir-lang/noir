@@ -43,10 +43,10 @@ type EncodedFunctionCall = {
 export abstract class EntrypointPayload {
   #packedArguments: PackedValues[] = [];
   #functionCalls: EncodedFunctionCall[] = [];
-  #nonce = Fr.random();
+  #nonce: Fr;
   #generatorIndex: number;
 
-  protected constructor(functionCalls: FunctionCall[], generatorIndex: number) {
+  protected constructor(functionCalls: FunctionCall[], generatorIndex: number, nonce = Fr.random()) {
     for (const call of functionCalls) {
       this.#packedArguments.push(PackedValues.fromValues(call.args));
     }
@@ -62,6 +62,7 @@ export abstract class EntrypointPayload {
     /* eslint-enable camelcase */
 
     this.#generatorIndex = generatorIndex;
+    this.#nonce = nonce;
   }
 
   /* eslint-disable camelcase */
@@ -126,14 +127,15 @@ export abstract class EntrypointPayload {
   /**
    * Creates an execution payload for the app-portion of a transaction from a set of function calls
    * @param functionCalls - The function calls to execute
+   * @param nonce - The nonce for the payload, used to emit a nullifier identifying the call
    * @returns The execution payload
    */
-  static fromAppExecution(functionCalls: FunctionCall[] | Tuple<FunctionCall, 4>) {
+  static fromAppExecution(functionCalls: FunctionCall[] | Tuple<FunctionCall, 4>, nonce = Fr.random()) {
     if (functionCalls.length > APP_MAX_CALLS) {
       throw new Error(`Expected at most ${APP_MAX_CALLS} function calls, got ${functionCalls.length}`);
     }
     const paddedCalls = padArrayEnd(functionCalls, FunctionCall.empty(), APP_MAX_CALLS);
-    return new AppEntrypointPayload(paddedCalls, GeneratorIndex.SIGNATURE_PAYLOAD);
+    return new AppEntrypointPayload(paddedCalls, GeneratorIndex.SIGNATURE_PAYLOAD, nonce);
   }
 
   /**

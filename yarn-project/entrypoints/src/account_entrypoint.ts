@@ -24,12 +24,12 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
   ) {}
 
   async createTxExecutionRequest(exec: ExecutionRequestInit): Promise<TxExecutionRequest> {
-    const { calls, fee } = exec;
-    const appPayload = EntrypointPayload.fromAppExecution(calls);
+    const { calls, fee, nonce, cancellable } = exec;
+    const appPayload = EntrypointPayload.fromAppExecution(calls, nonce);
     const feePayload = await EntrypointPayload.fromFeeOptions(this.address, fee);
 
     const abi = this.getEntrypointAbi();
-    const entrypointPackedArgs = PackedValues.fromValues(encodeArguments(abi, [appPayload, feePayload]));
+    const entrypointPackedArgs = PackedValues.fromValues(encodeArguments(abi, [appPayload, feePayload, !!cancellable]));
     const gasSettings = exec.fee?.gasSettings ?? GasSettings.default();
 
     const combinedPayloadAuthWitness = await this.auth.createAuthWit(
@@ -143,6 +143,7 @@ export class DefaultAccountEntrypoint implements EntrypointInterface {
           },
           visibility: 'public',
         },
+        { name: 'cancellable', type: { kind: 'boolean' } },
       ],
       returnTypes: [],
     } as FunctionAbi;

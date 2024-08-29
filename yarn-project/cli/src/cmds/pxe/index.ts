@@ -15,7 +15,6 @@ import {
   parseOptionalTxHash,
   parsePartialAddress,
   parsePublicKey,
-  parseTxHash,
   pxeOption,
 } from '../../utils/commands.js';
 
@@ -49,16 +48,6 @@ export function injectCommands(program: Command, log: LogFn, debugLogger: DebugL
         debugLogger,
         log,
       );
-    });
-
-  program
-    .command('get-tx')
-    .description('Gets the receipt for the specified transaction hash.')
-    .argument('<txHash>', 'A transaction hash to get the receipt for.', parseTxHash)
-    .addOption(pxeOption)
-    .action(async (txHash, options) => {
-      const { getTx } = await import('./get_tx.js');
-      await getTx(options.rpcUrl, txHash, debugLogger, log);
     });
 
   program

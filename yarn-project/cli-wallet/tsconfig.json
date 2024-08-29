@@ -29,6 +29,9 @@
     },
     {
       "path": "../kv-store"
+    },
+    {
+      "path": "../noir-contracts.js"
     }
   ],
   "include": ["src"]
