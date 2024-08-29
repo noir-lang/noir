@@ -30,7 +30,12 @@ bootNode:
     p2pPort: 40400
     nodePort: 8080
   logLevel: "debug"
-  debug: "aztec:*"
+  debug: "aztec:*,-aztec:avm_simulator:*"
+  sequencer:
+    maxSecondsBetweenBlocks: 0
+    minTxsPerBlock: 1
+  validator:
+    disabled: true
   p2p:
     enabled: "true"
   resources: {}
@@ -41,7 +46,12 @@ validator:
     p2pPort: 40400
     nodePort: 8080
   logLevel: "debug"
-  debug: "aztec:*"
+  debug: "aztec:*,-aztec:avm_simulator:*"
+  sequencer:
+    maxSecondsBetweenBlocks: 0
+    minTxsPerBlock: 1
+  validator:
+    disabled: false
   p2p:
     enabled: "true"
   resources: {}

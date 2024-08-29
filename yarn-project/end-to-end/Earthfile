@@ -67,7 +67,7 @@ E2E_TEST_PUBLIC_TESTNET:
 
 NETWORK_TEST:
   FUNCTION
-  ARG hardware_concurrency=""
+  ARG values_file="default.yaml"
   ARG namespace
   ARG test
   ARG chaos_values
@@ -93,7 +93,9 @@ NETWORK_TEST:
   END
 
   RUN helm install spartan ../../helm-charts/aztec-network \
-        --namespace $namespace --create-namespace \
+        --namespace $namespace \
+        --create-namespace \
+        --values ../../helm-charts/aztec-network/values/$values_file \
         --set images.test.image="aztecprotocol/end-to-end:$AZTEC_DOCKER_TAG" \
         --set images.aztec.image="aztecprotocol/aztec:$AZTEC_DOCKER_TAG" \
         --set test="$test" \
@@ -325,8 +327,10 @@ e2e-cli-wallet:
 
 network-smoke:
   ARG force_build
-  DO +NETWORK_TEST --force_build=$force_build --fresh_install=true --namespace=smoke --test=./src/spartan/smoke.test.ts
+  ARG values_file="default.yaml"
+  DO +NETWORK_TEST --test=./src/spartan/smoke.test.ts --namespace=smoke --fresh_install=true --force_build=$force_build --values_file=$values_file
 
 network-transfer:
   ARG force_build
-  DO +NETWORK_TEST --force_build=$force_build --fresh_install=true --namespace=transfer --test=./src/spartan/transfer.test.ts
+  ARG values_file="default.yaml"
+  DO +NETWORK_TEST --test=./src/spartan/transfer.test.ts --namespace=transfer --fresh_install=true --force_build=$force_build --values_file=$values_file

@@ -161,11 +161,13 @@ jobs:
             export FORCE_COLOR=1
             ../../scripts/earthly-ci -P --no-output +${{ matrix.test }}
 
-  # all the network end-to-end tests for aztec (not required to merge)
   network-e2e:
     needs: [build, changes]
     if: ${{ needs.changes.outputs.non-barretenberg-cpp == 'true' }}
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        values_file: ["default.yaml", "3-validators.yaml"]
     steps:
       - uses: actions/checkout@v4
         with: { ref: "${{ env.GIT_COMMIT }}" }
@@ -188,7 +190,7 @@ jobs:
             ./scripts/setup_local_k8s.sh
             export FORCE_COLOR=1
             export EARTHLY_BUILD_ARGS="${{ env.EARTHLY_BUILD_ARGS }}"
-            ../../scripts/earthly-ci --exec-stats -P --no-output ./+network-transfer
+            ../../scripts/earthly-ci --exec-stats -P --no-output ./+network-transfer --values-file=${{ matrix.values_file }}
 
   # all the benchmarking end-to-end integration tests for aztec (not required to merge)
   bench-e2e:

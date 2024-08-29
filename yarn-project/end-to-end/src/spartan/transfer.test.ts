@@ -15,6 +15,8 @@ import {
 import { createDebugLogger } from '@aztec/foundation/log';
 import { TokenContract } from '@aztec/noir-contracts.js';
 
+import { jest } from '@jest/globals';
+
 import { addAccounts, publicDeployAccounts } from '../fixtures/snapshot_manager.js';
 
 const { PXE_URL } = process.env;
@@ -56,11 +58,13 @@ const addPendingShieldNoteToPXE = async (args: {
 };
 
 describe('token transfer test', () => {
+  jest.setTimeout(10 * 60 * 1000); // 10 minutes
+
   const logger = createDebugLogger(`aztec:spartan-test:transfer`);
   const TOKEN_NAME = 'USDC';
   const TOKEN_SYMBOL = 'USD';
   const TOKEN_DECIMALS = 18n;
-  const MINT_AMOUNT = 1000000n;
+  const MINT_AMOUNT = 20n;
   let pxe: PXE;
   let wallets: AccountWalletWithSecretKey[];
   let completeAddresses: CompleteAddress[];
@@ -117,26 +121,32 @@ describe('token transfer test', () => {
 
   it('can transfer 1 publicly', async () => {
     const transferAmount = 1n;
-    const balance0 = await tokenAtWallet0.methods.balance_of_public(completeAddresses[0].address).simulate();
-    expect(balance0).toBeGreaterThanOrEqual(transferAmount);
-    await tokenAtWallet0.methods
-      .transfer_public(completeAddresses[0].address, completeAddresses[1].address, transferAmount, 0)
-      .send()
-      .wait();
-    const balance0After = await tokenAtWallet0.methods.balance_of_public(completeAddresses[0].address).simulate();
-    const balance1After = await tokenAtWallet0.methods.balance_of_public(completeAddresses[1].address).simulate();
-    expect(balance0After).toBe(balance0 - transferAmount);
-    expect(balance1After).toBe(transferAmount);
+    const numTransfers = MINT_AMOUNT / transferAmount;
+    const initialBalance = await tokenAtWallet0.methods.balance_of_public(completeAddresses[0].address).simulate();
+    expect(initialBalance).toBeGreaterThanOrEqual(transferAmount);
+    for (let i = 1n; i <= numTransfers; i++) {
+      await tokenAtWallet0.methods
+        .transfer_public(completeAddresses[0].address, completeAddresses[1].address, transferAmount, 0)
+        .send()
+        .wait();
+    }
+    const finalBalance0 = await tokenAtWallet0.methods.balance_of_public(completeAddresses[0].address).simulate();
+    expect(finalBalance0).toBe(0n);
+    const finalBalance1 = await tokenAtWallet0.methods.balance_of_public(completeAddresses[1].address).simulate();
+    expect(finalBalance1).toBe(MINT_AMOUNT);
   });
 
   it('can transfer 1 privately', async () => {
     const transferAmount = 1n;
-    const balance0 = await tokenAtWallet0.methods.balance_of_private(completeAddresses[0].address).simulate();
-    expect(balance0).toBeGreaterThanOrEqual(transferAmount);
-    await tokenAtWallet0.methods.transfer(completeAddresses[1].address, transferAmount).send().wait();
-    const balance0After = await tokenAtWallet0.methods.balance_of_private(completeAddresses[0].address).simulate();
-    const balance1After = await tokenAtWallet0.methods.balance_of_private(completeAddresses[1].address).simulate();
-    expect(balance0After).toBe(balance0 - transferAmount);
-    expect(balance1After).toBe(transferAmount);
+    const numTransfers = MINT_AMOUNT / transferAmount;
+    const initialBalance = await tokenAtWallet0.methods.balance_of_private(completeAddresses[0].address).simulate();
+    expect(initialBalance).toBeGreaterThanOrEqual(transferAmount);
+    for (let i = 1n; i <= numTransfers; i++) {
+      await tokenAtWallet0.methods.transfer(completeAddresses[1].address, transferAmount).send().wait();
+    }
+    const finalBalance0 = await tokenAtWallet0.methods.balance_of_private(completeAddresses[0].address).simulate();
+    expect(finalBalance0).toBe(0n);
+    const finalBalance1 = await tokenAtWallet0.methods.balance_of_private(completeAddresses[1].address).simulate();
+    expect(finalBalance1).toBe(MINT_AMOUNT);
   });
 });

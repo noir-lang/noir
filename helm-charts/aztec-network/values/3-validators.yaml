@@ -1,0 +1,8 @@
+validator:
+  replicas: 3
+  validator:
+    disabled: false
+
+bootNode:
+  validator:
+    disabled: false
