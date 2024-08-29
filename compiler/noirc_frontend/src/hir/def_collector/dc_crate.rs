@@ -349,17 +349,17 @@ impl DefCollector {
             };
             match resolved_import {
                 Ok(resolved_import) => {
+                    let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
+                    let file_id = current_def_map.file_id(module_id);
+
                     if let Some(error) = resolved_import.error {
                         errors.push((
                             DefCollectorErrorKind::PathResolutionError(error).into(),
-                            root_file_id,
+                            file_id,
                         ));
                     }
 
                     // Populate module namespaces according to the imports used
-                    let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
-                    let file_id = current_def_map.file_id(module_id);
-
                     let name = resolved_import.name;
                     let visibility = collected_import.visibility;
                     let is_prelude = resolved_import.is_prelude;
