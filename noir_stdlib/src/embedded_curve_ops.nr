@@ -132,7 +132,7 @@ fn embedded_curve_add(
 fn embedded_curve_add_array_return(_point1: EmbeddedCurvePoint, _point2: EmbeddedCurvePoint) -> [Field; 3] {}
 
 /// Same as embedded_curve_add except that it assumes the inputs and the output are not zero
-/// As a result, the performance is 50% better (depending on the backend)
+/// As a result, the performance is 50% worse with the 'safe' addition (depending on the backend)
 pub fn embedded_curve_add_unsafe(
     point1: EmbeddedCurvePoint,
     point2: EmbeddedCurvePoint
