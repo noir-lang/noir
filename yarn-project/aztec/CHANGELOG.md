@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.51.1](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.51.0...aztec-package-v0.51.1) (2024-08-29)
+
+
+### Features
+
+* Add status check to prover agent ([#8248](https://github.com/AztecProtocol/aztec-packages/issues/8248)) ([7b3006a](https://github.com/AztecProtocol/aztec-packages/commit/7b3006a4033a1453722b516e09ff682f31f4e96b))
+* Faster L1 deployment ([#8234](https://github.com/AztecProtocol/aztec-packages/issues/8234)) ([51d6699](https://github.com/AztecProtocol/aztec-packages/commit/51d66991161ffdf6f04b87b600a213d3cf0a662f))
+* Spartan token transfer ([#8163](https://github.com/AztecProtocol/aztec-packages/issues/8163)) ([38f0157](https://github.com/AztecProtocol/aztec-packages/commit/38f01571ebbc90174fcdc765bac84dfcb12bbc0c))
+
 ## [0.51.0](https://github.com/AztecProtocol/aztec-packages/compare/aztec-package-v0.50.1...aztec-package-v0.51.0) (2024-08-27)
 
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.51.1](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.51.0...barretenberg-v0.51.1) (2024-08-29)
+
+
+### Features
+
+* **avm:** 1-slot sload/sstore (nr, ts) ([#8264](https://github.com/AztecProtocol/aztec-packages/issues/8264)) ([bdd9b06](https://github.com/AztecProtocol/aztec-packages/commit/bdd9b0677089bc54c461beddafc60db95e2456c2))
+* **avm:** Avm recursive verifier cpp ([#8162](https://github.com/AztecProtocol/aztec-packages/issues/8162)) ([6a5587c](https://github.com/AztecProtocol/aztec-packages/commit/6a5587c7cd85a11eafd8c9a1b39d34274e076396))
+* **avm:** Integrate new range and cmp gadgets ([#8165](https://github.com/AztecProtocol/aztec-packages/issues/8165)) ([2e1be18](https://github.com/AztecProtocol/aztec-packages/commit/2e1be18fac9e671923119883f27af4226cec9c44))
+* **avm:** Range check gadget ([#7967](https://github.com/AztecProtocol/aztec-packages/issues/7967)) ([0dd954e](https://github.com/AztecProtocol/aztec-packages/commit/0dd954e5be1536ca30b43f883ef5b20f1add1408))
+* Proof surgery class ([#8236](https://github.com/AztecProtocol/aztec-packages/issues/8236)) ([10d7edd](https://github.com/AztecProtocol/aztec-packages/commit/10d7edd3f1ba6d0e113efd2e2bf2d01809ef43d4))
+
+
+### Bug Fixes
+
+* **bb-prover:** Create structure for AVM vk ([#8233](https://github.com/AztecProtocol/aztec-packages/issues/8233)) ([55b6ba2](https://github.com/AztecProtocol/aztec-packages/commit/55b6ba28938a8d89a4255607a61243cf13391665))
+* **bb:** Mac build ([#8255](https://github.com/AztecProtocol/aztec-packages/issues/8255)) ([ac54f5c](https://github.com/AztecProtocol/aztec-packages/commit/ac54f5ce82ac9ca51e35390b782c7da26d3b00da))
+* Handle constant output for sha256 ([#8251](https://github.com/AztecProtocol/aztec-packages/issues/8251)) ([0653ba5](https://github.com/AztecProtocol/aztec-packages/commit/0653ba5cc8283fade1c9f8fd534717833cc18e0a))
+
+
+### Miscellaneous
+
+* **avm:** Replace range and cmp with gadgets ([#8164](https://github.com/AztecProtocol/aztec-packages/issues/8164)) ([cc12558](https://github.com/AztecProtocol/aztec-packages/commit/cc12558c8683b67ebfaf37d2018fd87ff52ab974))
+* **bb:** Use std::span in pippenger for scalars ([#8269](https://github.com/AztecProtocol/aztec-packages/issues/8269)) ([2323cd5](https://github.com/AztecProtocol/aztec-packages/commit/2323cd53486d3a8a063685094ad51aa98412c4a5))
+
 ## [0.51.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.50.1...barretenberg-v0.51.0) (2024-08-27)
 
 
