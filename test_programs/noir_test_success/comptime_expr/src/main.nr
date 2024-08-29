@@ -577,6 +577,17 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_resolve_to_function_definition() {
+        comptime
+        {
+            let expr = quote { times_two }.as_expr().unwrap();
+            let func = expr.resolve().as_function_definition().unwrap();
+            assert_eq(func.name(), quote { times_two });
+            assert_eq(func.parameters().len(), 1);
+        }
+    }
+
     comptime fn get_unary_op(quoted: Quoted) -> UnaryOp {
         let expr = quoted.as_expr().unwrap();
         let (op, _) = expr.as_unary_op().unwrap();

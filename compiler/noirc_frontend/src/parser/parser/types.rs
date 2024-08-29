@@ -88,6 +88,7 @@ pub(super) fn comptime_type() -> impl NoirParser<UnresolvedType> {
         type_of_quoted_types(),
         top_level_item_type(),
         quoted_type(),
+        typed_expr_type(),
     ))
 }
 
@@ -157,6 +158,12 @@ fn type_of_quoted_types() -> impl NoirParser<UnresolvedType> {
 fn quoted_type() -> impl NoirParser<UnresolvedType> {
     keyword(Keyword::Quoted)
         .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::Quoted).with_span(span))
+}
+
+/// This is the type of a typed/resolved expression.
+fn typed_expr_type() -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::TypedExpr)
+        .map_with_span(|_, span| UnresolvedTypeData::Quoted(QuotedType::TypedExpr).with_span(span))
 }
 
 /// This is the type of an already resolved type.
