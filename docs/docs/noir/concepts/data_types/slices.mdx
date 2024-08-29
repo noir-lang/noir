@@ -175,7 +175,7 @@ Make sure to specify the size of the resulting array.
 Panics if the resulting array length is different than the slice's length.
 
 ```rust
-fn as_array<N>(self) -> [T; N]
+fn as_array<let N: u32>(self) -> [T; N]
 ```
 
 Example:

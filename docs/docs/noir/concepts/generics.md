@@ -18,6 +18,23 @@ fn id<T>(x: T) -> T  {
 }
 ```
 
+## Numeric Generics
+
+Numeric generics are specified using the `let NAME: TYPE` syntax, and are
+required when a generic `N` is used for the size of an array (`[T; N]`) or string (`str<N>`):
+
+```rust
+fn double<let N: u32>() -> u32 {
+    N * 2
+}
+
+fn example() {
+    assert(double::<9>() == 18);
+    assert(double::<7 + 8>() == 30);
+}
+```
+
+
 ## In Structs
 
 Generics are useful for specifying types in structs. For example, we can specify that a field in a
@@ -51,11 +68,11 @@ integers at compile-time, rather than resolving to types. Here's an example of a
 generic over the size of the array it contains internally:
 
 ```rust
-struct BigInt<N> {
+struct BigInt<let N: u32> {
     limbs: [u32; N],
 }
 
-impl<N> BigInt<N> {
+impl<let N: u32> BigInt<N> {
     // `N` is in scope of all methods in the impl
     fn first(first: BigInt<N>, second: BigInt<N>) -> Self {
         assert(first.limbs != second.limbs);
@@ -77,7 +94,7 @@ This is what [traits](../concepts/traits.md) are for in Noir. Here's an example 
 any type `T` that implements the `Eq` trait for equality:
 
 ```rust
-fn first_element_is_equal<T, N>(array1: [T; N], array2: [T; N]) -> bool 
+fn first_element_is_equal<T, let N: u32>(array1: [T; N], array2: [T; N]) -> bool 
     where T: Eq
 {
     if (array1.len() == 0) | (array2.len() == 0) {
@@ -152,22 +169,6 @@ fn example() {
     // with `10 as u32` would also fail with a type mismatch as we 
     // are expecting a `Field` from the right hand side.
     assert(10 as u32 == foo.generic_method::<Field>());
-}
-```
-
-### Numeric Generics
-
-Numeric generics are specified using the `let NAME: TYPE` syntax, and are
-required when a generic `N` is used for the size of an array (`[T; N]`) or string (`str<N>`):
-
-```rust
-fn double<let N: u32>() -> u32 {
-    N * 2
-}
-
-fn example() {
-    assert(double::<9>() == 18);
-    assert(double::<7 + 8>() == 30);
 }
 ```
 
