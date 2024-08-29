@@ -638,7 +638,11 @@ pub fn input_to_value<F: AcirField>(
     input: FunctionInput<F>,
 ) -> Result<F, OpcodeResolutionError<F>> {
     match input.input {
-        ConstantOrWitnessEnum::Witness(witness) => Ok(*witness_to_value(initial_witness, witness)?),
+        ConstantOrWitnessEnum::Witness(witness) => {
+            let initial_value = *witness_to_value(initial_witness, witness)?;
+            assert!(initial_value.num_bits() <= input.num_bits);
+            Ok(initial_value)
+        },
         ConstantOrWitnessEnum::Constant(value) => Ok(value),
     }
 }

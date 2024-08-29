@@ -40,7 +40,7 @@ pub enum Opcode<F> {
     /// values which define the opcode.
     ///
     /// A general expression of assert-zero opcode is the following:
-    /// ```
+    /// ```text
     /// \sum_{i,j} {q_M}_{i,j}w_iw_j + \sum_i q_iw_i +q_c = 0
     /// ```
     ///

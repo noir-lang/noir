@@ -1,5 +1,5 @@
 use crate::native_types::Witness;
-use crate::BlackBoxFunc;
+use crate::{AcirField, BlackBoxFunc};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 // Note: Some functions will not use all of the witness
@@ -13,8 +13,8 @@ pub enum ConstantOrWitnessEnum<F> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionInput<F> {
-    pub input: ConstantOrWitnessEnum<F>,
-    pub num_bits: u32,
+    input: ConstantOrWitnessEnum<F>,
+    num_bits: u32,
 }
 
 impl<F> FunctionInput<F> {
@@ -25,6 +25,10 @@ impl<F> FunctionInput<F> {
         }
     }
 
+    pub fn input(self) -> ConstantOrWitnessEnum<F> {
+        self.input
+    }
+
     pub fn num_bits(&self) -> u32 {
         self.num_bits
     }
@@ -32,8 +36,11 @@ impl<F> FunctionInput<F> {
     pub fn witness(witness: Witness, num_bits: u32) -> FunctionInput<F> {
         FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits }
     }
+}
 
+impl<F: AcirField> FunctionInput<F> {
     pub fn constant(value: F, num_bits: u32) -> FunctionInput<F> {
+        assert!(value.num_bits() <= num_bits);
         FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits }
     }
 }
