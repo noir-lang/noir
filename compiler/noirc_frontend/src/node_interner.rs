@@ -240,9 +240,11 @@ pub struct NodeInterner {
     pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
 
     // All names (and their definitions) that can be offered for auto_import.
+    // The third value in the tuple is the module where the definition is (only for pub use).
     // These include top-level functions, global variables and types, but excludes
     // impl and trait-impl methods.
-    pub(crate) auto_import_names: HashMap<String, Vec<(ModuleDefId, ItemVisibility)>>,
+    pub(crate) auto_import_names:
+        HashMap<String, Vec<(ModuleDefId, ItemVisibility, Option<ModuleId>)>>,
 
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making

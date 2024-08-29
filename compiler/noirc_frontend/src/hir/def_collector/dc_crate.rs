@@ -366,6 +366,19 @@ impl DefCollector {
                         let result = current_def_map.modules[resolved_import.module_scope.0]
                             .import(name.clone(), visibility, ns, is_prelude);
 
+                        if visibility != ItemVisibility::Private {
+                            let defining_module = ModuleId {
+                                krate: crate_id,
+                                local_id: resolved_import.module_scope,
+                            };
+                            context.def_interner.register_name_for_auto_import(
+                                name.to_string(),
+                                ns,
+                                visibility,
+                                Some(defining_module),
+                            );
+                        }
+
                         let file_id = current_def_map.file_id(module_id);
                         let last_segment = collected_import.path.last_ident();
 

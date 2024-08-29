@@ -278,7 +278,12 @@ impl NodeInterner {
     }
 
     pub(crate) fn register_module(&mut self, id: ModuleId, name: String) {
-        self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), ItemVisibility::Public);
+        self.register_name_for_auto_import(
+            name,
+            ModuleDefId::ModuleId(id),
+            ItemVisibility::Public,
+            None,
+        );
     }
 
     pub(crate) fn register_global(
@@ -290,7 +295,7 @@ impl NodeInterner {
         self.add_definition_location(ReferenceId::Global(id), Some(parent_module_id));
 
         let visibility = ItemVisibility::Public;
-        self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility);
+        self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility, None);
     }
 
     pub(crate) fn register_struct(
@@ -302,13 +307,18 @@ impl NodeInterner {
         self.add_definition_location(ReferenceId::Struct(id), Some(parent_module_id));
 
         let visibility = ItemVisibility::Public;
-        self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility);
+        self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
     }
 
     pub(crate) fn register_trait(&mut self, id: TraitId, name: String, parent_module_id: ModuleId) {
         self.add_definition_location(ReferenceId::Trait(id), Some(parent_module_id));
 
-        self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), ItemVisibility::Public);
+        self.register_name_for_auto_import(
+            name,
+            ModuleDefId::TraitId(id),
+            ItemVisibility::Public,
+            None,
+        );
     }
 
     pub(crate) fn register_type_alias(
@@ -320,7 +330,7 @@ impl NodeInterner {
         self.add_definition_location(ReferenceId::Alias(id), Some(parent_module_id));
 
         let visibility = ItemVisibility::Public;
-        self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility);
+        self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility, None);
     }
 
     pub(crate) fn register_function(&mut self, id: FuncId, func_def: &FunctionDefinition) {
@@ -328,23 +338,31 @@ impl NodeInterner {
             func_def.name.0.contents.clone(),
             ModuleDefId::FunctionId(id),
             func_def.visibility,
+            None,
         );
     }
 
-    fn register_name_for_auto_import(
+    pub fn register_name_for_auto_import(
         &mut self,
         name: String,
         module_def_id: ModuleDefId,
         visibility: ItemVisibility,
+        defining_module: Option<ModuleId>,
     ) {
         if !self.lsp_mode {
             return;
         }
 
-        self.auto_import_names.entry(name).or_default().push((module_def_id, visibility));
+        self.auto_import_names.entry(name).or_default().push((
+            module_def_id,
+            visibility,
+            defining_module,
+        ));
     }
 
-    pub fn get_auto_import_names(&self) -> &HashMap<String, Vec<(ModuleDefId, ItemVisibility)>> {
+    pub fn get_auto_import_names(
+        &self,
+    ) -> &HashMap<String, Vec<(ModuleDefId, ItemVisibility, Option<ModuleId>)>> {
         &self.auto_import_names
     }
 }

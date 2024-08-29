@@ -30,7 +30,7 @@ impl<'a> NodeFinder<'a> {
                 continue;
             }
 
-            for (module_def_id, visibility) in entries {
+            for (module_def_id, visibility, defining_module) in entries {
                 if self.suggested_module_def_ids.contains(module_def_id) {
                     continue;
                 }
@@ -46,7 +46,14 @@ impl<'a> NodeFinder<'a> {
                 };
 
                 let module_full_path;
-                if let ModuleDefId::ModuleId(module_id) = module_def_id {
+                if let Some(defining_module) = defining_module {
+                    module_full_path = module_id_path(
+                        *defining_module,
+                        &self.module_id,
+                        current_module_parent_id,
+                        self.interner,
+                    );
+                } else if let ModuleDefId::ModuleId(module_id) = module_def_id {
                     module_full_path = module_id_path(
                         *module_id,
                         &self.module_id,
@@ -81,10 +88,12 @@ impl<'a> NodeFinder<'a> {
                     );
                 }
 
-                let full_path = if let ModuleDefId::ModuleId(..) = module_def_id {
-                    module_full_path
-                } else {
+                let full_path = if defining_module.is_some()
+                    || !matches!(module_def_id, ModuleDefId::ModuleId(..))
+                {
                     format!("{}::{}", module_full_path, name)
+                } else {
+                    module_full_path
                 };
 
                 let mut label_details = completion_item.label_details.unwrap();

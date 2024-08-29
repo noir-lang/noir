@@ -1130,6 +1130,7 @@ impl<'a> NodeFinder<'a> {
             for func_id in methods.iter() {
                 if name_matches(name, prefix) {
                     if let Some(completion_item) = self.function_completion_item(
+                        name,
                         func_id,
                         function_completion_kind,
                         function_kind,
@@ -1151,9 +1152,12 @@ impl<'a> NodeFinder<'a> {
     ) {
         for (name, func_id) in &trait_.method_ids {
             if name_matches(name, prefix) {
-                if let Some(completion_item) =
-                    self.function_completion_item(*func_id, function_completion_kind, function_kind)
-                {
+                if let Some(completion_item) = self.function_completion_item(
+                    name,
+                    *func_id,
+                    function_completion_kind,
+                    function_kind,
+                ) {
                     self.completion_items.push(completion_item);
                     self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(*func_id));
                 }

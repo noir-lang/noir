@@ -1809,4 +1809,58 @@ mod completion_tests {
         "#;
         assert_completion(src, vec![module_completion_item("coco")]).await;
     }
+
+    #[test]
+    async fn test_auto_import_suggests_pub_use_for_module() {
+        let src = r#"
+            mod bar {
+                mod baz {
+                    mod coco {}
+                }
+
+                pub use baz::coco as foobar;
+            }
+
+            fn main() {
+                foob>|<
+            }
+        "#;
+
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.label, "foobar");
+        assert_eq!(
+            item.label_details.as_ref().unwrap().detail,
+            Some("(use bar::foobar)".to_string()),
+        );
+    }
+
+    #[test]
+    async fn test_auto_import_suggests_pub_use_for_function() {
+        let src = r#"
+            mod bar {
+                mod baz {
+                    pub fn coco() {}
+                }
+
+                pub use baz::coco as foobar;
+            }
+
+            fn main() {
+                foob>|<
+            }
+        "#;
+
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.label, "foobar()");
+        assert_eq!(
+            item.label_details.as_ref().unwrap().detail,
+            Some("(use bar::foobar)".to_string()),
+        );
+    }
 }
