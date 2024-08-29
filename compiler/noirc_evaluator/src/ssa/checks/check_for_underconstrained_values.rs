@@ -21,10 +21,13 @@ impl Ssa {
             .into_par_iter()
             .flat_map(|fid| {
                 let function_to_process = &self.functions[&FunctionId::new(fid)];
-                check_for_underconstrained_values_within_function(
-                    function_to_process,
-                    &self.functions,
-                )
+                match function_to_process.runtime() {
+                    RuntimeType::Acir { .. } => check_for_underconstrained_values_within_function(
+                        function_to_process,
+                        &self.functions,
+                    ),
+                    RuntimeType::Brillig => Vec::new(),
+                }
             })
             .collect()
     }
