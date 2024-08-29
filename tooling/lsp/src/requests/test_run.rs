@@ -61,7 +61,7 @@ fn on_test_run_request_inner(
         Some(package) => {
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
-            if check_crate(&mut context, crate_id, false, false, None).is_err() {
+            if check_crate(&mut context, crate_id, &Default::default()).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),
@@ -88,6 +88,8 @@ fn on_test_run_request_inner(
                 &test_function,
                 false,
                 None,
+                Some(workspace.root_dir.clone()),
+                Some(package.name.to_string()),
                 &CompileOptions::default(),
             );
             let result = match test_result {

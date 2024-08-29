@@ -202,6 +202,7 @@ impl Context {
                             | Intrinsic::AsWitness
                             | Intrinsic::IsUnconstrained => {}
                             Intrinsic::ArrayLen
+                            | Intrinsic::ArrayAsStrUnchecked
                             | Intrinsic::AsField
                             | Intrinsic::AsSlice
                             | Intrinsic::BlackBox(..)
@@ -254,7 +255,7 @@ impl Context {
                 }
                 Instruction::Allocate { .. }
                 | Instruction::DecrementRc { .. }
-                | Instruction::EnableSideEffects { .. }
+                | Instruction::EnableSideEffectsIf { .. }
                 | Instruction::IncrementRc { .. }
                 | Instruction::RangeCheck { .. } => {}
             }

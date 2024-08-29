@@ -15,7 +15,7 @@ use acvm::acir::AcirField;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::CallStack, function::Function,
+        basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
         instruction::TerminatorInstruction,
     },
     ssa_gen::Ssa,
@@ -82,16 +82,20 @@ fn check_for_constant_jmpif(
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) {
-    if let Some(TerminatorInstruction::JmpIf { condition, then_destination, else_destination }) =
-        function.dfg[block].terminator()
+    if let Some(TerminatorInstruction::JmpIf {
+        condition,
+        then_destination,
+        else_destination,
+        call_stack,
+    }) = function.dfg[block].terminator()
     {
         if let Some(constant) = function.dfg.get_numeric_constant(*condition) {
             let destination =
                 if constant.is_zero() { *else_destination } else { *then_destination };
 
             let arguments = Vec::new();
-            let jmp =
-                TerminatorInstruction::Jmp { destination, arguments, call_stack: CallStack::new() };
+            let call_stack = call_stack.clone();
+            let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
         }

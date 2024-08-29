@@ -100,13 +100,14 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         Type::Error
         | Type::Unit
         | Type::Constant(_)
+        | Type::InfixExpr(..)
         | Type::TraitAsType(..)
         | Type::TypeVariable(_, _)
         | Type::NamedGeneric(..)
         | Type::Forall(..)
         | Type::Quoted(_)
         | Type::Slice(_)
-        | Type::Function(_, _, _) => unreachable!("{typ} cannot be used in the abi"),
+        | Type::Function(_, _, _, _) => unreachable!("{typ} cannot be used in the abi"),
         Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
         Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
     }

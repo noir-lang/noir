@@ -1,6 +1,7 @@
 use crate::append::Append;
 
 impl<T> [T] {
+    /// Returns the length of the slice.
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
 
@@ -37,8 +38,8 @@ impl<T> [T] {
     #[builtin(slice_remove)]
     pub fn remove(self, index: u32) -> (Self, T) {}
 
-    // Append each element of the `other` slice to the end of `self`.
-    // This returns a new slice and leaves both input slices unchanged.
+    /// Append each element of the `other` slice to the end of `self`.
+    /// This returns a new slice and leaves both input slices unchanged.
     pub fn append(mut self, other: Self) -> Self {
         for elem in other {
             self = self.push_back(elem);
@@ -49,7 +50,7 @@ impl<T> [T] {
     pub fn as_array<let N: u32>(self) -> [T; N] {
         assert(self.len() == N);
 
-        let mut array = [crate::unsafe::zeroed(); N];
+        let mut array = [crate::mem::zeroed(); N];
         for i in 0..N {
             array[i] = self[i];
         }

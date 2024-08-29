@@ -7,7 +7,12 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use crate::errors::{RuntimeError, SsaReport};
 use acvm::{
@@ -56,6 +61,12 @@ pub struct SsaEvaluatorOptions {
 
     /// Width of expressions to be used for ACIR
     pub expression_width: ExpressionWidth,
+
+    /// Dump the unoptimized SSA to the supplied path if it exists
+    pub emit_ssa: Option<PathBuf>,
+
+    /// Skip the check for under constrained values
+    pub skip_underconstrained_check: bool,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
@@ -76,6 +87,7 @@ pub(crate) fn optimize_into_acir(
         options.enable_ssa_logging,
         options.force_brillig_output,
         options.print_codegen_timings,
+        &options.emit_ssa,
     )?
     .run_pass(Ssa::defunctionalize, "After Defunctionalization:")
     .run_pass(Ssa::remove_paired_rc, "After Removing Paired rc_inc & rc_decs:")
@@ -102,13 +114,19 @@ pub(crate) fn optimize_into_acir(
     .run_pass(Ssa::inline_functions_with_no_predicates, "After Inlining:")
     .run_pass(Ssa::remove_if_else, "After Remove IfElse:")
     .run_pass(Ssa::fold_constants, "After Constant Folding:")
-    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffects removal:")
+    .run_pass(Ssa::remove_enable_side_effects, "After EnableSideEffectsIf removal:")
     .run_pass(Ssa::fold_constants_using_constraints, "After Constraint Folding:")
     .run_pass(Ssa::dead_instruction_elimination, "After Dead Instruction Elimination:")
     .run_pass(Ssa::array_set_optimization, "After Array Set Optimizations:")
     .finish();
 
-    let ssa_level_warnings = ssa.check_for_underconstrained_values();
+    let ssa_level_warnings = if options.skip_underconstrained_check {
+        vec![]
+    } else {
+        time("After Check for Underconstrained Values", options.print_codegen_timings, || {
+            ssa.check_for_underconstrained_values()
+        })
+    };
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(options.enable_brillig_logging)
     });
@@ -142,6 +160,7 @@ pub struct SsaProgramArtifact {
     pub main_input_witnesses: Vec<Witness>,
     pub main_return_witnesses: Vec<Witness>,
     pub names: Vec<String>,
+    pub brillig_names: Vec<String>,
     pub error_types: BTreeMap<ErrorSelector, HirType>,
 }
 
@@ -158,6 +177,7 @@ impl SsaProgramArtifact {
             main_input_witnesses: Vec::default(),
             main_return_witnesses: Vec::default(),
             names: Vec::default(),
+            brillig_names: Vec::default(),
             error_types,
         }
     }
@@ -193,8 +213,10 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let recursive = program.recursive;
-    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
-        optimize_into_acir(program, options)?;
+    let ArtifactsAndWarnings(
+        (generated_acirs, generated_brillig, brillig_function_names, error_types),
+        ssa_level_warnings,
+    ) = optimize_into_acir(program, options)?;
     if options.force_brillig_output {
         assert_eq!(
             generated_acirs.len(),
@@ -227,6 +249,7 @@ pub fn create_program(
         program_artifact.add_circuit(circuit_artifact, is_main);
         is_main = false;
     }
+    program_artifact.brillig_names = brillig_function_names;
 
     Ok(program_artifact)
 }
@@ -253,6 +276,7 @@ fn convert_generated_acir_into_circuit(
     let GeneratedAcir {
         return_witnesses,
         locations,
+        brillig_locations,
         input_witnesses,
         assertion_payloads: assert_messages,
         warnings,
@@ -283,7 +307,19 @@ fn convert_generated_acir_into_circuit(
         .map(|(index, locations)| (index, locations.into_iter().collect()))
         .collect();
 
-    let mut debug_info = DebugInfo::new(locations, debug_variables, debug_functions, debug_types);
+    let brillig_locations = brillig_locations
+        .into_iter()
+        .map(|(function_index, locations)| {
+            let locations = locations
+                .into_iter()
+                .map(|(index, locations)| (index, locations.into_iter().collect()))
+                .collect();
+            (function_index, locations)
+        })
+        .collect();
+
+    let mut debug_info =
+        DebugInfo::new(locations, brillig_locations, debug_variables, debug_functions, debug_types);
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
@@ -346,8 +382,18 @@ impl SsaBuilder {
         print_ssa_passes: bool,
         force_brillig_runtime: bool,
         print_codegen_timings: bool,
+        emit_ssa: &Option<PathBuf>,
     ) -> Result<SsaBuilder, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program, force_brillig_runtime)?;
+        if let Some(emit_ssa) = emit_ssa {
+            let mut emit_ssa_dir = emit_ssa.clone();
+            // We expect the full package artifact path to be passed in here,
+            // and attempt to create the target directory if it does not exist.
+            emit_ssa_dir.pop();
+            create_named_dir(emit_ssa_dir.as_ref(), "target");
+            let ssa_path = emit_ssa.with_extension("ssa.json");
+            write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
+        }
         Ok(SsaBuilder { print_ssa_passes, print_codegen_timings, ssa }.print("Initial SSA:"))
     }
 
@@ -376,5 +422,25 @@ impl SsaBuilder {
             println!("{msg}\n{}", self.ssa);
         }
         self
+    }
+}
+
+fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
+    std::fs::create_dir_all(named_dir)
+        .unwrap_or_else(|_| panic!("could not create the `{name}` directory"));
+
+    PathBuf::from(named_dir)
+}
+
+fn write_to_file(bytes: &[u8], path: &Path) {
+    let display = path.display();
+
+    let mut file = match File::create(path) {
+        Err(why) => panic!("couldn't create {display}: {why}"),
+        Ok(file) => file,
+    };
+
+    if let Err(why) = file.write_all(bytes) {
+        panic!("couldn't write to {display}: {why}");
     }
 }

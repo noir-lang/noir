@@ -337,7 +337,7 @@ impl FunctionBuilder {
     /// Insert an enable_side_effects_if instruction. These are normally only automatically
     /// inserted during the flattening pass when branching is removed.
     pub(crate) fn insert_enable_side_effects_if(&mut self, condition: ValueId) {
-        self.insert_instruction(Instruction::EnableSideEffects { condition }, None);
+        self.insert_instruction(Instruction::EnableSideEffectsIf { condition }, None);
     }
 
     /// Terminates the current block with the given terminator instruction
@@ -371,10 +371,12 @@ impl FunctionBuilder {
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) {
+        let call_stack = self.call_stack.clone();
         self.terminate_block_with(TerminatorInstruction::JmpIf {
             condition,
             then_destination,
             else_destination,
+            call_stack,
         });
     }
 

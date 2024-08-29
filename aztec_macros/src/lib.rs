@@ -62,18 +62,25 @@ fn transform(
     file_id: FileId,
     context: &HirContext,
 ) -> Result<SortedModule, (MacroError, FileId)> {
+    let empty_spans = context.def_interner.is_in_lsp_mode();
+
     // Usage -> mut ast -> aztec_library::transform(&mut ast)
     // Covers all functions in the ast
     for submodule in ast.submodules.iter_mut().filter(|submodule| submodule.is_contract) {
-        if transform_module(&file_id, &mut submodule.contents, submodule.name.0.contents.as_str())
-            .map_err(|err| (err.into(), file_id))?
+        if transform_module(
+            &file_id,
+            &mut submodule.contents,
+            submodule.name.0.contents.as_str(),
+            empty_spans,
+        )
+        .map_err(|err| (err.into(), file_id))?
         {
             check_for_aztec_dependency(crate_id, context)?;
         }
     }
 
-    generate_event_impls(&mut ast).map_err(|err| (err.into(), file_id))?;
-    generate_note_interface_impl(&mut ast).map_err(|err| (err.into(), file_id))?;
+    generate_event_impls(&mut ast, empty_spans).map_err(|err| (err.into(), file_id))?;
+    generate_note_interface_impl(&mut ast, empty_spans).map_err(|err| (err.into(), file_id))?;
 
     Ok(ast)
 }
@@ -85,6 +92,7 @@ fn transform_module(
     file_id: &FileId,
     module: &mut SortedModule,
     module_name: &str,
+    empty_spans: bool,
 ) -> Result<bool, AztecMacroError> {
     let mut has_transformed_module = false;
 
@@ -99,7 +107,7 @@ fn transform_module(
         if !check_for_storage_implementation(module, storage_struct_name) {
             generate_storage_implementation(module, storage_struct_name)?;
         }
-        generate_storage_layout(module, storage_struct_name.clone(), module_name)?;
+        generate_storage_layout(module, storage_struct_name.clone(), module_name, empty_spans)?;
     }
 
     let has_initializer = module.functions.iter().any(|func| {
@@ -144,7 +152,7 @@ fn transform_module(
             let stub_src = stub_function(fn_type, func, is_static);
             stubs.push((stub_src, Location { file: *file_id, span: func.name_ident().span() }));
 
-            export_fn_abi(&mut module.types, func)?;
+            export_fn_abi(&mut module.types, func, empty_spans)?;
             transform_function(
                 fn_type,
                 func,
@@ -200,7 +208,7 @@ fn transform_module(
             });
         }
 
-        generate_contract_interface(module, module_name, &stubs, storage_defined)?;
+        generate_contract_interface(module, module_name, &stubs, storage_defined, empty_spans)?;
     }
 
     Ok(has_transformed_module)

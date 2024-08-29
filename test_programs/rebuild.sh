@@ -45,7 +45,7 @@ rm -rf $current_dir/acir_artifacts
 mkdir -p $current_dir/acir_artifacts
 
 # Gather directories to process.
-dirs_to_process=()
+# dirs_to_process=()
 for dir in $base_path/*; do
     if [[ ! -d $dir ]] || [[ " ${excluded_dirs[@]} " =~ " $(basename "$dir") " ]]; then
         continue
@@ -60,6 +60,6 @@ for dir in $current_dir/benchmarks/*; do
     dirs_to_process+=("$dir")
 done
 
-parallel -j0  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
+parallel -j7  process_dir {} "$current_dir" ::: ${dirs_to_process[@]}
 
 echo "Rebuild Succeeded!"

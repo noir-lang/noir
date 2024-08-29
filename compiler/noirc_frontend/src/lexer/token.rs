@@ -4,7 +4,10 @@ use std::{fmt, iter::Map, vec::IntoIter};
 
 use crate::{
     lexer::errors::LexerErrorKind,
-    node_interner::{ExprId, QuotedTypeId},
+    node_interner::{
+        ExprId, InternedExpressionKind, InternedStatementKind, InternedUnresolvedTypeData,
+        QuotedTypeId,
+    },
 };
 
 /// Represents a token in noir's grammar - a word, number,
@@ -28,6 +31,10 @@ pub enum BorrowedToken<'input> {
     BlockComment(&'input str, Option<DocStyle>),
     Quote(&'input Tokens),
     QuotedType(QuotedTypeId),
+    InternedExpression(InternedExpressionKind),
+    InternedStatement(InternedStatementKind),
+    InternedLValue(InternedExpressionKind),
+    InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     /// <
     Less,
     /// <=
@@ -134,6 +141,14 @@ pub enum Token {
     /// to avoid having to tokenize it, re-parse it, and re-resolve it which
     /// may change the underlying type.
     QuotedType(QuotedTypeId),
+    /// A reference to an interned `ExpressionKind`.
+    InternedExpr(InternedExpressionKind),
+    /// A reference to an interned `StatementKind`.
+    InternedStatement(InternedStatementKind),
+    /// A reference to an interned `LValue`.
+    InternedLValue(InternedExpressionKind),
+    /// A reference to an interned `UnresolvedTypeData`.
+    InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     /// <
     Less,
     /// <=
@@ -233,6 +248,10 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
         Token::Quote(stream) => BorrowedToken::Quote(stream),
         Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
+        Token::InternedExpr(id) => BorrowedToken::InternedExpression(*id),
+        Token::InternedStatement(id) => BorrowedToken::InternedStatement(*id),
+        Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
+        Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
         Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
@@ -353,8 +372,12 @@ impl fmt::Display for Token {
                 }
                 write!(f, "}}")
             }
-            // Quoted types only have an ID so there is nothing to display
+            // Quoted types and exprs only have an ID so there is nothing to display
             Token::QuotedType(_) => write!(f, "(type)"),
+            Token::InternedExpr(_) | Token::InternedStatement(_) | Token::InternedLValue(_) => {
+                write!(f, "(expr)")
+            }
+            Token::InternedUnresolvedTypeData(_) => write!(f, "(type)"),
             Token::IntType(ref i) => write!(f, "{i}"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
@@ -407,6 +430,10 @@ pub enum TokenKind {
     Attribute,
     Quote,
     QuotedType,
+    InternedExpr,
+    InternedStatement,
+    InternedLValue,
+    InternedUnresolvedTypeData,
     UnquoteMarker,
 }
 
@@ -420,6 +447,10 @@ impl fmt::Display for TokenKind {
             TokenKind::Attribute => write!(f, "attribute"),
             TokenKind::Quote => write!(f, "quote"),
             TokenKind::QuotedType => write!(f, "quoted type"),
+            TokenKind::InternedExpr => write!(f, "interned expr"),
+            TokenKind::InternedStatement => write!(f, "interned statement"),
+            TokenKind::InternedLValue => write!(f, "interned lvalue"),
+            TokenKind::InternedUnresolvedTypeData => write!(f, "interned unresolved type"),
             TokenKind::UnquoteMarker => write!(f, "macro result"),
         }
     }
@@ -439,6 +470,10 @@ impl Token {
             Token::UnquoteMarker(_) => TokenKind::UnquoteMarker,
             Token::Quote(_) => TokenKind::Quote,
             Token::QuotedType(_) => TokenKind::QuotedType,
+            Token::InternedExpr(_) => TokenKind::InternedExpr,
+            Token::InternedStatement(_) => TokenKind::InternedStatement,
+            Token::InternedLValue(_) => TokenKind::InternedLValue,
+            Token::InternedUnresolvedTypeData(_) => TokenKind::InternedUnresolvedTypeData,
             tok => TokenKind::Token(tok.clone()),
         }
     }
@@ -635,6 +670,10 @@ impl Attributes {
     pub fn is_no_predicates(&self) -> bool {
         self.function.as_ref().map_or(false, |func_attribute| func_attribute.is_no_predicates())
     }
+
+    pub fn is_varargs(&self) -> bool {
+        self.secondary.iter().any(|attr| matches!(attr, SecondaryAttribute::Varargs))
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -728,6 +767,7 @@ impl Attribute {
                     name.trim_matches('"').to_string().into(),
                 ))
             }
+            ["varargs"] => Attribute::Secondary(SecondaryAttribute::Varargs),
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
                 Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
@@ -825,6 +865,9 @@ pub enum SecondaryAttribute {
     Field(String),
     Custom(String),
     Abi(String),
+
+    /// A variable-argument comptime function.
+    Varargs,
 }
 
 impl fmt::Display for SecondaryAttribute {
@@ -839,6 +882,7 @@ impl fmt::Display for SecondaryAttribute {
             SecondaryAttribute::Export => write!(f, "#[export]"),
             SecondaryAttribute::Field(ref k) => write!(f, "#[field({k})]"),
             SecondaryAttribute::Abi(ref k) => write!(f, "#[abi({k})]"),
+            SecondaryAttribute::Varargs => write!(f, "#[varargs]"),
         }
     }
 }
@@ -867,14 +911,14 @@ impl AsRef<str> for SecondaryAttribute {
             | SecondaryAttribute::Abi(string) => string,
             SecondaryAttribute::ContractLibraryMethod => "",
             SecondaryAttribute::Export => "",
+            SecondaryAttribute::Varargs => "",
         }
     }
 }
 
 /// Note that `self` is not present - it is a contextual keyword rather than a true one as it is
 /// only special within `impl`s. Otherwise `self` functions as a normal identifier.
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord, strum_macros::EnumIter)]
 pub enum Keyword {
     As,
     Assert,
@@ -916,10 +960,13 @@ pub enum Keyword {
     Trait,
     TraitConstraint,
     TraitDefinition,
+    TraitImpl,
     Type,
     TypeType,
     Unchecked,
     Unconstrained,
+    UnresolvedType,
+    Unsafe,
     Use,
     Where,
     While,
@@ -968,10 +1015,13 @@ impl fmt::Display for Keyword {
             Keyword::Trait => write!(f, "trait"),
             Keyword::TraitConstraint => write!(f, "TraitConstraint"),
             Keyword::TraitDefinition => write!(f, "TraitDefinition"),
+            Keyword::TraitImpl => write!(f, "TraitImpl"),
             Keyword::Type => write!(f, "type"),
             Keyword::TypeType => write!(f, "Type"),
             Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
+            Keyword::UnresolvedType => write!(f, "UnresolvedType"),
+            Keyword::Unsafe => write!(f, "unsafe"),
             Keyword::Use => write!(f, "use"),
             Keyword::Where => write!(f, "where"),
             Keyword::While => write!(f, "while"),
@@ -1022,11 +1072,14 @@ impl Keyword {
             "trait" => Keyword::Trait,
             "TraitConstraint" => Keyword::TraitConstraint,
             "TraitDefinition" => Keyword::TraitDefinition,
+            "TraitImpl" => Keyword::TraitImpl,
             "type" => Keyword::Type,
             "Type" => Keyword::TypeType,
             "StructDefinition" => Keyword::StructDefinition,
             "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,
+            "UnresolvedType" => Keyword::UnresolvedType,
+            "unsafe" => Keyword::Unsafe,
             "use" => Keyword::Use,
             "where" => Keyword::Where,
             "while" => Keyword::While,

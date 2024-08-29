@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::{collections::HashMap, future::Future};
 
 use crate::insert_all_files_for_workspace_into_file_manager;
@@ -14,6 +16,8 @@ use lsp_types::{
 };
 use nargo_fmt::Config;
 use noirc_driver::file_manager_with_stdlib;
+use noirc_frontend::graph::CrateId;
+use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::{graph::Dependency, macros_api::NodeInterner};
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +37,7 @@ use crate::{
 // and params passed in.
 
 mod code_lens_request;
+mod completion;
 mod document_symbol;
 mod goto_declaration;
 mod goto_definition;
@@ -41,17 +46,19 @@ mod inlay_hint;
 mod profile_run;
 mod references;
 mod rename;
+mod signature_help;
 mod test_run;
 mod tests;
 
 pub(crate) use {
     code_lens_request::collect_lenses_for_package, code_lens_request::on_code_lens_request,
-    document_symbol::on_document_symbol_request, goto_declaration::on_goto_declaration_request,
-    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
-    hover::on_hover_request, inlay_hint::on_inlay_hint_request,
-    profile_run::on_profile_run_request, references::on_references_request,
-    rename::on_prepare_rename_request, rename::on_rename_request, test_run::on_test_run_request,
-    tests::on_tests_request,
+    completion::on_completion_request, document_symbol::on_document_symbol_request,
+    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
+    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
+    inlay_hint::on_inlay_hint_request, profile_run::on_profile_run_request,
+    references::on_references_request, rename::on_prepare_rename_request,
+    rename::on_rename_request, signature_help::on_signature_help_request,
+    test_run::on_test_run_request, tests::on_tests_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -77,6 +84,9 @@ pub(crate) struct InlayHintsOptions {
 
     #[serde(rename = "parameterHints", default = "default_parameter_hints")]
     pub(crate) parameter_hints: ParameterHintsOptions,
+
+    #[serde(rename = "closingBraceHints", default = "default_closing_brace_hints")]
+    pub(crate) closing_brace_hints: ClosingBraceHintsOptions,
 }
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
@@ -91,6 +101,15 @@ pub(crate) struct ParameterHintsOptions {
     pub(crate) enabled: bool,
 }
 
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct ClosingBraceHintsOptions {
+    #[serde(rename = "enabled", default = "default_closing_brace_hints_enabled")]
+    pub(crate) enabled: bool,
+
+    #[serde(rename = "minLines", default = "default_closing_brace_min_lines")]
+    pub(crate) min_lines: u32,
+}
+
 fn default_enable_code_lens() -> bool {
     true
 }
@@ -103,6 +122,7 @@ fn default_inlay_hints() -> InlayHintsOptions {
     InlayHintsOptions {
         type_hints: default_type_hints(),
         parameter_hints: default_parameter_hints(),
+        closing_brace_hints: default_closing_brace_hints(),
     }
 }
 
@@ -120,6 +140,21 @@ fn default_parameter_hints() -> ParameterHintsOptions {
 
 fn default_parameter_hints_enabled() -> bool {
     true
+}
+
+fn default_closing_brace_hints() -> ClosingBraceHintsOptions {
+    ClosingBraceHintsOptions {
+        enabled: default_closing_brace_hints_enabled(),
+        min_lines: default_closing_brace_min_lines(),
+    }
+}
+
+fn default_closing_brace_hints_enabled() -> bool {
+    true
+}
+
+fn default_closing_brace_min_lines() -> u32 {
+    25
 }
 
 impl Default for LspInitializationOptions {
@@ -197,6 +232,24 @@ pub(crate) fn on_initialize(
                             work_done_progress: None,
                         },
                         label: Some("Noir".to_string()),
+                    },
+                )),
+                completion_provider: Some(lsp_types::OneOf::Right(lsp_types::CompletionOptions {
+                    resolve_provider: None,
+                    trigger_characters: Some(vec![".".to_string(), ":".to_string()]),
+                    all_commit_characters: None,
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: None,
+                    },
+                    completion_item: None,
+                })),
+                signature_help_provider: Some(lsp_types::OneOf::Right(
+                    lsp_types::SignatureHelpOptions {
+                        trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
+                        retrigger_characters: None,
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
                     },
                 )),
             },
@@ -324,7 +377,12 @@ where
     let file_name = files.name(file_id).ok()?;
 
     let path = file_name.to_string();
-    let uri = Url::from_file_path(path).ok()?;
+
+    // `path` might be a relative path so we canonicalize it to get an absolute path
+    let path_buf = PathBuf::from(path);
+    let path_buf = path_buf.canonicalize().unwrap_or(path_buf);
+
+    let uri = Url::from_file_path(path_buf.to_str()?).ok()?;
 
     Some(Location { uri, range })
 }
@@ -341,8 +399,10 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     files: &'a FileMap,
     interner: &'a NodeInterner,
     interners: &'a HashMap<String, NodeInterner>,
-    root_crate_name: String,
-    root_crate_dependencies: &'a Vec<Dependency>,
+    crate_id: CrateId,
+    crate_name: String,
+    dependencies: &'a Vec<Dependency>,
+    def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
 }
 
 pub(crate) fn process_request<F, T>(
@@ -358,8 +418,7 @@ where
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace =
-        resolve_workspace_for_source_path(file_path.as_path(), &state.root_path).unwrap();
+    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
@@ -378,12 +437,15 @@ where
         crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
     let interner;
+    let def_maps;
     if let Some(def_interner) = state.cached_definitions.get(&package_root_path) {
         interner = def_interner;
+        def_maps = state.cached_def_maps.get(&package_root_path).unwrap();
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, false, false, None);
+        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
         interner = &context.def_interner;
+        def_maps = &context.def_maps;
     }
 
     let files = context.file_manager.as_file_map();
@@ -399,8 +461,10 @@ where
         files,
         interner,
         interners: &state.cached_definitions,
-        root_crate_name: package.name.to_string(),
-        root_crate_dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
+        crate_id,
+        crate_name: package.name.to_string(),
+        dependencies: &context.crate_graph[context.root_crate_id()].dependencies,
+        def_maps,
     }))
 }
 pub(crate) fn find_all_references_in_workspace(

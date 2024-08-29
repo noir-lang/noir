@@ -76,14 +76,21 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             extern_prelude: BTreeMap::new(),
         };
 
+        let debug_comptime_in_file = None;
+        let enable_arithmetic_generics = false;
+        let error_on_unused_imports = true;
+        let macro_processors = &[];
+
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            None, // No debug_comptime_in_file
-            &[],  // No macro processors
+            debug_comptime_in_file,
+            enable_arithmetic_generics,
+            error_on_unused_imports,
+            macro_processors,
         ));
     }
     (program, context, errors)
@@ -2226,7 +2233,7 @@ fn impl_stricter_than_trait_different_trait_generics() {
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "A"));
         assert!(matches!(constraint_name.as_str(), "T2"));
-        assert!(matches!(constraint_generics[0].to_string().as_str(), "B"));
+        assert!(matches!(constraint_generics.ordered[0].to_string().as_str(), "B"));
     } else {
         panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
     }
@@ -2423,6 +2430,10 @@ fn use_super() {
 
     mod foo {
         use super::some_func;
+
+        fn bar() {
+            some_func();
+        }
     }
     "#;
     assert_no_errors(src);
@@ -2457,6 +2468,201 @@ fn no_super() {
 
     assert_eq!(span.start(), 4);
     assert_eq!(span.end(), 9);
+}
+
+#[test]
+fn cannot_call_unconstrained_function_outside_of_unsafe() {
+    let src = r#"
+    fn main() {
+        foo();
+    }
+
+    unconstrained fn foo() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0].0 else {
+        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        // Warning should trigger here
+        func();
+        inner(func);
+    }
+
+    fn inner(x: unconstrained fn() -> ()) {
+        // Warning should trigger here
+        x();
+    }
+
+    unconstrained fn foo() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+
+    for error in &errors {
+        let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &error.0 else {
+            panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+        };
+    }
+}
+
+#[test]
+fn missing_unsafe_block_when_needing_type_annotations() {
+    // This test is a regression check that even when an unsafe block is missing
+    // that we still appropriately continue type checking and infer type annotations.
+    let src = r#"
+    fn main() {
+        let z = BigNum { limbs: [2, 0, 0] };
+        assert(z.__is_zero() == false);
+    }
+
+    struct BigNum<let N: u32> {
+        limbs: [u64; N],
+    }
+
+    impl<let N: u32> BigNum<N> {
+        unconstrained fn __is_zero_impl(self) -> bool {
+            let mut result: bool = true;
+            for i in 0..N {
+                result = result & (self.limbs[i] == 0);
+            }
+            result
+        }
+    }
+
+    trait BigNumTrait {
+        fn __is_zero(self) -> bool;
+    }
+
+    impl<let N: u32> BigNumTrait for BigNum<N> {
+        fn __is_zero(self) -> bool {
+            self.__is_zero_impl()
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0].0 else {
+        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn cannot_pass_unconstrained_function_to_regular_function() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        expect_regular(func);
+    }
+
+    unconstrained fn foo() {}
+
+    fn expect_regular(_func: fn() -> ()) {
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }) = &errors[0].0 else {
+        panic!("Expected an UnsafeFn error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn cannot_assign_unconstrained_and_regular_fn_to_variable() {
+    let src = r#"
+    fn main() {
+        let _func = if true { foo } else { bar };
+    }
+
+    fn foo() {}
+    unconstrained fn bar() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Context { err, .. }) = &errors[0].0 else {
+        panic!("Expected a context error, got {:?}", errors[0].0);
+    };
+
+    if let TypeCheckError::TypeMismatch { expected_typ, expr_typ, .. } = err.as_ref() {
+        assert_eq!(expected_typ, "fn() -> ()");
+        assert_eq!(expr_typ, "unconstrained fn() -> ()");
+    } else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn can_pass_regular_function_to_unconstrained_function() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        expect_unconstrained(func);
+    }
+
+    fn foo() {}
+
+    fn expect_unconstrained(_func: unconstrained fn() -> ()) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn cannot_pass_unconstrained_function_to_constrained_function() {
+    let src = r#"
+    fn main() {
+        let func = foo;
+        expect_regular(func);
+    }
+
+    unconstrained fn foo() {}
+
+    fn expect_regular(_func: fn() -> ()) {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }) = &errors[0].0 else {
+        panic!("Expected an UnsafeFn error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn can_assign_regular_function_to_unconstrained_function_in_explicitly_typed_var() {
+    let src = r#"
+    fn main() {
+        let _func: unconstrained fn() -> () = foo;
+    }
+
+    fn foo() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn can_assign_regular_function_to_unconstrained_function_in_struct_member() {
+    let src = r#"
+    fn main() {
+        let _ = Foo { func: foo };
+    }
+
+    fn foo() {}
+
+    struct Foo {
+        func: unconstrained fn() -> (),
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]
@@ -2609,4 +2815,419 @@ fn turbofish_in_middle_of_variable_unsupported_yet() {
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::UnsupportedTurbofishUsage { .. }),
     ));
+}
+
+#[test]
+fn turbofish_in_struct_pattern() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value: Field = 0;
+        let Foo::<Field> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value: Field = 0;
+        let Foo::<i32> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+}
+
+#[test]
+fn turbofish_in_struct_pattern_generic_count_mismatch() {
+    let src = r#"
+    struct Foo<T> {
+        x: T
+    }
+
+    fn main() {
+        let value = 0;
+        let Foo::<i32, i64> { x } = Foo { x: value };
+        let _ = x;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        item,
+        expected,
+        found,
+        ..
+    }) = &errors[0].0
+    else {
+        panic!("Expected a generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(item, "struct Foo");
+    assert_eq!(*expected, 1);
+    assert_eq!(*found, 2);
+}
+
+#[test]
+fn incorrect_generic_count_on_struct_impl() {
+    let src = r#"
+    struct Foo {}
+    impl <T> Foo<T> {}
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        found, expected, ..
+    }) = errors[0].0
+    else {
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(found, 1);
+    assert_eq!(expected, 0);
+}
+
+#[test]
+fn incorrect_generic_count_on_type_alias() {
+    let src = r#"
+    struct Foo {}
+    type Bar = Foo<i32>;
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
+        found, expected, ..
+    }) = errors[0].0
+    else {
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(found, 1);
+    assert_eq!(expected, 0);
+}
+
+#[test]
+fn uses_self_type_for_struct_function_call() {
+    let src = r#"
+    struct S { }
+
+    impl S {
+        fn one() -> Field {
+            1
+        }
+
+        fn two() -> Field {
+            Self::one() + Self::one()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn uses_self_type_inside_trait() {
+    let src = r#"
+    trait Foo {
+        fn foo() -> Self {
+            Self::bar()
+        }
+
+        fn bar() -> Self;
+    }
+
+    impl Foo for Field {
+        fn bar() -> Self {
+            1
+        }
+    }
+
+    fn main() {
+        let _: Field = Foo::foo();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn uses_self_type_in_trait_where_clause() {
+    let src = r#"
+    trait Trait {
+        fn trait_func() -> bool;
+    }
+
+    trait Foo where Self: Trait {
+        fn foo(self) -> bool {
+            self.trait_func()
+        }
+    }
+
+    struct Bar {
+
+    }
+
+    impl Foo for Bar {
+
+    }
+
+    fn main() {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall { method_name, .. }) =
+        &errors[0].0
+    else {
+        panic!("Expected an unresolved method call error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(method_name, "trait_func");
+}
+
+#[test]
+fn do_not_eagerly_error_on_cast_on_type_variable() {
+    let src = r#"
+    pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
+        f(x)
+    }
+
+    fn main() {
+        let x: u8 = 1;
+        let _: Field = foo(x, |x| x as Field);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn error_on_cast_over_type_variable() {
+    let src = r#"
+    pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
+        f(x)
+    }
+
+    fn main() {
+        let x = "a";
+        let _: Field = foo(x, |x| x as Field);
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
+    ));
+}
+
+#[test]
+fn trait_impl_for_a_type_that_implements_another_trait() {
+    let src = r#"
+    trait One {
+        fn one(self) -> i32;
+    }
+
+    impl One for i32 {
+        fn one(self) -> i32 {
+            self
+        }
+    }
+
+    trait Two {
+        fn two(self) -> i32;
+    }
+
+    impl<T> Two for T where T: One {
+        fn two(self) -> i32 {
+            self.one() + 1
+        }
+    }
+
+    fn use_it<T>(t: T) -> i32 where T: Two {
+        Two::two(t)
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() {
+    let src = r#"
+    trait One {
+        fn one(self) -> i32;
+    }
+
+    impl One for i32 {
+        fn one(self) -> i32 {
+            let _ = self;
+            1
+        }
+    }
+
+    trait Two {
+        fn two(self) -> i32;
+    }
+
+    impl<T> Two for T where T: One {
+        fn two(self) -> i32 {
+            self.one() + 1
+        }
+    }
+
+    impl Two for u32 {
+        fn two(self) -> i32 {
+            let _ = self;
+            0
+        }
+    }
+
+    fn use_it(t: u32) -> i32 {
+        Two::two(t)
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_missing_associated_type() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    impl Foo for () {}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::TypeError(TypeCheckError::MissingNamedTypeArg { .. })
+    ));
+}
+
+#[test]
+fn as_trait_path_syntax_resolves_outside_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        // AsTraitPath syntax is a bit silly when associated types
+        // are explicitly specified
+        let _: i64 = 1 as <Bar as Foo<Assoc = i32>>::Assoc;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    use CompilationError::TypeError;
+    use TypeCheckError::TypeMismatch;
+    let TypeError(TypeMismatch { expected_typ, expr_typ, .. }) = errors[0].0.clone() else {
+        panic!("Expected TypeMismatch error, found {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "i64".to_string());
+    assert_eq!(expr_typ, "i32".to_string());
+}
+
+#[test]
+fn as_trait_path_syntax_no_impl() {
+    let src = r#"
+    trait Foo {
+        type Assoc;
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        type Assoc = i32;
+    }
+
+    fn main() {
+        let _: i64 = 1 as <Bar as Foo<Assoc = i8>>::Assoc;
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    use CompilationError::TypeError;
+    assert!(matches!(&errors[0].0, TypeError(TypeCheckError::NoMatchingImplFound { .. })));
+}
+
+#[test]
+fn errors_on_unused_import() {
+    let src = r#"
+    mod foo {
+        pub fn bar() {}
+        pub fn baz() {}
+
+        trait Foo {
+        }
+    }
+
+    use foo::bar;
+    use foo::baz;
+    use foo::Foo;
+
+    impl Foo for Field {
+    }
+
+    fn main() {
+        baz();
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedImport { ident }) = &errors[0].0
+    else {
+        panic!("Expected an unused import error");
+    };
+
+    assert_eq!(ident.to_string(), "bar");
 }

@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
@@ -26,3 +29,7 @@ rust-embed.workspace = true
 tracing.workspace = true
 
 aztec_macros = { path = "../../aztec_macros" }
+
+[features]
+bn254 = ["noirc_frontend/bn254", "noirc_evaluator/bn254"]
+bls12_381 = ["noirc_frontend/bls12_381", "noirc_evaluator/bls12_381"]

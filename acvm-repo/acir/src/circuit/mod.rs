@@ -103,7 +103,7 @@ impl ErrorSelector {
 impl Serialize for ErrorSelector {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         self.0.to_string().serialize(serializer)
     }
@@ -112,7 +112,7 @@ impl Serialize for ErrorSelector {
 impl<'de> Deserialize<'de> for ErrorSelector {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         let s: String = Deserialize::deserialize(deserializer)?;
         let as_u64 = s.parse().map_err(serde::de::Error::custom)?;
@@ -153,7 +153,26 @@ pub struct ResolvedOpcodeLocation {
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
     Acir(usize),
+    // TODO(https://github.com/noir-lang/noir/issues/5792): We can not get rid of this enum field entirely just yet as this format is still
+    // used for resolving assert messages which is a breaking serialization change.
     Brillig { acir_index: usize, brillig_index: usize },
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct BrilligOpcodeLocation(pub usize);
+
+impl OpcodeLocation {
+    // Utility method to allow easily comparing a resolved Brillig location and a debug Brillig location.
+    // This method is useful when fetching Brillig debug locations as this does not need an ACIR index,
+    // and just need the Brillig index.
+    pub fn to_brillig_location(self) -> Option<BrilligOpcodeLocation> {
+        match self {
+            OpcodeLocation::Brillig { brillig_index, .. } => {
+                Some(BrilligOpcodeLocation(brillig_index))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Display for OpcodeLocation {
@@ -204,6 +223,13 @@ impl FromStr for OpcodeLocation {
     }
 }
 
+impl std::fmt::Display for BrilligOpcodeLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let index = self.0;
+        write!(f, "{index}")
+    }
+}
+
 impl<F> Circuit<F> {
     pub fn num_vars(&self) -> u32 {
         self.current_witness_index + 1
@@ -224,7 +250,7 @@ impl<F> Circuit<F> {
 }
 
 impl<F: Serialize> Program<F> {
-    fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
+    fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = bincode::serialize(self).unwrap();
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
@@ -250,7 +276,7 @@ impl<F: Serialize> Program<F> {
 }
 
 impl<F: for<'a> Deserialize<'a>> Program<F> {
-    fn read<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
+    fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf_d = Vec::new();
         gz_decoder.read_to_end(&mut buf_d)?;
@@ -377,11 +403,13 @@ mod tests {
             output: Witness(3),
         })
     }
+
     fn range_opcode<F: AcirField>() -> Opcode<F> {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
             input: FunctionInput::witness(Witness(1), 8),
         })
     }
+
     fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
         let inputs: Box<[FunctionInput<F>; 25]> =
             Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 1), 8)));
@@ -389,6 +417,7 @@ mod tests {
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
     }
+
     fn schnorr_verify_opcode<F: AcirField>() -> Opcode<F> {
         let public_key_x = FunctionInput::witness(Witness(1), FieldElement::max_num_bits());
         let public_key_y = FunctionInput::witness(Witness(2), FieldElement::max_num_bits());

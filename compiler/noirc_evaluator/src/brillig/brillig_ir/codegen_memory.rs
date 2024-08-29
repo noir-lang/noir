@@ -112,6 +112,50 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         self.deallocate_register(index_of_element_in_memory);
     }
 
+    pub(crate) fn codegen_store_variable_in_array(
+        &mut self,
+        array_pointer: MemoryAddress,
+        index: SingleAddrVariable,
+        value_variable: BrilligVariable,
+    ) {
+        assert!(index.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+        let final_pointer_register = self.allocate_register();
+        self.memory_op_instruction(
+            array_pointer,
+            index.address,
+            final_pointer_register,
+            BrilligBinaryOp::Add,
+        );
+        self.codegen_store_variable_in_pointer(final_pointer_register, value_variable);
+        self.deallocate_register(final_pointer_register);
+    }
+
+    pub(crate) fn codegen_store_variable_in_pointer(
+        &mut self,
+        destination_pointer: MemoryAddress,
+        value_variable: BrilligVariable,
+    ) {
+        match value_variable {
+            BrilligVariable::SingleAddr(value_variable) => {
+                self.store_instruction(destination_pointer, value_variable.address);
+            }
+            BrilligVariable::BrilligArray(_) => {
+                let reference: MemoryAddress = self.allocate_register();
+                self.codegen_allocate_array_reference(reference);
+                self.codegen_store_variable(reference, value_variable);
+                self.store_instruction(destination_pointer, reference);
+                self.deallocate_register(reference);
+            }
+            BrilligVariable::BrilligVector(_) => {
+                let reference = self.allocate_register();
+                self.codegen_allocate_vector_reference(reference);
+                self.codegen_store_variable(reference, value_variable);
+                self.store_instruction(destination_pointer, reference);
+                self.deallocate_register(reference);
+            }
+        }
+    }
+
     /// Copies the values of an array pointed by source with length stored in `num_elements_register`
     /// Into the array pointed by destination
     pub(crate) fn codegen_copy_array(
@@ -219,20 +263,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         let index_at_end_of_array = self.allocate_register();
         let end_value_register = self.allocate_register();
 
+        self.mov_instruction(index_at_end_of_array, vector.size);
+
         self.codegen_loop(iteration_count, |ctx, iterator_register| {
+            // The index at the end of array is size - 1 - iterator
+            ctx.codegen_usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, 1);
+
             // Load both values
             ctx.codegen_array_get(vector.pointer, iterator_register, start_value_register);
-
-            // The index at the end of array is size - 1 - iterator
-            ctx.mov_instruction(index_at_end_of_array, vector.size);
-            ctx.codegen_usize_op_in_place(index_at_end_of_array, BrilligBinaryOp::Sub, 1);
-            ctx.memory_op_instruction(
-                index_at_end_of_array,
-                iterator_register.address,
-                index_at_end_of_array,
-                BrilligBinaryOp::Sub,
-            );
-
             ctx.codegen_array_get(
                 vector.pointer,
                 SingleAddrVariable::new_usize(index_at_end_of_array),

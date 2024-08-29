@@ -129,9 +129,9 @@ fn return_if_expr() {
 }
 
 fn if_if() {
-    if cond {
+    (if cond {
         some();
     } else {
         none();
-    }.bar().baz();
+    }).bar().baz();
 }
