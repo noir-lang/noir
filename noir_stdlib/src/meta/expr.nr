@@ -151,6 +151,11 @@ impl Expr {
         // docs:end:quoted
         quote { $self }
     }
+
+    #[builtin(expr_resolve)]
+    // docs:start:resolve
+    fn resolve(self) -> TypedExpr {}
+    // docs:end:resolve
 }
 
 fn modify_array<Env>(expr: Expr, f: fn[Env](Expr) -> Option<Expr>) -> Option<Expr> {
