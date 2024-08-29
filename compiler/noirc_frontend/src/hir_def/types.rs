@@ -216,7 +216,7 @@ impl ResolvedGeneric {
         Type::NamedGeneric(self.type_var, self.name, self.kind)
     }
 
-    fn is_numeric(&self) -> bool {
+    pub(crate) fn is_numeric(&self) -> bool {
         self.kind.is_numeric()
     }
 }
@@ -337,13 +337,6 @@ impl StructType {
         }
     }
 
-    /// True if the given index is the same index as a generic type of this struct
-    /// which is expected to be a numeric generic.
-    /// This is needed because we infer type kinds in Noir and don't have extensive kind checking.
-    pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        self.generics[index_of_generic].is_numeric()
-    }
-
     /// Instantiate this struct type, returning a Vec of the new generic args (in
     /// the same order as self.generics)
     pub fn instantiate(&self, interner: &mut NodeInterner) -> Vec<Type> {
@@ -425,12 +418,6 @@ impl TypeAlias {
             .collect();
 
         self.typ.substitute(&substitutions)
-    }
-
-    /// True if the given index is the same index as a generic type of this alias
-    /// which is a numeric generic.
-    pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        self.generics[index_of_generic].is_numeric()
     }
 }
 

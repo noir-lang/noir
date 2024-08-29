@@ -1719,7 +1719,7 @@ impl<'context> Elaborator<'context> {
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name, _) = generic {
-                        if struct_type.borrow().generic_is_numeric(i) {
+                        if struct_type.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {
@@ -1730,7 +1730,7 @@ impl<'context> Elaborator<'context> {
             Type::Alias(alias, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name, _) = generic {
-                        if alias.borrow().generic_is_numeric(i) {
+                        if alias.borrow().generics[i].is_numeric() {
                             found.insert(name.to_string(), type_variable.clone());
                         }
                     } else {
