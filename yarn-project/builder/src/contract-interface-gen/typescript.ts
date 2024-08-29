@@ -316,7 +316,10 @@ function generateEvents(events: any[] | undefined) {
  * @returns The corresponding ts code.
  */
 export function generateTypescriptContractInterface(input: ContractArtifact, artifactImportPath?: string) {
-  const methods = input.functions.filter(f => !f.isInternal).map(generateMethod);
+  const methods = input.functions
+    .filter(f => !f.isInternal)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(generateMethod);
   const deploy = artifactImportPath && generateDeploy(input);
   const ctor = artifactImportPath && generateConstructor(input.name);
   const at = artifactImportPath && generateAt(input.name);
@@ -332,31 +335,31 @@ export function generateTypescriptContractInterface(input: ContractArtifact, art
 /* eslint-disable */
 import {
   AztecAddress,
-  AztecAddressLike,
+  type AztecAddressLike,
   CompleteAddress,
   Contract,
-  ContractArtifact,
+  type ContractArtifact,
   ContractBase,
   ContractFunctionInteraction,
-  ContractInstanceWithAddress,
-  ContractMethod,
-  ContractStorageLayout,
-  ContractNotes,
+  type ContractInstanceWithAddress,
+  type ContractMethod,
+  type ContractStorageLayout,
+  type ContractNotes,
   DeployMethod,
   EthAddress,
-  EthAddressLike,
+  type EthAddressLike,
   EventSelector,
-  FieldLike,
+  type FieldLike,
   Fr,
-  FunctionSelectorLike,
+  type FunctionSelectorLike,
   L1EventPayload,
   loadContractArtifact,
-  NoirCompiledContract,
+  type NoirCompiledContract,
   NoteSelector,
   Point,
-  PublicKey,
-  Wallet,
-  WrappedFieldLike,
+  type PublicKey,
+  type Wallet,
+  type WrappedFieldLike,
 } from '@aztec/aztec.js';
 ${artifactStatement}
 
@@ -379,7 +382,7 @@ export class ${input.name}Contract extends ContractBase {
   ${notesGetter}
 
   /** Type-safe wrappers for the public methods exposed by the contract. */
-  public override methods!: {
+  public declare methods: {
     ${methods.join('\n')}
   };
 
