@@ -147,98 +147,108 @@ class AvmFlavor {
     // The total number of witnesses including shifts and derived entities.
     static constexpr size_t NUM_ALL_WITNESS_ENTITIES = NUM_WITNESS_ENTITIES + NUM_SHIFTED_ENTITIES;
 
-    using MainRelations = std::tuple<
+    // Need to be templated for recursive verifier
+    template <typename FF_>
+    using MainRelations_ = std::tuple<
         // Relations
-        Avm_vm::alu<FF>,
-        Avm_vm::binary<FF>,
-        Avm_vm::conversion<FF>,
-        Avm_vm::gas<FF>,
-        Avm_vm::keccakf1600<FF>,
-        Avm_vm::kernel<FF>,
-        Avm_vm::main<FF>,
-        Avm_vm::mem<FF>,
-        Avm_vm::mem_slice<FF>,
-        Avm_vm::pedersen<FF>,
-        Avm_vm::poseidon2<FF>,
-        Avm_vm::range_check<FF>,
-        Avm_vm::sha256<FF>>;
+        Avm_vm::alu<FF_>,
+        Avm_vm::binary<FF_>,
+        Avm_vm::conversion<FF_>,
+        Avm_vm::gas<FF_>,
+        Avm_vm::keccakf1600<FF_>,
+        Avm_vm::kernel<FF_>,
+        Avm_vm::main<FF_>,
+        Avm_vm::mem<FF_>,
+        Avm_vm::mem_slice<FF_>,
+        Avm_vm::pedersen<FF_>,
+        Avm_vm::poseidon2<FF_>,
+        Avm_vm::range_check<FF_>,
+        Avm_vm::sha256<FF_>>;
 
-    using LookupRelations = std::tuple<
+    using MainRelations = MainRelations_<FF>;
+
+    // Need to be templated for recursive verifier
+    template <typename FF_>
+    using LookupRelations_ = std::tuple<
         // Lookups
-        incl_main_tag_err_relation<FF>,
-        incl_mem_tag_err_relation<FF>,
-        kernel_output_lookup_relation<FF>,
-        lookup_byte_lengths_relation<FF>,
-        lookup_byte_operations_relation<FF>,
-        lookup_cd_value_relation<FF>,
-        lookup_div_u16_0_relation<FF>,
-        lookup_div_u16_1_relation<FF>,
-        lookup_div_u16_2_relation<FF>,
-        lookup_div_u16_3_relation<FF>,
-        lookup_div_u16_4_relation<FF>,
-        lookup_div_u16_5_relation<FF>,
-        lookup_div_u16_6_relation<FF>,
-        lookup_div_u16_7_relation<FF>,
-        lookup_into_kernel_relation<FF>,
-        lookup_opcode_gas_relation<FF>,
-        lookup_pow_2_0_relation<FF>,
-        lookup_pow_2_1_relation<FF>,
-        lookup_ret_value_relation<FF>,
-        lookup_rng_chk_0_relation<FF>,
-        lookup_rng_chk_1_relation<FF>,
-        lookup_rng_chk_2_relation<FF>,
-        lookup_rng_chk_3_relation<FF>,
-        lookup_rng_chk_4_relation<FF>,
-        lookup_rng_chk_5_relation<FF>,
-        lookup_rng_chk_6_relation<FF>,
-        lookup_rng_chk_7_relation<FF>,
-        lookup_rng_chk_diff_relation<FF>,
-        lookup_rng_chk_pow_2_relation<FF>,
-        lookup_u16_0_relation<FF>,
-        lookup_u16_1_relation<FF>,
-        lookup_u16_10_relation<FF>,
-        lookup_u16_11_relation<FF>,
-        lookup_u16_12_relation<FF>,
-        lookup_u16_13_relation<FF>,
-        lookup_u16_14_relation<FF>,
-        lookup_u16_2_relation<FF>,
-        lookup_u16_3_relation<FF>,
-        lookup_u16_4_relation<FF>,
-        lookup_u16_5_relation<FF>,
-        lookup_u16_6_relation<FF>,
-        lookup_u16_7_relation<FF>,
-        lookup_u16_8_relation<FF>,
-        lookup_u16_9_relation<FF>,
-        lookup_u8_0_relation<FF>,
-        lookup_u8_1_relation<FF>,
-        perm_main_alu_relation<FF>,
-        perm_main_bin_relation<FF>,
-        perm_main_conv_relation<FF>,
-        perm_main_mem_a_relation<FF>,
-        perm_main_mem_b_relation<FF>,
-        perm_main_mem_c_relation<FF>,
-        perm_main_mem_d_relation<FF>,
-        perm_main_mem_ind_addr_a_relation<FF>,
-        perm_main_mem_ind_addr_b_relation<FF>,
-        perm_main_mem_ind_addr_c_relation<FF>,
-        perm_main_mem_ind_addr_d_relation<FF>,
-        perm_main_pedersen_relation<FF>,
-        perm_main_pos2_perm_relation<FF>,
-        perm_main_slice_relation<FF>,
-        perm_pos_mem_read_a_relation<FF>,
-        perm_pos_mem_read_b_relation<FF>,
-        perm_pos_mem_read_c_relation<FF>,
-        perm_pos_mem_read_d_relation<FF>,
-        perm_pos_mem_write_a_relation<FF>,
-        perm_pos_mem_write_b_relation<FF>,
-        perm_pos_mem_write_c_relation<FF>,
-        perm_pos_mem_write_d_relation<FF>,
-        perm_rng_gas_da_relation<FF>,
-        perm_rng_gas_l2_relation<FF>,
-        perm_rng_mem_relation<FF>,
-        perm_slice_mem_relation<FF>>;
+        incl_main_tag_err_relation<FF_>,
+        incl_mem_tag_err_relation<FF_>,
+        kernel_output_lookup_relation<FF_>,
+        lookup_byte_lengths_relation<FF_>,
+        lookup_byte_operations_relation<FF_>,
+        lookup_cd_value_relation<FF_>,
+        lookup_div_u16_0_relation<FF_>,
+        lookup_div_u16_1_relation<FF_>,
+        lookup_div_u16_2_relation<FF_>,
+        lookup_div_u16_3_relation<FF_>,
+        lookup_div_u16_4_relation<FF_>,
+        lookup_div_u16_5_relation<FF_>,
+        lookup_div_u16_6_relation<FF_>,
+        lookup_div_u16_7_relation<FF_>,
+        lookup_into_kernel_relation<FF_>,
+        lookup_opcode_gas_relation<FF_>,
+        lookup_pow_2_0_relation<FF_>,
+        lookup_pow_2_1_relation<FF_>,
+        lookup_ret_value_relation<FF_>,
+        lookup_rng_chk_0_relation<FF_>,
+        lookup_rng_chk_1_relation<FF_>,
+        lookup_rng_chk_2_relation<FF_>,
+        lookup_rng_chk_3_relation<FF_>,
+        lookup_rng_chk_4_relation<FF_>,
+        lookup_rng_chk_5_relation<FF_>,
+        lookup_rng_chk_6_relation<FF_>,
+        lookup_rng_chk_7_relation<FF_>,
+        lookup_rng_chk_diff_relation<FF_>,
+        lookup_rng_chk_pow_2_relation<FF_>,
+        lookup_u16_0_relation<FF_>,
+        lookup_u16_1_relation<FF_>,
+        lookup_u16_10_relation<FF_>,
+        lookup_u16_11_relation<FF_>,
+        lookup_u16_12_relation<FF_>,
+        lookup_u16_13_relation<FF_>,
+        lookup_u16_14_relation<FF_>,
+        lookup_u16_2_relation<FF_>,
+        lookup_u16_3_relation<FF_>,
+        lookup_u16_4_relation<FF_>,
+        lookup_u16_5_relation<FF_>,
+        lookup_u16_6_relation<FF_>,
+        lookup_u16_7_relation<FF_>,
+        lookup_u16_8_relation<FF_>,
+        lookup_u16_9_relation<FF_>,
+        lookup_u8_0_relation<FF_>,
+        lookup_u8_1_relation<FF_>,
+        perm_main_alu_relation<FF_>,
+        perm_main_bin_relation<FF_>,
+        perm_main_conv_relation<FF_>,
+        perm_main_mem_a_relation<FF_>,
+        perm_main_mem_b_relation<FF_>,
+        perm_main_mem_c_relation<FF_>,
+        perm_main_mem_d_relation<FF_>,
+        perm_main_mem_ind_addr_a_relation<FF_>,
+        perm_main_mem_ind_addr_b_relation<FF_>,
+        perm_main_mem_ind_addr_c_relation<FF_>,
+        perm_main_mem_ind_addr_d_relation<FF_>,
+        perm_main_pedersen_relation<FF_>,
+        perm_main_pos2_perm_relation<FF_>,
+        perm_main_slice_relation<FF_>,
+        perm_pos_mem_read_a_relation<FF_>,
+        perm_pos_mem_read_b_relation<FF_>,
+        perm_pos_mem_read_c_relation<FF_>,
+        perm_pos_mem_read_d_relation<FF_>,
+        perm_pos_mem_write_a_relation<FF_>,
+        perm_pos_mem_write_b_relation<FF_>,
+        perm_pos_mem_write_c_relation<FF_>,
+        perm_pos_mem_write_d_relation<FF_>,
+        perm_rng_gas_da_relation<FF_>,
+        perm_rng_gas_l2_relation<FF_>,
+        perm_rng_mem_relation<FF_>,
+        perm_slice_mem_relation<FF_>>;
 
-    using Relations = tuple_cat_t<MainRelations, LookupRelations>;
+    using LookupRelations = LookupRelations_<FF>;
+
+    // Need to be templated for recursive verifier
+    template <typename FF_> using Relations_ = tuple_cat_t<MainRelations_<FF_>, LookupRelations_<FF_>>;
+    using Relations = Relations_<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
@@ -253,7 +263,6 @@ class AvmFlavor {
 
     static constexpr bool has_zero_row = true;
 
-  private:
     template <typename DataType_> class PrecomputedEntities : public PrecomputedEntitiesBase {
       public:
         using DataType = DataType_;
@@ -266,6 +275,7 @@ class AvmFlavor {
         RefVector<DataType> get_table_polynomials() { return {}; }
     };
 
+  private:
     template <typename DataType> class WireEntities {
       public:
         DEFINE_FLAVOR_MEMBERS(DataType, WIRE_ENTITIES)
@@ -287,6 +297,7 @@ class AvmFlavor {
         return RefArray<DataType, NUM_SHIFTED_ENTITIES>{ TO_BE_SHIFTED(entities) };
     }
 
+  public:
     template <typename DataType>
     class WitnessEntities : public WireEntities<DataType>, public DerivedWitnessEntities<DataType> {
       public:
@@ -311,18 +322,15 @@ class AvmFlavor {
         auto get_precomputed() { return PrecomputedEntities<DataType>::get_all(); }
     };
 
-  public:
     class ProvingKey
         : public ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
       public:
         // Expose constructors on the base class
         using Base = ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
         using Base::Base;
-
         auto get_to_be_shifted() { return AvmFlavor::get_to_be_shifted<DataType>(*this); }
     };
 
-    // Note(md): required for instantiation from the proving key - im sure there are other ways to construct this
     class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
       public:
         VerificationKey() = default;
@@ -334,6 +342,7 @@ class AvmFlavor {
                  zip_view(proving_key->get_precomputed_polynomials(), this->get_all())) {
                 commitment = proving_key->commitment_key->commit(polynomial);
             }
+            pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
         }
 
         VerificationKey(const size_t circuit_size,
@@ -344,6 +353,7 @@ class AvmFlavor {
             for (auto [vk_cmt, cmt] : zip_view(this->get_all(), precomputed_cmts)) {
                 vk_cmt = cmt;
             }
+            pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
         }
     };
 
@@ -425,13 +435,36 @@ class AvmFlavor {
         CommitmentLabels();
     };
 
-    class VerifierCommitments : public AllEntities<Commitment> {
+    // Templated for use in recursive verifier
+    template <typename Commitment_, typename VerificationKey>
+    class VerifierCommitments_ : public AllEntities<Commitment_> {
       private:
-        using Base = AllEntities<Commitment>;
+        using Base = AllEntities<Commitment_>;
 
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key);
+        VerifierCommitments_(const std::shared_ptr<VerificationKey>& verification_key)
+        {
+            this->byte_lookup_sel_bin = verification_key->byte_lookup_sel_bin;
+            this->byte_lookup_table_byte_lengths = verification_key->byte_lookup_table_byte_lengths;
+            this->byte_lookup_table_in_tags = verification_key->byte_lookup_table_in_tags;
+            this->byte_lookup_table_input_a = verification_key->byte_lookup_table_input_a;
+            this->byte_lookup_table_input_b = verification_key->byte_lookup_table_input_b;
+            this->byte_lookup_table_op_id = verification_key->byte_lookup_table_op_id;
+            this->byte_lookup_table_output = verification_key->byte_lookup_table_output;
+            this->gas_base_da_gas_fixed_table = verification_key->gas_base_da_gas_fixed_table;
+            this->gas_base_l2_gas_fixed_table = verification_key->gas_base_l2_gas_fixed_table;
+            this->gas_dyn_da_gas_fixed_table = verification_key->gas_dyn_da_gas_fixed_table;
+            this->gas_dyn_l2_gas_fixed_table = verification_key->gas_dyn_l2_gas_fixed_table;
+            this->gas_sel_gas_cost = verification_key->gas_sel_gas_cost;
+            this->main_clk = verification_key->main_clk;
+            this->main_sel_first = verification_key->main_sel_first;
+            this->main_zeroes = verification_key->main_zeroes;
+            this->powers_power_of_2 = verification_key->powers_power_of_2;
+        }
     };
+
+    // Native version of the verifier commitments
+    using VerifierCommitments = VerifierCommitments_<Commitment, VerificationKey>;
 
     class Transcript : public NativeTranscript {
       public:

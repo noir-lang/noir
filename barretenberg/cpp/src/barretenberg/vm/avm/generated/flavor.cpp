@@ -2427,26 +2427,6 @@ AvmFlavor::CommitmentLabels::CommitmentLabels()
     Base::incl_mem_tag_err_counts = "INCL_MEM_TAG_ERR_COUNTS";
 };
 
-AvmFlavor::VerifierCommitments::VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)
-{
-    byte_lookup_sel_bin = verification_key->byte_lookup_sel_bin;
-    byte_lookup_table_byte_lengths = verification_key->byte_lookup_table_byte_lengths;
-    byte_lookup_table_in_tags = verification_key->byte_lookup_table_in_tags;
-    byte_lookup_table_input_a = verification_key->byte_lookup_table_input_a;
-    byte_lookup_table_input_b = verification_key->byte_lookup_table_input_b;
-    byte_lookup_table_op_id = verification_key->byte_lookup_table_op_id;
-    byte_lookup_table_output = verification_key->byte_lookup_table_output;
-    gas_base_da_gas_fixed_table = verification_key->gas_base_da_gas_fixed_table;
-    gas_base_l2_gas_fixed_table = verification_key->gas_base_l2_gas_fixed_table;
-    gas_dyn_da_gas_fixed_table = verification_key->gas_dyn_da_gas_fixed_table;
-    gas_dyn_l2_gas_fixed_table = verification_key->gas_dyn_l2_gas_fixed_table;
-    gas_sel_gas_cost = verification_key->gas_sel_gas_cost;
-    main_clk = verification_key->main_clk;
-    main_sel_first = verification_key->main_sel_first;
-    main_zeroes = verification_key->main_zeroes;
-    powers_power_of_2 = verification_key->powers_power_of_2;
-}
-
 void AvmFlavor::Transcript::deserialize_full_transcript()
 {
     size_t num_frs_read = 0;

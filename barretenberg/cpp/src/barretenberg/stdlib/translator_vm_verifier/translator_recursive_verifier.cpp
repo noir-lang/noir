@@ -115,7 +115,7 @@ std::array<typename Flavor::GroupElement, 2> TranslatorRecursiveVerifier_<Flavor
         sumcheck.verify(relation_parameters, alpha, gate_challenges);
 
     // Execute ZeroMorph rounds followed by the univariate PCS. See https://hackmd.io/dlf9xEwhTQyE3hiGbq4FsA?view for a
-    // complete description ofthe unrolled protocol.
+    // complete description of the unrolled protocol.
 
     auto opening_claim = ZeroMorph::verify(circuit_size,
                                            commitments.get_unshifted_without_concatenated(),

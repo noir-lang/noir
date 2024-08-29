@@ -16,7 +16,7 @@ class AvmVerifier {
     using Transcript = Flavor::Transcript;
 
   public:
-    explicit AvmVerifier(std::shared_ptr<VerificationKey> verifier_key = nullptr);
+    explicit AvmVerifier(std::shared_ptr<VerificationKey> verifier_key);
     AvmVerifier(AvmVerifier&& other) noexcept;
     AvmVerifier(const AvmVerifier& other) = delete;
 
@@ -27,7 +27,6 @@ class AvmVerifier {
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;
-    VerifierCommitmentKey pcs_verification_key;
     std::shared_ptr<Transcript> transcript;
 };
 

@@ -109,6 +109,7 @@ pub fn get_counts_from_lookups(lookups: &[Lookup]) -> Vec<String> {
 
 fn create_lookup_settings_data(lookup: &Lookup) -> Json {
     let columns_per_set = lookup.left.cols.len();
+    let counts_poly_name = lookup.counts_poly.to_owned();
 
     // NOTE: https://github.com/AztecProtocol/aztec-packages/issues/3879
     // Settings are not flexible enough to combine inverses

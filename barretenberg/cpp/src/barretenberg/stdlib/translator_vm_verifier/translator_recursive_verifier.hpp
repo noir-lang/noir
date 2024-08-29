@@ -28,7 +28,6 @@ template <typename Flavor> class TranslatorRecursiveVerifier_ {
     BF batching_challenge_v = 0;
 
     std::shared_ptr<VerificationKey> key;
-    std::map<std::string, Commitment> commitments;
     std::shared_ptr<Transcript> transcript;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key; // can remove maybe hopefully
     Builder* builder;

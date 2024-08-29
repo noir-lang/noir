@@ -67,17 +67,27 @@ class {{name}}Flavor {
     // The total number of witnesses including shifts and derived entities.
     static constexpr size_t NUM_ALL_WITNESS_ENTITIES = NUM_WITNESS_ENTITIES + NUM_SHIFTED_ENTITIES;
 
-    using MainRelations = std::tuple<
+    // Need to be templated for recursive verifier
+    template <typename FF_>
+    using MainRelations_ = std::tuple<
       // Relations
-      {{#each relation_file_names as |item|}}{{#if @index}},{{/if}}{{../name}}_vm::{{item}}<FF>{{/each}}
+      {{#each relation_file_names as |item|}}{{#if @index}},{{/if}}{{../name}}_vm::{{item}}<FF_>{{/each}}
     >;
 
-    using LookupRelations = std::tuple<
+    using MainRelations = MainRelations_<FF>;
+
+    // Need to be templated for recursive verifier
+    template <typename FF_>
+    using LookupRelations_ = std::tuple<
       // Lookups
-      {{#each lookups as |item|}}{{#if @index}},{{/if}}{{item}}_relation<FF>{{/each}}
+      {{#each lookups as |item|}}{{#if @index}},{{/if}}{{item}}_relation<FF_>{{/each}}
     >;
 
-    using Relations = tuple_cat_t<MainRelations, LookupRelations>;
+    using LookupRelations = LookupRelations_<FF>;
+
+    // Need to be templated for recursive verifier
+    template <typename FF_> using Relations_ = tuple_cat_t<MainRelations_<FF_>, LookupRelations_<FF_>>;
+    using Relations = Relations_<FF>;
 
     static constexpr size_t MAX_PARTIAL_RELATION_LENGTH = compute_max_partial_relation_length<Relations>();
 
@@ -92,79 +102,76 @@ class {{name}}Flavor {
 
     static constexpr bool has_zero_row = true;
 
+    template <typename DataType_> class PrecomputedEntities : public PrecomputedEntitiesBase {
+      public:
+        using DataType = DataType_;
+
+        DEFINE_FLAVOR_MEMBERS(DataType, PRECOMPUTED_ENTITIES)
+
+        RefVector<DataType> get_selectors() { return get_all(); }
+        RefVector<DataType> get_sigma_polynomials() { return {}; }
+        RefVector<DataType> get_id_polynomials() { return {}; }
+        RefVector<DataType> get_table_polynomials() { return {}; }
+    };
+
   private:
-      template <typename DataType_>
-      class PrecomputedEntities : public PrecomputedEntitiesBase {
-        public:
-          using DataType = DataType_;
+    template <typename DataType>
+    class WireEntities {
+      public:
+        DEFINE_FLAVOR_MEMBERS(DataType, WIRE_ENTITIES)
+    };
 
-          DEFINE_FLAVOR_MEMBERS(DataType, PRECOMPUTED_ENTITIES)
+    template <typename DataType>
+    class DerivedWitnessEntities {
+      public:
+        DEFINE_FLAVOR_MEMBERS(DataType, DERIVED_WITNESS_ENTITIES)
+    };
 
-          RefVector<DataType> get_selectors() { return get_all(); }
-          RefVector<DataType> get_sigma_polynomials() { return {}; }
-          RefVector<DataType> get_id_polynomials() { return {}; }
-          RefVector<DataType> get_table_polynomials() { return {}; }
-      };
+    template <typename DataType>
+    class ShiftedEntities {
+      public:
+        DEFINE_FLAVOR_MEMBERS(DataType, SHIFTED_ENTITIES)
+    };
 
-      template <typename DataType>
-      class WireEntities {
-        public:
-          DEFINE_FLAVOR_MEMBERS(DataType, WIRE_ENTITIES)
-      };
+    template <typename DataType, typename PrecomputedAndWitnessEntitiesSuperset>
+    static auto get_to_be_shifted([[maybe_unused]] PrecomputedAndWitnessEntitiesSuperset& entities) {
+        return RefArray<DataType, NUM_SHIFTED_ENTITIES>{ TO_BE_SHIFTED(entities) };
+    }
 
-      template <typename DataType>
-      class DerivedWitnessEntities {
-        public:
-          DEFINE_FLAVOR_MEMBERS(DataType, DERIVED_WITNESS_ENTITIES)
-      };
+  public:
+    template <typename DataType>
+      class WitnessEntities: public WireEntities<DataType>, public DerivedWitnessEntities<DataType> {
+          public:
+              DEFINE_COMPOUND_GET_ALL(WireEntities<DataType>, DerivedWitnessEntities<DataType>)
+              auto get_wires() { return WireEntities<DataType>::get_all(); }
+              auto get_derived() { return DerivedWitnessEntities<DataType>::get_all(); }
+    };
 
-      template <typename DataType>
-      class ShiftedEntities {
-        public:
-          DEFINE_FLAVOR_MEMBERS(DataType, SHIFTED_ENTITIES)
-      };
+    template <typename DataType>
+    class AllEntities : public PrecomputedEntities<DataType>
+                  , public WitnessEntities<DataType>
+                  , public ShiftedEntities<DataType> {
+      public:
+        DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
 
-      template <typename DataType, typename PrecomputedAndWitnessEntitiesSuperset>
-      static auto get_to_be_shifted([[maybe_unused]] PrecomputedAndWitnessEntitiesSuperset& entities) {
-          return RefArray<DataType, NUM_SHIFTED_ENTITIES>{ TO_BE_SHIFTED(entities) };
-      }
+        auto get_unshifted() {
+          return concatenate(PrecomputedEntities<DataType>::get_all(), WitnessEntities<DataType>::get_all());
+        }
+        auto get_to_be_shifted() { return {{name}}Flavor::get_to_be_shifted<DataType>(*this); }
+        auto get_shifted() { return ShiftedEntities<DataType>::get_all(); }
+        auto get_precomputed() { return PrecomputedEntities<DataType>::get_all(); }
+    };
 
-      template <typename DataType>
-        class WitnessEntities: public WireEntities<DataType>, public DerivedWitnessEntities<DataType> {
-            public:
-                DEFINE_COMPOUND_GET_ALL(WireEntities<DataType>, DerivedWitnessEntities<DataType>)
-                auto get_wires() { return WireEntities<DataType>::get_all(); }
-                auto get_derived() { return DerivedWitnessEntities<DataType>::get_all(); }
-      };
+    class ProvingKey : public ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
+      public:
+        // Expose constructors on the base class
+        using Base = ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
+        using Base::Base;
+       auto get_to_be_shifted() {
+          return {{name}}Flavor::get_to_be_shifted<DataType>(*this);
+         }
+    };
 
-      template <typename DataType>
-      class AllEntities : public PrecomputedEntities<DataType>
-                    , public WitnessEntities<DataType>
-                    , public ShiftedEntities<DataType> {
-        public:
-          DEFINE_COMPOUND_GET_ALL(PrecomputedEntities<DataType>, WitnessEntities<DataType>, ShiftedEntities<DataType>)
-
-          auto get_unshifted() {
-            return concatenate(PrecomputedEntities<DataType>::get_all(), WitnessEntities<DataType>::get_all());
-          }
-          auto get_to_be_shifted() { return {{name}}Flavor::get_to_be_shifted<DataType>(*this); }
-          auto get_shifted() { return ShiftedEntities<DataType>::get_all(); }
-          auto get_precomputed() { return PrecomputedEntities<DataType>::get_all(); }
-      };
-
-    public:
-      class ProvingKey : public ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey> {
-        public:
-          // Expose constructors on the base class
-          using Base = ProvingKeyAvm_<PrecomputedEntities<Polynomial>, WitnessEntities<Polynomial>, CommitmentKey>;
-          using Base::Base;
-
-          auto get_to_be_shifted() {
-            return {{name}}Flavor::get_to_be_shifted<DataType>(*this);
-           }
-      };
-
-    // Note(md): required for instantiation from the proving key - im sure there are other ways to construct this
     class VerificationKey : public VerificationKey_<PrecomputedEntities<Commitment>, VerifierCommitmentKey> {
       public:
        VerificationKey() = default;
@@ -176,6 +183,7 @@ class {{name}}Flavor {
                 zip_view(proving_key->get_precomputed_polynomials(), this->get_all())) {
                     commitment = proving_key->commitment_key->commit(polynomial);
             }
+            pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
         }
 
         VerificationKey(const size_t circuit_size,
@@ -186,124 +194,134 @@ class {{name}}Flavor {
             for (auto [vk_cmt, cmt] : zip_view(this->get_all(), precomputed_cmts)) {
                 vk_cmt = cmt;
             }
+            pcs_verification_key = std::make_shared<VerifierCommitmentKey>();
         }
     };
 
-      {{!-- Used by sumcheck --}}
-      class AllValues : public AllEntities<FF> {
-        public:
-          using Base = AllEntities<FF>;
-          using Base::Base;
-      };
+    {{!-- Used by sumcheck --}}
+    class AllValues : public AllEntities<FF> {
+      public:
+        using Base = AllEntities<FF>;
+        using Base::Base;
+    };
 
-      {{!-- Used by get_row, logderivs, etc --}}
-      class AllConstRefValues {
-        public:
-          using BaseDataType = const FF;
-          using DataType = BaseDataType&;
+    {{!-- Used by get_row, logderivs, etc --}}
+    class AllConstRefValues {
+      public:
+        using BaseDataType = const FF;
+        using DataType = BaseDataType&;
 
-          {{!--
-          We define the flavor members here again to avoid having to make this class inherit from AllEntities.
-          If we did inherit from AllEntities, we have to define a special constructor for AllEntities, and all
-          the classes that AllEntities inherits from, in cascade.
-          --}}
-          DEFINE_FLAVOR_MEMBERS(DataType, ALL_ENTITIES)
+        {{!--
+        We define the flavor members here again to avoid having to make this class inherit from AllEntities.
+        If we did inherit from AllEntities, we have to define a special constructor for AllEntities, and all
+        the classes that AllEntities inherits from, in cascade.
+        --}}
+        DEFINE_FLAVOR_MEMBERS(DataType, ALL_ENTITIES)
 
-          AllConstRefValues(const RefArray<BaseDataType, NUM_ALL_ENTITIES>& il);
-      };
+        AllConstRefValues(const RefArray<BaseDataType, NUM_ALL_ENTITIES>& il);
+    };
 
-      /**
-      * @brief A container for the prover polynomials handles.
-      */
-      class ProverPolynomials : public AllEntities<Polynomial> {
-        public:
-          // Define all operations as default, except copy construction/assignment
-          ProverPolynomials() = default;
-          ProverPolynomials& operator=(const ProverPolynomials&) = delete;
-          ProverPolynomials(const ProverPolynomials& o) = delete;
-          ProverPolynomials(ProverPolynomials&& o) noexcept = default;
-          ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
-          ~ProverPolynomials() = default;
+    /**
+    * @brief A container for the prover polynomials handles.
+    */
+    class ProverPolynomials : public AllEntities<Polynomial> {
+      public:
+        // Define all operations as default, except copy construction/assignment
+        ProverPolynomials() = default;
+        ProverPolynomials& operator=(const ProverPolynomials&) = delete;
+        ProverPolynomials(const ProverPolynomials& o) = delete;
+        ProverPolynomials(ProverPolynomials&& o) noexcept = default;
+        ProverPolynomials& operator=(ProverPolynomials&& o) noexcept = default;
+        ~ProverPolynomials() = default;
 
-          ProverPolynomials(ProvingKey& proving_key);
+        ProverPolynomials(ProvingKey& proving_key);
 
-          [[nodiscard]] size_t get_polynomial_size() const { return {{witness.0}}.size(); }
-          /**
-          * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
-          * represents one row in the execution trace.
-          */
-          [[nodiscard]] AllConstRefValues get_row(size_t row_idx) const;
-      };
+        [[nodiscard]] size_t get_polynomial_size() const { return {{witness.0}}.size(); }
+        /**
+        * @brief Returns the evaluations of all prover polynomials at one point on the boolean hypercube, which
+        * represents one row in the execution trace.
+        */
+        [[nodiscard]] AllConstRefValues get_row(size_t row_idx) const;
+    };
 
-      class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial> {
-        public:
-          PartiallyEvaluatedMultivariates() = default;
-          PartiallyEvaluatedMultivariates(const size_t circuit_size);
-      };
+    class PartiallyEvaluatedMultivariates : public AllEntities<Polynomial> {
+      public:
+        PartiallyEvaluatedMultivariates() = default;
+        PartiallyEvaluatedMultivariates(const size_t circuit_size);
+    };
 
-      /**
-      * @brief A container for univariates used during Protogalaxy folding and sumcheck.
-      * @details During folding and sumcheck, the prover evaluates the relations on these univariates.
-      */
-      template <size_t LENGTH>
-      using ProverUnivariates = AllEntities<bb::Univariate<FF, LENGTH>>;
+    /**
+    * @brief A container for univariates used during Protogalaxy folding and sumcheck.
+    * @details During folding and sumcheck, the prover evaluates the relations on these univariates.
+    */
+    template <size_t LENGTH>
+    using ProverUnivariates = AllEntities<bb::Univariate<FF, LENGTH>>;
 
-      /**
-      * @brief A container for univariates used during Protogalaxy folding and sumcheck with some of the computation
-      * optimistically ignored
-      * @details During folding and sumcheck, the prover evaluates the relations on these univariates.
-      */
-      template <size_t LENGTH, size_t SKIP_COUNT>
-      using OptimisedProverUnivariates = AllEntities<bb::Univariate<FF, LENGTH, 0, SKIP_COUNT>>;
+    /**
+    * @brief A container for univariates used during Protogalaxy folding and sumcheck with some of the computation
+    * optimistically ignored
+    * @details During folding and sumcheck, the prover evaluates the relations on these univariates.
+    */
+    template <size_t LENGTH, size_t SKIP_COUNT>
+    using OptimisedProverUnivariates = AllEntities<bb::Univariate<FF, LENGTH, 0, SKIP_COUNT>>;
 
-      /**
-      * @brief A container for univariates produced during the hot loop in sumcheck.
-      */
-      using ExtendedEdges = ProverUnivariates<MAX_PARTIAL_RELATION_LENGTH>;
+    /**
+    * @brief A container for univariates produced during the hot loop in sumcheck.
+    */
+    using ExtendedEdges = ProverUnivariates<MAX_PARTIAL_RELATION_LENGTH>;
 
-      /**
-      * @brief A container for the witness commitments.
-      *
-      */
-      using WitnessCommitments = WitnessEntities<Commitment>;
+    /**
+    * @brief A container for the witness commitments.
+    *
+    */
+    using WitnessCommitments = WitnessEntities<Commitment>;
 
-      class CommitmentLabels: public AllEntities<std::string> {
-          private:
-              using Base = AllEntities<std::string>;
-
-          public:
-              CommitmentLabels();
-      };
-
-      class VerifierCommitments : public AllEntities<Commitment> {
+    class CommitmentLabels: public AllEntities<std::string> {
       private:
-        using Base = AllEntities<Commitment>;
+        using Base = AllEntities<std::string>;
 
       public:
-        VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key);
-      };
+        CommitmentLabels();
+    };
 
-      class Transcript : public NativeTranscript {
-      public:
-        uint32_t circuit_size;
+    // Templated for use in recursive verifier
+    template <typename Commitment_, typename VerificationKey>
+    class VerifierCommitments_ : public AllEntities<Commitment_> {
+    private:
+      using Base = AllEntities<Commitment_>;
 
-        std::array<Commitment, NUM_WITNESS_ENTITIES> commitments;
+    public:
+      VerifierCommitments_(const std::shared_ptr<VerificationKey>& verification_key) {
+            {{#each fixed as |item|}}
+            this->{{item}} = verification_key->{{item}};
+            {{/each}}
+        }
+    };
 
-        std::vector<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>> sumcheck_univariates;
-        std::array<FF, NUM_ALL_ENTITIES> sumcheck_evaluations;
-        std::vector<Commitment> zm_cq_comms;
-        Commitment zm_cq_comm;
-        Commitment zm_pi_comm;
+    // Native version of the verifier commitments
+    using VerifierCommitments = VerifierCommitments_<Commitment, VerificationKey>;
 
-        Transcript() = default;
+    class Transcript : public NativeTranscript {
+    public:
+      uint32_t circuit_size;
 
-        Transcript(const std::vector<FF>& proof)
-            : NativeTranscript(proof)
-        {}
+      std::array<Commitment, NUM_WITNESS_ENTITIES> commitments;
 
-        void deserialize_full_transcript();
-        void serialize_full_transcript();
-      };
+      std::vector<bb::Univariate<FF, BATCHED_RELATION_PARTIAL_LENGTH>> sumcheck_univariates;
+      std::array<FF, NUM_ALL_ENTITIES> sumcheck_evaluations;
+      std::vector<Commitment> zm_cq_comms;
+      Commitment zm_cq_comm;
+      Commitment zm_pi_comm;
+
+      Transcript() = default;
+
+      Transcript(const std::vector<FF>& proof)
+          : NativeTranscript(proof)
+      {}
+
+      void deserialize_full_transcript();
+      void serialize_full_transcript();
+    };
 };
 
 } // namespace bb

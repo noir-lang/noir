@@ -16,7 +16,7 @@ class {{name}}Verifier {
     using Transcript = Flavor::Transcript;
 
   public:
-    explicit {{name}}Verifier(std::shared_ptr<VerificationKey> verifier_key = nullptr);
+    explicit {{name}}Verifier(std::shared_ptr<VerificationKey> verifier_key);
     {{name}}Verifier({{name}}Verifier&& other) noexcept;
     {{name}}Verifier(const {{name}}Verifier& other) = delete;
 
@@ -27,7 +27,6 @@ class {{name}}Verifier {
 
     std::shared_ptr<VerificationKey> key;
     std::map<std::string, Commitment> commitments;
-    VerifierCommitmentKey pcs_verification_key;
     std::shared_ptr<Transcript> transcript;
 };
 

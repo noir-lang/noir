@@ -28,7 +28,6 @@ template <typename Flavor> class DeciderRecursiveVerifier_ {
 
     PairingPoints verify_proof(const HonkProof& proof);
 
-    std::map<std::string, Commitment> commitments;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
     Builder* builder;
     std::shared_ptr<Instance> accumulator;

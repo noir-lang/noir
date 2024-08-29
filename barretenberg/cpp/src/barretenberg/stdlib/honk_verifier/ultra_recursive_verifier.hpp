@@ -32,7 +32,6 @@ template <typename Flavor> class UltraRecursiveVerifier_ {
                                    aggregation_state<typename Flavor::Curve> agg_obj);
 
     std::shared_ptr<VerificationKey> key;
-    std::map<std::string, Commitment> commitments;
     std::shared_ptr<VerifierCommitmentKey> pcs_verification_key;
     Builder* builder;
     std::shared_ptr<Transcript> transcript;

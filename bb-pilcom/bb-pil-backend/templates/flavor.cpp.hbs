@@ -46,13 +46,6 @@ namespace bb {
     {{/each}}
 };
 
-{{name}}Flavor::VerifierCommitments::VerifierCommitments(const std::shared_ptr<VerificationKey>& verification_key)
-{
-    {{#each fixed as |item|}}
-    {{item}} = verification_key->{{item}};
-    {{/each}}
-}
-
 void {{name}}Flavor::Transcript::deserialize_full_transcript() {
     size_t num_frs_read = 0;
     circuit_size = deserialize_from_buffer<uint32_t>(proof_data, num_frs_read);

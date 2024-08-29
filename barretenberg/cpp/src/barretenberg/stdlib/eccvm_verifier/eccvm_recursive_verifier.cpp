@@ -16,7 +16,6 @@ ECCVMRecursiveVerifier_<Flavor>::ECCVMRecursiveVerifier_(
 /**
  * @brief This function verifies an ECCVM Honk proof for given program settings up to sumcheck.
  */
-// TODO(https://github.com/AztecProtocol/barretenberg/issues/1007): Finish this
 template <typename Flavor> void ECCVMRecursiveVerifier_<Flavor>::verify_proof(const HonkProof& proof)
 {
     using Curve = typename Flavor::Curve;
