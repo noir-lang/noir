@@ -18,9 +18,10 @@ impl Ssa {
     pub(crate) fn check_for_underconstrained_values(&mut self) -> Vec<SsaReport> {
         let functions_id = self.functions.values().map(|f| f.id().to_usize()).collect::<Vec<_>>();
         functions_id
-            .into_par_iter()
+            .iter()
+            .par_bridge()
             .flat_map(|fid| {
-                let function_to_process = &self.functions[&FunctionId::new(fid)];
+                let function_to_process = &self.functions[&FunctionId::new(*fid)];
                 match function_to_process.runtime() {
                     RuntimeType::Acir { .. } => check_for_underconstrained_values_within_function(
                         function_to_process,
@@ -344,8 +345,8 @@ impl Context {
             len = sets.len();
         }
         // TODO: if prev_len >= len, this means we cannot effectively merge the sets anymore
-        // we should instead partition the sets into disjoint chunks an work on those chunks
-        // for now we backup to the non-parallel implementation
+        // We should instead partition the sets into disjoint chunks and work on those chunks,
+        // but for now we fallback to the non-parallel implementation
         Self::merge_sets(&sets)
     }
 }
