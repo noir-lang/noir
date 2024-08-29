@@ -1,5 +1,4 @@
-use std::rc::Rc;
-use std::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -198,7 +197,7 @@ impl<'a> FunctionContext<'a> {
             // A mutable reference wraps each element into a reference.
             // This can be multiple values if the element type is a tuple.
             ast::Type::MutableReference(element) => {
-                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Rc::new(typ))))
+                Self::map_type_helper(element, &mut |typ| f(Type::Reference(Arc::new(typ))))
             }
             ast::Type::FmtString(len, fields) => {
                 // A format string is represented by multiple values
@@ -213,7 +212,7 @@ impl<'a> FunctionContext<'a> {
                 let element_types = Self::convert_type(elements).flatten();
                 Tree::Branch(vec![
                     Tree::Leaf(f(Type::length_type())),
-                    Tree::Leaf(f(Type::Slice(Rc::new(element_types)))),
+                    Tree::Leaf(f(Type::Slice(Arc::new(element_types)))),
                 ])
             }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
@@ -237,7 +236,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Field => Type::field(),
             ast::Type::Array(len, element) => {
                 let element_types = Self::convert_type(element).flatten();
-                Type::Array(Rc::new(element_types), *len as usize)
+                Type::Array(Arc::new(element_types), *len as usize)
             }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
@@ -253,7 +252,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::MutableReference(element) => {
                 // Recursive call to panic if element is a tuple
                 let element = Self::convert_non_tuple_type(element);
-                Type::Reference(Rc::new(element))
+                Type::Reference(Arc::new(element))
             }
         }
     }

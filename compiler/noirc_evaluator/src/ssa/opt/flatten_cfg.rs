@@ -878,7 +878,7 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use acvm::acir::AcirField;
 
@@ -1016,7 +1016,7 @@ mod test {
         let b2 = builder.insert_block();
 
         let v0 = builder.add_parameter(Type::bool());
-        let v1 = builder.add_parameter(Type::Reference(Rc::new(Type::field())));
+        let v1 = builder.add_parameter(Type::Reference(Arc::new(Type::field())));
 
         builder.terminate_with_jmpif(v0, b1, b2);
 
@@ -1078,7 +1078,7 @@ mod test {
         let b3 = builder.insert_block();
 
         let v0 = builder.add_parameter(Type::bool());
-        let v1 = builder.add_parameter(Type::Reference(Rc::new(Type::field())));
+        let v1 = builder.add_parameter(Type::Reference(Arc::new(Type::field())));
 
         builder.terminate_with_jmpif(v0, b1, b2);
 
@@ -1477,7 +1477,7 @@ mod test {
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
 
-        let element_type = Rc::new(vec![Type::unsigned(8)]);
+        let element_type = Arc::new(vec![Type::unsigned(8)]);
         let array_type = Type::Array(element_type.clone(), 2);
         let array = builder.add_parameter(array_type);
 

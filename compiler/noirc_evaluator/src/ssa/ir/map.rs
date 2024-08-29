@@ -27,7 +27,7 @@ impl<T> Id<T> {
     /// Constructs a new Id for the given index.
     /// This constructor is deliberately private to prevent
     /// constructing invalid IDs.
-    fn new(index: usize) -> Self {
+    pub(crate) fn new(index: usize) -> Self {
         Self { index, _marker: std::marker::PhantomData }
     }
 
