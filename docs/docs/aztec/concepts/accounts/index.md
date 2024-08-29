@@ -106,7 +106,10 @@ As an example, we can think of a lottery contract, where at some point a prize n
 Notice that the Signerless wallet doesn't invoke an entrypoint function of an account contract but instead invokes the target contract function directly.
 
 :::info
-In case no contract entrypoint is used `msg_sender` is set to 0.
+Entrypoints for the following cases:
+- if no contract entrypoint is used `msg_sender` is set to `Field.max`.
+- in a private to public entrypoint, `msg_sender` is the contract making the private to public call
+- when calling the entrypoint on an account contract, `msg_sender` is set to the account contract address
 :::
 
 ### Account initialization
