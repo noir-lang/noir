@@ -1,0 +1,190 @@
+include "../main.pil";
+include "../fixed/powers.pil";
+
+namespace range_check(256);
+    pol commit clk;
+
+    // Range check selector
+    pol commit sel_rng_chk;
+    sel_rng_chk * (1 - sel_rng_chk) = 0;
+
+    // Witnesses 
+    // Value to range check
+    pol commit value;
+    // Number of bits to check against
+    pol commit rng_chk_bits;
+
+    // Bit Size Columns
+    // It is enforced (further down) that the selected column is the lowest multiple of 16 that is greater than rng_chk_bits 
+    // e.g., rng_chk_bits = 10 ===> is_lte_u16, rng_chk_bits = 100 ==> is_lte_u112
+    // If rng_chk_bits is a multiple of 16, a prover is able to choose either is_lte_xx or is_lte_xx(+16), since the dynamic register will prove 0
+    // This isn't a concern and only costs the prover additional compute.
+    // TODO: Maybe we can get rid of is_lte_u128 since it's implicit if we have sel_rng_chk and no other is_lte_x
+    pol commit is_lte_u16;
+    pol commit is_lte_u32;
+    pol commit is_lte_u48;
+    pol commit is_lte_u64;
+    pol commit is_lte_u80;
+    pol commit is_lte_u96;
+    pol commit is_lte_u112;
+    pol commit is_lte_u128;
+    is_lte_u16 * (1 - is_lte_u16) = 0;
+    is_lte_u32 * (1 - is_lte_u32) = 0;
+    is_lte_u48 * (1 - is_lte_u48) = 0;
+    is_lte_u64 * (1 - is_lte_u64) = 0;
+    is_lte_u80 * (1 - is_lte_u80) = 0;
+    is_lte_u96 * (1 - is_lte_u96) = 0;
+    is_lte_u112 * (1 - is_lte_u112) = 0;
+    is_lte_u128 * (1 - is_lte_u128) = 0;
+
+    // Mutual Exclusivity condition
+    is_lte_u16 + is_lte_u32 + is_lte_u48 + is_lte_u64 + is_lte_u80 + is_lte_u96 + is_lte_u112 + is_lte_u128 = sel_rng_chk;
+
+    // Eight 16-bit slice registers
+    pol commit u16_r0;
+    pol commit u16_r1;
+    pol commit u16_r2;
+    pol commit u16_r3;
+    pol commit u16_r4;
+    pol commit u16_r5;
+    pol commit u16_r6;
+    // This register has a (more expensive) set of constraint that enables dynamic range check of bit values between 0 and 16 bits
+    pol commit u16_r7;
+
+    // In each of these relations, the u16_r7 register contains the most significant 16 bits of value.
+    pol X_0 = is_lte_u16 * u16_r7;
+    pol X_1 = is_lte_u32 * (u16_r0 + u16_r7 * 2**16);
+    pol X_2 = is_lte_u48 * (u16_r0 + u16_r1 * 2**16 + u16_r7 * 2**32);
+    pol X_3 = is_lte_u64 * (u16_r0 + u16_r1 * 2**16 + u16_r2 * 2**32 + u16_r7 * 2**48);
+    pol X_4 = is_lte_u80 * (u16_r0 + u16_r1 * 2**16 + u16_r2 * 2**32 + u16_r3 * 2**48 + u16_r7 * 2**64);
+    pol X_5 = is_lte_u96 * (u16_r0 + u16_r1 * 2**16 + u16_r2 * 2**32 + u16_r3 * 2**48 + u16_r4 * 2**64 + u16_r7 * 2**80);
+    pol X_6 = is_lte_u112 * (u16_r0 + u16_r1 * 2**16 + u16_r2 * 2**32 + u16_r3 * 2**48 + u16_r4 * 2**64 + u16_r5 * 2**80 + u16_r7 * 2**96);
+    pol X_7 = is_lte_u128 * (u16_r0 + u16_r1 * 2**16 + u16_r2 * 2**32 + u16_r3 * 2**48 + u16_r4 * 2**64 + u16_r5 * 2**80 + u16_r6 * 2**96 + u16_r7 * 2**112);
+
+    // Since the is_lte_x are mutually exclusive, only one of the Xs will be non-zero
+    pol RESULT = X_0 + X_1 + X_2 + X_3 + X_4 + X_5 + X_6 + X_7;
+
+    #[CHECK_RECOMPOSITION]
+    sel_rng_chk * (RESULT - value) = 0;
+
+    // ===== Dynamic Check Constraints =====
+
+    // The number of bits that form the dynamic range check is depending on the claimed lte value and the witness rng_chk_bits
+    // claimed is_lte_x | dyn_rng_chk_bits
+    // -----------------|-----------------
+    //    is_lte_u16    |  rng_chk_bits
+    //    is_lte_u32    |  rng_chk_bits - 16
+    //    is_lte_u48    |  rng_chk_bits - 32
+    //    is_lte_u64    |  rng_chk_bits - 48
+    //    is_lte_u80    |  rng_chk_bits - 64
+    //    is_lte_u96    |  rng_chk_bits - 80
+    //    is_lte_u112   |  rng_chk_bits - 96
+    //    is_lte_u128   |  rng_chk_bits - 112
+
+    // [CALCULATION STEPS]
+    // 1) Calculate dyn_rng_chk_bits from the table above
+    // 2) Calculate dyn_rng_chk_pow_2 = 2^dyn_rng_chk_bits
+    // 3) Calculate dyn_diff = dyn_rng_chk_pow_2 - u16_r7 - 1 
+
+    // [ASSERTIONS]
+    // 1) Assert 0 <= dyn_rng_chk_bits <= 16 (i.e. dyn_rng_chk_bits supports up to a 16-bit number)
+    // 2) Assert dyn_diff > 0 (i.e. dyn_diff did not underflow)
+
+    // === Ensuring dyn_rng_chk_bits is in the range [0,16] ===
+    // 1) We perform an 8-bit lookup to get dyn_rng_chk_pow_2 - note this is an 8-bit lookup so only constrains dyn_rng_chk_bits to be [0, 255]
+    // 2) This value is used in dyn_diff = dyn_rng_chk_pow_2 - u16_r7 - 1
+    //    (a) A 16-bit lookup is performed on dyn_diff to check it hasn't underflowed - this constrains it to be between [0, 2^16 - 1]
+    //    (b) u16_r7 is constrained by a 16-bit lookup table [0, 2^16 - 1]
+    // 3) If the value of dyn_rng_chk_pow_2 > 2^16, i.e. dyn_rng_chk_bits is > 16, the condition (2a) will not hold
+    //    (a) [0, 2^16 - 1] = dyn_rng_chk_pow_2 - [0, 2^16 - 1] - 1
+    //    (b) from above, dyn_rng_check_pow_2 must be [0, 2^16]
+
+    // Some counter-examples
+    // Assume a range check that the value 3 fits into 100 bits
+    // [A Valid Proof]
+    // 1) value = 3, rng_chk_bits = 100, is_lte_u112 = 1
+    // 2) u16_r0 = 3, while all other registers including u16_r7 (the dynamic one) are set to zero - passing #[CHECK_RECOMPOSITION]
+    // 3) dyn_rng_chk_bits = 100 - 96 = 4, as per the table above - this passes #[LOOKUP_RNG_CHK_POW_2]
+    // 4) dyn_rng_chk_pow_2 = 2^4 = 16
+    // 5) dyn_diff = dyn_rng_chk_pow_2 - u16_r7 - 1 = 16 - 0 - 1 = 15 - passing the range check #[LOOKUP_RNG_CHK_DIFF]
+
+    // [An Invalid Proof where dyn_rng_chk_bits > 16]
+    // 1) value = 3, rng_chk_bits = 100, is_lte_u16 = 1 -- a prover tries to claim the value is between 0 and u16 (which it is but isnt what the range check attesting)
+    // 2) u16_r7 = 3, this still passes #[CHECK_RECOMPOSITION]
+    // 3) dyn_rng_chk_bits = 100, as per the table - this still passes #[LOOKUP_RNG_CHK_POW_2]
+    // 4) dyn_rng_check_pow_2 = 2^100
+    // 5) dyn_diff = dyn_rng_chk_pow_2 - u16_r7 - 1 = 2^100 - 3 - 1 = 2^100 - 4 - this would fail the 16-bit range check #[LOOKUP_RNG_CHK_DIFF]
+
+    // [An Invalid Proof where dyn_rng_chk_bits < 0]
+    // 1) value = 3, rng_chk_bits = 100, is_lte_u128 = 1 -- a prover claims it fits within u112 and u128.
+    // 2) u16_r0 = 3, while all other registers including u16_r7 (the dynamic one) are set to zero - passing #[CHECK_RECOMPOSITION]
+    // 3) dyn_rng_chk_bits = 100 - 112 = -12, as per the table above - this fails #[LOOKUP_RNG_CHK_POW_2]
+
+
+    // The number of bits that need to be dynamically range checked.
+    pol commit dyn_rng_chk_bits;
+    // Valid values for dyn_rng_chk_bits are in the range [0, 16]
+    dyn_rng_chk_bits - (rng_chk_bits - (is_lte_u32 * 16) - (is_lte_u48 * 32) - (is_lte_u64 * 48) - (is_lte_u80 * 64) - (is_lte_u96 * 80) - (is_lte_u112 * 96) - (is_lte_u128 * 112)) = 0;
+
+    // To perform the dynamic range check we also need the value of 2^dyn_rng_chk_bits
+    pol commit dyn_rng_chk_pow_2;
+
+    // This lookup does 2 things (1) Indirectly range checks dyn_rng_chk_bits to not have underflowed and (2) Simplified calculation of 2^dyn_rng_chk_bits
+    #[LOOKUP_RNG_CHK_POW_2]
+    sel_rng_chk {dyn_rng_chk_bits, dyn_rng_chk_pow_2} in main.sel_rng_8 {main.clk, powers.power_of_2};
+
+
+    // Now we need to perform the dynamic range check itself
+    // We check that u16_r7 < dyn_rng_chk_pow_2 ==> dyn_rng_chk_pow_2 - u16_r7 - 1 >= 0
+    pol commit dyn_diff;
+    sel_rng_chk * (dyn_diff - (dyn_rng_chk_pow_2 - u16_r7 - 1)) = 0;
+    // The value of dyn_diff has to be between [0, 2^16)
+    // To check we did not underflow we just range check it
+    #[LOOKUP_RNG_CHK_DIFF]
+    sel_rng_chk { dyn_diff } in main.sel_rng_16 { main.clk };
+
+
+    // Lookup relations. 
+    // We only need these relations while we do not support pol in the LHS selector
+    pol commit sel_lookup_0;
+    pol commit sel_lookup_1;
+    pol commit sel_lookup_2;
+    pol commit sel_lookup_3;
+    pol commit sel_lookup_4;
+    pol commit sel_lookup_5;
+    pol commit sel_lookup_6;
+
+    // The lookups are cumulative - i.e. every value greater than 16 bits involve sel_lookup_0
+    // Note that the lookup for the u16_r7 is always active (dynamic range check)
+    sel_lookup_0 - (is_lte_u32 + is_lte_u48 + is_lte_u64 + is_lte_u80 + is_lte_u96 + is_lte_u112 + is_lte_u128) = 0;
+    sel_lookup_1 - (is_lte_u48 + is_lte_u64 + is_lte_u80 + is_lte_u96 + is_lte_u112 + is_lte_u128) = 0;
+    sel_lookup_2 - (is_lte_u64 + is_lte_u80 + is_lte_u96 + is_lte_u112 + is_lte_u128) = 0;
+    sel_lookup_3 - (is_lte_u80 + is_lte_u96 + is_lte_u112 + is_lte_u128) = 0;
+    sel_lookup_4 - (is_lte_u96 + is_lte_u112 + is_lte_u128) = 0;
+    sel_lookup_5 - (is_lte_u112 + is_lte_u128) = 0;
+    sel_lookup_6 - is_lte_u128 = 0;
+
+    #[LOOKUP_RNG_CHK_0]
+    sel_lookup_0 { u16_r0 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_RNG_CHK_1]
+    sel_lookup_1 { u16_r1 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_RNG_CHK_2]
+    sel_lookup_2 { u16_r2 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_RNG_CHK_3]
+    sel_lookup_3 { u16_r3 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_RNG_CHK_4]
+    sel_lookup_4 { u16_r4 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_RNG_CHK_5]
+    sel_lookup_5 { u16_r5 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_RNG_CHK_6]
+    sel_lookup_6 { u16_r6 } in main.sel_rng_16 { main.clk };
+
+    #[LOOKUP_RNG_CHK_7]
+    sel_rng_chk { u16_r7 } in main.sel_rng_16 { main.clk };
+

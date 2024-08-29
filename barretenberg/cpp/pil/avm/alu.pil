@@ -1,3 +1,4 @@
+include "gadgets/range_check.pil";
 namespace alu(256);
 
     // ========= Table ALU-TR =================================================
