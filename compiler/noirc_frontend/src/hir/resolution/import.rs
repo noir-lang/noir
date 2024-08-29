@@ -1,4 +1,3 @@
-use fm::FileId;
 use noirc_errors::{CustomDiagnostic, Span};
 use thiserror::Error;
 
@@ -40,21 +39,11 @@ pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionErro
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathResolutionError {
     #[error("Could not resolve '{0}' in path")]
-    Unresolved(Ident, FileId),
+    Unresolved(Ident),
     #[error("{0} is private and not visible from the current module")]
-    Private(Ident, FileId),
+    Private(Ident),
     #[error("There is no super module")]
-    NoSuper(Span, FileId),
-}
-
-impl PathResolutionError {
-    pub fn file(&self) -> FileId {
-        match self {
-            PathResolutionError::Unresolved(_, file) => *file,
-            PathResolutionError::Private(_, file) => *file,
-            PathResolutionError::NoSuper(_, file) => *file,
-        }
-    }
+    NoSuper(Span),
 }
 
 #[derive(Debug)]
@@ -78,16 +67,16 @@ impl From<PathResolutionError> for CompilationError {
 impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
     fn from(error: &'a PathResolutionError) -> Self {
         match &error {
-            PathResolutionError::Unresolved(ident, _) => {
+            PathResolutionError::Unresolved(ident) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
             }
             // This will be upgraded to an error in future versions
-            PathResolutionError::Private(ident, _) => CustomDiagnostic::simple_warning(
+            PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
                 error.to_string(),
                 format!("{ident} is private"),
                 ident.span(),
             ),
-            PathResolutionError::NoSuper(span, _) => {
+            PathResolutionError::NoSuper(span) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
             }
         }
@@ -125,8 +114,7 @@ pub fn resolve_import(
         ) {
             None
         } else {
-            let file = def_maps[&crate_id].modules()[import_directive.module_id.0].location.file;
-            Some(PathResolutionError::Private(name.clone(), file))
+            Some(PathResolutionError::Private(name.clone()))
         }
     });
 
@@ -210,8 +198,9 @@ fn resolve_path_to_ns(
         ),
 
         crate::ast::PathKind::Super => {
-            let current_mod = &def_map.modules[import_directive.module_id.0];
-            if let Some(parent_module_id) = current_mod.parent {
+            if let Some(parent_module_id) =
+                def_maps[&crate_id].modules[import_directive.module_id.0].parent
+            {
                 resolve_name_in_module(
                     crate_id,
                     importing_crate,
@@ -224,7 +213,7 @@ fn resolve_path_to_ns(
             } else {
                 let span_start = import_directive.path.span().start();
                 let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
-                Err(PathResolutionError::NoSuper(span, current_mod.location.file))
+                Err(PathResolutionError::NoSuper(span))
             }
         }
     }
@@ -276,10 +265,7 @@ fn resolve_name_in_module(
     let first_segment = &import_path.first().expect("ice: could not fetch first segment").ident;
     let mut current_ns = current_mod.find_name(first_segment);
     if current_ns.is_none() {
-        return Err(PathResolutionError::Unresolved(
-            first_segment.clone(),
-            current_mod.location.file,
-        ));
+        return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
 
     let mut warning: Option<PathResolutionError> = None;
@@ -290,10 +276,7 @@ fn resolve_name_in_module(
         let current_segment = &current_segment.ident;
 
         let (typ, visibility) = match current_ns.types {
-            None => {
-                let file = current_mod.location.file;
-                return Err(PathResolutionError::Unresolved(last_segment.clone(), file));
-            }
+            None => return Err(PathResolutionError::Unresolved(last_segment.clone())),
             Some((typ, visibility, _)) => (typ, visibility),
         };
 
@@ -337,8 +320,7 @@ fn resolve_name_in_module(
             {
                 None
             } else {
-                let file = current_mod.location.file;
-                Some(PathResolutionError::Private(last_segment.clone(), file))
+                Some(PathResolutionError::Private(last_segment.clone()))
             }
         });
 
@@ -348,8 +330,7 @@ fn resolve_name_in_module(
         let found_ns = current_mod.find_name(current_segment);
 
         if found_ns.is_none() {
-            let file = current_mod.location.file;
-            return Err(PathResolutionError::Unresolved(current_segment.clone(), file));
+            return Err(PathResolutionError::Unresolved(current_segment.clone()));
         }
 
         current_ns = found_ns;
@@ -374,15 +355,13 @@ fn resolve_external_dep(
 ) -> NamespaceResolutionResult {
     // Use extern_prelude to get the dep
     let path = &directive.path.segments;
-    let current_mod = &def_maps[&importing_crate].modules()[directive.module_id.0];
-    let file = current_mod.location.file;
 
     // Fetch the root module from the prelude
     let crate_name = &path.first().unwrap().ident;
     let dep_module = current_def_map
         .extern_prelude
         .get(&crate_name.0.contents)
-        .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned(), file))?;
+        .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
     // Create an import directive for the dependency crate
     // XXX: This will panic if the path is of the form `use std`. Ideal algorithm will not distinguish between crate and module

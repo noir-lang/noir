@@ -350,9 +350,10 @@ impl DefCollector {
             match resolved_import {
                 Ok(resolved_import) => {
                     if let Some(error) = resolved_import.error {
-                        let file = error.file();
-                        errors
-                            .push((DefCollectorErrorKind::PathResolutionError(error).into(), file));
+                        errors.push((
+                            DefCollectorErrorKind::PathResolutionError(error).into(),
+                            root_file_id,
+                        ));
                     }
 
                     // Populate module namespaces according to the imports used
@@ -419,7 +420,8 @@ impl DefCollector {
                     }
                 }
                 Err(error) => {
-                    let file_id = error.file();
+                    let current_def_map = context.def_maps.get(&crate_id).unwrap();
+                    let file_id = current_def_map.file_id(collected_import.module_id);
                     let error = DefCollectorErrorKind::PathResolutionError(error);
                     errors.push((error.into(), file_id));
                 }
