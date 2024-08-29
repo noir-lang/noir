@@ -158,6 +158,10 @@ impl<'context> Elaborator<'context> {
             Parenthesized(typ) => self.resolve_type_inner(*typ, kind),
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
             AsTraitPath(path) => self.resolve_as_trait_path(*path),
+            Interned(id) => {
+                let typ = self.interner.get_unresolved_type_data(id).clone();
+                return self.resolve_type_inner(UnresolvedType { typ, span }, kind);
+            }
         };
 
         let location = Location::new(named_path_span.unwrap_or(typ.span), self.file);
@@ -421,7 +425,7 @@ impl<'context> Elaborator<'context> {
         }
 
         // If we cannot find a local generic of the same name, try to look up a global
-        match self.resolve_path(path.clone()) {
+        match self.resolve_path_or_error(path.clone()) {
             Ok(ModuleDefId::GlobalId(id)) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_global_dependency(current_item, id);
@@ -445,14 +449,19 @@ impl<'context> Elaborator<'context> {
                 })
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
-            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs);
                 let rhs = self.convert_expression_type(*rhs);
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs), Type::Constant(rhs)) => {
-                        Type::Constant(op.function(lhs, rhs))
+                        if let Some(result) = op.function(lhs, rhs) {
+                            Type::Constant(result)
+                        } else {
+                            self.push_err(ResolverError::OverflowInType { lhs, op, rhs, span });
+                            Type::Error
+                        }
                     }
                     (lhs, rhs) => {
                         if !self.enable_arithmetic_generics {

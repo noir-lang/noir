@@ -125,7 +125,10 @@ impl<'a> SignatureFinder<'a> {
             StatementKind::Semi(expression) => {
                 self.find_in_expression(expression);
             }
-            StatementKind::Break | StatementKind::Continue | StatementKind::Error => (),
+            StatementKind::Break
+            | StatementKind::Continue
+            | StatementKind::Interned(_)
+            | StatementKind::Error => (),
         }
     }
 
@@ -160,6 +163,7 @@ impl<'a> SignatureFinder<'a> {
                 self.find_in_expression(index);
             }
             LValue::Dereference(lvalue, _) => self.find_in_lvalue(lvalue),
+            LValue::Interned(..) => (),
         }
     }
 
@@ -232,6 +236,7 @@ impl<'a> SignatureFinder<'a> {
             | ExpressionKind::AsTraitPath(_)
             | ExpressionKind::Quote(_)
             | ExpressionKind::Resolved(_)
+            | ExpressionKind::Interned(_)
             | ExpressionKind::Error => (),
         }
     }

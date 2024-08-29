@@ -39,6 +39,11 @@ impl<'context> Elaborator<'context> {
                 let (expr, _typ) = self.elaborate_expression(expr);
                 (HirStatement::Semi(expr), Type::Unit)
             }
+            StatementKind::Interned(id) => {
+                let kind = self.interner.get_statement_kind(id);
+                let statement = Statement { kind: kind.clone(), span: statement.span };
+                self.elaborate_statement_value(statement)
+            }
             StatementKind::Error => (HirStatement::Error, Type::Error),
         }
     }
@@ -356,6 +361,10 @@ impl<'context> Elaborator<'context> {
                 let typ = element_type.clone();
                 let lvalue = HirLValue::Dereference { lvalue, element_type, location };
                 (lvalue, typ, true)
+            }
+            LValue::Interned(id, span) => {
+                let lvalue = self.interner.get_lvalue(id, span).clone();
+                self.elaborate_lvalue(lvalue, assign_span)
             }
         }
     }

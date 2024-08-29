@@ -62,6 +62,11 @@ impl<'context> Elaborator<'context> {
                 self.elaborate_unsafe_block(block_expression)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
+            ExpressionKind::Interned(id) => {
+                let expr_kind = self.interner.get_expression_kind(id);
+                let expr = Expression::new(expr_kind.clone(), expr.span);
+                return self.elaborate_expression(expr);
+            }
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });

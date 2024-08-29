@@ -29,6 +29,11 @@ tracing.workspace = true
 chrono = "0.4.37"
 plonky2 = { git = "https://github.com/metacraft-labs/plonky2" }
 plonky2_u32 = { git = "https://github.com/metacraft-labs/plonky2-u32" }
+cfg-if.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+
+[features]
+bn254 = ["noirc_frontend/bn254"]
+bls12_381= []

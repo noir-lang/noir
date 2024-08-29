@@ -76,15 +76,21 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
             extern_prelude: BTreeMap::new(),
         };
 
+        let debug_comptime_in_file = None;
+        let enable_arithmetic_generics = false;
+        let error_on_unused_imports = true;
+        let macro_processors = &[];
+
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            None,  // No debug_comptime_in_file
-            false, // Disallow arithmetic generics
-            &[],   // No macro processors
+            debug_comptime_in_file,
+            enable_arithmetic_generics,
+            error_on_unused_imports,
+            macro_processors,
         ));
     }
     (program, context, errors)
@@ -2424,6 +2430,10 @@ fn use_super() {
 
     mod foo {
         use super::some_func;
+
+        fn bar() {
+            some_func();
+        }
     }
     "#;
     assert_no_errors(src);
@@ -3186,4 +3196,38 @@ fn as_trait_path_syntax_no_impl() {
 
     use CompilationError::TypeError;
     assert!(matches!(&errors[0].0, TypeError(TypeCheckError::NoMatchingImplFound { .. })));
+}
+
+#[test]
+fn errors_on_unused_import() {
+    let src = r#"
+    mod foo {
+        pub fn bar() {}
+        pub fn baz() {}
+
+        trait Foo {
+        }
+    }
+
+    use foo::bar;
+    use foo::baz;
+    use foo::Foo;
+
+    impl Foo for Field {
+    }
+
+    fn main() {
+        baz();
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::UnusedImport { ident }) = &errors[0].0
+    else {
+        panic!("Expected an unused import error");
+    };
+
+    assert_eq!(ident.to_string(), "bar");
 }
