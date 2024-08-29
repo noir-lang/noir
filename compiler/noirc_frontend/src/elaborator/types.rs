@@ -77,43 +77,22 @@ impl<'context> Elaborator<'context> {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
-                let size = self.convert_expression_type(size);
-                if let Type::NamedGeneric(ref _type_var, ref name, ref kind) = size {
-                    if !kind.is_numeric() {
-                        let ident = Ident::new(name.to_string(), span);
-                        self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
-                        return Type::Error;
-                    }
-                }
+                let size = self.convert_expression_type(size, span);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 Type::Slice(elem)
             }
-            Expression(expr) => self.convert_expression_type(expr),
+            Expression(expr) => self.convert_expression_type(expr, span),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let resolved_size = self.convert_expression_type(size);
-                if let Type::NamedGeneric(ref _type_var, ref name, ref kind) = resolved_size {
-                    if !kind.is_numeric() {
-                        let ident = Ident::new(name.to_string(), span);
-                        self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
-                        return Type::Error;
-                    }
-                }
+                let resolved_size = self.convert_expression_type(size, span);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
-                let resolved_size = self.convert_expression_type(size);
-                if let Type::NamedGeneric(ref _type_var, ref name, ref kind) = resolved_size {
-                    if !kind.is_numeric() {
-                        let ident = Ident::new(name.to_string(), span);
-                        self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
-                        return Type::Error;
-                    }
-                }
+                let resolved_size = self.convert_expression_type(size, span);
                 let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
@@ -431,19 +410,28 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn convert_expression_type(&mut self, length: UnresolvedTypeExpression) -> Type {
+    pub(super) fn convert_expression_type(&mut self, length: UnresolvedTypeExpression, span: Span) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
+                let resolved_length = self.lookup_generic_or_global_type(&path).unwrap_or_else(|| {
                     self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
                     Type::Constant(0)
-                })
+                });
+
+                if let Type::NamedGeneric(ref _type_var, ref name, ref kind) = resolved_length {
+                    if !kind.is_numeric() {
+                        let ident = Ident::new(name.to_string(), span);
+                        self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
+                        return Type::Error;
+                    }
+                }
+                resolved_length
             }
             UnresolvedTypeExpression::Constant(int, _) => Type::Constant(int),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
-                let lhs = self.convert_expression_type(*lhs);
-                let rhs = self.convert_expression_type(*rhs);
+                let lhs = self.convert_expression_type(*lhs, lhs_span);
+                let rhs = self.convert_expression_type(*rhs, rhs_span);
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs), Type::Constant(rhs)) => {

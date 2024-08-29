@@ -1901,7 +1901,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 3);
+    assert_eq!(errors.len(), 4);
     assert!(matches!(
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
@@ -1910,9 +1910,13 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
         errors[1].0,
         CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
     ));
-    // N
     assert!(matches!(
         errors[2].0,
+        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
+    ));
+    // N
+    assert!(matches!(
+        errors[3].0,
         CompilationError::ResolverError(ResolverError::VariableNotDeclared { .. }),
     ));
 }
