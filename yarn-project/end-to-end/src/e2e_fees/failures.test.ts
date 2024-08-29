@@ -8,6 +8,7 @@ import {
   PublicFeePaymentMethod,
   TxStatus,
   computeSecretHash,
+  sleep,
 } from '@aztec/aztec.js';
 import { Gas, GasSettings } from '@aztec/circuits.js';
 import { FunctionType } from '@aztec/foundation/abi';
@@ -94,9 +95,16 @@ describe('e2e_fees failures', () => {
       .wait({ dontThrowOnRevert: true });
 
     expect(txReceipt.status).toBe(TxStatus.APP_LOGIC_REVERTED);
+
+    // We wait until the block is proven since that is when the payout happens.
+    const bn = await t.aztecNode.getBlockNumber();
+    while ((await t.aztecNode.getProvenBlockNumber()) < bn) {
+      await sleep(1000);
+    }
+
     const feeAmount = txReceipt.transactionFee!;
-    const newSequencerL1Gas = await t.getCoinbaseBalance();
-    expect(newSequencerL1Gas).toEqual(currentSequencerL1Gas + feeAmount);
+    const newSequencerL1FeeAssetBalance = await t.getCoinbaseBalance();
+    expect(newSequencerL1FeeAssetBalance).toEqual(currentSequencerL1Gas + feeAmount);
 
     // and thus we paid the fee
     await expectMapping(

@@ -18,7 +18,6 @@ interface ITestRollup {
 interface IRollup {
   event L2BlockProcessed(uint256 indexed blockNumber);
   event L2ProofVerified(uint256 indexed blockNumber, bytes32 indexed proverId);
-  event ProgressedState(uint256 provenBlockCount, uint256 pendingBlockCount);
   event PrunedPending(uint256 provenBlockCount, uint256 pendingBlockCount);
 
   function canProposeAtTime(uint256 _ts, address _proposer, bytes32 _archive)
@@ -81,6 +80,5 @@ interface IRollup {
   // ) external;
 
   function archive() external view returns (bytes32);
-  function isBlockProven(uint256 _blockNumber) external view returns (bool);
   function archiveAt(uint256 _blockNumber) external view returns (bytes32);
 }

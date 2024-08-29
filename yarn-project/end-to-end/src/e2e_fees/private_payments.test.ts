@@ -6,6 +6,7 @@ import {
   PrivateFeePaymentMethod,
   type TxReceipt,
   computeSecretHash,
+  sleep,
 } from '@aztec/aztec.js';
 import { type GasSettings } from '@aztec/circuits.js';
 import { type TokenContract as BananaCoin, FPCContract } from '@aztec/noir-contracts.js';
@@ -137,6 +138,12 @@ describe('e2e_fees private_payment', () => {
      *
      * TODO(6583): update this comment properly now that public execution consumes gas
      */
+
+    // We wait until the block is proven since that is when the payout happens.
+    const bn = await t.aztecNode.getBlockNumber();
+    while ((await t.aztecNode.getProvenBlockNumber()) < bn) {
+      await sleep(1000);
+    }
 
     // expect(tx.transactionFee).toEqual(200032492n);
     await expect(t.getCoinbaseBalance()).resolves.toEqual(InitialSequencerL1Gas + tx.transactionFee!);
