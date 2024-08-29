@@ -116,7 +116,7 @@ struct PerFunctionContext<'f> {
 
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, InstructionId>,
+    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -258,7 +258,7 @@ impl<'f> PerFunctionContext<'f> {
                 } else {
                     references.mark_value_used(address, self.inserter.function);
 
-                    self.last_loads.insert(address, instruction);
+                    self.last_loads.insert(address, (instruction, block_id));
                 }
             }
             Instruction::Store { address, value } => {
@@ -273,9 +273,11 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                if let Some(last_load) = self.last_loads.get(&address) {
+                if let Some((last_load, last_load_block)) = self.last_loads.get(&address) {
                     let load_result = self.inserter.function.dfg.instruction_results(*last_load)[0];
-                    if load_result == value {
+                    let contains_array =
+                        self.inserter.function.dfg.type_of_value(value).contains_an_array();
+                    if load_result == value && *last_load_block == block_id && !contains_array {
                         self.instructions_to_remove.insert(instruction);
                     }
                 }
