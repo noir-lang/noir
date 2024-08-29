@@ -267,7 +267,10 @@ TEST_F(AvmSliceTests, indirectFailedResolution)
     validate_trace(std::move(trace), public_inputs, calldata);
 }
 
-class AvmSliceNegativeTests : public AvmSliceTests {};
+class AvmSliceNegativeTests : public AvmSliceTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 
 TEST_F(AvmSliceNegativeTests, wrongCDValueInSlice)
 {

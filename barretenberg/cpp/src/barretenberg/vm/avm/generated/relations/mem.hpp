@@ -38,8 +38,6 @@ template <typename FF_> class memImpl {
                                        (FF(2) * (new_term.mem_sel_resolve_ind_addr_c + mem_SEL_DIRECT_MEM_OP_C))) +
                                       (FF(3) * (new_term.mem_sel_resolve_ind_addr_d + mem_SEL_DIRECT_MEM_OP_D))) +
                                      (FF(4) * ((FF(1) - mem_IND_OP) + new_term.mem_rw))));
-        const auto mem_DIFF = ((new_term.mem_lastAccess * (new_term.mem_glob_addr_shift - new_term.mem_glob_addr)) +
-                               ((FF(1) - new_term.mem_lastAccess) * (new_term.mem_tsp_shift - new_term.mem_tsp)));
 
         {
             using Accumulator = typename std::tuple_element_t<0, ContainerOverSubrelations>;
@@ -189,10 +187,10 @@ template <typename FF_> class memImpl {
         }
         {
             using Accumulator = typename std::tuple_element_t<23, ContainerOverSubrelations>;
-            auto tmp =
-                (new_term.mem_sel_rng_chk *
-                 (((mem_DIFF - (new_term.mem_diff_hi * FF(4294967296UL))) - (new_term.mem_diff_mid * FF(65536))) -
-                  new_term.mem_diff_lo));
+            auto tmp = (new_term.mem_sel_rng_chk *
+                        (new_term.mem_diff -
+                         ((new_term.mem_lastAccess * (new_term.mem_glob_addr_shift - new_term.mem_glob_addr)) +
+                          ((FF(1) - new_term.mem_lastAccess) * (new_term.mem_tsp_shift - new_term.mem_tsp)))));
             tmp *= scaling_factor;
             std::get<23>(evals) += typename Accumulator::View(tmp);
         }
@@ -396,8 +394,6 @@ template <typename FF> class mem : public Relation<memImpl<FF>> {
             return "LAST_ACCESS_FIRST_ROW";
         case 22:
             return "MEM_LAST_ACCESS_DELIMITER";
-        case 23:
-            return "DIFF_RNG_CHK_DEC";
         case 24:
             return "MEM_READ_WRITE_VAL_CONSISTENCY";
         case 25:

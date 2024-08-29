@@ -1,7 +1,10 @@
 include "../main.pil";
+include "../mem.pil";
 include "../fixed/powers.pil";
 
 namespace range_check(256);
+    // TODO: We should look to rename this to something like rng_idx 
+    // Increasingly this is less likely to be associated directly with a subtrace's clk
     pol commit clk;
 
     // Range check selector
@@ -11,7 +14,7 @@ namespace range_check(256);
     // Witnesses 
     // Value to range check
     pol commit value;
-    // Number of bits to check against
+    // Number of bits to check against (this number must be <=128)
     pol commit rng_chk_bits;
 
     // Bit Size Columns
@@ -188,3 +191,30 @@ namespace range_check(256);
     #[LOOKUP_RNG_CHK_7]
     sel_rng_chk { u16_r7 } in main.sel_rng_16 { main.clk };
 
+    // ===== MEM TRACE RANGE CHECKS =====
+    pol commit mem_rng_chk;
+    // We range check 40 bits in the mem trace
+    mem_rng_chk * (rng_chk_bits - 40) = 0;
+
+    #[PERM_RNG_MEM]
+    mem_rng_chk {clk, value}
+    is
+    mem.sel_rng_chk {mem.tsp, mem.diff};
+
+    // ===== GAS TRACE RANGE CHECKS =====
+    pol commit gas_l2_rng_chk;
+    pol commit gas_da_rng_chk;
+    // We range check 32 bits in the gas trace
+    gas_l2_rng_chk * (rng_chk_bits  - 32) = 0;
+    gas_da_rng_chk * (rng_chk_bits  - 32) = 0;
+
+    #[PERM_RNG_GAS_L2]
+    gas_l2_rng_chk {clk, value}
+    is
+    main.sel_execution_row {main.clk, main.abs_l2_rem_gas };
+
+    #[PERM_RNG_GAS_DA]
+    gas_da_rng_chk {clk, value}
+    is
+    main.sel_execution_row {main.clk, main.abs_da_rem_gas };
+    

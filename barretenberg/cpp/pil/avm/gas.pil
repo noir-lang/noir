@@ -44,10 +44,8 @@ namespace main(256);
     pol commit da_out_of_gas;
 
     // Absolute gas remaining value after the operation in 16-bit high and low limbs
-    pol commit abs_l2_rem_gas_hi;
-    pol commit abs_l2_rem_gas_lo;
-    pol commit abs_da_rem_gas_hi;
-    pol commit abs_da_rem_gas_lo;
+    pol commit abs_l2_rem_gas;
+    pol commit abs_da_rem_gas;
 
     // Boolean constraints
     l2_out_of_gas * (1 - l2_out_of_gas) = 0;
@@ -68,22 +66,10 @@ namespace main(256);
 
     // Prove that XX_out_of_gas == 0 <==> XX_gas_remaining' >= 0
     // TODO: Ensure that remaining gas values are initialized as u32 and that gas l2_gas_op_cost/da_gas_op_cost are u32.
-    sel_execution_row * ((1 - 2 * l2_out_of_gas) * l2_gas_remaining' - 2**16 * abs_l2_rem_gas_hi - abs_l2_rem_gas_lo) = 0;
-    sel_execution_row * ((1 - 2 * da_out_of_gas) * da_gas_remaining' - 2**16 * abs_da_rem_gas_hi - abs_da_rem_gas_lo) = 0;
+    sel_execution_row * ((1 - 2 * l2_out_of_gas) * l2_gas_remaining' - abs_l2_rem_gas) = 0;
+    sel_execution_row * ((1 - 2 * da_out_of_gas) * da_gas_remaining' - abs_da_rem_gas) = 0;
 
     #[LOOKUP_OPCODE_GAS]
     sel_execution_row {opcode_val, base_l2_gas_op_cost, base_da_gas_op_cost, dyn_l2_gas_op_cost, dyn_da_gas_op_cost}
     in
     gas.sel_gas_cost {clk, gas.base_l2_gas_fixed_table, gas.base_da_gas_fixed_table, gas.dyn_l2_gas_fixed_table, gas.dyn_da_gas_fixed_table};
-
-    #[RANGE_CHECK_L2_GAS_HI]
-    sel_execution_row {abs_l2_rem_gas_hi} in sel_rng_16 {clk};
-
-    #[RANGE_CHECK_L2_GAS_LO]
-    sel_execution_row {abs_l2_rem_gas_lo} in sel_rng_16 {clk};
-
-    #[RANGE_CHECK_DA_GAS_HI]
-    sel_execution_row {abs_da_rem_gas_hi} in sel_rng_16 {clk};
-
-    #[RANGE_CHECK_DA_GAS_LO]
-    sel_execution_row {abs_da_rem_gas_lo} in sel_rng_16 {clk};

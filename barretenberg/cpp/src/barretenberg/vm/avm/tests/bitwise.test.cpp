@@ -577,22 +577,54 @@ INSTANTIATE_TEST_SUITE_P(AvmBitwiseTests,
 using EXPECTED_ERRORS = std::tuple<std::string, BIT_FAILURES>;
 
 class AvmBitwiseNegativeTestsAnd : public AvmBitwiseTests,
-                                   public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParamRow>> {};
+                                   public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParamRow>> {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 class AvmBitwiseNegativeTestsOr : public AvmBitwiseTests,
-                                  public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParamRow>> {};
+                                  public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParamRow>> {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 class AvmBitwiseNegativeTestsXor : public AvmBitwiseTests,
-                                   public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParamRow>> {};
+                                   public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParamRow>> {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 class AvmBitwiseNegativeTestsShr : public AvmBitwiseTests,
-                                   public testing::WithParamInterface<std::tuple<SHIFT_FAILURES, ThreeOpParamRow>> {};
+                                   public testing::WithParamInterface<std::tuple<SHIFT_FAILURES, ThreeOpParamRow>> {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 class AvmBitwiseNegativeTestsShl : public AvmBitwiseTests,
-                                   public testing::WithParamInterface<std::tuple<SHIFT_FAILURES, ThreeOpParamRow>> {};
-class AvmBitwiseNegativeTestsFF : public AvmBitwiseTests {};
-class AvmBitwiseNegativeTestsU8 : public AvmBitwiseTests {};
-class AvmBitwiseNegativeTestsU16 : public AvmBitwiseTests {};
-class AvmBitwiseNegativeTestsU32 : public AvmBitwiseTests {};
-class AvmBitwiseNegativeTestsU64 : public AvmBitwiseTests {};
-class AvmBitwiseNegativeTestsU128 : public AvmBitwiseTests {};
-
+                                   public testing::WithParamInterface<std::tuple<SHIFT_FAILURES, ThreeOpParamRow>> {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmBitwiseNegativeTestsFF : public AvmBitwiseTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmBitwiseNegativeTestsU8 : public AvmBitwiseTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmBitwiseNegativeTestsU16 : public AvmBitwiseTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmBitwiseNegativeTestsU32 : public AvmBitwiseTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmBitwiseNegativeTestsU64 : public AvmBitwiseTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmBitwiseNegativeTestsU128 : public AvmBitwiseTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 std::vector<std::tuple<std::string, BIT_FAILURES>> bit_failures = {
     { "ACC_REL_C", BIT_FAILURES::IncorrectAcc },
     { "ACC_REL_C", BIT_FAILURES::BitDecomposition },

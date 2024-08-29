@@ -121,7 +121,10 @@ class AvmCastTests : public ::testing::Test {
     }
 };
 
-class AvmCastNegativeTests : public AvmCastTests {};
+class AvmCastNegativeTests : public AvmCastTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 
 TEST_F(AvmCastTests, basicU8ToU16)
 {

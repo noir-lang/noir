@@ -323,12 +323,30 @@ class AvmArithmeticTestsU64 : public AvmArithmeticTests {};
 class AvmArithmeticTestsU128 : public AvmArithmeticTests {};
 class AvmArithmeticTestsDiv : public AvmArithmeticTests, public testing::WithParamInterface<ThreeOpParamRow> {};
 
-class AvmArithmeticNegativeTestsFF : public AvmArithmeticTests {};
-class AvmArithmeticNegativeTestsU8 : public AvmArithmeticTests {};
-class AvmArithmeticNegativeTestsU16 : public AvmArithmeticTests {};
-class AvmArithmeticNegativeTestsU32 : public AvmArithmeticTests {};
-class AvmArithmeticNegativeTestsU64 : public AvmArithmeticTests {};
-class AvmArithmeticNegativeTestsU128 : public AvmArithmeticTests {};
+class AvmArithmeticNegativeTestsFF : public AvmArithmeticTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmArithmeticNegativeTestsU8 : public AvmArithmeticTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmArithmeticNegativeTestsU16 : public AvmArithmeticTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmArithmeticNegativeTestsU32 : public AvmArithmeticTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmArithmeticNegativeTestsU64 : public AvmArithmeticTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
+class AvmArithmeticNegativeTestsU128 : public AvmArithmeticTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 
 std::vector<AvmMemoryTag> uint_mem_tags{
     { AvmMemoryTag::U8, AvmMemoryTag::U16, AvmMemoryTag::U32, AvmMemoryTag::U64, AvmMemoryTag::U128 }

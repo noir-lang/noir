@@ -27,16 +27,16 @@ TEST(AvmRangeCheck, shouldRangeCheck)
     std::cerr << "Generating trace of size " << TRACE_SIZE << "..." << std::endl;
 
     // Do a bunch of range checks (clk does not matter here so we just have it as 0)
-    range_check_builder.assert_range(FF(0), 0, EventEmitter::ALU, 0);
-    range_check_builder.assert_range(FF(0), 1, EventEmitter::ALU, 0);
-    range_check_builder.assert_range(FF(0), 16, EventEmitter::ALU, 0);
-    range_check_builder.assert_range(FF(2), 2, EventEmitter::ALU, 0);
-    range_check_builder.assert_range(FF(255), 8, EventEmitter::ALU, 0);
-    range_check_builder.assert_range(FF((1 << 16)), 17, EventEmitter::ALU, 0);
-    range_check_builder.assert_range(FF(1 << 18), 32, EventEmitter::ALU, 0);
-    range_check_builder.assert_range(FF(uint256_t::from_uint128(uint128_t(1) << 66)), 67, EventEmitter::ALU, 0);
-    range_check_builder.assert_range(FF(1024), 109, EventEmitter::ALU, 0);
-    range_check_builder.assert_range(FF(1), 128, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(0, 0, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(0, 1, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(0, 16, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(2, 2, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(255, 8, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(1 << 16, 17, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(1 << 18, 32, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(uint128_t(1) << 66, 67, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(1024, 109, EventEmitter::ALU, 0);
+    range_check_builder.assert_range(1, 128, EventEmitter::ALU, 0);
 
     auto finalised_builder = range_check_builder.finalize();
     for (size_t i = 0; i < finalised_builder.size(); i++) {
@@ -62,7 +62,7 @@ TEST(AvmRangeCheck, shouldRangeCheck)
         trace[i].lookup_rng_chk_6_counts = range_check_builder.u16_range_chk_counters[6][uint16_t(i)];
         trace[i].lookup_rng_chk_7_counts = range_check_builder.u16_range_chk_counters[7][uint16_t(i)];
         trace[i].lookup_rng_chk_diff_counts = range_check_builder.dyn_diff_counts[uint16_t(i)];
-        trace[i].lookup_rng_chk_pow_2_counts = range_check_builder.powers_of_2_counts[uint16_t(i)];
+        trace[i].lookup_rng_chk_pow_2_counts = range_check_builder.powers_of_2_counts[uint8_t(i)];
     }
     std::cerr << "Done generating trace..." << std::endl;
 

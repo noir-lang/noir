@@ -151,10 +151,8 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.keccakf1600_input[i] = rows[i].keccakf1600_input;
         polys.keccakf1600_output[i] = rows[i].keccakf1600_output;
         polys.keccakf1600_sel_keccakf1600[i] = rows[i].keccakf1600_sel_keccakf1600;
-        polys.main_abs_da_rem_gas_hi[i] = rows[i].main_abs_da_rem_gas_hi;
-        polys.main_abs_da_rem_gas_lo[i] = rows[i].main_abs_da_rem_gas_lo;
-        polys.main_abs_l2_rem_gas_hi[i] = rows[i].main_abs_l2_rem_gas_hi;
-        polys.main_abs_l2_rem_gas_lo[i] = rows[i].main_abs_l2_rem_gas_lo;
+        polys.main_abs_da_rem_gas[i] = rows[i].main_abs_da_rem_gas;
+        polys.main_abs_l2_rem_gas[i] = rows[i].main_abs_l2_rem_gas;
         polys.main_alu_in_tag[i] = rows[i].main_alu_in_tag;
         polys.main_base_da_gas_op_cost[i] = rows[i].main_base_da_gas_op_cost;
         polys.main_base_l2_gas_op_cost[i] = rows[i].main_base_l2_gas_op_cost;
@@ -289,9 +287,7 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.main_w_in_tag[i] = rows[i].main_w_in_tag;
         polys.mem_addr[i] = rows[i].mem_addr;
         polys.mem_clk[i] = rows[i].mem_clk;
-        polys.mem_diff_hi[i] = rows[i].mem_diff_hi;
-        polys.mem_diff_lo[i] = rows[i].mem_diff_lo;
-        polys.mem_diff_mid[i] = rows[i].mem_diff_mid;
+        polys.mem_diff[i] = rows[i].mem_diff;
         polys.mem_glob_addr[i] = rows[i].mem_glob_addr;
         polys.mem_last[i] = rows[i].mem_last;
         polys.mem_lastAccess[i] = rows[i].mem_lastAccess;
@@ -615,6 +611,8 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.range_check_dyn_diff[i] = rows[i].range_check_dyn_diff;
         polys.range_check_dyn_rng_chk_bits[i] = rows[i].range_check_dyn_rng_chk_bits;
         polys.range_check_dyn_rng_chk_pow_2[i] = rows[i].range_check_dyn_rng_chk_pow_2;
+        polys.range_check_gas_da_rng_chk[i] = rows[i].range_check_gas_da_rng_chk;
+        polys.range_check_gas_l2_rng_chk[i] = rows[i].range_check_gas_l2_rng_chk;
         polys.range_check_is_lte_u112[i] = rows[i].range_check_is_lte_u112;
         polys.range_check_is_lte_u128[i] = rows[i].range_check_is_lte_u128;
         polys.range_check_is_lte_u16[i] = rows[i].range_check_is_lte_u16;
@@ -623,6 +621,7 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.range_check_is_lte_u64[i] = rows[i].range_check_is_lte_u64;
         polys.range_check_is_lte_u80[i] = rows[i].range_check_is_lte_u80;
         polys.range_check_is_lte_u96[i] = rows[i].range_check_is_lte_u96;
+        polys.range_check_mem_rng_chk[i] = rows[i].range_check_mem_rng_chk;
         polys.range_check_rng_chk_bits[i] = rows[i].range_check_rng_chk_bits;
         polys.range_check_sel_lookup_0[i] = rows[i].range_check_sel_lookup_0;
         polys.range_check_sel_lookup_1[i] = rows[i].range_check_sel_lookup_1;
@@ -697,19 +696,12 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
         polys.lookup_byte_lengths_counts[i] = rows[i].lookup_byte_lengths_counts;
         polys.lookup_byte_operations_counts[i] = rows[i].lookup_byte_operations_counts;
         polys.lookup_opcode_gas_counts[i] = rows[i].lookup_opcode_gas_counts;
-        polys.range_check_l2_gas_hi_counts[i] = rows[i].range_check_l2_gas_hi_counts;
-        polys.range_check_l2_gas_lo_counts[i] = rows[i].range_check_l2_gas_lo_counts;
-        polys.range_check_da_gas_hi_counts[i] = rows[i].range_check_da_gas_hi_counts;
-        polys.range_check_da_gas_lo_counts[i] = rows[i].range_check_da_gas_lo_counts;
         polys.kernel_output_lookup_counts[i] = rows[i].kernel_output_lookup_counts;
         polys.lookup_into_kernel_counts[i] = rows[i].lookup_into_kernel_counts;
         polys.lookup_cd_value_counts[i] = rows[i].lookup_cd_value_counts;
         polys.lookup_ret_value_counts[i] = rows[i].lookup_ret_value_counts;
         polys.incl_main_tag_err_counts[i] = rows[i].incl_main_tag_err_counts;
         polys.incl_mem_tag_err_counts[i] = rows[i].incl_mem_tag_err_counts;
-        polys.lookup_mem_rng_chk_lo_counts[i] = rows[i].lookup_mem_rng_chk_lo_counts;
-        polys.lookup_mem_rng_chk_mid_counts[i] = rows[i].lookup_mem_rng_chk_mid_counts;
-        polys.lookup_mem_rng_chk_hi_counts[i] = rows[i].lookup_mem_rng_chk_hi_counts;
     }
 
     for (auto [shifted, to_be_shifted] : zip_view(polys.get_shifted(), polys.get_to_be_shifted())) {

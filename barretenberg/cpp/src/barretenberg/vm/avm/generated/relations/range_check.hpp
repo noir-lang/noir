@@ -10,8 +10,8 @@ template <typename FF_> class range_checkImpl {
   public:
     using FF = FF_;
 
-    static constexpr std::array<size_t, 20> SUBRELATION_PARTIAL_LENGTHS = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 2,
-                                                                            4, 2, 3, 2, 2, 2, 2, 2, 2, 2 };
+    static constexpr std::array<size_t, 23> SUBRELATION_PARTIAL_LENGTHS = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 4, 2,
+                                                                            3, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3 };
 
     template <typename ContainerOverSubrelations, typename AllEntities>
     void static accumulate(ContainerOverSubrelations& evals,
@@ -218,6 +218,24 @@ template <typename FF_> class range_checkImpl {
             auto tmp = (new_term.range_check_sel_lookup_6 - new_term.range_check_is_lte_u128);
             tmp *= scaling_factor;
             std::get<19>(evals) += typename Accumulator::View(tmp);
+        }
+        {
+            using Accumulator = typename std::tuple_element_t<20, ContainerOverSubrelations>;
+            auto tmp = (new_term.range_check_mem_rng_chk * (new_term.range_check_rng_chk_bits - FF(40)));
+            tmp *= scaling_factor;
+            std::get<20>(evals) += typename Accumulator::View(tmp);
+        }
+        {
+            using Accumulator = typename std::tuple_element_t<21, ContainerOverSubrelations>;
+            auto tmp = (new_term.range_check_gas_l2_rng_chk * (new_term.range_check_rng_chk_bits - FF(32)));
+            tmp *= scaling_factor;
+            std::get<21>(evals) += typename Accumulator::View(tmp);
+        }
+        {
+            using Accumulator = typename std::tuple_element_t<22, ContainerOverSubrelations>;
+            auto tmp = (new_term.range_check_gas_da_rng_chk * (new_term.range_check_rng_chk_bits - FF(32)));
+            tmp *= scaling_factor;
+            std::get<22>(evals) += typename Accumulator::View(tmp);
         }
     }
 };

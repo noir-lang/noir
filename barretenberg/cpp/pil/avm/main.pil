@@ -619,12 +619,3 @@ namespace main(256);
     sel_resolve_ind_addr_d {clk, space_id, ind_addr_d, mem_addr_d}
     is
     mem.sel_resolve_ind_addr_d {mem.clk, mem.space_id, mem.addr, mem.val};
-
-    #[LOOKUP_MEM_RNG_CHK_LO]
-    mem.sel_rng_chk {mem.diff_lo} in sel_rng_16 {clk};
-
-    #[LOOKUP_MEM_RNG_CHK_MID] 
-    mem.sel_rng_chk {mem.diff_mid} in sel_rng_16 {clk};
-
-    #[LOOKUP_MEM_RNG_CHK_HI]
-    mem.sel_rng_chk {mem.diff_hi} in sel_rng_8 {clk};

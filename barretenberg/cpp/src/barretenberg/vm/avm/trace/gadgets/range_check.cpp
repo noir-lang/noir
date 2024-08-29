@@ -3,7 +3,7 @@
 namespace bb::avm_trace {
 
 // This function just enqueues a range check event, we handle processing them later in finalize.
-bool AvmRangeCheckBuilder::assert_range(FF value, uint8_t num_bits, EventEmitter e, uint32_t clk)
+bool AvmRangeCheckBuilder::assert_range(uint128_t value, uint8_t num_bits, EventEmitter e, uint64_t clk)
 {
     // We don't support range checks on values that are field-sized
     // ASSERT(num_bits <= 128);
@@ -42,10 +42,25 @@ std::vector<AvmRangeCheckBuilder::RangeCheckEntry> AvmRangeCheckBuilder::finaliz
         }
 
         // Update the other counters
-        powers_of_2_counts[entry.dyn_bits]++;
+        powers_of_2_counts[uint8_t(entry.dyn_bits)]++;
         auto dyn_diff = uint16_t((1 << entry.dyn_bits) - entry.dynamic_slice_register - 1);
         entry.dyn_diff = dyn_diff;
         dyn_diff_counts[dyn_diff]++;
+
+        switch (event.emitter) {
+        case EventEmitter::ALU:
+            entry.is_alu_sel = true;
+            break;
+        case EventEmitter::MEMORY:
+            entry.is_mem_sel = true;
+            break;
+        case EventEmitter::GAS_L2:
+            entry.is_gas_l2_sel = true;
+            break;
+        case EventEmitter::GAS_DA:
+            entry.is_gas_da_sel = true;
+            break;
+        }
         entries.push_back(entry);
     }
     return entries;

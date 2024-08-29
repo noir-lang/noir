@@ -7,20 +7,22 @@
 enum class EventEmitter {
     ALU,
     MEMORY,
+    GAS_L2,
+    GAS_DA,
 };
 
 namespace bb::avm_trace {
 class AvmRangeCheckBuilder {
   public:
     struct RangeCheckEvent {
-        uint32_t clk;
+        uint64_t clk;
         uint128_t value;
         uint8_t num_bits;
         EventEmitter emitter;
     };
 
     struct RangeCheckEntry {
-        uint32_t clk;
+        uint64_t clk;
         uint128_t value;
         uint8_t num_bits;
         // 8 total 16-bit registers, the last one is dynamic
@@ -28,26 +30,31 @@ class AvmRangeCheckBuilder {
         uint16_t dynamic_slice_register;
         // The number of bits that need to be dynamically checked
         uint16_t dyn_bits;
-        // The difference between
+        // The difference between max value of the dynamic bit range and what is stored in the dyn register
         uint16_t dyn_diff;
         // Bit string representing which of the is_lte_x flags are on
         // From LSB to MSB:
         // [is_lte_u16, is_lte_u32, is_lte_u48, is_lte_u64, is_lte_u80, is_lte_u96, is_lte_u112, is_lte_u128]
         uint8_t bit_range_flag;
+        bool is_mem_sel;
+        bool is_alu_sel;
+        bool is_gas_l2_sel;
+        bool is_gas_da_sel;
     };
 
     std::array<std::unordered_map<uint16_t, uint32_t>, 8> u16_range_chk_counters;
-    std::unordered_map<uint16_t, uint32_t> powers_of_2_counts;
+    std::unordered_map<uint8_t, uint32_t> powers_of_2_counts;
     std::unordered_map<uint16_t, uint32_t> dyn_diff_counts;
 
     // This function just enqueues a range check event, we handle processing them later in finalize.
-    bool assert_range(FF value, uint8_t num_bits, EventEmitter e, uint32_t clk);
+    bool assert_range(uint128_t value, uint8_t num_bits, EventEmitter e, uint64_t clk);
 
     // Turns range check events into real entries
     std::vector<RangeCheckEntry> finalize();
 
     template <typename DestRow> void merge_into(DestRow& row, RangeCheckEntry const& entry)
     {
+        row.range_check_clk = entry.clk;
         row.range_check_sel_rng_chk = FF::one();
         row.range_check_value = FF(uint256_t::from_uint128(entry.value));
         row.range_check_rng_chk_bits = entry.num_bits;
@@ -80,6 +87,10 @@ class AvmRangeCheckBuilder {
         row.range_check_u16_r5 = entry.fixed_slice_registers[5];
         row.range_check_u16_r6 = entry.fixed_slice_registers[6];
         row.range_check_u16_r7 = entry.dynamic_slice_register;
+
+        row.range_check_mem_rng_chk = entry.is_mem_sel;
+        row.range_check_gas_l2_rng_chk = entry.is_gas_l2_sel;
+        row.range_check_gas_da_rng_chk = entry.is_gas_da_sel;
     }
 
   private:

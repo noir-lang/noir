@@ -141,16 +141,8 @@ void AvmGasTraceBuilder::finalize(std::vector<AvmFullRow<FF>>& main_trace)
         uint32_t abs_l2_gas_remaining = l2_out_of_gas ? -gas_entry.remaining_l2_gas : gas_entry.remaining_l2_gas;
         uint32_t abs_da_gas_remaining = da_out_of_gas ? -gas_entry.remaining_da_gas : gas_entry.remaining_da_gas;
 
-        dest.main_abs_l2_rem_gas_hi = abs_l2_gas_remaining >> 16;
-        dest.main_abs_da_rem_gas_hi = abs_da_gas_remaining >> 16;
-        dest.main_abs_l2_rem_gas_lo = static_cast<uint16_t>(abs_l2_gas_remaining);
-        dest.main_abs_da_rem_gas_lo = static_cast<uint16_t>(abs_da_gas_remaining);
-
-        // lookups counting
-        rem_gas_rng_check_counts[L2_HI_GAS_COUNTS_IDX][static_cast<uint16_t>(dest.main_abs_l2_rem_gas_hi)]++;
-        rem_gas_rng_check_counts[L2_LO_GAS_COUNTS_IDX][static_cast<uint16_t>(dest.main_abs_l2_rem_gas_lo)]++;
-        rem_gas_rng_check_counts[DA_HI_GAS_COUNTS_IDX][static_cast<uint16_t>(dest.main_abs_da_rem_gas_hi)]++;
-        rem_gas_rng_check_counts[DA_LO_GAS_COUNTS_IDX][static_cast<uint16_t>(dest.main_abs_da_rem_gas_lo)]++;
+        dest.main_abs_l2_rem_gas = abs_l2_gas_remaining;
+        dest.main_abs_da_rem_gas = abs_da_gas_remaining;
 
         dest.main_l2_out_of_gas = static_cast<uint32_t>(l2_out_of_gas);
         dest.main_da_out_of_gas = static_cast<uint32_t>(da_out_of_gas);

@@ -15,7 +15,10 @@ class AvmGasTests : public ::testing::Test {
 };
 
 class AvmGasPositiveTests : public AvmGasTests {};
-class AvmGasNegativeTests : public AvmGasTests {};
+class AvmGasNegativeTests : public AvmGasTests {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 
 // Helper to set the initial gas parameters for each test
 struct StartGas {

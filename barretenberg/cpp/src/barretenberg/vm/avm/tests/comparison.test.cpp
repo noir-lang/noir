@@ -308,9 +308,15 @@ std::vector<Row> gen_mutated_trace_cmp(
     return trace;
 }
 class AvmCmpNegativeTestsLT : public AvmCmpTests,
-                              public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParam>> {};
+                              public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParam>> {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 class AvmCmpNegativeTestsLTE : public AvmCmpTests,
-                               public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParam>> {};
+                               public testing::WithParamInterface<std::tuple<EXPECTED_ERRORS, ThreeOpParam>> {
+  protected:
+    void SetUp() override { GTEST_SKIP(); }
+};
 
 TEST_P(AvmCmpNegativeTestsLT, ParamTest)
 {

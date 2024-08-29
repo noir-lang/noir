@@ -65,10 +65,8 @@ namespace mem(256);
 
     // Helper columns
     pol commit one_min_inv; // Extra value to prove r_in_tag != tag with error handling
-    // pol DIFF: 40-bit difference between two consecutive timestamps or two consecutive addresses
-    pol commit diff_hi;  // Higher 8-bit limb of diff.
-    pol commit diff_mid; // Middle 16-bit limb of diff.
-    pol commit diff_lo;  // Lower 16-bit limb of diff.
+    // pol DIFF: 
+    pol commit diff; // 40-bit difference between two consecutive timestamps or two consecutive addresses
 
     // Type constraints
     lastAccess * (1 - lastAccess) = 0;
@@ -156,14 +154,12 @@ namespace mem(256);
     // i.e., when sel_rng_chk == 1, we compute the difference:
     // 1) glob_addr' - glob_addr if lastAccess == 1
     // 2) tsp' - tsp   if lastAccess == 0 (i.e., whenever glob_addr' == glob_addr)
-    pol DIFF = lastAccess * (glob_addr' - glob_addr) + (1 - lastAccess) * (tsp' - tsp);
+    sel_rng_chk * (diff - (lastAccess * (glob_addr' - glob_addr) + (1 - lastAccess) * (tsp' - tsp))) = 0;
 
     // We perform a 40-bit range check of DIFF which proves that glob_addr' > glob_addr if lastAccess == 1
     // and tsp' > tsp whenever glob_addr' == glob_addr
     // Therefore, we ensure proper grouping of each global address and each memory access pertaining to a given
     // global address is sorted according the arrow of time.
-    #[DIFF_RNG_CHK_DEC]
-    sel_rng_chk * (DIFF - diff_hi * 2**32 - diff_mid * 2**16 - diff_lo) = 0;
 
     // lastAccess == 0 && rw' == 0 ==> val == val'
     // This condition does not apply on the last row.
