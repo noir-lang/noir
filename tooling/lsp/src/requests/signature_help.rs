@@ -8,8 +8,8 @@ use lsp_types::{
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        CallExpression, ConstrainKind, ConstrainStatement, Expression, FunctionReturnType,
-        MethodCallExpression,
+        CallExpression, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
+        FunctionReturnType, MethodCallExpression,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern},
     macros_api::NodeInterner,
@@ -139,7 +139,19 @@ impl<'a> SignatureFinder<'a> {
                 let signature_information = self.assert_signature_information(active_parameter);
                 self.set_signature_help(signature_information);
             }
-            ConstrainKind::AssertEq => {}
+            ConstrainKind::AssertEq => {
+                if let ExpressionKind::Infix(infix) = &constrain_statement.0.kind {
+                    let mut arguments = vec![infix.lhs.clone(), infix.rhs.clone()];
+                    if let Some(expr) = &constrain_statement.1 {
+                        arguments.push(expr.clone());
+                    }
+
+                    let active_parameter = self.compute_active_parameter(&arguments);
+                    let signature_information =
+                        self.assert_eq_signature_information(active_parameter);
+                    self.set_signature_help(signature_information);
+                }
+            }
             ConstrainKind::Constrain => (),
         }
     }
@@ -297,11 +309,36 @@ impl<'a> SignatureFinder<'a> {
     }
 
     fn assert_signature_information(&self, active_parameter: Option<u32>) -> SignatureInformation {
+        self.hardcoded_signature_information(
+            active_parameter,
+            "assert",
+            &["predicate: bool", "[failure_message: str<N>]"],
+        )
+    }
+
+    fn assert_eq_signature_information(
+        &self,
+        active_parameter: Option<u32>,
+    ) -> SignatureInformation {
+        self.hardcoded_signature_information(
+            active_parameter,
+            "assert_eq",
+            &["lhs: T", "rhs: T", "[failure_message: str<N>]"],
+        )
+    }
+
+    fn hardcoded_signature_information(
+        &self,
+        active_parameter: Option<u32>,
+        name: &str,
+        arguments: &[&str],
+    ) -> SignatureInformation {
         let mut label = String::new();
         let mut parameters = Vec::new();
 
-        label.push_str("assert(");
-        for (index, typ) in ["predicate: bool", "[failure_message: str<N>]"].iter().enumerate() {
+        label.push_str(name);
+        label.push('(');
+        for (index, typ) in arguments.iter().enumerate() {
             if index > 0 {
                 label.push_str(", ");
             }
