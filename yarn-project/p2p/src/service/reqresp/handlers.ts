@@ -1,7 +1,17 @@
-export function pingHandler(_msg: any) {
-  return Uint8Array.from(Buffer.from('pong'));
+/**
+ * Handles the ping request.
+ * @param _msg - The ping request message.
+ * @returns A resolved promise with the pong response.
+ */
+export function pingHandler(_msg: any): Promise<Uint8Array> {
+  return Promise.resolve(Uint8Array.from(Buffer.from('pong')));
 }
 
-export function statusHandler(_msg: any) {
-  return Uint8Array.from(Buffer.from('ok'));
+/**
+ * Handles the status request.
+ * @param _msg - The status request message.
+ * @returns A resolved promise with the ok response.
+ */
+export function statusHandler(_msg: any): Promise<Uint8Array> {
+  return Promise.resolve(Uint8Array.from(Buffer.from('ok')));
 }

@@ -6,6 +6,7 @@ import {
   TopicType,
   TopicTypeMap,
   Tx,
+  TxHash,
 } from '@aztec/circuit-types';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { SerialQueue } from '@aztec/foundation/queue';
@@ -30,6 +31,18 @@ import { type TxPool } from '../tx_pool/index.js';
 import { convertToMultiaddr } from '../util.js';
 import { AztecDatastore } from './data_store.js';
 import { PeerManager } from './peer_manager.js';
+import { pingHandler, statusHandler } from './reqresp/handlers.js';
+import {
+  DEFAULT_SUB_PROTOCOL_HANDLERS,
+  PING_PROTOCOL,
+  type ReqRespSubProtocol,
+  type ReqRespSubProtocolHandlers,
+  STATUS_PROTOCOL,
+  type SubProtocolMap,
+  TX_REQ_PROTOCOL,
+  subProtocolMap,
+} from './reqresp/interface.js';
+import { ReqResp } from './reqresp/reqresp.js';
 import type { P2PService, PeerDiscoveryService } from './service.js';
 
 export interface PubSubLibp2p extends Libp2p {
@@ -61,6 +74,14 @@ export class LibP2PService implements P2PService {
   private peerManager: PeerManager;
   private discoveryRunningPromise?: RunningPromise;
 
+  // Request and response sub service
+  private reqresp: ReqResp;
+
+  /**
+   * Callback for when a block is received from a peer.
+   * @param block - The block received from the peer.
+   * @returns The attestation for the block, if any.
+   */
   private blockReceivedCallback: (block: BlockProposal) => Promise<BlockAttestation | undefined>;
 
   constructor(
@@ -69,9 +90,11 @@ export class LibP2PService implements P2PService {
     private peerDiscoveryService: PeerDiscoveryService,
     private txPool: TxPool,
     private attestationPool: AttestationPool,
+    private requestResponseHandlers: ReqRespSubProtocolHandlers = DEFAULT_SUB_PROTOCOL_HANDLERS,
     private logger = createDebugLogger('aztec:libp2p_service'),
   ) {
     this.peerManager = new PeerManager(node, peerDiscoveryService, config, logger);
+    this.reqresp = new ReqResp(node);
 
     this.blockReceivedCallback = (block: BlockProposal): Promise<BlockAttestation | undefined> => {
       this.logger.verbose(
@@ -124,6 +147,7 @@ export class LibP2PService implements P2PService {
       this.peerManager.discover();
     }, this.config.peerCheckIntervalMS);
     this.discoveryRunningPromise.start();
+    await this.reqresp.start(this.requestResponseHandlers);
   }
 
   /**
@@ -140,6 +164,9 @@ export class LibP2PService implements P2PService {
     this.logger.debug('Stopping LibP2P...');
     await this.stopLibP2P();
     this.logger.info('LibP2P service stopped');
+    this.logger.debug('Stopping request response service...');
+    await this.reqresp.stop();
+    this.logger.debug('Request response service stopped...');
   }
 
   /**
@@ -206,9 +233,56 @@ export class LibP2PService implements P2PService {
       },
     });
 
-    return new LibP2PService(config, node, peerDiscoveryService, txPool, attestationPool);
+    // Create request response protocol handlers
+    /**
+     * Handler for tx requests
+     * @param msg - the tx request message
+     * @returns the tx response message
+     */
+    const txHandler = (msg: Buffer): Promise<Uint8Array> => {
+      const txHash = TxHash.fromBuffer(msg);
+      const foundTx = txPool.getTxByHash(txHash);
+      const asUint8Array = Uint8Array.from(foundTx ? foundTx.toBuffer() : Buffer.alloc(0));
+      return Promise.resolve(asUint8Array);
+    };
+
+    const requestResponseHandlers = {
+      [PING_PROTOCOL]: pingHandler,
+      [STATUS_PROTOCOL]: statusHandler,
+      [TX_REQ_PROTOCOL]: txHandler,
+    };
+
+    return new LibP2PService(config, node, peerDiscoveryService, txPool, attestationPool, requestResponseHandlers);
   }
 
+  /**
+   * Send Request via the ReqResp service
+   * The subprotocol defined will determine the request and response types
+   *
+   * See the subProtocolMap for the mapping of subprotocols to request/response types in `interface.ts`
+   *
+   * @param protocol The request response protocol to use
+   * @param request The request type to send
+   * @returns
+   */
+  async sendRequest<SubProtocol extends ReqRespSubProtocol>(
+    protocol: SubProtocol,
+    request: InstanceType<SubProtocolMap[SubProtocol]['request']>,
+  ): Promise<InstanceType<SubProtocolMap[SubProtocol]['response']> | undefined> {
+    const pair = subProtocolMap[protocol];
+
+    const res = await this.reqresp.sendRequest(protocol, request.toBuffer());
+    if (!res) {
+      return undefined;
+    }
+
+    return pair.response.fromBuffer(res!);
+  }
+
+  /**
+   * Get the ENR of the node
+   * @returns The ENR of the node
+   */
   public getEnr(): ENR | undefined {
     return this.peerDiscoveryService.getEnr();
   }

@@ -15,6 +15,7 @@ import { type ENR } from '@chainsafe/enr';
 
 import { type AttestationPool } from '../attestation_pool/attestation_pool.js';
 import { getP2PConfigEnvVars } from '../config.js';
+import { TX_REQ_PROTOCOL } from '../service/reqresp/interface.js';
 import type { P2PService } from '../service/service.js';
 import { type TxPool } from '../tx_pool/index.js';
 
@@ -70,6 +71,12 @@ export interface P2P {
   // REVIEW: https://github.com/AztecProtocol/aztec-packages/issues/7963
   // ^ This pattern is not my favorite (md)
   registerBlockProposalHandler(handler: (block: BlockProposal) => Promise<BlockAttestation>): void;
+
+  /**
+   * Request a transaction from another peer by its tx hash.
+   * @param txHash - Hash of the tx to query.
+   */
+  requestTxByHash(txHash: TxHash): Promise<Tx | undefined>;
 
   /**
    * Verifies the 'tx' and, if valid, adds it to local tx pool and forwards it to other peers.
@@ -274,6 +281,11 @@ export class P2PClient implements P2P {
   // ^ This pattern is not my favorite (md)
   public registerBlockProposalHandler(handler: (block: BlockProposal) => Promise<BlockAttestation>): void {
     this.p2pService.registerBlockReceivedCallback(handler);
+  }
+
+  public requestTxByHash(txHash: TxHash): Promise<Tx | undefined> {
+    // Underlying I want to use the libp2p service to just have a request method where the subprotocol is defined here
+    return this.p2pService.sendRequest(TX_REQ_PROTOCOL, txHash);
   }
 
   /**

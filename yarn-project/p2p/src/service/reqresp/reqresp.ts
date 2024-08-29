@@ -6,21 +6,29 @@ import { pipe } from 'it-pipe';
 import { type Libp2p } from 'libp2p';
 import { type Uint8ArrayList } from 'uint8arraylist';
 
-import { pingHandler, statusHandler } from './handlers.js';
-import { PING_PROTOCOL, STATUS_PROTOCOL, type SubProtocol, type SubProtocolHandler } from './interface.js';
+import {
+  DEFAULT_SUB_PROTOCOL_HANDLERS,
+  type ReqRespSubProtocol,
+  type ReqRespSubProtocolHandlers,
+} from './interface.js';
 
 /**
- * A mapping from a protocol to a handler function
+ * The Request Response Service
+ *
+ * It allows nodes to request specific information from their peers, its use case covers recovering
+ * information that was missed during a syncronisation or a gossip event.
+ *
+ * This service implements the request response sub protocol, it is heavily inspired from
+ * ethereum implementations of the same name.
+ *
+ * see: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/p2p-interface.md#the-reqresp-domain
  */
-const SUB_PROTOCOL_HANDLERS: Record<SubProtocol, SubProtocolHandler> = {
-  [PING_PROTOCOL]: pingHandler,
-  [STATUS_PROTOCOL]: statusHandler,
-};
-
 export class ReqResp {
   protected readonly logger: Logger;
 
   private abortController: AbortController = new AbortController();
+
+  private subProtocolHandlers: ReqRespSubProtocolHandlers = DEFAULT_SUB_PROTOCOL_HANDLERS;
 
   constructor(protected readonly libp2p: Libp2p) {
     this.logger = createDebugLogger('aztec:p2p:reqresp');
@@ -29,10 +37,11 @@ export class ReqResp {
   /**
    * Start the reqresp service
    */
-  async start() {
+  async start(subProtocolHandlers: ReqRespSubProtocolHandlers) {
+    this.subProtocolHandlers = subProtocolHandlers;
     // Register all protocol handlers
-    for (const subProtocol of Object.keys(SUB_PROTOCOL_HANDLERS)) {
-      await this.libp2p.handle(subProtocol, this.streamHandler.bind(this, subProtocol as SubProtocol));
+    for (const subProtocol of Object.keys(this.subProtocolHandlers)) {
+      await this.libp2p.handle(subProtocol, this.streamHandler.bind(this, subProtocol as ReqRespSubProtocol));
     }
   }
 
@@ -41,7 +50,7 @@ export class ReqResp {
    */
   async stop() {
     // Unregister all handlers
-    for (const protocol of Object.keys(SUB_PROTOCOL_HANDLERS)) {
+    for (const protocol of Object.keys(this.subProtocolHandlers)) {
       await this.libp2p.unhandle(protocol);
     }
     await this.libp2p.stop();
@@ -55,7 +64,7 @@ export class ReqResp {
    * @param payload - The payload to send
    * @returns - The response from the peer, otherwise undefined
    */
-  async sendRequest(subProtocol: SubProtocol, payload: Buffer): Promise<Buffer | undefined> {
+  async sendRequest(subProtocol: ReqRespSubProtocol, payload: Buffer): Promise<Buffer | undefined> {
     // Get active peers
     const peers = this.libp2p.getPeers();
 
@@ -64,7 +73,8 @@ export class ReqResp {
       const response = await this.sendRequestToPeer(peer, subProtocol, payload);
 
       // If we get a response, return it, otherwise we iterate onto the next peer
-      if (response) {
+      // We do not consider it a success if we have an empty buffer
+      if (response && response.length > 0) {
         return response;
       }
     }
@@ -79,7 +89,11 @@ export class ReqResp {
    * @param payload - The payload to send
    * @returns If the request is successful, the response is returned, otherwise undefined
    */
-  async sendRequestToPeer(peerId: PeerId, subProtocol: SubProtocol, payload: Buffer): Promise<Buffer | undefined> {
+  async sendRequestToPeer(
+    peerId: PeerId,
+    subProtocol: ReqRespSubProtocol,
+    payload: Buffer,
+  ): Promise<Buffer | undefined> {
     try {
       const stream = await this.libp2p.dialProtocol(peerId, subProtocol);
 
@@ -109,14 +123,17 @@ export class ReqResp {
    *
    * @param param0 - The incoming stream data
    */
-  private async streamHandler(protocol: SubProtocol, { stream }: IncomingStreamData) {
+  private async streamHandler(protocol: ReqRespSubProtocol, { stream }: IncomingStreamData) {
+    // Store a reference to from this for the async generator
+    const handler = this.subProtocolHandlers[protocol];
+
     try {
       await pipe(
         stream,
-        async function* (source) {
+        async function* (source: any) {
           for await (const chunkList of source) {
-            const msg = Buffer.from(chunkList.subarray()).toString();
-            yield SUB_PROTOCOL_HANDLERS[protocol](msg);
+            const msg = Buffer.from(chunkList.subarray());
+            yield handler(msg);
           }
         },
         stream,

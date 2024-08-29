@@ -23,6 +23,7 @@ export const createP2PClient = async (
 
   if (config.p2pEnabled) {
     // If announceTcpAddress or announceUdpAddress are not provided, query for public IP if config allows
+
     const {
       tcpAnnounceAddress: configTcpAnnounceAddress,
       udpAnnounceAddress: configUdpAnnounceAddress,
@@ -68,6 +69,7 @@ export const createP2PClient = async (
     // Create peer discovery service
     const peerId = await createLibP2PPeerId(config.peerIdPrivateKey);
     const discoveryService = new DiscV5Service(peerId, config);
+
     p2pService = await LibP2PService.new(config, discoveryService, peerId, txPool, attestationsPool, store);
   } else {
     p2pService = new DummyP2PService();
