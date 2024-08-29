@@ -16,7 +16,7 @@ LMDBEnvironment::LMDBEnvironment(const std::string& directory,
     uint64_t totalMapSize = kb * mapSizeKB;
     uint32_t flags = MDB_NOTLS;
     try {
-        call_lmdb_func("mdb_env_set_mapsize", mdb_env_set_mapsize, _mdbEnv, totalMapSize);
+        call_lmdb_func("mdb_env_set_mapsize", mdb_env_set_mapsize, _mdbEnv, static_cast<size_t>(totalMapSize));
         call_lmdb_func("mdb_env_set_maxdbs", mdb_env_set_maxdbs, _mdbEnv, static_cast<MDB_dbi>(maxNumDBs));
         call_lmdb_func("mdb_env_set_maxreaders", mdb_env_set_maxreaders, _mdbEnv, maxNumReaders);
         call_lmdb_func("mdb_env_open",

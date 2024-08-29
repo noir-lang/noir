@@ -472,6 +472,7 @@ jobs:
         with:
           concurrency_key: noir-packages-x86
       - name: "Test Noir JS packages"
+        timeout-minutes: 50
         run: earthly-ci --no-output ./noir+packages-test
 
   noir-projects:
