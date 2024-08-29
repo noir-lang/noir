@@ -182,7 +182,8 @@ template <typename program_settings> bool VerifierBase<program_settings>::verify
 
     g1::element P[2];
 
-    P[0] = bb::scalar_multiplication::pippenger<curve::BN254>(&scalars[0], &elements[0], num_elements, state);
+    P[0] = bb::scalar_multiplication::pippenger<curve::BN254>(
+        { &scalars[0], num_elements }, &elements[0], num_elements, state);
     P[1] = -(g1::element(PI_Z_OMEGA) * separator_challenge + PI_Z);
 
     if (key->contains_recursive_proof) {

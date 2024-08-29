@@ -79,7 +79,7 @@ template <class Curve> class CommitmentKey {
             ASSERT(false);
         }
         return scalar_multiplication::pippenger_unsafe<Curve>(
-            const_cast<Fr*>(polynomial.data()), srs->get_monomial_points(), degree, pippenger_runtime_state);
+            polynomial, srs->get_monomial_points(), degree, pippenger_runtime_state);
     };
 
     /**
@@ -146,7 +146,7 @@ template <class Curve> class CommitmentKey {
 
         // Call the version of pippenger which assumes all points are distinct
         return scalar_multiplication::pippenger_unsafe<Curve>(
-            scalars.data(), points.data(), scalars.size(), pippenger_runtime_state);
+            scalars, points.data(), scalars.size(), pippenger_runtime_state);
     }
 };
 

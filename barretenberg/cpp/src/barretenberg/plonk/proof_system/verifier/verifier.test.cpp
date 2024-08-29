@@ -33,11 +33,11 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
     commitments.resize(8);
 
     for (size_t i = 0; i < 8; ++i) {
-        commitments[i] = g1::affine_element(
-            scalar_multiplication::pippenger<curve::BN254>(poly_coefficients[i].get(),
-                                                           circuit_proving_key->reference_string->get_monomial_points(),
-                                                           circuit_proving_key->circuit_size,
-                                                           state));
+        commitments[i] = g1::affine_element(scalar_multiplication::pippenger<curve::BN254>(
+            { poly_coefficients[i].get(), circuit_proving_key->circuit_size },
+            circuit_proving_key->reference_string->get_monomial_points(),
+            circuit_proving_key->circuit_size,
+            state));
     }
 
     auto crs = std::make_shared<bb::srs::factories::FileVerifierCrs<curve::BN254>>("../srs_db/ignition");
