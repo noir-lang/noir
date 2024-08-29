@@ -514,7 +514,7 @@ fn check_trait_wrong_parameter_type() {
     for (err, _file_id) in errors {
         match &err {
             CompilationError::ResolverError(ResolverError::PathResolutionError(
-                PathResolutionError::Unresolved(ident),
+                PathResolutionError::Unresolved(ident, _),
             )) => {
                 assert_eq!(ident, "NotAType");
             }
@@ -961,7 +961,10 @@ fn unresolved_path() {
         match compilation_error {
             CompilationError::ResolverError(err) => {
                 match err {
-                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
+                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(
+                        name,
+                        _,
+                    )) => {
                         assert_eq!(name.to_string(), "some");
                     }
                     _ => unimplemented!("we should only have an unresolved function"),
@@ -1009,7 +1012,10 @@ fn multiple_resolution_errors() {
                     ResolverError::VariableNotDeclared { name, .. } => {
                         assert_eq!(name, "a");
                     }
-                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
+                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(
+                        name,
+                        _,
+                    )) => {
                         assert_eq!(name.to_string(), "foo");
                     }
                     _ => unimplemented!(),
@@ -2460,7 +2466,7 @@ fn no_super() {
     assert_eq!(errors.len(), 1);
 
     let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-        PathResolutionError::NoSuper(span),
+        PathResolutionError::NoSuper(span, _),
     )) = &errors[0].0
     else {
         panic!("Expected a 'no super' error, got {:?}", errors[0].0);
