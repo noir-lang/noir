@@ -3,7 +3,10 @@ use noirc_frontend::token::Keyword;
 use strum::IntoEnumIterator;
 
 use super::{
-    completion_items::{simple_completion_item, snippet_completion_item},
+    completion_items::{
+        completion_item_with_trigger_parameter_hints_command, simple_completion_item,
+        snippet_completion_item,
+    },
     kinds::FunctionCompletionKind,
     name_matches, NodeFinder,
 };
@@ -31,12 +34,16 @@ impl<'a> NodeFinder<'a> {
                         }
                     }
 
-                    self.completion_items.push(snippet_completion_item(
-                        label,
-                        CompletionItemKind::FUNCTION,
-                        insert_text,
-                        description,
-                    ));
+                    self.completion_items.push(
+                        completion_item_with_trigger_parameter_hints_command(
+                            snippet_completion_item(
+                                label,
+                                CompletionItemKind::FUNCTION,
+                                insert_text,
+                                description,
+                            ),
+                        ),
+                    );
                 }
             }
         }
