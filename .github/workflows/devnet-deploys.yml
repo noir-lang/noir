@@ -156,8 +156,8 @@ jobs:
               echo "branch_name=provernet" >> $GITHUB_OUTPUT
               echo "network_api_key=PROVERNET_API_KEY" >> $GITHUB_OUTPUT
               echo "network_public_api_key=PROVERNET_PUBLIC_API_KEY" >> $GITHUB_OUTPUT
-              echo "agents_per_prover=4" >> $GITHUB_OUTPUT
-              echo "bot_interval=300" >> $GITHUB_OUTPUT
+              echo "agents_per_prover=8" >> $GITHUB_OUTPUT
+              echo "bot_interval=10" >> $GITHUB_OUTPUT
               echo "node_tcp_range_start=40200" >> $GITHUB_OUTPUT
               echo "node_udp_range_start=45200" >> $GITHUB_OUTPUT
               echo "prover_node_tcp_range_start=41200" >> $GITHUB_OUTPUT
@@ -170,7 +170,7 @@ jobs:
               echo "max_txs_per_block=4" >> $GITHUB_OUTPUT
               echo "bot_follow_chain=NONE" >> $GITHUB_OUTPUT
               echo "bot_flush_setup_txs=true" >> $GITHUB_OUTPUT
-              echo "bot_max_pending_txs=20" >> $GITHUB_OUTPUT
+              echo "bot_max_pending_txs=32" >> $GITHUB_OUTPUT
           elif [ "$BRANCH_NAME" = "alphanet" ]
           then
               echo "deploy_tag=alphanet" >> $GITHUB_OUTPUT
