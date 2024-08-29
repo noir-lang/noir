@@ -418,10 +418,13 @@ impl<'context> Elaborator<'context> {
                     Type::Constant(0)
                 });
 
-                if let Type::NamedGeneric(ref _type_var, ref name, ref kind) = resolved_length {
+                if let Type::NamedGeneric(ref _type_var, ref _name, ref kind) = resolved_length {
                     if !kind.is_numeric() {
-                        let ident = Ident::new(name.to_string(), span);
-                        self.push_err(ResolverError::UseExplicitNumericGeneric { ident });
+                        self.push_err(TypeCheckError::TypeKindMismatch {
+                            expected_kind: Kind::Numeric(Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo))).to_string(),
+                            expr_kind: kind.to_string(),
+                            expr_span: span,
+                        });
                         return Type::Error;
                     }
                 }

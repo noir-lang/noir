@@ -1334,7 +1334,7 @@ fn for_loop_over_array() {
     assert_eq!(errors.len(), 2);
     assert!(matches!(
         errors[0].0,
-        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. })
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
     ));
     assert!(matches!(
         errors[1].0,
@@ -1670,7 +1670,7 @@ fn normal_generic_as_array_length() {
     assert_eq!(errors.len(), 1);
     assert!(matches!(
         errors[0].0,
-        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
 
@@ -1881,7 +1881,6 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-
     assert!(matches!(
         errors[0].0,
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
@@ -1908,11 +1907,11 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     ));
     assert!(matches!(
         errors[1].0,
-        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     assert!(matches!(
         errors[2].0,
-        CompilationError::ResolverError(ResolverError::UseExplicitNumericGeneric { .. }),
+        CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     // N
     assert!(matches!(
