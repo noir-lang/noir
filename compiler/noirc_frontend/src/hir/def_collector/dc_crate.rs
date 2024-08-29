@@ -367,10 +367,8 @@ impl DefCollector {
                             .import(name.clone(), visibility, ns, is_prelude);
 
                         if visibility != ItemVisibility::Private {
-                            let defining_module = ModuleId {
-                                krate: crate_id,
-                                local_id: resolved_import.module_scope,
-                            };
+                            let local_id = resolved_import.module_scope;
+                            let defining_module = ModuleId { krate: crate_id, local_id };
                             context.def_interner.register_name_for_auto_import(
                                 name.to_string(),
                                 ns,

@@ -354,10 +354,10 @@ impl UseTree {
             UseTreeKind::Path(name, alias) => {
                 vec![ImportStatement { visibility, path: prefix.join(name), alias }]
             }
-            UseTreeKind::List(trees) => trees
-                .into_iter()
-                .flat_map(|tree| tree.desugar(Some(prefix.clone()), visibility))
-                .collect(),
+            UseTreeKind::List(trees) => {
+                let trees = trees.into_iter();
+                trees.flat_map(|tree| tree.desugar(Some(prefix.clone()), visibility)).collect()
+            }
         }
     }
 }

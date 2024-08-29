@@ -278,12 +278,8 @@ impl NodeInterner {
     }
 
     pub(crate) fn register_module(&mut self, id: ModuleId, name: String) {
-        self.register_name_for_auto_import(
-            name,
-            ModuleDefId::ModuleId(id),
-            ItemVisibility::Public,
-            None,
-        );
+        let visibility = ItemVisibility::Public;
+        self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, None);
     }
 
     pub(crate) fn register_global(
@@ -313,12 +309,8 @@ impl NodeInterner {
     pub(crate) fn register_trait(&mut self, id: TraitId, name: String, parent_module_id: ModuleId) {
         self.add_definition_location(ReferenceId::Trait(id), Some(parent_module_id));
 
-        self.register_name_for_auto_import(
-            name,
-            ModuleDefId::TraitId(id),
-            ItemVisibility::Public,
-            None,
-        );
+        let visibility = ItemVisibility::Public;
+        self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), visibility, None);
     }
 
     pub(crate) fn register_type_alias(
@@ -334,12 +326,9 @@ impl NodeInterner {
     }
 
     pub(crate) fn register_function(&mut self, id: FuncId, func_def: &FunctionDefinition) {
-        self.register_name_for_auto_import(
-            func_def.name.0.contents.clone(),
-            ModuleDefId::FunctionId(id),
-            func_def.visibility,
-            None,
-        );
+        let name = func_def.name.0.contents.clone();
+        let id = ModuleDefId::FunctionId(id);
+        self.register_name_for_auto_import(name, id, func_def.visibility, None);
     }
 
     pub fn register_name_for_auto_import(
@@ -353,11 +342,8 @@ impl NodeInterner {
             return;
         }
 
-        self.auto_import_names.entry(name).or_default().push((
-            module_def_id,
-            visibility,
-            defining_module,
-        ));
+        let entry = self.auto_import_names.entry(name).or_default();
+        entry.push((module_def_id, visibility, defining_module));
     }
 
     #[allow(clippy::type_complexity)]
