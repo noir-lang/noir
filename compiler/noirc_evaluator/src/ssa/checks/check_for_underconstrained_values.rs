@@ -338,8 +338,7 @@ impl Context {
         let mut prev_len = len + 1;
 
         while len > 1000 && len < prev_len {
-            let chunks: Vec<_> = sets.par_chunks(1000).collect();
-            sets = chunks.par_iter().flat_map(|sets| Self::merge_sets(sets)).collect();
+            sets = sets.par_chunks(1000).flat_map(|sets| Self::merge_sets(sets)).collect();
 
             prev_len = len;
             len = sets.len();
