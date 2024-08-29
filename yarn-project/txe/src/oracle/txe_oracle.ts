@@ -464,28 +464,22 @@ export class TXE implements TypedOracle {
     throw new Error('Method not implemented.');
   }
 
-  async avmOpcodeStorageRead(slot: Fr, length: Fr) {
+  async avmOpcodeStorageRead(slot: Fr) {
     const db = this.trees.asLatest();
 
-    const result = [];
+    const leafSlot = computePublicDataTreeLeafSlot(this.contractAddress, slot);
 
-    for (let i = 0; i < length.toNumber(); i++) {
-      const leafSlot = computePublicDataTreeLeafSlot(this.contractAddress, slot.add(new Fr(i))).toBigInt();
-
-      const lowLeafResult = await db.getPreviousValueIndex(MerkleTreeId.PUBLIC_DATA_TREE, leafSlot);
-      if (!lowLeafResult || !lowLeafResult.alreadyPresent) {
-        result.push(Fr.ZERO);
-        continue;
-      }
-
-      const preimage = (await db.getLeafPreimage(
-        MerkleTreeId.PUBLIC_DATA_TREE,
-        lowLeafResult.index,
-      )) as PublicDataTreeLeafPreimage;
-
-      result.push(preimage.value);
+    const lowLeafResult = await db.getPreviousValueIndex(MerkleTreeId.PUBLIC_DATA_TREE, leafSlot.toBigInt());
+    if (!lowLeafResult || !lowLeafResult.alreadyPresent) {
+      return Fr.ZERO;
     }
-    return result;
+
+    const preimage = (await db.getLeafPreimage(
+      MerkleTreeId.PUBLIC_DATA_TREE,
+      lowLeafResult.index,
+    )) as PublicDataTreeLeafPreimage;
+
+    return preimage.value;
   }
 
   async storageRead(

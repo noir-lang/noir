@@ -991,17 +991,16 @@ fn handle_storage_write(
     };
 
     let src_offset_maybe = inputs[1];
-    let (src_offset, size) = match src_offset_maybe {
-        ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
-        _ => panic!("Storage write address inputs should be an array of values"),
+    let src_offset = match src_offset_maybe {
+        ValueOrArray::MemoryAddress(src_offset) => src_offset.0,
+        _ => panic!("ForeignCall address source should be a single value"),
     };
 
     avm_instrs.push(AvmInstruction {
         opcode: AvmOpcode::SSTORE,
-        indirect: Some(ZEROTH_OPERAND_INDIRECT),
+        indirect: Some(ALL_DIRECT),
         operands: vec![
             AvmOperand::U32 { value: src_offset as u32 },
-            AvmOperand::U32 { value: size as u32 },
             AvmOperand::U32 { value: slot_offset as u32 },
         ],
         ..Default::default()
@@ -1047,28 +1046,26 @@ fn handle_storage_read(
     destinations: &Vec<ValueOrArray>,
     inputs: &Vec<ValueOrArray>,
 ) {
-    // For the foreign calls we want to handle, we do not want inputs, as they are getters
-    assert!(inputs.len() == 2); // output, len. The latter is not used by the AVM, but required in the oracle call so that TXE knows how many slots to read.
-    assert!(destinations.len() == 1); // return values
+    assert!(inputs.len() == 1); // output
+    assert!(destinations.len() == 1); // return value
 
     let slot_offset_maybe = inputs[0];
     let slot_offset = match slot_offset_maybe {
         ValueOrArray::MemoryAddress(slot_offset) => slot_offset.0,
-        _ => panic!("ForeignCall address destination should be a single value"),
+        _ => panic!("ForeignCall address input should be a single value"),
     };
 
     let dest_offset_maybe = destinations[0];
-    let (dest_offset, size) = match dest_offset_maybe {
-        ValueOrArray::HeapArray(HeapArray { pointer, size }) => (pointer.0, size),
-        _ => panic!("Storage write address inputs should be an array of values"),
+    let dest_offset = match dest_offset_maybe {
+        ValueOrArray::MemoryAddress(dest_offset) => dest_offset.0,
+        _ => panic!("ForeignCall address destination should be a single value"),
     };
 
     avm_instrs.push(AvmInstruction {
         opcode: AvmOpcode::SLOAD,
-        indirect: Some(FIRST_OPERAND_INDIRECT),
+        indirect: Some(ALL_DIRECT),
         operands: vec![
             AvmOperand::U32 { value: slot_offset as u32 },
-            AvmOperand::U32 { value: size as u32 },
             AvmOperand::U32 { value: dest_offset as u32 },
         ],
         ..Default::default()

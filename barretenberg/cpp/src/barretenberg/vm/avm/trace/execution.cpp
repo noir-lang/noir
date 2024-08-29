@@ -638,14 +638,14 @@ std::vector<Row> Execution::gen_trace(std::vector<Instruction> const& instructio
         case OpCode::SLOAD:
             trace_builder.op_sload(std::get<uint8_t>(inst.operands.at(0)),
                                    std::get<uint32_t>(inst.operands.at(1)),
-                                   std::get<uint32_t>(inst.operands.at(2)),
-                                   std::get<uint32_t>(inst.operands.at(3)));
+                                   1,
+                                   std::get<uint32_t>(inst.operands.at(2)));
             break;
         case OpCode::SSTORE:
             trace_builder.op_sstore(std::get<uint8_t>(inst.operands.at(0)),
                                     std::get<uint32_t>(inst.operands.at(1)),
-                                    std::get<uint32_t>(inst.operands.at(2)),
-                                    std::get<uint32_t>(inst.operands.at(3)));
+                                    1,
+                                    std::get<uint32_t>(inst.operands.at(2)));
             break;
         case OpCode::NOTEHASHEXISTS:
             trace_builder.op_note_hash_exists(std::get<uint8_t>(inst.operands.at(0)),

@@ -164,7 +164,11 @@ impl PublicContext {
     }
 
     fn raw_storage_read<let N: u32>(_self: Self, storage_slot: Field) -> [Field; N] {
-        storage_read(storage_slot)
+        let mut out = [0; N];
+        for i in 0..N {
+            out[i] = storage_read(storage_slot + i as Field);
+        }
+        out
     }
 
     fn storage_read<T, let N: u32>(self, storage_slot: Field) -> T where T: Deserialize<N> {
@@ -172,7 +176,9 @@ impl PublicContext {
     }
 
     fn raw_storage_write<let N: u32>(_self: Self, storage_slot: Field, values: [Field; N]) {
-        storage_write(storage_slot, values);
+        for i in 0..N {
+            storage_write(storage_slot + i as Field, values[i]);
+        }
     }
 
     fn storage_write<T, let N: u32>(self, storage_slot: Field, value: T) where T: Serialize<N> {
@@ -272,12 +278,12 @@ unconstrained fn call_static<let RET_SIZE: u32>(
     call_static_opcode(gas, address, args, function_selector)
 }
 
-unconstrained fn storage_read<let N: u32>(storage_slot: Field) -> [Field; N] {
-    storage_read_opcode(storage_slot, N as Field)
+unconstrained fn storage_read(storage_slot: Field) -> Field {
+    storage_read_opcode(storage_slot)
 }
 
-unconstrained fn storage_write<let N: u32>(storage_slot: Field, values: [Field; N]) {
-    storage_write_opcode(storage_slot, values);
+unconstrained fn storage_write(storage_slot: Field, value: Field) {
+    storage_write_opcode(storage_slot, value);
 }
 
 impl Empty for PublicContext {
@@ -371,10 +377,10 @@ unconstrained fn call_static_opcode<let RET_SIZE: u32>(
 //    ^ return data      ^ success
 
 #[oracle(avmOpcodeStorageRead)]
-unconstrained fn storage_read_opcode<let N: u32>(storage_slot: Field, length: Field) -> [Field; N] {}
+unconstrained fn storage_read_opcode(storage_slot: Field) -> Field {}
 
 #[oracle(avmOpcodeStorageWrite)]
-unconstrained fn storage_write_opcode<let N: u32>(storage_slot: Field, values: [Field; N]) {}
+unconstrained fn storage_write_opcode(storage_slot: Field, value: Field) {}
 
 struct FunctionReturns<let N: u32> {
     values: [Field; N]

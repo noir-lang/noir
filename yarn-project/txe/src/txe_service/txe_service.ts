@@ -562,13 +562,13 @@ export class TXEService {
     return toForeignCallResult([toArray(result.returnValues), toSingle(new Fr(1))]);
   }
 
-  async avmOpcodeStorageRead(slot: ForeignCallSingle, length: ForeignCallSingle) {
-    const values = await (this.typedOracle as TXE).avmOpcodeStorageRead(fromSingle(slot), fromSingle(length));
-    return toForeignCallResult([toArray(values)]);
+  async avmOpcodeStorageRead(slot: ForeignCallSingle) {
+    const value = await (this.typedOracle as TXE).avmOpcodeStorageRead(fromSingle(slot));
+    return toForeignCallResult([toSingle(value)]);
   }
 
-  async avmOpcodeStorageWrite(startStorageSlot: ForeignCallSingle, values: ForeignCallArray) {
-    await this.typedOracle.storageWrite(fromSingle(startStorageSlot), fromArray(values));
+  async avmOpcodeStorageWrite(slot: ForeignCallSingle, value: ForeignCallSingle) {
+    await this.typedOracle.storageWrite(fromSingle(slot), [fromSingle(value)]);
     return toForeignCallResult([]);
   }
 

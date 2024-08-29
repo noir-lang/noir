@@ -1,5 +1,3 @@
-import { Fr } from '@aztec/foundation/fields';
-
 import type { AvmContext } from '../avm_context.js';
 import { Field, TypeTag } from '../avm_memory_types.js';
 import { StaticCallAlterationError } from '../errors.js';
@@ -14,15 +12,9 @@ abstract class BaseStorageInstruction extends Instruction {
     OperandType.UINT8,
     OperandType.UINT32,
     OperandType.UINT32,
-    OperandType.UINT32,
   ];
 
-  constructor(
-    protected indirect: number,
-    protected aOffset: number,
-    protected /*temporary*/ size: number,
-    protected bOffset: number,
-  ) {
+  constructor(protected indirect: number, protected aOffset: number, protected bOffset: number) {
     super();
   }
 }
@@ -31,8 +23,8 @@ export class SStore extends BaseStorageInstruction {
   static readonly type: string = 'SSTORE';
   static readonly opcode = Opcode.SSTORE;
 
-  constructor(indirect: number, srcOffset: number, /*temporary*/ size: number, slotOffset: number) {
-    super(indirect, srcOffset, size, slotOffset);
+  constructor(indirect: number, srcOffset: number, slotOffset: number) {
+    super(indirect, srcOffset, slotOffset);
   }
 
   public async execute(context: AvmContext): Promise<void> {
@@ -40,21 +32,17 @@ export class SStore extends BaseStorageInstruction {
       throw new StaticCallAlterationError();
     }
 
-    const memoryOperations = { reads: this.size + 1, indirect: this.indirect };
+    const memoryOperations = { reads: 2, indirect: this.indirect };
     const memory = context.machineState.memory.track(this.type);
-    context.machineState.consumeGas(this.gasCost({ ...memoryOperations, dynMultiplier: this.size }));
+    context.machineState.consumeGas(this.gasCost({ ...memoryOperations }));
 
     const [srcOffset, slotOffset] = Addressing.fromWire(this.indirect).resolve([this.aOffset, this.bOffset], memory);
     memory.checkTag(TypeTag.FIELD, slotOffset);
-    memory.checkTagsRange(TypeTag.FIELD, srcOffset, this.size);
+    memory.checkTag(TypeTag.FIELD, srcOffset);
 
     const slot = memory.get(slotOffset).toFr();
-    const data = memory.getSlice(srcOffset, this.size).map(field => field.toFr());
-
-    for (const [index, value] of Object.entries(data)) {
-      const adjustedSlot = slot.add(new Fr(BigInt(index)));
-      context.persistableState.writeStorage(context.environment.storageAddress, adjustedSlot, value);
-    }
+    const value = memory.get(srcOffset).toFr();
+    context.persistableState.writeStorage(context.environment.storageAddress, slot, value);
 
     memory.assert(memoryOperations);
     context.machineState.incrementPc();
@@ -65,29 +53,21 @@ export class SLoad extends BaseStorageInstruction {
   static readonly type: string = 'SLOAD';
   static readonly opcode = Opcode.SLOAD;
 
-  constructor(indirect: number, slotOffset: number, size: number, dstOffset: number) {
-    super(indirect, slotOffset, size, dstOffset);
+  constructor(indirect: number, slotOffset: number, dstOffset: number) {
+    super(indirect, slotOffset, dstOffset);
   }
 
   public async execute(context: AvmContext): Promise<void> {
-    const memoryOperations = { writes: this.size, reads: 1, indirect: this.indirect };
+    const memoryOperations = { writes: 1, reads: 1, indirect: this.indirect };
     const memory = context.machineState.memory.track(this.type);
-    context.machineState.consumeGas(this.gasCost({ ...memoryOperations, dynMultiplier: this.size }));
+    context.machineState.consumeGas(this.gasCost({ ...memoryOperations }));
 
     const [slotOffset, dstOffset] = Addressing.fromWire(this.indirect).resolve([this.aOffset, this.bOffset], memory);
     memory.checkTag(TypeTag.FIELD, slotOffset);
 
-    const slot = memory.get(slotOffset);
-
-    // Write each read value from storage into memory
-    for (let i = 0; i < this.size; i++) {
-      const data: Fr = await context.persistableState.readStorage(
-        context.environment.storageAddress,
-        new Fr(slot.toBigInt() + BigInt(i)),
-      );
-
-      memory.set(dstOffset + i, new Field(data));
-    }
+    const slot = memory.get(slotOffset).toFr();
+    const value = await context.persistableState.readStorage(context.environment.storageAddress, slot);
+    memory.set(dstOffset, new Field(value));
 
     context.machineState.incrementPc();
     memory.assert(memoryOperations);

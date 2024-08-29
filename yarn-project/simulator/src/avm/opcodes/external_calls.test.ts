@@ -89,7 +89,7 @@ describe('External Calls', () => {
             /*copySize=*/ argsSize,
             /*dstOffset=*/ 0,
           ),
-          new SStore(/*indirect=*/ 0, /*srcOffset=*/ valueOffset, /*size=*/ 1, /*slotOffset=*/ slotOffset),
+          new SStore(/*indirect=*/ 0, /*srcOffset=*/ valueOffset, /*slotOffset=*/ slotOffset),
           new Return(/*indirect=*/ 0, /*retOffset=*/ 0, /*size=*/ 2),
         ]),
       );
@@ -230,7 +230,7 @@ describe('External Calls', () => {
       context.machineState.memory.setSlice(argsOffset, args);
 
       const otherContextInstructions: Instruction[] = [
-        new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*size=*/ 0, /*slotOffset=*/ 0),
+        new SStore(/*indirect=*/ 0, /*srcOffset=*/ 0, /*slotOffset=*/ 0),
       ];
 
       const otherContextInstructionsBytecode = markBytecodeAsAvm(encodeToBytecode(otherContextInstructions));
